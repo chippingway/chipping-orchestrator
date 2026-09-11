@@ -22,16 +22,12 @@ from orchestrator.workflow.late_split.models import (
 )
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import _PatchedWorkflowMixin
+from tests.workflow.stages.decomposition import late_cleanup_support as _support
 from tests.workflow.stages.decomposition.late_cleanup_support import (
-    PARENT_NUMBER,
-    STATE_RECONCILED,
-    SUPERSEDED_BRANCH,
     OwnerSeed,
     RecordedDelete,
     SeededUmbrella,
     SnapshotOutcome,
-    resource_states,
-    split_umbrella,
 )
 from tests.workflow.stages.decomposition.late_route_support import (
     routed_owner,
@@ -47,7 +43,7 @@ _WORKFLOW_LOG = "orchestrator.workflow"
 # never matters here -- only that asking about it can fail.
 _ANCESTOR_REF = "refs/orchestrator/late-split/issue-4/cycle-1/gen-0"
 
-_RETIRED = ((PARENT_NUMBER, WorkflowLabel.REJECTED),)
+_RETIRED = ((_support.PARENT_NUMBER, WorkflowLabel.REJECTED),)
 
 _KEY_CANCELLED = "late_cancelled"
 
@@ -66,7 +62,7 @@ def _reopened_owner(
     `ancestor` makes it a NESTED owner as well, which is what puts the reuse
     guard between the dispatcher's one pinned read and this issue's own.
     """
-    return split_umbrella(
+    return _support.split_umbrella(
         owed,
         owner=OwnerSeed(
             label=label,
@@ -80,7 +76,7 @@ def _reopened_owner(
 
 def _closed_handoff() -> SeededUmbrella:
     """A `single` closed inside the handoff, its cycle still reading live."""
-    return split_umbrella(
+    return _support.split_umbrella(
         None,
         owner=OwnerSeed(
             label=WorkflowLabel.IMPLEMENTING,
@@ -99,7 +95,7 @@ def _cancelled_handoff() -> SeededUmbrella:
     label the whole of what the terminal has to go on: the ledger holds no
     obligation for the guard to be stopped by.
     """
-    return split_umbrella(
+    return _support.split_umbrella(
         None,
         owner=OwnerSeed(
             label=WorkflowLabel.IMPLEMENTING,
@@ -132,11 +128,11 @@ class CancelledOwnerDispatchTest(_PatchedWorkflowMixin, unittest.TestCase):
         routed_owner(self, seeded, WorkflowLabel.DECOMPOSING)
 
         self.assertEqual(
-            seeded.github.deleted_remote_branches, [SUPERSEDED_BRANCH],
+            seeded.github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH],
         )
         self.assertEqual(
-            resource_states(seeded.github)[SUPERSEDED_BRANCH],
-            STATE_RECONCILED,
+            _support.resource_states(seeded.github)[_support.SUPERSEDED_BRANCH],
+            _support.STATE_RECONCILED,
         )
 
     def test_a_settled_cycle_stops_at_the_terminal(self) -> None:
@@ -188,7 +184,7 @@ class CancelledOwnerDispatchTest(_PatchedWorkflowMixin, unittest.TestCase):
         dispatched.assert_not_called()
         self.assertEqual(
             seeded.github.deleted_remote_branches,
-            [SUPERSEDED_BRANCH, SUPERSEDED_BRANCH],
+            [_support.SUPERSEDED_BRANCH, _support.SUPERSEDED_BRANCH],
         )
 
     def test_an_ancestor_outage_does_not_starve_it(self) -> None:
@@ -210,7 +206,7 @@ class CancelledOwnerDispatchTest(_PatchedWorkflowMixin, unittest.TestCase):
 
         dispatched.assert_not_called()
         self.assertEqual(
-            seeded.github.deleted_remote_branches, [SUPERSEDED_BRANCH],
+            seeded.github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH],
         )
         self.assertEqual(tuple(seeded.github.label_history), _RETIRED)
 
@@ -240,7 +236,7 @@ class ClosedUnderAnOrdinaryLabelTest(
             self._routed()
 
         self.assertTrue(
-            self.seeded.github.pinned_data(PARENT_NUMBER)[_KEY_CANCELLED],
+            self.seeded.github.pinned_data(_support.PARENT_NUMBER)[_KEY_CANCELLED],
         )
 
     def test_the_handler_is_never_reached(self) -> None:
@@ -264,7 +260,7 @@ class ClosedUnderAnOrdinaryLabelTest(
     def test_a_closed_issue_with_no_cycle_runs(self) -> None:
         # The baseline: every other closed issue still reaches the terminal
         # arc its own label names.
-        self.seeded = split_umbrella(
+        self.seeded = _support.split_umbrella(
             None,
             owner=OwnerSeed(
                 label=WorkflowLabel.IMPLEMENTING,

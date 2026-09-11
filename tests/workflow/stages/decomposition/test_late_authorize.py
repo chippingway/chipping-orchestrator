@@ -30,22 +30,8 @@ from orchestrator.workflow.late_split import overrides as _overrides
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
-from tests.workflow.stages.decomposition.late_content_support import (
-    BARE_CONTINUE,
-    EDITED_TITLE,
-    EVENT_AGENT_SPAWN,
-    HUMAN,
-    OUTSIDER,
-    PARK_CONTENT_DRIFT,
-    PARK_QUESTION,
-    PARK_SINGLE_DECISION,
-    ROLE_DEVELOPER,
-    SINGLE_PARKED,
-    LateContentCase,
-    authorization,
-    human_comment,
-    reply,
-)
+from tests.workflow.stages.decomposition import late_content_support as _support, late_test_support as _stage_support
+from tests.workflow.stages.decomposition.late_content_support import LateContentCase
 from tests.workflow.stages.decomposition.late_published_support import (
     published_generation,
     seed_published_pr,
@@ -59,22 +45,6 @@ from tests.workflow.stages.decomposition.late_run_support import WorktreeSeed
 from tests.workflow.stages.decomposition.late_settlement_support import (
     OWNER_GUARD,
     killed_at,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    ADDITIONS,
-    BASE_SHA,
-    CANDIDATE_SHA,
-    CONTRIBUTION_DIGEST,
-    DIGEST_LENGTH,
-    KEYS,
-    OTHER_SHA,
-    PUBLISHED_HEAD_SHA,
-    PUBLISHED_SOURCE_STAGE,
-    QUESTION_ASKED,
-    QUESTION_REPLY,
-    SINGLE_REPLY,
-    SPLIT_REPLY,
-    THRESHOLD,
 )
 
 ALLOWED_AUTHORS = "ALLOWED_ISSUE_AUTHORS"
@@ -104,19 +74,19 @@ EARLY_COMMENT_ID = 20
 # command: the record is what a later reader holds the decision to, so a term
 # the human supplied would let them authorize something they never read.
 _AUTHORIZED_TERMS = (
-    (_overrides.LATE_OVERRIDE_CANDIDATE_SHA, CANDIDATE_SHA),
-    (_overrides.LATE_OVERRIDE_BASE_SHA, BASE_SHA),
-    (_overrides.LATE_OVERRIDE_FINGERPRINT, CONTRIBUTION_DIGEST),
+    (_overrides.LATE_OVERRIDE_CANDIDATE_SHA, _stage_support.CANDIDATE_SHA),
+    (_overrides.LATE_OVERRIDE_BASE_SHA, _stage_support.BASE_SHA),
+    (_overrides.LATE_OVERRIDE_FINGERPRINT, _stage_support.CONTRIBUTION_DIGEST),
     (_overrides.LATE_OVERRIDE_FINGERPRINT_FORMAT, FINGERPRINT_FORMAT),
-    (_overrides.LATE_OVERRIDE_ADDITIONS, ADDITIONS),
-    (_overrides.LATE_OVERRIDE_THRESHOLD, THRESHOLD),
+    (_overrides.LATE_OVERRIDE_ADDITIONS, _stage_support.ADDITIONS),
+    (_overrides.LATE_OVERRIDE_THRESHOLD, _stage_support.THRESHOLD),
 )
 
 # Every argument that is not the commit this issue is parked on: one it was
 # replaced by, the abbreviation nothing here ever writes, prose, and a command
 # with no argument at all. All four ARE the command -- an operator wrote it --
 # so all four are owed the same answer rather than being read as guidance.
-_NOT_THE_CANDIDATE = (OTHER_SHA, CANDIDATE_SHA[:7], "the one above", "")
+_NOT_THE_CANDIDATE = (_stage_support.OTHER_SHA, _stage_support.CANDIDATE_SHA[:7], "the one above", "")
 
 # A store holding both frozen commits and unable to hand back the content
 # between them. Nothing about it is the operator's doing, so their command is
@@ -127,7 +97,7 @@ _UNFINGERPRINTED = WorktreeSeed(fingerprint=FingerprintFailure.CONTENT_ABSENT)
 # object, a hand-edited record, and an older binary's digest all look like from
 # the publication's side, and the one term the record cannot arrange for
 # itself.
-_MOVED_DIGEST = "7" * DIGEST_LENGTH
+_MOVED_DIGEST = "7" * _stage_support.DIGEST_LENGTH
 
 _MOVED_CONTRIBUTION = WorktreeSeed(fingerprint=_MOVED_DIGEST)
 
@@ -136,7 +106,7 @@ _MOVED_CONTRIBUTION = WorktreeSeed(fingerprint=_MOVED_DIGEST)
 # the one it was frozen over. Only the generation counter has advanced, which
 # is the identity the record deliberately does not carry.
 _UNCHANGED_MEASUREMENT = AdditionMeasurement(
-    base_sha=BASE_SHA, candidate_sha=CANDIDATE_SHA, additions=ADDITIONS,
+    base_sha=_stage_support.BASE_SHA, candidate_sha=_stage_support.CANDIDATE_SHA, additions=_stage_support.ADDITIONS,
 )
 
 # What a pinned write that never lands raises. The type is not the point --
@@ -167,11 +137,11 @@ class _AuthorizeCase(LateContentCase):
 
     def _park(self, **state) -> None:
         """Seed the issue as one an adjudicator answered `single` about."""
-        self._seed(**{**SINGLE_PARKED, **state})
+        self._seed(**{**_support.SINGLE_PARKED, **state})
 
-    def _command(self, named: str = CANDIDATE_SHA):
+    def _command(self, named: str = _stage_support.CANDIDATE_SHA):
         """Post the authorization as a reply to the park's own notice."""
-        return reply(self.issue, authorization(named))
+        return _support.reply(self.issue, _support.authorization(named))
 
     def _tick(self, **run_fields):
         """Run one adjudication, keeping the spawn for the caller to assert."""
@@ -194,15 +164,15 @@ class _AuthorizeCase(LateContentCase):
         self._command()
         with killed_at(OWNER_GUARD), self.assertRaises(KeyboardInterrupt):
             self._tick()
-        self.assertEqual(self._authorized(), CANDIDATE_SHA)
+        self.assertEqual(self._authorized(), _stage_support.CANDIDATE_SHA)
 
     def _assert_still_parked(self) -> None:
         """Nothing published, nothing recorded, and the question standing."""
         pinned = self._pinned()
-        self.assertTrue(pinned.get(KEYS.awaiting))
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_SINGLE_DECISION)
+        self.assertTrue(pinned.get(_stage_support.KEYS.awaiting))
+        self.assertEqual(pinned.get(_stage_support.KEYS.park_reason), _support.PARK_SINGLE_DECISION)
         self.assertIsNone(self._authorized())
-        self.assertNotIn(KEYS.exempt_sha, pinned)
+        self.assertNotIn(_stage_support.KEYS.exempt_sha, pinned)
         self.assertEqual(
             self.github.workflow_label(self.issue), LABEL_DECOMPOSING,
         )
@@ -222,7 +192,7 @@ class AuthorizedPublicationTest(_AuthorizeCase):
         # buys is the publication of that answer rather than a second one.
         self.spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
-        self.assertEqual(self._pinned().get(KEYS.exempt_sha), CANDIDATE_SHA)
+        self.assertEqual(self._pinned().get(_stage_support.KEYS.exempt_sha), _stage_support.CANDIDATE_SHA)
         self.assertEqual(
             self.github.workflow_label(self.issue), LABEL_IMPLEMENTING,
         )
@@ -249,8 +219,8 @@ class AuthorizedPublicationTest(_AuthorizeCase):
         self._tick()
 
         pinned = self._pinned()
-        self.assertFalse(pinned.get(KEYS.awaiting))
-        self.assertIsNone(pinned.get(KEYS.park_reason))
+        self.assertFalse(pinned.get(_stage_support.KEYS.awaiting))
+        self.assertIsNone(pinned.get(_stage_support.KEYS.park_reason))
         self.assertGreaterEqual(
             pinned.get(KEY_LAST_ACTION_COMMENT_ID), self.commanded.id,
         )
@@ -265,7 +235,7 @@ class AuthorizedPublicationTest(_AuthorizeCase):
 
         said = [body for body in self._bodies() if ACCEPTED_NOTICE in body]
         self.assertEqual(len(said), SAID_ONCE)
-        self.assertEqual(self._pinned().get(KEYS.exempt_sha), CANDIDATE_SHA)
+        self.assertEqual(self._pinned().get(_stage_support.KEYS.exempt_sha), _stage_support.CANDIDATE_SHA)
 
     def test_a_repeat_after_publication_is_moot(self) -> None:
         self._tick()
@@ -277,7 +247,7 @@ class AuthorizedPublicationTest(_AuthorizeCase):
         # no longer a late adjudication at all and the command names nothing.
         self.spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.NOT_LATE)
-        self.assertEqual(self._pinned().get(KEYS.exempt_sha), CANDIDATE_SHA)
+        self.assertEqual(self._pinned().get(_stage_support.KEYS.exempt_sha), _stage_support.CANDIDATE_SHA)
 
 
 class RefusedAuthorizationTest(_AuthorizeCase):
@@ -287,7 +257,7 @@ class RefusedAuthorizationTest(_AuthorizeCase):
         for named in _NOT_THE_CANDIDATE:
             with self.subTest(named=named):
                 self.setUp()
-                reply(self.issue, authorization(named).strip())
+                _support.reply(self.issue, _support.authorization(named).strip())
 
                 outcome = self._tick()
 
@@ -298,10 +268,10 @@ class RefusedAuthorizationTest(_AuthorizeCase):
                 self.assertIn(WRONG_CANDIDATE_NOTICE, said)
                 # The sentence carries the commit that WOULD have worked, so
                 # the human's next comment is one this park can act on.
-                self.assertIn(CANDIDATE_SHA, said)
+                self.assertIn(_stage_support.CANDIDATE_SHA, said)
 
     def test_a_bare_continue_is_refused(self) -> None:
-        reply(self.issue, BARE_CONTINUE)
+        _support.reply(self.issue, _support.BARE_CONTINUE)
 
         outcome = self._tick()
 
@@ -313,7 +283,7 @@ class RefusedAuthorizationTest(_AuthorizeCase):
         # The command is consumed with the answer, so a park that stands for
         # as long as the human takes does not bury its own question under a
         # refusal repeated every poll.
-        self._command(OTHER_SHA)
+        self._command(_stage_support.OTHER_SHA)
         self._tick()
 
         self._tick()
@@ -329,7 +299,7 @@ class RefusedAuthorizationTest(_AuthorizeCase):
         # operations. A tick that says it and then fails to record it reads
         # the same command again on the next poll, and the receipt already on
         # the thread is what keeps that reading from saying it twice.
-        commanded = self._command(OTHER_SHA)
+        commanded = self._command(_stage_support.OTHER_SHA)
         with refused_write(self.github), self.assertRaises(RuntimeError):
             self._tick()
         self.assertEqual(len(self._bodies()), SAID_ONCE)
@@ -352,10 +322,10 @@ class RefusedAuthorizationTest(_AuthorizeCase):
     def test_a_later_reply_earns_its_own_answer(self) -> None:
         # The receipt is scoped to the reading it answers, not to the park, so
         # a human who writes a second wrong command is not met with silence.
-        self._command(OTHER_SHA)
+        self._command(_stage_support.OTHER_SHA)
         self._tick()
 
-        self._command(OTHER_SHA)
+        self._command(_stage_support.OTHER_SHA)
         self._tick()
 
         refused = [
@@ -379,7 +349,7 @@ class RefusedAuthorizationTest(_AuthorizeCase):
         healed = self._tick()
 
         self.assertEqual(healed.disposition, _LateDisposition.SETTLED)
-        self.assertEqual(self._pinned().get(KEYS.exempt_sha), CANDIDATE_SHA)
+        self.assertEqual(self._pinned().get(_stage_support.KEYS.exempt_sha), _stage_support.CANDIDATE_SHA)
 
 
 class UnauthorizedReplyTest(_AuthorizeCase):
@@ -389,11 +359,11 @@ class UnauthorizedReplyTest(_AuthorizeCase):
         # The allowlist is applied where the thread is read, so an outsider's
         # comment is not in the reading this owner is handed at all: it is not
         # a command, not guidance, and not something to answer.
-        self.issue.comments.append(human_comment(
-            OUTSIDER_COMMENT_ID, authorization(), login=OUTSIDER,
+        self.issue.comments.append(_support.human_comment(
+            OUTSIDER_COMMENT_ID, _support.authorization(), login=_support.OUTSIDER,
         ))
 
-        with patch.object(config, ALLOWED_AUTHORS, (HUMAN,)):
+        with patch.object(config, ALLOWED_AUTHORS, (_support.HUMAN,)):
             outcome = self._tick()
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
@@ -404,7 +374,7 @@ class UnauthorizedReplyTest(_AuthorizeCase):
         # A command posted below the park's own notice was written before the
         # question was put, so it is not an answer to it.
         self.issue.comments.append(
-            human_comment(EARLY_COMMENT_ID, authorization()),
+            _support.human_comment(EARLY_COMMENT_ID, _support.authorization()),
         )
 
         outcome = self._tick()
@@ -416,7 +386,7 @@ class UnauthorizedReplyTest(_AuthorizeCase):
         # Not the whole comment, so not the command: those are words about the
         # change, and words about the change reopen the work rather than
         # publishing it.
-        reply(self.issue, f"{authorization()}\n\nbut drop the retry loop")
+        _support.reply(self.issue, f"{_support.authorization()}\n\nbut drop the retry loop")
 
         self._assert_reopened_the_work()
 
@@ -424,7 +394,7 @@ class UnauthorizedReplyTest(_AuthorizeCase):
         # Two comments saying opposite things. The safe reading of a human who
         # wrote both is the one that publishes nothing.
         self._command()
-        reply(self.issue, "take the migration out of this one")
+        _support.reply(self.issue, "take the migration out of this one")
 
         self._assert_reopened_the_work()
 
@@ -439,27 +409,27 @@ class UnauthorizedReplyTest(_AuthorizeCase):
 
         self.spawn.assert_called_once()
         self.assertEqual(
-            self._events_named(EVENT_AGENT_SPAWN)[-1]["agent_role"],
-            ROLE_DEVELOPER,
+            self._events_named(_support.EVENT_AGENT_SPAWN)[-1]["agent_role"],
+            _support.ROLE_DEVELOPER,
         )
         self.assertIsNone(self._authorized())
-        self.assertNotIn(KEYS.exempt_sha, self._pinned())
+        self.assertNotIn(_stage_support.KEYS.exempt_sha, self._pinned())
 
 
 class DriftedAuthorizationTest(_AuthorizeCase):
     """Requirements that moved outrank a decision taken before they did."""
 
     def test_an_edit_parks_the_command_unread(self) -> None:
-        self.issue.title = EDITED_TITLE
+        self.issue.title = _support.EDITED_TITLE
         self._command()
 
         outcome = self._tick()
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         pinned = self._pinned()
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_CONTENT_DRIFT)
+        self.assertEqual(pinned.get(_stage_support.KEYS.park_reason), _support.PARK_CONTENT_DRIFT)
         self.assertIsNone(self._authorized())
-        self.assertNotIn(KEYS.exempt_sha, pinned)
+        self.assertNotIn(_stage_support.KEYS.exempt_sha, pinned)
 
 
 class PublishedCandidateTest(_AuthorizeCase):
@@ -481,14 +451,14 @@ class PublishedCandidateTest(_AuthorizeCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
         pinned = self._pinned()
-        self.assertEqual(pinned.get(KEYS.exempt_sha), CANDIDATE_SHA)
+        self.assertEqual(pinned.get(_stage_support.KEYS.exempt_sha), _stage_support.CANDIDATE_SHA)
         self.assertEqual(
-            self.github.workflow_label(self.issue), PUBLISHED_SOURCE_STAGE,
+            self.github.workflow_label(self.issue), _stage_support.PUBLISHED_SOURCE_STAGE,
         )
         # Nothing is owed once the push has landed, which is what says it did:
         # a debt left on the record would freeze this branch out of the base
         # refresh for good, and a push that missed keeps one (below).
-        self.assertIsNone(pinned.get(KEYS.approved_sha))
+        self.assertIsNone(pinned.get(_stage_support.KEYS.approved_sha))
 
     def test_a_refused_push_keeps_the_authorization(self) -> None:
         # The record is durable ahead of every effect it licenses, so a push
@@ -498,9 +468,9 @@ class PublishedCandidateTest(_AuthorizeCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         pinned = self._pinned()
-        self.assertEqual(self._authorized(), CANDIDATE_SHA)
-        self.assertEqual(pinned.get(KEYS.approved_sha), CANDIDATE_SHA)
-        self.assertEqual(pinned.get(KEYS.approved_lease), PUBLISHED_HEAD_SHA)
+        self.assertEqual(self._authorized(), _stage_support.CANDIDATE_SHA)
+        self.assertEqual(pinned.get(_stage_support.KEYS.approved_sha), _stage_support.CANDIDATE_SHA)
+        self.assertEqual(pinned.get(_stage_support.KEYS.approved_lease), _stage_support.PUBLISHED_HEAD_SHA)
 
 
 class AuthorizationRecoveryTest(_AuthorizeCase):
@@ -517,7 +487,7 @@ class AuthorizationRecoveryTest(_AuthorizeCase):
 
         self.spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
-        self.assertEqual(self._pinned().get(KEYS.exempt_sha), CANDIDATE_SHA)
+        self.assertEqual(self._pinned().get(_stage_support.KEYS.exempt_sha), _stage_support.CANDIDATE_SHA)
 
     def test_recovery_reproves_the_contribution(self) -> None:
         # The record agreeing with itself is not evidence: a publication can
@@ -536,14 +506,14 @@ class AuthorizationRecoveryTest(_AuthorizeCase):
                 outcome = self._tick(worktree=seed)
 
                 self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
-                self.assertNotIn(KEYS.exempt_sha, self._pinned())
+                self.assertNotIn(_stage_support.KEYS.exempt_sha, self._pinned())
                 # Parked, and with nothing lost: the authorization stands, so
                 # a host that can read the pair again publishes what the
                 # operator already decided.
-                self.assertEqual(self._authorized(), CANDIDATE_SHA)
+                self.assertEqual(self._authorized(), _stage_support.CANDIDATE_SHA)
                 self.assertEqual(
-                    self._pinned().get(KEYS.park_reason),
-                    PARK_SINGLE_DECISION,
+                    self._pinned().get(_stage_support.KEYS.park_reason),
+                    _support.PARK_SINGLE_DECISION,
                 )
 
     def test_a_repaired_store_publishes_it(self) -> None:
@@ -554,7 +524,7 @@ class AuthorizationRecoveryTest(_AuthorizeCase):
 
         self.spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
-        self.assertEqual(self._pinned().get(KEYS.exempt_sha), CANDIDATE_SHA)
+        self.assertEqual(self._pinned().get(_stage_support.KEYS.exempt_sha), _stage_support.CANDIDATE_SHA)
 
     def test_a_moved_candidate_publishes_nothing(self) -> None:
         # The commit alone is not the authorization. A generation standing
@@ -569,9 +539,9 @@ class AuthorizationRecoveryTest(_AuthorizeCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         pinned = self._pinned()
-        self.assertEqual(self._authorized(), CANDIDATE_SHA)
-        self.assertNotIn(KEYS.exempt_sha, pinned)
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_SINGLE_DECISION)
+        self.assertEqual(self._authorized(), _stage_support.CANDIDATE_SHA)
+        self.assertNotIn(_stage_support.KEYS.exempt_sha, pinned)
+        self.assertEqual(pinned.get(_stage_support.KEYS.park_reason), _support.PARK_SINGLE_DECISION)
     def _moved_base(self) -> None:
         """Stand the frozen pair over another base, keeping the record whole.
 
@@ -582,7 +552,7 @@ class AuthorizationRecoveryTest(_AuthorizeCase):
         """
         self.github.seed_state(
             self.issue.number,
-            **{**self._pinned(), KEYS.base_sha: OTHER_SHA},
+            **{**self._pinned(), _stage_support.KEYS.base_sha: _stage_support.OTHER_SHA},
         )
 
 
@@ -602,14 +572,14 @@ class ReplacedAnswerTest(_AuthorizeCase):
         # `single` publishing on a permission nobody granted it. What stops it
         # is the record going with the answer it was given for.
         self._authorize_then_crash()
-        self.issue.title = EDITED_TITLE
+        self.issue.title = _support.EDITED_TITLE
         self._tick()
         self.assertEqual(
-            self._pinned().get(KEYS.park_reason), PARK_CONTENT_DRIFT,
+            self._pinned().get(_stage_support.KEYS.park_reason), _support.PARK_CONTENT_DRIFT,
         )
-        reply(self.issue, BARE_CONTINUE)
+        _support.reply(self.issue, _support.BARE_CONTINUE)
 
-        outcome = self._tick(reply=SINGLE_REPLY)
+        outcome = self._tick(reply=_stage_support.SINGLE_REPLY)
 
         # The certificate bought a fresh adjudication, it answered `single`
         # again, and the issue is back where an unauthorized one waits.
@@ -617,8 +587,8 @@ class ReplacedAnswerTest(_AuthorizeCase):
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         pinned = self._pinned()
         self.assertIsNone(self._authorized())
-        self.assertNotIn(KEYS.exempt_sha, pinned)
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_SINGLE_DECISION)
+        self.assertNotIn(_stage_support.KEYS.exempt_sha, pinned)
+        self.assertEqual(pinned.get(_stage_support.KEYS.park_reason), _support.PARK_SINGLE_DECISION)
 
     def test_a_revision_ends_the_authorization(self) -> None:
         # The other road to a second adjudication, and the one the terms
@@ -629,7 +599,7 @@ class ReplacedAnswerTest(_AuthorizeCase):
         self.github.seed_state(
             self.issue.number, **{**self._pinned(), **DEV_PIN},
         )
-        reply(self.issue)
+        _support.reply(self.issue)
 
         revised = self._tick(
             reply=DEV_ACK,
@@ -649,19 +619,19 @@ class ReplacedAnswerTest(_AuthorizeCase):
         self._authorize_then_crash()
         self._forgotten_verdict()
 
-        outcome = self._tick(reply=SINGLE_REPLY)
+        outcome = self._tick(reply=_stage_support.SINGLE_REPLY)
 
         self.spawn.assert_called_once()
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         pinned = self._pinned()
         self.assertIsNone(self._authorized())
-        self.assertNotIn(KEYS.exempt_sha, pinned)
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_SINGLE_DECISION)
+        self.assertNotIn(_stage_support.KEYS.exempt_sha, pinned)
+        self.assertEqual(pinned.get(_stage_support.KEYS.park_reason), _support.PARK_SINGLE_DECISION)
 
     def _forgotten_verdict(self) -> None:
         """Take the answer off the record, leaving everything else whole."""
         self.github.seed_state(
-            self.issue.number, **{**self._pinned(), KEYS.verdict: None},
+            self.issue.number, **{**self._pinned(), _stage_support.KEYS.verdict: None},
         )
 
 
@@ -676,11 +646,11 @@ class ReadjudicatedAuthorizationTest(_AuthorizeCase):
     """
 
     def setUp(self) -> None:
-        self._park(**{KEYS.verdict: None, KEYS.source_sha: None})
+        self._park(**{_stage_support.KEYS.verdict: None, _stage_support.KEYS.source_sha: None})
         self._command()
 
     def test_it_says_so_and_readjudicates(self) -> None:
-        outcome = self._tick(reply=SINGLE_REPLY)
+        outcome = self._tick(reply=_stage_support.SINGLE_REPLY)
 
         self.spawn.assert_called_once()
         self.assertIn(
@@ -692,22 +662,22 @@ class ReadjudicatedAuthorizationTest(_AuthorizeCase):
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         pinned = self._pinned()
         self.assertIsNone(self._authorized())
-        self.assertNotIn(KEYS.exempt_sha, pinned)
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_SINGLE_DECISION)
+        self.assertNotIn(_stage_support.KEYS.exempt_sha, pinned)
+        self.assertEqual(pinned.get(_stage_support.KEYS.park_reason), _support.PARK_SINGLE_DECISION)
 
     def test_a_question_is_still_announced(self) -> None:
-        outcome = self._tick(reply=QUESTION_REPLY)
+        outcome = self._tick(reply=_stage_support.QUESTION_REPLY)
 
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
         self.assertEqual(
-            self._pinned().get(KEYS.park_reason), PARK_QUESTION,
+            self._pinned().get(_stage_support.KEYS.park_reason), _support.PARK_QUESTION,
         )
-        self.assertIn(QUESTION_ASKED, self._bodies()[-1])
+        self.assertIn(_stage_support.QUESTION_ASKED, self._bodies()[-1])
 
     def test_a_split_carries_no_stale_park(self) -> None:
-        outcome = self._tick(reply=SPLIT_REPLY)
+        outcome = self._tick(reply=_stage_support.SPLIT_REPLY)
 
         self.assertIsNotNone(outcome.guarded_split)
         pinned = self._pinned()
-        self.assertFalse(pinned.get(KEYS.awaiting))
-        self.assertIsNone(pinned.get(KEYS.park_reason))
+        self.assertFalse(pinned.get(_stage_support.KEYS.awaiting))
+        self.assertIsNone(pinned.get(_stage_support.KEYS.park_reason))

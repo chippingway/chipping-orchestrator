@@ -27,26 +27,8 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from tests.workflow.fixtures import STAGE_DECOMPOSING
-from tests.workflow.stages.decomposition.late_settlement_support import (
-    ERROR,
-    EVENT_LATE_CANCELLATION,
-    NAME,
-    PARK_OWNER_UNREADABLE,
-    PARK_QUESTION,
-    PARK_TIMEOUT,
-    PARKING_COMPLETIONS,
-    QUESTION_RUN,
-    REASON,
-    RUN,
-    SPLIT_RUN,
-    TIMEOUT_RUN,
-    TREE,
-    WORKFLOW_LOG,
-    GuardedLateCase,
-    _ClosedDuringRun,
-    stateless_owner,
-    unreadable_owner,
-)
+from tests.workflow.stages.decomposition import late_settlement_support as _support
+from tests.workflow.stages.decomposition.late_settlement_support import GuardedLateCase, _ClosedDuringRun
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
     EVENT_LATE_FAILURE,
@@ -72,14 +54,14 @@ class OwnerReadTest(GuardedLateCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
         self.assertEqual(self._pinned().get(KEYS.phase), LatePhase.OWNER_CHECK)
-        self.assertEqual(self._events_named(EVENT_LATE_CANCELLATION), [])
+        self.assertEqual(self._events_named(_support.EVENT_LATE_CANCELLATION), [])
         self.assertFalse(self._pinned().get(KEYS.awaiting))
 
     def test_a_closed_owner_cancels_the_cycle(self) -> None:
         # The verdict is real and the run was paid for; what changed is that
         # nobody wants the issue any more, so the mark the cleanup path reads
         # goes down instead of the children going up.
-        outcome = self._decide(_ClosedDuringRun(self.issue, SPLIT_RUN))
+        outcome = self._decide(_ClosedDuringRun(self.issue, _support.SPLIT_RUN))
 
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
         self.assertIsNone(outcome.guarded_split)
@@ -91,9 +73,9 @@ class OwnerReadTest(GuardedLateCase, unittest.TestCase):
         self.assertEqual(self.github.label_history, [])
 
     def test_a_cancellation_reaches_both_sinks(self) -> None:
-        self._decide(_ClosedDuringRun(self.issue, SPLIT_RUN))
+        self._decide(_ClosedDuringRun(self.issue, _support.SPLIT_RUN))
 
-        recorded = self._events_named(EVENT_LATE_CANCELLATION)
+        recorded = self._events_named(_support.EVENT_LATE_CANCELLATION)
         self.assertEqual(len(recorded), 1)
         self.assertEqual(recorded[0].get("stage"), STAGE_DECOMPOSING)
         self.assertEqual(recorded[0].get("source_sha"), CANDIDATE_SHA)
@@ -102,11 +84,11 @@ class OwnerReadTest(GuardedLateCase, unittest.TestCase):
         # Irreversible within the cycle: the cancellation is what the cleanup
         # settles from, so an issue somebody reopened starts over rather than
         # picking the same adjudication back up.
-        self._decide(_ClosedDuringRun(self.issue, SPLIT_RUN))
+        self._decide(_ClosedDuringRun(self.issue, _support.SPLIT_RUN))
         stamped = self._pinned().get(KEYS.cancelled_at)
         self.issue.closed = False
 
-        outcome, spawn = self._adjudicate(SPLIT_RUN)
+        outcome, spawn = self._adjudicate(_support.SPLIT_RUN)
 
         self.assertEqual(outcome.disposition, _LateDisposition.NOT_LATE)
         spawn.assert_not_called()
@@ -118,7 +100,7 @@ class OwnerReadTest(GuardedLateCase, unittest.TestCase):
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         pinned = self._pinned()
         self.assertTrue(pinned.get(KEYS.awaiting))
-        self.assertEqual(_park_reason(pinned), PARK_OWNER_UNREADABLE)
+        self.assertEqual(_park_reason(pinned), _support.PARK_OWNER_UNREADABLE)
         # The run is not what failed, so its answer stays recorded and the
         # retry has nothing to re-earn.
         self.assertEqual(pinned.get(KEYS.verdict), LateVerdict.SPLIT)
@@ -127,12 +109,12 @@ class OwnerReadTest(GuardedLateCase, unittest.TestCase):
     def test_a_state_naming_nothing_fails_closed(self) -> None:
         # A read that established nothing is not the same claim as "open", and
         # defaulting it either way would publish on the strength of it.
-        with stateless_owner(self.github), self.assertLogs(WORKFLOW_LOG, level=ERROR):
+        with _support.stateless_owner(self.github), self.assertLogs(_support.WORKFLOW_LOG, level=_support.ERROR):
             outcome = self._decide()
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(
-            _park_reason(self._pinned()), PARK_OWNER_UNREADABLE,
+            _park_reason(self._pinned()), _support.PARK_OWNER_UNREADABLE,
         )
 
     def test_the_read_failure_is_recorded(self) -> None:
@@ -165,7 +147,7 @@ class InterruptedBoundaryTest(GuardedLateCase, unittest.TestCase):
             with self.subTest(phase=phase):
                 self._crashed_at(phase)
 
-                self._decide(_ClosedDuringRun(self.issue, SPLIT_RUN))
+                self._decide(_ClosedDuringRun(self.issue, _support.SPLIT_RUN))
 
                 pinned = self._pinned()
                 self.assertTrue(pinned.get(KEYS.cancelled))
@@ -174,7 +156,7 @@ class InterruptedBoundaryTest(GuardedLateCase, unittest.TestCase):
     def test_an_ordinary_close_still_names_the_read(self) -> None:
         # The other side of it: a cycle that never started a transaction is
         # cancelled at the boundary a completion really did reach.
-        self._decide(_ClosedDuringRun(self.issue, SPLIT_RUN))
+        self._decide(_ClosedDuringRun(self.issue, _support.SPLIT_RUN))
 
         self.assertEqual(
             self._pinned().get(KEYS.cancelled_phase), LatePhase.OWNER_CHECK,
@@ -207,7 +189,7 @@ class UndecidedCompletionTest(GuardedLateCase, unittest.TestCase):
     def test_a_closed_owner_cancels_a_question(self) -> None:
         # Nothing is asked of a human who has closed the issue: the question
         # is recorded but never announced, and the cycle ends instead.
-        outcome = self._decide(_ClosedDuringRun(self.issue, QUESTION_RUN))
+        outcome = self._decide(_ClosedDuringRun(self.issue, _support.QUESTION_RUN))
 
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
         pinned = self._pinned()
@@ -218,23 +200,23 @@ class UndecidedCompletionTest(GuardedLateCase, unittest.TestCase):
     def test_an_unreadable_owner_holds_a_question(self) -> None:
         # Recorded, not announced: what the guard stands in front of includes
         # saying something to a thread it cannot prove is still there.
-        outcome = self._decide_unread(QUESTION_RUN)
+        outcome = self._decide_unread(_support.QUESTION_RUN)
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         pinned = self._pinned()
         self.assertEqual(pinned.get(KEYS.verdict), LateVerdict.QUESTION)
-        self.assertEqual(_park_reason(pinned), PARK_OWNER_UNREADABLE)
+        self.assertEqual(_park_reason(pinned), _support.PARK_OWNER_UNREADABLE)
         self.assertNotIn(QUESTION_ASKED, self._said())
 
     def test_the_held_question_is_asked_once_it_heals(self) -> None:
-        self._decide_unread(QUESTION_RUN)
+        self._decide_unread(_support.QUESTION_RUN)
 
         outcome, spawn = self._adjudicate()
 
         spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
         self.assertIn(QUESTION_ASKED, self._said())
-        self.assertEqual(_park_reason(self._pinned()), PARK_QUESTION)
+        self.assertEqual(_park_reason(self._pinned()), _support.PARK_QUESTION)
 
     def _said(self) -> str:
         """Everything this tick posted on the issue, as one blob."""
@@ -254,8 +236,8 @@ class UnannouncedCompletionTest(GuardedLateCase, unittest.TestCase):
     def test_a_closed_owner_says_nothing(self) -> None:
         # The park is durable, the cycle ends, and nobody is told about a run
         # on an issue they have closed.
-        for completion in PARKING_COMPLETIONS:
-            with self.subTest(completion=completion[NAME]):
+        for completion in _support.PARKING_COMPLETIONS:
+            with self.subTest(completion=completion[_support.NAME]):
                 self.setUp()
 
                 outcome = self._closed_during(completion)
@@ -265,7 +247,7 @@ class UnannouncedCompletionTest(GuardedLateCase, unittest.TestCase):
                 )
                 self.assertTrue(self._pinned().get(KEYS.cancelled))
                 self.assertEqual(
-                    _park_reason(self._pinned()), completion[REASON],
+                    _park_reason(self._pinned()), completion[_support.REASON],
                 )
                 self.assertEqual(self.github.posted_comments, [])
 
@@ -273,15 +255,15 @@ class UnannouncedCompletionTest(GuardedLateCase, unittest.TestCase):
         # Nor does one this tick could not read. The park is recorded, the
         # read is left owed, and the notice waits for whatever re-takes the
         # park once the read heals -- which says the reason it fails for THEN.
-        for completion in PARKING_COMPLETIONS:
-            with self.subTest(completion=completion[NAME]):
+        for completion in _support.PARKING_COMPLETIONS:
+            with self.subTest(completion=completion[_support.NAME]):
                 self.setUp()
 
                 outcome = self._unread_during(completion)
 
                 self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
                 self.assertEqual(
-                    _park_reason(self._pinned()), completion[REASON],
+                    _park_reason(self._pinned()), completion[_support.REASON],
                 )
                 self.assertTrue(
                     self._pinned().get(KEYS.owner_check_pending),
@@ -293,10 +275,10 @@ class UnannouncedCompletionTest(GuardedLateCase, unittest.TestCase):
         # swapping the reason for one they cannot answer would cost them the
         # thing they were actually asked. The pending marker is what brings
         # the next tick back to the read.
-        outcome = self._decide_unread(TIMEOUT_RUN)
+        outcome = self._decide_unread(_support.TIMEOUT_RUN)
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
-        self.assertEqual(_park_reason(self._pinned()), PARK_TIMEOUT)
+        self.assertEqual(_park_reason(self._pinned()), _support.PARK_TIMEOUT)
         self.assertTrue(self._pinned().get(KEYS.owner_check_pending))
         self.assertEqual(len(self._events_named(EVENT_LATE_FAILURE)), 1)
 
@@ -307,24 +289,24 @@ class UnannouncedCompletionTest(GuardedLateCase, unittest.TestCase):
         refused = patch.object(self.github, COMMENT, side_effect=RuntimeError)
 
         with refused, self.assertRaises(RuntimeError):
-            self._decide(TIMEOUT_RUN)
+            self._decide(_support.TIMEOUT_RUN)
 
         self.assertTrue(self._pinned().get(KEYS.awaiting))
-        self.assertEqual(_park_reason(self._pinned()), PARK_TIMEOUT)
+        self.assertEqual(_park_reason(self._pinned()), _support.PARK_TIMEOUT)
 
     def _closed_during(self, completion):
         """One completion whose issue a human closes while it runs."""
         outcome, _spawn = self._adjudicate(
-            _ClosedDuringRun(self.issue, completion[RUN]),
-            worktree=completion[TREE],
+            _ClosedDuringRun(self.issue, completion[_support.RUN]),
+            worktree=completion[_support.TREE],
         )
         return outcome
 
     def _unread_during(self, completion):
         """One completion whose owner read fails, log line included."""
-        with unreadable_owner(self.github), self.assertLogs(WORKFLOW_LOG, level=ERROR):
+        with _support.unreadable_owner(self.github), self.assertLogs(_support.WORKFLOW_LOG, level=_support.ERROR):
             outcome, _spawn = self._adjudicate(
-                completion[RUN], worktree=completion[TREE],
+                completion[_support.RUN], worktree=completion[_support.TREE],
             )
         return outcome
 

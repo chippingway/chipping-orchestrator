@@ -22,34 +22,23 @@ from orchestrator.workflow.stages.decomposition import (
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
+from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_settlement_support import (
     UNFINGERPRINTED,
     GuardedLateCase,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    BASE_SHA,
-    CANDIDATE_SHA,
-    CONTRIBUTION_DIGEST,
-    DIGEST_LENGTH,
-    IDENTITY_KEYS,
-    KEYS,
-    MERGED_SHA,
-    OTHER_SHA,
-    generation_state,
-    late_generation,
 )
 
 # What an earlier candidate's settlement left on this issue: that commit
 # exempted, and the identity of what IT contributed beside it, over a base
 # this generation was never measured against.
-_EARLIER_DIGEST = "1" * DIGEST_LENGTH
+_EARLIER_DIGEST = "1" * _support.DIGEST_LENGTH
 
 _EARLIER_IDENTITY = MappingProxyType({
-    KEYS.exempt_sha: OTHER_SHA,
-    KEYS.exempt_base_sha: MERGED_SHA,
-    KEYS.exempt_candidate_sha: OTHER_SHA,
-    KEYS.exempt_fingerprint: _EARLIER_DIGEST,
-    KEYS.exempt_fingerprint_format: FINGERPRINT_FORMAT,
+    _support.KEYS.exempt_sha: _support.OTHER_SHA,
+    _support.KEYS.exempt_base_sha: _support.MERGED_SHA,
+    _support.KEYS.exempt_candidate_sha: _support.OTHER_SHA,
+    _support.KEYS.exempt_fingerprint: _EARLIER_DIGEST,
+    _support.KEYS.exempt_fingerprint_format: FINGERPRINT_FORMAT,
 })
 
 
@@ -64,12 +53,12 @@ class AcceptedIdentityTest(GuardedLateCase, unittest.TestCase):
         self._settle()
 
         pinned = self._pinned()
-        recorded = {key: pinned.get(key) for key in IDENTITY_KEYS}
+        recorded = {key: pinned.get(key) for key in _support.IDENTITY_KEYS}
         self.assertEqual(recorded, {
-            KEYS.exempt_base_sha: BASE_SHA,
-            KEYS.exempt_candidate_sha: CANDIDATE_SHA,
-            KEYS.exempt_fingerprint: CONTRIBUTION_DIGEST,
-            KEYS.exempt_fingerprint_format: FINGERPRINT_FORMAT,
+            _support.KEYS.exempt_base_sha: _support.BASE_SHA,
+            _support.KEYS.exempt_candidate_sha: _support.CANDIDATE_SHA,
+            _support.KEYS.exempt_fingerprint: _support.CONTRIBUTION_DIGEST,
+            _support.KEYS.exempt_fingerprint_format: FINGERPRINT_FORMAT,
         })
 
     def test_it_is_durable_before_the_handoff(self) -> None:
@@ -85,9 +74,9 @@ class AcceptedIdentityTest(GuardedLateCase, unittest.TestCase):
             self._settle()
 
         pinned = self._pinned()
-        self.assertEqual(pinned.get(KEYS.exempt_sha), CANDIDATE_SHA)
+        self.assertEqual(pinned.get(_support.KEYS.exempt_sha), _support.CANDIDATE_SHA)
         self.assertEqual(
-            pinned.get(KEYS.exempt_fingerprint), CONTRIBUTION_DIGEST,
+            pinned.get(_support.KEYS.exempt_fingerprint), _support.CONTRIBUTION_DIGEST,
         )
 
     def test_a_failed_reading_records_none(self) -> None:
@@ -98,8 +87,8 @@ class AcceptedIdentityTest(GuardedLateCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
         pinned = self._pinned()
-        self.assertEqual(pinned.get(KEYS.exempt_sha), CANDIDATE_SHA)
-        for key in IDENTITY_KEYS:
+        self.assertEqual(pinned.get(_support.KEYS.exempt_sha), _support.CANDIDATE_SHA)
+        for key in _support.IDENTITY_KEYS:
             with self.subTest(key=key):
                 self.assertNotIn(key, pinned)
 
@@ -111,15 +100,15 @@ class AcceptedIdentityTest(GuardedLateCase, unittest.TestCase):
         # digest taken over a base nobody measured this candidate against.
         self.github.seed_state(
             self.issue.number,
-            **generation_state(late_generation()),
+            **_support.generation_state(_support.late_generation()),
             **_EARLIER_IDENTITY,
         )
 
         self._settle(worktree=UNFINGERPRINTED)
 
         pinned = self._pinned()
-        self.assertEqual(pinned.get(KEYS.exempt_sha), CANDIDATE_SHA)
-        for key in IDENTITY_KEYS:
+        self.assertEqual(pinned.get(_support.KEYS.exempt_sha), _support.CANDIDATE_SHA)
+        for key in _support.IDENTITY_KEYS:
             with self.subTest(key=key):
                 self.assertNotIn(key, pinned)
 

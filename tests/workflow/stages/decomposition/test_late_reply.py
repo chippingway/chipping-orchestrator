@@ -14,17 +14,7 @@ from orchestrator.workflow.stages.decomposition import (
 from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
 from orchestrator.workflow.stages.decomposition.late_reply import _SPLIT_BLOCKER
 from tests.workflow.fixtures import _manifest as _initial_block
-from tests.workflow.stages.decomposition.late_test_support import (
-    FIRST_ESTIMATE,
-    QUESTION_REPLY,
-    SECOND_ESTIMATE,
-    SINGLE_REPLY,
-    SPLIT_BLOCKER,
-    SPLIT_REPLY,
-    THRESHOLD,
-    late_block,
-    split_reply_of,
-)
+from tests.workflow.stages.decomposition import late_test_support as _support
 
 SINGLE_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 
@@ -32,7 +22,7 @@ SINGLE_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 # contract requires and the initial one has no field for.
 LATE_SINGLE_PAYLOAD = (
     '{"decision": "single", "rationale": "fits", '
-    f'"{_SPLIT_BLOCKER}": "{SPLIT_BLOCKER}"}}'
+    f'"{_SPLIT_BLOCKER}": "{_support.SPLIT_BLOCKER}"}}'
 )
 
 
@@ -40,20 +30,20 @@ LATE_SINGLE_PAYLOAD = (
 # the park message has to carry.
 _REFUSED_REPLIES = (
     ("no block at all", "the late decomposer decided single", "no outcome"),
-    ("two blocks", f"{SINGLE_REPLY}\n{SINGLE_REPLY}", "exactly one"),
-    ("prose after", f"{SINGLE_REPLY}\nand one more thought", "final block"),
-    ("not json", late_block("{decision: single}"), "invalid JSON"),
-    ("not an object", late_block('["single"]'), "not a JSON object"),
-    ("no decision", late_block("{}"), "decision must be"),
-    ("unknown decision", late_block('{"decision": "maybe"}'), "decision must"),
+    ("two blocks", f"{_support.SINGLE_REPLY}\n{_support.SINGLE_REPLY}", "exactly one"),
+    ("prose after", f"{_support.SINGLE_REPLY}\nand one more thought", "final block"),
+    ("not json", _support.late_block("{decision: single}"), "invalid JSON"),
+    ("not an object", _support.late_block('["single"]'), "not a JSON object"),
+    ("no decision", _support.late_block("{}"), "decision must be"),
+    ("unknown decision", _support.late_block('{"decision": "maybe"}'), "decision must"),
     (
         "split with no children",
-        late_block('{"decision": "split", "children": []}'),
+        _support.late_block('{"decision": "split", "children": []}'),
         "non-empty children",
     ),
     (
         "split with a cycle",
-        late_block(
+        _support.late_block(
             '{"decision": "split", "children": ['
             '{"title": "A", "body": "a", "depends_on": [1]},'
             '{"title": "B", "body": "b", "depends_on": [0]}]}'
@@ -62,40 +52,40 @@ _REFUSED_REPLIES = (
     ),
     (
         "question with nothing asked",
-        late_block('{"decision": "question", "category": "unsafe_split"}'),
+        _support.late_block('{"decision": "question", "category": "unsafe_split"}'),
         "non-empty question",
     ),
     (
         "a single with no explanation",
-        late_block(SINGLE_PAYLOAD),
+        _support.late_block(SINGLE_PAYLOAD),
         f"requires a non-empty {_SPLIT_BLOCKER}",
     ),
     (
         "a single explained with whitespace",
-        late_block(f'{{"decision": "single", "{_SPLIT_BLOCKER}": "  "}}'),
+        _support.late_block(f'{{"decision": "single", "{_SPLIT_BLOCKER}": "  "}}'),
         f"requires a non-empty {_SPLIT_BLOCKER}",
     ),
     (
         "a single explained with something that is not text",
-        late_block(f'{{"decision": "single", "{_SPLIT_BLOCKER}": [1, 2]}}'),
+        _support.late_block(f'{{"decision": "single", "{_SPLIT_BLOCKER}": [1, 2]}}'),
         "no safe split of this work is available",
     ),
     (
         "a child with no budget",
-        split_reply_of(None),
+        _support.split_reply_of(None),
         f"child 0 needs an `{ESTIMATE}`",
     ),
     (
         "a budget that is a string",
-        split_reply_of("300"),
+        _support.split_reply_of("300"),
         f"child 0 needs an `{ESTIMATE}`",
     ),
-    ("a budget that is a bool", split_reply_of(True), "child 0 needs"),
-    ("a budget of nothing", split_reply_of(FIRST_ESTIMATE, 0), "child 1 needs"),
+    ("a budget that is a bool", _support.split_reply_of(True), "child 0 needs"),
+    ("a budget of nothing", _support.split_reply_of(_support.FIRST_ESTIMATE, 0), "child 1 needs"),
     (
         "a budget at the ceiling",
-        split_reply_of(THRESHOLD),
-        f"is not below the {THRESHOLD}-line ceiling",
+        _support.split_reply_of(_support.THRESHOLD),
+        f"is not below the {_support.THRESHOLD}-line ceiling",
     ),
 )
 
@@ -106,9 +96,9 @@ _REFUSED_REPLIES = (
 # no obstacle is refused above rather than parsed into a verdict with nothing
 # under it.
 _SPLIT_BLOCKERS = (
-    ("explained", SINGLE_REPLY, (SPLIT_BLOCKER, SPLIT_BLOCKER)),
-    ("split", SPLIT_REPLY, ("", "")),
-    ("question", QUESTION_REPLY, ("", "")),
+    ("explained", _support.SINGLE_REPLY, (_support.SPLIT_BLOCKER, _support.SPLIT_BLOCKER)),
+    ("split", _support.SPLIT_REPLY, ("", "")),
+    ("question", _support.QUESTION_REPLY, ("", "")),
 )
 
 
@@ -117,7 +107,7 @@ class LateReplyTest(unittest.TestCase):
 
     def test_single_carries_rationale_and_category(self) -> None:
         adjudication, error = _late_reply._parse_late_reply(
-            SINGLE_REPLY, THRESHOLD,
+            _support.SINGLE_REPLY, _support.THRESHOLD,
         )
 
         self.assertIsNone(error)
@@ -137,7 +127,7 @@ class LateReplyTest(unittest.TestCase):
         for name, reply, expected in _SPLIT_BLOCKERS:
             with self.subTest(case=name):
                 adjudication, refusal = _late_reply._parse_late_reply(
-                    reply, THRESHOLD,
+                    reply, _support.THRESHOLD,
                 )
 
                 self.assertIsNone(refusal)
@@ -151,7 +141,7 @@ class LateReplyTest(unittest.TestCase):
 
     def test_split_carries_the_children_it_proposed(self) -> None:
         adjudication, error = _late_reply._parse_late_reply(
-            SPLIT_REPLY, THRESHOLD,
+            _support.SPLIT_REPLY, _support.THRESHOLD,
         )
 
         self.assertIsNone(error)
@@ -164,7 +154,7 @@ class LateReplyTest(unittest.TestCase):
 
     def test_question_carries_what_it_asks(self) -> None:
         adjudication, error = _late_reply._parse_late_reply(
-            QUESTION_REPLY, THRESHOLD,
+            _support.QUESTION_REPLY, _support.THRESHOLD,
         )
 
         self.assertIsNone(error)
@@ -186,18 +176,18 @@ class LateReplyTest(unittest.TestCase):
         for declared, expected in cases:
             with self.subTest(declared=declared):
                 adjudication, error = _late_reply._parse_late_reply(
-                    late_block(
+                    _support.late_block(
                         '{"decision": "question", '
                         f'{declared}"question": "which half?"}}'
                     ),
-                    THRESHOLD,
+                    _support.THRESHOLD,
                 )
                 self.assertIsNone(error)
                 self.assertEqual(adjudication.category, expected)
 
     def test_an_absent_category_stays_absent(self) -> None:
         adjudication, error = _late_reply._parse_late_reply(
-            late_block(LATE_SINGLE_PAYLOAD), THRESHOLD,
+            _support.late_block(LATE_SINGLE_PAYLOAD), _support.THRESHOLD,
         )
 
         self.assertIsNone(error)
@@ -207,7 +197,7 @@ class LateReplyTest(unittest.TestCase):
         for name, reply, fragment in _REFUSED_REPLIES:
             with self.subTest(case=name):
                 adjudication, error = _late_reply._parse_late_reply(
-                    reply, THRESHOLD,
+                    reply, _support.THRESHOLD,
                 )
                 self.assertIsNone(adjudication)
                 self.assertIn(fragment, error)
@@ -221,13 +211,13 @@ class LateBudgetTest(unittest.TestCase):
         # with the manifest that proposed it, so what was judged is what the
         # agent wrote rather than a number read back off something else.
         proposed, refusal = _late_reply._parse_late_reply(
-            SPLIT_REPLY, THRESHOLD,
+            _support.SPLIT_REPLY, _support.THRESHOLD,
         )
 
         self.assertIsNone(refusal)
         self.assertEqual(
             [child[ESTIMATE] for child in proposed.children],
-            [FIRST_ESTIMATE, SECOND_ESTIMATE],
+            [_support.FIRST_ESTIMATE, _support.SECOND_ESTIMATE],
         )
 
     def test_an_unknown_ceiling_still_requires_one(self) -> None:
@@ -236,14 +226,14 @@ class LateBudgetTest(unittest.TestCase):
         # refuses a child that declared no budget at all, since a missing one
         # is a protocol failure whatever the bound is.
         oversized, refusal = _late_reply._parse_late_reply(
-            split_reply_of(THRESHOLD * 2), None,
+            _support.split_reply_of(_support.THRESHOLD * 2), None,
         )
 
         self.assertIsNone(refusal)
         self.assertEqual(oversized.child_count, 1)
 
         unsized, error = _late_reply._parse_late_reply(
-            split_reply_of(None), None,
+            _support.split_reply_of(None), None,
         )
 
         self.assertIsNone(unsized)
@@ -255,7 +245,7 @@ class ModeSeparationTest(unittest.TestCase):
 
     def test_an_initial_manifest_is_not_a_late_reply(self) -> None:
         adjudication, error = _late_reply._parse_late_reply(
-            _initial_block(SINGLE_PAYLOAD), THRESHOLD,
+            _initial_block(SINGLE_PAYLOAD), _support.THRESHOLD,
         )
 
         self.assertIsNone(adjudication)
@@ -264,7 +254,7 @@ class ModeSeparationTest(unittest.TestCase):
     def test_a_late_reply_is_not_an_initial_manifest(self) -> None:
         # `(None, None)` is the initial contract's "the decomposer asked a
         # question", which a late block must not turn into.
-        parsed, error = _manifest._parse_manifest(SINGLE_REPLY)
+        parsed, error = _manifest._parse_manifest(_support.SINGLE_REPLY)
 
         self.assertIsNone(parsed)
         self.assertIsNone(error)

@@ -34,22 +34,10 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 )
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.fixtures import _TEST_SPEC
+from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_seam_support import (
     SnapshotSeed,
     snapshot_seams,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    CYCLE_ID,
-    FIRST_ESTIMATE,
-    GENERATION_NUMBER,
-    LATE_ISSUE_NUMBER,
-    PLAN_PR_BODY,
-    PLAN_PR_NUMBER,
-    SECOND_ESTIMATE,
-    late_generation,
-    proposed_slice,
-    seed_late_issue,
-    seed_plan_pr,
 )
 
 # The manifest every case splits into, and the dependency between its two
@@ -57,8 +45,8 @@ from tests.workflow.stages.decomposition.late_test_support import (
 # slice declares the budget the reply contract requires of it, since that is
 # the manifest the transaction is handed on every road that reaches it.
 CHILDREN = (
-    proposed_slice("A", "the first slice", FIRST_ESTIMATE),
-    proposed_slice("B", "the second slice", SECOND_ESTIMATE, depends_on=(0,)),
+    _support.proposed_slice("A", "the first slice", _support.FIRST_ESTIMATE),
+    _support.proposed_slice("B", "the second slice", _support.SECOND_ESTIMATE, depends_on=(0,)),
 )
 
 # What the slice at the bottom of the chain below says it will add.
@@ -69,11 +57,11 @@ THIRD_ESTIMATE = 300
 # that one. A single level cannot show a graph recorded for a child that is
 # neither the root nor a leaf of it.
 MULTI_LEVEL_CHILDREN = (
-    proposed_slice("A", "the dormant prerequisite", FIRST_ESTIMATE),
-    proposed_slice(
-        "B", "the slice that consumes it", SECOND_ESTIMATE, depends_on=(0,),
+    _support.proposed_slice("A", "the dormant prerequisite", _support.FIRST_ESTIMATE),
+    _support.proposed_slice(
+        "B", "the slice that consumes it", _support.SECOND_ESTIMATE, depends_on=(0,),
     ),
-    proposed_slice(
+    _support.proposed_slice(
         "C", "the slice that activates the pair", THIRD_ESTIMATE,
         depends_on=(1,),
     ),
@@ -84,8 +72,8 @@ MULTI_LEVEL_CHILDREN = (
 MULTI_LEVEL_GRAPH = MappingProxyType({"1": [0], "2": [1]})
 
 SNAPSHOT_REF = (
-    f"refs/orchestrator/late-split/issue-{LATE_ISSUE_NUMBER}"
-    f"/cycle-{CYCLE_ID}/gen-{GENERATION_NUMBER}"
+    f"refs/orchestrator/late-split/issue-{_support.LATE_ISSUE_NUMBER}"
+    f"/cycle-{_support.CYCLE_ID}/gen-{_support.GENERATION_NUMBER}"
 )
 
 KEY_CHILDREN = "children"
@@ -117,13 +105,13 @@ KEY_DECLARED_SCOPE = "late_declared_scope"
 # every case runs: a marker scoped to another one is a receipt for another
 # episode, which is the whole reason they carry an identity at all.
 SUPERSESSION_MARKER = (
-    f"<!--orchestrator-late-supersession:issue={LATE_ISSUE_NUMBER}"
-    f":cycle={CYCLE_ID}:generation={GENERATION_NUMBER}-->"
+    f"<!--orchestrator-late-supersession:issue={_support.LATE_ISSUE_NUMBER}"
+    f":cycle={_support.CYCLE_ID}:generation={_support.GENERATION_NUMBER}-->"
 )
 
 FORWARD_LINK_MARKER = (
-    f"<!--orchestrator-late-split:cycle={CYCLE_ID}"
-    f":generation={GENERATION_NUMBER}-->"
+    f"<!--orchestrator-late-split:cycle={_support.CYCLE_ID}"
+    f":generation={_support.GENERATION_NUMBER}-->"
 )
 
 EVENT_LATE_SNAPSHOT = "late_snapshot"
@@ -144,8 +132,8 @@ class LateSplitCase:
 
     def setUp(self) -> None:
         self.github = FakeGitHubClient()
-        self.generation = late_generation()
-        self.issue = seed_late_issue(self.github, self.generation)
+        self.generation = _support.late_generation()
+        self.issue = _support.seed_late_issue(self.github, self.generation)
         # What the run's local teardown was asked to do, which no record
         # carries: a branch entry reads `failed` whether the local half ran
         # and did not finish or was never attempted at all.
@@ -233,13 +221,13 @@ class HeldPlanPrSplitCase(LateSplitCase):
         super().setUp()
         self.generation = replace(
             self.generation,
-            plan_pr_number=PLAN_PR_NUMBER,
-            plan_pr_body=PLAN_PR_BODY,
+            plan_pr_number=_support.PLAN_PR_NUMBER,
+            plan_pr_body=_support.PLAN_PR_BODY,
         )
         self.github.seed_state(
-            self.issue.number, **self._pinned(), pr_number=PLAN_PR_NUMBER,
+            self.issue.number, **self._pinned(), pr_number=_support.PLAN_PR_NUMBER,
         )
-        self.plan_pr = seed_plan_pr(
+        self.plan_pr = _support.seed_plan_pr(
             self.github, body=_late_hold._hold_body(self.generation),
         )
 

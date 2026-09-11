@@ -18,21 +18,9 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser
+from tests.workflow.stages.decomposition import late_settlement_support as _support
 from tests.workflow.stages.decomposition.late_run_support import adjudicate
-from tests.workflow.stages.decomposition.late_settlement_support import (
-    ERROR,
-    KEY_LAST_ACTION_COMMENT_ID,
-    NO_ACTION_LINE,
-    PARK_NOTICE_ID,
-    PARK_OWNER_UNREADABLE,
-    RECORDED_SPLIT,
-    RECOVERED_PREFIX,
-    RECOVERY_FOLLOWUP_MARKER,
-    SPLIT_CHILDREN,
-    WORKFLOW_LOG,
-    GuardedLateCase,
-    unreadable_owner,
-)
+from tests.workflow.stages.decomposition.late_settlement_support import GuardedLateCase
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
     KEYS,
@@ -96,7 +84,7 @@ class _LostNoticeWrite:
 
     def __call__(self, issue, state):
         settled = (
-            state.get(KEYS.park_reason) == PARK_OWNER_UNREADABLE
+            state.get(KEYS.park_reason) == _support.PARK_OWNER_UNREADABLE
             and KEYS.park_notice not in state.data
         )
         if self._lost or not settled:
@@ -118,7 +106,7 @@ class TransientOwnerParkTest(GuardedLateCase, unittest.TestCase):
 
         spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
-        self.assertEqual(len(outcome.guarded_split.children), SPLIT_CHILDREN)
+        self.assertEqual(len(outcome.guarded_split.children), _support.SPLIT_CHILDREN)
         self.assertFalse(self._pinned().get(KEYS.awaiting))
 
     def test_a_stuck_retry_repeats_no_notice(self) -> None:
@@ -131,7 +119,7 @@ class TransientOwnerParkTest(GuardedLateCase, unittest.TestCase):
                 self.assertEqual(parked.disposition, _LateDisposition.PARKED)
                 self.assertEqual(
                     self._pinned().get(KEYS.park_reason),
-                    PARK_OWNER_UNREADABLE,
+                    _support.PARK_OWNER_UNREADABLE,
                 )
 
         self.assertEqual(len(self.github.posted_comments), 1)
@@ -144,8 +132,8 @@ class TransientOwnerParkTest(GuardedLateCase, unittest.TestCase):
 
         followups = self._followups()
         self.assertEqual(len(followups), 1)
-        self.assertIn(RECOVERED_PREFIX, followups[0])
-        self.assertIn(NO_ACTION_LINE, followups[0])
+        self.assertIn(_support.RECOVERED_PREFIX, followups[0])
+        self.assertIn(_support.NO_ACTION_LINE, followups[0])
         # The point is to retire the alarming last word, not to notify again.
         self.assertNotIn("@", followups[0])
 
@@ -154,7 +142,7 @@ class TransientOwnerParkTest(GuardedLateCase, unittest.TestCase):
         # posted and the write that would clear the park never lands. The next
         # tick still owes the read, still finds the park standing, and finds
         # its own sentence already on the thread.
-        self._seed_owing(RECORDED_SPLIT)
+        self._seed_owing(_support.RECORDED_SPLIT)
         lost = patch.object(
             self.github,
             WRITE_PINNED_STATE,
@@ -168,7 +156,7 @@ class TransientOwnerParkTest(GuardedLateCase, unittest.TestCase):
         self.assertEqual(len(self._followups()), 1)
         self.assertTrue(self._pinned().get(KEYS.owner_check_pending))
         self.assertEqual(
-            self._pinned().get(KEYS.park_reason), PARK_OWNER_UNREADABLE,
+            self._pinned().get(KEYS.park_reason), _support.PARK_OWNER_UNREADABLE,
         )
 
         outcome, _spawn = self._adjudicate()
@@ -199,9 +187,9 @@ class TransientOwnerParkTest(GuardedLateCase, unittest.TestCase):
         )
 
         with (
-            unreadable_owner(self.github),
+            _support.unreadable_owner(self.github),
             lost,
-            self.assertLogs(WORKFLOW_LOG, level=ERROR),
+            self.assertLogs(_support.WORKFLOW_LOG, level=_support.ERROR),
             self.assertRaises(RuntimeError),
         ):
             self._decide()
@@ -265,7 +253,7 @@ class PendingCheckRetryTest(GuardedLateCase, unittest.TestCase):
         self.assertNotIn(KEYS.owner_check_pending, pinned)
 
     def _decide_unread_run(self):
-        with unreadable_owner(self.github), self.assertLogs(WORKFLOW_LOG, level=ERROR):
+        with _support.unreadable_owner(self.github), self.assertLogs(_support.WORKFLOW_LOG, level=_support.ERROR):
             return self._adjudicate()
 
     def _followups(self) -> list:
@@ -276,15 +264,15 @@ def _followups_on(github) -> list:
     """The recovery follow-ups this mode has posted on the thread."""
     return [
         body for _number, body in github.posted_comments
-        if RECOVERY_FOLLOWUP_MARKER in body
+        if _support.RECOVERY_FOLLOWUP_MARKER in body
     ]
 
 
 def _posted_followup() -> FakeComment:
     """The follow-up a tick posted before the write recording it landed."""
     return FakeComment(
-        id=PARK_NOTICE_ID + 1,
-        body=f"{RECOVERED_PREFIX} whatever\n\n{RECOVERY_FOLLOWUP_MARKER}",
+        id=_support.PARK_NOTICE_ID + 1,
+        body=f"{_support.RECOVERED_PREFIX} whatever\n\n{_support.RECOVERY_FOLLOWUP_MARKER}",
         user=FakeUser("pichaautobot", "Bot"),
     )
 
@@ -303,8 +291,8 @@ def _issue_parked_on_an_unreadable_owner():
             KEYS.run_generation: late_generation().generation,
             KEYS.source_sha: CANDIDATE_SHA,
             KEYS.awaiting: True,
-            KEYS.park_reason: PARK_OWNER_UNREADABLE,
-            KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
+            KEYS.park_reason: _support.PARK_OWNER_UNREADABLE,
+            _support.KEY_LAST_ACTION_COMMENT_ID: _support.PARK_NOTICE_ID,
         },
     )
     return github, issue

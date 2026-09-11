@@ -11,17 +11,7 @@ from tests.support.fakes import (
     FakeGitHubClient,
     make_issue,
 )
-from tests.workflow.fixtures import (
-    _TEST_SPEC,
-    KEY_PARENT_NUMBER,
-    LABEL_BLOCKED,
-    LABEL_DECOMPOSING,
-    LABEL_READY,
-    LABEL_UMBRELLA,
-    STAGE_DECOMPOSING,
-    _agent,
-    _manifest,
-)
+from tests.workflow import fixtures as _support
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
 )
@@ -93,7 +83,7 @@ INTERRUPTED_USAGE_ISSUE_NUMBER = 623
 DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
-SPLIT_MANIFEST = _manifest(
+SPLIT_MANIFEST = _support._manifest(
     '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
@@ -114,40 +104,40 @@ class HandleDecomposingDecisionTest(
         gh = FakeGitHubClient()
         issue = make_issue(PICKUP_ISSUE_NUMBER)
         gh.add_issue(issue)
-        manifest = _manifest('{"decision": "single", "rationale": "trivial"}')
+        manifest = _support._manifest('{"decision": "single", "rationale": "trivial"}')
 
         with patch.object(config, CONFIG_DECOMPOSE, True):
             self._run(
-                lambda: _pickup._handle_pickup(gh, _TEST_SPEC, issue),
-                run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
+                lambda: _pickup._handle_pickup(gh, _support._TEST_SPEC, issue),
+                run_agent=_support._agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
             )
 
         # First label flip is to decomposing; the single-decision path then
         # flips it to ready on the same tick.
         self.assertEqual(
             gh.label_history[0],
-            (PICKUP_ISSUE_NUMBER, LABEL_DECOMPOSING),
+            (PICKUP_ISSUE_NUMBER, _support.LABEL_DECOMPOSING),
         )
-        self.assertIn((PICKUP_ISSUE_NUMBER, LABEL_READY), gh.label_history)
+        self.assertIn((PICKUP_ISSUE_NUMBER, _support.LABEL_READY), gh.label_history)
         self.assertIn(
-            STAGE_DECOMPOSING,
+            _support.STAGE_DECOMPOSING,
             "\n".join(_comments_for_issue(gh, PICKUP_ISSUE_NUMBER)),
         )
 
     def test_decompose_decision_single_flips_to_ready(self) -> None:
         gh = FakeGitHubClient()
-        issue = make_issue(SINGLE_DECISION_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        issue = make_issue(SINGLE_DECISION_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         gh.add_issue(issue)
-        manifest = _manifest('{"decision": "single", "rationale": "fits in one context"}')
+        manifest = _support._manifest('{"decision": "single", "rationale": "fits in one context"}')
 
         self._run_decomposing(
             gh,
             issue,
-            run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
+            run_agent=_support._agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
         )
 
         self.assertIn(
-            (SINGLE_DECISION_ISSUE_NUMBER, LABEL_READY),
+            (SINGLE_DECISION_ISSUE_NUMBER, _support.LABEL_READY),
             gh.label_history,
         )
         # No children created.
@@ -172,9 +162,9 @@ class HandleDecomposingDecisionTest(
         # (affected files + notes) into the issue thread so the implementer
         # inherits it via `_recent_comments_text` at spawn.
         gh = FakeGitHubClient()
-        issue = make_issue(CONTEXT_HANDOFF_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        issue = make_issue(CONTEXT_HANDOFF_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         gh.add_issue(issue)
-        manifest = _manifest(
+        manifest = _support._manifest(
             '{"decision": "single", "rationale": "fits", '
             '"affected_files": ["orchestrator/config.py", "tests/support/fakes.py"], '
             '"notes": "Bump the default and cover it in fakes."}'
@@ -183,11 +173,11 @@ class HandleDecomposingDecisionTest(
         self._run_decomposing(
             gh,
             issue,
-            run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
+            run_agent=_support._agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
         )
 
         self.assertIn(
-            (CONTEXT_HANDOFF_ISSUE_NUMBER, LABEL_READY),
+            (CONTEXT_HANDOFF_ISSUE_NUMBER, _support.LABEL_READY),
             gh.label_history,
         )
         context_comment = _comment_with_marker(
@@ -201,9 +191,9 @@ class HandleDecomposingDecisionTest(
 
     def test_split_decision_creates_children(self) -> None:
         gh = FakeGitHubClient()
-        issue = make_issue(SPLIT_DECISION_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        issue = make_issue(SPLIT_DECISION_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         gh.add_issue(issue)
-        manifest = _manifest(
+        manifest = _support._manifest(
             '{"decision": "split", "rationale": "two pieces", "children": ['
             '{"title": "Add status subcommand", "body": "implement status", '
             '"depends_on": []},'
@@ -215,19 +205,19 @@ class HandleDecomposingDecisionTest(
         self._run_decomposing(
             gh,
             issue,
-            run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
+            run_agent=_support._agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
         )
 
         # Parent is now blocked; both children created with `ready`.
         self.assertIn(
-            (SPLIT_DECISION_ISSUE_NUMBER, LABEL_BLOCKED),
+            (SPLIT_DECISION_ISSUE_NUMBER, _support.LABEL_BLOCKED),
             gh.label_history,
         )
         self.assertEqual(len(gh.created_child_issues), 2)
         for child in gh.created_child_issues:
             self.assertEqual(
                 [label.name for label in child.labels],
-                [LABEL_READY],
+                [_support.LABEL_READY],
             )
             self.assertIn(f"Parent: #{SPLIT_DECISION_ISSUE_NUMBER}", child.body)
 
@@ -256,9 +246,9 @@ class HandleDecomposingDecisionTest(
         # the `umbrella` label and `_handle_umbrella` will close it once
         # every child reaches `done`.
         gh = FakeGitHubClient()
-        issue = make_issue(UMBRELLA_SPLIT_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        issue = make_issue(UMBRELLA_SPLIT_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         gh.add_issue(issue)
-        manifest = _manifest(
+        manifest = _support._manifest(
             '{"decision": "split", "umbrella": true, '
             '"rationale": "parent is just a tracker", "children": ['
             '{"title": "A", "body": "a"},'
@@ -269,16 +259,16 @@ class HandleDecomposingDecisionTest(
         self._run_decomposing(
             gh,
             issue,
-            run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
+            run_agent=_support._agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
         )
 
         # Parent reached `umbrella`, NOT `blocked`.
         self.assertIn(
-            LABEL_UMBRELLA,
+            _support.LABEL_UMBRELLA,
             _labels_for_issue(gh, UMBRELLA_SPLIT_ISSUE_NUMBER),
         )
         self.assertNotIn(
-            LABEL_BLOCKED,
+            _support.LABEL_BLOCKED,
             _labels_for_issue(gh, UMBRELLA_SPLIT_ISSUE_NUMBER),
         )
         # Children created normally, with no-dep activation -> `ready`.
@@ -286,7 +276,7 @@ class HandleDecomposingDecisionTest(
         for child in gh.created_child_issues:
             self.assertEqual(
                 [label.name for label in child.labels],
-                [LABEL_READY],
+                [_support.LABEL_READY],
             )
         # `umbrella` flag persisted on parent state so the
         # half-finished recovery path can read it back after a SIGKILL.
@@ -298,7 +288,7 @@ class HandleDecomposingDecisionTest(
             UMBRELLA_SPLIT_ISSUE_NUMBER,
             ":bookmark_tabs:",
         )
-        self.assertIn(LABEL_UMBRELLA, last_comment)
+        self.assertIn(_support.LABEL_UMBRELLA, last_comment)
 
     def test_non_umbrella_split_defaults_blocked(
         self,
@@ -310,23 +300,23 @@ class HandleDecomposingDecisionTest(
         gh = FakeGitHubClient()
         issue = make_issue(
             NON_UMBRELLA_SPLIT_ISSUE_NUMBER,
-            label=LABEL_DECOMPOSING,
+            label=_support.LABEL_DECOMPOSING,
         )
         gh.add_issue(issue)
-        manifest = _manifest('{"decision": "split", "children": [{"title": "A", "body": "a"}]}')
+        manifest = _support._manifest('{"decision": "split", "children": [{"title": "A", "body": "a"}]}')
 
         self._run_decomposing(
             gh,
             issue,
-            run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
+            run_agent=_support._agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
         )
 
         self.assertIn(
-            LABEL_BLOCKED,
+            _support.LABEL_BLOCKED,
             _labels_for_issue(gh, NON_UMBRELLA_SPLIT_ISSUE_NUMBER),
         )
         self.assertNotIn(
-            LABEL_UMBRELLA,
+            _support.LABEL_UMBRELLA,
             _labels_for_issue(gh, NON_UMBRELLA_SPLIT_ISSUE_NUMBER),
         )
         # State records umbrella=False explicitly so a stale True from a
@@ -338,9 +328,9 @@ class HandleDecomposingDecisionTest(
 
     def test_split_with_deps_persists_graph(self) -> None:
         gh = FakeGitHubClient()
-        issue = make_issue(DEPENDENCY_SPLIT_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        issue = make_issue(DEPENDENCY_SPLIT_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         gh.add_issue(issue)
-        manifest = _manifest(
+        manifest = _support._manifest(
             '{"decision": "split", "children": ['
             '{"title": "First", "body": "do first", "depends_on": []},'
             '{"title": "Second", "body": "needs first", "depends_on": [0]}'
@@ -350,7 +340,7 @@ class HandleDecomposingDecisionTest(
         self._run_decomposing(
             gh,
             issue,
-            run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
+            run_agent=_support._agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
         )
 
         children = gh.created_child_issues
@@ -358,11 +348,11 @@ class HandleDecomposingDecisionTest(
         # child[0] has no deps -> ready; child[1] depends on [0] -> blocked.
         self.assertEqual(
             [label.name for label in children[0].labels],
-            [LABEL_READY],
+            [_support.LABEL_READY],
         )
         self.assertEqual(
             [label.name for label in children[1].labels],
-            [LABEL_BLOCKED],
+            [_support.LABEL_BLOCKED],
         )
 
         self.assertEqual(
@@ -374,6 +364,6 @@ class HandleDecomposingDecisionTest(
         # rather than as an unattributed `blocked` parent.
         for child in children:
             self.assertEqual(
-                gh.pinned_data(child.number).get(KEY_PARENT_NUMBER),
+                gh.pinned_data(child.number).get(_support.KEY_PARENT_NUMBER),
                 DEPENDENCY_SPLIT_ISSUE_NUMBER,
             )

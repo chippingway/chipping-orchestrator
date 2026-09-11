@@ -20,6 +20,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from tests.workflow.fixtures import _iso_hours_ago
+from tests.workflow.stages.decomposition import late_retry_cap_support as _support
 from tests.workflow.stages.decomposition.late_content_support import (
     EDITED_BODY,
     HUMAN,
@@ -27,34 +28,9 @@ from tests.workflow.stages.decomposition.late_content_support import (
     PARK_NOTICE_ID,
 )
 from tests.workflow.stages.decomposition.late_retry_cap_support import (
-    ANSWER_ID,
-    CAP_SENTENCE,
-    CARRIED_STATE,
-    CONTINUE_COMMAND,
-    DELIVERED_NOTICE_ID,
-    ELAPSED_HOURS,
-    GRANT_SPENT,
-    GUIDANCE,
-    HELD_PLAN_PR,
-    KEY_LAST_ACTION_COMMENT_ID,
-    KEY_RETRY_CAP_STAGE,
-    NOTICE,
-    PARK_UNPARSED,
-    PARKED_STATE,
-    PHASE_CONTINUED,
-    PHASE_DELIVERED,
-    PHASE_RECONCILED,
-    PHASE_STANDING,
-    RETRY_CAP_EVENT,
-    STAGE_DECOMPOSING,
-    UNUSABLE_REPLY,
     LateRetryCapCase,
     PausedDuringRun,
     UnreadableThread,
-    outsider,
-    owed_notice,
-    posted_notice,
-    trusted,
 )
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
@@ -83,22 +59,22 @@ class ExhaustionTest(LateRetryCapCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         spawn.assert_not_called()
-        self._assert_reads_as(PARKED_STATE)
+        self._assert_reads_as(_support.PARKED_STATE)
         self.assertNotIn(KEYS.source_sha, self._pinned())
         self.assertEqual(len(self._bodies()), 1)
-        self.assertIn(CAP_SENTENCE, self._bodies()[0])
+        self.assertIn(_support.CAP_SENTENCE, self._bodies()[0])
 
     def test_the_record_rides_the_same_write(self) -> None:
         # The reason the park is staged through this mode's own park owner:
         # the frozen candidate and the hold's record of the pull request it
         # stands under are what the refusal leaves standing, and a park
         # written past them would lose them or have to write them twice.
-        self._spend_the_budget(**HELD_PLAN_PR)
+        self._spend_the_budget(**_support.HELD_PLAN_PR)
 
         self._tick()
 
         self._assert_reads_as({
-            **PARKED_STATE,
+            **_support.PARKED_STATE,
             KEYS.candidate_sha: CANDIDATE_SHA,
             KEYS.plan_pr_number: PLAN_PR_NUMBER,
             KEYS.plan_pr_body: PLAN_PR_BODY,
@@ -116,9 +92,9 @@ class ExhaustionTest(LateRetryCapCase):
             [
                 (record["phase"], record["stage"])
                 for record in self.github.recorded_events
-                if record["event"] == RETRY_CAP_EVENT
+                if record["event"] == _support.RETRY_CAP_EVENT
             ],
-            [(PHASE_DELIVERED, STAGE_DECOMPOSING)],
+            [(_support.PHASE_DELIVERED, _support.STAGE_DECOMPOSING)],
         )
 
 
@@ -138,14 +114,14 @@ class StandingParkTest(LateRetryCapCase):
         # The refusals are countable: an operator reading the stream sees a
         # park that goes on refusing rather than an adjudication that went
         # quiet.
-        self.assertEqual(self._phases(), (PHASE_STANDING,) * HELD_TICKS)
+        self.assertEqual(self._phases(), (_support.PHASE_STANDING,) * HELD_TICKS)
 
     def test_it_keeps_what_the_issue_arrived_with(self) -> None:
         # The park is asked ahead of the evidence probe, the hold, and the
         # content settlement, so an edited body neither parks the candidate
         # nor resumes a developer, the pull request keeps the notice saying an
         # adjudication is running, and the locked late run stays pinned.
-        self._park(**CARRIED_STATE)
+        self._park(**_support.CARRIED_STATE)
         self.issue.body = EDITED_BODY
 
         self._assert_held(self._tick())
@@ -157,7 +133,7 @@ class StandingParkTest(LateRetryCapCase):
         # issue's day on the candidate, which "any update?" does not say --
         # and an outsider's copy of the command buys agent time on somebody
         # else's word.
-        for reply in (trusted("any update?"), outsider(CONTINUE_COMMAND)):
+        for reply in (_support.trusted("any update?"), _support.outsider(_support.CONTINUE_COMMAND)):
             with self.subTest(author=reply.user.login):
                 self._park(reply)
 
@@ -167,7 +143,7 @@ class StandingParkTest(LateRetryCapCase):
     def test_the_clock_does_not_lift_it(self) -> None:
         # The window is a budget window, not a parole hearing: a notice that
         # asked for a human is not answered by the day passing it.
-        self._park(**{KEYS.retry_window: _iso_hours_ago(ELAPSED_HOURS)})
+        self._park(**{KEYS.retry_window: _iso_hours_ago(_support.ELAPSED_HOURS)})
 
         self._assert_held(self._tick())
 
@@ -198,24 +174,24 @@ class ContinuationTest(LateRetryCapCase):
         # issue is the spawn the budget refused.
         spawn.assert_called_once()
         self.assertIsNone(spawn.call_args.kwargs.get("resume_session_id"))
-        self._assert_reads_as(GRANT_SPENT)
-        self.assertNotIn(KEY_RETRY_CAP_STAGE, self._pinned())
+        self._assert_reads_as(_support.GRANT_SPENT)
+        self.assertNotIn(_support.KEY_RETRY_CAP_STAGE, self._pinned())
         self.assertGreaterEqual(
-            self._pinned()[KEY_LAST_ACTION_COMMENT_ID], ANSWER_ID,
+            self._pinned()[_support.KEY_LAST_ACTION_COMMENT_ID], _support.ANSWER_ID,
         )
-        self.assertEqual(self._phases(), (PHASE_CONTINUED,))
+        self.assertEqual(self._phases(), (_support.PHASE_CONTINUED,))
 
     def test_a_command_beside_guidance_still_counts(self) -> None:
         # A decision that arrives with an explanation is still the decision,
         # and the explanation reaches the fresh adjudicator through the late
         # prompt rather than being refused for arriving together.
-        self._park(trusted(f"{GUIDANCE}\n\n{CONTINUE_COMMAND}"))
+        self._park(_support.trusted(f"{_support.GUIDANCE}\n\n{_support.CONTINUE_COMMAND}"))
 
         spawn = self._tick()
 
         spawn.assert_called_once()
-        self.assertIn(GUIDANCE, spawn.call_args.args[1])
-        self._assert_reads_as(GRANT_SPENT)
+        self.assertIn(_support.GUIDANCE, spawn.call_args.args[1])
+        self._assert_reads_as(_support.GRANT_SPENT)
 
     def test_the_attempt_it_buys_is_the_only_one(self) -> None:
         # One command, one adjudication. The unusable reply below parks for a
@@ -223,14 +199,14 @@ class ContinuationTest(LateRetryCapCase):
         # park and re-spawns in the same tick -- so it is where a grant read
         # as a fresh day rather than as a single attempt would show.
         self._park(commanded=True)
-        self._tick(UNUSABLE_REPLY)
-        self.assertEqual(self._pinned()[KEYS.park_reason], PARK_UNPARSED)
+        self._tick(_support.UNUSABLE_REPLY)
+        self.assertEqual(self._pinned()[KEYS.park_reason], _support.PARK_UNPARSED)
 
         spawn = self._tick()
 
         spawn.assert_not_called()
-        self._assert_reads_as(PARKED_STATE)
-        self.assertIn(CAP_SENTENCE, self._bodies()[-1])
+        self._assert_reads_as(_support.PARKED_STATE)
+        self.assertIn(_support.CAP_SENTENCE, self._bodies()[-1])
 
     def test_a_declined_run_leaves_it_unspent(self) -> None:
         # The grant is durable before the agent starts and the spend is not,
@@ -242,7 +218,7 @@ class ContinuationTest(LateRetryCapCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.DEFERRED)
         self._assert_reads_as({
-            **GRANT_SPENT, KEYS.retry_count: 0, KEYS.retry_grant: 1,
+            **_support.GRANT_SPENT, KEYS.retry_count: 0, KEYS.retry_grant: 1,
         })
         self.assertEqual(self._bodies(), [])
 
@@ -257,9 +233,9 @@ class OwedNoticeTest(LateRetryCapCase):
         self._park_on_a_refused_notice()
 
         recorded = self._pinned().get(KEYS.park_notice, {})
-        self._assert_reads_as(PARKED_STATE)
-        self.assertEqual(recorded.get("reason"), PARKED_STATE[KEYS.park_reason])
-        self.assertIn(CAP_SENTENCE, recorded.get("message", ""))
+        self._assert_reads_as(_support.PARKED_STATE)
+        self.assertEqual(recorded.get("reason"), _support.PARKED_STATE[KEYS.park_reason])
+        self.assertIn(_support.CAP_SENTENCE, recorded.get("message", ""))
         self.assertEqual(self._bodies(), [])
 
     def test_the_next_tick_says_what_the_park_is_for(self) -> None:
@@ -269,17 +245,17 @@ class OwedNoticeTest(LateRetryCapCase):
 
         spawn.assert_not_called()
         self.assertEqual(len(self._bodies()), 1)
-        self.assertIn(CAP_SENTENCE, self._bodies()[0])
+        self.assertIn(_support.CAP_SENTENCE, self._bodies()[0])
         self.assertNotIn(KEYS.park_notice, self._pinned())
         self.assertEqual(
-            self._phases(), (PHASE_DELIVERED, PHASE_STANDING),
+            self._phases(), (_support.PHASE_DELIVERED, _support.PHASE_STANDING),
         )
 
     def test_a_command_before_the_notice_is_no_answer(self) -> None:
         # Saying the sentence moves the response boundary past everything
         # written under the old one, so a command that predates the question
         # is consumed by the delivery rather than read as an answer to it.
-        self._park(commanded=True, **{KEYS.park_notice: owed_notice()})
+        self._park(commanded=True, **{KEYS.park_notice: _support.owed_notice()})
 
         spawn = self._tick()
 
@@ -287,11 +263,11 @@ class OwedNoticeTest(LateRetryCapCase):
         self.assertEqual(len(self._bodies()), 1)
         # Verbatim: the thread is searched for exactly the sentence the park
         # recorded, so a delivery that reworded it would find nothing.
-        self.assertIn(NOTICE, self._bodies()[0])
-        self._assert_reads_as(PARKED_STATE)
+        self.assertIn(_support.NOTICE, self._bodies()[0])
+        self._assert_reads_as(_support.PARKED_STATE)
         self.assertNotIn(KEYS.park_notice, self._pinned())
         self.assertEqual(
-            self._phases(), (PHASE_DELIVERED, PHASE_STANDING),
+            self._phases(), (_support.PHASE_DELIVERED, _support.PHASE_STANDING),
         )
 
     def test_a_notice_on_the_thread_is_reconciled(self) -> None:
@@ -300,18 +276,18 @@ class OwedNoticeTest(LateRetryCapCase):
         # is repaired rather than repeated -- and the command written UNDER it
         # is a real answer, taken by the same tick that repairs the record.
         self._park(
-            posted_notice(),
-            trusted(CONTINUE_COMMAND),
-            **{KEYS.park_notice: owed_notice()},
+            _support.posted_notice(),
+            _support.trusted(_support.CONTINUE_COMMAND),
+            **{KEYS.park_notice: _support.owed_notice()},
         )
 
         spawn = self._tick()
 
-        self.assertNotIn(NOTICE, "".join(self._bodies()))
+        self.assertNotIn(_support.NOTICE, "".join(self._bodies()))
         spawn.assert_called_once()
         self.assertNotIn(KEYS.park_notice, self._pinned())
         self.assertEqual(
-            self._phases(), (PHASE_RECONCILED, PHASE_CONTINUED),
+            self._phases(), (_support.PHASE_RECONCILED, _support.PHASE_CONTINUED),
         )
 
     def test_an_outsiders_copy_is_no_receipt(self) -> None:
@@ -322,32 +298,32 @@ class OwedNoticeTest(LateRetryCapCase):
         # the issue had stopped for -- and nothing supersedes this park, so
         # nothing would ever say the sentence again.
         self._park(
-            posted_notice(login=OUTSIDER),
-            trusted(CONTINUE_COMMAND),
-            **{KEYS.park_notice: owed_notice()},
+            _support.posted_notice(login=OUTSIDER),
+            _support.trusted(_support.CONTINUE_COMMAND),
+            **{KEYS.park_notice: _support.owed_notice()},
         )
 
         spawn = self._tick()
 
         spawn.assert_not_called()
-        self.assertIn(NOTICE, self._bodies()[0])
-        self._assert_reads_as(PARKED_STATE)
+        self.assertIn(_support.NOTICE, self._bodies()[0])
+        self._assert_reads_as(_support.PARKED_STATE)
         self.assertEqual(
-            self._phases(), (PHASE_DELIVERED, PHASE_STANDING),
+            self._phases(), (_support.PHASE_DELIVERED, _support.PHASE_STANDING),
         )
 
     def test_the_repair_moves_the_boundary(self) -> None:
         # Both halves the failed write was carrying: the obligation dropped,
         # and the watermark ratcheted to the comment that really carried the
         # sentence rather than left at the id the park was taken under.
-        self._park(posted_notice(), **{KEYS.park_notice: owed_notice()})
+        self._park(_support.posted_notice(), **{KEYS.park_notice: _support.owed_notice()})
         self.assertEqual(
-            self.standing[KEY_LAST_ACTION_COMMENT_ID], PARK_NOTICE_ID,
+            self.standing[_support.KEY_LAST_ACTION_COMMENT_ID], PARK_NOTICE_ID,
         )
 
         self._tick()
 
         self.assertEqual(
-            self._pinned()[KEY_LAST_ACTION_COMMENT_ID], DELIVERED_NOTICE_ID,
+            self._pinned()[_support.KEY_LAST_ACTION_COMMENT_ID], _support.DELIVERED_NOTICE_ID,
         )
         self.assertEqual(self._bodies(), [])

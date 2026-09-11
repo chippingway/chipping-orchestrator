@@ -46,29 +46,12 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 )
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.fixtures import _TEST_SPEC
+from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     LateCase,
     WorktreeSeed,
     agent_reply,
     late_run_context,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    CANDIDATE_SHA,
-    KEY_PLAN_PATH,
-    KEYS,
-    NO_BLOCK_REPLY,
-    OTHER_SHA,
-    PLAN_PATH,
-    PLAN_PR_BODY,
-    PLAN_PR_NUMBER,
-    QUESTION_REPLY,
-    SINGLE_REPLY,
-    SPLIT_REPLY,
-    generation_state,
-    late_block,
-    late_generation,
-    seed_late_issue,
-    seed_plan_pr,
 )
 
 WORKFLOW_LOG = "orchestrator.workflow"
@@ -98,25 +81,25 @@ NO_ACTION_LINE = "No action needed."
 
 SPLIT_CHILDREN = 2
 
-SINGLE_RUN = agent_reply(SINGLE_REPLY)
-SPLIT_RUN = agent_reply(SPLIT_REPLY)
-QUESTION_RUN = agent_reply(QUESTION_REPLY)
+SINGLE_RUN = agent_reply(_support.SINGLE_REPLY)
+SPLIT_RUN = agent_reply(_support.SPLIT_REPLY)
+QUESTION_RUN = agent_reply(_support.QUESTION_REPLY)
 
 # The runs that finish without deciding anything. Each parks the issue, and
 # each is a completion the guard has to stand in front of all the same: the
 # issue paid for the run, and a closure during one of them strands the same
 # generation as a closure during a verdict would.
 TIMEOUT_RUN = agent_reply("", timed_out=True)
-UNPARSED_RUN = agent_reply(NO_BLOCK_REPLY)
+UNPARSED_RUN = agent_reply(_support.NO_BLOCK_REPLY)
 _TOO_LONG_TO_RECORD = "q" * _late_session.MAX_RECORDED_BODY
-UNRECORDABLE_RUN = agent_reply(late_block(
+UNRECORDABLE_RUN = agent_reply(_support.late_block(
     '{"decision": "question", "category": "unsafe_split", '
     '"question": "' + _TOO_LONG_TO_RECORD + '"}'
 ))
 
 # A worktree the read-only adjudicator moved. The run finished and its verdict
 # is refused, which is one more completion that only parks.
-MOVED_CANDIDATE = WorktreeSeed(head=OTHER_SHA)
+MOVED_CANDIDATE = WorktreeSeed(head=_support.OTHER_SHA)
 
 # A store that holds both commits and cannot hand back the content between
 # them. The verdict settles exactly as it would have -- the exact commit is
@@ -170,14 +153,14 @@ PARK_NOTICE_ID = 100
 # A split this issue already recorded against exactly this candidate: what a
 # tick reuses instead of paying for a second adjudication.
 RECORDED_SPLIT = MappingProxyType({
-    KEYS.verdict: "split",
-    KEYS.children: [
+    _support.KEYS.verdict: "split",
+    _support.KEYS.children: [
         {"title": "A", "body": "a", "depends_on": []},
         {"title": "B", "body": "b", "depends_on": [0]},
     ],
-    KEYS.run_cycle_id: late_generation().cycle_id,
-    KEYS.run_generation: late_generation().generation,
-    KEYS.source_sha: CANDIDATE_SHA,
+    _support.KEYS.run_cycle_id: _support.late_generation().cycle_id,
+    _support.KEYS.run_generation: _support.late_generation().generation,
+    _support.KEYS.source_sha: _support.CANDIDATE_SHA,
 })
 
 # What a human replacing a held pull request's description leaves behind: text
@@ -249,8 +232,8 @@ def stateless_owner(github: FakeGitHubClient):
 # reads together: the marker says a read is owed, and the park says this mode
 # told somebody so and therefore owes them a follow-up when it heals.
 _OWED_READ_PARK = MappingProxyType({
-    KEYS.awaiting: True,
-    KEYS.park_reason: PARK_OWNER_UNREADABLE,
+    _support.KEYS.awaiting: True,
+    _support.KEYS.park_reason: PARK_OWNER_UNREADABLE,
     KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
 })
 
@@ -332,8 +315,8 @@ class GuardedLateCase(LateCase):
         """
         self.github.seed_state(
             self.issue.number,
-            **generation_state(
-                late_generation(
+            **_support.generation_state(
+                _support.late_generation(
                     owner_check_pending=True, **generation_fields,
                 ),
             ),
@@ -355,15 +338,15 @@ class HeldPlanPrCase(GuardedLateCase):
     def setUp(self) -> None:
         super().setUp()
         self.github = FakeGitHubClient()
-        self.generation = late_generation(
-            plan_pr_number=PLAN_PR_NUMBER, plan_pr_body=PLAN_PR_BODY,
+        self.generation = _support.late_generation(
+            plan_pr_number=_support.PLAN_PR_NUMBER, plan_pr_body=_support.PLAN_PR_BODY,
         )
-        self.issue = seed_late_issue(
+        self.issue = _support.seed_late_issue(
             self.github,
             self.generation,
-            pr_number=PLAN_PR_NUMBER,
-            **{KEY_PLAN_PATH: PLAN_PATH},
+            pr_number=_support.PLAN_PR_NUMBER,
+            **{_support.KEY_PLAN_PATH: _support.PLAN_PATH},
         )
-        self.plan_pr = seed_plan_pr(
+        self.plan_pr = _support.seed_plan_pr(
             self.github, body=_late_hold._hold_body(self.generation),
         )

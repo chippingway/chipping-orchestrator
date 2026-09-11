@@ -16,35 +16,14 @@ from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
+from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     LateCase,
     adjudicate,
     agent_reply,
 )
-from tests.workflow.stages.decomposition.late_test_support import (
-    CANDIDATE_SHA,
-    CYCLE_ID,
-    FIRST_ESTIMATE,
-    KEY_PLAN_PATH,
-    KEYS,
-    LATE_ISSUE_NUMBER,
-    LATE_SESSION_ID,
-    PLAN_PATH,
-    PLAN_PR_BODY,
-    PLAN_PR_NUMBER,
-    QUESTION_ASKED,
-    QUESTION_REPLY,
-    SECOND_ESTIMATE,
-    SINGLE_REPLY,
-    SPLIT_REPLY,
-    generation_state,
-    late_block,
-    late_generation,
-    seed_plan_pr,
-    seeded_late_issue,
-)
 
-NEXT_CYCLE_ID = CYCLE_ID + 1
+NEXT_CYCLE_ID = _support.CYCLE_ID + 1
 
 QUESTION_VERDICT = "question"
 
@@ -69,14 +48,14 @@ _TOO_LONG_TO_RECORD = "q" * _session.MAX_RECORDED_BODY
 _OVERSIZED_OUTCOMES = (
     (
         QUESTION_VERDICT,
-        late_block(
+        _support.late_block(
             '{"decision": "question", "category": "unsafe_split", '
             f'"question": "{_TOO_LONG_TO_RECORD}"}}'
         ),
     ),
     (
         SINGLE_VERDICT,
-        late_block(
+        _support.late_block(
             '{"decision": "single", '
             f'"split_blocker": "{_TOO_LONG_TO_RECORD}"}}'
         ),
@@ -103,7 +82,7 @@ class _CommentSnapshot:
         self._comment = github.comment
 
     def __call__(self, issue, body):
-        self.snapshots.append(self._github.pinned_data(LATE_ISSUE_NUMBER))
+        self.snapshots.append(self._github.pinned_data(_support.LATE_ISSUE_NUMBER))
         return self._comment(issue, body)
 
 
@@ -112,16 +91,16 @@ class SplitRecoveryTest(LateCase, unittest.TestCase):
 
     def test_a_split_records_its_manifest(self) -> None:
         outcome, spawn = self._adjudicate(
-            agent_reply(SPLIT_REPLY, session_id=LATE_SESSION_ID),
+            agent_reply(_support.SPLIT_REPLY, session_id=_support.LATE_SESSION_ID),
         )
 
         spawn.assert_called_once()
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
         self.assertEqual(outcome.adjudication.verdict, LateVerdict.SPLIT)
-        self.assertEqual(self._pinned().get(KEYS.session_id), LATE_SESSION_ID)
-        self.assertEqual(self._pinned().get(KEYS.verdict), LateVerdict.SPLIT)
+        self.assertEqual(self._pinned().get(_support.KEYS.session_id), _support.LATE_SESSION_ID)
+        self.assertEqual(self._pinned().get(_support.KEYS.verdict), LateVerdict.SPLIT)
         self.assertEqual(
-            [child["title"] for child in self._pinned()[KEYS.children]],
+            [child["title"] for child in self._pinned()[_support.KEYS.children]],
             ["A", "B"],
         )
 
@@ -130,17 +109,17 @@ class SplitRecoveryTest(LateCase, unittest.TestCase):
         # size its slice was proposed at, so a record without the numbers
         # would leave a crashed tick creating children that say nothing about
         # their own size.
-        self._adjudicate(agent_reply(SPLIT_REPLY))
+        self._adjudicate(agent_reply(_support.SPLIT_REPLY))
 
         self.assertEqual(
-            [child[ESTIMATE] for child in self._pinned()[KEYS.children]],
-            [FIRST_ESTIMATE, SECOND_ESTIMATE],
+            [child[ESTIMATE] for child in self._pinned()[_support.KEYS.children]],
+            [_support.FIRST_ESTIMATE, _support.SECOND_ESTIMATE],
         )
 
     def test_a_crashed_split_recovers_its_children(self) -> None:
         # The whole point of recording it: a second run would be paid for
         # again and is free to decide something else entirely.
-        self._adjudicate(agent_reply(SPLIT_REPLY))
+        self._adjudicate(agent_reply(_support.SPLIT_REPLY))
 
         outcome, spawn = self._adjudicate()
 
@@ -154,23 +133,23 @@ class SplitRecoveryTest(LateCase, unittest.TestCase):
         self.assertEqual(outcome.adjudication.children[1]["depends_on"], [0])
         self.assertEqual(
             [child[ESTIMATE] for child in outcome.adjudication.children],
-            [FIRST_ESTIMATE, SECOND_ESTIMATE],
+            [_support.FIRST_ESTIMATE, _support.SECOND_ESTIMATE],
         )
 
     def test_a_manifest_without_budgets_answers(self) -> None:
         # A live issue's split was recorded before this domain kept budgets.
         # Reading one as no manifest would send a candidate that has already
         # been adjudicated round again, for a run free to decide differently.
-        self._adjudicate(agent_reply(SPLIT_REPLY))
-        self.github.seed_state(LATE_ISSUE_NUMBER, **{
+        self._adjudicate(agent_reply(_support.SPLIT_REPLY))
+        self.github.seed_state(_support.LATE_ISSUE_NUMBER, **{
             **self._pinned(),
-            KEYS.children: [
+            _support.KEYS.children: [
                 {
                     field: declared
                     for field, declared in child.items()
                     if field != ESTIMATE
                 }
-                for child in self._pinned()[KEYS.children]
+                for child in self._pinned()[_support.KEYS.children]
             ],
         })
 
@@ -192,24 +171,24 @@ class AnnouncementRecoveryTest(LateCase, unittest.TestCase):
         recorder = _CommentSnapshot(self.github)
 
         with patch.object(self.github, "comment", recorder):
-            self._adjudicate(agent_reply(QUESTION_REPLY))
+            self._adjudicate(agent_reply(_support.QUESTION_REPLY))
 
         self.assertEqual(
-            [held.get(KEYS.verdict) for held in recorder.snapshots],
+            [held.get(_support.KEYS.verdict) for held in recorder.snapshots],
             [LateVerdict.QUESTION],
         )
         self.assertEqual(
-            recorder.snapshots[0].get(KEYS.question), QUESTION_ASKED,
+            recorder.snapshots[0].get(_support.KEYS.question), _support.QUESTION_ASKED,
         )
 
     def test_an_unannounced_question_is_announced(self) -> None:
         # The window between the post and the write that records it: the
         # outcome is durable, the park is not, and the next tick owes the
         # issue the question rather than another agent run.
-        self._adjudicate(agent_reply(QUESTION_REPLY))
+        self._adjudicate(agent_reply(_support.QUESTION_REPLY))
         self.github.seed_state(
-            LATE_ISSUE_NUMBER,
-            **{**self._pinned(), KEYS.awaiting: False},
+            _support.LATE_ISSUE_NUMBER,
+            **{**self._pinned(), _support.KEYS.awaiting: False},
         )
         posted = len(self.github.posted_comments)
 
@@ -218,11 +197,11 @@ class AnnouncementRecoveryTest(LateCase, unittest.TestCase):
         spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
         self.assertEqual(len(self.github.posted_comments), posted + 1)
-        self.assertIn(QUESTION_ASKED, self.github.posted_comments[-1][1])
-        self.assertTrue(self._pinned().get(KEYS.awaiting))
+        self.assertIn(_support.QUESTION_ASKED, self.github.posted_comments[-1][1])
+        self.assertTrue(self._pinned().get(_support.KEYS.awaiting))
 
     def test_an_announced_question_is_not_reposted(self) -> None:
-        self._adjudicate(agent_reply(QUESTION_REPLY))
+        self._adjudicate(agent_reply(_support.QUESTION_REPLY))
         posted = len(self.github.posted_comments)
 
         outcome, spawn = self._adjudicate()
@@ -239,18 +218,18 @@ class IncompleteRecordTest(LateCase, unittest.TestCase):
         # It would otherwise suppress the next spawn and then announce
         # nothing, leaving the issue decided, silent, and going nowhere.
         self.github.seed_state(
-            LATE_ISSUE_NUMBER,
+            _support.LATE_ISSUE_NUMBER,
             **{
                 **self._pinned(),
-                KEYS.run_cycle_id: CYCLE_ID,
-                KEYS.run_generation: 1,
-                KEYS.source_sha: CANDIDATE_SHA,
-                KEYS.verdict: str(LateVerdict.QUESTION),
-                KEYS.category: str(LateVerdictCategory.SCOPE_AMBIGUOUS),
+                _support.KEYS.run_cycle_id: _support.CYCLE_ID,
+                _support.KEYS.run_generation: 1,
+                _support.KEYS.source_sha: _support.CANDIDATE_SHA,
+                _support.KEYS.verdict: str(LateVerdict.QUESTION),
+                _support.KEYS.category: str(LateVerdictCategory.SCOPE_AMBIGUOUS),
             },
         )
 
-        outcome, spawn = self._adjudicate(agent_reply(SINGLE_REPLY))
+        outcome, spawn = self._adjudicate(agent_reply(_support.SINGLE_REPLY))
 
         spawn.assert_called_once()
         self.assertEqual(outcome.adjudication.verdict, LateVerdict.SINGLE)
@@ -266,7 +245,7 @@ class IncompleteRecordTest(LateCase, unittest.TestCase):
                     outcome, _ = self._adjudicate(agent_reply(oversized))
 
                 self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
-                self.assertNotIn(KEYS.verdict, self._pinned())
+                self.assertNotIn(_support.KEYS.verdict, self._pinned())
                 notice = self.github.posted_comments[-1][1]
                 self.assertIn("half an outcome", notice)
                 self.assertIn(_NAMES_THE_EXPLANATION, notice)
@@ -276,12 +255,12 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
     """A park the retry answered is retired before the result is processed."""
 
     def setUp(self) -> None:
-        github, issue = seeded_late_issue(
-            pr_number=PLAN_PR_NUMBER, **{KEY_PLAN_PATH: PLAN_PATH},
+        github, issue = _support.seeded_late_issue(
+            pr_number=_support.PLAN_PR_NUMBER, **{_support.KEY_PLAN_PATH: _support.PLAN_PATH},
         )
         self.github = github
         self.issue = issue
-        self.plan_pr = seed_plan_pr(github)
+        self.plan_pr = _support.seed_plan_pr(github)
 
     def test_a_retried_hold_still_announces(self) -> None:
         # The park the failed hold left would otherwise silence exactly the
@@ -290,13 +269,13 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
         self._fail_the_hold()
 
         outcome, spawn = adjudicate(
-            self.github, self.issue, agent_reply(QUESTION_REPLY),
+            self.github, self.issue, agent_reply(_support.QUESTION_REPLY),
         )
 
         spawn.assert_called_once()
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
-        self.assertIn(QUESTION_ASKED, self.github.posted_comments[-1][1])
-        self.assertEqual(self._pinned().get(KEYS.park_reason), _late_park_state.PARK_QUESTION)
+        self.assertIn(_support.QUESTION_ASKED, self.github.posted_comments[-1][1])
+        self.assertEqual(self._pinned().get(_support.KEYS.park_reason), _late_park_state.PARK_QUESTION)
 
     def test_a_retried_hold_leaves_no_stale_park(self) -> None:
         # The reason a failed hold left is not the one an issue whose verdict
@@ -304,10 +283,10 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
         # a human to answer a step that has since been reconciled.
         self._fail_the_hold()
 
-        adjudicate(self.github, self.issue, agent_reply(SINGLE_REPLY))
+        adjudicate(self.github, self.issue, agent_reply(_support.SINGLE_REPLY))
 
         self.assertEqual(
-            self._pinned().get(KEYS.park_reason),
+            self._pinned().get(_support.KEYS.park_reason),
             _late_park_state.PARK_SINGLE_DECISION,
         )
 
@@ -316,15 +295,15 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
         # otherwise never write, so a park retired into memory there is a
         # park still standing on the issue -- durably claiming a human is
         # owed something on an issue already decided.
-        adjudicate(self.github, self.issue, agent_reply(SPLIT_REPLY))
+        adjudicate(self.github, self.issue, agent_reply(_support.SPLIT_REPLY))
         self._fail_the_hold()
 
         reused, unspawned = adjudicate(self.github, self.issue)
 
         unspawned.assert_not_called()
         self.assertEqual(reused.disposition, _LateDisposition.DECIDED)
-        self.assertFalse(self._pinned().get(KEYS.awaiting))
-        self.assertIsNone(self._pinned().get(KEYS.park_reason))
+        self.assertFalse(self._pinned().get(_support.KEYS.awaiting))
+        self.assertIsNone(self._pinned().get(_support.KEYS.park_reason))
 
     def test_a_stranded_question_survives(self) -> None:
         # The composition: a run whose result persisted and whose comment
@@ -335,17 +314,17 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
             self.github, "comment", side_effect=RuntimeError,
         )
         with refused, self.assertRaises(RuntimeError):
-            self._adjudicate(agent_reply(QUESTION_REPLY))
-        self.assertEqual(self._pinned().get(KEYS.verdict), QUESTION_VERDICT)
+            self._adjudicate(agent_reply(_support.QUESTION_REPLY))
+        self.assertEqual(self._pinned().get(_support.KEYS.verdict), QUESTION_VERDICT)
         self._fail_the_hold()
 
         recovered, unspawned = adjudicate(self.github, self.issue)
 
         unspawned.assert_not_called()
         self.assertEqual(recovered.disposition, _LateDisposition.DECIDED)
-        self.assertIn(QUESTION_ASKED, self.github.posted_comments[-1][1])
+        self.assertIn(_support.QUESTION_ASKED, self.github.posted_comments[-1][1])
         self.assertEqual(
-            self._pinned().get(KEYS.park_reason), _late_park_state.PARK_QUESTION,
+            self._pinned().get(_support.KEYS.park_reason), _late_park_state.PARK_QUESTION,
         )
 
     def test_a_repeated_failure_says_it_once(self) -> None:
@@ -374,7 +353,7 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
         )
         self.assertEqual(self.github.edited_pr_bodies, [])
         self.assertEqual(
-            self._pinned().get(KEYS.park_reason),
+            self._pinned().get(_support.KEYS.park_reason),
             _late_park_state.PARK_HOLD_FAILED,
         )
 
@@ -386,13 +365,13 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
         body the reconciliation re-applies over, so the edit is reached
         whether or not a hold already stands.
         """
-        self.plan_pr.body = PLAN_PR_BODY
+        self.plan_pr.body = _support.PLAN_PR_BODY
         refused = patch.object(
             self.github, EDIT_PR_BODY, side_effect=RuntimeError,
         )
         with refused, self.assertLogs(WORKFLOW_LOG, level="ERROR"):
             adjudicate(self.github, self.issue)
-        self.assertTrue(self._pinned().get(KEYS.awaiting))
+        self.assertTrue(self._pinned().get(_support.KEYS.awaiting))
 
 
 class CycleIdentityTest(LateCase, unittest.TestCase):
@@ -402,20 +381,20 @@ class CycleIdentityTest(LateCase, unittest.TestCase):
         # A restart mints a fresh cycle and puts the generation back to where
         # it started, so counter-plus-commit alone would hand the new attempt
         # the old one's verdict -- and these run fields outlive the clear.
-        self._adjudicate(agent_reply(SINGLE_REPLY))
+        self._adjudicate(agent_reply(_support.SINGLE_REPLY))
         self.github.seed_state(
-            LATE_ISSUE_NUMBER,
+            _support.LATE_ISSUE_NUMBER,
             **{
                 **self._pinned(),
-                **generation_state(late_generation(cycle_id=NEXT_CYCLE_ID)),
+                **_support.generation_state(_support.late_generation(cycle_id=NEXT_CYCLE_ID)),
             },
         )
 
-        outcome, spawn = self._adjudicate(agent_reply(QUESTION_REPLY))
+        outcome, spawn = self._adjudicate(agent_reply(_support.QUESTION_REPLY))
 
         spawn.assert_called_once()
         self.assertEqual(outcome.adjudication.verdict, LateVerdict.QUESTION)
-        self.assertEqual(self._pinned().get(KEYS.run_cycle_id), NEXT_CYCLE_ID)
+        self.assertEqual(self._pinned().get(_support.KEYS.run_cycle_id), NEXT_CYCLE_ID)
 
 
 if __name__ == "__main__":

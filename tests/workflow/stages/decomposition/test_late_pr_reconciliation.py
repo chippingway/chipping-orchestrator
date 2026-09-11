@@ -20,17 +20,8 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 )
 from tests.support.fakes import FakePR
 from tests.workflow.fixtures import LABEL_DECOMPOSING, LABEL_IMPLEMENTING
-from tests.workflow.stages.decomposition.late_settlement_support import (
-    CANDIDATE_BRANCH,
-    CARRYING_PR_NUMBER,
-    ERROR,
-    KEY_BRANCH,
-    KEY_PR_NUMBER,
-    PARK_PR_UNRECONCILED,
-    SETTLED_PR_NUMBER,
-    WORKFLOW_LOG,
-    GuardedLateCase,
-)
+from tests.workflow.stages.decomposition import late_settlement_support as _support
+from tests.workflow.stages.decomposition.late_settlement_support import GuardedLateCase
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
     EVENT_LATE_FAILURE,
@@ -56,9 +47,9 @@ class _PrStateCase(GuardedLateCase):
 
     def _seed_recording(self, pr_number) -> None:
         """Re-seed this issue with its branch and what it records as its PR."""
-        recorded = {KEY_BRANCH: CANDIDATE_BRANCH}
+        recorded = {_support.KEY_BRANCH: _support.CANDIDATE_BRANCH}
         if pr_number is not None:
-            recorded[KEY_PR_NUMBER] = pr_number
+            recorded[_support.KEY_PR_NUMBER] = pr_number
         self.github.seed_state(
             self.issue.number,
             **generation_state(late_generation()),
@@ -69,7 +60,7 @@ class _PrStateCase(GuardedLateCase):
         """One pull request on the candidate's branch, in the state named."""
         self.github.add_pr(FakePR(
             number=number,
-            head_branch=CANDIDATE_BRANCH,
+            head_branch=_support.CANDIDATE_BRANCH,
             state=PR_CLOSED if merged else PR_OPEN,
             merged=merged,
             commit_shas=(carries,),
@@ -84,24 +75,24 @@ class ExactCommitReconciliationTest(_PrStateCase, unittest.TestCase):
         # leaves the commit on a pull request nothing points at. Searched by
         # open state alone it is invisible, and the candidate is published a
         # second time.
-        self._add_pr(CARRYING_PR_NUMBER, merged=True, carries=CANDIDATE_SHA)
+        self._add_pr(_support.CARRYING_PR_NUMBER, merged=True, carries=CANDIDATE_SHA)
 
         outcome = self._settle()
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
-        self.assertEqual(self._pinned().get(KEY_PR_NUMBER), CARRYING_PR_NUMBER)
+        self.assertEqual(self._pinned().get(_support.KEY_PR_NUMBER), _support.CARRYING_PR_NUMBER)
 
     def test_a_settled_recorded_pr_is_dropped(self) -> None:
         # Carried into the implementing stage, a merged pull request that is
         # not the plan ends the issue as done -- on a change the adjudicated
         # candidate is not in.
-        self._seed_recording(SETTLED_PR_NUMBER)
-        self._add_pr(SETTLED_PR_NUMBER, merged=True, carries=OTHER_SHA)
+        self._seed_recording(_support.SETTLED_PR_NUMBER)
+        self._add_pr(_support.SETTLED_PR_NUMBER, merged=True, carries=OTHER_SHA)
 
         outcome = self._settle()
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
-        self.assertIsNone(self._pinned().get(KEY_PR_NUMBER))
+        self.assertIsNone(self._pinned().get(_support.KEY_PR_NUMBER))
         self.assertEqual(
             self.github.workflow_label(self.issue), LABEL_IMPLEMENTING,
         )
@@ -109,13 +100,13 @@ class ExactCommitReconciliationTest(_PrStateCase, unittest.TestCase):
     def test_an_open_recorded_pr_is_kept(self) -> None:
         # Nothing carries the commit yet, and an open pull request on the
         # branch is exactly what the ordinary publication reuses.
-        self._seed_recording(SETTLED_PR_NUMBER)
-        self._add_pr(SETTLED_PR_NUMBER, merged=False, carries=OTHER_SHA)
+        self._seed_recording(_support.SETTLED_PR_NUMBER)
+        self._add_pr(_support.SETTLED_PR_NUMBER, merged=False, carries=OTHER_SHA)
 
         outcome = self._settle()
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
-        self.assertEqual(self._pinned().get(KEY_PR_NUMBER), SETTLED_PR_NUMBER)
+        self.assertEqual(self._pinned().get(_support.KEY_PR_NUMBER), _support.SETTLED_PR_NUMBER)
 
 
 class UnreconciledPrTest(_PrStateCase, unittest.TestCase):
@@ -128,20 +119,20 @@ class UnreconciledPrTest(_PrStateCase, unittest.TestCase):
     """
 
     def test_an_unreadable_lookup_publishes_nothing(self) -> None:
-        self.github.unreadable_pr_lookups.add(CANDIDATE_BRANCH)
+        self.github.unreadable_pr_lookups.add(_support.CANDIDATE_BRANCH)
 
         outcome = self._settle()
 
         self._assert_unreconciled(outcome)
 
     def test_an_unreadable_record_publishes_nothing(self) -> None:
-        self._seed_recording(SETTLED_PR_NUMBER)
-        self._add_pr(SETTLED_PR_NUMBER, merged=True, carries=OTHER_SHA)
+        self._seed_recording(_support.SETTLED_PR_NUMBER)
+        self._add_pr(_support.SETTLED_PR_NUMBER, merged=True, carries=OTHER_SHA)
         refused = patch.object(
             self.github, GET_PR, side_effect=RuntimeError,
         )
 
-        with refused, self.assertLogs(WORKFLOW_LOG, level=ERROR):
+        with refused, self.assertLogs(_support.WORKFLOW_LOG, level=_support.ERROR):
             outcome = self._settle()
 
         self._assert_unreconciled(outcome)
@@ -150,7 +141,7 @@ class UnreconciledPrTest(_PrStateCase, unittest.TestCase):
         """Parked, with nothing exempted and nothing handed on."""
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         pinned = self._pinned()
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_PR_UNRECONCILED)
+        self.assertEqual(pinned.get(KEYS.park_reason), _support.PARK_PR_UNRECONCILED)
         self.assertNotIn(KEYS.exempt_sha, pinned)
         self.assertEqual(
             self.github.workflow_label(self.issue), LABEL_DECOMPOSING,
