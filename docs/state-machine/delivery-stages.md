@@ -1191,8 +1191,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        through the normal commit / timeout / question paths, with no "issue body changed" notice. A park needing a real
        answer (any other `park_reason`) consumes the command and posts a refusal (`_refuse_parked_continue`) once, then
        stays parked (no per-tick loop). The size gate's own `late_measurement_failed` park is answered one step
-       AHEAD of that classifier (`implementing/late_recovery.py`'s `_try_recover_late_measurement_park`, which owns
-       every park the size gate takes), because what failed there is a READING rather
+       AHEAD of that classifier by `implementing/late_candidate_recovery.py`'s
+       `_try_recover_late_measurement_park`, reached through the ordered recovery dispatcher,
+       because what failed there is a READING rather
        than a session: a content-free continue re-measures the recorded pair and re-publishes through the same seam,
        and no agent is spawned — the developer that produced the commit finished long ago. A worktree that is gone
        leaves the park exactly where it is rather than measuring something else, and guidance carrying real words
@@ -1220,7 +1221,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
      - A checkout the seam would REFUSE stops that road before the seam and holds silently, writing nothing: the
        seam parks under a reason of its own and its notice moves the watermark past whatever it finds, which here
        would take this park's reason off and consume the command still standing, so the operator who fixes the
-       worktree would be asked to authorize the same commit a second time. So `late_recovery` asks the seam's own
+       worktree would be asked to authorize the same commit a second time. So `late_authorization_recovery` asks the
+       seam's own
        questions first — the worktree on this host, its tree provably carrying nothing loose, its head the commit
        the park is about — and the commit it proves travels ON the work handed over, so the gate holds its own head
        read to it rather than to whatever landed in the writable window between the two readings.

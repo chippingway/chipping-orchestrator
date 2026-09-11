@@ -43,6 +43,10 @@ the default limit. Theme exports retain their owner objects; worktree guard tabl
 assertion. Ruff, WPS, and all 6265 collected test identities pass unchanged (6216 passed, 49 skipped).
 Three production coordinators remain.
 
+Implementing recovery now separates authorization-command handling from measurement/restored-candidate recovery,
+with the original dispatcher preserving their order. All seven function bodies are unchanged apart from owner
+references. All three owners pass isolated WPS defaults; full checks pass (6216 passed, 49 skipped).
+
 ## Scope and dependencies
 
 All ten currently tracked children were still open when this plan was prepared. Their implementation, owner moves,

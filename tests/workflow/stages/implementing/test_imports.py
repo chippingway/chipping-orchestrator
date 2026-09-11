@@ -50,6 +50,8 @@ _OWNERS = (
     "late_records",
     "late_rollback",
     "late_recovery",
+    "late_authorization_recovery",
+    "late_candidate_recovery",
     "late_rewrite",
     "late_rotation",
     "late_transfer",

@@ -800,7 +800,8 @@ The keys that matter for the state machine fall into a few groups:
   tree before any verdict can be recorded and parks under a reason of its own, which on every other road is right
   and here would take `late_unauthorized_exemption` off and move the watermark past the command still standing — so
   the operator who fixes the checkout is asked to authorize the same commit again, on an issue now waiting for a
-  different reply. So `late_recovery` asks the seam's own questions first: the worktree on this host, its tree
+  different reply. So `late_authorization_recovery` asks the seam's own questions first: the worktree on this host, its
+  tree
   provably carrying nothing loose (a reading that established nothing is refused beside a dirty one, since it is no
   evidence of a clean tree), and its head the commit this park is about. None of the three is anybody's decision,
   so each leaves the park, the command and the record exactly as found, and the poll after any of them is fixed
