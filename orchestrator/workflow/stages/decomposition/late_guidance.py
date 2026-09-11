@@ -63,6 +63,7 @@ from orchestrator.workflow.engine import comments as _comments, messages as _mes
 from orchestrator.workflow.stages.decomposition import (
     late_authorize as _late_authorize,
     late_content as _late_content,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_revision as _late_revision,
     late_session as _late_session,
@@ -89,9 +90,9 @@ _PARK_REASON = "park_reason"
 # commit was missing. A park left out of this set would be no park at all: the
 # next tick would fall through to adjudicating the very candidate it holds.
 _REVISION_PARKS = frozenset((
-    _late_parks.PARK_REVISION_DIRTY,
-    _late_parks.PARK_REVISION_UNMEASURED,
-    _late_parks.PARK_REVISION_UNANSWERED,
+    _late_park_state.PARK_REVISION_DIRTY,
+    _late_park_state.PARK_REVISION_UNMEASURED,
+    _late_park_state.PARK_REVISION_UNANSWERED,
 ))
 
 _DRIFT_PARK = (
@@ -149,7 +150,7 @@ def _baselined(
     context.generation = _late_content._rebaselined(
         context.generation, signal.fingerprint,
     )
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     return _LateContentSettlement(persisted=True)
 
 
@@ -163,7 +164,7 @@ def _drifted(
     the park stands does a reply resolve it, and which reply it is decides
     whether the frozen candidate is certified or the developer is resumed.
     """
-    if _standing_park(context) != _late_parks.PARK_CONTENT_DRIFT:
+    if _standing_park(context) != _late_park_state.PARK_CONTENT_DRIFT:
         return _parked_drift(context)
     if signal.guidance:
         return _late_revision._revise_from_guidance(context, signal)
@@ -212,13 +213,13 @@ def _park_answer(standing: str | None):
     humans have said, so what is here is the routing and what is there is the
     proof the decision costs.
     """
-    if standing == _late_parks.PARK_CONTENT_DRIFT:
+    if standing == _late_park_state.PARK_CONTENT_DRIFT:
         return _reverted
     if standing in _REVISION_PARKS:
         return _late_revision._retry_revision
-    if standing == _late_parks.PARK_QUESTION:
+    if standing == _late_park_state.PARK_QUESTION:
         return _answered_question
-    if standing == _late_parks.PARK_SINGLE_DECISION:
+    if standing == _late_park_state.PARK_SINGLE_DECISION:
         return _late_authorize._answered_single
     return None
 
@@ -260,7 +261,7 @@ def _parked_drift(context: _LateContext) -> _LateContentSettlement:
         context.issue.number, context.generation.candidate_sha,
     )
     _late_parks._park(
-        context, _DRIFT_PARK, reason=_late_parks.PARK_CONTENT_DRIFT,
+        context, _DRIFT_PARK, reason=_late_park_state.PARK_CONTENT_DRIFT,
     )
     return _LateContentSettlement(
         disposition=_LateDisposition.PARKED, persisted=True,
@@ -346,10 +347,10 @@ def _consumed(
     context.generation = _late_content._rebaselined(
         context.generation, signal.fingerprint,
     )
-    _late_parks._mark_replies_read(
+    _late_park_state._mark_replies_read(
         context, signal.fingerprint.comment_watermark_id,
     )
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     return _LateContentSettlement(disposition=disposition, persisted=True)
 
 

@@ -13,7 +13,7 @@ That write is what a completed adjudication is worth. The agent has already
 been paid for by the time a run finishes, so a crash between finishing and
 recording costs a second run of an agent that already answered -- which is why
 the durable write goes out before any external effect, the ordering rule
-`late_parks` owns beside it. A timeout, a contaminated worktree, an unusable
+`late_park_state` owns beside it. A timeout, a contaminated worktree, an unusable
 reply, and a verdict are all the same kind of thing here: a run somebody paid
 for, whose ending has to survive the tick that saw it.
 
@@ -46,6 +46,7 @@ from orchestrator.workflow.late_split.models import (
     LatePhase,
 )
 from orchestrator.workflow.stages.decomposition import (
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_session as _late_session,
 )
@@ -84,7 +85,7 @@ def _reused(
     human is owed something, on an issue whose answer is already recorded.
     """
     if retired:
-        _late_parks._persist(context)
+        _late_park_state._persist(context)
     return _finished(
         context,
         _LateDisposition.DECIDED,
@@ -227,7 +228,7 @@ def _completed(context: _LateContext) -> None:
         context.generation.at_phase(LatePhase.OWNER_CHECK),
         owner_check_pending=True,
     )
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
 
 
 def _finished(

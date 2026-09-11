@@ -8,7 +8,7 @@ What is here is the reading, the bound a split is refused at, the record it
 becomes, and the one sentence a question owes the issue; what a completion
 writes and hands back, and the emissions that report it, are that owner's.
 
-The ordering rule the exits here obey is the one `late_parks` owns -- the
+The ordering rule the exits here obey is the one `late_park_state` owns -- the
 durable write goes out before the external effect, never after -- and a
 completed adjudication is what makes it worth obeying. The agent has already
 been paid for by the time a reply is read, so a crash between reading it and
@@ -43,6 +43,7 @@ from orchestrator.workflow.late_split import events as _events
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_reply as _late_reply,
     late_session as _late_session,
@@ -103,7 +104,7 @@ def _decide(
         _late_parks._stage_park(
             context,
             _UNPARSED_PARK.format(reason=parse_error),
-            reason=_late_parks.PARK_UNPARSED,
+            reason=_late_park_state.PARK_UNPARSED,
         )
         _late_outcome._completed(context)
         return _late_outcome._finished(context, _LateDisposition.PARKED)
@@ -156,7 +157,7 @@ def _recorded(
             context.issue.number,
         )
         _late_parks._stage_park(
-            context, _UNRECORDABLE_PARK, reason=_late_parks.PARK_UNRECORDABLE,
+            context, _UNRECORDABLE_PARK, reason=_late_park_state.PARK_UNRECORDABLE,
         )
     _late_outcome._completed(context)
     _late_outcome._emit_verdict(context, adjudication)
@@ -186,12 +187,12 @@ def _announce(
     already waiting on a human for is not repeated -- which is what a recorded
     question reaching this a second time relies on.
     """
-    if not adjudication.question or _late_parks._stands_parked(context):
+    if not adjudication.question or _late_park_state._stands_parked(context):
         return
     _late_parks._park(
         context,
         _QUESTION_PARK.format(
             category=adjudication.category, asked=adjudication.question,
         ),
-        reason=_late_parks.PARK_QUESTION,
+        reason=_late_park_state.PARK_QUESTION,
     )

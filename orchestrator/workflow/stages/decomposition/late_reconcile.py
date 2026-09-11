@@ -39,6 +39,7 @@ from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_hold as _late_hold,
     late_outcome as _late_outcome,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_proof as _late_proof,
     late_publication as _late_publication,
@@ -151,7 +152,7 @@ def _released_hold(context: _LateContext) -> bool:
         return True
     _late_outcome._emit_failure(context, LateFailure.PLAN_PR_HOLD_FAILED)
     _late_parks._park(
-        context, _RELEASE_FAILED_PARK, reason=_late_parks.PARK_HOLD_FAILED,
+        context, _RELEASE_FAILED_PARK, reason=_late_park_state.PARK_HOLD_FAILED,
     )
     return False
 

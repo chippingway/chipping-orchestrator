@@ -57,6 +57,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.decomposition import (
     late_content as _late_content,
     late_owner as _late_owner,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_revision_obligations as _late_obligations,
     late_revision_reconciliation as _late_reconciliation,
@@ -259,7 +260,7 @@ def _consume(context: _LateContext, signal: _LateContentSignal) -> None:
     context.generation = _late_content._rebaselined(
         context.generation, signal.fingerprint,
     )
-    _late_parks._mark_replies_read(
+    _late_park_state._mark_replies_read(
         context, signal.fingerprint.comment_watermark_id,
     )
 

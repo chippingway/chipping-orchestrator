@@ -106,6 +106,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
     late_content as _late_content,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_revision as _late_revision,
     late_session as _late_session,
@@ -256,7 +257,7 @@ def _authorized(
     )
     _late_parks._answer_park(context)
     _consume(context, signal)
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     return _LateContentSettlement(persisted=True)
 
 
@@ -449,7 +450,7 @@ def _refused(
     if not still_waiting:
         _late_parks._answer_park(context)
     _consume(context, signal)
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     return _LateContentSettlement(
         disposition=_LateDisposition.PARKED if still_waiting else None,
         persisted=True,
@@ -483,6 +484,6 @@ def _consume(context: _LateContext, signal: _LateContentSignal) -> None:
     context.generation = _late_content._rebaselined(
         context.generation, signal.fingerprint,
     )
-    _late_parks._mark_replies_read(
+    _late_park_state._mark_replies_read(
         context, signal.fingerprint.comment_watermark_id,
     )

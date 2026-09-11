@@ -25,7 +25,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
-    late_parks as _late_parks,
+    late_park_state as _late_park_state,
     late_reconcile as _late_reconcile,
     late_relabel as _late_relabel,
     state as _state,
@@ -200,7 +200,7 @@ def _settled_candidate_owns_the_tick(
     _comments._post_issue_comment(
         gh, issue, state, _SETTLED_NOTICE.format(label=WorkflowLabel.IMPLEMENTING),
     )
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     gh.set_workflow_label(issue, WorkflowLabel.IMPLEMENTING)
     _hand_on_to_implementing(gh, spec, issue)
     return True

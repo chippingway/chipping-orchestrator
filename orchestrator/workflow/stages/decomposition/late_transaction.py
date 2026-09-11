@@ -135,6 +135,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_hold as _late_hold,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_publication as _late_publication,
     late_snapshot as _late_snapshot,
@@ -340,7 +341,7 @@ def _blocked_split(context: _LateContext, children: tuple) -> bool:
         context,
         refusal,
         LateFailure.CHILD_CREATE_FAILED,
-        _late_parks.PARK_CHILDREN_FAILED,
+        _late_park_state.PARK_CHILDREN_FAILED,
     )
     return True
 
@@ -586,7 +587,7 @@ def _announced(
         phase=LatePhase.SUPERSEDING,
         links_announced=True,
     )
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
 
 
 def _links_on_thread(context: _LateContext) -> bool:
@@ -1082,7 +1083,7 @@ def _handed_to_children(
     # terminal above all -- at a change the umbrella's children are replacing.
     context.state.set(_PR_NUMBER, None)
     context.gh.set_workflow_label(context.issue, WorkflowLabel.UMBRELLA)
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     ended = _late_owner._still_activating(context)
     if ended is not None:
         return ended
@@ -1150,7 +1151,7 @@ def _reclaimed_branch(context: _LateContext, branch: str) -> None:
     deleted = branch not in _late_cleanup._owed_branches(context.generation)
     if not deleted:
         _late_outcome._emit_failure(context, LateFailure.BRANCH_CLEANUP_FAILED)
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     _emit_cleanup(context, branch, deleted)
 
 
@@ -1229,7 +1230,7 @@ def _recorded_resource(
             context.issue.number, kind, target,
         )
         return
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
 
 
 def _unsuperseded(
@@ -1252,7 +1253,7 @@ def _unsuperseded(
         context,
         message or _SUPERSESSION_FAILED_PARK.format(number=number),
         LateFailure.SUPERSESSION_FAILED,
-        _late_parks.PARK_SUPERSESSION_FAILED,
+        _late_park_state.PARK_SUPERSESSION_FAILED,
     )
     return False
 

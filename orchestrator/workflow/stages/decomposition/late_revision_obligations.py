@@ -39,7 +39,7 @@ from __future__ import annotations
 
 from orchestrator.workflow.late_split.models import LateResourceKind
 from orchestrator.workflow.stages.decomposition import (
-    late_parks as _late_parks,
+    late_park_state as _late_park_state,
     late_revision_reconciliation as _late_reconciliation,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -88,14 +88,14 @@ def _stranded_by_effects(
                     for number in context.generation.split_children
                 ),
             ),
-            reason=_late_parks.PARK_REVISION_UNANSWERED,
+            reason=_late_park_state.PARK_REVISION_UNANSWERED,
         )
     if not _owes_a_snapshot(context.generation):
         return None
     return _late_reconciliation._parked(
         context,
         _STRANDED_SNAPSHOT_PARK,
-        reason=_late_parks.PARK_REVISION_UNANSWERED,
+        reason=_late_park_state.PARK_REVISION_UNANSWERED,
     )
 
 

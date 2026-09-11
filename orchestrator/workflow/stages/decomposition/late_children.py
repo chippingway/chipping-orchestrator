@@ -91,6 +91,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_budget as _budget,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
     split as _split,
     state as _state,
@@ -364,7 +365,7 @@ def _sealed(context: _LateContext, walk: _ChildWalk) -> None:
         context.state.get(_EXPECTED_CHILDREN), cycle,
     )
     context.state.set(_state._SPLIT_LEDGER_SEALED, cycle)
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
 
 
 def _placed(
@@ -445,7 +446,7 @@ def _prepared(context: _LateContext, manifest: tuple) -> None:
     context.generation = replace(
         context.generation, phase=LatePhase.SPLITTING,
     )
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
 
 
 def _child_issue(
@@ -648,7 +649,7 @@ def _recorded(
     # replaced by this generation's rather than left standing over them.
     context.state.set(_state._CHILDREN, list(recorded))
     context.state.set(_DEP_GRAPH, walk.plan.dep_graph or None)
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     return True
 
 
@@ -841,5 +842,5 @@ def _parked(context: _LateContext, described: str) -> None:
     _late_parks._park(
         context,
         _CHILD_CREATE_PARK.format(child=described),
-        reason=_late_parks.PARK_CHILDREN_FAILED,
+        reason=_late_park_state.PARK_CHILDREN_FAILED,
     )

@@ -34,6 +34,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -158,6 +159,6 @@ def _unreconciled(context: _LateContext, message: str) -> bool:
     """Park rather than publish against a pull request nobody could confirm."""
     _late_outcome._emit_failure(context, LateFailure.PR_RECONCILE_FAILED)
     _late_parks._park(
-        context, message, reason=_late_parks.PARK_PR_UNRECONCILED,
+        context, message, reason=_late_park_state.PARK_PR_UNRECONCILED,
     )
     return False

@@ -79,6 +79,7 @@ from orchestrator.workflow.late_split.models import LateFailure, LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
     late_owner as _late_owner,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -161,13 +162,13 @@ def _reconcile_revised_candidate(
     if not tree.readable or tree.paths:
         return _parked(
             context, _DIRTY_PARK,
-            reason=_late_parks.PARK_REVISION_DIRTY,
+            reason=_late_park_state.PARK_REVISION_DIRTY,
         )
     revised = _verification_probes._head_sha(worktree)
     if not revised:
         return _parked(
             context, _UNREADABLE_HEAD_PARK,
-            reason=_late_parks.PARK_REVISION_UNMEASURED,
+            reason=_late_park_state.PARK_REVISION_UNMEASURED,
         )
     if revised == context.generation.candidate_sha and not _vouched_for(
         agent_result,
@@ -175,7 +176,7 @@ def _reconcile_revised_candidate(
         return _parked(
             context,
             _UNANSWERED_PARK.format(reply=_quoted_reply(agent_result)),
-            reason=_late_parks.PARK_REVISION_UNANSWERED,
+            reason=_late_park_state.PARK_REVISION_UNANSWERED,
         )
     return _remeasured(context, worktree, revised)
 
@@ -239,7 +240,7 @@ def _remeasured(
             _UNMEASURED_PARK.format(
                 revised=revised, failure=measured.failure,
             ),
-            reason=_late_parks.PARK_REVISION_UNMEASURED,
+            reason=_late_park_state.PARK_REVISION_UNMEASURED,
         )
     context.generation = replace(
         context.generation,
@@ -269,7 +270,7 @@ def _remeasured(
     )
     _overrides.clear_publication_override(context.state)
     _late_parks._answer_park(context)
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     _telemetry.emit_late_event(
         context.gh,
         _events.LateEvent(family=_events.LateEventFamily.MEASUREMENT),
@@ -331,7 +332,7 @@ def _guarded_revision(
         _comments._post_issue_comment(
             context.gh, context.issue, context.state, announce,
         )
-        _late_parks._persist(context)
+        _late_park_state._persist(context)
     return _LateContentSettlement(disposition=settled, persisted=True)
 
 

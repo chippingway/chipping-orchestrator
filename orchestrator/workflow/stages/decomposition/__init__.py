@@ -59,8 +59,10 @@ for, and `late_handback` hands the label on and retires the cycle --
 gate its one spawn is charged to, and the hold that keeps a park nothing
 supersedes ahead of the evidence probe, the pull-request hold, and the content
 read -- `late_notice` owns the sentence any late park still owes the thread,
-`late_parks` every reason a late exit hands the issue back under and the
-durable write each of them rides out on, `late_coordinator` owns the order
+`late_park_state` the reasons, standing claim, watermark, and durable write,
+`late_park_delivery` the release and reconciliation of that sentence, and
+`late_parks` the decisions that take, stage, retire, or answer the park.
+`late_coordinator` owns the order
 those are asked in, `late_verdict` what one finished reply decides and
 `late_outcome` what every completion leaves on the record, and
 `late_models` carries what they hand each other. The budget both
