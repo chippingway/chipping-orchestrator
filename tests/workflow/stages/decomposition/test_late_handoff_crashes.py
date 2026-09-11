@@ -16,7 +16,7 @@ import unittest
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_relabel as _late_relabel,
-    late_transaction as _late_transaction,
+    late_retirement as _late_retirement,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
@@ -95,7 +95,7 @@ class SupersessionBoundaryTest(HeldPlanPrSplitCase, unittest.TestCase):
         with self.assertRaises(KeyboardInterrupt):
             self._transact(
                 generation=self.generation,
-                killed=killed_before(_late_transaction, "_handed_to_children"),
+                killed=killed_before(_late_retirement, "_handed_to_children"),
             )
         self.assertEqual(self.plan_pr.state, PR_CLOSED)
         self.plan_pr.state = PR_OPEN
@@ -112,7 +112,7 @@ class SupersessionBoundaryTest(HeldPlanPrSplitCase, unittest.TestCase):
         with self.assertRaises(KeyboardInterrupt):
             self._transact(
                 generation=self.generation,
-                killed=killed_before(_late_transaction, "_handed_to_children"),
+                killed=killed_before(_late_retirement, "_handed_to_children"),
             )
         self.plan_pr.state = PR_OPEN
         self.github.unsupersedable_prs.add(self.plan_pr.number)
@@ -190,7 +190,7 @@ class HandoffBoundaryTest(LateSplitCase, unittest.TestCase):
         with self.assertRaises(KeyboardInterrupt):
             self._transact(
                 killed=killed_before(
-                    _late_transaction, "_activated",
+                    _late_retirement, "_activated",
                 ),
             )
 

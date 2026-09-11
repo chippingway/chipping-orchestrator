@@ -71,10 +71,11 @@ interprets one finished reply, `late_outcome` records every completion, and
 `retry_cap` owners are decided by is neither of theirs: it is the shared
 `engine/retry_budget.py`, so a park taken on either road is the same durable
 reason, answered by the same command, and audited on the same stream.
-`late_snapshot`, `late_children`, and `late_transaction` are the ordered split
-itself -- the candidate preserved on an immutable ref, the children cut from
-it, and the supersession behind them -- while `late_cleanup` owns what that
-leaves the remote holding, `late_cancellation` owns the irreversible ending an
+`late_split_preparation` proves the snapshot and creates durable children through
+`late_snapshot` and `late_children`. `late_transaction` orders their announcement,
+the supersession, and the guarded handoff to `late_retirement`, which retires
+the generation, activates its children, and attempts branch reclamation.
+`late_cleanup` owns what that leaves the remote holding, `late_cancellation` owns the irreversible ending an
 owner observed closed earns, `late_sweep` is the cleanup-only pass that
 revisits an owner a human closed mid-cycle, and `late_restart` owns the fresh
 cycle an operator authorizes by taking that ending's `rejected` back off. What

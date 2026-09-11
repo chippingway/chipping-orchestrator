@@ -29,6 +29,7 @@ import unittest
 from orchestrator.workflow.stages.decomposition import (
     late_hold as _late_hold,
     late_park_state as _late_park_state,
+    late_retirement as _late_retirement,
     late_transaction as _late_transaction,
     parents as _parents,
 )
@@ -578,7 +579,7 @@ class PublishedRetirementRaceTest(PublishedSplitCase, unittest.TestCase):
         # child scan, and one relabel per child stand in between. Deleting the
         # ref behind a change somebody reopened is the one act here no later
         # pass could undo, so the branch stays even though the children ran.
-        with interleaved_after(_late_transaction, ACTIVATED, self.reopened), self.assertLogs(level=ERROR):
+        with interleaved_after(_late_retirement, ACTIVATED, self.reopened), self.assertLogs(level=ERROR):
             self._transact(generation=self.generation)
 
         self.assertNotEqual(

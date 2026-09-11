@@ -59,8 +59,8 @@ Flake8 does not duplicate Ruff's checks; dev tools are declared in `[dependency-
 config is [`../../.flake8`](../../.flake8), which scopes `WPS412` and `WPS410` per-file ignores to
 `orchestrator/config/__init__.py` because the package initializer deliberately invokes the `environment` resolver and
 binds its results at import time (so a reload re-runs resolution) and publishes its narrow public surface through an
-explicit `__all__` there. Every other entry in that file is a per-file scope like this one, bar the single
-repository-wide setting sorted imports leave it carrying — the `max-import-from-members` ceiling read below.
+explicit `__all__` there. Every entry in that file is an exact-path scope like this one; WPS complexity
+limits retain their defaults.
 
 The agents package adds a second scope: `orchestrator/agents/__init__.py` (`WPS412`, `WPS410`) is the API an agent run
 is driven through. It re-exports the model types, the runner owner's `run_agent`, and the process owner's
@@ -204,13 +204,12 @@ holds them to. [`../../tests/repository/test_import_sorting.py`](../../tests/rep
 the rule on its own beside that, so an unsorted block is reported next to the tests a change was written for and not
 only by the lint step beside them.
 
-Sorting is also what sets `max-import-from-members` in [`../../.flake8`](../../.flake8), raised from the default 8 to
-30. `WPS235` caps the names one `from ... import` may carry, and a module read for more than the cap can answer for
-them a chunk at a time only while several statements may name it. A sorted tree has no such spelling — every statement
-reading from one module merges into one — so what the count measures is what a module is read for rather than how the
-read is spelled. 30 is headroom rather than a measurement of what the tree currently reads: what moves it is a read
-this repository already means to allow no longer fitting under it, and nothing else. Which module sits closest to the
-ceiling on any given day is not what the setting answers for, and is not recorded here.
+`WPS235` uses its default ceiling of eight names per `from ... import` statement. Sorted imports merge all
+reads of one module into one statement, so splitting an oversized read across several statements cannot satisfy
+that limit. Read values through their actual owner, keep explicit type and fixture imports where needed, and
+separate responsibilities when a coordinator needs too many sibling owners. Existing export surfaces preserve
+their names and object identities. Neither `WPS201` nor `WPS235` is relaxed to accommodate a refactor, and no
+facade, dynamic dependency lookup, or replacement exemption substitutes for a direct owner.
 
 The CI workflow declares `permissions: contents: read` so the run's `GITHUB_TOKEN` is read-only and cannot publish
 artifacts, push tags, or comment on PRs. The job uses no repository secrets, so PRs from forks run safely under the same
