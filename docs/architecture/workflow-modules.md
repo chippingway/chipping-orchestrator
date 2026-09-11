@@ -1594,57 +1594,19 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             reviewer posting from the token's own account matches it exactly, and they are the
                             one whose consent this park collects. A comment the ledger cannot vouch for stays in
                             the reading, which leaves the park standing rather than publishing
-      late_recovery.py      every park the size gate takes, answered ahead of every spawn because the work
-                            in question is committed already: one owed another READING, which a trusted bare
-                            `/orchestrator continue` asks for; one owed another LOOK at the checkout, which no
-                            reply can supply and which says nothing until the answer changes, asking
-                            `checkout_recovery` below whether the worktree has come back; and one owed a
-                            DECISION nothing but the named command can be -- and every poll of that last one
-                            comes through here, since an issue behind it has committed work and no run to
-                            dispose, so nothing else would reach the gate to measure the candidate again or say
-                            a sentence the park still owes. What each poll costs is what the thread says: a
-                            command or an unsaid sentence is answered through a fresh reading, guidance is
-                            handed to the ordinary resume, and a thread nobody has written on is held where it
-                            stands without a request or a word. Each hands its answer to the same
-                            publication seam the committed work came out of, so a recovery reaches exactly the
-                            outcomes a fresh disposition does and decides nothing the gate would have decided. A
-                            checkout that is GONE stops all three before that seam, and what it costs differs by
-                            what the park was waiting for: a reading can be asked for again, so the measurement
-                            park lets the seam park under a reason of its own, while the seam's reason would
-                            take the authorization park's off and its notice would move the watermark past the
-                            command still standing -- so that road asks the seam's own questions first, the
-                            worktree on this host, its tree provably carrying nothing loose, and its head the
-                            commit the park is about, and holds exactly as found wherever the answer is no.
-                            The head is asked because a checkout that has moved is a candidate the exemption
-                            does not cover and the override does not name, measured and published on its own
-                            count under a command that named another. The commit it proves is then NAMED on
-                            the work handed over, so the gate holds its own head read to it: the worktree is
-                            writable between the two readings, and asking here alone would leave that window
-                            open. Every recovery road carries the commit it proved for that reason.
-                            Asking first cannot close the tree half, since the
-                            tree is read again INSIDE the seam, so the park, its reason and its watermark are
-                            held across that call and put back wherever it did not PUBLISH -- which is the one
-                            question asked, and it is read off the held record rather than off the park flags,
-                            since several of the seam's roads clear those without publishing anything. Held on
-                            the RECORD rather than in the frame that made them, in
-                            `late_held_authorization_park` written before the call: the seam records an
-                            authorization, clears the park and consumes the command durably before this owner
-                            gets an answer back, so a rollback living in memory dies with the process and the
-                            poll after a crash finds an issue nobody is waiting on over a watermark that has
-                            swallowed the decision. A record still carrying that field is a handoff that never
-                            RETURNED, which is why the poll finding one restores what it holds without asking
-                            what the seam meant -- there is no answer to read, only a call caught halfway, and
-                            a park put back over work the seam did publish costs a poll while one left off
-                            costs the operator's decision. The attempt is RECORDED before that call for the
-                            same reason, since the seam posts its
-                            own refusal before anything persists the id of it. What that call did not account
-                            for is then left exactly where it is: a receipt still outstanding when it returns
-                            names a sentence of ours the seam said and no id write recorded, and it is the only
-                            thing telling a later reading that comment is not somebody's guidance -- so only
-                            the promise the seam never worded a sentence for goes with the park. That notice is
-                            the one sentence
-                            on this park nobody here words, so the seam is handed `late_authorship`'s client
-                            and the park itself is held across the call by `late_rollback`.
+      late_recovery.py      the ordered recovery dispatcher ahead of every developer spawn: repair stranded
+                            authorship, restore a held park, retry measurement, answer authorization, then
+                            recognize a restored candidate; committed work never buys a replacement developer run
+      late_candidate_recovery.py
+                            re-measure committed work on a trusted bare continue, or republish an approved
+                            candidate restored to its checkout; both carry the proved commit into the ordinary
+                            publication seam and persist its answer
+      late_authorization_recovery.py
+                            answer the authorization park's named command only on its own committed candidate;
+                            guidance returns to the ordinary resume and silence holds without another reading;
+                            missing, dirty, unreadable, or moved checkouts leave the park and command untouched;
+                            a proved checkout hands the decision to `late_rollback`, which preserves the park
+                            across a publication that fails or never returns
       late_authorship.py    which comments on that park's thread are this stage's own words, on two records. The
                             ID is the ordinary one: the client this owner lends the seam puts what GitHub hands
                             back into `orchestrator_comment_ids` the instant each post returns, since the seam
