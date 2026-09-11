@@ -7,24 +7,12 @@ import unittest
 from datetime import UTC, datetime
 from types import MappingProxyType
 
+from orchestrator.observability.analytics.query import requests as _support
 from orchestrator.observability.analytics.query.filters import WindowFilters
 from orchestrator.observability.analytics.query.request_models import (
     ReadConnection,
     ReadFilters,
     ReadOptions,
-)
-from orchestrator.observability.analytics.query.requests import (
-    FILTERED_READ_SIGNATURE,
-    HEATMAP_SIGNATURE,
-    ISSUE_EVENTS_SIGNATURE,
-    ISSUES_SIGNATURE,
-    LIMITED_READ_SIGNATURE,
-    RECENT_EXIT_LIMIT,
-    RECENT_EXITS_SIGNATURE,
-    SOURCE_READ_SIGNATURE,
-    bind_read_request,
-    resolve_read_query,
-    window_filters,
 )
 from tests.observability.analytics.query.query_fake_driver import (
     FakeConnect,
@@ -71,8 +59,8 @@ class KeywordBindingTest(unittest.TestCase):
     def test_a_call_is_sorted_into_the_three_parts(self) -> None:
         conn = FakeConnection()
         connect = FakeConnect()
-        request = bind_read_request(
-            RECENT_EXITS_SIGNATURE,
+        request = _support.bind_read_request(
+            _support.RECENT_EXITS_SIGNATURE,
             (),
             {**_FILTER_CALL, "db_url": DB_URL, "connect": connect, "conn": conn},
         )
@@ -91,26 +79,26 @@ class KeywordBindingTest(unittest.TestCase):
             request.connection,
             ReadConnection(db_url=DB_URL, connect=connect, conn=conn),
         )
-        self.assertEqual(request.options, ReadOptions(limit=RECENT_EXIT_LIMIT))
+        self.assertEqual(request.options, ReadOptions(limit=_support.RECENT_EXIT_LIMIT))
 
     def test_each_family_applies_its_own_defaults(self) -> None:
         # The knob a caller omits is answered here rather than by the family,
         # so the recent-runs cap and the issue table's ordering cannot differ
         # between the reader and the signature its call is bound against.
         families = (
-            (SOURCE_READ_SIGNATURE, ReadOptions()),
-            (FILTERED_READ_SIGNATURE, ReadOptions()),
-            (HEATMAP_SIGNATURE, ReadOptions()),
-            (RECENT_EXITS_SIGNATURE, ReadOptions(limit=RECENT_EXIT_LIMIT)),
-            (LIMITED_READ_SIGNATURE, ReadOptions(limit=_PAGE_LIMIT)),
+            (_support.SOURCE_READ_SIGNATURE, ReadOptions()),
+            (_support.FILTERED_READ_SIGNATURE, ReadOptions()),
+            (_support.HEATMAP_SIGNATURE, ReadOptions()),
+            (_support.RECENT_EXITS_SIGNATURE, ReadOptions(limit=_support.RECENT_EXIT_LIMIT)),
+            (_support.LIMITED_READ_SIGNATURE, ReadOptions(limit=_PAGE_LIMIT)),
             (
-                ISSUES_SIGNATURE,
+                _support.ISSUES_SIGNATURE,
                 ReadOptions(limit=_PAGE_LIMIT, sort_by=_SORT_BY_LAST_SEEN),
             ),
         )
         for signature, options in families:
             with self.subTest(options=options):
-                request = bind_read_request(signature, (), {})
+                request = _support.bind_read_request(signature, (), {})
                 self.assertEqual(request.options, options)
                 self.assertEqual(request.connection, ReadConnection())
 
@@ -118,9 +106,9 @@ class KeywordBindingTest(unittest.TestCase):
         # `get_issue_events` is per-issue by definition; a call missing either
         # half would otherwise read the whole window.
         with self.assertRaises(TypeError):
-            bind_read_request(ISSUE_EVENTS_SIGNATURE, (), {})
-        request = bind_read_request(
-            ISSUE_EVENTS_SIGNATURE,
+            _support.bind_read_request(_support.ISSUE_EVENTS_SIGNATURE, (), {})
+        request = _support.bind_read_request(
+            _support.ISSUE_EVENTS_SIGNATURE,
             (),
             {"repo": _REPO, "issue": _ISSUE},
         )
@@ -131,16 +119,16 @@ class KeywordBindingTest(unittest.TestCase):
         # Every parameter is keyword-only, so a value passed positionally is
         # rejected rather than landing on whichever field comes first.
         with self.assertRaises(TypeError):
-            bind_read_request(FILTERED_READ_SIGNATURE, (_WINDOW_START,), {})
+            _support.bind_read_request(_support.FILTERED_READ_SIGNATURE, (_WINDOW_START,), {})
 
 
 class FilterProjectionTest(unittest.TestCase):
     """The SQL filter model a family builds its predicate from."""
 
     def test_the_bound_filters_reach_the_sql_model(self) -> None:
-        request = bind_read_request(FILTERED_READ_SIGNATURE, (), _FILTER_CALL)
+        request = _support.bind_read_request(_support.FILTERED_READ_SIGNATURE, (), _FILTER_CALL)
         self.assertEqual(
-            window_filters(request),
+            _support.window_filters(request),
             WindowFilters(
                 start=_WINDOW_START,
                 end=_WINDOW_END,
@@ -154,9 +142,9 @@ class FilterProjectionTest(unittest.TestCase):
     def test_a_scoped_projection_drops_identity(self) -> None:
         # What a query grouped by repo asks for: the window and the selections
         # still narrow it, but the repo and issue it groups over must not.
-        request = bind_read_request(FILTERED_READ_SIGNATURE, (), _FILTER_CALL)
+        request = _support.bind_read_request(_support.FILTERED_READ_SIGNATURE, (), _FILTER_CALL)
         self.assertEqual(
-            window_filters(request, include_identity=False),
+            _support.window_filters(request, include_identity=False),
             WindowFilters(
                 start=_WINDOW_START,
                 end=_WINDOW_END,
@@ -172,12 +160,12 @@ class ConnectionProjectionTest(unittest.TestCase):
     def test_the_connection_fields_reach_the_query(self) -> None:
         conn = FakeConnection()
         connect = FakeConnect()
-        request = bind_read_request(
-            SOURCE_READ_SIGNATURE,
+        request = _support.bind_read_request(
+            _support.SOURCE_READ_SIGNATURE,
             (),
             {"db_url": DB_URL, "connect": connect, "conn": conn},
         )
-        query = resolve_read_query(request)
+        query = _support.resolve_read_query(request)
         self.assertEqual(query.db_url, DB_URL)
         self.assertIs(query.connect_fn, connect)
         self.assertIs(query.conn, conn)

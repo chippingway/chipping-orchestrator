@@ -35,6 +35,7 @@ from orchestrator.workflow.late_split import (
     rewrites as _rewrites,
 )
 from orchestrator.workflow.state import WorkflowLabel
+from tests.git.base_sync import refresh_test_support as _support
 from tests.git.base_sync.exemption_test_support import (
     ACCEPTED_BASE_SHA,
     ACCEPTED_DIGEST,
@@ -49,23 +50,7 @@ from tests.git.base_sync.refresh_scenarios import (
     _clean_rebase_scenario,
     _scenario,
 )
-from tests.git.base_sync.refresh_test_support import (
-    AFTER_SHA,
-    BEFORE_SHA,
-    EVENT_BASE_REBASED,
-    ISSUE,
-    KEY_PARK_REASON,
-    KEY_PENDING_PUSH_SHA,
-    KEY_REVIEW_ROUND,
-    LABEL_VALIDATING,
-    METHOD_FIELD,
-    PARK_PUSH_FAILED,
-    PR_NUMBER,
-    THREE_BEHIND_STDOUT,
-    UP_TO_DATE_STDOUT,
-    _RemoteHeadGit,
-    _SyncWorktreeWithBaseFixture,
-)
+from tests.git.base_sync.refresh_test_support import _RemoteHeadGit, _SyncWorktreeWithBaseFixture
 from tests.git.base_sync.sync_test_support import _diverged, _git_result
 from tests.workflow.fixtures import LABEL_DECOMPOSING
 
@@ -94,14 +79,14 @@ class _CleanRebaseCase(_SyncWorktreeWithBaseFixture):
     def _rebases(self, **scenario_options):
         """Run one refresh over the seeded world and hand back its scenario."""
         scenario = _clean_rebase_scenario(
-            THREE_BEHIND_STDOUT, **scenario_options,
+            _support.THREE_BEHIND_STDOUT, **scenario_options,
         )
         scenario.run(self)
         return scenario
 
     def _durable(self):
         """The pinned comment as a process starting now would read it."""
-        return self.gh.read_pinned_state(self.gh._issues[ISSUE])
+        return self.gh.read_pinned_state(self.gh._issues[_support.ISSUE])
 
     def _events_of(self, family: str) -> list[dict]:
         return [
@@ -114,7 +99,7 @@ class _CleanRebaseCase(_SyncWorktreeWithBaseFixture):
         self.assertEqual(len(self._events_of(EVENT_MEASUREMENT)), 1)
         self.assertEqual(self._events_of(EVENT_TRANSFER), [])
         durable = self._durable()
-        self.assertTrue(_exemption.is_exempt(durable, BEFORE_SHA))
+        self.assertTrue(_exemption.is_exempt(durable, _support.BEFORE_SHA))
         self.assertFalse(_rewrites.carries_rewrite_authorization(durable))
 
 
@@ -135,19 +120,19 @@ class TransferredRebaseTest(_CleanRebaseCase, unittest.TestCase):
 
         self.assertEqual(authorized.rewrite, _rewrites.LateRewrite(
             kind=_rewrites.LateRewriteKind.AUTO_CLEAN_REBASE,
-            from_sha=BEFORE_SHA,
+            from_sha=_support.BEFORE_SHA,
             from_base_sha=ACCEPTED_BASE_SHA,
-            to_sha=AFTER_SHA,
+            to_sha=_support.AFTER_SHA,
             to_base_sha=REPLAYED_BASE_SHA,
-            pr_number=PR_NUMBER,
+            pr_number=_support.PR_NUMBER,
             source_stage=WorkflowLabel.IN_REVIEW,
-            lease=BEFORE_SHA,
+            lease=_support.BEFORE_SHA,
         ))
 
     def test_the_receipt_carries_the_exemption_over(self) -> None:
         durable = self._durable()
 
-        self.assertTrue(_exemption.is_exempt(durable, AFTER_SHA))
+        self.assertTrue(_exemption.is_exempt(durable, _support.AFTER_SHA))
         identity = _exemption.read_semantic_identity(durable)
         self.assertEqual(identity.base_sha, REPLAYED_BASE_SHA)
         self.assertEqual(
@@ -157,17 +142,17 @@ class TransferredRebaseTest(_CleanRebaseCase, unittest.TestCase):
 
     def test_no_generation_or_adjudication_is_created(self) -> None:
         self.assertEqual(self._events_of(EVENT_MEASUREMENT), [])
-        self.assertNotIn((ISSUE, LABEL_DECOMPOSING), self.gh.label_history)
+        self.assertNotIn((_support.ISSUE, LABEL_DECOMPOSING), self.gh.label_history)
         self.assertEqual(len(self._events_of(EVENT_TRANSFER)), 1)
 
     def test_the_refresh_tail_is_unchanged(self) -> None:
         # The push is still named against the replay and pinned to the anchor,
         # and the reviewer is still sent back to it.
         pushed = self.scenario[PUSH_PATCH].call_args.kwargs
-        self.assertEqual(pushed[REVISION], AFTER_SHA)
-        self.assertEqual(pushed[LEASE], BEFORE_SHA)
-        self.assertIn((ISSUE, LABEL_VALIDATING), self.gh.label_history)
-        self.assertEqual(self.gh.pinned_data(ISSUE)[KEY_REVIEW_ROUND], 0)
+        self.assertEqual(pushed[REVISION], _support.AFTER_SHA)
+        self.assertEqual(pushed[LEASE], _support.BEFORE_SHA)
+        self.assertIn((_support.ISSUE, _support.LABEL_VALIDATING), self.gh.label_history)
+        self.assertEqual(self.gh.pinned_data(_support.ISSUE)[_support.KEY_REVIEW_ROUND], 0)
 
 
 class MeasuredRebaseTest(_CleanRebaseCase, unittest.TestCase):
@@ -177,7 +162,7 @@ class MeasuredRebaseTest(_CleanRebaseCase, unittest.TestCase):
         # A base advance that moved what the branch adds to it produces a
         # contribution nobody adjudicated, so the cumulative gate reads it.
         adjudicated(self)
-        self.reading.digests[(REPLAYED_BASE_SHA, AFTER_SHA)] = CHANGED_DIGEST
+        self.reading.digests[(REPLAYED_BASE_SHA, _support.AFTER_SHA)] = CHANGED_DIGEST
 
         self._rebases()
 
@@ -208,7 +193,7 @@ class MeasuredRebaseTest(_CleanRebaseCase, unittest.TestCase):
 
         self.assertEqual(self._events_of(EVENT_TRANSFER), [])
         durable = self._durable()
-        self.assertTrue(_exemption.is_exempt(durable, BEFORE_SHA))
+        self.assertTrue(_exemption.is_exempt(durable, _support.BEFORE_SHA))
         self.assertFalse(_rewrites.carries_rewrite_authorization(durable))
 
 
@@ -232,8 +217,8 @@ class RolledBackRebaseTest(_CleanRebaseCase, unittest.TestCase):
         durable = self._durable()
         self.assertTrue(_exemption.is_exempt(durable, ACCEPTED_SHA))
         self.assertFalse(_rewrites.carries_rewrite_authorization(durable))
-        pinned = self.gh.pinned_data(ISSUE)
-        self.assertEqual(pinned[KEY_PARK_REASON], PARK_PUSH_FAILED)
+        pinned = self.gh.pinned_data(_support.ISSUE)
+        self.assertEqual(pinned[_support.KEY_PARK_REASON], _support.PARK_PUSH_FAILED)
 
 
 class InterruptedRebaseTest(_CleanRebaseCase, unittest.TestCase):
@@ -250,10 +235,10 @@ class InterruptedRebaseTest(_CleanRebaseCase, unittest.TestCase):
         # recovery has no evidence of its own -- and the receipt behind the
         # reissued push is what finally carries the verdict over.
         pushed = self.resumed[PUSH_PATCH].call_args.kwargs
-        self.assertEqual(pushed[REVISION], AFTER_SHA)
-        self.assertEqual(pushed[LEASE], BEFORE_SHA)
+        self.assertEqual(pushed[REVISION], _support.AFTER_SHA)
+        self.assertEqual(pushed[LEASE], _support.BEFORE_SHA)
         durable = self._durable()
-        self.assertTrue(_exemption.is_exempt(durable, AFTER_SHA))
+        self.assertTrue(_exemption.is_exempt(durable, _support.AFTER_SHA))
         self.assertEqual(
             _rewrites.read_rewrite_authorization(durable).phase,
             _rewrites.LateRewritePhase.PUBLISHED,
@@ -264,17 +249,17 @@ class InterruptedRebaseTest(_CleanRebaseCase, unittest.TestCase):
         # freezes it out of the very recovery the anchor beside it exists for.
         # Left there, a later stage lands the push and the reviewer is never
         # routed at the rewritten head.
-        pinned = self.gh.pinned_data(ISSUE)
-        self.assertIsNone(pinned[KEY_PENDING_PUSH_SHA])
-        self.assertEqual(pinned[KEY_REVIEW_ROUND], 0)
-        self.assertIn((ISSUE, LABEL_VALIDATING), self.gh.label_history)
-        rebased = self._events_of(EVENT_BASE_REBASED)
+        pinned = self.gh.pinned_data(_support.ISSUE)
+        self.assertIsNone(pinned[_support.KEY_PENDING_PUSH_SHA])
+        self.assertEqual(pinned[_support.KEY_REVIEW_ROUND], 0)
+        self.assertIn((_support.ISSUE, _support.LABEL_VALIDATING), self.gh.label_history)
+        rebased = self._events_of(_support.EVENT_BASE_REBASED)
         self.assertEqual(len(rebased), 1)
-        self.assertEqual(rebased[0][METHOD_FIELD], RECOVERY_PUSHED)
+        self.assertEqual(rebased[0][_support.METHOD_FIELD], RECOVERY_PUSHED)
 
     def _crashes(self) -> None:
         """Rebase, grant the transfer, and die on the way to the remote."""
-        crashing = _clean_rebase_scenario(THREE_BEHIND_STDOUT)
+        crashing = _clean_rebase_scenario(_support.THREE_BEHIND_STDOUT)
         crashing[PUSH_PATCH].side_effect = RuntimeError(DIED)
         with self.assertRaises(RuntimeError):
             crashing.run(self)
@@ -290,9 +275,9 @@ class InterruptedRebaseTest(_CleanRebaseCase, unittest.TestCase):
             dirty=MagicMock(return_value=[]),
             rebase=MagicMock(),
             push=MagicMock(return_value=True),
-            head_sha=MagicMock(return_value=AFTER_SHA),
-            git=MagicMock(return_value=_git_result(stdout=UP_TO_DATE_STDOUT)),
-            hardened=MagicMock(side_effect=_RemoteHeadGit(BEFORE_SHA)),
+            head_sha=MagicMock(return_value=_support.AFTER_SHA),
+            git=MagicMock(return_value=_git_result(stdout=_support.UP_TO_DATE_STDOUT)),
+            hardened=MagicMock(side_effect=_RemoteHeadGit(_support.BEFORE_SHA)),
             fetch=MagicMock(return_value=_git_result()),
             ahead_behind=MagicMock(return_value=_diverged(1, 0)),
         )

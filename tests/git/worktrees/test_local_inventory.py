@@ -19,18 +19,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator.git.worktrees import branch_probes, inventory, paths, probes
-from tests.git.worktrees.artifact_test_support import (
-    COLLIDING_SLUGS,
-    GADGET_SLUG,
-    LIFECYCLE_LOGGER,
-    WIDGET_SLUG,
-    _ArtifactWorld,
-    _block_worktrees_root,
-    _break_ref,
-    _legacy_branch,
-    _namespaced_branch,
-    _spec,
-)
+from tests.git.worktrees import artifact_test_support as _support
+from tests.git.worktrees.artifact_test_support import _ArtifactWorld
 
 CLONE_NAME = "target"
 SECOND_CLONE_NAME = "other-target"
@@ -91,12 +81,12 @@ class CloneGroupingTest(unittest.TestCase):
         self.world = _ArtifactWorld()
         self.world.prepare(self)
         self.clone = self.world.clone(CLONE_NAME)
-        self.widget = _spec(WIDGET_SLUG, self.clone)
+        self.widget = _support._spec(_support.WIDGET_SLUG, self.clone)
 
     def test_one_listing_serves_a_clone(self) -> None:
         # The specs sharing a clone share its ref store, so a second listing
         # would spend a git process to read the same refs back.
-        gadget = _spec(GADGET_SLUG, self.clone)
+        gadget = _support._spec(_support.GADGET_SLUG, self.clone)
 
         with _listing(()) as listed:
             _scan(self.widget, gadget)
@@ -108,9 +98,9 @@ class CloneGroupingTest(unittest.TestCase):
         # each spec configures, both would claim it.
         link = self.world.path(CLONE_LINK_NAME)
         link.symlink_to(self.clone)
-        gadget = _spec(GADGET_SLUG, link)
+        gadget = _support._spec(_support.GADGET_SLUG, link)
 
-        with _listing((_legacy_branch(LEGACY_ISSUE_NUMBER),)):
+        with _listing((_support._legacy_branch(LEGACY_ISSUE_NUMBER),)):
             scanned = _scan(self.widget, gadget)
 
         self.assertEqual(scanned.issues, ())
@@ -124,34 +114,34 @@ class LocalInventoryRefusalTest(unittest.TestCase):
         self.world = _ArtifactWorld()
         self.world.prepare(self)
         self.clone = self.world.clone(CLONE_NAME)
-        self.widget = _spec(WIDGET_SLUG, self.clone)
+        self.widget = _support._spec(_support.WIDGET_SLUG, self.clone)
 
     def test_an_unread_clone_refuses_all_of_it(self) -> None:
         # The checkout is right there on disk and is still not reported: what
         # a caller does with an issue turns on whether a branch is under it,
         # and an unread ref store cannot say.
-        gadget = _spec(GADGET_SLUG, self.clone)
+        gadget = _support._spec(_support.GADGET_SLUG, self.clone)
         self.world.checkout(self.widget, BOTH_SIDES_ISSUE_NUMBER)
 
         with _listing(None):
             scanned = _scan(self.widget, gadget)
 
         self.assertEqual(scanned.issues, ())
-        self.assertEqual(scanned.refused, (GADGET_SLUG, WIDGET_SLUG))
+        self.assertEqual(scanned.refused, (_support.GADGET_SLUG, _support.WIDGET_SLUG))
 
     def test_an_unresolvable_clone_refuses_one(self) -> None:
         # The refusal has to come from the grouping too: resolution runs
         # before a single repository has been read, so a root that cannot be
         # resolved would otherwise end the scan for the healthy ones with it.
-        gadget = _spec(GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
+        gadget = _support._spec(_support.GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
         self.world.checkout(gadget, GADGET_ISSUE_NUMBER)
-        widget = _spec(WIDGET_SLUG, _LoopingPath(self.clone))
+        widget = _support._spec(_support.WIDGET_SLUG, _LoopingPath(self.clone))
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING), _listing(()):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING), _listing(()):
             scanned = _scan(widget, gadget)
 
-        self.assertEqual(scanned.refused, (WIDGET_SLUG,))
-        self.assertEqual(_found(scanned), ((GADGET_SLUG, GADGET_ISSUE_NUMBER),))
+        self.assertEqual(scanned.refused, (_support.WIDGET_SLUG,))
+        self.assertEqual(_found(scanned), ((_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),))
 
     def test_a_shared_checkout_directory_refuses(self) -> None:
         # The sanitizer naming each repository's checkout directory is lossy
@@ -159,16 +149,16 @@ class LocalInventoryRefusalTest(unittest.TestCase):
         # and the `issue-<n>` in it belongs to whichever of them created it,
         # which the directory does not record. Both are refused, and the
         # repository with a directory of its own still answers.
-        gadget = _spec(GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
+        gadget = _support._spec(_support.GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
         self.world.checkout(gadget, GADGET_ISSUE_NUMBER)
-        colliding = tuple(_spec(slug, self.clone) for slug in COLLIDING_SLUGS)
+        colliding = tuple(_support._spec(slug, self.clone) for slug in _support.COLLIDING_SLUGS)
         self.world.checkout(colliding[0], BOTH_SIDES_ISSUE_NUMBER)
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING), _listing(()):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING), _listing(()):
             scanned = _scan(*colliding, gadget)
 
-        self.assertEqual(scanned.refused, tuple(sorted(COLLIDING_SLUGS)))
-        self.assertEqual(_found(scanned), ((GADGET_SLUG, GADGET_ISSUE_NUMBER),))
+        self.assertEqual(scanned.refused, tuple(sorted(_support.COLLIDING_SLUGS)))
+        self.assertEqual(_found(scanned), ((_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),))
 
     def test_a_refused_spec_still_claims_a_branch(self) -> None:
         # Refusing a repository settles what the scan REPORTS, not who could
@@ -176,25 +166,25 @@ class LocalInventoryRefusalTest(unittest.TestCase):
         # this ref store, so its flat `orchestrator/issue-<n>` has three
         # possible owners and belongs to none of them -- while the branch
         # naming a repository outright is still that repository's.
-        healthy = _spec(GADGET_SLUG, self.clone)
-        colliding = tuple(_spec(slug, self.clone) for slug in COLLIDING_SLUGS)
+        healthy = _support._spec(_support.GADGET_SLUG, self.clone)
+        colliding = tuple(_support._spec(slug, self.clone) for slug in _support.COLLIDING_SLUGS)
         branches = (
-            _legacy_branch(LEGACY_ISSUE_NUMBER),
-            _namespaced_branch(GADGET_SLUG, GADGET_ISSUE_NUMBER),
+            _support._legacy_branch(LEGACY_ISSUE_NUMBER),
+            _support._namespaced_branch(_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
         )
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING), _listing(branches):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING), _listing(branches):
             scanned = _scan(*colliding, healthy)
 
-        self.assertEqual(scanned.refused, tuple(sorted(COLLIDING_SLUGS)))
-        self.assertEqual(_found(scanned), ((GADGET_SLUG, GADGET_ISSUE_NUMBER),))
+        self.assertEqual(scanned.refused, tuple(sorted(_support.COLLIDING_SLUGS)))
+        self.assertEqual(_found(scanned), ((_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),))
 
     def test_an_unread_flat_root_refuses_them_all(self) -> None:
         # The one listing that is not per repository: every entry once put its
         # checkout directly under `WORKTREES_DIR`, so a flat checkout nobody
         # read is one any of them could still be holding -- and a caller
         # acting on its absence would be acting on a reading nobody took.
-        gadget = _spec(GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
+        gadget = _support._spec(_support.GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
         self.world.checkout(gadget, GADGET_ISSUE_NUMBER)
 
         with patch.object(
@@ -203,20 +193,20 @@ class LocalInventoryRefusalTest(unittest.TestCase):
             scanned = _scan(self.widget, gadget)
 
         self.assertEqual(scanned.issues, ())
-        self.assertEqual(scanned.refused, (GADGET_SLUG, WIDGET_SLUG))
+        self.assertEqual(scanned.refused, (_support.GADGET_SLUG, _support.WIDGET_SLUG))
 
     def test_an_unread_root_refuses_one_repository(self) -> None:
         # The refusal is per repository: a host that cannot list one
         # repository's checkouts still answers for the rest.
-        gadget = _spec(GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
+        gadget = _support._spec(_support.GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
         self.world.checkout(gadget, GADGET_ISSUE_NUMBER)
-        _block_worktrees_root(self.widget)
+        _support._block_worktrees_root(self.widget)
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING), _listing(()):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING), _listing(()):
             scanned = _scan(self.widget, gadget)
 
-        self.assertEqual(scanned.refused, (WIDGET_SLUG,))
-        self.assertEqual(_found(scanned), ((GADGET_SLUG, GADGET_ISSUE_NUMBER),))
+        self.assertEqual(scanned.refused, (_support.WIDGET_SLUG,))
+        self.assertEqual(_found(scanned), ((_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),))
 
 
 class FlatCheckoutInventoryTest(unittest.TestCase):
@@ -232,17 +222,17 @@ class FlatCheckoutInventoryTest(unittest.TestCase):
         self.world = _ArtifactWorld()
         self.world.prepare(self)
         self.clone = self.world.clone(CLONE_NAME)
-        self.widget = _spec(WIDGET_SLUG, self.clone)
+        self.widget = _support._spec(_support.WIDGET_SLUG, self.clone)
 
     def test_a_flat_checkout_goes_to_its_own_clone(self) -> None:
         # A host whose entries keep their own clones: exactly one of them is
         # holding this tree, and that settles what nothing in the name could.
-        sibling = _spec(GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
+        sibling = _support._spec(_support.GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
         flat = self.world.legacy_checkout(self.widget, LEGACY_ISSUE_NUMBER)
 
         scanned = _scan(self.widget, sibling)
 
-        self.assertEqual(_found(scanned), ((WIDGET_SLUG, LEGACY_ISSUE_NUMBER),))
+        self.assertEqual(_found(scanned), ((_support.WIDGET_SLUG, LEGACY_ISSUE_NUMBER),))
         self.assertEqual(scanned.issues[0].worktrees, (flat,))
         self.assertEqual(scanned.withheld, ())
 
@@ -252,20 +242,20 @@ class FlatCheckoutInventoryTest(unittest.TestCase):
         # directory alone: the tree is standing on the branch beside it, and
         # reporting that branch would hand out a ref to delete under a live
         # checkout.
-        sibling = _spec(GADGET_SLUG, self.clone)
+        sibling = _support._spec(_support.GADGET_SLUG, self.clone)
         self.world.branch(
             self.clone,
-            _namespaced_branch(WIDGET_SLUG, LEGACY_ISSUE_NUMBER),
+            _support._namespaced_branch(_support.WIDGET_SLUG, LEGACY_ISSUE_NUMBER),
         )
         self.world.legacy_checkout(self.widget, LEGACY_ISSUE_NUMBER)
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING):
             scanned = _scan(self.widget, sibling)
 
         self.assertEqual(scanned.issues, ())
         self.assertEqual(scanned.withheld, (
-            (GADGET_SLUG, LEGACY_ISSUE_NUMBER),
-            (WIDGET_SLUG, LEGACY_ISSUE_NUMBER),
+            (_support.GADGET_SLUG, LEGACY_ISSUE_NUMBER),
+            (_support.WIDGET_SLUG, LEGACY_ISSUE_NUMBER),
         ))
 
 
@@ -276,7 +266,7 @@ class LocalInventoryRealGitTest(unittest.TestCase):
         self.world = _ArtifactWorld()
         self.world.prepare(self)
         self.clone = self.world.clone(CLONE_NAME)
-        self.widget = _spec(WIDGET_SLUG, self.clone)
+        self.widget = _support._spec(_support.WIDGET_SLUG, self.clone)
 
     def test_every_shape_on_one_clone_is_read(self) -> None:
         # The three shapes an issue reaches a scan in: a checkout with its
@@ -299,12 +289,12 @@ class LocalInventoryRealGitTest(unittest.TestCase):
                             self.widget, BOTH_SIDES_ISSUE_NUMBER,
                         ),
                     ),
-                    (_namespaced_branch(WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),),
+                    (_support._namespaced_branch(_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),),
                 ),
                 (
                     LEGACY_ISSUE_NUMBER,
                     (),
-                    (_legacy_branch(LEGACY_ISSUE_NUMBER),),
+                    (_support._legacy_branch(LEGACY_ISSUE_NUMBER),),
                 ),
                 (
                     CHECKOUT_ONLY_ISSUE_NUMBER,
@@ -323,36 +313,36 @@ class LocalInventoryRealGitTest(unittest.TestCase):
         # The second entry on this clone turns the legacy branch from "the
         # only repository here" into an unanswerable question, while the
         # namespaced branches keep saying who published them.
-        gadget = _spec(GADGET_SLUG, self.clone)
+        gadget = _support._spec(_support.GADGET_SLUG, self.clone)
         self._plant_widget_artifacts()
         self.world.branch(
-            self.clone, _namespaced_branch(GADGET_SLUG, GADGET_ISSUE_NUMBER),
+            self.clone, _support._namespaced_branch(_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
         )
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING):
             scanned = _scan(self.widget, gadget)
 
         self.assertEqual(_found(scanned), (
-            (GADGET_SLUG, GADGET_ISSUE_NUMBER),
-            (WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
-            (WIDGET_SLUG, CHECKOUT_ONLY_ISSUE_NUMBER),
+            (_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
+            (_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
+            (_support.WIDGET_SLUG, CHECKOUT_ONLY_ISSUE_NUMBER),
         ))
 
     def test_several_clones_make_one_answer(self) -> None:
-        gadget = _spec(GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
+        gadget = _support._spec(_support.GADGET_SLUG, self.world.clone(SECOND_CLONE_NAME))
         self._plant_widget_artifacts()
         self.world.branch(
             gadget.target_root,
-            _namespaced_branch(GADGET_SLUG, GADGET_ISSUE_NUMBER),
+            _support._namespaced_branch(_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
         )
 
         scanned = _scan(self.widget, gadget)
 
         self.assertEqual(_found(scanned), (
-            (GADGET_SLUG, GADGET_ISSUE_NUMBER),
-            (WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
-            (WIDGET_SLUG, LEGACY_ISSUE_NUMBER),
-            (WIDGET_SLUG, CHECKOUT_ONLY_ISSUE_NUMBER),
+            (_support.GADGET_SLUG, GADGET_ISSUE_NUMBER),
+            (_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
+            (_support.WIDGET_SLUG, LEGACY_ISSUE_NUMBER),
+            (_support.WIDGET_SLUG, CHECKOUT_ONLY_ISSUE_NUMBER),
         ))
         self.assertEqual(scanned.refused, ())
 
@@ -362,23 +352,23 @@ class LocalInventoryRealGitTest(unittest.TestCase):
         # from what the listing did print would report the issue as a checkout
         # whose branch is gone -- the shape a cleanup acts on.
         self.world.checkout(self.widget, BOTH_SIDES_ISSUE_NUMBER)
-        _break_ref(
-            self.clone, _namespaced_branch(WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
+        _support._break_ref(
+            self.clone, _support._namespaced_branch(_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
         )
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING):
             scanned = _scan(self.widget)
 
         self.assertEqual(scanned.issues, ())
-        self.assertEqual(scanned.refused, (WIDGET_SLUG,))
+        self.assertEqual(scanned.refused, (_support.WIDGET_SLUG,))
 
     def _plant_widget_artifacts(self) -> None:
         """The widget's artifacts: one issue under each branch layout, two
         branches no configured repository owns, and two checkouts -- one
         under a branch of its own, one with no branch left at all."""
         for branch in (
-            _namespaced_branch(WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
-            _legacy_branch(LEGACY_ISSUE_NUMBER),
+            _support._namespaced_branch(_support.WIDGET_SLUG, BOTH_SIDES_ISSUE_NUMBER),
+            _support._legacy_branch(LEGACY_ISSUE_NUMBER),
             *IGNORED_BRANCHES,
         ):
             self.world.branch(self.clone, branch)

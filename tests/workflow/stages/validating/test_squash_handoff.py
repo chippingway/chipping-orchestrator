@@ -27,18 +27,8 @@ import unittest
 from unittest.mock import patch
 
 from tests.support.fakes import LazyPullRequest
+from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import (
-    APPROVAL_ISSUE,
-    COLLAPSE_KEY,
-    COLLAPSED_COMMITS,
-    COLLAPSED_HEAD,
-    HANDOFF_KEY,
-    PINNED_WRITE,
-    PR_COMMENT,
-    RUN_AGENT,
-    SET_LABEL,
-    SQUASH_SEAM,
-    SQUASHED_SHA,
     _CollapseWorldMixin,
     _RefusesTheCollapse,
     _RefusesTheRelabel,
@@ -108,7 +98,7 @@ class SquashHandoffTest(
 
         self._lands_a_collapse(github, issue)
 
-        self.assertNotIn(COLLAPSE_KEY, github.pinned_data(APPROVAL_ISSUE))
+        self.assertNotIn(_support.COLLAPSE_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
         self.assertIn(HANDED_ON, github.label_history)
 
     def test_the_record_is_dropped_before_the_relabel(self) -> None:
@@ -119,11 +109,11 @@ class SquashHandoffTest(
         github, issue = self._approved_issue()
         writes = _RecordsTheLabelAtEachWrite(github)
 
-        with patch.object(github, PINNED_WRITE, writes):
+        with patch.object(github, _support.PINNED_WRITE, writes):
             self._lands_a_collapse(github, issue)
 
         self.assertTrue(writes.writes)
-        self.assertEqual(writes.labels_when(COLLAPSE_KEY), [])
+        self.assertEqual(writes.labels_when(_support.COLLAPSE_KEY), [])
 
     def test_the_handoff_outlives_that_write(self) -> None:
         # And the write that ends the claim does not leave the boundary empty:
@@ -132,12 +122,12 @@ class SquashHandoffTest(
         github, issue = self._approved_issue()
         writes = _RecordsTheLabelAtEachWrite(github)
 
-        with patch.object(github, PINNED_WRITE, writes):
+        with patch.object(github, _support.PINNED_WRITE, writes):
             self._lands_a_collapse(github, issue)
 
-        self.assertEqual(writes.labels_when(HANDOFF_KEY), [0])
+        self.assertEqual(writes.labels_when(_support.HANDOFF_KEY), [0])
         self.assertEqual(writes.writes[-1][0], 1)
-        self.assertNotIn(HANDOFF_KEY, github.pinned_data(APPROVAL_ISSUE))
+        self.assertNotIn(_support.HANDOFF_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
 
     def test_a_refused_notice_keeps_the_record(self) -> None:
         # The count the notice is worded from is on that record and nowhere
@@ -147,12 +137,12 @@ class SquashHandoffTest(
         # never runs the recovery that would finish it.
         github, issue = self._approved_issue()
 
-        with patch.object(github, PR_COMMENT, _RefusesTheNotice(github)):
+        with patch.object(github, _support.PR_COMMENT, _RefusesTheNotice(github)):
             self._lands_a_collapse(github, issue)
 
-        pinned = github.pinned_data(APPROVAL_ISSUE)
-        self.assertEqual(pinned[COLLAPSE_KEY], COLLAPSED_HEAD)
-        self.assertEqual(pinned[COUNT_KEY], COLLAPSED_COMMITS)
+        pinned = github.pinned_data(_support.APPROVAL_ISSUE)
+        self.assertEqual(pinned[_support.COLLAPSE_KEY], _support.COLLAPSED_HEAD)
+        self.assertEqual(pinned[COUNT_KEY], _support.COLLAPSED_COMMITS)
         self.assertNotIn(HANDED_ON, github.label_history)
 
 
@@ -175,9 +165,9 @@ class RefusedRelabelTest(
 
         self._refuses_the_relabel(github, issue)
 
-        pinned = github.pinned_data(APPROVAL_ISSUE)
-        self.assertEqual(pinned[HANDOFF_KEY], SQUASHED_SHA)
-        self.assertNotIn(COLLAPSE_KEY, pinned)
+        pinned = github.pinned_data(_support.APPROVAL_ISSUE)
+        self.assertEqual(pinned[_support.HANDOFF_KEY], _support.SQUASHED_SHA)
+        self.assertNotIn(_support.COLLAPSE_KEY, pinned)
         self.assertNotIn(HANDED_ON, github.label_history)
 
     def test_the_next_tick_moves_the_label_alone(self) -> None:
@@ -188,10 +178,10 @@ class RefusedRelabelTest(
 
         mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[SQUASH_SEAM].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.SQUASH_SEAM].assert_not_called()
         self.assertIn(HANDED_ON, github.label_history)
-        self.assertNotIn(HANDOFF_KEY, github.pinned_data(APPROVAL_ISSUE))
+        self.assertNotIn(_support.HANDOFF_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
 
     def test_a_moved_publication_drops_the_handoff(self) -> None:
         # A pull request standing somewhere else has moved past the round this
@@ -204,7 +194,7 @@ class RefusedRelabelTest(
 
         mocks = self._lands_a_collapse(github, issue)
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
 
     def test_a_malformed_record_is_never_moved_over(self) -> None:
         # The record is spent on a comparison against the head the pull
@@ -214,14 +204,14 @@ class RefusedRelabelTest(
         # past the reviewer. It goes, and the round runs.
         github, issue = self._approved_issue()
         self._refuses_the_relabel(github, issue)
-        self._pins(github, HANDOFF_KEY, NOT_A_COMMIT)
+        self._pins(github, _support.HANDOFF_KEY, NOT_A_COMMIT)
         self._pins(github, PR_NUMBER_KEY, None)
 
         mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         self.assertNotIn(HANDED_ON, github.label_history)
-        self.assertNotIn(HANDOFF_KEY, github.pinned_data(APPROVAL_ISSUE))
+        self.assertNotIn(_support.HANDOFF_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
 
     def test_a_lazy_head_read_holds_the_handoff(self) -> None:
         # A fetched pull request asks GitHub nothing, so the request that can
@@ -234,16 +224,16 @@ class RefusedRelabelTest(
 
         mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[SQUASH_SEAM].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.SQUASH_SEAM].assert_not_called()
         self.assertEqual(
-            github.pinned_data(APPROVAL_ISSUE)[HANDOFF_KEY], SQUASHED_SHA,
+            github.pinned_data(_support.APPROVAL_ISSUE)[_support.HANDOFF_KEY], _support.SQUASHED_SHA,
         )
         self.assertNotIn(HANDED_ON, github.label_history)
 
     def _refuses_the_relabel(self, github, issue) -> None:
         """One handoff whose every durable move lands but the label."""
-        with patch.object(github, SET_LABEL, _RefusesTheRelabel()):
+        with patch.object(github, _support.SET_LABEL, _RefusesTheRelabel()):
             self._lands_a_collapse(github, issue)
 
 

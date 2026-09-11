@@ -43,24 +43,10 @@ from orchestrator.workflow.late_split import (
 )
 from tests.support.fakes import FakePR, FakePRRef
 from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.stages.conflicts import replay_test_support as _support
 from tests.workflow.stages.conflicts.conflicts_test_support import (
     MOVED_PR_HEAD_SHA,
     _ResolvingConflictMixin,
-)
-from tests.workflow.stages.conflicts.replay_test_support import (
-    ADJUDICATED_HEAD,
-    BEHIND_BASE,
-    CONFLICT_ISSUE,
-    CONFLICT_PR,
-    ON_BASE,
-    OTHER_DIGEST,
-    REPLAY_FORK_POINTS,
-    REPLAYED_HEAD,
-    UNTRANSFERABLE_EXEMPTIONS,
-    UNUSABLE_REPLAYS,
-    adjudicated_state,
-    granted_state,
-    replayed_state,
 )
 
 CONFLICT_FILE = "a.py"
@@ -86,7 +72,7 @@ REPLAYED_DIVERGENCE = (2, 1)
 # A second open pull request on this branch, standing on the same head the
 # replay was leased against -- which is what a repointed `pr_number` hands a
 # recovery that reads the publication live instead of off the record.
-OTHER_PR = CONFLICT_PR + 1
+OTHER_PR = _support.CONFLICT_PR + 1
 
 # A ceiling the seeded diff is over, so a candidate no transfer carries is
 # held and routed to a second adjudication of work a human already ruled on.
@@ -98,8 +84,8 @@ PAST_THE_CEILING = 6
 # tells them apart for the ROUND they owe and for nothing else -- the `fixing`
 # drift reroute sends unpushed fix commits over on either side of it.
 _UNRECORDED_RECOVERIES = MappingProxyType({
-    "one an agent's resolution left on base": ON_BASE,
-    "one the fixing reroute left behind base": BEHIND_BASE,
+    "one an agent's resolution left on base": _support.ON_BASE,
+    "one the fixing reroute left behind base": _support.BEHIND_BASE,
 })
 
 # What a commit made ON TOP of the publication leaves: ahead of it and behind
@@ -119,7 +105,7 @@ class _Replay:
     @property
     def pinned(self) -> dict:
         """What this issue's pinned comment says once the tick has ended."""
-        return self.github.pinned_data(CONFLICT_ISSUE)
+        return self.github.pinned_data(_support.CONFLICT_ISSUE)
 
     @property
     def pushes(self):
@@ -141,7 +127,7 @@ class _ConflictReplayCase(ObservedCloseCase, _ResolvingConflictMixin):
         """One clean rebase of an adjudicated commit, run to its push."""
         return self._published(
             merge_succeeded=True,
-            head_shas=[ADJUDICATED_HEAD, REPLAYED_HEAD],
+            head_shas=[_support.ADJUDICATED_HEAD, _support.REPLAYED_HEAD],
             **run_options,
         )
 
@@ -158,12 +144,12 @@ class _ConflictReplayCase(ObservedCloseCase, _ResolvingConflictMixin):
         On base unless a case says otherwise, since a replayed branch carries
         the base it was replayed onto.
         """
-        run_options.setdefault("behind_base", ON_BASE)
+        run_options.setdefault("behind_base", _support.ON_BASE)
         run_options.setdefault("branch_ahead_behind", REPLAYED_DIVERGENCE)
         return self._published(
             merge_succeeded=True,
-            head_shas=[REPLAYED_HEAD, REPLAYED_HEAD],
-            candidate_commit=FrozenCommit(sha=REPLAYED_HEAD),
+            head_shas=[_support.REPLAYED_HEAD, _support.REPLAYED_HEAD],
+            candidate_commit=FrozenCommit(sha=_support.REPLAYED_HEAD),
             **run_options,
         )
 
@@ -187,17 +173,17 @@ class _ConflictReplayCase(ObservedCloseCase, _ResolvingConflictMixin):
         publication every reading but the record itself would accept.
         """
         github, issue = self._seed(
-            extra_state=adjudicated_state() if seeded is None else seeded,
+            extra_state=_support.adjudicated_state() if seeded is None else seeded,
         )[:2]
         if pr_head:
-            github.get_pr(CONFLICT_PR).head.sha = pr_head
+            github.get_pr(_support.CONFLICT_PR).head.sha = pr_head
         if other_pr:
             github.add_pr(FakePR(
                 number=other_pr,
                 head_branch=self.issue_branch,
-                head=FakePRRef(sha=ADJUDICATED_HEAD),
+                head=FakePRRef(sha=_support.ADJUDICATED_HEAD),
             ))
-        run_options.setdefault("fork_points", REPLAY_FORK_POINTS)
+        run_options.setdefault("fork_points", _support.REPLAY_FORK_POINTS)
         run_options.setdefault("added_lines", PAST_THE_CEILING)
         run_options.setdefault("push_branch", True)
         with patch.object(config, MAX_ADDED_LINES, CEILING):
@@ -208,7 +194,7 @@ class _ConflictReplayCase(ObservedCloseCase, _ResolvingConflictMixin):
         """The exemption is on the replayed commit, and the push carried it."""
         replay.mocks[COUNT_ADDED_LINES].assert_not_called()
         pinned = replay.pinned
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], REPLAYED_HEAD)
+        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.REPLAYED_HEAD)
         self.assertEqual(
             pinned[_rewrites.LATE_REWRITE_PHASE],
             _rewrites.LateRewritePhase.PUBLISHED,
@@ -218,28 +204,28 @@ class _ConflictReplayCase(ObservedCloseCase, _ResolvingConflictMixin):
             _rewrites.LateRewriteKind.CONFLICT_REBASE,
         )
         pushed = replay.pushes.call_args.kwargs
-        self.assertEqual(pushed[REVISION], REPLAYED_HEAD)
-        self.assertEqual(pushed[LEASE], ADJUDICATED_HEAD)
+        self.assertEqual(pushed[REVISION], _support.REPLAYED_HEAD)
+        self.assertEqual(pushed[LEASE], _support.ADJUDICATED_HEAD)
         self.assertIn(
-            (CONFLICT_ISSUE, LABEL_VALIDATING), replay.github.label_history,
+            (_support.CONFLICT_ISSUE, LABEL_VALIDATING), replay.github.label_history,
         )
 
     def _assert_adjudicated_afresh(self, replay: _Replay) -> None:
         """Nothing was carried, and the ordinary ceiling took the issue."""
         replay.mocks[COUNT_ADDED_LINES].assert_called_once()
         pinned = replay.pinned
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], ADJUDICATED_HEAD)
+        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.ADJUDICATED_HEAD)
         self.assertNotIn(_rewrites.LATE_REWRITE_KIND, pinned)
         replay.pushes.assert_not_called()
         self.assertIn(
-            (CONFLICT_ISSUE, LABEL_DECOMPOSING), replay.github.label_history,
+            (_support.CONFLICT_ISSUE, LABEL_DECOMPOSING), replay.github.label_history,
         )
 
     def _assert_left_alone(self, replay: _Replay) -> None:
         """Nothing reached the remote, and the exemption never moved."""
         replay.pushes.assert_not_called()
         pinned = replay.pinned
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], ADJUDICATED_HEAD)
+        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.ADJUDICATED_HEAD)
         self.assertTrue(pinned[AWAITING_HUMAN])
 
 
@@ -259,14 +245,14 @@ class ConflictRebaseTransferTest(_ConflictReplayCase, unittest.TestCase):
         # about the branch says a rebase put that commit there -- what does is
         # the account the replay wrote about itself, before it ran and again
         # once there was a commit to name.
-        self._assert_carried(self._recovered(seeded=replayed_state()))
+        self._assert_carried(self._recovered(seeded=_support.replayed_state()))
 
     def test_a_crashed_grant_settles_on_the_recovery(self) -> None:
         # The later window, past the grant. The record the replay left is
         # spent by then, so what answers this tick is the permission itself,
         # re-asked in full over the terms it was granted on rather than
         # believed.
-        self._assert_carried(self._recovered(seeded=granted_state()))
+        self._assert_carried(self._recovered(seeded=_support.granted_state()))
 
     def test_the_pair_it_replaced_is_recorded(self) -> None:
         # The evidence is what a later reader re-derives the equality from,
@@ -276,18 +262,18 @@ class ConflictRebaseTransferTest(_ConflictReplayCase, unittest.TestCase):
         pinned = self._replayed().pinned
 
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_FROM_SHA], ADJUDICATED_HEAD,
+            pinned[_rewrites.LATE_REWRITE_FROM_SHA], _support.ADJUDICATED_HEAD,
         )
         self.assertEqual(
             pinned[_rewrites.LATE_REWRITE_FROM_BASE_SHA],
-            REPLAY_FORK_POINTS[ADJUDICATED_HEAD],
+            _support.REPLAY_FORK_POINTS[_support.ADJUDICATED_HEAD],
         )
         self.assertEqual(
             pinned[_rewrites.LATE_REWRITE_TO_BASE_SHA],
-            REPLAY_FORK_POINTS[REPLAYED_HEAD],
+            _support.REPLAY_FORK_POINTS[_support.REPLAYED_HEAD],
         )
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_LEASE], ADJUDICATED_HEAD,
+            pinned[_rewrites.LATE_REWRITE_LEASE], _support.ADJUDICATED_HEAD,
         )
 
 
@@ -306,7 +292,7 @@ class ConflictRebaseRefusalTest(_ConflictReplayCase, unittest.TestCase):
         # something else and falls through to the ordinary cumulative gate --
         # which past the ceiling is a second adjudication.
         self._assert_adjudicated_afresh(self._replayed(
-            contribution_digest={REPLAYED_HEAD: OTHER_DIGEST},
+            contribution_digest={_support.REPLAYED_HEAD: _support.OTHER_DIGEST},
         ))
 
     def test_a_fork_point_nothing_read_refuses(self) -> None:
@@ -319,10 +305,10 @@ class ConflictRebaseRefusalTest(_ConflictReplayCase, unittest.TestCase):
         # The exact-SHA exemption goes on exempting exactly the commit it
         # names, whatever is missing beside it -- and a commit that is not on
         # this branch any more exempts nothing this push is about.
-        for case, damaged in UNTRANSFERABLE_EXEMPTIONS.items():
+        for case, damaged in _support.UNTRANSFERABLE_EXEMPTIONS.items():
             with self.subTest(case=case):
                 self._assert_adjudicated_afresh(self._replayed(
-                    seeded=adjudicated_state(
+                    seeded=_support.adjudicated_state(
                         identity=bool(damaged), damaged=damaged,
                     ),
                 ))
@@ -343,7 +329,7 @@ class ConflictUnclaimedPushTest(_ConflictReplayCase, unittest.TestCase):
         self._assert_adjudicated_afresh(self._published(
             merge_succeeded=False,
             conflicted_files=[CONFLICT_FILE],
-            head_shas=[ADJUDICATED_HEAD, REPLAYED_HEAD],
+            head_shas=[_support.ADJUDICATED_HEAD, _support.REPLAYED_HEAD],
         ))
 
     def test_an_unrecorded_recovery_is_measured(self) -> None:
@@ -380,7 +366,7 @@ class ConflictUnprovableDivergenceTest(
         # -- and another open one standing on the same head would satisfy
         # every check the permit makes and take the exemption with it.
         self._assert_left_alone(self._recovered(
-            seeded={**replayed_state(), KEY_PR_NUMBER: OTHER_PR},
+            seeded={**_support.replayed_state(), KEY_PR_NUMBER: OTHER_PR},
             other_pr=OTHER_PR,
         ))
 
@@ -389,10 +375,10 @@ class ConflictUnprovableDivergenceTest(
         # group short of a member, or carrying a value no writer here would
         # have written, describes a replay nothing can check -- and a
         # divergence nothing accounts for may not be overwritten.
-        for case, damage in UNUSABLE_REPLAYS.items():
+        for case, damage in _support.UNUSABLE_REPLAYS.items():
             with self.subTest(case=case):
                 self._assert_left_alone(
-                    self._recovered(seeded=replayed_state(**damage)),
+                    self._recovered(seeded=_support.replayed_state(**damage)),
                 )
 
 

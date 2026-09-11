@@ -26,6 +26,7 @@ from orchestrator import config
 from orchestrator.agents import AgentResult
 from orchestrator.workflow.stages.documenting import handler as _documenting
 from tests.support.fakes import FakePR, FakePRRef
+from tests.workflow import fixtures as _support
 from tests.workflow.engine.charged_run_test_support import (
     DEV_SESSION,
     SHA_AFTER,
@@ -34,20 +35,6 @@ from tests.workflow.engine.charged_run_test_support import (
     Driven,
     human_reply,
     seed_issue,
-)
-from tests.workflow.fixtures import (
-    _TEST_SPEC,
-    BACKEND_CLAUDE,
-    LABEL_DOCUMENTING,
-    LABEL_FIXING,
-    LABEL_IMPLEMENTING,
-    LABEL_IN_REVIEW,
-    LABEL_RESOLVING_CONFLICT,
-    LABEL_VALIDATING,
-    REVIEW_APPROVED_MESSAGE,
-    _agent,
-    _issue_branch,
-    _open_pr_for,
 )
 from tests.workflow.git_owners import seam_patch
 
@@ -90,7 +77,7 @@ _STALE_CONTENT_HASH = "stale-hash"
 
 def _drive_implementing_fresh(case, agent_result: AgentResult, **state) -> Driven:
     github, issue = seed_issue(
-        IMPLEMENTING_FRESH_ISSUE, label=LABEL_IMPLEMENTING, **state,
+        IMPLEMENTING_FRESH_ISSUE, label=_support.LABEL_IMPLEMENTING, **state,
     )
     mocks = case._run_implementing(
         github,
@@ -107,14 +94,14 @@ def _drive_implementing_fresh(case, agent_result: AgentResult, **state) -> Drive
 def _drive_implementing_resume(case, agent_result: AgentResult, **state) -> Driven:
     github, issue = seed_issue(
         IMPLEMENTING_RESUME_ISSUE,
-        label=LABEL_IMPLEMENTING,
+        label=_support.LABEL_IMPLEMENTING,
         comments=[human_reply()],
         stage={
             "awaiting_human": True,
             "last_action_comment_id": _ACTION_COMMENT_ID,
-            _KEY_DEV_AGENT: BACKEND_CLAUDE,
+            _KEY_DEV_AGENT: _support.BACKEND_CLAUDE,
             _KEY_DEV_SESSION_ID: DEV_SESSION,
-            _KEY_BRANCH: _issue_branch(IMPLEMENTING_RESUME_ISSUE),
+            _KEY_BRANCH: _support._issue_branch(IMPLEMENTING_RESUME_ISSUE),
         },
         **state,
     )
@@ -131,12 +118,12 @@ def _drive_implementing_resume(case, agent_result: AgentResult, **state) -> Driv
 def _drive_fixing(case, agent_result: AgentResult, **state) -> Driven:
     github, issue = seed_issue(
         FIXING_ISSUE,
-        label=LABEL_FIXING,
+        label=_support.LABEL_FIXING,
         comments=[human_reply("please fix the docstring")],
         stage={
             _KEY_PR_NUMBER: _FIXING_PR,
-            _KEY_BRANCH: _issue_branch(FIXING_ISSUE),
-            _KEY_DEV_AGENT: BACKEND_CLAUDE,
+            _KEY_BRANCH: _support._issue_branch(FIXING_ISSUE),
+            _KEY_DEV_AGENT: _support.BACKEND_CLAUDE,
             _KEY_DEV_SESSION_ID: DEV_SESSION,
             _KEY_REVIEW_ROUND: 1,
             "pr_last_comment_id": 0,
@@ -145,7 +132,7 @@ def _drive_fixing(case, agent_result: AgentResult, **state) -> Driven:
         },
         **state,
     )
-    _open_pr_for(github, issue_number=FIXING_ISSUE, pr_number=_FIXING_PR)
+    _support._open_pr_for(github, issue_number=FIXING_ISSUE, pr_number=_FIXING_PR)
     with patch.object(config, _DEBOUNCE_SETTING, _DEBOUNCE_SECONDS):
         mocks = case._run_fixing(
             github,
@@ -160,22 +147,22 @@ def _drive_fixing(case, agent_result: AgentResult, **state) -> Driven:
 def _drive_documenting(case, agent_result: AgentResult, **state) -> Driven:
     github, issue = seed_issue(
         DOCUMENTING_ISSUE,
-        label=LABEL_DOCUMENTING,
+        label=_support.LABEL_DOCUMENTING,
         stage={
             _KEY_PR_NUMBER: _DOCUMENTING_PR,
-            _KEY_BRANCH: _issue_branch(DOCUMENTING_ISSUE),
-            _KEY_DEV_AGENT: BACKEND_CLAUDE,
+            _KEY_BRANCH: _support._issue_branch(DOCUMENTING_ISSUE),
+            _KEY_DEV_AGENT: _support.BACKEND_CLAUDE,
             _KEY_DEV_SESSION_ID: DEV_SESSION,
         },
         **state,
     )
-    _open_pr_for(
+    _support._open_pr_for(
         github, issue_number=DOCUMENTING_ISSUE, pr_number=_DOCUMENTING_PR,
     )
     # Driven through the shared patch context directly: documenting is the one
     # road here whose handler no stage-family adapter already names.
     mocks = case._run(
-        lambda: _documenting._handle_documenting(github, _TEST_SPEC, issue),
+        lambda: _documenting._handle_documenting(github, _support._TEST_SPEC, issue),
         run_agent=agent_result,
         head_shas=[SHA_BEFORE, SHA_AFTER],
         branch_ahead_behind=(0, 0),
@@ -187,11 +174,11 @@ def _drive_documenting(case, agent_result: AgentResult, **state) -> Driven:
 def _drive_in_review(case, agent_result: AgentResult, **state) -> Driven:
     github, issue = seed_issue(
         IN_REVIEW_ISSUE,
-        label=LABEL_IN_REVIEW,
+        label=_support.LABEL_IN_REVIEW,
         stage={
             _KEY_PR_NUMBER: _IN_REVIEW_PR,
-            _KEY_BRANCH: _issue_branch(IN_REVIEW_ISSUE),
-            _KEY_DEV_AGENT: BACKEND_CLAUDE,
+            _KEY_BRANCH: _support._issue_branch(IN_REVIEW_ISSUE),
+            _KEY_DEV_AGENT: _support.BACKEND_CLAUDE,
             _KEY_DEV_SESSION_ID: DEV_SESSION,
             _KEY_REVIEW_ROUND: 2,
             "pr_last_comment_id": 0,
@@ -201,7 +188,7 @@ def _drive_in_review(case, agent_result: AgentResult, **state) -> Driven:
         },
         **state,
     )
-    _open_pr_for(github, issue_number=IN_REVIEW_ISSUE, pr_number=_IN_REVIEW_PR)
+    _support._open_pr_for(github, issue_number=IN_REVIEW_ISSUE, pr_number=_IN_REVIEW_PR)
     mocks = case._run_in_review(
         github,
         issue,
@@ -216,11 +203,11 @@ def _drive_in_review(case, agent_result: AgentResult, **state) -> Driven:
 def _drive_conflict(case, agent_result: AgentResult, **state) -> Driven:
     github, issue = seed_issue(
         CONFLICT_ISSUE,
-        label=LABEL_RESOLVING_CONFLICT,
+        label=_support.LABEL_RESOLVING_CONFLICT,
         stage={
             _KEY_PR_NUMBER: _CONFLICT_PR,
-            _KEY_BRANCH: _issue_branch(CONFLICT_ISSUE),
-            _KEY_DEV_AGENT: BACKEND_CLAUDE,
+            _KEY_BRANCH: _support._issue_branch(CONFLICT_ISSUE),
+            _KEY_DEV_AGENT: _support.BACKEND_CLAUDE,
             _KEY_DEV_SESSION_ID: DEV_SESSION,
             _KEY_REVIEW_ROUND: 2,
             "conflict_round": 0,
@@ -229,7 +216,7 @@ def _drive_conflict(case, agent_result: AgentResult, **state) -> Driven:
     )
     github.add_pr(FakePR(
         number=_CONFLICT_PR,
-        head_branch=_issue_branch(CONFLICT_ISSUE),
+        head_branch=_support._issue_branch(CONFLICT_ISSUE),
         head=FakePRRef(sha=SHA_BEFORE),
         mergeable=False,
         check_state=_CHECKS_PASSED,
@@ -256,17 +243,17 @@ def _drive_conflict(case, agent_result: AgentResult, **state) -> Driven:
 def _drive_validating(case, agent_result: AgentResult, **state) -> Driven:
     github, issue = seed_issue(
         VALIDATING_ISSUE,
-        label=LABEL_VALIDATING,
+        label=_support.LABEL_VALIDATING,
         stage={
             _KEY_PR_NUMBER: _VALIDATING_PR,
-            _KEY_BRANCH: _issue_branch(VALIDATING_ISSUE),
-            _KEY_DEV_AGENT: BACKEND_CLAUDE,
+            _KEY_BRANCH: _support._issue_branch(VALIDATING_ISSUE),
+            _KEY_DEV_AGENT: _support.BACKEND_CLAUDE,
             _KEY_DEV_SESSION_ID: DEV_SESSION,
             _KEY_REVIEW_ROUND: 0,
         },
         **state,
     )
-    _open_pr_for(
+    _support._open_pr_for(
         github, issue_number=VALIDATING_ISSUE, pr_number=_VALIDATING_PR,
     )
     mocks = case._run_validating(github, issue, run_agent=agent_result)
@@ -276,9 +263,9 @@ def _drive_validating(case, agent_result: AgentResult, **state) -> Driven:
 IMPLEMENTING_FRESH = ChargedRoad(
     role="implementing-fresh",
     number=IMPLEMENTING_FRESH_ISSUE,
-    label=LABEL_IMPLEMENTING,
+    label=_support.LABEL_IMPLEMENTING,
     drive=_drive_implementing_fresh,
-    agent_result=_agent(session_id="sess-fresh", last_message="implemented"),
+    agent_result=_support._agent(session_id="sess-fresh", last_message="implemented"),
 )
 
 # The road a poisoned session is recovered on, and so the one launch here
@@ -286,50 +273,50 @@ IMPLEMENTING_FRESH = ChargedRoad(
 IMPLEMENTING_RESUME = ChargedRoad(
     role="implementing-resume",
     number=IMPLEMENTING_RESUME_ISSUE,
-    label=LABEL_IMPLEMENTING,
+    label=_support.LABEL_IMPLEMENTING,
     drive=_drive_implementing_resume,
-    agent_result=_agent(session_id=DEV_SESSION, last_message="carried on"),
+    agent_result=_support._agent(session_id=DEV_SESSION, last_message="carried on"),
 )
 
 FIXING = ChargedRoad(
     role="fixing",
     number=FIXING_ISSUE,
-    label=LABEL_FIXING,
+    label=_support.LABEL_FIXING,
     drive=_drive_fixing,
-    agent_result=_agent(session_id=DEV_SESSION, last_message="fixed"),
+    agent_result=_support._agent(session_id=DEV_SESSION, last_message="fixed"),
 )
 
 DOCUMENTING = ChargedRoad(
     role="documenting",
     number=DOCUMENTING_ISSUE,
-    label=LABEL_DOCUMENTING,
+    label=_support.LABEL_DOCUMENTING,
     drive=_drive_documenting,
-    agent_result=_agent(session_id=DEV_SESSION, last_message="docs: updated"),
+    agent_result=_support._agent(session_id=DEV_SESSION, last_message="docs: updated"),
 )
 
 IN_REVIEW = ChargedRoad(
     role="in-review",
     number=IN_REVIEW_ISSUE,
-    label=LABEL_IN_REVIEW,
+    label=_support.LABEL_IN_REVIEW,
     drive=_drive_in_review,
-    agent_result=_agent(session_id=DEV_SESSION, last_message="addressed"),
+    agent_result=_support._agent(session_id=DEV_SESSION, last_message="addressed"),
 )
 
 CONFLICT = ChargedRoad(
     role="resolving-conflict",
     number=CONFLICT_ISSUE,
-    label=LABEL_RESOLVING_CONFLICT,
+    label=_support.LABEL_RESOLVING_CONFLICT,
     drive=_drive_conflict,
-    agent_result=_agent(session_id=DEV_SESSION, last_message="resolved"),
+    agent_result=_support._agent(session_id=DEV_SESSION, last_message="resolved"),
 )
 
 VALIDATING = ChargedRoad(
     role="validating",
     number=VALIDATING_ISSUE,
-    label=LABEL_VALIDATING,
+    label=_support.LABEL_VALIDATING,
     drive=_drive_validating,
-    agent_result=_agent(
-        session_id="rev-sess", last_message=REVIEW_APPROVED_MESSAGE,
+    agent_result=_support._agent(
+        session_id="rev-sess", last_message=_support.REVIEW_APPROVED_MESSAGE,
     ),
 )
 

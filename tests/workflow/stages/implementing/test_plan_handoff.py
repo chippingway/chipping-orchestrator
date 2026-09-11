@@ -36,32 +36,11 @@ from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
 )
-from tests.workflow.stages.implementing.plan_handoff_test_support import (
-    AMENDED_PLAN_COMMIT as _AMENDED_PLAN_COMMIT,
-    HANDOFF_PR_NUMBER as _HANDOFF_PR_NUMBER,
-    PLAN_COMMIT as _PLAN_COMMIT,
-    PLAN_ISSUE_NUMBER as _PLAN_HANDOFF_ISSUE_NUMBER,
-    PLAN_PATH as _PLAN_PATH,
-    _add_plan_pr,
-    _HandoffTickMixin,
-    _seed_accepted_handoff,
-    _seed_published_plan,
+from tests.workflow.stages.implementing import (
+    plan_handoff_test_support as _support,
+    read_only_relabel_test_support as _stage_support,
 )
-from tests.workflow.stages.implementing.read_only_relabel_test_support import (
-    ANCHOR_PR_WORKTREE,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    KEY_PLAN_PATH,
-    KEY_PLAN_SHA,
-    KEY_PR_NUMBER,
-    KEY_PUBLISHING_SHA,
-    KEY_READ_ONLY_BASELINE,
-    KEY_ROUND_OPEN,
-    PARK_DISCUSSION_PLAN_PUBLISHED,
-    PARK_DISCUSSION_UNSAFE_RELABEL,
-    RUN_AGENT,
-    _seed_relabeled_discussion,
-)
+from tests.workflow.stages.implementing.plan_handoff_test_support import _HandoffTickMixin
 
 _MERGED_PLAN_ISSUE_NUMBER = 1001
 _PUSHED_PLAN_ISSUE_NUMBER = 1002
@@ -86,8 +65,8 @@ _FETCH_FAILURE = "502 while reading the pull request"
 # stands, and neither is this stage's work: the commit publication put there,
 # and the one the humans left when they edited the design before agreeing to it.
 _LIVE_PLAN_HEADS = (
-    (_MERGED_PLAN_ISSUE_NUMBER, _PLAN_COMMIT),
-    (_AMENDED_PLAN_ISSUE_NUMBER, _AMENDED_PLAN_COMMIT),
+    (_MERGED_PLAN_ISSUE_NUMBER, _support.PLAN_COMMIT),
+    (_AMENDED_PLAN_ISSUE_NUMBER, _support.AMENDED_PLAN_COMMIT),
 )
 
 # The two records a `discussion` tick that never reported leaves standing, and
@@ -96,8 +75,8 @@ _LIVE_PLAN_HEADS = (
 # disposition of one. Both are seeded with no plan record beside them, which is
 # what a crash before that write really leaves.
 _UNREPORTED_ROUNDS = (
-    (_CRASHED_ROUND_MERGE_ISSUE_NUMBER, KEY_ROUND_OPEN, True),
-    (_CRASHED_PUBLISH_MERGE_ISSUE_NUMBER, KEY_PUBLISHING_SHA, HEAD_AFTER_COMMIT),
+    (_CRASHED_ROUND_MERGE_ISSUE_NUMBER, _stage_support.KEY_ROUND_OPEN, True),
+    (_CRASHED_PUBLISH_MERGE_ISSUE_NUMBER, _stage_support.KEY_PUBLISHING_SHA, _stage_support.HEAD_AFTER_COMMIT),
 )
 
 
@@ -131,10 +110,10 @@ class PlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # claim the commit the dev is about to make. (The publication marker is
         # not seeded beside them because it cannot be: the write that records a
         # published plan retires it.)
-        gh, issue = _seed_relabeled_discussion(
-            _PLAN_HANDOFF_ISSUE_NUMBER,
-            PARK_DISCUSSION_PLAN_PUBLISHED,
-            **{KEY_PLAN_PATH: _PLAN_PATH, KEY_ROUND_OPEN: True},
+        gh, issue = _stage_support._seed_relabeled_discussion(
+            _support.PLAN_ISSUE_NUMBER,
+            _stage_support.PARK_DISCUSSION_PLAN_PUBLISHED,
+            **{_stage_support.KEY_PLAN_PATH: _support.PLAN_PATH, _stage_support.KEY_ROUND_OPEN: True},
         )
 
         mocks = self._run_handoff_tick(
@@ -142,13 +121,17 @@ class PlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
             issue,
             unpushed_branch=_issue_branch(issue.number),
             has_new_commits=True,
-            branch_tip_sha=HEAD_BEFORE_ROUND,
-            head_shas=(HEAD_BEFORE_ROUND, HEAD_BEFORE_ROUND, HEAD_AFTER_COMMIT),
+            branch_tip_sha=_stage_support.HEAD_BEFORE_ROUND,
+            head_shas=(
+                _stage_support.HEAD_BEFORE_ROUND,
+                _stage_support.HEAD_BEFORE_ROUND,
+                _stage_support.HEAD_AFTER_COMMIT,
+            ),
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_stage_support.RUN_AGENT].assert_called_once()
         pinned_data = gh.pinned_data(issue.number)
-        for retired in (KEY_PLAN_PATH, KEY_ROUND_OPEN):
+        for retired in (_stage_support.KEY_PLAN_PATH, _stage_support.KEY_ROUND_OPEN):
             with self.subTest(key=retired):
                 self.assertIsNone(pinned_data.get(retired))
 
@@ -171,18 +154,18 @@ class PlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # still recorded -- but the PR's head moved when we pushed, and that is
         # what the guard reads, so the merge that followed finalizes instead of
         # being ignored and the dev is not run over the same work again.
-        gh, issue = _seed_accepted_handoff(
-            _PUSHED_PLAN_ISSUE_NUMBER, head_sha=HEAD_AFTER_COMMIT,
+        gh, issue = _support._seed_accepted_handoff(
+            _PUSHED_PLAN_ISSUE_NUMBER, head_sha=_stage_support.HEAD_AFTER_COMMIT,
         )
 
         # The branch is where that push left it, which is the durable half of
         # what happened: a tip past the baseline the handoff recorded is a
         # developer's commit whatever pinned state never got written.
         mocks = self._run_handoff_tick(
-            gh, issue, branch_tip_sha=HEAD_AFTER_COMMIT,
+            gh, issue, branch_tip_sha=_stage_support.HEAD_AFTER_COMMIT,
         )
 
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_stage_support.RUN_AGENT].assert_not_called()
         self.assertEqual(gh.opened_prs, [])
         self.assertIn((issue.number, LABEL_DONE), gh.label_history)
 
@@ -192,8 +175,8 @@ class PlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # asked GitHub the same thing again -- and the retry that succeeded
         # finalized the merged plan as the work. So the failure ends the tick
         # where it happened, writing nothing, and the next one asks again.
-        gh, issue = _seed_accepted_handoff(
-            _FLAKY_FETCH_ISSUE_NUMBER, head_sha=_PLAN_COMMIT,
+        gh, issue = _support._seed_accepted_handoff(
+            _FLAKY_FETCH_ISSUE_NUMBER, head_sha=_support.PLAN_COMMIT,
         )
         flaky_fetch = _FetchFailsOnce(gh.get_pr)
         writes_before = gh.write_state_calls
@@ -202,12 +185,12 @@ class PlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
             mocks = self._run_handoff_tick(gh, issue)
 
         self.assertEqual(flaky_fetch.calls, 1)
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_stage_support.RUN_AGENT].assert_not_called()
         self.assertNotIn((issue.number, LABEL_DONE), gh.label_history)
         self.assertEqual(gh.write_state_calls, writes_before)
         # The record the next tick asks with is still there to ask with.
         self.assertEqual(
-            gh.pinned_data(issue.number)[KEY_PLAN_SHA], _PLAN_COMMIT,
+            gh.pinned_data(issue.number)[_stage_support.KEY_PLAN_SHA], _support.PLAN_COMMIT,
         )
 
     def test_an_unreported_round_outranks_the_merge(self) -> None:
@@ -234,8 +217,8 @@ class PlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # merge produced. A branch carrying nothing beyond base carries nothing
         # of anybody's, and the move is idempotent, so the next tick simply
         # makes it again.
-        gh, crashed_issue = _seed_published_plan(
-            _CRASHED_ANCHOR_ISSUE_NUMBER, head_sha=_PLAN_COMMIT,
+        gh, crashed_issue = _support._seed_published_plan(
+            _CRASHED_ANCHOR_ISSUE_NUMBER, head_sha=_support.PLAN_COMMIT,
         )
 
         mocks = self._run_handoff_tick(
@@ -250,38 +233,38 @@ class PlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         self._assert_dev_ran(mocks)
         pinned_data = gh.pinned_data(crashed_issue.number)
         self.assertNotEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_UNSAFE_RELABEL,
+            pinned_data[KEY_PARK_REASON], _stage_support.PARK_DISCUSSION_UNSAFE_RELABEL,
         )
         # The handoff completes on the second attempt exactly as it would have
         # on the first: records retired, and the base recorded as the baseline.
-        self.assertIsNone(pinned_data[KEY_PLAN_PATH])
-        self.assertEqual(pinned_data[KEY_READ_ONLY_BASELINE], BASE_TIP_SHA)
+        self.assertIsNone(pinned_data[_stage_support.KEY_PLAN_PATH])
+        self.assertEqual(pinned_data[_stage_support.KEY_READ_ONLY_BASELINE], BASE_TIP_SHA)
 
     def _assert_refused_over_the_merge(
         self, issue_number: int, marker: str, recorded,
     ) -> None:
         """The tick holds: nothing runs, nothing merges, the record stands."""
-        gh, issue = _seed_relabeled_discussion(
+        gh, issue = _stage_support._seed_relabeled_discussion(
             issue_number,
             None,
-            **{marker: recorded, KEY_PR_NUMBER: _HANDOFF_PR_NUMBER},
+            **{marker: recorded, _stage_support.KEY_PR_NUMBER: _support.HANDOFF_PR_NUMBER},
         )
-        _add_plan_pr(gh, issue, head_sha=_PLAN_COMMIT, merged=True)
+        _support._add_plan_pr(gh, issue, head_sha=_support.PLAN_COMMIT, merged=True)
 
         mocks = self._run_handoff_tick(
             gh,
             issue,
             unpushed_branch=_issue_branch(issue.number),
             has_new_commits=True,
-            branch_tip_sha=HEAD_AFTER_COMMIT,
-            head_shas=(HEAD_AFTER_COMMIT,),
+            branch_tip_sha=_stage_support.HEAD_AFTER_COMMIT,
+            head_shas=(_stage_support.HEAD_AFTER_COMMIT,),
         )
 
         self._assert_nothing_ran(mocks)
         self.assertNotIn((issue_number, LABEL_DONE), gh.label_history)
         pinned_data = gh.pinned_data(issue_number)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_UNSAFE_RELABEL,
+            pinned_data[KEY_PARK_REASON], _stage_support.PARK_DISCUSSION_UNSAFE_RELABEL,
         )
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
         # The record outlives a merge that had nothing to do with it, because
@@ -300,17 +283,17 @@ class AmendedPlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # an implementation and finalizes.
         _gh, issue, mocks, pinned = self._run_published_handoff(
             _AMENDED_PLAN_ISSUE_NUMBER,
-            head_sha=_AMENDED_PLAN_COMMIT,
+            head_sha=_support.AMENDED_PLAN_COMMIT,
             merged=False,
             run_agent=_agent(interrupted=True),
         )
 
-        anchored = mocks[ANCHOR_PR_WORKTREE].call_args
+        anchored = mocks[_stage_support.ANCHOR_PR_WORKTREE].call_args
         self.assertEqual(anchored.args[1], issue.number)
         self.assertEqual(anchored.kwargs["branch"], _issue_branch(issue.number))
-        self.assertEqual(anchored.kwargs["head_sha"], _AMENDED_PLAN_COMMIT)
-        self.assertEqual(pinned[KEY_PLAN_SHA], _AMENDED_PLAN_COMMIT)
-        self.assertEqual(pinned[KEY_READ_ONLY_BASELINE], _AMENDED_PLAN_COMMIT)
+        self.assertEqual(anchored.kwargs["head_sha"], _support.AMENDED_PLAN_COMMIT)
+        self.assertEqual(pinned[_stage_support.KEY_PLAN_SHA], _support.AMENDED_PLAN_COMMIT)
+        self.assertEqual(pinned[_stage_support.KEY_READ_ONLY_BASELINE], _support.AMENDED_PLAN_COMMIT)
 
     def test_an_unmoved_head_costs_no_anchor(self) -> None:
         # The ordinary handoff: the PR is still on the commit publication put
@@ -318,13 +301,13 @@ class AmendedPlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # baseline stays the tip the guard certified.
         _gh, _issue, mocks, pinned = self._run_published_handoff(
             _UNMOVED_PLAN_ISSUE_NUMBER,
-            head_sha=_PLAN_COMMIT,
+            head_sha=_support.PLAN_COMMIT,
             merged=False,
             run_agent=_agent(interrupted=True),
         )
 
-        mocks[ANCHOR_PR_WORKTREE].assert_not_called()
-        self.assertEqual(pinned[KEY_READ_ONLY_BASELINE], _PLAN_COMMIT)
+        mocks[_stage_support.ANCHOR_PR_WORKTREE].assert_not_called()
+        self.assertEqual(pinned[_stage_support.KEY_READ_ONLY_BASELINE], _support.PLAN_COMMIT)
 
     def test_a_merged_plan_hands_over_at_base(self) -> None:
         # The design landed, and the checkout is retained on the commit that
@@ -337,13 +320,13 @@ class AmendedPlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # head at all, which is how the anchor is told to use the base.
         _gh, _issue, mocks, pinned = self._run_published_handoff(
             _MERGED_BRANCH_ISSUE_NUMBER,
-            head_sha=_PLAN_COMMIT,
+            head_sha=_support.PLAN_COMMIT,
             run_agent=_agent(interrupted=True),
         )
 
-        anchored = mocks[ANCHOR_PR_WORKTREE].call_args
+        anchored = mocks[_stage_support.ANCHOR_PR_WORKTREE].call_args
         self.assertEqual(anchored.kwargs["head_sha"], "")
-        self.assertEqual(pinned[KEY_READ_ONLY_BASELINE], BASE_TIP_SHA)
+        self.assertEqual(pinned[_stage_support.KEY_READ_ONLY_BASELINE], BASE_TIP_SHA)
 
     def test_an_unreachable_head_holds_the_handoff(self) -> None:
         # The reviewed head could not be put on the branch -- a fetch that
@@ -353,8 +336,8 @@ class AmendedPlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # remote as its own lease and overwrites it. So the tick ends: no agent,
         # no push, nothing written, and the plan record still standing for the
         # next tick to try again.
-        gh, issue = _seed_published_plan(
-            _UNREACHED_HEAD_ISSUE_NUMBER, head_sha=_AMENDED_PLAN_COMMIT,
+        gh, issue = _support._seed_published_plan(
+            _UNREACHED_HEAD_ISSUE_NUMBER, head_sha=_support.AMENDED_PLAN_COMMIT,
         )
         writes_before = gh.write_state_calls
 
@@ -363,10 +346,10 @@ class AmendedPlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         self._assert_nothing_ran(mocks)
         self.assertEqual(gh.write_state_calls, writes_before)
         pinned_data = gh.pinned_data(issue.number)
-        self.assertEqual(pinned_data[KEY_PLAN_PATH], _PLAN_PATH)
-        self.assertEqual(pinned_data[KEY_PLAN_SHA], _PLAN_COMMIT)
+        self.assertEqual(pinned_data[_stage_support.KEY_PLAN_PATH], _support.PLAN_PATH)
+        self.assertEqual(pinned_data[_stage_support.KEY_PLAN_SHA], _support.PLAN_COMMIT)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_PLAN_PUBLISHED,
+            pinned_data[KEY_PARK_REASON], _stage_support.PARK_DISCUSSION_PLAN_PUBLISHED,
         )
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
 
@@ -377,9 +360,9 @@ class AmendedPlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # records are retired and the implementer starts from a tree the design
         # was never in. So the anchor establishes nothing, and the tick holds
         # with everything the next one needs still standing.
-        gh, deleted_issue = _seed_published_plan(
+        gh, deleted_issue = _support._seed_published_plan(
             _DELETED_BRANCH_ISSUE_NUMBER,
-            head_sha=_AMENDED_PLAN_COMMIT,
+            head_sha=_support.AMENDED_PLAN_COMMIT,
             merged=False,
         )
 
@@ -387,9 +370,9 @@ class AmendedPlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
 
         self._assert_nothing_ran(mocks)
         pinned_data = gh.pinned_data(deleted_issue.number)
-        self.assertEqual(pinned_data[KEY_PLAN_PATH], _PLAN_PATH)
+        self.assertEqual(pinned_data[_stage_support.KEY_PLAN_PATH], _support.PLAN_PATH)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_PLAN_PUBLISHED,
+            pinned_data[KEY_PARK_REASON], _stage_support.PARK_DISCUSSION_PLAN_PUBLISHED,
         )
 
     def test_an_interrupted_handoff_keeps_the_plan(self) -> None:
@@ -401,13 +384,13 @@ class AmendedPlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # place.
         gh, issue, _first, _pinned = self._run_published_handoff(
             _INTERRUPTED_HANDOFF_ISSUE_NUMBER,
-            head_sha=_AMENDED_PLAN_COMMIT,
+            head_sha=_support.AMENDED_PLAN_COMMIT,
             run_agent=_agent(interrupted=True),
         )
 
         mocks = self._run_handoff_tick(gh, issue)
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_stage_support.RUN_AGENT].assert_called_once()
         self.assertNotIn((issue.number, LABEL_DONE), gh.label_history)
 
     def test_an_unreadable_plan_pr_defers_the_handoff(self) -> None:
@@ -415,19 +398,19 @@ class AmendedPlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # what replaces the path record, so a read that failed has nothing to
         # decide with. The tick ends where it happened, writing nothing, and
         # the park it arrived with is still there for the next one to answer.
-        gh, issue = _seed_published_plan(
-            _UNREADABLE_PR_ISSUE_NUMBER, head_sha=_AMENDED_PLAN_COMMIT,
+        gh, issue = _support._seed_published_plan(
+            _UNREADABLE_PR_ISSUE_NUMBER, head_sha=_support.AMENDED_PLAN_COMMIT,
         )
         writes_before = gh.write_state_calls
 
         with patch.object(gh, "get_pr", side_effect=RuntimeError(_FETCH_FAILURE)):
             mocks = self._run_handoff_tick(gh, issue)
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[ANCHOR_PR_WORKTREE].assert_not_called()
+        mocks[_stage_support.RUN_AGENT].assert_not_called()
+        mocks[_stage_support.ANCHOR_PR_WORKTREE].assert_not_called()
         self.assertEqual(gh.write_state_calls, writes_before)
         self.assertEqual(
-            gh.pinned_data(issue.number)[KEY_PLAN_PATH], _PLAN_PATH,
+            gh.pinned_data(issue.number)[_stage_support.KEY_PLAN_PATH], _support.PLAN_PATH,
         )
 
 

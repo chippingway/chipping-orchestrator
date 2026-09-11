@@ -24,22 +24,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import Mock
 
-from tests.workflow.engine.cleanup_deferral_support import (
-    DEFERRED,
-    ENDING_UNFINISHED,
-    FAILED,
-    HELD_BY_A_WORKER,
-    OWNER_NUMBER,
-    OWNER_REF,
-    PASS_FAILED,
-    RECONCILED,
-    REPO_SLUG,
-    RETAINED,
-    WORKFLOW_LOG,
-    DeferralCase,
-    receipts_on,
-    tick_with_refused_receipt,
-)
+from tests.workflow.engine import cleanup_deferral_support as _support
+from tests.workflow.engine.cleanup_deferral_support import DeferralCase
 from tests.workflow.engine.unfinished_cleanup_support import (
     UnfinishedCleanupCase,
     cleanup_settled,
@@ -53,7 +39,7 @@ from tests.workflow.fixtures import (
     LABEL_UMBRELLA,
 )
 
-_OWED = frozenset((OWNER_NUMBER,))
+_OWED = frozenset((_support.OWNER_NUMBER,))
 
 
 class HeldCleanupObservationTest(DeferralCase, unittest.TestCase):
@@ -67,14 +53,14 @@ class HeldCleanupObservationTest(DeferralCase, unittest.TestCase):
         self._ticked(scheduler)
 
         self.assertTrue(self._cancelled())
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
+        self.assertEqual(self._observed(_support.REPO_SLUG), frozenset())
 
     def test_a_held_issue_is_owed_the_next_tick(self) -> None:
         scheduler = self._scheduler()
 
         self._tick_a_worker_held(scheduler)
 
-        self.assertEqual(self._observed(REPO_SLUG), _OWED)
+        self.assertEqual(self._observed(_support.REPO_SLUG), _OWED)
 
     def test_the_deferral_is_said(self) -> None:
         # An operator watching a closed umbrella sit still for a tick can
@@ -83,9 +69,9 @@ class HeldCleanupObservationTest(DeferralCase, unittest.TestCase):
 
         said = self._tick_a_worker_held(scheduler)
 
-        self.assertTrue(any(DEFERRED in message for message in said), said)
+        self.assertTrue(any(_support.DEFERRED in message for message in said), said)
         self.assertTrue(
-            any(HELD_BY_A_WORKER in message for message in said), said,
+            any(_support.HELD_BY_A_WORKER in message for message in said), said,
         )
 
     def test_the_dispatch_thread_writes_nothing(self) -> None:
@@ -93,11 +79,11 @@ class HeldCleanupObservationTest(DeferralCase, unittest.TestCase):
         # pinned comment is written whole, so a second writer here would drop
         # whatever the active worker recorded in between.
         scheduler = self._scheduler()
-        before = dict(self.github.pinned_data(OWNER_NUMBER))
+        before = dict(self.github.pinned_data(_support.OWNER_NUMBER))
 
         self._tick_a_worker_held(scheduler)
 
-        self.assertEqual(self.github.pinned_data(OWNER_NUMBER), before)
+        self.assertEqual(self.github.pinned_data(_support.OWNER_NUMBER), before)
 
     def test_an_observation_nobody_took_stays_owed(self) -> None:
         # The worker outlives more than one tick, which changes nothing:
@@ -109,7 +95,7 @@ class HeldCleanupObservationTest(DeferralCase, unittest.TestCase):
         self._reopened()
         self._tick_a_worker_held(scheduler)
 
-        self.assertEqual(self._observed(REPO_SLUG), _OWED)
+        self.assertEqual(self._observed(_support.REPO_SLUG), _OWED)
         self.assertFalse(self._cancelled())
 
 
@@ -131,7 +117,7 @@ class DurableCloseReceiptTest(DeferralCase, unittest.TestCase):
     def test_the_thread_is_told_once(self) -> None:
         self._tick_a_worker_held(self.scheduler)
 
-        self.assertEqual(len(receipts_on(self.github)), 1)
+        self.assertEqual(len(_support.receipts_on(self.github)), 1)
 
     def test_a_second_poll_repeats_nothing(self) -> None:
         # A worker can hold an issue across many polls, and every one of them
@@ -140,7 +126,7 @@ class DurableCloseReceiptTest(DeferralCase, unittest.TestCase):
         self._reopened()
         self._tick_a_worker_held(self.scheduler)
 
-        self.assertEqual(len(receipts_on(self.github)), 1)
+        self.assertEqual(len(_support.receipts_on(self.github)), 1)
 
     def test_a_fresh_process_ends_the_cycle_from_it(self) -> None:
         # The restart, written out: the observation is latched, the human
@@ -159,28 +145,28 @@ class DurableCloseReceiptTest(DeferralCase, unittest.TestCase):
         # The latch is what the post is best effort ON TOP of: a comment
         # GitHub refuses costs the durability of a reading that still ends
         # this cycle on the very next barrier the run reaches.
-        tick_with_refused_receipt(self, self.scheduler)
+        _support.tick_with_refused_receipt(self, self.scheduler)
 
-        self.assertEqual(self._observed(REPO_SLUG), _OWED)
-        self.assertEqual(receipts_on(self.github), [])
+        self.assertEqual(self._observed(_support.REPO_SLUG), _OWED)
+        self.assertEqual(_support.receipts_on(self.github), [])
 
     def test_a_refused_receipt_is_tried_again(self) -> None:
         # And it has to be, because the latch is memory: an observation whose
         # receipt never landed is one a restart takes away entirely, so a
         # refusal is a thing later polls RETRY rather than a thing the first
         # pass simply lost.
-        tick_with_refused_receipt(self, self.scheduler)
+        _support.tick_with_refused_receipt(self, self.scheduler)
         self._reopened()
 
         self._tick_a_worker_held(self.scheduler)
 
-        self.assertEqual(len(receipts_on(self.github)), 1)
+        self.assertEqual(len(_support.receipts_on(self.github)), 1)
 
     def test_the_retried_receipt_survives_the_restart(self) -> None:
         # The whole of why it is retried: without the second attempt this
         # reopened owner comes up under a fresh process with nothing saying
         # its cycle ever ended.
-        tick_with_refused_receipt(self, self.scheduler)
+        _support.tick_with_refused_receipt(self, self.scheduler)
         self._reopened()
         self._tick_a_worker_held(self.scheduler)
         self._fresh_process()
@@ -213,7 +199,7 @@ class FailedCleanupPassTest(DeferralCase, unittest.TestCase):
     def test_the_observation_is_owed_again(self) -> None:
         self._tick_the_pass_failed(self.scheduler)
 
-        self.assertEqual(self._observed(REPO_SLUG), _OWED)
+        self.assertEqual(self._observed(_support.REPO_SLUG), _OWED)
 
     def test_the_failure_is_said(self) -> None:
         # The other half of the operator's reading: an observation held
@@ -221,7 +207,7 @@ class FailedCleanupPassTest(DeferralCase, unittest.TestCase):
         # issue, and the line says which.
         said = self._tick_the_pass_failed(self.scheduler)
 
-        self.assertTrue(any(PASS_FAILED in message for message in said), said)
+        self.assertTrue(any(_support.PASS_FAILED in message for message in said), said)
 
     def test_a_reopen_after_the_failure_still_ends_it(self) -> None:
         # The whole of it: nothing ever reads this issue closed again, and
@@ -231,12 +217,12 @@ class FailedCleanupPassTest(DeferralCase, unittest.TestCase):
         self._tick_the_pass_failed(self.scheduler)
         self._reopened()
 
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             self._ticked(self.scheduler)
 
         self.assertTrue(self._cancelled())
         self.stage.assert_not_called()
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
+        self.assertEqual(self._observed(_support.REPO_SLUG), frozenset())
 
 
 class ReopenedBeforeTheSweepTest(DeferralCase, unittest.TestCase):
@@ -280,11 +266,11 @@ class ReopenedBeforeTheSweepTest(DeferralCase, unittest.TestCase):
     def test_the_taken_observation_is_settled(self) -> None:
         self._swept()
 
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
+        self.assertEqual(self._observed(_support.REPO_SLUG), frozenset())
 
     def _swept(self, remote=None) -> None:
         """The tick that finally takes the cleanup, on a reopened issue."""
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             self._ticked(self.scheduler, remote=remote)
 
 
@@ -308,37 +294,37 @@ class UnfinishedEndingUnderASweptLabelTest(
         self.scheduler = self._scheduler()
 
     def test_a_refused_delete_hands_the_reading_back(self) -> None:
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             self._ticked(self.scheduler, remote=refusing())
 
-        self.assertEqual(self._resources()[OWNER_REF], FAILED)
+        self.assertEqual(self._resources()[_support.OWNER_REF], _support.FAILED)
         self.assertEqual(self._label(), LABEL_UMBRELLA)
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
+        self.assertEqual(self._observed(_support.REPO_SLUG), frozenset())
 
     def test_a_terminal_that_will_not_land_does_too(self) -> None:
         # Everything the ledger holds is settled and the one write that says
         # so is refused. The label staying put IS the retry, so the pass that
         # writes what this one could not is the label's, not the reading's.
-        with self.assertLogs(WORKFLOW_LOG), self._refusing_the_label():
+        with self.assertLogs(_support.WORKFLOW_LOG), self._refusing_the_label():
             self._ticked(self.scheduler)
 
-        self.assertEqual(self._resources()[OWNER_REF], RECONCILED)
+        self.assertEqual(self._resources()[_support.OWNER_REF], _support.RECONCILED)
         self.assertEqual(self._label(), LABEL_UMBRELLA)
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
+        self.assertEqual(self._observed(_support.REPO_SLUG), frozenset())
 
     def test_a_finished_ending_leaves_the_sweep(self) -> None:
         self._ticked(self.scheduler)
 
         self.assertEqual(self._label(), LABEL_REJECTED)
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
+        self.assertEqual(self._observed(_support.REPO_SLUG), frozenset())
 
     def test_a_read_that_cannot_answer_keeps_it(self) -> None:
         # Fail-closed: the reading is the one thing this path exists to keep,
         # and a request that failed establishes nothing about the ending.
-        self._latch_close(REPO_SLUG, OWNER_NUMBER)
+        self._latch_close(_support.REPO_SLUG, _support.OWNER_NUMBER)
 
-        with self.assertLogs(WORKFLOW_LOG), self._unreadable():
-            settled = cleanup_settled(self.github, self._spec(), OWNER_NUMBER)
+        with self.assertLogs(_support.WORKFLOW_LOG), self._unreadable():
+            settled = cleanup_settled(self.github, self._spec(), _support.OWNER_NUMBER)
 
         self.assertFalse(settled)
 
@@ -367,9 +353,9 @@ class InterruptedEndingSurvivesRestartTest(
         # The state the restart wakes up to: a close nothing marked, a ref
         # still held, and one comment on the thread saying the cycle ended.
         self.assertFalse(self._cancelled())
-        self.assertEqual(self._resources()[OWNER_REF], RETAINED)
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
-        self.assertEqual(len(receipts_on(self.github)), 1)
+        self.assertEqual(self._resources()[_support.OWNER_REF], _support.RETAINED)
+        self.assertEqual(self._observed(_support.REPO_SLUG), frozenset())
+        self.assertEqual(len(_support.receipts_on(self.github)), 1)
 
     def test_the_enumeration_finds_it_by_label(self) -> None:
         # And what makes it recoverable at all: the label a decomposition
@@ -377,13 +363,13 @@ class InterruptedEndingSurvivesRestartTest(
         # queries, so the owner is yielded with no reading behind it.
         polled = [issue.number for issue in self.github.list_pollable_issues()]
 
-        self.assertEqual(polled, [OWNER_NUMBER])
+        self.assertEqual(polled, [_support.OWNER_NUMBER])
 
     def test_the_restarted_tick_ends_the_cycle(self) -> None:
         self._ticked(self._scheduler(), drained=True)
 
         self.assertTrue(self._cancelled())
-        self.assertEqual(self._resources()[OWNER_REF], RECONCILED)
+        self.assertEqual(self._resources()[_support.OWNER_REF], _support.RECONCILED)
         self.assertEqual(self._label(), LABEL_REJECTED)
 
     def test_it_reaches_no_stage_handler(self) -> None:
@@ -421,19 +407,19 @@ class ClosedOwnerOffEverySweptLabelTest(
     def test_the_held_reading_sweeps_it_anyway(self) -> None:
         self._ticked(self.scheduler)
 
-        self.assertEqual(self._resources()[OWNER_REF], RECONCILED)
+        self.assertEqual(self._resources()[_support.OWNER_REF], _support.RECONCILED)
         self.assertEqual(self._label(), LABEL_REJECTED)
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
+        self.assertEqual(self._observed(_support.REPO_SLUG), frozenset())
 
     def test_an_owed_ending_gets_a_queried_label_back(self) -> None:
         # The durable half, because a reading is memory: an owner that still
         # owes the remote is put back where a later process would find it,
         # and the reading is handed back once that route exists.
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             self._ticked(self.scheduler, remote=refusing())
 
         self.assertEqual(self._label(), LABEL_UMBRELLA)
-        self.assertEqual(self._observed(REPO_SLUG), frozenset())
+        self.assertEqual(self._observed(_support.REPO_SLUG), frozenset())
 
     def test_an_unconverted_split_gets_its_own_label(self) -> None:
         # Which of the four the record decides, the way the half-finished
@@ -442,7 +428,7 @@ class ClosedOwnerOffEverySweptLabelTest(
         # where every adjudication runs.
         self._forget_umbrella()
 
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             self._ticked(self.scheduler, remote=refusing())
 
         self.assertEqual(self._label(), LABEL_DECOMPOSING)
@@ -451,25 +437,25 @@ class ClosedOwnerOffEverySweptLabelTest(
         # And the case the reading exists for: the owner is owed, no label
         # queries it, and the write that would fix that was refused. Nothing
         # but the observation is left, so the observation stays.
-        with self.assertLogs(WORKFLOW_LOG) as logged, self._refusing_the_label():
+        with self.assertLogs(_support.WORKFLOW_LOG) as logged, self._refusing_the_label():
             self._ticked(self.scheduler, remote=refusing())
             said = list(logged.output)
 
         self.assertEqual(self._label(), LABEL_DONE)
-        self.assertEqual(self._observed(REPO_SLUG), _OWED)
+        self.assertEqual(self._observed(_support.REPO_SLUG), _OWED)
         self.assertTrue(
-            any(ENDING_UNFINISHED in line for line in said), said,
+            any(_support.ENDING_UNFINISHED in line for line in said), said,
         )
 
     def test_a_restart_finds_it_by_that_label(self) -> None:
         self._every_tick_sweeps()
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             self._ticked(self.scheduler, remote=refusing())
         self._fresh_process()
 
         self._ticked(self._scheduler(), drained=True)
 
-        self.assertEqual(self._resources()[OWNER_REF], RECONCILED)
+        self.assertEqual(self._resources()[_support.OWNER_REF], _support.RECONCILED)
         self.assertEqual(self._label(), LABEL_REJECTED)
 
 

@@ -32,23 +32,13 @@ from orchestrator import config
 from orchestrator.workflow.stages.decomposition import run as _decomposing
 from orchestrator.workflow.stages.discussion import handler as _discussion
 from orchestrator.workflow.stages.question import handler as _question
+from tests.workflow import fixtures as _support
 from tests.workflow.engine.charged_run_test_support import (
     SHA_BEFORE,
     ChargedRoad,
     Driven,
     human_reply,
     seed_issue,
-)
-from tests.workflow.fixtures import (
-    _TEST_SPEC,
-    BACKEND_CLAUDE,
-    BASE_TIP_SHA,
-    LABEL_DECOMPOSING,
-    LABEL_DISCUSSION,
-    LABEL_QUESTION,
-    _agent,
-    _issue_branch,
-    _manifest,
 )
 
 DECOMPOSING_FRESH_ISSUE = 1580
@@ -90,7 +80,7 @@ _QUESTION_SESSION = "q-sess"
 
 # A manifest that ends the decomposition in one decision, so both decomposer
 # roads reach a disposition and the write carrying it rather than a park.
-_SINGLE_MANIFEST = _manifest('{"decision": "single", "rationale": "fits"}')
+_SINGLE_MANIFEST = _support._manifest('{"decision": "single", "rationale": "fits"}')
 
 # A round that neither commits nor moves the checkout off the SHA it opened
 # on. What these cases are about is the charge, and a head that moved would
@@ -125,7 +115,7 @@ class _Conversation:
             **state,
         )
         mocks = case._run(
-            lambda: self.run_stage(github, _TEST_SPEC, issue),
+            lambda: self.run_stage(github, _support._TEST_SPEC, issue),
             run_agent=agent_result,
             **self.run_options,
         )
@@ -135,13 +125,13 @@ class _Conversation:
 DECOMPOSING_FRESH = ChargedRoad(
     role="decomposing-fresh",
     number=DECOMPOSING_FRESH_ISSUE,
-    label=LABEL_DECOMPOSING,
+    label=_support.LABEL_DECOMPOSING,
     drive=_Conversation(
         number=DECOMPOSING_FRESH_ISSUE,
-        label=LABEL_DECOMPOSING,
+        label=_support.LABEL_DECOMPOSING,
         run_stage=_decomposing._handle_decomposing,
     ).drive,
-    agent_result=_agent(
+    agent_result=_support._agent(
         session_id=_DECOMPOSER_SESSION, last_message=_SINGLE_MANIFEST,
     ),
 )
@@ -149,20 +139,20 @@ DECOMPOSING_FRESH = ChargedRoad(
 DECOMPOSING_RESUME = ChargedRoad(
     role="decomposing-resume",
     number=DECOMPOSING_RESUME_ISSUE,
-    label=LABEL_DECOMPOSING,
+    label=_support.LABEL_DECOMPOSING,
     drive=_Conversation(
         number=DECOMPOSING_RESUME_ISSUE,
-        label=LABEL_DECOMPOSING,
+        label=_support.LABEL_DECOMPOSING,
         run_stage=_decomposing._handle_decomposing,
         comments=(human_reply("please split it", comment_id=REPLY_ID),),
         stage={
             _KEY_AWAITING_HUMAN: True,
             _KEY_LAST_ACTION_COMMENT_ID: PARKED_WATERMARK,
-            _KEY_DECOMPOSER_AGENT: BACKEND_CLAUDE,
+            _KEY_DECOMPOSER_AGENT: _support.BACKEND_CLAUDE,
             _KEY_DECOMPOSER_SESSION_ID: _DECOMPOSER_SESSION,
         },
     ).drive,
-    agent_result=_agent(
+    agent_result=_support._agent(
         session_id=_DECOMPOSER_SESSION, last_message=_SINGLE_MANIFEST,
     ),
 )
@@ -170,13 +160,13 @@ DECOMPOSING_RESUME = ChargedRoad(
 QUESTION_FRESH = ChargedRoad(
     role="question-fresh",
     number=QUESTION_FRESH_ISSUE,
-    label=LABEL_QUESTION,
+    label=_support.LABEL_QUESTION,
     drive=_Conversation(
         number=QUESTION_FRESH_ISSUE,
-        label=LABEL_QUESTION,
+        label=_support.LABEL_QUESTION,
         run_stage=_question._handle_question,
     ).drive,
-    agent_result=_agent(
+    agent_result=_support._agent(
         session_id=_QUESTION_SESSION, last_message="it lives in the engine",
     ),
 )
@@ -184,21 +174,21 @@ QUESTION_FRESH = ChargedRoad(
 QUESTION_RESUME = ChargedRoad(
     role="question-resume",
     number=QUESTION_RESUME_ISSUE,
-    label=LABEL_QUESTION,
+    label=_support.LABEL_QUESTION,
     drive=_Conversation(
         number=QUESTION_RESUME_ISSUE,
-        label=LABEL_QUESTION,
+        label=_support.LABEL_QUESTION,
         run_stage=_question._handle_question,
         comments=(human_reply("one more thing", comment_id=REPLY_ID),),
         stage={
             _KEY_AWAITING_HUMAN: True,
             _KEY_PARK_REASON: _PARK_QUESTION_ANSWER,
             _KEY_LAST_ACTION_COMMENT_ID: PARKED_WATERMARK,
-            _KEY_QUESTION_AGENT: BACKEND_CLAUDE,
+            _KEY_QUESTION_AGENT: _support.BACKEND_CLAUDE,
             _KEY_QUESTION_SESSION_ID: _QUESTION_SESSION,
         },
     ).drive,
-    agent_result=_agent(
+    agent_result=_support._agent(
         session_id=_QUESTION_SESSION, last_message="and so does its park",
     ),
 )
@@ -206,14 +196,14 @@ QUESTION_RESUME = ChargedRoad(
 DISCUSSION_FRESH = ChargedRoad(
     role="discussion-fresh",
     number=DISCUSSION_FRESH_ISSUE,
-    label=LABEL_DISCUSSION,
+    label=_support.LABEL_DISCUSSION,
     drive=_Conversation(
         number=DISCUSSION_FRESH_ISSUE,
-        label=LABEL_DISCUSSION,
+        label=_support.LABEL_DISCUSSION,
         run_stage=_discussion._handle_discussion,
         run_options=_UNMOVED_HEAD,
     ).drive,
-    agent_result=_agent(
+    agent_result=_support._agent(
         session_id=_DISCUSSION_SESSION, last_message="two branches, then",
     ),
 )
@@ -221,10 +211,10 @@ DISCUSSION_FRESH = ChargedRoad(
 DISCUSSION_RESUME = ChargedRoad(
     role="discussion-resume",
     number=DISCUSSION_RESUME_ISSUE,
-    label=LABEL_DISCUSSION,
+    label=_support.LABEL_DISCUSSION,
     drive=_Conversation(
         number=DISCUSSION_RESUME_ISSUE,
-        label=LABEL_DISCUSSION,
+        label=_support.LABEL_DISCUSSION,
         run_stage=_discussion._handle_discussion,
         comments=(human_reply("take the second one", comment_id=REPLY_ID),),
         stage={
@@ -233,15 +223,15 @@ DISCUSSION_RESUME = ChargedRoad(
             _KEY_LAST_ACTION_COMMENT_ID: PARKED_WATERMARK,
             _KEY_DISCUSSION_AGENT: config.DECOMPOSE_AGENT_SPEC,
             _KEY_DISCUSSION_SESSION_ID: _DISCUSSION_SESSION,
-            _KEY_DISCUSSION_ROUND_BRANCH: _issue_branch(
+            _KEY_DISCUSSION_ROUND_BRANCH: _support._issue_branch(
                 DISCUSSION_RESUME_ISSUE,
             ),
             _KEY_DISCUSSION_ROUND_SHA: SHA_BEFORE,
-            _KEY_DISCUSSION_BASE_SHA: BASE_TIP_SHA,
+            _KEY_DISCUSSION_BASE_SHA: _support.BASE_TIP_SHA,
         },
         run_options=_UNMOVED_HEAD,
     ).drive,
-    agent_result=_agent(
+    agent_result=_support._agent(
         session_id=_DISCUSSION_SESSION, last_message="the second one, then",
     ),
 )

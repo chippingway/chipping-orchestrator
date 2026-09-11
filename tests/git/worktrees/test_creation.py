@@ -10,17 +10,8 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.worktrees import creation
-from tests.git.worktrees.lifecycle_test_support import (
-    BASE_BRANCH,
-    ISSUE_BRANCH,
-    ISSUE_NUMBER,
-    LEGACY_BRANCH,
-    ORIGIN_REMOTE,
-    _git_result,
-    _GitRecorder,
-    _spec,
-    _worktree_fixture,
-)
+from tests.git.worktrees import lifecycle_test_support as _support
+from tests.git.worktrees.lifecycle_test_support import _GitRecorder
 from tests.git.worktrees.real_git_test_support import (
     AMENDED_PLAN_TEXT,
     PLAN_PATH,
@@ -57,23 +48,23 @@ class EnsureWorktreeTest(unittest.TestCase):
     """
 
     def test_existing_local_branch_is_checked_out(self) -> None:
-        with _worktree_fixture() as fixture:
+        with _support._worktree_fixture() as fixture:
             worktree = fixture.run(creation._ensure_worktree)
             self.assertEqual(
                 fixture.git.worktree_adds[0][2:],
-                (str(worktree), ISSUE_BRANCH),
+                (str(worktree), _support.ISSUE_BRANCH),
             )
 
     def test_missing_local_branch_starts_at_base(self) -> None:
-        with _worktree_fixture(local_branch_present=False) as fixture:
+        with _support._worktree_fixture(local_branch_present=False) as fixture:
             worktree = fixture.run(creation._ensure_worktree)
             self.assertEqual(
                 fixture.git.worktree_adds[0][2:],
                 (
                     NEW_BRANCH_FLAG,
-                    ISSUE_BRANCH,
+                    _support.ISSUE_BRANCH,
                     str(worktree),
-                    f"{ORIGIN_REMOTE}/{BASE_BRANCH}",
+                    f"{_support.ORIGIN_REMOTE}/{_support.BASE_BRANCH}",
                 ),
             )
 
@@ -81,16 +72,16 @@ class EnsureWorktreeTest(unittest.TestCase):
         # An issue whose PR was opened before slug-namespacing keeps its
         # legacy ref in pinned state; forcing the derived name would orphan
         # that PR on a branch nothing pushes to.
-        with _worktree_fixture(local_branch_present=False) as fixture:
-            fixture.run(creation._ensure_worktree, branch=LEGACY_BRANCH)
+        with _support._worktree_fixture(local_branch_present=False) as fixture:
+            fixture.run(creation._ensure_worktree, branch=_support.LEGACY_BRANCH)
             add_args = fixture.git.worktree_adds[0]
-            self.assertIn(LEGACY_BRANCH, add_args)
-            self.assertNotIn(ISSUE_BRANCH, add_args)
+            self.assertIn(_support.LEGACY_BRANCH, add_args)
+            self.assertNotIn(_support.ISSUE_BRANCH, add_args)
 
     def test_only_the_base_branch_is_fetched(self) -> None:
-        with _worktree_fixture() as fixture:
+        with _support._worktree_fixture() as fixture:
             fixture.run(creation._ensure_worktree)
-            self.assertEqual(fixture.fetches.branches, [BASE_BRANCH])
+            self.assertEqual(fixture.fetches.branches, [_support.BASE_BRANCH])
             self.assertEqual(fixture.git.plain_fetches, [])
 
 
@@ -103,31 +94,31 @@ class EnsurePrWorktreeTest(unittest.TestCase):
     """
 
     def test_missing_branch_restores_from_remote(self) -> None:
-        with _worktree_fixture(local_branch_present=False) as fixture:
+        with _support._worktree_fixture(local_branch_present=False) as fixture:
             worktree = fixture.run(creation._ensure_pr_worktree)
             self.assertEqual(
                 fixture.git.worktree_adds[0][2:],
                 (
                     NEW_BRANCH_FLAG,
-                    ISSUE_BRANCH,
+                    _support.ISSUE_BRANCH,
                     str(worktree),
-                    f"{ORIGIN_REMOTE}/{ISSUE_BRANCH}",
+                    f"{_support.ORIGIN_REMOTE}/{_support.ISSUE_BRANCH}",
                 ),
             )
 
     def test_existing_local_branch_is_checked_out(self) -> None:
-        with _worktree_fixture() as fixture:
+        with _support._worktree_fixture() as fixture:
             worktree = fixture.run(creation._ensure_pr_worktree)
             add_args = fixture.git.worktree_adds[0]
             self.assertNotIn(NEW_BRANCH_FLAG, add_args)
-            self.assertEqual(add_args[2:], (str(worktree), ISSUE_BRANCH))
+            self.assertEqual(add_args[2:], (str(worktree), _support.ISSUE_BRANCH))
 
     def test_a_deleted_branch_falls_back_to_base(self) -> None:
         # The merged PR whose branch GitHub auto-deleted, seen from a host with
         # no local ref left. `pr_number` stays on the issue, so every later
         # tick routes here; anchoring on a ref neither side has would fail the
         # add on every one of them and no implementer would ever run again.
-        with _worktree_fixture(
+        with _support._worktree_fixture(
             local_branch_present=False, remote_branch_present=False,
         ) as fixture:
             worktree = fixture.run(creation._ensure_pr_worktree)
@@ -135,9 +126,9 @@ class EnsurePrWorktreeTest(unittest.TestCase):
                 fixture.git.worktree_adds[0][2:],
                 (
                     NEW_BRANCH_FLAG,
-                    ISSUE_BRANCH,
+                    _support.ISSUE_BRANCH,
                     str(worktree),
-                    f"{ORIGIN_REMOTE}/{BASE_BRANCH}",
+                    f"{_support.ORIGIN_REMOTE}/{_support.BASE_BRANCH}",
                 ),
             )
 
@@ -151,7 +142,7 @@ class EnsurePrWorktreeTest(unittest.TestCase):
         for remote_tip in (LIVE_REMOTE_SHA, None):
             with (
                 self.subTest(remote_tip=remote_tip),
-                _worktree_fixture(
+                _support._worktree_fixture(
                     local_branch_present=False,
                     remote_branch_present=False,
                     remote_tip=remote_tip,
@@ -161,17 +152,17 @@ class EnsurePrWorktreeTest(unittest.TestCase):
                 fixture.run(creation._ensure_pr_worktree)
 
     def test_base_and_branch_fetches_are_authed(self) -> None:
-        with _worktree_fixture() as fixture:
+        with _support._worktree_fixture() as fixture:
             fixture.run(creation._ensure_pr_worktree)
             self.assertEqual(
-                fixture.fetches.branches, [BASE_BRANCH, ISSUE_BRANCH],
+                fixture.fetches.branches, [_support.BASE_BRANCH, _support.ISSUE_BRANCH],
             )
             self.assertEqual(fixture.git.plain_fetches, [])
 
     def test_every_git_call_runs_in_target_root(self) -> None:
         # The parent clone is operator-owned; running any of these in the
         # agent-writable worktree would resolve its `.git/config` instead.
-        with _worktree_fixture() as fixture:
+        with _support._worktree_fixture() as fixture:
             fixture.run(creation._ensure_pr_worktree)
             for args, cwd in fixture.git.calls:
                 self.assertEqual(cwd, fixture.spec.target_root, args)
@@ -191,8 +182,8 @@ class StaleWorktreeTest(unittest.TestCase):
         for ensure in CREATORS:
             with (
                 self.subTest(ensure=ensure.__name__),
-                _worktree_fixture(
-                    commit_probe=_git_result(stdout="2\n"),
+                _support._worktree_fixture(
+                    commit_probe=_support._git_result(stdout="2\n"),
                 ) as fixture,
             ):
                 planted = fixture.plant_issue_worktree()
@@ -207,7 +198,7 @@ class StaleWorktreeTest(unittest.TestCase):
         for ensure in CREATORS:
             with (
                 self.subTest(ensure=ensure.__name__),
-                _worktree_fixture() as fixture,
+                _support._worktree_fixture() as fixture,
             ):
                 planted = fixture.plant_issue_worktree()
                 fixture.run(ensure)
@@ -222,8 +213,8 @@ class StaleWorktreeTest(unittest.TestCase):
         for ensure in CREATORS:
             with (
                 self.subTest(ensure=ensure.__name__),
-                _worktree_fixture(
-                    worktree_add=_git_result(
+                _support._worktree_fixture(
+                    worktree_add=_support._git_result(
                         returncode=1, stderr=ADD_FAILURE_STDERR,
                     ),
                 ) as fixture,
@@ -240,32 +231,32 @@ class HasNewCommitsTest(unittest.TestCase):
         # would read the wrong upstream and report stale commits.
         recorder = _GitRecorder()
         with patch.object(commands, "_git", recorder):
-            creation._has_new_commits(_spec(PRIVATE_REMOTE), FAKE_WORKTREE)
+            creation._has_new_commits(_support._spec(PRIVATE_REMOTE), FAKE_WORKTREE)
         args, cwd = recorder.calls[0]
-        self.assertIn(f"{PRIVATE_REMOTE}/{BASE_BRANCH}..HEAD", args)
-        self.assertNotIn(f"{ORIGIN_REMOTE}/{BASE_BRANCH}..HEAD", args)
+        self.assertIn(f"{PRIVATE_REMOTE}/{_support.BASE_BRANCH}..HEAD", args)
+        self.assertNotIn(f"{_support.ORIGIN_REMOTE}/{_support.BASE_BRANCH}..HEAD", args)
         self.assertEqual(cwd, FAKE_WORKTREE)
 
     def test_count_decides_the_verdict(self) -> None:
         # Empty output is what a worktree sitting exactly at base reports.
         for stdout, expected in (("3\n", True), ("0\n", False), ("", False)):
-            recorder = _GitRecorder(commit_probe=_git_result(stdout=stdout))
+            recorder = _GitRecorder(commit_probe=_support._git_result(stdout=stdout))
             with (
                 self.subTest(stdout=stdout),
                 patch.object(commands, "_git", recorder),
             ):
                 self.assertEqual(
-                    creation._has_new_commits(_spec(), FAKE_WORKTREE),
+                    creation._has_new_commits(_support._spec(), FAKE_WORKTREE),
                     expected,
                 )
 
     def test_probe_failure_reports_no_commits(self) -> None:
         # A transient rev-list failure must not read as unpushed work, or
         # the creators would reuse a stale worktree indefinitely.
-        recorder = _GitRecorder(commit_probe=_git_result(returncode=1))
+        recorder = _GitRecorder(commit_probe=_support._git_result(returncode=1))
         with patch.object(commands, "_git", recorder):
             self.assertFalse(
-                creation._has_new_commits(_spec(), FAKE_WORKTREE),
+                creation._has_new_commits(_support._spec(), FAKE_WORKTREE),
             )
 
 
@@ -287,14 +278,14 @@ class MergedPrBranchTest(unittest.TestCase):
         # the remote, this clone has never fetched it, and the fetch that would
         # have brought it did not run. Read as a deletion, the PR (or an
         # in-flight published plan) is rebuilt at base and force-pushed away.
-        self._repo.plant(self, ISSUE_BRANCH, deleted=False)
+        self._repo.plant(self, _support.ISSUE_BRANCH, deleted=False)
         failed_fetch = MagicMock(
-            return_value=_git_result(returncode=1, stderr=FETCH_FAILURE),
+            return_value=_support._git_result(returncode=1, stderr=FETCH_FAILURE),
         )
 
         with patch.object(branch_transport, AUTHED_TARGET_FETCH, failed_fetch), self.assertRaises(RuntimeError):
             creation._ensure_pr_worktree(
-                self._repo.spec, ISSUE_NUMBER, branch=ISSUE_BRANCH,
+                self._repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH,
             )
 
     def test_a_stale_ref_a_failed_fetch_left(self) -> None:
@@ -306,28 +297,28 @@ class MergedPrBranchTest(unittest.TestCase):
         # reset -- the recovery retires its marker and lets the conversation
         # carry on while the plan sits published on a PR nobody recorded.
         amended = _AmendedPlanRepo()
-        amended.plant(self, ISSUE_NUMBER, ISSUE_BRANCH)
+        amended.plant(self, _support.ISSUE_NUMBER, _support.ISSUE_BRANCH)
         # `origin/<branch>` was written by the push and never refreshed since,
         # so it names the published tip while the remote is on the amendment.
         self.assertNotEqual(amended.published, amended.amended)
         amended.remove_worktree()
-        amended.delete_local_branch(ISSUE_BRANCH)
+        amended.delete_local_branch(_support.ISSUE_BRANCH)
         failed_fetch = MagicMock(
-            return_value=_git_result(returncode=1, stderr=FETCH_FAILURE),
+            return_value=_support._git_result(returncode=1, stderr=FETCH_FAILURE),
         )
 
         with patch.object(branch_transport, AUTHED_TARGET_FETCH, failed_fetch), self.assertRaises(RuntimeError):
             creation._ensure_pr_worktree(
-                amended.spec, ISSUE_NUMBER, branch=ISSUE_BRANCH,
+                amended.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH,
             )
 
     def test_a_live_branch_comes_from_remote(self) -> None:
         # The same host with the fetch working: the branch comes back from the
         # remote head, which is where the PR's commits are.
-        self._repo.plant(self, ISSUE_BRANCH, deleted=False)
+        self._repo.plant(self, _support.ISSUE_BRANCH, deleted=False)
 
         worktree = creation._ensure_pr_worktree(
-            self._repo.spec, ISSUE_NUMBER, branch=ISSUE_BRANCH,
+            self._repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH,
         )
 
         self.assertEqual(
@@ -335,10 +326,10 @@ class MergedPrBranchTest(unittest.TestCase):
         )
 
     def test_a_merged_deleted_branch_rebuilds_at_base(self) -> None:
-        self._repo.plant(self, ISSUE_BRANCH)
+        self._repo.plant(self, _support.ISSUE_BRANCH)
 
         worktree = creation._ensure_pr_worktree(
-            self._repo.spec, ISSUE_NUMBER, branch=ISSUE_BRANCH,
+            self._repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH,
         )
 
         self.assertTrue(worktree.exists())
@@ -362,7 +353,7 @@ class AnchorPrWorktreeTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self._repo = _AmendedPlanRepo()
-        self._repo.plant(self, ISSUE_NUMBER, ISSUE_BRANCH)
+        self._repo.plant(self, _support.ISSUE_NUMBER, _support.ISSUE_BRANCH)
 
     def test_the_reviewed_head_replaces_the_old(self) -> None:
         # The checkout is on the plan this orchestrator published; the head its
@@ -414,7 +405,7 @@ class AnchorPrWorktreeTest(unittest.TestCase):
         self.assertIsNone(self._anchor(self._repo.published))
 
         self.assertEqual(
-            self._repo.branch_tip(ISSUE_BRANCH), self._repo.published,
+            self._repo.branch_tip(_support.ISSUE_BRANCH), self._repo.published,
         )
         self.assertEqual(
             (self._repo.worktree / PLAN_PATH).read_text(), PUBLISHED_PLAN_TEXT,
@@ -427,7 +418,7 @@ class AnchorPrWorktreeTest(unittest.TestCase):
         # anyway, the caller retires the plan records and starts the developer
         # from a base the plan was never in. Only a caller that names NO head
         # has established the design landed, and only that one gets the base.
-        self._repo.delete_on_remote(ISSUE_BRANCH)
+        self._repo.delete_on_remote(_support.ISSUE_BRANCH)
 
         self.assertIsNone(self._anchor(self._repo.amended))
 
@@ -447,12 +438,12 @@ class AnchorPrWorktreeTest(unittest.TestCase):
         self.assertEqual(self._anchor(self._repo.amended), self._repo.amended)
 
         self.assertEqual(
-            self._repo.branch_tip(ISSUE_BRANCH), self._repo.amended,
+            self._repo.branch_tip(_support.ISSUE_BRANCH), self._repo.amended,
         )
 
     def _anchor(self, head_sha: str):
         return creation._anchor_pr_worktree(
-            self._repo.spec, ISSUE_NUMBER, branch=ISSUE_BRANCH,
+            self._repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH,
             head_sha=head_sha,
         )
 
@@ -470,8 +461,8 @@ class MergedPlanHandoffTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self._repo = _AmendedPlanRepo()
-        self._repo.plant(self, ISSUE_NUMBER, ISSUE_BRANCH)
-        self._merged = self._repo.merge_into_base(ISSUE_BRANCH)
+        self._repo.plant(self, _support.ISSUE_NUMBER, _support.ISSUE_BRANCH)
+        self._merged = self._repo.merge_into_base(_support.ISSUE_BRANCH)
 
     def test_a_merged_plan_takes_the_fetched_base(self) -> None:
         # The refresh is what puts the approved design in the tree the
@@ -491,7 +482,7 @@ class MergedPlanHandoffTest(unittest.TestCase):
         # retires the plan records and spawns the developer with neither the
         # approved artifact nor the checkout that carried it.
         failed_fetch = MagicMock(
-            return_value=_git_result(returncode=1, stderr=FETCH_FAILURE),
+            return_value=_support._git_result(returncode=1, stderr=FETCH_FAILURE),
         )
 
         with patch.object(branch_transport, AUTHED_TARGET_FETCH, failed_fetch):
@@ -535,7 +526,7 @@ class MergedPlanHandoffTest(unittest.TestCase):
     def _anchor_on_base(self):
         """The handoff a finished pull request asks for: no head, the base."""
         return creation._anchor_pr_worktree(
-            self._repo.spec, ISSUE_NUMBER, branch=ISSUE_BRANCH, head_sha="",
+            self._repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH, head_sha="",
         )
 
 

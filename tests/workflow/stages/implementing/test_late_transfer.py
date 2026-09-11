@@ -29,18 +29,6 @@ from tests.workflow.observation_support import ObservedCloseCase
 from tests.workflow.stages.implementing import (
     late_transfer_test_support as _support,
 )
-from tests.workflow.stages.implementing.late_transfer_test_support import (
-    ACCEPTED_DIGEST,
-    ACCEPTED_SHA,
-    FOREIGN_SHA,
-    LEASED_SHA,
-    MERGE_BASE_SHA,
-    OTHER_DIGEST,
-    PR_NUMBER,
-    REWRITTEN_SHA,
-    SOURCE_STAGE,
-    STRANGER_SHA,
-)
 
 # Every way a group already on the comment claims the commit this issue
 # exempts and cannot show what it claims. A value of None is the field being
@@ -61,7 +49,7 @@ _STANDING_CLAIMS = MappingProxyType({
         _rewrites.LATE_REWRITE_KIND: str(_rewrites.LateRewriteKind.CONFLICT_REBASE),
     },
     "one with a hand-edited accepted commit": {
-        _rewrites.LATE_REWRITE_FROM_SHA: ACCEPTED_SHA[:7],
+        _rewrites.LATE_REWRITE_FROM_SHA: _support.ACCEPTED_SHA[:7],
     },
 })
 
@@ -70,9 +58,9 @@ _DIRTY_PATH = "orchestrator/x.py"
 # Every way the issue this transfer would be granted on is not the one the
 # rewrite was entered on, offered through the labels a fresh fetch reads back.
 _MOVED_ISSUES = MappingProxyType({
-    "one an operator paused": (str(SOURCE_STAGE), "paused"),
+    "one an operator paused": (str(_support.SOURCE_STAGE), "paused"),
     "one an operator sent back to the backlog": (
-        str(SOURCE_STAGE), "backlog",
+        str(_support.SOURCE_STAGE), "backlog",
     ),
     "one a relabel moved to another stage": (str(WorkflowLabel.FIXING),),
     "one carrying no workflow label at all": (),
@@ -81,7 +69,7 @@ _MOVED_ISSUES = MappingProxyType({
 # A commit the checkout resolved and this host cannot peel, which is what work
 # made on another host reads back as.
 _UNPEELABLE_HEAD = FrozenCommit(
-    sha=REWRITTEN_SHA, failure=MeasurementFailure.CANDIDATE_ABSENT,
+    sha=_support.REWRITTEN_SHA, failure=MeasurementFailure.CANDIDATE_ABSENT,
 )
 
 # Every way the evidence itself fails to describe a rewrite this build may
@@ -92,23 +80,23 @@ _UNUSABLE_EVIDENCE = MappingProxyType({
     "a kind the recorded stage does not make": {
         "kind": _rewrites.LateRewriteKind.CONFLICT_REBASE,
     },
-    "an abbreviated accepted commit": {"from_sha": ACCEPTED_SHA[:7]},
+    "an abbreviated accepted commit": {"from_sha": _support.ACCEPTED_SHA[:7]},
     "an accepted base that is prose": {"from_base_sha": "the merge base"},
     "a rewritten base that is not a commit": {"to_base_sha": 7},
     "a pull request that is not an identity": {"pr_number": 0},
     "a stage no publication is entered from": {
         "source_stage": WorkflowLabel.READY,
     },
-    "a lease that is no object id": {"lease": ACCEPTED_SHA[:8]},
+    "a lease that is no object id": {"lease": _support.ACCEPTED_SHA[:8]},
 })
 
 # Every way the publication the rewrite claims is not the one this call froze.
 _DISAGREEING_PUBLICATIONS = MappingProxyType({
     "an entry that refused": _support.entry(refusal="the tree is dirty"),
-    "another pull request": _support.entry(pr_number=PR_NUMBER + 1),
+    "another pull request": _support.entry(pr_number=_support.PR_NUMBER + 1),
     "another stage": _support.entry(stage=WorkflowLabel.IN_REVIEW),
     "a remote that moved off the lease": _support.entry(
-        published_sha=STRANGER_SHA,
+        published_sha=_support.STRANGER_SHA,
     ),
 })
 
@@ -122,7 +110,7 @@ _UNPUBLISHABLE_TREES = MappingProxyType({
 })
 
 _MOVED_CHECKOUTS = MappingProxyType({
-    "a head that moved": STRANGER_SHA,
+    "a head that moved": _support.STRANGER_SHA,
     "a head this host cannot peel": _UNPEELABLE_HEAD,
 })
 
@@ -139,15 +127,15 @@ _SUPPORTED_REWRITES = MappingProxyType({
 # Every way the two contributions are not one contribution.
 _UNEQUAL_CONTRIBUTIONS = MappingProxyType({
     "an accepted pair whose content is gone": {
-        ACCEPTED_SHA: FingerprintFailure.CONTENT_ABSENT,
+        _support.ACCEPTED_SHA: FingerprintFailure.CONTENT_ABSENT,
     },
     "a rewritten pair whose base is gone": {
-        REWRITTEN_SHA: FingerprintFailure.BASE_ABSENT,
+        _support.REWRITTEN_SHA: FingerprintFailure.BASE_ABSENT,
     },
     "an accepted pair the record does not describe": {
-        ACCEPTED_SHA: OTHER_DIGEST,
+        _support.ACCEPTED_SHA: _support.OTHER_DIGEST,
     },
-    "a rewrite that picked something up": {REWRITTEN_SHA: OTHER_DIGEST},
+    "a rewrite that picked something up": {_support.REWRITTEN_SHA: _support.OTHER_DIGEST},
 })
 
 
@@ -172,7 +160,7 @@ class _TransferCase(ObservedCloseCase):
         gate = _support.gate(
             self.github, self.issue, self.state, **gate_overrides,
         )
-        return _transfer._carried_over(gate, REWRITTEN_SHA)
+        return _transfer._carried_over(gate, _support.REWRITTEN_SHA)
 
     def _claimed(self, damage: dict) -> None:
         """Leave an authorization already standing on the comment.
@@ -182,7 +170,7 @@ class _TransferCase(ObservedCloseCase):
         cannot produce, and the reader would refuse it for the wrong reason.
         """
         _rewrites.record_rewrite_authorization(
-            self.state, _support.rewrite(), ACCEPTED_DIGEST,
+            self.state, _support.rewrite(), _support.ACCEPTED_DIGEST,
         )
         for key, written in damage.items():
             if written is None:
@@ -193,9 +181,9 @@ class _TransferCase(ObservedCloseCase):
 
     def _assert_untouched(self) -> None:
         """The exemption is where the adjudication left it, and alone."""
-        self.assertTrue(_exemption.is_exempt(self.state, ACCEPTED_SHA))
+        self.assertTrue(_exemption.is_exempt(self.state, _support.ACCEPTED_SHA))
         pinned = self.github.pinned_data(self.issue.number)
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], ACCEPTED_SHA)
+        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.ACCEPTED_SHA)
         self.assertFalse(_rewrites.carries_rewrite_authorization(self.state))
 
 
@@ -210,8 +198,8 @@ class GrantedTransferTest(_TransferCase, unittest.TestCase):
         carried = self._carried()
 
         self.assertEqual(carried, _transfer._CARRIED_OVER)
-        self.assertTrue(_exemption.is_exempt(self.state, ACCEPTED_SHA))
-        self.assertFalse(_exemption.is_exempt(self.state, REWRITTEN_SHA))
+        self.assertTrue(_exemption.is_exempt(self.state, _support.ACCEPTED_SHA))
+        self.assertFalse(_exemption.is_exempt(self.state, _support.REWRITTEN_SHA))
 
     def test_the_grant_is_durable_before_the_push(self) -> None:
         # The write happens inside the permit rather than behind the push, so
@@ -220,7 +208,7 @@ class GrantedTransferTest(_TransferCase, unittest.TestCase):
         self._carried()
 
         pinned = self.github.pinned_data(self.issue.number)
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], ACCEPTED_SHA)
+        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.ACCEPTED_SHA)
         self.assertEqual(
             pinned[_rewrites.LATE_REWRITE_PHASE],
             str(_rewrites.LateRewritePhase.AUTHORIZED),
@@ -233,20 +221,20 @@ class GrantedTransferTest(_TransferCase, unittest.TestCase):
         self._carried()
 
         identity = _exemption.read_semantic_identity(self.state)
-        self.assertEqual(identity.candidate_sha, ACCEPTED_SHA)
-        self.assertEqual(identity.base_sha, MERGE_BASE_SHA)
-        self.assertEqual(identity.fingerprint, ACCEPTED_DIGEST)
+        self.assertEqual(identity.candidate_sha, _support.ACCEPTED_SHA)
+        self.assertEqual(identity.base_sha, _support.MERGE_BASE_SHA)
+        self.assertEqual(identity.fingerprint, _support.ACCEPTED_DIGEST)
 
     def test_the_authorization_records_the_grant(self) -> None:
         self._carried()
 
         authorization = _rewrites.read_rewrite_authorization(self.state)
         self.assertEqual(authorization.rewrite, _support.rewrite())
-        self.assertEqual(authorization.fingerprint, ACCEPTED_DIGEST)
+        self.assertEqual(authorization.fingerprint, _support.ACCEPTED_DIGEST)
         # The commit that was collapsed and the head the push is pinned to are
         # two facts, and the record keeps them apart.
-        self.assertEqual(authorization.rewrite.from_sha, ACCEPTED_SHA)
-        self.assertEqual(authorization.rewrite.lease, LEASED_SHA)
+        self.assertEqual(authorization.rewrite.from_sha, _support.ACCEPTED_SHA)
+        self.assertEqual(authorization.rewrite.lease, _support.LEASED_SHA)
 
     def test_the_debt_rides_the_grants_own_write(self) -> None:
         # The crash boundary the grant opens. A rewrite has already replaced
@@ -263,8 +251,8 @@ class GrantedTransferTest(_TransferCase, unittest.TestCase):
             recorded.assert_called_once()
 
         pinned = self.github.pinned_data(self.issue.number)
-        self.assertEqual(pinned[_state._APPROVED_SHA], REWRITTEN_SHA)
-        self.assertEqual(pinned[_state._APPROVED_LEASE], LEASED_SHA)
+        self.assertEqual(pinned[_state._APPROVED_SHA], _support.REWRITTEN_SHA)
+        self.assertEqual(pinned[_state._APPROVED_LEASE], _support.LEASED_SHA)
         self.assertIn(_rewrites.LATE_REWRITE_PHASE, pinned)
 
 
@@ -279,7 +267,7 @@ class RefusedEvidenceTest(_TransferCase, unittest.TestCase):
     def test_another_candidate_is_refused(self) -> None:
         gate = _support.gate(self.github, self.issue, self.state)
 
-        self.assertEqual(_transfer._carried_over(gate, STRANGER_SHA), "")
+        self.assertEqual(_transfer._carried_over(gate, _support.STRANGER_SHA), "")
         self._assert_untouched()
 
     def test_a_push_with_no_rewrite_is_refused(self) -> None:
@@ -292,7 +280,7 @@ class RefusedEvidenceTest(_TransferCase, unittest.TestCase):
         # The exemption names one commit and only it, so a squash of work
         # nobody adjudicated carries nothing -- which is the ordinary case.
         carried = self._carried(rewrite=_support.rewrite(
-            from_sha=STRANGER_SHA,
+            from_sha=_support.STRANGER_SHA,
         ))
 
         self.assertEqual(carried, "")
@@ -327,7 +315,7 @@ class RefusedEvidenceTest(_TransferCase, unittest.TestCase):
         # parses whole and would license this grant. The digest is the one
         # term the OBJECTS answer, so it is re-taken between the pair the
         # record names and held to what that record says.
-        self._adjudicated(authorized=OTHER_DIGEST)
+        self._adjudicated(authorized=_support.OTHER_DIGEST)
 
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
@@ -356,7 +344,7 @@ class RefusedProvenanceTest(_TransferCase, unittest.TestCase):
         # over, so a whole object id naming some other commit is the record
         # failing to prove itself rather than a field nothing ever reads: the
         # digest it carries describes a pair this issue never adjudicated.
-        self._adjudicated(base=STRANGER_SHA)
+        self._adjudicated(base=_support.STRANGER_SHA)
 
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
@@ -367,7 +355,7 @@ class RefusedProvenanceTest(_TransferCase, unittest.TestCase):
         # rewrite of a contribution nobody adjudicated, whatever the record
         # beside it says.
         carried = self._carried(rewrite=_support.rewrite(
-            from_base_sha=STRANGER_SHA,
+            from_base_sha=_support.STRANGER_SHA,
         ))
 
         self.assertEqual(carried, "")
@@ -383,14 +371,14 @@ class RefusedProvenanceTest(_TransferCase, unittest.TestCase):
                 self._claimed(damage)
 
                 self.assertEqual(self._carried(), "")
-                self.assertTrue(_exemption.is_exempt(self.state, ACCEPTED_SHA))
+                self.assertTrue(_exemption.is_exempt(self.state, _support.ACCEPTED_SHA))
 
     def test_a_claim_for_another_commit_is_replaced(self) -> None:
         # The one group that is not a claim about anything this transfer is
         # doing: a later exemption moved past it, so the end its phase binds
         # to names a commit nothing exempts. Read as a claim it would refuse
         # every transfer this issue could ever earn again.
-        self._claimed({_rewrites.LATE_REWRITE_FROM_SHA: STRANGER_SHA})
+        self._claimed({_rewrites.LATE_REWRITE_FROM_SHA: _support.STRANGER_SHA})
 
         self.assertEqual(self._carried(), _transfer._CARRIED_OVER)
         self.assertEqual(
@@ -428,7 +416,7 @@ class ProvenBaseTest(_TransferCase, unittest.TestCase):
         for kind, stage in _SUPPORTED_REWRITES.items():
             with self.subTest(rewrite=str(kind)):
                 made = self._entered_from(kind, stage)
-                self.reading.carried.discard(MERGE_BASE_SHA)
+                self.reading.carried.discard(_support.MERGE_BASE_SHA)
 
                 self.assertEqual(self._carried(**made), "")
                 self._assert_untouched()
@@ -478,7 +466,7 @@ class RefusedPublicationTest(_TransferCase, unittest.TestCase):
     def test_a_replaced_pull_request_refuses(self) -> None:
         # The entry proves the pull request was read, not that it is still the
         # one this issue's work belongs to.
-        self.state.set(_state._PR_NUMBER, PR_NUMBER + 1)
+        self.state.set(_state._PR_NUMBER, _support.PR_NUMBER + 1)
 
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
@@ -518,9 +506,9 @@ class RefusedCheckoutTest(_TransferCase, unittest.TestCase):
         # one -- so a whole-looking id this repository does not hold would
         # otherwise carry a permit on evidence nobody can produce.
         self.assertNotIn(
-            LEASED_SHA, (ACCEPTED_SHA, REWRITTEN_SHA, MERGE_BASE_SHA),
+            _support.LEASED_SHA, (_support.ACCEPTED_SHA, _support.REWRITTEN_SHA, _support.MERGE_BASE_SHA),
         )
-        self.reading.absent.add(LEASED_SHA)
+        self.reading.absent.add(_support.LEASED_SHA)
 
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
@@ -591,9 +579,9 @@ class _RecoveryCase(_TransferCase):
 
     def _re_asked(self) -> str:
         """What the permit answers when the recovery asks it again."""
-        return _transfer._carried_over(self.recovery, REWRITTEN_SHA)
+        return _transfer._carried_over(self.recovery, _support.REWRITTEN_SHA)
 
-    def _bypasses(self, candidate: str = REWRITTEN_SHA) -> bool:
+    def _bypasses(self, candidate: str = _support.REWRITTEN_SHA) -> bool:
         """Whether the approval alone would carry this commit past the gate."""
         return _gate._approved_on_a_reading(self.recovery, candidate)
 
@@ -627,7 +615,7 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
 
         self.assertEqual(carried, _transfer._CARRIED_OVER)
         self.assertEqual(
-            _transfer._outstanding_rewrite(self.state, REWRITTEN_SHA),
+            _transfer._outstanding_rewrite(self.state, _support.REWRITTEN_SHA),
             _support.rewrite(),
         )
 
@@ -636,7 +624,7 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
         # for. Not this one: what licensed it was a permit, so the bypass
         # waits on the permit answering again.
         self.assertEqual(
-            _parks._approved_commit(self.state), REWRITTEN_SHA,
+            _parks._approved_commit(self.state), _support.REWRITTEN_SHA,
         )
         self.assertTrue(
             _transfer._licensed_by_a_permit(self.state),
@@ -678,7 +666,7 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
             _rewrites.LATE_REWRITE_PHASE: str(
                 _rewrites.LateRewritePhase.PUBLISHED,
             ),
-            _rewrites.LATE_REWRITE_TO_SHA: FOREIGN_SHA,
+            _rewrites.LATE_REWRITE_TO_SHA: _support.FOREIGN_SHA,
         })
 
         self.assertTrue(_transfer._licensed_by_a_permit(self.state))
@@ -691,12 +679,12 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
         # exists to prevent.
         _support.spent(self.state)
         _parks._approve(
-            self.state, STRANGER_SHA, LEASED_SHA,
+            self.state, _support.STRANGER_SHA, _support.LEASED_SHA,
             _parks.LateApprovalBasis.READING,
         )
 
         self.assertFalse(_transfer._licensed_by_a_permit(self.state))
-        self.assertTrue(self._bypasses(STRANGER_SHA))
+        self.assertTrue(self._bypasses(_support.STRANGER_SHA))
 
     def test_a_permission_for_another_commit_defers(self) -> None:
         # The permission and the debt go down in one write for one commit, so
@@ -704,7 +692,7 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
         # some other commit is a comment disagreeing with itself. Compared
         # against the commit the record names, a hand-edited target would make
         # the permit invisible and the approval would look like any other.
-        self.state.data[_rewrites.LATE_REWRITE_TO_SHA] = FOREIGN_SHA
+        self.state.data[_rewrites.LATE_REWRITE_TO_SHA] = _support.FOREIGN_SHA
 
         self.assertTrue(_transfer._licensed_by_a_permit(self.state))
         self.assertFalse(self._bypasses())
@@ -738,7 +726,7 @@ class RevalidatedRecoveryTest(_RecoveryCase, unittest.TestCase):
         # group somebody edited between the grant and this poll takes the
         # bypass down with it rather than riding the debt's object id out.
         self._recovered({
-            _overrides.LATE_OVERRIDE_FINGERPRINT: OTHER_DIGEST,
+            _overrides.LATE_OVERRIDE_FINGERPRINT: _support.OTHER_DIGEST,
         })
 
         self.assertEqual(self._re_asked(), "")
@@ -763,13 +751,13 @@ class RevalidatedRecoveryTest(_RecoveryCase, unittest.TestCase):
         # that carried on would write this reading's digest over it -- a
         # repair of evidence nobody checked, under the authority of the
         # transfer being decided. So the permit refuses and the record stands.
-        self._recovered({_rewrites.LATE_REWRITE_FINGERPRINT: OTHER_DIGEST})
+        self._recovered({_rewrites.LATE_REWRITE_FINGERPRINT: _support.OTHER_DIGEST})
 
         self.assertEqual(self._re_asked(), "")
         authorized = _rewrites.read_rewrite_authorization(
             self.github.read_pinned_state(self.issue),
         )
-        self.assertEqual(authorized.fingerprint, OTHER_DIGEST)
+        self.assertEqual(authorized.fingerprint, _support.OTHER_DIGEST)
         self.assertEqual(
             authorized.phase, _rewrites.LateRewritePhase.AUTHORIZED,
         )
@@ -778,7 +766,7 @@ class RevalidatedRecoveryTest(_RecoveryCase, unittest.TestCase):
         # The permission names the pull request and the stage the rewrite was
         # made against. Repointed or relabelled since, the push it licensed is
         # one nothing may make unmeasured.
-        self.state.set(_state._PR_NUMBER, PR_NUMBER + 1)
+        self.state.set(_state._PR_NUMBER, _support.PR_NUMBER + 1)
 
         self.assertEqual(self._re_asked(), "")
 
@@ -806,11 +794,11 @@ class LostReceiptRecoveryTest(_RecoveryCase, unittest.TestCase):
             self.issue,
             self.state,
             rewrite=None,
-            entry=_support.entry(published_sha=REWRITTEN_SHA),
+            entry=_support.entry(published_sha=_support.REWRITTEN_SHA),
         )
 
     def test_the_permit_recognizes_its_own_push(self) -> None:
-        carried = _transfer._carried_over(self.landed, REWRITTEN_SHA)
+        carried = _transfer._carried_over(self.landed, _support.REWRITTEN_SHA)
 
         self.assertEqual(carried, _transfer._CARRIED_OVER)
 
@@ -825,7 +813,7 @@ class LostReceiptRecoveryTest(_RecoveryCase, unittest.TestCase):
             ),
         )
         self.assertEqual(
-            _transfer._carried_over(self.landed, REWRITTEN_SHA), "",
+            _transfer._carried_over(self.landed, _support.REWRITTEN_SHA), "",
         )
 
     def test_a_stranger_is_still_a_moved_remote(self) -> None:
@@ -834,10 +822,10 @@ class LostReceiptRecoveryTest(_RecoveryCase, unittest.TestCase):
             self.issue,
             self.state,
             rewrite=None,
-            entry=_support.entry(published_sha=FOREIGN_SHA),
+            entry=_support.entry(published_sha=_support.FOREIGN_SHA),
         )
 
-        self.assertEqual(_transfer._carried_over(moved, REWRITTEN_SHA), "")
+        self.assertEqual(_transfer._carried_over(moved, _support.REWRITTEN_SHA), "")
 
 
 class AbandonedAuthorizationTest(_TransferCase, unittest.TestCase):
@@ -856,7 +844,7 @@ class AbandonedAuthorizationTest(_TransferCase, unittest.TestCase):
         # while the branch was standing exactly on it -- and the equality of
         # the two contributions never said that it was. Either way the object
         # the permission was granted for is on no branch, and it goes with it.
-        for restored in (ACCEPTED_SHA, LEASED_SHA):
+        for restored in (_support.ACCEPTED_SHA, _support.LEASED_SHA):
             with self.subTest(restored=restored):
                 self._carried()
 
@@ -865,11 +853,11 @@ class AbandonedAuthorizationTest(_TransferCase, unittest.TestCase):
                 )
 
                 self.assertTrue(
-                    _exemption.is_exempt(self.state, ACCEPTED_SHA),
+                    _exemption.is_exempt(self.state, _support.ACCEPTED_SHA),
                 )
                 identity = _exemption.read_semantic_identity(self.state)
-                self.assertEqual(identity.candidate_sha, ACCEPTED_SHA)
-                self.assertEqual(identity.fingerprint, ACCEPTED_DIGEST)
+                self.assertEqual(identity.candidate_sha, _support.ACCEPTED_SHA)
+                self.assertEqual(identity.fingerprint, _support.ACCEPTED_DIGEST)
                 self.assertFalse(
                     _rewrites.carries_rewrite_authorization(self.state),
                 )
@@ -881,14 +869,14 @@ class AbandonedAuthorizationTest(_TransferCase, unittest.TestCase):
         _support.spent(self.state)
 
         self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, ACCEPTED_SHA),
+            _transfer._abandoned_authorization(self.gate, _support.ACCEPTED_SHA),
         )
 
-        self.assertTrue(_exemption.is_exempt(self.state, REWRITTEN_SHA))
+        self.assertTrue(_exemption.is_exempt(self.state, _support.REWRITTEN_SHA))
 
     def test_another_reset_drops_nothing(self) -> None:
         self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, STRANGER_SHA),
+            _transfer._abandoned_authorization(self.gate, _support.STRANGER_SHA),
         )
 
         self.assertTrue(
@@ -901,7 +889,7 @@ class AbandonedAuthorizationTest(_TransferCase, unittest.TestCase):
         self.state.data.pop(_rewrites.LATE_REWRITE_FROM_BASE_SHA)
 
         self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, ACCEPTED_SHA),
+            _transfer._abandoned_authorization(self.gate, _support.ACCEPTED_SHA),
         )
 
         self.assertTrue(
@@ -912,5 +900,5 @@ class AbandonedAuthorizationTest(_TransferCase, unittest.TestCase):
         _rewrites.clear_rewrite_authorization(self.state)
 
         self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, ACCEPTED_SHA),
+            _transfer._abandoned_authorization(self.gate, _support.ACCEPTED_SHA),
         )

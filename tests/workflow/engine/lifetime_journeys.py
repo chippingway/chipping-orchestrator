@@ -28,6 +28,7 @@ from types import MappingProxyType
 from unittest.mock import MagicMock
 
 from orchestrator import config
+from tests.workflow import fixtures as _support
 from tests.workflow.engine.lifetime_test_support import (
     ALLOWANCE,
     BRANCH,
@@ -38,25 +39,11 @@ from tests.workflow.engine.lifetime_test_support import (
     Leg,
     refreshed_tick,
 )
-from tests.workflow.fixtures import (
-    BACKEND_CLAUDE,
-    DEFAULT_PR_HEAD_SHA,
-    LABEL_DECOMPOSING,
-    LABEL_FIXING,
-    LABEL_IMPLEMENTING,
-    LABEL_IN_REVIEW,
-    LABEL_RESOLVING_CONFLICT,
-    LABEL_VALIDATING,
-    MEASURED_CANDIDATE_SHA,
-    REVIEW_CHANGES_REQUESTED_MESSAGE,
-    _agent,
-    _manifest,
-)
 from tests.workflow.git_owners import seam_patch
 
 # The head a round opens on, and the commit the run leaves the checkout at.
-_SHA_BEFORE = DEFAULT_PR_HEAD_SHA
-_SHA_AFTER = MEASURED_CANDIDATE_SHA
+_SHA_BEFORE = _support.DEFAULT_PR_HEAD_SHA
+_SHA_AFTER = _support.MEASURED_CANDIDATE_SHA
 
 # Pinned keys these legs stage more than once. Wire strings on live issues, so
 # they are spelled here rather than retyped per leg.
@@ -76,7 +63,7 @@ _UNREAD_FEEDBACK = MappingProxyType({
 _DELIVERING = MappingProxyType({
     "pr_number": PR_NUMBER,
     _KEY_BRANCH: BRANCH,
-    "dev_agent": BACKEND_CLAUDE,
+    "dev_agent": _support.BACKEND_CLAUDE,
     "dev_session_id": DEV_SESSION,
 })
 
@@ -142,23 +129,23 @@ _PUBLISHING = MappingProxyType({
 # the developer resumed inside the same tick to answer it. Two processes and
 # two charges -- the ledger counts runs rather than ticks.
 _REVIEW_AND_FIX = (
-    _agent(session_id="rev-sess", last_message=REVIEW_CHANGES_REQUESTED_MESSAGE),
-    _agent(session_id=DEV_SESSION, last_message="fixed"),
+    _support._agent(session_id="rev-sess", last_message=_support.REVIEW_CHANGES_REQUESTED_MESSAGE),
+    _support._agent(session_id=DEV_SESSION, last_message="fixed"),
 )
 
 
 FIXING_LEG = Leg(
     role="fixing",
-    label=LABEL_FIXING,
+    label=_support.LABEL_FIXING,
     staged={**_DELIVERING, _KEY_REVIEW_ROUND: 1, **_UNREAD_FEEDBACK},
     world=_PUBLISHING,
-    agent_result=_agent(session_id=DEV_SESSION, last_message="fixed"),
+    agent_result=_support._agent(session_id=DEV_SESSION, last_message="fixed"),
     replies=(_ASKED_AGAIN,),
 )
 
 REVIEWING_LEG = Leg(
     role="validating",
-    label=LABEL_VALIDATING,
+    label=_support.LABEL_VALIDATING,
     staged={**_DELIVERING, _KEY_REVIEW_ROUND: 1},
     world=_PUBLISHING,
     agent_result=_REVIEW_AND_FIX,
@@ -169,7 +156,7 @@ REVIEWING_LEG = Leg(
 # rebase or the conflict recovery ahead of it reset it to.
 RESET_REVIEWING_LEG = Leg(
     role="validating-after-reset",
-    label=LABEL_VALIDATING,
+    label=_support.LABEL_VALIDATING,
     staged=_DELIVERING,
     world=_PUBLISHING,
     agent_result=_REVIEW_AND_FIX,
@@ -177,14 +164,14 @@ RESET_REVIEWING_LEG = Leg(
 
 CONFLICT_LEG = Leg(
     role="resolving-conflict",
-    label=LABEL_RESOLVING_CONFLICT,
+    label=_support.LABEL_RESOLVING_CONFLICT,
     staged={
         **_DELIVERING,
         _KEY_REVIEW_ROUND: ROUNDS_SPENT,
         "conflict_round": 0,
     },
     world={**_PUBLISHING, "fetched_branch_tip": _SHA_BEFORE},
-    agent_result=_agent(session_id=DEV_SESSION, last_message="resolved"),
+    agent_result=_support._agent(session_id=DEV_SESSION, last_message="resolved"),
     around=_conflict_seams,
 )
 
@@ -194,7 +181,7 @@ CONFLICT_LEG = Leg(
 # why a loop built out of it is worth walking.
 BASE_SYNC_LEG = Leg(
     role="base-sync",
-    label=LABEL_IN_REVIEW,
+    label=_support.LABEL_IN_REVIEW,
     staged={**_DELIVERING, _KEY_REVIEW_ROUND: ROUNDS_SPENT},
     world=_PUBLISHING,
     around=_clean_rebase_seams,
@@ -203,31 +190,31 @@ BASE_SYNC_LEG = Leg(
 
 ROTATING_LEG = Leg(
     role="implementing-rotation",
-    label=LABEL_IMPLEMENTING,
+    label=_support.LABEL_IMPLEMENTING,
     staged={
         "awaiting_human": True,
         _KEY_BRANCH: BRANCH,
-        "dev_agent": BACKEND_CLAUDE,
+        "dev_agent": _support.BACKEND_CLAUDE,
         "dev_session_id": DEV_SESSION,
         "dev_resume_count": config.DEV_SESSION_MAX_RESUMES,
     },
     world={"has_new_commits": [True], "push_branch": True},
-    agent_result=_agent(session_id="rotated-sess", last_message="carried on"),
+    agent_result=_support._agent(session_id="rotated-sess", last_message="carried on"),
     replies=(_ASKED_AGAIN,),
 )
 
 DECOMPOSING_LEG = Leg(
     role="decomposing",
-    label=LABEL_DECOMPOSING,
+    label=_support.LABEL_DECOMPOSING,
     staged={
         "awaiting_human": False,
         "pr_number": None,
         _KEY_BRANCH: None,
         "decomposer_session_id": None,
     },
-    agent_result=_agent(
+    agent_result=_support._agent(
         session_id="dec-sess",
-        last_message=_manifest(
+        last_message=_support._manifest(
             '{"decision": "single", "rationale": "one coherent change"}',
         ),
     ),
@@ -235,14 +222,14 @@ DECOMPOSING_LEG = Leg(
 
 IMPLEMENTING_LEG = Leg(
     role="implementing",
-    label=LABEL_IMPLEMENTING,
+    label=_support.LABEL_IMPLEMENTING,
     staged={
         "awaiting_human": False,
         "dev_session_id": None,
         _KEY_BRANCH: None,
     },
     world={"has_new_commits": [False, True], "push_branch": True},
-    agent_result=_agent(session_id="dev-fresh", last_message="implemented"),
+    agent_result=_support._agent(session_id="dev-fresh", last_message="implemented"),
 )
 
 

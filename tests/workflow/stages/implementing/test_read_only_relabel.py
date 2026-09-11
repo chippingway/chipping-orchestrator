@@ -29,23 +29,8 @@ from tests.workflow.fixtures import (
     _issue_branch,
     _PatchedWorkflowMixin,
 )
-from tests.workflow.stages.implementing.read_only_relabel_test_support import (
-    DEV_SESSION,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    KEY_PUBLISHING_SHA,
-    KEY_READ_ONLY_BASELINE,
-    KEY_ROUND_OPEN,
-    KEY_ROUND_SHA,
-    PARK_DISCUSSION_COMMITS,
-    PARK_DISCUSSION_RESPONSE,
-    PARK_DISCUSSION_UNSAFE_RELABEL,
-    PUSH_BRANCH,
-    RUN_AGENT,
-    UNEXPECTED_AGENT_MESSAGE,
-    _ReadOnlyRelabelMixin,
-    _seed_relabeled_discussion,
-)
+from tests.workflow.stages.implementing import read_only_relabel_test_support as _support
+from tests.workflow.stages.implementing.read_only_relabel_test_support import _ReadOnlyRelabelMixin
 
 _UNSAFE_RELABEL_ISSUE_NUMBER = 990
 _SAFE_RELABEL_ISSUE_NUMBER = 991
@@ -68,8 +53,8 @@ _NO_LOCAL_EVIDENCE = "nowhere-this-host-can-see"
 # The same two crashes, with the commit made while the checkout was detached:
 # before the publication marker, and after the PR it opened.
 _DETACHED_CRASHES = (
-    (_DETACHED_ROUND_ISSUE_NUMBER, {KEY_ROUND_OPEN: True}),
-    (_DETACHED_PUBLISH_ISSUE_NUMBER, {KEY_PUBLISHING_SHA: HEAD_AFTER_COMMIT}),
+    (_DETACHED_ROUND_ISSUE_NUMBER, {_support.KEY_ROUND_OPEN: True}),
+    (_DETACHED_PUBLISH_ISSUE_NUMBER, {_support.KEY_PUBLISHING_SHA: _support.HEAD_AFTER_COMMIT}),
 )
 _PUBLISHED_PR_NUMBER = 6100
 # What the publication left on the PR it opened: the plan, under the
@@ -83,14 +68,14 @@ _BASE_TIP = "head-at-the-base-branch"
 # The two ways the recorded ref stops matching its anchor: moved past it by a
 # commit, and dragged back to base by an over-broad reset.
 _UNCERTIFIED_TIPS = (
-    (_MOVED_TIP_RELABEL_ISSUE_NUMBER, HEAD_AFTER_COMMIT),
+    (_MOVED_TIP_RELABEL_ISSUE_NUMBER, _support.HEAD_AFTER_COMMIT),
     (_RESET_TO_BASE_ISSUE_NUMBER, _BASE_TIP),
 )
 # The two ways a branch ends a discussion ahead of base but unmoved by it:
 # never written to, and written to then reset back to the anchor.
 _CERTIFIED_TIP_PARKS = (
-    (_INHERITED_RELABEL_ISSUE_NUMBER, PARK_DISCUSSION_RESPONSE),
-    (_RESET_RELABEL_ISSUE_NUMBER, PARK_DISCUSSION_COMMITS),
+    (_INHERITED_RELABEL_ISSUE_NUMBER, _support.PARK_DISCUSSION_RESPONSE),
+    (_RESET_RELABEL_ISSUE_NUMBER, _support.PARK_DISCUSSION_COMMITS),
 )
 
 
@@ -105,7 +90,7 @@ def _published_plan_pr(issue_number: int) -> FakePR:
         number=_PUBLISHED_PR_NUMBER,
         head_branch=_issue_branch(issue_number),
         body=_PLAN_PR_BODY,
-        head=FakePRRef(sha=HEAD_AFTER_COMMIT),
+        head=FakePRRef(sha=_support.HEAD_AFTER_COMMIT),
     )
 
 
@@ -119,26 +104,26 @@ class DiscussionRelabelToImplementingTest(
         # that commit is pushed and a PR opened for it -- and the refusal has
         # to name the anchor as the reset target, because on a PR-backed issue
         # "reset to base" would throw the PR's commits away with the agent's.
-        gh, issue = _seed_relabeled_discussion(
-            _UNSAFE_RELABEL_ISSUE_NUMBER, PARK_DISCUSSION_COMMITS,
+        gh, issue = _support._seed_relabeled_discussion(
+            _UNSAFE_RELABEL_ISSUE_NUMBER, _support.PARK_DISCUSSION_COMMITS,
         )
 
         mocks = self._run_implementing_on_worktree(
             gh,
             issue,
             unpushed_branch=_issue_branch(issue.number),
-            run_agent=_agent(last_message=UNEXPECTED_AGENT_MESSAGE),
+            run_agent=_agent(last_message=_support.UNEXPECTED_AGENT_MESSAGE),
             has_new_commits=True,
-            branch_tip_sha=HEAD_AFTER_COMMIT,
+            branch_tip_sha=_support.HEAD_AFTER_COMMIT,
         )
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[PUSH_BRANCH].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.PUSH_BRANCH].assert_not_called()
         self.assertEqual(gh.opened_prs, [])
         pinned_data = gh.pinned_data(issue.number)
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_UNSAFE_RELABEL,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_UNSAFE_RELABEL,
         )
         refusal = gh.posted_comments[-1][1]
         # What the refusal says is the contract it is enforcing: the stage
@@ -150,7 +135,7 @@ class DiscussionRelabelToImplementingTest(
             refusal,
         )
         self.assertIn("publishes the one plan it confirmed", refusal)
-        self.assertIn(HEAD_BEFORE_ROUND, refusal)
+        self.assertIn(_support.HEAD_BEFORE_ROUND, refusal)
         self.assertNotIn("branch -D", refusal)
 
     def test_a_branch_still_on_the_anchor_relabels(self) -> None:
@@ -186,7 +171,7 @@ class DiscussionRelabelToImplementingTest(
         # a tree nobody has proved is empty: the evidence an operator was parked
         # to look at, gone before they read it.
         gh = self._assert_relabel_refused(
-            _UNREADABLE_TREE_ISSUE_NUMBER, HEAD_BEFORE_ROUND, readable=False,
+            _UNREADABLE_TREE_ISSUE_NUMBER, _support.HEAD_BEFORE_ROUND, readable=False,
         )
 
         self.assertIn("could not be read", gh.posted_comments[-1][1])
@@ -196,44 +181,44 @@ class DiscussionRelabelToImplementingTest(
         # pushes, so a PR-backed checkout is rebuilt from the PR head, which
         # never carried its work. Convicting here would strand the pruned
         # -worktree recovery an operator has no way to undo.
-        gh, issue = _seed_relabeled_discussion(
-            _VANISHED_REF_ISSUE_NUMBER, PARK_DISCUSSION_RESPONSE,
+        gh, issue = _support._seed_relabeled_discussion(
+            _VANISHED_REF_ISSUE_NUMBER, _support.PARK_DISCUSSION_RESPONSE,
         )
 
         mocks = self._run_implementing_on_worktree(
             gh,
             issue,
             unpushed_branch=None,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="implemented"),
+            run_agent=_agent(session_id=_support.DEV_SESSION, last_message="implemented"),
             has_new_commits=[False, True],
             branch_tip_sha="",
-            head_shas=(HEAD_BEFORE_ROUND, HEAD_BEFORE_ROUND, HEAD_AFTER_COMMIT),
+            head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         self.assertNotEqual(
             gh.pinned_data(issue.number).get(KEY_PARK_REASON),
-            PARK_DISCUSSION_UNSAFE_RELABEL,
+            _support.PARK_DISCUSSION_UNSAFE_RELABEL,
         )
 
     def test_a_clean_park_lets_the_dev_run(self) -> None:
         # The ordinary exit: the humans settled the design, the tree is clean,
         # and the relabel IS the unblock signal. The park is dropped and the
         # dev spawns fresh rather than resuming a discussion nobody is having.
-        gh, issue = _seed_relabeled_discussion(
-            _SAFE_RELABEL_ISSUE_NUMBER, PARK_DISCUSSION_RESPONSE,
+        gh, issue = _support._seed_relabeled_discussion(
+            _SAFE_RELABEL_ISSUE_NUMBER, _support.PARK_DISCUSSION_RESPONSE,
         )
 
         mocks = self._run_implementing_on_worktree(
             gh,
             issue,
             unpushed_branch=None,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="implemented"),
+            run_agent=_agent(session_id=_support.DEV_SESSION, last_message="implemented"),
             has_new_commits=[False, True],
-            head_shas=(HEAD_BEFORE_ROUND, HEAD_BEFORE_ROUND, HEAD_AFTER_COMMIT),
+            head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
         )
 
-        spawned = mocks[RUN_AGENT]
+        spawned = mocks[_support.RUN_AGENT]
         spawned.assert_called_once()
         self.assertIn("You are the implementer", spawned.call_args.args[1])
         self.assertEqual(len(gh.opened_prs), 1)
@@ -249,8 +234,8 @@ class DiscussionRelabelToImplementingTest(
         `readable` is the other way a checkout earns one: not a tip the guard
         can convict, but a `git status` that never answered at all.
         """
-        gh, issue = _seed_relabeled_discussion(
-            issue_number, PARK_DISCUSSION_RESPONSE,
+        gh, issue = _support._seed_relabeled_discussion(
+            issue_number, _support.PARK_DISCUSSION_RESPONSE,
         )
 
         mocks = self._run_implementing_on_worktree(
@@ -259,24 +244,24 @@ class DiscussionRelabelToImplementingTest(
             # None is the shape a reset-to-base branch reports: nothing is
             # ahead of base any more, so the guard has only the anchor left.
             unpushed_branch=(
-                _issue_branch(issue.number) if tip == HEAD_AFTER_COMMIT else None
+                _issue_branch(issue.number) if tip == _support.HEAD_AFTER_COMMIT else None
             ),
-            run_agent=_agent(last_message=UNEXPECTED_AGENT_MESSAGE),
-            has_new_commits=tip == HEAD_AFTER_COMMIT,
+            run_agent=_agent(last_message=_support.UNEXPECTED_AGENT_MESSAGE),
+            has_new_commits=tip == _support.HEAD_AFTER_COMMIT,
             branch_tip_sha=tip,
-            head_shas=(HEAD_BEFORE_ROUND,),
+            head_shas=(_support.HEAD_BEFORE_ROUND,),
             tree_readable=readable,
         )
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[PUSH_BRANCH].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.PUSH_BRANCH].assert_not_called()
         self.assertEqual(gh.opened_prs, [])
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_UNSAFE_RELABEL,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_UNSAFE_RELABEL,
         )
         # The anchor stands, so the next tick still has something to measure by.
-        self.assertEqual(pinned_data[KEY_ROUND_SHA], HEAD_BEFORE_ROUND)
+        self.assertEqual(pinned_data[_support.KEY_ROUND_SHA], _support.HEAD_BEFORE_ROUND)
         return gh
 
 class CrashedDiscussionRelabelTest(
@@ -297,17 +282,17 @@ class CrashedDiscussionRelabelTest(
 
     def test_an_unreported_round_refuses_the_relabel(self) -> None:
         _gh, refusal = self._relabel_over_crash(
-            _CRASHED_ROUND_ISSUE_NUMBER, **{KEY_ROUND_OPEN: True},
+            _CRASHED_ROUND_ISSUE_NUMBER, **{_support.KEY_ROUND_OPEN: True},
         )
 
         self.assertIn("a discussion-stage round that never reported", refusal)
         # The anchor is the reset target, as it is for every commit refusal.
-        self.assertIn(HEAD_BEFORE_ROUND, refusal)
+        self.assertIn(_support.HEAD_BEFORE_ROUND, refusal)
 
     def test_an_unfinished_publication_refuses(self) -> None:
         _gh, refusal = self._relabel_over_crash(
             _CRASHED_PUBLISH_ISSUE_NUMBER,
-            **{KEY_PUBLISHING_SHA: HEAD_AFTER_COMMIT},
+            **{_support.KEY_PUBLISHING_SHA: _support.HEAD_AFTER_COMMIT},
         )
 
         self.assertIn(
@@ -323,8 +308,8 @@ class CrashedDiscussionRelabelTest(
         # written that this stage may not ship, so the relabel IS the unblock
         # signal -- and the stale records go with the park, or the discussion
         # stage would later claim the commit the dev is about to make.
-        gh, issue = _seed_relabeled_discussion(
-            _CLEAN_CRASH_ISSUE_NUMBER, None, **{KEY_ROUND_OPEN: True},
+        gh, issue = _support._seed_relabeled_discussion(
+            _CLEAN_CRASH_ISSUE_NUMBER, None, **{_support.KEY_ROUND_OPEN: True},
         )
 
         # Interrupted, so the handoff's own write is the only durable one and
@@ -335,16 +320,16 @@ class CrashedDiscussionRelabelTest(
             unpushed_branch=_issue_branch(issue.number),
             run_agent=_agent(interrupted=True),
             has_new_commits=True,
-            branch_tip_sha=HEAD_BEFORE_ROUND,
-            head_shas=(HEAD_BEFORE_ROUND, HEAD_BEFORE_ROUND, HEAD_AFTER_COMMIT),
+            branch_tip_sha=_support.HEAD_BEFORE_ROUND,
+            head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
         )
 
-        spawned = mocks[RUN_AGENT]
+        spawned = mocks[_support.RUN_AGENT]
         spawned.assert_called_once()
         pinned_data = gh.pinned_data(issue.number)
-        self.assertIsNone(pinned_data[KEY_ROUND_OPEN])
+        self.assertIsNone(pinned_data[_support.KEY_ROUND_OPEN])
         self.assertEqual(
-            pinned_data[KEY_READ_ONLY_BASELINE], HEAD_BEFORE_ROUND,
+            pinned_data[_support.KEY_READ_ONLY_BASELINE], _support.HEAD_BEFORE_ROUND,
         )
 
     def test_a_detached_commit_refuses_the_relabel(self) -> None:
@@ -360,7 +345,7 @@ class CrashedDiscussionRelabelTest(
                     issue_number, evidence=_DETACHED_CHECKOUT, **record,
                 )
 
-                self.assertIn(HEAD_AFTER_COMMIT, refusal)
+                self.assertIn(_support.HEAD_AFTER_COMMIT, refusal)
 
     def test_a_lost_checkout_holds_the_publication(self) -> None:
         # The reproduction a fresh host gives: the plan was pushed and its PR
@@ -376,15 +361,15 @@ class CrashedDiscussionRelabelTest(
             _LOST_CHECKOUT_ISSUE_NUMBER,
             evidence=_NO_LOCAL_EVIDENCE,
             pull_request=_published_plan_pr(_LOST_CHECKOUT_ISSUE_NUMBER),
-            **{KEY_PUBLISHING_SHA: HEAD_AFTER_COMMIT},
+            **{_support.KEY_PUBLISHING_SHA: _support.HEAD_AFTER_COMMIT},
         )
 
-        self.assertIn(HEAD_AFTER_COMMIT, refusal)
+        self.assertIn(_support.HEAD_AFTER_COMMIT, refusal)
         # The marker survives, because the stage that owns it is the one that
         # can finish it -- and the refusal says so.
         self.assertEqual(
-            gh.pinned_data(_LOST_CHECKOUT_ISSUE_NUMBER)[KEY_PUBLISHING_SHA],
-            HEAD_AFTER_COMMIT,
+            gh.pinned_data(_LOST_CHECKOUT_ISSUE_NUMBER)[_support.KEY_PUBLISHING_SHA],
+            _support.HEAD_AFTER_COMMIT,
         )
         self.assertIn("Relabel back to `discussion`", refusal)
         # The plan PR is still the decomposer's, saying what it said.
@@ -408,7 +393,7 @@ class CrashedDiscussionRelabelTest(
         looks, so a handover would really reach the reuse that rewrites its
         body to close the issue.
         """
-        gh, issue = _seed_relabeled_discussion(issue_number, None, **records)
+        gh, issue = _support._seed_relabeled_discussion(issue_number, None, **records)
         if pull_request is not None:
             gh.add_pr(pull_request)
             if not pull_request.merged:
@@ -416,9 +401,9 @@ class CrashedDiscussionRelabelTest(
 
         mocks = self._run_crashed_relabel(gh, issue, evidence)
 
-        spawned = mocks[RUN_AGENT]
+        spawned = mocks[_support.RUN_AGENT]
         spawned.assert_not_called()
-        mocks[PUSH_BRANCH].assert_not_called()
+        mocks[_support.PUSH_BRANCH].assert_not_called()
         self.assertEqual(gh.opened_prs, [])
         self.assertEqual(gh.edited_pr_bodies, [])
         # Nothing moved the issue on, least of all to validating.
@@ -426,13 +411,13 @@ class CrashedDiscussionRelabelTest(
         pinned_data = gh.pinned_data(issue.number)
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_UNSAFE_RELABEL,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_UNSAFE_RELABEL,
         )
         return gh, gh.posted_comments[-1][1]
 
     def _run_crashed_relabel(self, gh, issue, evidence: str):
         """One relabel tick over whatever local evidence the crash left."""
-        refused = _agent(last_message=UNEXPECTED_AGENT_MESSAGE)
+        refused = _agent(last_message=_support.UNEXPECTED_AGENT_MESSAGE)
         if evidence == _NO_LOCAL_EVIDENCE:
             return self._run_implementing_without_checkout(
                 gh, issue, run_agent=refused, has_new_commits=True,
@@ -445,8 +430,8 @@ class CrashedDiscussionRelabelTest(
             unpushed_branch=None if detached else _issue_branch(issue.number),
             run_agent=refused,
             has_new_commits=True,
-            branch_tip_sha=HEAD_BEFORE_ROUND if detached else HEAD_AFTER_COMMIT,
-            head_shas=(HEAD_AFTER_COMMIT,),
+            branch_tip_sha=_support.HEAD_BEFORE_ROUND if detached else _support.HEAD_AFTER_COMMIT,
+            head_shas=(_support.HEAD_AFTER_COMMIT,),
         )
 
 

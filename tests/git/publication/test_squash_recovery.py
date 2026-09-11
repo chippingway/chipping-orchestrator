@@ -19,23 +19,9 @@ from __future__ import annotations
 
 import unittest
 
-from tests.git.publication import squash_git_support as squash_support
+from tests.git.publication import squash_git_support as squash_support, squash_recovery_support as _support
 from tests.git.publication.squash_gate_support import SQUASH_PR_NUMBER
-from tests.git.publication.squash_recovery_support import (
-    APPROVED_COMMITS,
-    BRANCH_INTACT,
-    COLLAPSED_COMMITS,
-    KEY_APPROVED_SHA,
-    KEY_COLLAPSE_BASE_SHA,
-    KEY_COLLAPSE_COUNT,
-    KEY_COLLAPSE_HEAD,
-    KEY_RECEIPT_SHA,
-    LEASE,
-    MOVED_HEAD,
-    REVISION,
-    SQUASH_ON_APPROVAL,
-    SquashRecoveryMixin,
-)
+from tests.git.publication.squash_recovery_support import SquashRecoveryMixin
 
 
 class RecordedCollapseRealGitTest(
@@ -52,9 +38,9 @@ class RecordedCollapseRealGitTest(
         self._crashes_before_the_reset(gate)
 
         pinned = self._pinned(gate)
-        self.assertEqual(pinned[KEY_COLLAPSE_HEAD], accepted)
-        self.assertEqual(pinned[KEY_COLLAPSE_BASE_SHA], self._base_sha())
-        self.assertEqual(pinned[KEY_COLLAPSE_COUNT], APPROVED_COMMITS)
+        self.assertEqual(pinned[_support.KEY_COLLAPSE_HEAD], accepted)
+        self.assertEqual(pinned[_support.KEY_COLLAPSE_BASE_SHA], self._base_sha())
+        self.assertEqual(pinned[_support.KEY_COLLAPSE_COUNT], _support.APPROVED_COMMITS)
 
     def test_a_landed_push_leaves_the_claim(self) -> None:
         # The push is not the end of the collapse: the count on this record is
@@ -66,7 +52,7 @@ class RecordedCollapseRealGitTest(
         squash_run = self._squashes(gate, push_result=self._publishes(gate))
 
         self.assertTrue(squash_run.success)
-        self.assertIn(KEY_COLLAPSE_HEAD, gate.state.data)
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, gate.state.data)
 
     def test_a_refused_push_takes_the_claim_back(self) -> None:
         # The reset puts the branch back on the commits the record says were
@@ -78,10 +64,10 @@ class RecordedCollapseRealGitTest(
 
         self.assertFalse(squash_run.success)
         self.assertEqual(self._head_sha(), accepted)
-        self.assertNotIn(KEY_COLLAPSE_HEAD, self._pinned(gate))
+        self.assertNotIn(_support.KEY_COLLAPSE_HEAD, self._pinned(gate))
         # The branch is back on the approved commits, so the caller's notice
         # may say so.
-        self.assertEqual(squash_run.standing, BRANCH_INTACT)
+        self.assertEqual(squash_run.standing, _support.BRANCH_INTACT)
 
 
 class StaleCollapseRealGitTest(
@@ -102,16 +88,16 @@ class StaleCollapseRealGitTest(
         gate = self._gate_subject()
         accepted = self._head_sha()
         self._crashes_before_the_reset(gate)
-        self._assert_branch_carries(APPROVED_COMMITS)
+        self._assert_branch_carries(_support.APPROVED_COMMITS)
 
         squash_run = self._squashes(self._next_tick(gate))
 
         self.assertTrue(squash_run.success)
-        self.assertEqual(squash_run.count, APPROVED_COMMITS)
+        self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         self.assertEqual(
-            squash_run.push_mock.call_args.kwargs[LEASE], accepted,
+            squash_run.push_mock.call_args.kwargs[_support.LEASE], accepted,
         )
-        self._assert_branch_carries(COLLAPSED_COMMITS)
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
 
 
 class UnpushedCollapseRealGitTest(
@@ -135,15 +121,15 @@ class UnpushedCollapseRealGitTest(
         squash_run = self._squashes(self._next_tick(gate))
 
         self.assertTrue(squash_run.success)
-        self.assertEqual(squash_run.count, APPROVED_COMMITS)
+        self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         pushed = squash_run.push_mock.call_args.kwargs
-        self.assertEqual(pushed[REVISION], squashed)
-        self.assertEqual(pushed[LEASE], accepted)
+        self.assertEqual(pushed[_support.REVISION], squashed)
+        self.assertEqual(pushed[_support.LEASE], accepted)
         # And it is the commit already on the branch that goes out: nothing is
         # collapsed a second time, so the object measured and pushed is the
         # one the interrupted tick made.
         self.assertEqual(self._head_sha(), squashed)
-        self._assert_branch_carries(COLLAPSED_COMMITS)
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
 
 
 class AuthorizedCollapseRealGitTest(
@@ -158,15 +144,15 @@ class AuthorizedCollapseRealGitTest(
         accepted = self._head_sha()
         self._crashes_before_the_push(gate)
         squashed = self._head_sha()
-        self.assertEqual(self._pinned(gate)[KEY_APPROVED_SHA], squashed)
+        self.assertEqual(self._pinned(gate)[_support.KEY_APPROVED_SHA], squashed)
 
         squash_run = self._squashes(self._next_tick(gate))
 
         self.assertTrue(squash_run.success)
-        self.assertEqual(squash_run.count, APPROVED_COMMITS)
+        self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         pushed = squash_run.push_mock.call_args.kwargs
-        self.assertEqual(pushed[REVISION], squashed)
-        self.assertEqual(pushed[LEASE], accepted)
+        self.assertEqual(pushed[_support.REVISION], squashed)
+        self.assertEqual(pushed[_support.LEASE], accepted)
         self.assertEqual(self._head_sha(), squashed)
 
 
@@ -186,20 +172,20 @@ class PublishedCollapseRealGitTest(
         gate = self._gate_subject()
         self._crashes_after_the_push(gate)
         squashed = self._head_sha()
-        self.assertNotIn(KEY_RECEIPT_SHA, self._pinned(gate))
+        self.assertNotIn(_support.KEY_RECEIPT_SHA, self._pinned(gate))
 
         squash_run = self._squashes(
             self._next_tick(gate), push_result=self._publishes(gate),
         )
 
         self.assertTrue(squash_run.success)
-        self.assertEqual(squash_run.count, APPROVED_COMMITS)
+        self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         pushed = squash_run.push_mock.call_args.kwargs
-        self.assertEqual(pushed[REVISION], squashed)
+        self.assertEqual(pushed[_support.REVISION], squashed)
         # Leased against the commit the pull request already stands on, which
         # is what makes the republication a no-op rather than a rewrite of
         # whatever landed there while this host was down.
-        self.assertEqual(pushed[LEASE], squashed)
+        self.assertEqual(pushed[_support.LEASE], squashed)
 
     def test_a_missed_retry_keeps_a_landed_collapse(self) -> None:
         # The far side of the same window with the retry's own push failing.
@@ -218,10 +204,10 @@ class PublishedCollapseRealGitTest(
 
         self.assertIsNotNone(squash_run.error)
         self.assertEqual(self._head_sha(), squashed)
-        self._assert_branch_carries(COLLAPSED_COMMITS)
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
         pinned = self._pinned(gate)
-        self.assertIn(KEY_COLLAPSE_HEAD, pinned)
-        self.assertEqual(pinned[KEY_APPROVED_SHA], squashed)
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, pinned)
+        self.assertEqual(pinned[_support.KEY_APPROVED_SHA], squashed)
 
     def test_the_receipt_settles_the_debt(self) -> None:
         gate = self._gate_subject()
@@ -232,9 +218,9 @@ class PublishedCollapseRealGitTest(
         self._squashes(resumed, push_result=self._publishes(gate))
 
         pinned = self._pinned(resumed)
-        self.assertEqual(pinned[KEY_RECEIPT_SHA], squashed)
-        self.assertIsNone(pinned.get(KEY_APPROVED_SHA))
-        self._assert_branch_carries(COLLAPSED_COMMITS)
+        self.assertEqual(pinned[_support.KEY_RECEIPT_SHA], squashed)
+        self.assertIsNone(pinned.get(_support.KEY_APPROVED_SHA))
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
 
 
 class UnfinishedHandoffRealGitTest(
@@ -260,7 +246,7 @@ class UnfinishedHandoffRealGitTest(
         )
 
         self.assertTrue(squash_run.success)
-        self.assertEqual(squash_run.count, APPROVED_COMMITS)
+        self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         self.assertEqual(squash_run.sha, self._head_sha())
 
     def test_a_missed_no_op_keeps_the_branch(self) -> None:
@@ -278,10 +264,10 @@ class UnfinishedHandoffRealGitTest(
 
         self.assertIsNotNone(squash_run.error)
         self.assertEqual(self._head_sha(), squashed)
-        self._assert_branch_carries(COLLAPSED_COMMITS)
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
         pinned = self._pinned(resumed)
-        self.assertIn(KEY_COLLAPSE_HEAD, pinned)
-        self.assertEqual(pinned[KEY_COLLAPSE_COUNT], APPROVED_COMMITS)
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, pinned)
+        self.assertEqual(pinned[_support.KEY_COLLAPSE_COUNT], _support.APPROVED_COMMITS)
 
     def test_the_collapse_is_not_made_again(self) -> None:
         gate = self._gate_subject()
@@ -291,7 +277,7 @@ class UnfinishedHandoffRealGitTest(
         self._squashes(self._next_tick(gate), push_result=self._publishes(gate))
 
         self.assertEqual(self._head_sha(), squashed)
-        self._assert_branch_carries(COLLAPSED_COMMITS)
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
 
 
 class SwitchedOffCollapseRealGitTest(
@@ -312,13 +298,13 @@ class SwitchedOffCollapseRealGitTest(
     def test_nothing_recorded_is_left_alone(self) -> None:
         gate = self._gate_subject()
 
-        squash_run = self._squashes(gate, **{SQUASH_ON_APPROVAL: False})
+        squash_run = self._squashes(gate, **{_support.SQUASH_ON_APPROVAL: False})
 
         self.assertTrue(squash_run.success)
         self.assertEqual(squash_run.count, 0)
         squash_run.push_mock.assert_not_called()
-        self._assert_branch_carries(APPROVED_COMMITS)
-        self.assertNotIn(KEY_COLLAPSE_HEAD, gate.state.data)
+        self._assert_branch_carries(_support.APPROVED_COMMITS)
+        self.assertNotIn(_support.KEY_COLLAPSE_HEAD, gate.state.data)
 
     def test_a_moved_remote_still_refuses(self) -> None:
         # The record engaged the recovery, which found the reset never ran and
@@ -329,17 +315,17 @@ class SwitchedOffCollapseRealGitTest(
         gate = self._gate_subject()
         accepted = self._head_sha()
         self._crashes_before_the_reset(gate)
-        gate.gh.get_pr(SQUASH_PR_NUMBER).head.sha = MOVED_HEAD
+        gate.gh.get_pr(SQUASH_PR_NUMBER).head.sha = _support.MOVED_HEAD
 
         squash_run = self._squashes(
-            self._next_tick(gate), **{SQUASH_ON_APPROVAL: False},
+            self._next_tick(gate), **{_support.SQUASH_ON_APPROVAL: False},
         )
 
         self.assertFalse(squash_run.success)
         self.assertIsNotNone(squash_run.error)
         squash_run.push_mock.assert_not_called()
         self.assertEqual(self._head_sha(), accepted)
-        self._assert_branch_carries(APPROVED_COMMITS)
+        self._assert_branch_carries(_support.APPROVED_COMMITS)
 
     def test_a_standing_remote_is_handed_on(self) -> None:
         # And the reading is only a reading: a publication still where this
@@ -350,7 +336,7 @@ class SwitchedOffCollapseRealGitTest(
         self._crashes_before_the_reset(gate)
 
         squash_run = self._squashes(
-            self._next_tick(gate), **{SQUASH_ON_APPROVAL: False},
+            self._next_tick(gate), **{_support.SQUASH_ON_APPROVAL: False},
         )
 
         self.assertTrue(squash_run.success)
@@ -365,14 +351,14 @@ class SwitchedOffCollapseRealGitTest(
         squashed = self._head_sha()
 
         squash_run = self._squashes(
-            self._next_tick(gate), **{SQUASH_ON_APPROVAL: False},
+            self._next_tick(gate), **{_support.SQUASH_ON_APPROVAL: False},
         )
 
         self.assertTrue(squash_run.success)
-        self.assertEqual(squash_run.count, APPROVED_COMMITS)
+        self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         pushed = squash_run.push_mock.call_args.kwargs
-        self.assertEqual(pushed[REVISION], squashed)
-        self.assertEqual(pushed[LEASE], accepted)
+        self.assertEqual(pushed[_support.REVISION], squashed)
+        self.assertEqual(pushed[_support.LEASE], accepted)
 
 
 if __name__ == "__main__":
