@@ -684,18 +684,20 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             an implementation pass, and the reconciliation that close waits on -- the one boundary at
                             which what a late split still owes a remote can be settled, and the last that comes
                             back if it cannot
-      late_coordinator.py   the additive late mode's order: the owed owner read and the undelivered park notice both
-                            reconciled ahead of every gate, the live-generation gate, the spent-budget park held
-                            behind it and ahead of everything that would touch the world, the frozen-evidence
-                            proof, the hold on the pull request the candidate stands on before any spawn -- and the displaced
-                            one no new agent is started under --
-                            the content settlement that can end the tick, the completed-result short circuit, the
-                            retry-budgeted run whose pre-spawn write holds the whole accounting back -- the
-                            counters and the attempt a continuation bought alike, since a run the tick then
-                            declines must cost neither -- the read-only proof
-                            over the candidate worktree, the fresh owner read every completion but a declined
-                            run passes through on its way to settlement, and the split transaction that read hands
-                            a cleared `split` on to
+      late_coordinator.py   the late mode's order: admission, park retirement, content settlement, then reuse
+                            a recorded answer or buy one fresh adjudication; only the completion guard can
+                            hand a cleared split to the transaction
+      late_admission.py     recover owed owner reads and park notices before the live-generation gate;
+                            hold a spent-budget park ahead of the frozen-evidence proof and pull-request hold;
+                            no external hold or agent spawn can run over an unprovable candidate/base pair
+      late_attempt.py       the durable attempt identity and the retry accounting its pre-spawn write omits;
+                            both close-latch checks restore the unspent counters before cancellation can write,
+                            so a run declined by shutdown or a live pause costs the issue nothing
+      late_execution.py     spend the shared retry budget and start one admitted adjudication; account usage,
+                            refuse an unstarted, timed-out, interrupted, or mutated-candidate answer, then hand
+                            every completion through the owner guard before its verdict can take effect
+      late_completion.py    re-read the issue owner for every completed or reused answer, settle what it earned,
+                            and hand only a guarded split to the transaction; deferred runs write nothing
       late_retry_cap.py     the same standing park on the adjudication's own road: the gate its fresh spawn is
                             charged to, the refusal staged through this mode's park owner so the generation,
                             the frozen pair, and the hold on the pull request the candidate stands under all ride
