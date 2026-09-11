@@ -65,6 +65,8 @@ _OWNERS = (
     "late_snapshot",
     "late_sweep",
     "late_transaction",
+    "late_split_preparation",
+    "late_retirement",
     "late_unsplit",
     "late_verdict",
     "late_verdict_push",

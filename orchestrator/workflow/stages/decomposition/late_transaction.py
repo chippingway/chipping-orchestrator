@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a guarded split does, in the one order every crash in it is safe in.
 
+`late_split_preparation` owns the admissibility checks, immutable snapshot,
+and durable children. This owner orders their announcement and supersession
+with fresh owner and publication guards; `late_retirement` performs the
+retirement, activation, and reclamation licensed by those checks.
+
 Snapshot, children, links, supersession, activation, cleanup -- and the order
 is the contract, because each step is an effect on GitHub or on a remote that
 the process can die immediately after. Every one of them is preceded by the
@@ -114,11 +119,8 @@ from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github import comments as _github_comments
 from orchestrator.workflow.engine import comments as _comments, usage as _usage
 from orchestrator.workflow.late_split import (
-    events as _events,
     formats as _formats,
-    lineage as _lineage,
     payloads as _payloads,
-    telemetry as _telemetry,
 )
 from orchestrator.workflow.late_split.models import (
     LateFailure,
@@ -129,17 +131,14 @@ from orchestrator.workflow.late_split.models import (
     LateResourceState,
 )
 from orchestrator.workflow.stages.decomposition import (
-    activation as _activation,
-    late_children as _late_children,
-    late_cleanup as _late_cleanup,
     late_hold as _late_hold,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_publication as _late_publication,
-    late_snapshot as _late_snapshot,
-    parents as _parents,
+    late_retirement as _late_retirement,
+    late_split_preparation as _late_split_preparation,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateAdjudicationRun,
@@ -147,15 +146,12 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from orchestrator.workflow.stages.decomposition.models import _SplitPlan
-from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
-_DECOMPOSING_STAGE = "decomposing"
 
 _DECOMPOSED_AT = "decomposed_at"
 
-_PR_NUMBER = "pr_number"
 
 # Stamped on the two comments this transaction owes, so a retry recognizes one
 # it posted even when the write that was supposed to record it never landed.
@@ -168,9 +164,11 @@ _SUPERSESSION_MARKER = (
     ":cycle={cycle}:generation={generation}-->"
 )
 
+
 _FORWARD_LINK_MARKER = (
     "<!--orchestrator-late-split:cycle={cycle}:generation={generation}-->"
 )
+
 
 _FORWARD_LINKS = (
     ":scissors: the late decomposer read the committed candidate `{sha}` as "
@@ -181,6 +179,7 @@ _FORWARD_LINKS = (
     "its own and closes once every child resolves.\n\n{marker}"
 )
 
+
 _SUPERSESSION_NOTICE = (
     ":scissors: **Superseded.** The committed implementation for issue "
     "#{parent} was adjudicated as {count} separable changes, so this pull "
@@ -190,40 +189,6 @@ _SUPERSESSION_NOTICE = (
     "it their scope covers:\n\n{children}\n\n{marker}"
 )
 
-_OPAQUE_LEDGER_PARK = (
-    "the committed candidate for this issue was adjudicated as a split, but "
-    "this issue's external-obligation ledger holds an entry this orchestrator "
-    "cannot read. Nothing was snapshotted, created, or superseded: a split "
-    "records a snapshot and one consumer per child on exactly that ledger, "
-    "and merging into one it cannot read would drop whatever it does not "
-    "understand. Settle the ledger by hand, and the next tick continues from "
-    "the same recorded verdict."
-)
-
-_CONTRADICTED_PARK = (
-    "the committed candidate for this issue was adjudicated as a split, but "
-    "this issue's recorded lineage does not agree with the generation that "
-    "was adjudicated: {reason}. Nothing was created. The generation was "
-    "minted without the ancestry this issue was created under, and acting on "
-    "it would let the lineage buy itself a generation past the bound -- so "
-    "the two have to be reconciled by hand."
-)
-
-_FORGED_RECEIPT_PARK = (
-    "the committed candidate for this issue was adjudicated as a split, but "
-    "{described}. Nothing was created. Those markers are how a child created "
-    "into a crash is recognized again, so a slice declaring one could be "
-    "adopted for a slice it was never created for -- push a new commit to "
-    "have the candidate re-read, or split it by hand."
-)
-
-_AT_BOUND_PARK = (
-    "the committed candidate for this issue was adjudicated as a split, but "
-    "its lineage may not split any further. Nothing was created. This is a "
-    "contradiction between a recorded verdict and the lineage bound, and it "
-    "has to be resolved by hand: land the candidate as one change, or split "
-    "it manually."
-)
 
 # How the pull request a published split was measured on can fail to be the
 # one the verdict was taken over. Each is spelled as the log line reads it,
@@ -272,78 +237,6 @@ _UNDONE_SUPERSESSION_PARK = (
     "and the next tick supersedes it again and settles the same recorded "
     "verdict."
 )
-
-
-def _run_late_split(
-    context: _LateContext, finished: _LateAdjudicationRun,
-) -> _LateAdjudicationRun:
-    """Run the whole split transaction for one guarded verdict.
-
-    Entered only with a split the post-agent owner read cleared, which is the
-    guarantee the guarded handoff carries: nothing between that read and the
-    snapshot re-asks it.
-
-    Past the snapshot the owner is read again before EVERY step that puts
-    something on the remote nobody takes back: before each child the loop
-    creates, and again before the announcement, the supersession, and the
-    activation behind them. What separates those steps from the snapshot is
-    not time but consequence -- a ref is an object a later pass can reclaim,
-    and a child is a real issue somebody will work.
-
-    Asked repeatedly rather than once because the steps are not one moment,
-    and because of who else can see a close while they run: a poll that
-    observes one cannot hand it anywhere, since the scheduler admits no
-    second worker for an issue one is already running. That observation is
-    deferred to a later tick, and until it arrives this run is the only thing
-    standing between a closed issue and another child created against it.
-
-    Fails closed, like the guard it repeats: an owner that cannot be read
-    parks where it stands, with the read owed on the record and the verdict
-    still recorded, so the next tick resumes at no agent's cost.
-    """
-    guarded = finished.guarded_split
-    context.generation = guarded.generation
-    if _blocked_split(context, guarded.children):
-        return _late_outcome._finished(context, _LateDisposition.PARKED)
-    snapshot_ref = _late_snapshot._snapshot_for_split(context)
-    if snapshot_ref is None:
-        return _late_outcome._finished(context, _LateDisposition.PARKED)
-    still_wanted = _late_owner._still_wanted(context)
-    if still_wanted is not None:
-        return _late_outcome._finished(context, still_wanted)
-    plan = _late_children._create_late_children(
-        context, guarded.children, snapshot_ref,
-    )
-    if plan is None:
-        return _late_outcome._finished(context, _interrupted(context))
-    return _published_split(context, finished, plan, snapshot_ref)
-
-
-def _interrupted(context: _LateContext) -> _LateDisposition:
-    """What a step that created nothing means: a cancelled cycle, or a park.
-
-    The loop below reports both as "no plan", because to its caller they are
-    the same instruction -- create nothing further. Which of the two happened
-    is on the record it just wrote, and the mark is the one that says the
-    cycle is over rather than waiting.
-    """
-    if context.generation.cancelled:
-        return _LateDisposition.CANCELLED
-    return _LateDisposition.PARKED
-
-
-def _blocked_split(context: _LateContext, children: tuple) -> bool:
-    """Whether this verdict was refused before anything external happened."""
-    refusal = _refused_split(context, children)
-    if refusal is None:
-        return False
-    _parked(
-        context,
-        refusal,
-        LateFailure.CHILD_CREATE_FAILED,
-        _late_park_state.PARK_CHILDREN_FAILED,
-    )
-    return True
 
 
 def _published_split(
@@ -435,7 +328,7 @@ def _retired_split(
         return _late_outcome._finished(
             context, _parked_undone(context, undone),
         )
-    ended = _handed_to_children(context, plan, branch)
+    ended = _late_retirement._handed_to_children(context, plan, branch)
     if ended is not None:
         return _late_outcome._finished(context, ended)
     _reclaimed_or_held(context, branch)
@@ -477,7 +370,7 @@ def _reclaimed_or_held(context: _LateContext, branch: str) -> None:
     """
     held = _publication_holds(context)
     if not held:
-        _reclaimed_branch(context, branch)
+        _late_retirement._reclaimed_branch(context, branch)
         return
     log.error(_HELD_BACK_RECLAMATION, context.issue.number, held, branch)
 
@@ -496,54 +389,6 @@ def _stopped_publishing(
     if still_wanted is None:
         return None
     return _late_outcome._finished(context, still_wanted)
-
-
-def _refused_split(
-    context: _LateContext, children: tuple,
-) -> str | None:
-    """Why this split may not run at all, or None when it may.
-
-    Four refusals, and each is about state no step below could repair. A
-    lineage at the bound is checked again here even though the verdict was
-    already converted to a question where it was read: this is the transaction
-    that creates a generation, so the cap is enforced where the children would
-    be born as well as where the reply is parsed.
-
-    An ancestry that disagrees with the generation is the second, and it is
-    the same cap read from the other side. A child born of an earlier split
-    carries the lineage it was created under; its own generation is minted
-    from that record, so a generation naming a different root or a shallower
-    depth is one minted without it -- and a shallower depth is exactly how a
-    lineage buys itself another generation past the bound.
-
-    An opaque ledger is the third. A split records a snapshot and one consumer
-    per child on ledgers whose unreadable entries are written back verbatim, so
-    an update merged into the typed view would vanish at the next write --
-    taking with it either the ref nobody would then reclaim or the consumer the
-    reclamation would stop waiting for.
-
-    A manifest declaring one of this orchestrator's own receipt markers is the
-    fourth, and it is refused HERE rather than where the child body is built
-    for two reasons. It is a fact about the manifest, not about one slice: the
-    slice that declares another slice's marker is fine, and it is the other
-    slice's lookup that then finds the wrong issue. And this is the last point
-    at which refusing costs nothing -- past it the snapshot is pushed, and a
-    generation holding a snapshot may no longer be revised, so the same
-    refusal below would need a human where here it needs a new commit.
-    """
-    if not context.generation.may_split:
-        return _AT_BOUND_PARK
-    if context.generation.has_opaque_ledger:
-        return _OPAQUE_LEDGER_PARK
-    contradicted = _lineage.contradicted_lineage(
-        context.state, context.generation,
-    )
-    if contradicted is not None:
-        return _CONTRADICTED_PARK.format(reason=contradicted)
-    forged = _late_children._forged_receipt(children)
-    if forged is not None:
-        return _FORGED_RECEIPT_PARK.format(described=forged)
-    return None
 
 
 def _announced(
@@ -1042,171 +887,6 @@ def _closed_over_notice(
     )
 
 
-def _handed_to_children(
-    context: _LateContext, plan: _SplitPlan, branch: str,
-) -> _LateDisposition | None:
-    """Retire the generation onto `umbrella`, then let the children run.
-
-    One write for the label and the retirement, because the two are the same
-    statement: this issue has no candidate of its own any more. The branch it
-    still owes the remote is recorded in that write as well, so the obligation
-    is durable before the cleanup that reconciles it is attempted -- and the
-    activation that follows can therefore never be waiting on it.
-
-    Reports the disposition that ended the cycle, or None where the children
-    were started. The retirement write is itself a request, and a close
-    landing inside it is the last one this transaction can still catch: past
-    the read below, an agent is running on somebody's repository.
-
-    Activation is last and is best-effort: a child this pass could not flip
-    reads as deps-satisfied on the umbrella's own next walk, which is the
-    retry. It runs through that same walk rather than the initial split's
-    one-shot flip, because by the time it runs a child's state is no longer
-    this transaction's to assume. The supersession above can park for as long
-    as a human takes to settle a pull request, and a child that reached
-    `rejected` or `done` in that window would be flipped back to `ready` by a
-    write that reads nothing -- the transition guard only warns by default, so
-    nothing else would stop it. The walk reads each child fresh and moves only
-    the ones still `blocked` with their recorded dependencies satisfied.
-
-    And the publication is asked about again inside that walk rather than
-    here, immediately in front of each relabel it makes. Here would be one
-    child scan too early: the scan is a request per child, and a walk licensed
-    by a reading taken in front of it would release its second child on
-    evidence taken before its first. A pull request that came back leaves
-    every child exactly where it is -- the umbrella's own walk is the retry,
-    and it asks the same question in the same place on its next tick.
-    """
-    context.generation = _settled_generation(context.generation, branch)
-    # The pull request this issue recorded is closed and carries superseded
-    # work. Left in place it would point every later reader -- and the merged-PR
-    # terminal above all -- at a change the umbrella's children are replacing.
-    context.state.set(_PR_NUMBER, None)
-    context.gh.set_workflow_label(context.issue, WorkflowLabel.UMBRELLA)
-    _late_park_state._persist(context)
-    ended = _late_owner._still_activating(context)
-    if ended is not None:
-        return ended
-    return _activated(context, plan)
-
-
-def _activated(
-    context: _LateContext, plan: _SplitPlan,
-) -> _LateDisposition | None:
-    """Let the children this split may still start, run.
-
-    A read that failed leaves every child where it is. The umbrella's own walk
-    takes the same reading on its next tick, so nothing is lost by declining
-    to guess -- while flipping a child whose state could not be established is
-    the write this exists to avoid.
-
-    The walk asks the latch before every relabel of its own, and what it does
-    with a close it finds there is HOLD the children after it -- it does not
-    own this issue's record. So the answer is asked for again here, and the
-    cycle ends on it: a transaction that reported settled would go on to
-    reclaim the superseded branch, which is external work on an issue this
-    reading says nobody wants, and would leave no mark saying why.
-    """
-    scan = _parents._read_child_labels(
-        context.gh, context.issue, [number for number, _ in plan.created],
-    )
-    if scan is None:
-        log.warning(
-            "issue=#%d could not read its children to activate them; the "
-            "umbrella's own walk retries on the next tick",
-            context.issue.number,
-        )
-        return None
-    _activation._activate_ready_children(
-        context.gh, context.spec, context.issue, context.state, scan,
-    )
-    return _late_owner._latch_stops(context)
-
-
-def _reclaimed_branch(context: _LateContext, branch: str) -> None:
-    """Take the first swing at the superseded branch, and record the answer.
-
-    After activation on purpose: the branch is tidiness with a deadline rather
-    than a precondition, and children held back until a remote delete succeeded
-    would be work stalled on housekeeping. What it does gate is the umbrella's
-    own terminal completion -- which is why a failure is written down rather
-    than logged and forgotten, and why the retry lives on the umbrella
-    (`late_cleanup`) rather than here: an issue this transaction has finished
-    with is one nothing brings back to this owner.
-
-    The local checkout goes with it -- the reclamation takes every surface the
-    branch exists on -- and it is safe here for one reason: the snapshot was
-    created and proved before any of this, so the commit the worktree holds is
-    no longer the only copy. A worktree left on a superseded branch is not
-    merely untidy: the per-tick base refresh treats it as a pre-PR checkout and
-    accretes merges onto a branch nobody will publish.
-    """
-    context.generation = _late_cleanup._reclaim_branch(
-        context.gh,
-        context.spec,
-        context.issue.number,
-        context.generation,
-        branch,
-    )
-    deleted = branch not in _late_cleanup._owed_branches(context.generation)
-    if not deleted:
-        _late_outcome._emit_failure(context, LateFailure.BRANCH_CLEANUP_FAILED)
-    _late_park_state._persist(context)
-    _emit_cleanup(context, branch, deleted)
-
-
-def _settled_generation(
-    generation: LateGeneration, branch: str,
-) -> LateGeneration:
-    """What is left of a generation whose candidate became children.
-
-    The measurement is what goes. A parent that has become an umbrella has no
-    candidate to measure -- the work is its children's now -- and keeping the
-    reading would leave the record answering "oversized", which is the one
-    thing that pins `workflow:decomposing` and would put the umbrella label
-    back on every tick.
-
-    Everything a later reader still needs stays. The identity is what a
-    cleanup record is correlated by, the commits are what the snapshot
-    preserves, and both ledgers are what the remote is still owed -- including
-    the branch this write is recording as owed for the first time. The ordered
-    child register stays with them: it is what says which child owns which
-    slice of the manifest, and a transaction re-entered against a retired
-    generation has to adopt them rather than open a second set.
-
-    And the publication group stays, which is the one part of this that is
-    about a question rather than an obligation. Everything the supersession
-    licenses is not finished when this write lands: children are still to be
-    released and a branch is still to be deleted, and both run on later ticks
-    under `umbrella`, where nothing else on the issue could say which pull
-    request this split closed or what head it closed over. Dropping the group
-    here would leave those two steps with nothing to re-ask, so a change
-    somebody reopened afterwards would have its branch deleted under it and
-    its work handed to children anyway. It costs no live adjudication: what
-    pins `workflow:decomposing` is the measurement, and that is what goes.
-    """
-    owed = _late_cleanup._record_branch_obligation(generation, branch)
-    return LateGeneration(
-        cycle_id=owed.cycle_id,
-        generation=owed.generation,
-        root_issue=owed.root_issue,
-        current_issue=owed.current_issue,
-        lineage_depth=owed.lineage_depth,
-        scope=owed.scope,
-        candidate_sha=owed.candidate_sha,
-        base_sha=owed.base_sha,
-        phase=LatePhase.CLEANING_UP,
-        post_publication=owed.post_publication,
-        source_stage=owed.source_stage,
-        published_pr_number=owed.published_pr_number,
-        published_sha=owed.published_sha,
-        resources=owed.resources,
-        consumers=owed.consumers,
-        split_children=owed.split_children,
-        links_announced=owed.links_announced,
-    )
-
-
 def _recorded_resource(
     context: _LateContext,
     kind: LateResourceKind,
@@ -1258,28 +938,6 @@ def _unsuperseded(
     return False
 
 
-def _emit_cleanup(
-    context: _LateContext, branch: str, deleted: bool,
-) -> None:
-    """Report what happened to the superseded branch, on both sinks."""
-    _telemetry.emit_late_event(
-        context.gh,
-        _events.LateEvent(
-            family=_events.LateEventFamily.CLEANUP,
-            resource=LateResource(
-                kind=LateResourceKind.BRANCH,
-                target=branch,
-                resource_state=(
-                    LateResourceState.RECONCILED if deleted
-                    else LateResourceState.FAILED
-                ),
-            ),
-        ),
-        context.generation,
-        stage=_DECOMPOSING_STAGE,
-    )
-
-
 def _child_lines(plan: _SplitPlan) -> str:
     """The forward links one split owes every reader of it."""
     return "\n".join(
@@ -1293,3 +951,15 @@ def _parked(
     """Hand the issue back with the recorded verdict and ledgers standing."""
     _late_outcome._emit_failure(context, failure)
     _late_parks._park(context, message, reason=reason)
+
+
+def _run_late_split(
+    context: _LateContext, finished: _LateAdjudicationRun,
+) -> _LateAdjudicationRun:
+    """Prepare the durable split, then publish and retire it in guarded order."""
+    prepared = _late_split_preparation._prepare_split(context, finished)
+    if isinstance(prepared, _LateAdjudicationRun):
+        return prepared
+    return _published_split(
+        context, finished, prepared.plan, prepared.snapshot_ref,
+    )

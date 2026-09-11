@@ -850,7 +850,14 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             budget the slice was proposed at -- stated BESIDE the declared scope rather than
                             folded into it, with the paths that estimate covers named, and dropped entirely for a
                             slice nobody sized
-      late_transaction.py   the order a cleared split runs in: the four refusals no step below could repair, the
+      late_split_preparation.py
+                            validate the manifest and ledgers before publishing a snapshot, prove that immutable
+                            ref before creating any child, and return the durable children and ref together; an
+                            owner close or an unprovable step leaves the transaction at the boundary it reached
+      late_retirement.py    retire the generation with the umbrella label before activating children through
+                            the shared guarded walk, then reconcile the recorded branch obligation; cleanup
+                            failures remain on the ledger for the umbrella terminal to retry
+      late_transaction.py   the order a cleared split runs in: preparation rejects inadmissible state, proves the
                             snapshot before any child, the owner re-read before every step the remote keeps -- the
                             same guard the handoff took, taken between the children and again between the
                             announcement, the supersession, and the retirement, since a close a poll saw while this

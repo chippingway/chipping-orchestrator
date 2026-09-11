@@ -20,7 +20,7 @@ and 29578 subtests passed. The skipped tests require the optional dashboard depe
 
 - [x] Establish the worktree and passing baseline.
 - [x] Remove the late-park replacement exemption.
-- [ ] Restore WPS235 defaults across production and test imports.
+- [x] Restore WPS235 defaults across production and test imports.
 - [ ] Record the final exemption and acceptance audit.
 
 The late-park split preserves all 15 function bodies apart from direct owner references. Its three owners pass
@@ -51,6 +51,12 @@ Late adjudication now has separate admission, attempt-accounting, execution, and
 coordinator retains the ordered routing and recorded-answer reuse. The five owners pass all isolated WPS
 defaults, removing both existing coordinator mappings (WPS201 and WPS202). Full checks pass with 6216 passed,
 49 skipped, and the same 6265 test identities. Only the split transaction remains above the WPS235 default.
+
+The split transaction now delegates snapshot/child preparation and guarded retirement to focused owners;
+its publication and crash barriers stay ordered in the transaction. All 102 original WPS235 violations are
+resolved, and the global ceiling override is removed. The two new owners pass all isolated WPS defaults.
+Full validation with the default ceiling: 6216 passed, 49 skipped, 29862 subtests passed; collected test
+identities remain unchanged.
 
 ## Scope and dependencies
 

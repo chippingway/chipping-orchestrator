@@ -1,9 +1,4 @@
 [flake8]
-# WPS235's ceiling on the names one `from ... import` may carry, raised from
-# the default 8. Sorted imports merge every statement reading from one module
-# into one, so the count measures what a module is read for, not how the read
-# is spelled; 30 is headroom over the widest such read.
-max-import-from-members = 30
 # Exact-path waivers, one per diagnostic a deliberate package API or a cohesive
 # domain owner still reports. No globs, so neighboring and future files stay
 # held to the rule. docs/configuration/operations.md states what earns an entry.

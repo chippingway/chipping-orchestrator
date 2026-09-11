@@ -18,7 +18,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.stages.decomposition import (
-    late_transaction as _late_transaction,
+    late_retirement as _late_retirement,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
@@ -184,7 +184,7 @@ class PublishedSupersessionBoundaryTest(PublishedSplitCase, unittest.TestCase):
         with self.assertRaises(KeyboardInterrupt):
             self._transact(
                 generation=self.generation,
-                killed=killed_before(_late_transaction, "_handed_to_children"),
+                killed=killed_before(_late_retirement, "_handed_to_children"),
             )
         self.assertEqual(self.published_pr.state, PR_CLOSED)
 
