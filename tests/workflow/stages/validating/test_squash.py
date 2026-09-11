@@ -11,18 +11,8 @@ from orchestrator.git.publication import models as _publication
 from orchestrator.git.publication.models import _SquashOutcome
 from tests.support.fakes import FakePRRef
 from tests.workflow.fixtures import REVIEW_APPROVED_MESSAGE, _agent
-from tests.workflow.stages.validating.squash_approval_support import (
-    APPROVAL_ISSUE,
-    AWAITING_HUMAN,
-    LABEL_DOCUMENTING,
-    PARK_MEASUREMENT_FAILED,
-    PARK_REASON,
-    REVIEWED_SHA,
-    SQUASH_ON_APPROVAL,
-    SQUASHED_SHA,
-    _MeasurementPark,
-    _SquashApprovalFixtureMixin,
-)
+from tests.workflow.stages.validating import squash_approval_support as _support
+from tests.workflow.stages.validating.squash_approval_support import _MeasurementPark, _SquashApprovalFixtureMixin
 
 # The two sentences a notice about somewhere ELSE may not carry: the ordinary
 # failure's, which puts the approved commits at HEAD, and the collapse's,
@@ -50,7 +40,7 @@ class SquashOnApprovalTest(
         mocks_v = self._run_squash_approval(
             gh,
             issue,
-            (True, SQUASHED_SHA, 3, None),
+            (True, _support.SQUASHED_SHA, 3, None),
         )
 
         # Squash helper was called exactly once on the approval path.
@@ -108,11 +98,11 @@ class SquashOnApprovalTest(
 
         self._run_squash_approval(github, issue, _MeasurementPark())
 
-        state = github.pinned_data(APPROVAL_ISSUE)
-        self.assertTrue(state[AWAITING_HUMAN])
-        self.assertEqual(state[PARK_REASON], PARK_MEASUREMENT_FAILED)
+        state = github.pinned_data(_support.APPROVAL_ISSUE)
+        self.assertTrue(state[_support.AWAITING_HUMAN])
+        self.assertEqual(state[_support.PARK_REASON], _support.PARK_MEASUREMENT_FAILED)
         self.assertNotIn(
-            (APPROVAL_ISSUE, LABEL_DOCUMENTING), github.label_history,
+            (_support.APPROVAL_ISSUE, _support.LABEL_DOCUMENTING), github.label_history,
         )
 
     def test_squash_off_preserves_legacy_behavior(self) -> None:
@@ -125,15 +115,15 @@ class SquashOnApprovalTest(
         # Make pr.head.sha match REVIEWED_SHA -- legacy path: the local
         # HEAD the reviewer saw is what the remote PR points at, since no
         # force-push happened.
-        pr.head = FakePRRef(sha=REVIEWED_SHA)
+        pr.head = FakePRRef(sha=_support.REVIEWED_SHA)
 
-        with patch.object(config, SQUASH_ON_APPROVAL, False):
+        with patch.object(config, _support.SQUASH_ON_APPROVAL, False):
             mocks = self._run_validating(
                 gh,
                 issue,
                 run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
-                head_shas=(REVIEWED_SHA,),
-                squash_result=(True, REVIEWED_SHA, 0, None),
+                head_shas=(_support.REVIEWED_SHA,),
+                squash_result=(True, _support.REVIEWED_SHA, 0, None),
             )
 
         mocks["_squash_and_force_push"].assert_called_once()
@@ -142,7 +132,7 @@ class SquashOnApprovalTest(
             self.assertNotIn(":package: squashed", body)
         # And the legacy approval flow flips to `documenting` (the
         # final-docs hop) regardless of SQUASH_ON_APPROVAL.
-        self.assertIn((APPROVAL_ISSUE, LABEL_DOCUMENTING), gh.label_history)
+        self.assertIn((_support.APPROVAL_ISSUE, _support.LABEL_DOCUMENTING), gh.label_history)
 
     def test_single_commit_posts_no_notice(self) -> None:
         # The helper returns `squashed_count=0` when there's only one
@@ -150,23 +140,23 @@ class SquashOnApprovalTest(
         # must skip the squash PR comment (the helper returns the same
         # SHA back).
         gh, issue, pr = self._setup()
-        pr.head = FakePRRef(sha=REVIEWED_SHA)
+        pr.head = FakePRRef(sha=_support.REVIEWED_SHA)
 
-        with patch.object(config, SQUASH_ON_APPROVAL, True):
+        with patch.object(config, _support.SQUASH_ON_APPROVAL, True):
             self._run_validating(
                 gh,
                 issue,
                 run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
-                head_shas=(REVIEWED_SHA,),
+                head_shas=(_support.REVIEWED_SHA,),
                 # Helper success no-op: nothing to squash.
-                squash_result=(True, REVIEWED_SHA, 0, None),
+                squash_result=(True, _support.REVIEWED_SHA, 0, None),
             )
 
         for _, body in gh.posted_pr_comments:
             self.assertNotIn(":package: squashed", body)
         # Approval still flips to `documenting` (the final-docs hop)
         # even when there's only one commit (so no squash notice).
-        self.assertIn((APPROVAL_ISSUE, LABEL_DOCUMENTING), gh.label_history)
+        self.assertIn((_support.APPROVAL_ISSUE, _support.LABEL_DOCUMENTING), gh.label_history)
 
 
 class SquashParkNoticeTest(

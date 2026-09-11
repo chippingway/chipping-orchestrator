@@ -25,21 +25,8 @@ from tests.workflow.fixtures import (
     _issue_branch,
     _PatchedWorkflowMixin,
 )
-from tests.workflow.stages.implementing.read_only_relabel_test_support import (
-    COUNT_ADDED_LINES,
-    DEV_SESSION,
-    ENSURE_PR_WORKTREE,
-    ENSURE_WORKTREE,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    KEY_READ_ONLY_BASELINE,
-    KEY_ROUND_SHA,
-    PARK_DISCUSSION_RESPONSE,
-    PUSH_BRANCH,
-    RUN_AGENT,
-    _ReadOnlyRelabelMixin,
-    _seed_relabeled_discussion,
-)
+from tests.workflow.stages.implementing import read_only_relabel_test_support as _support
+from tests.workflow.stages.implementing.read_only_relabel_test_support import _ReadOnlyRelabelMixin
 
 # Both ends of the comparison a disposition attributes work by, each seeded
 # unread in turn. The third reading is the disposition's own; the second is
@@ -47,11 +34,11 @@ from tests.workflow.stages.implementing.read_only_relabel_test_support import (
 _UNREADABLE_ENDS = (
     (
         "the tip the run started at",
-        (HEAD_BEFORE_ROUND, "", HEAD_AFTER_COMMIT),
+        (_support.HEAD_BEFORE_ROUND, "", _support.HEAD_AFTER_COMMIT),
     ),
     (
         "the tip the run ended on",
-        (HEAD_BEFORE_ROUND, HEAD_BEFORE_ROUND, ""),
+        (_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, ""),
     ),
 )
 
@@ -75,22 +62,22 @@ class ReadOnlyHandoffTest(
         # ahead-of-base is still true and reading only that would push them,
         # open a PR over them, and route the issue to review -- publishing the
         # design's predecessor as the answer to the question just asked.
-        gh, issue = _seed_relabeled_discussion(
-            _ANSWERED_ISSUE_NUMBER, PARK_DISCUSSION_RESPONSE,
+        gh, issue = _support._seed_relabeled_discussion(
+            _ANSWERED_ISSUE_NUMBER, _support.PARK_DISCUSSION_RESPONSE,
         )
 
         mocks = self._run_implementing_on_worktree(
             gh,
             issue,
             unpushed_branch=_issue_branch(issue.number),
-            run_agent=_agent(session_id=DEV_SESSION, last_message="which store?"),
+            run_agent=_agent(session_id=_support.DEV_SESSION, last_message="which store?"),
             has_new_commits=True,
-            branch_tip_sha=HEAD_BEFORE_ROUND,
-            head_shas=(HEAD_BEFORE_ROUND,) * 3,
+            branch_tip_sha=_support.HEAD_BEFORE_ROUND,
+            head_shas=(_support.HEAD_BEFORE_ROUND,) * 3,
         )
 
-        mocks[RUN_AGENT].assert_called_once()
-        mocks[PUSH_BRANCH].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_called_once()
+        mocks[_support.PUSH_BRANCH].assert_not_called()
         self.assertEqual(gh.opened_prs, [])
         self.assertEqual(gh.label_history, [])
         pinned_data = gh.pinned_data(issue.number)
@@ -108,8 +95,8 @@ class ReadOnlyHandoffTest(
         # before the agent ever starts.
         for unread, heads in _UNREADABLE_ENDS:
             with self.subTest(unread=unread):
-                gh, issue = _seed_relabeled_discussion(
-                    _UNREADABLE_ISSUE_NUMBER, PARK_DISCUSSION_RESPONSE,
+                gh, issue = _support._seed_relabeled_discussion(
+                    _UNREADABLE_ISSUE_NUMBER, _support.PARK_DISCUSSION_RESPONSE,
                 )
 
                 mocks = self._run_implementing_on_worktree(
@@ -117,16 +104,16 @@ class ReadOnlyHandoffTest(
                     issue,
                     unpushed_branch=_issue_branch(issue.number),
                     run_agent=_agent(
-                        session_id=DEV_SESSION, last_message=_IMPLEMENTED,
+                        session_id=_support.DEV_SESSION, last_message=_IMPLEMENTED,
                     ),
                     has_new_commits=True,
-                    branch_tip_sha=HEAD_BEFORE_ROUND,
+                    branch_tip_sha=_support.HEAD_BEFORE_ROUND,
                     head_shas=heads,
                 )
 
-                mocks[RUN_AGENT].assert_called_once()
-                mocks[PUSH_BRANCH].assert_not_called()
-                mocks[COUNT_ADDED_LINES].assert_not_called()
+                mocks[_support.RUN_AGENT].assert_called_once()
+                mocks[_support.PUSH_BRANCH].assert_not_called()
+                mocks[_support.COUNT_ADDED_LINES].assert_not_called()
                 self.assertEqual(gh.opened_prs, [])
                 self.assertEqual(gh.label_history, [])
                 self.assertTrue(
@@ -140,8 +127,8 @@ class ReadOnlyHandoffTest(
         # has to already be durable: read back, a surviving park plus anchor
         # would meet the dev's own commit sitting past that anchor and convict
         # it as a read-only violation, with a reset that discards the work.
-        gh, issue = _seed_relabeled_discussion(
-            _INTERRUPTED_ISSUE_NUMBER, PARK_DISCUSSION_RESPONSE,
+        gh, issue = _support._seed_relabeled_discussion(
+            _INTERRUPTED_ISSUE_NUMBER, _support.PARK_DISCUSSION_RESPONSE,
         )
 
         mocks = self._run_implementing_on_worktree(
@@ -150,21 +137,21 @@ class ReadOnlyHandoffTest(
             unpushed_branch=_issue_branch(issue.number),
             run_agent=_agent(interrupted=True, last_message="cut short"),
             has_new_commits=True,
-            branch_tip_sha=HEAD_BEFORE_ROUND,
-            head_shas=(HEAD_BEFORE_ROUND, HEAD_BEFORE_ROUND, HEAD_AFTER_COMMIT),
+            branch_tip_sha=_support.HEAD_BEFORE_ROUND,
+            head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         # Nothing published: the interrupted result is not trustworthy.
-        mocks[PUSH_BRANCH].assert_not_called()
+        mocks[_support.PUSH_BRANCH].assert_not_called()
         self.assertEqual(gh.opened_prs, [])
         # But the accepted handoff survived the dropped tick.
         pinned_data = gh.pinned_data(issue.number)
         self.assertFalse(pinned_data.get(KEY_AWAITING_HUMAN))
         self.assertIsNone(pinned_data.get(KEY_PARK_REASON))
-        self.assertIsNone(pinned_data.get(KEY_ROUND_SHA))
+        self.assertIsNone(pinned_data.get(_support.KEY_ROUND_SHA))
         self.assertEqual(
-            pinned_data.get(KEY_READ_ONLY_BASELINE), HEAD_BEFORE_ROUND,
+            pinned_data.get(_support.KEY_READ_ONLY_BASELINE), _support.HEAD_BEFORE_ROUND,
         )
 
     def test_publishing_retires_the_baseline(self) -> None:
@@ -173,24 +160,24 @@ class ReadOnlyHandoffTest(
         # has committed there is work to publish either way, and a baseline
         # left in pinned state would keep the branch frozen through review and
         # beyond -- long after anything reads it.
-        gh, issue = _seed_relabeled_discussion(
-            _PUBLISHED_ISSUE_NUMBER, PARK_DISCUSSION_RESPONSE,
+        gh, issue = _support._seed_relabeled_discussion(
+            _PUBLISHED_ISSUE_NUMBER, _support.PARK_DISCUSSION_RESPONSE,
         )
 
         mocks = self._run_implementing_on_worktree(
             gh,
             issue,
             unpushed_branch=_issue_branch(issue.number),
-            run_agent=_agent(session_id=DEV_SESSION, last_message=_IMPLEMENTED),
+            run_agent=_agent(session_id=_support.DEV_SESSION, last_message=_IMPLEMENTED),
             has_new_commits=True,
-            branch_tip_sha=HEAD_BEFORE_ROUND,
-            head_shas=(HEAD_BEFORE_ROUND, HEAD_BEFORE_ROUND, HEAD_AFTER_COMMIT),
+            branch_tip_sha=_support.HEAD_BEFORE_ROUND,
+            head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         self.assertEqual(len(gh.opened_prs), 1)
         self.assertIsNone(
-            gh.pinned_data(issue.number).get(KEY_READ_ONLY_BASELINE),
+            gh.pinned_data(issue.number).get(_support.KEY_READ_ONLY_BASELINE),
         )
 
     def test_a_pr_backed_handoff_restores_from_the_pr(self) -> None:
@@ -199,9 +186,9 @@ class ReadOnlyHandoffTest(
         # rebuild the checkout. Rebuilding a PR-backed branch from
         # `<remote>/<base>` would hand the dev an empty tree, and publication
         # would then force-push that over the commits the PR is open against.
-        gh, issue = _seed_relabeled_discussion(
+        gh, issue = _support._seed_relabeled_discussion(
             _PR_HANDOFF_ISSUE_NUMBER,
-            PARK_DISCUSSION_RESPONSE,
+            _support.PARK_DISCUSSION_RESPONSE,
             branch=_issue_branch(_PR_HANDOFF_ISSUE_NUMBER),
             pr_number=_HANDOFF_PR_NUMBER,
         )
@@ -214,17 +201,17 @@ class ReadOnlyHandoffTest(
             gh,
             issue,
             unpushed_branch=None,
-            run_agent=_agent(session_id=DEV_SESSION, last_message=_IMPLEMENTED),
+            run_agent=_agent(session_id=_support.DEV_SESSION, last_message=_IMPLEMENTED),
             has_new_commits=[False, True],
-            branch_tip_sha=HEAD_BEFORE_ROUND,
-            head_shas=(HEAD_BEFORE_ROUND, HEAD_BEFORE_ROUND, HEAD_AFTER_COMMIT),
+            branch_tip_sha=_support.HEAD_BEFORE_ROUND,
+            head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
         )
 
-        mocks[ENSURE_PR_WORKTREE].assert_called_once_with(
+        mocks[_support.ENSURE_PR_WORKTREE].assert_called_once_with(
             _TEST_SPEC, issue.number, branch=_issue_branch(issue.number),
         )
-        mocks[ENSURE_WORKTREE].assert_not_called()
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.ENSURE_WORKTREE].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_called_once()
 
 
 if __name__ == "__main__":

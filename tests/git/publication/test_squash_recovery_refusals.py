@@ -20,26 +20,12 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.workflow.late_split import collapses as _collapses
-from tests.git.publication import squash_git_support as squash_support
+from tests.git.publication import squash_git_support as squash_support, squash_recovery_support as _support
 from tests.git.publication.squash_gate_support import (
     SQUASH_PR_NUMBER,
     TRACKED_FILE,
 )
-from tests.git.publication.squash_recovery_support import (
-    ABSENT_HEAD,
-    APPROVED_COMMITS,
-    BRANCH_BURIED,
-    BRANCH_COLLAPSED,
-    BRANCH_INTACT,
-    BRANCH_UNKNOWN,
-    COLLAPSED_COMMITS,
-    DECOMPOSE,
-    KEY_COLLAPSE_BASE_SHA,
-    KEY_COLLAPSE_COUNT,
-    KEY_COLLAPSE_HEAD,
-    MOVED_HEAD,
-    SquashRecoveryMixin,
-)
+from tests.git.publication.squash_recovery_support import SquashRecoveryMixin
 
 # A count no history in these fixtures has, which is what a hand-edited or
 # foreign record's own reads back as.
@@ -77,14 +63,14 @@ class RefusedResumeRealGitTest(
         gate = self._gate_subject()
         accepted = self._head_sha()
         self._crashes_after_the_commit(gate)
-        gate.gh.get_pr(SQUASH_PR_NUMBER).head.sha = MOVED_HEAD
+        gate.gh.get_pr(SQUASH_PR_NUMBER).head.sha = _support.MOVED_HEAD
 
         squash_run = self._squashes(self._next_tick(gate))
 
         self.assertIsNotNone(squash_run.error)
         squash_run.push_mock.assert_not_called()
         self.assertEqual(self._head_sha(), accepted)
-        self._assert_branch_carries(APPROVED_COMMITS)
+        self._assert_branch_carries(_support.APPROVED_COMMITS)
 
     def test_an_untouched_branch_says_it_is_untouched(self) -> None:
         # The terms go down BEFORE the reset, so a record standing over a
@@ -100,9 +86,9 @@ class RefusedResumeRealGitTest(
         squash_run = self._squashes(self._next_tick(gate))
 
         self.assertIsNotNone(squash_run.error)
-        self.assertEqual(squash_run.standing, BRANCH_INTACT)
+        self.assertEqual(squash_run.standing, _support.BRANCH_INTACT)
         self.assertEqual(self._head_sha(), accepted)
-        self._assert_branch_carries(APPROVED_COMMITS)
+        self._assert_branch_carries(_support.APPROVED_COMMITS)
 
     def test_a_dirty_tree_leaves_the_record_standing(self) -> None:
         # The preconditions refuse before the record is even read, so the
@@ -115,8 +101,8 @@ class RefusedResumeRealGitTest(
 
         self.assertIsNotNone(squash_run.error)
         squash_run.push_mock.assert_not_called()
-        self._assert_branch_carries(COLLAPSED_COMMITS)
-        self.assertIn(KEY_COLLAPSE_HEAD, self._pinned(gate))
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, self._pinned(gate))
 
 
 class MovedBranchRealGitTest(
@@ -155,14 +141,14 @@ class MovedBranchRealGitTest(
         squash_run.push_mock.assert_not_called()
         self.assertEqual(self._head_sha(), buried)
         pinned = self._pinned(gate)
-        self.assertIn(KEY_COLLAPSE_HEAD, pinned)
-        self.assertEqual(pinned[KEY_COLLAPSE_COUNT], APPROVED_COMMITS)
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, pinned)
+        self.assertEqual(pinned[_support.KEY_COLLAPSE_COUNT], _support.APPROVED_COMMITS)
         # The approved commits are under the stray work, and both halves of
         # what the caller says have to agree with that: the error names where
         # the branch went, and the reading places it there rather than in a
         # reflog an operator would search past them.
         self.assertIn(STILL_REACHABLE, squash_run.error)
-        self.assertEqual(squash_run.standing, BRANCH_BURIED)
+        self.assertEqual(squash_run.standing, _support.BRANCH_BURIED)
 
     def test_a_replaced_head_is_not_buried(self) -> None:
         # The same several commits, and the recorded head is the one thing
@@ -183,12 +169,12 @@ class MovedBranchRealGitTest(
         squash_run.push_mock.assert_not_called()
         self.assertEqual(self._head_sha(), over)
         pinned = self._pinned(gate)
-        self.assertIn(KEY_COLLAPSE_HEAD, pinned)
-        self.assertEqual(pinned[KEY_COLLAPSE_COUNT], APPROVED_COMMITS)
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, pinned)
+        self.assertEqual(pinned[_support.KEY_COLLAPSE_COUNT], _support.APPROVED_COMMITS)
         # And here they are only in the reflog, which is the other notice --
         # the recorded head is not reachable from this branch at all.
         self.assertIn(REPLACED, squash_run.error)
-        self.assertEqual(squash_run.standing, BRANCH_COLLAPSED)
+        self.assertEqual(squash_run.standing, _support.BRANCH_COLLAPSED)
 
 
 class UnprovableCollapseRealGitTest(
@@ -214,7 +200,7 @@ class UnprovableCollapseRealGitTest(
         self._crashes_after_the_commit(gate)
         squashed = self._head_sha()
         resumed = self._next_tick(gate)
-        resumed.state.set(KEY_COLLAPSE_BASE_SHA, ABSENT_HEAD)
+        resumed.state.set(_support.KEY_COLLAPSE_BASE_SHA, _support.ABSENT_HEAD)
 
         squash_run = self._squashes(resumed)
 
@@ -229,7 +215,7 @@ class UnprovableCollapseRealGitTest(
         gate = self._gate_subject()
         self._crashes_after_the_commit(gate)
         resumed = self._next_tick(gate)
-        resumed.state.set(KEY_COLLAPSE_COUNT, FORGED_COUNT)
+        resumed.state.set(_support.KEY_COLLAPSE_COUNT, FORGED_COUNT)
 
         squash_run = self._squashes(resumed)
 
@@ -255,7 +241,7 @@ class UnprovableCollapseRealGitTest(
         # commits the reviewer approved, so a human is not sent looking for
         # them at HEAD -- and the head the record names is an object this host
         # holds, so the reflog entry the notice sends them to resolves.
-        self.assertEqual(squash_run.standing, BRANCH_COLLAPSED)
+        self.assertEqual(squash_run.standing, _support.BRANCH_COLLAPSED)
 
     def test_a_missing_head_is_never_called_stale(self) -> None:
         # Several commits on the branch say nothing about where the recorded
@@ -271,14 +257,14 @@ class UnprovableCollapseRealGitTest(
         # claims stand between it and a force-push.
         gate.gh.get_pr(SQUASH_PR_NUMBER).head.sha = buried
         resumed = self._next_tick(gate)
-        resumed.state.set(KEY_COLLAPSE_HEAD, ABSENT_HEAD)
+        resumed.state.set(_support.KEY_COLLAPSE_HEAD, _support.ABSENT_HEAD)
 
         squash_run = self._squashes(resumed)
 
         self.assertIsNotNone(squash_run.error)
         squash_run.push_mock.assert_not_called()
         self.assertEqual(self._head_sha(), buried)
-        self.assertIn(KEY_COLLAPSE_HEAD, self._pinned(gate))
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, self._pinned(gate))
 
     def test_a_missing_base_is_never_called_stale(self) -> None:
         gate = self._gate_subject()
@@ -287,7 +273,7 @@ class UnprovableCollapseRealGitTest(
         buried = self._head_sha()
         gate.gh.get_pr(SQUASH_PR_NUMBER).head.sha = buried
         resumed = self._next_tick(gate)
-        resumed.state.set(KEY_COLLAPSE_BASE_SHA, ABSENT_HEAD)
+        resumed.state.set(_support.KEY_COLLAPSE_BASE_SHA, _support.ABSENT_HEAD)
 
         squash_run = self._squashes(resumed)
 
@@ -311,7 +297,7 @@ class UnprovableCollapseRealGitTest(
 
         self.assertIsNotNone(squash_run.error)
         squash_run.push_mock.assert_not_called()
-        self._assert_branch_carries(COLLAPSED_COMMITS)
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
 
     def test_an_unreadable_tree_is_never_handed_on(self) -> None:
         # The road that hands the branch BACK to the ordinary squash is the
@@ -328,15 +314,15 @@ class UnprovableCollapseRealGitTest(
             _verification_probes, STATUS_HELPER,
             MagicMock(return_value=UNREADABLE_TREE),
         ):
-            squash_run = self._squashes(resumed, **{DECOMPOSE: False})
+            squash_run = self._squashes(resumed, **{_support.DECOMPOSE: False})
 
         self.assertIsNotNone(squash_run.error)
         squash_run.push_mock.assert_not_called()
         self.assertEqual(self._head_sha(), accepted)
-        self._assert_branch_carries(APPROVED_COMMITS)
+        self._assert_branch_carries(_support.APPROVED_COMMITS)
         # And the claim is left standing rather than dropped on the way past,
         # which is what says the refusal came from the classification itself.
-        self.assertIn(KEY_COLLAPSE_HEAD, self._pinned(gate))
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, self._pinned(gate))
 
 
 class ForgedCollapseRealGitTest(
@@ -367,7 +353,7 @@ class ForgedCollapseRealGitTest(
         self.assertIsNotNone(squash_run.error)
         squash_run.push_mock.assert_not_called()
         self.assertEqual(self._head_sha(), forged)
-        self.assertIn(KEY_COLLAPSE_HEAD, self._pinned(gate))
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, self._pinned(gate))
 
     def test_an_unrelated_base_is_never_published(self) -> None:
         # A walk between two histories that never met reports a number like
@@ -399,7 +385,7 @@ class ForgedCollapseRealGitTest(
         self._crashes_after_the_commit(gate)
         squashed = self._head_sha()
         resumed = self._next_tick(gate)
-        resumed.state.set(KEY_COLLAPSE_HEAD, squashed)
+        resumed.state.set(_support.KEY_COLLAPSE_HEAD, squashed)
 
         squash_run = self._squashes(resumed)
 
@@ -407,9 +393,9 @@ class ForgedCollapseRealGitTest(
         self.assertIsNotNone(squash_run.error)
         squash_run.push_mock.assert_not_called()
         self.assertEqual(self._head_sha(), squashed)
-        self._assert_branch_carries(COLLAPSED_COMMITS)
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
         # And the claim is left standing rather than dropped on the way past.
-        self.assertIn(KEY_COLLAPSE_HEAD, self._pinned(gate))
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, self._pinned(gate))
 
     def _records_an_unrelated_base(self, resumed, head: str) -> None:
         """Swap the recorded base for one this head never grew from.
@@ -422,8 +408,8 @@ class ForgedCollapseRealGitTest(
         counted = squash_support.run_git(
             "rev-list", "--count", f"{orphan}..{head}", cwd=self.work,
         )
-        resumed.state.set(KEY_COLLAPSE_BASE_SHA, orphan)
-        resumed.state.set(KEY_COLLAPSE_COUNT, int(counted.strip()))
+        resumed.state.set(_support.KEY_COLLAPSE_BASE_SHA, orphan)
+        resumed.state.set(_support.KEY_COLLAPSE_COUNT, int(counted.strip()))
 
 
 class DiscardedCollapseRealGitTest(
@@ -448,7 +434,7 @@ class DiscardedCollapseRealGitTest(
         self.assertFalse(squash_run.success)
         self.assertIsNotNone(squash_run.error)
         squash_run.push_mock.assert_not_called()
-        self.assertIn(KEY_COLLAPSE_HEAD, self._pinned(gate))
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, self._pinned(gate))
 
     def test_a_half_made_collapse_refuses(self) -> None:
         # The seam between the reset and the commit: HEAD is the base and
@@ -463,9 +449,9 @@ class DiscardedCollapseRealGitTest(
 
         self.assertFalse(squash_run.success)
         self.assertIsNotNone(squash_run.error)
-        self.assertEqual(squash_run.standing, BRANCH_COLLAPSED)
+        self.assertEqual(squash_run.standing, _support.BRANCH_COLLAPSED)
         squash_run.push_mock.assert_not_called()
-        self.assertIn(KEY_COLLAPSE_HEAD, self._pinned(gate))
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, self._pinned(gate))
 
 
 class UnusableCollapseRealGitTest(
@@ -490,14 +476,14 @@ class UnusableCollapseRealGitTest(
         self._crashes_after_the_commit(gate)
         resumed = self._next_tick(gate)
         _collapses.clear_pending_collapse(resumed.state)
-        resumed.state.set(KEY_COLLAPSE_HEAD, self._base_sha())
+        resumed.state.set(_support.KEY_COLLAPSE_HEAD, self._base_sha())
 
         squash_run = self._squashes(resumed)
 
         self.assertIsNotNone(squash_run.error)
         self.assertFalse(squash_run.success)
         squash_run.push_mock.assert_not_called()
-        self._assert_branch_carries(COLLAPSED_COMMITS)
+        self._assert_branch_carries(_support.COLLAPSED_COMMITS)
 
     def test_an_absent_head_leaves_the_branch(self) -> None:
         # The rollback needs the recorded head as an object, and one this
@@ -507,7 +493,7 @@ class UnusableCollapseRealGitTest(
         self._crashes_after_the_commit(gate)
         squashed = self._head_sha()
         resumed = self._next_tick(gate)
-        resumed.state.set(KEY_COLLAPSE_HEAD, ABSENT_HEAD)
+        resumed.state.set(_support.KEY_COLLAPSE_HEAD, _support.ABSENT_HEAD)
 
         squash_run = self._squashes(resumed)
 
@@ -517,7 +503,7 @@ class UnusableCollapseRealGitTest(
         # And the notice may not send anybody to it either: what a collapse
         # notice names is the recorded head, and this host holds no object by
         # that id.
-        self.assertEqual(squash_run.standing, BRANCH_UNKNOWN)
+        self.assertEqual(squash_run.standing, _support.BRANCH_UNKNOWN)
 
     def test_an_untouched_branch_is_not_placed(self) -> None:
         # The terms go down BEFORE the reset, so half a record over a branch
@@ -530,14 +516,14 @@ class UnusableCollapseRealGitTest(
         self._crashes_before_the_reset(gate)
         resumed = self._next_tick(gate)
         _collapses.clear_pending_collapse(resumed.state)
-        resumed.state.set(KEY_COLLAPSE_HEAD, accepted)
+        resumed.state.set(_support.KEY_COLLAPSE_HEAD, accepted)
 
         squash_run = self._squashes(resumed)
 
         self.assertIsNotNone(squash_run.error)
-        self.assertEqual(squash_run.standing, BRANCH_UNKNOWN)
+        self.assertEqual(squash_run.standing, _support.BRANCH_UNKNOWN)
         self.assertEqual(self._head_sha(), accepted)
-        self._assert_branch_carries(APPROVED_COMMITS)
+        self._assert_branch_carries(_support.APPROVED_COMMITS)
 
     def test_a_malformed_end_places_nothing_either(self) -> None:
         # A whole-looking group whose head is not an object id at all. It
@@ -547,14 +533,14 @@ class UnusableCollapseRealGitTest(
         accepted = self._head_sha()
         self._crashes_before_the_reset(gate)
         resumed = self._next_tick(gate)
-        resumed.state.set(KEY_COLLAPSE_HEAD, NOT_A_COMMIT)
+        resumed.state.set(_support.KEY_COLLAPSE_HEAD, NOT_A_COMMIT)
 
         squash_run = self._squashes(resumed)
 
         self.assertIsNotNone(squash_run.error)
-        self.assertEqual(squash_run.standing, BRANCH_UNKNOWN)
+        self.assertEqual(squash_run.standing, _support.BRANCH_UNKNOWN)
         self.assertEqual(self._head_sha(), accepted)
-        self._assert_branch_carries(APPROVED_COMMITS)
+        self._assert_branch_carries(_support.APPROVED_COMMITS)
 
 
 if __name__ == "__main__":

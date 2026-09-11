@@ -19,17 +19,8 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git.worktrees import branch_probes, probes
-from tests.git.worktrees.artifact_test_support import (
-    LIFECYCLE_LOGGER,
-    WIDGET_SLUG,
-    _ArtifactWorld,
-    _block_worktrees_root,
-    _break_ref,
-    _legacy_branch,
-    _namespaced_branch,
-    _spec,
-    _worktrees_root,
-)
+from tests.git.worktrees import artifact_test_support as _support
+from tests.git.worktrees.artifact_test_support import _ArtifactWorld
 
 CLONE_NAME = "target"
 NAMESPACED_ISSUE_NUMBER = 4
@@ -61,8 +52,8 @@ class OrchestratorBranchListingTest(unittest.TestCase):
 
     def test_lists_the_namespace_by_branch_name(self) -> None:
         root = self.world.clone(CLONE_NAME)
-        namespaced = _namespaced_branch(WIDGET_SLUG, NAMESPACED_ISSUE_NUMBER)
-        legacy = _legacy_branch(LEGACY_ISSUE_NUMBER)
+        namespaced = _support._namespaced_branch(_support.WIDGET_SLUG, NAMESPACED_ISSUE_NUMBER)
+        legacy = _support._legacy_branch(LEGACY_ISSUE_NUMBER)
         for branch in (namespaced, legacy, UNRELATED_BRANCH):
             self.world.branch(root, branch)
 
@@ -79,7 +70,7 @@ class OrchestratorBranchListingTest(unittest.TestCase):
         # `heads/orchestrator/...` -- a name no derivation produces, which
         # would read as a stranger's branch and drop the issue.
         root = self.world.clone(CLONE_NAME)
-        namespaced = _namespaced_branch(WIDGET_SLUG, NAMESPACED_ISSUE_NUMBER)
+        namespaced = _support._namespaced_branch(_support.WIDGET_SLUG, NAMESPACED_ISSUE_NUMBER)
         self.world.branch(root, namespaced)
         self.world.tag(root, namespaced)
 
@@ -100,7 +91,7 @@ class OrchestratorBranchListingTest(unittest.TestCase):
         plain = self.world.path("not-a-repo")
         plain.mkdir()
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING):
             self.assertIsNone(branch_probes._local_orchestrator_branches(plain))
 
     def test_a_warned_listing_answers_none(self) -> None:
@@ -108,18 +99,18 @@ class OrchestratorBranchListingTest(unittest.TestCase):
         # the same. The branches it did print are a subset nothing marks as
         # one, so the listing is taken as unread rather than as what survived.
         root = self.world.clone(CLONE_NAME)
-        self.world.branch(root, _legacy_branch(LEGACY_ISSUE_NUMBER))
-        _break_ref(
-            root, _namespaced_branch(WIDGET_SLUG, NAMESPACED_ISSUE_NUMBER),
+        self.world.branch(root, _support._legacy_branch(LEGACY_ISSUE_NUMBER))
+        _support._break_ref(
+            root, _support._namespaced_branch(_support.WIDGET_SLUG, NAMESPACED_ISSUE_NUMBER),
         )
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING):
             self.assertIsNone(branch_probes._local_orchestrator_branches(root))
 
     def test_an_unspawnable_read_answers_none(self) -> None:
         # The clone's path does not exist, so the read never runs at all --
         # the failure git itself never gets to report.
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING):
             self.assertIsNone(
                 branch_probes._local_orchestrator_branches(self.world.path("gone")),
             )
@@ -147,7 +138,7 @@ class WorktreeCheckoutNumbersTest(unittest.TestCase):
     def setUp(self) -> None:
         self.world = _ArtifactWorld()
         self.world.prepare(self)
-        self.spec = _spec(WIDGET_SLUG, self.world.clone(CLONE_NAME))
+        self.spec = _support._spec(_support.WIDGET_SLUG, self.world.clone(CLONE_NAME))
 
     def test_no_worktrees_root_holds_nothing(self) -> None:
         # Nothing has ever been checked out for this repository. An
@@ -158,7 +149,7 @@ class WorktreeCheckoutNumbersTest(unittest.TestCase):
 
     def test_only_an_exact_checkout_counts(self) -> None:
         self.world.checkout(self.spec, CHECKOUT_ISSUE_NUMBER)
-        root = _worktrees_root(self.spec)
+        root = _support._worktrees_root(self.spec)
         for name in NON_CHECKOUT_DIRECTORIES:
             (root / name).mkdir()
         # A file named exactly like a checkout is not one either.
@@ -177,7 +168,7 @@ class WorktreeCheckoutNumbersTest(unittest.TestCase):
         foreign = self.world.path(FOREIGN_DIRECTORY)
         foreign.mkdir()
         checkout_name = f"issue-{SYMLINKED_ISSUE_NUMBER}"
-        (_worktrees_root(self.spec) / checkout_name).symlink_to(foreign)
+        (_support._worktrees_root(self.spec) / checkout_name).symlink_to(foreign)
 
         self.assertEqual(
             probes._worktree_issue_numbers(self.spec),
@@ -185,9 +176,9 @@ class WorktreeCheckoutNumbersTest(unittest.TestCase):
         )
 
     def test_an_unlistable_root_answers_none(self) -> None:
-        _block_worktrees_root(self.spec)
+        _support._block_worktrees_root(self.spec)
 
-        with self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING):
             self.assertIsNone(probes._worktree_issue_numbers(self.spec))
 
     def test_an_unreadable_entry_answers_none(self) -> None:
@@ -197,7 +188,10 @@ class WorktreeCheckoutNumbersTest(unittest.TestCase):
         self.world.checkout(self.spec, CHECKOUT_ISSUE_NUMBER)
         unstattable = _UnstattablePath(self.world.worktrees)
 
-        with patch.object(config, "WORKTREES_DIR", unstattable), self.assertLogs(LIFECYCLE_LOGGER, logging.WARNING):
+        with (
+            patch.object(config, "WORKTREES_DIR", unstattable),
+            self.assertLogs(_support.LIFECYCLE_LOGGER, logging.WARNING),
+        ):
             self.assertIsNone(probes._worktree_issue_numbers(self.spec))
 
 

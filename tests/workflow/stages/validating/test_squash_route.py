@@ -22,14 +22,8 @@ from __future__ import annotations
 
 import unittest
 
+from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import (
-    APPROVAL_ISSUE,
-    AWAITING_HUMAN,
-    COLLAPSE_KEY,
-    LABEL_DOCUMENTING,
-    PARK_SQUASH_FAILED,
-    RUN_AGENT,
-    SQUASH_SEAM,
     _CollapseWorldMixin,
     _RefusesTheCollapse,
     _SquashApprovalFixtureMixin,
@@ -39,7 +33,7 @@ from tests.workflow.stages.validating.squash_approval_support import (
 # record nothing can account for may not reach without its park.
 LABEL_FIXING = "workflow:fixing"
 
-HANDED_ON = (APPROVAL_ISSUE, LABEL_DOCUMENTING)
+HANDED_ON = (_support.APPROVAL_ISSUE, _support.LABEL_DOCUMENTING)
 
 
 class PendingCollapseRouteTest(
@@ -55,10 +49,10 @@ class PendingCollapseRouteTest(
 
         mocks = self._lands_a_collapse(github, issue)
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[SQUASH_SEAM].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.SQUASH_SEAM].assert_called_once()
         self.assertIn(HANDED_ON, github.label_history)
-        self.assertNotIn(COLLAPSE_KEY, github.pinned_data(APPROVAL_ISSUE))
+        self.assertNotIn(_support.COLLAPSE_KEY, github.pinned_data(_support.APPROVAL_ISSUE))
 
     def test_an_unaccountable_record_parks_first(self) -> None:
         github, issue = self._approved_issue()
@@ -66,9 +60,9 @@ class PendingCollapseRouteTest(
 
         mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
 
-        mocks[RUN_AGENT].assert_not_called()
-        self.assertTrue(github.pinned_data(APPROVAL_ISSUE)[AWAITING_HUMAN])
-        self.assertNotIn((APPROVAL_ISSUE, LABEL_FIXING), github.label_history)
+        mocks[_support.RUN_AGENT].assert_not_called()
+        self.assertTrue(github.pinned_data(_support.APPROVAL_ISSUE)[_support.AWAITING_HUMAN])
+        self.assertNotIn((_support.APPROVAL_ISSUE, LABEL_FIXING), github.label_history)
         self.assertNotIn(HANDED_ON, github.label_history)
 
     def test_nothing_recorded_still_reviews(self) -> None:
@@ -78,7 +72,7 @@ class PendingCollapseRouteTest(
 
         mocks = self._lands_a_collapse(github, issue)
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
 
     def test_a_drifted_body_waits_for_the_collapse(self) -> None:
         # Ahead of the drift route as well as of the reviewer: resumed on an
@@ -91,8 +85,8 @@ class PendingCollapseRouteTest(
 
         mocks = self._lands_a_collapse(github, issue)
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[SQUASH_SEAM].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.SQUASH_SEAM].assert_called_once()
         self.assertIn(HANDED_ON, github.label_history)
 
     def test_a_gate_park_is_left_alone(self) -> None:
@@ -105,10 +99,10 @@ class PendingCollapseRouteTest(
 
         mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[SQUASH_SEAM].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.SQUASH_SEAM].assert_not_called()
         self.assertEqual(github.posted_comments, [])
-        self.assertTrue(github.pinned_data(APPROVAL_ISSUE)[AWAITING_HUMAN])
+        self.assertTrue(github.pinned_data(_support.APPROVAL_ISSUE)[_support.AWAITING_HUMAN])
 
     def test_its_own_park_is_retried_quietly(self) -> None:
         # What that notice asks for -- a branch reconciled, a comment repaired
@@ -116,12 +110,12 @@ class PendingCollapseRouteTest(
         # so it runs again every tick and mentions nobody a second time.
         github, issue = self._approved_issue()
         self._records_a_collapse(github)
-        self._parks(github, PARK_SQUASH_FAILED)
+        self._parks(github, _support.PARK_SQUASH_FAILED)
 
         mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[SQUASH_SEAM].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.SQUASH_SEAM].assert_called_once()
         self.assertEqual(github.posted_comments, [])
 
     def test_a_human_reply_retries_the_collapse(self) -> None:
@@ -134,9 +128,9 @@ class PendingCollapseRouteTest(
 
         mocks = self._lands_a_collapse(github, issue)
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[SQUASH_SEAM].assert_called_once()
-        self.assertFalse(github.pinned_data(APPROVAL_ISSUE)[AWAITING_HUMAN])
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.SQUASH_SEAM].assert_called_once()
+        self.assertFalse(github.pinned_data(_support.APPROVAL_ISSUE)[_support.AWAITING_HUMAN])
         self.assertIn(HANDED_ON, github.label_history)
 
 

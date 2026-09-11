@@ -30,22 +30,7 @@ from tests.workflow.fixtures import (
     _issue_branch,
     _PatchedWorkflowMixin,
 )
-from tests.workflow.stages.implementing.read_only_relabel_test_support import (
-    DEV_SESSION,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    KEY_PLAN_PATH,
-    KEY_PLAN_SHA,
-    KEY_PR_NUMBER,
-    KEY_READ_ONLY_BASELINE,
-    KEY_ROUND_BRANCH,
-    KEY_ROUND_SHA,
-    PARK_DISCUSSION_PLAN_PUBLISHED,
-    PUSH_BRANCH,
-    RUN_AGENT,
-    _ReadOnlyRelabelMixin,
-    _seed_relabeled_discussion,
-)
+from tests.workflow.stages.implementing import read_only_relabel_test_support as _support
 
 # The issue whose number the seeded plan path names. Every seeded issue carries
 # the same path record, since what the tests turn on is the record standing,
@@ -84,14 +69,14 @@ def _seed_published_plan(issue_number: int, *, head_sha: str, merged: bool = Tru
     `head_sha` is what they left on it, and no value of it is work of this
     stage's: the record clears before anything here can push.
     """
-    seeded = _seed_relabeled_discussion(
+    seeded = _support._seed_relabeled_discussion(
         issue_number,
-        PARK_DISCUSSION_PLAN_PUBLISHED,
+        _support.PARK_DISCUSSION_PLAN_PUBLISHED,
         **{
-            KEY_PLAN_PATH: PLAN_PATH,
-            KEY_PR_NUMBER: HANDOFF_PR_NUMBER,
-            KEY_PLAN_SHA: PLAN_COMMIT,
-            KEY_ROUND_SHA: PLAN_COMMIT,
+            _support.KEY_PLAN_PATH: PLAN_PATH,
+            _support.KEY_PR_NUMBER: HANDOFF_PR_NUMBER,
+            _support.KEY_PLAN_SHA: PLAN_COMMIT,
+            _support.KEY_ROUND_SHA: PLAN_COMMIT,
             # Recorded beside `pr_number` by the publication that opened the
             # PR, and what keeps the branch resolution off the legacy name.
             KEY_BRANCH: _issue_branch(issue_number),
@@ -117,22 +102,22 @@ def _seed_accepted_handoff(
     durable state and not a momentary one, since the write lands before the
     developer runs and an interruption drops everything staged after it.
     """
-    seeded = _seed_relabeled_discussion(
+    seeded = _support._seed_relabeled_discussion(
         issue_number,
         None,
         **{
-            KEY_PR_NUMBER: HANDOFF_PR_NUMBER,
-            KEY_PLAN_SHA: PLAN_COMMIT,
-            KEY_ROUND_BRANCH: None,
-            KEY_ROUND_SHA: None,
-            KEY_READ_ONLY_BASELINE: PLAN_COMMIT,
+            _support.KEY_PR_NUMBER: HANDOFF_PR_NUMBER,
+            _support.KEY_PLAN_SHA: PLAN_COMMIT,
+            _support.KEY_ROUND_BRANCH: None,
+            _support.KEY_ROUND_SHA: None,
+            _support.KEY_READ_ONLY_BASELINE: PLAN_COMMIT,
         },
     )
     _add_plan_pr(*seeded, head_sha=head_sha, merged=merged)
     return seeded
 
 
-class _HandoffTickMixin(_PatchedWorkflowMixin, _ReadOnlyRelabelMixin):
+class _HandoffTickMixin(_PatchedWorkflowMixin, _support._ReadOnlyRelabelMixin):
     """One implementing tick on a branch whose plan PR the humans hold.
 
     The branch sits where publication left it, which is the commit that PR was
@@ -150,25 +135,25 @@ class _HandoffTickMixin(_PatchedWorkflowMixin, _ReadOnlyRelabelMixin):
         run_options = {
             "unpushed_branch": None,
             "run_agent": _agent(
-                session_id=DEV_SESSION, last_message=IMPLEMENTED,
+                session_id=_support.DEV_SESSION, last_message=IMPLEMENTED,
             ),
             "has_new_commits": [False, True],
             "branch_tip_sha": PLAN_COMMIT,
             # The guard reads the checkout first, and a published plan's is on
             # the commit its PR carries; the dev run's own reads follow.
-            "head_shas": (PLAN_COMMIT, HEAD_BEFORE_ROUND, HEAD_AFTER_COMMIT),
+            "head_shas": (PLAN_COMMIT, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
         }
         run_options.update(overrides)
         return self._run_implementing_on_worktree(gh, issue, **run_options)
 
     def _assert_nothing_ran(self, mocks) -> None:
         """A tick that ended before the run: nothing spawned, nothing pushed."""
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[PUSH_BRANCH].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.PUSH_BRANCH].assert_not_called()
 
     def _assert_dev_ran(self, mocks) -> None:
         """A tick whose handoff landed: the implementer spawned exactly once."""
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
 
     def _assert_built_not_finalized(
         self, issue_number: int, head_sha: str,
@@ -184,13 +169,13 @@ class _HandoffTickMixin(_PatchedWorkflowMixin, _ReadOnlyRelabelMixin):
         # plan PR the record arrived naming is a document the humans decided
         # on, never the pull request this push joins -- so the push goes out,
         # an implementation PR is opened for it, and the issue is handed on.
-        mocks[PUSH_BRANCH].assert_called_once()
+        mocks[_support.PUSH_BRANCH].assert_called_once()
         self.assertEqual(len(gh.opened_prs), 1)
         self.assertIn((issue_number, LABEL_VALIDATING), gh.label_history)
         # Its own PR is what the records name from here, so a merge of THAT one
         # finalizes normally.
-        self.assertNotEqual(pinned.get(KEY_PR_NUMBER), HANDOFF_PR_NUMBER)
-        self.assertIsNone(pinned.get(KEY_PLAN_PATH))
+        self.assertNotEqual(pinned.get(_support.KEY_PR_NUMBER), HANDOFF_PR_NUMBER)
+        self.assertIsNone(pinned.get(_support.KEY_PLAN_PATH))
 
     def _run_published_handoff(
         self, issue_number: int, *, head_sha: str, merged: bool = True, **overrides,

@@ -16,17 +16,8 @@ from unittest.mock import patch
 
 from orchestrator.workflow.engine import observations
 from tests.support.fakes import FakeGitHubClient
-from tests.workflow.engine.refused_submit_support import (
-    CYCLE_ID,
-    OWNER_NUMBER,
-    PINNED_READ,
-    SPEC,
-    WORKFLOW_LOG,
-    Retiring,
-    Scheduler,
-    closed_owner,
-    offered,
-)
+from tests.workflow.engine import refused_submit_support as _support
+from tests.workflow.engine.refused_submit_support import Retiring, Scheduler
 from tests.workflow.observation_support import ObservedCloseCase, receipt_for
 
 
@@ -47,12 +38,12 @@ class RetirementInFlightTest(ObservedCloseCase, unittest.TestCase):
         # the retirement write has landed and the barrier that would answer a
         # latched close has not. A reading called spent here is one the worker
         # asks for a moment later and does not find.
-        github = closed_owner(live=True)
+        github = _support.closed_owner(live=True)
 
         self._retired_under_a_worker(github)
 
         self.assertEqual(
-            self._observed(SPEC.slug), frozenset((OWNER_NUMBER,)),
+            self._observed(_support.SPEC.slug), frozenset((_support.OWNER_NUMBER,)),
         )
 
     def test_a_retirement_in_flight_is_told(self) -> None:
@@ -60,11 +51,11 @@ class RetirementInFlightTest(ObservedCloseCase, unittest.TestCase):
         # has: a receipt is scoped to a cycle, and the record it is written
         # from no longer names one -- so the scope comes from the cycle the
         # worker is retiring.
-        github = closed_owner(live=True)
+        github = _support.closed_owner(live=True)
 
         self._retired_under_a_worker(github)
 
-        marker = receipt_for(OWNER_NUMBER, CYCLE_ID)
+        marker = receipt_for(_support.OWNER_NUMBER, _support.CYCLE_ID)
         self.assertEqual(
             [body for _, body in github.posted_comments if marker in body],
             [body for _, body in github.posted_comments],
@@ -73,11 +64,11 @@ class RetirementInFlightTest(ObservedCloseCase, unittest.TestCase):
 
     def _retired_under_a_worker(self, github: FakeGitHubClient) -> None:
         """Refuse this tick's submit against a record mid-retirement."""
-        retiring = observations.retiring(SPEC.slug, OWNER_NUMBER, CYCLE_ID)
-        with self.assertLogs(WORKFLOW_LOG), retiring.held(), patch.object(
-            github, PINNED_READ, side_effect=Retiring(github),
+        retiring = observations.retiring(_support.SPEC.slug, _support.OWNER_NUMBER, _support.CYCLE_ID)
+        with self.assertLogs(_support.WORKFLOW_LOG), retiring.held(), patch.object(
+            github, _support.PINNED_READ, side_effect=Retiring(github),
         ):
-            offered(github, Scheduler(admits=False))
+            _support.offered(github, Scheduler(admits=False))
 
 
 if __name__ == "__main__":

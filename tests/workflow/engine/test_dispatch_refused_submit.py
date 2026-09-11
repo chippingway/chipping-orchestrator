@@ -22,20 +22,8 @@ from unittest.mock import Mock, patch
 
 from orchestrator.workflow.engine import dispatch, observations
 from tests.support.fakes import FakeGitHubClient
-from tests.workflow.engine.refused_submit_support import (
-    CYCLE_ID,
-    KEY_CANCELLED,
-    OUTAGE,
-    OWNER_NUMBER,
-    PINNED_READ,
-    SPEC,
-    WORKFLOW_LOG,
-    RefusingOnce,
-    Retiring,
-    Scheduler,
-    closed_owner,
-    offered,
-)
+from tests.workflow.engine import refused_submit_support as _support
+from tests.workflow.engine.refused_submit_support import RefusingOnce, Retiring, Scheduler
 from tests.workflow.fixtures import LABEL_IMPLEMENTING
 from tests.workflow.observation_support import ObservedCloseCase, receipt_for
 
@@ -49,11 +37,11 @@ class RefusedClosedSubmitTest(ObservedCloseCase, unittest.TestCase):
     def test_a_live_cycle_is_latched(self) -> None:
         github = _live_owner()
 
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             self._submitted(github)
 
         self.assertEqual(
-            self._observed(SPEC.slug), frozenset((OWNER_NUMBER,)),
+            self._observed(_support.SPEC.slug), frozenset((_support.OWNER_NUMBER,)),
         )
 
     def test_the_thread_is_told(self) -> None:
@@ -61,7 +49,7 @@ class RefusedClosedSubmitTest(ObservedCloseCase, unittest.TestCase):
         # window is exactly the one a restart would take the reading from.
         github = _live_owner()
 
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             self._submitted(github)
 
         self.assertEqual(len(github.posted_comments), 1)
@@ -70,11 +58,11 @@ class RefusedClosedSubmitTest(ObservedCloseCase, unittest.TestCase):
         # The baseline that keeps the blanket off: every other closed issue
         # is owed a turn, not an observation, and routing one to the sweep
         # would cost it the terminal arc its own label names.
-        github = closed_owner(live=False)
+        github = _support.closed_owner(live=False)
 
         self._submitted(github)
 
-        self.assertEqual(self._observed(SPEC.slug), frozenset())
+        self.assertEqual(self._observed(_support.SPEC.slug), frozenset())
         self.assertEqual(github.posted_comments, [])
 
     def test_a_read_failure_keeps_the_latch(self) -> None:
@@ -83,13 +71,13 @@ class RefusedClosedSubmitTest(ObservedCloseCase, unittest.TestCase):
         # keep, so it is latched FIRST and dropped only on a positive answer.
         github = _live_owner()
 
-        with self.assertLogs(WORKFLOW_LOG), patch.object(
-            github, PINNED_READ, side_effect=OUTAGE,
+        with self.assertLogs(_support.WORKFLOW_LOG), patch.object(
+            github, _support.PINNED_READ, side_effect=_support.OUTAGE,
         ):
             self._submitted(github)
 
         self.assertEqual(
-            self._observed(SPEC.slug), frozenset((OWNER_NUMBER,)),
+            self._observed(_support.SPEC.slug), frozenset((_support.OWNER_NUMBER,)),
         )
 
     def test_a_retirement_that_finished_settles_it(self) -> None:
@@ -101,16 +89,16 @@ class RefusedClosedSubmitTest(ObservedCloseCase, unittest.TestCase):
         github = _live_owner()
 
         with patch.object(
-            github, PINNED_READ,
+            github, _support.PINNED_READ,
             side_effect=Retiring(github),
         ):
             self._submitted(github)
 
-        self.assertEqual(self._observed(SPEC.slug), frozenset())
+        self.assertEqual(self._observed(_support.SPEC.slug), frozenset())
 
     def _submitted(self, github: FakeGitHubClient) -> None:
         """Offer this tick's fan-out issues to a scheduler that takes none."""
-        offered(github, Scheduler(admits=False))
+        _support.offered(github, Scheduler(admits=False))
 
 
 class EnumerationLatchTest(ObservedCloseCase, unittest.TestCase):
@@ -133,21 +121,21 @@ class EnumerationLatchTest(ObservedCloseCase, unittest.TestCase):
         # Nothing has been submitted at all here.
         github = _live_owner()
 
-        dispatch._partition_pollable_issues(github, SPEC)
+        dispatch._partition_pollable_issues(github, _support.SPEC)
 
         self.assertTrue(
-            observations.close_observed(SPEC.slug, OWNER_NUMBER),
+            observations.close_observed(_support.SPEC.slug, _support.OWNER_NUMBER),
         )
 
     def test_an_open_issue_latches_nothing(self) -> None:
         # The baseline that keeps it narrow: a reading is only taken where
         # this poll actually saw the issue closed.
         github = _live_owner()
-        github.get_issue(OWNER_NUMBER).closed = False
+        github.get_issue(_support.OWNER_NUMBER).closed = False
 
-        dispatch._partition_pollable_issues(github, SPEC)
+        dispatch._partition_pollable_issues(github, _support.SPEC)
 
-        self.assertEqual(self._observed(SPEC.slug), frozenset())
+        self.assertEqual(self._observed(_support.SPEC.slug), frozenset())
 
     def test_an_admission_is_decided_over_a_latch(self) -> None:
         # Either answer, and for the same reason: the worker the scheduler is
@@ -155,7 +143,7 @@ class EnumerationLatchTest(ObservedCloseCase, unittest.TestCase):
         github = _live_owner()
         admitting = Scheduler(admits=True)
 
-        offered(github, admitting)
+        _support.offered(github, admitting)
 
         self.assertEqual(admitting.latched, [True])
 
@@ -165,8 +153,8 @@ class EnumerationLatchTest(ObservedCloseCase, unittest.TestCase):
         github = _live_owner()
         refusing = Scheduler(admits=False)
 
-        with self.assertLogs(WORKFLOW_LOG):
-            offered(github, refusing)
+        with self.assertLogs(_support.WORKFLOW_LOG):
+            _support.offered(github, refusing)
 
         self.assertEqual(refusing.latched, [True])
 
@@ -178,7 +166,7 @@ class _AdmittedCase(ObservedCloseCase):
         self._fresh_process()
         self.github = _live_owner()
         self.scheduler = Scheduler(admits=True)
-        offered(self.github, self.scheduler)
+        _support.offered(self.github, self.scheduler)
 
     def _ran(self) -> Mock:
         """Run the task this tick handed the scheduler, holding its handler."""
@@ -210,14 +198,14 @@ class AdmittedClosedSubmitTest(_AdmittedCase, unittest.TestCase):
         # shutdown, or a process that died between the two. Nothing settled
         # the reading, so the next tick is still owed it.
         self.assertEqual(
-            self._observed(SPEC.slug), frozenset((OWNER_NUMBER,)),
+            self._observed(_support.SPEC.slug), frozenset((_support.OWNER_NUMBER,)),
         )
 
     def test_a_task_that_never_runs_is_told(self) -> None:
         # And the latch is memory, so the reading needs a half that is not.
         # The receipt goes down where the poll established the close, which
         # is the only moment before an accepted task can be lost.
-        marker = receipt_for(OWNER_NUMBER, CYCLE_ID)
+        marker = receipt_for(_support.OWNER_NUMBER, _support.CYCLE_ID)
         self.assertEqual(
             [body for _, body in self.github.posted_comments if marker in body],
             [body for _, body in self.github.posted_comments],
@@ -229,36 +217,36 @@ class AdmittedClosedSubmitTest(_AdmittedCase, unittest.TestCase):
         # the latch in it, and a human reopened the issue before the next one
         # polled. Nothing the fresh process can READ says closed and it
         # carries no reading of its own -- only the thread says so.
-        self.github.get_issue(OWNER_NUMBER).closed = False
+        self.github.get_issue(_support.OWNER_NUMBER).closed = False
         self._fresh_process()
 
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             dispatched = self._polled_afresh()
 
         dispatched.assert_not_called()
         self.assertTrue(
-            self.github.pinned_data(OWNER_NUMBER)[KEY_CANCELLED],
+            self.github.pinned_data(_support.OWNER_NUMBER)[_support.KEY_CANCELLED],
         )
 
     def test_a_reopen_before_the_refetch_still_ends(self) -> None:
         # The regression: nothing this task can read says closed by the time
         # it runs, and the reading it was handed is the only thing that does.
-        self.github.get_issue(OWNER_NUMBER).closed = False
+        self.github.get_issue(_support.OWNER_NUMBER).closed = False
 
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             dispatched = self._ran()
 
         dispatched.assert_not_called()
         self.assertTrue(
-            self.github.pinned_data(OWNER_NUMBER)[KEY_CANCELLED],
+            self.github.pinned_data(_support.OWNER_NUMBER)[_support.KEY_CANCELLED],
         )
 
     def test_an_owner_with_no_cycle_is_dispatched(self) -> None:
         # The baseline that keeps the binding narrow: a closed issue with
         # nothing to end still reaches the terminal arc its label names.
-        self.github = closed_owner(live=False)
+        self.github = _support.closed_owner(live=False)
         self.scheduler = Scheduler(admits=True)
-        offered(self.github, self.scheduler)
+        _support.offered(self.github, self.scheduler)
 
         dispatched = self._ran()
 
@@ -274,7 +262,7 @@ class AdmittedClosedSubmitTest(_AdmittedCase, unittest.TestCase):
             importlib.import_module(module_name), handler_name, dispatched,
         ):
             dispatch._process_issue(
-                self.github, SPEC, self.github.get_issue(OWNER_NUMBER),
+                self.github, _support.SPEC, self.github.get_issue(_support.OWNER_NUMBER),
             )
         return dispatched
 
@@ -288,23 +276,23 @@ class AdmittedPassKeepsTheReadingTest(_AdmittedCase, unittest.TestCase):
     """
 
     def test_a_pass_that_ran_settles_it(self) -> None:
-        with self.assertLogs(WORKFLOW_LOG):
+        with self.assertLogs(_support.WORKFLOW_LOG):
             self._ran()
 
-        self.assertEqual(self._observed(SPEC.slug), frozenset())
+        self.assertEqual(self._observed(_support.SPEC.slug), frozenset())
 
     def test_a_failed_pass_keeps_the_reading(self) -> None:
         # The task the tick just admitted IS what would have acted on the
         # reading, so a failure anywhere in it -- the refetch, the pinned
         # read, the write that marks the cancellation -- would drop the close
         # with it unless the pass leaves the latch exactly where it was.
-        with self.assertLogs(WORKFLOW_LOG), self.assertRaises(
+        with self.assertLogs(_support.WORKFLOW_LOG), self.assertRaises(
             ConnectionError,
-        ), patch.object(self.github, "get_issue", side_effect=OUTAGE):
+        ), patch.object(self.github, "get_issue", side_effect=_support.OUTAGE):
             self.scheduler.task()
 
         self.assertEqual(
-            self._observed(SPEC.slug), frozenset((OWNER_NUMBER,)),
+            self._observed(_support.SPEC.slug), frozenset((_support.OWNER_NUMBER,)),
         )
 
     def test_a_pass_that_marked_nothing_keeps_it(self) -> None:
@@ -312,19 +300,19 @@ class AdmittedPassKeepsTheReadingTest(_AdmittedCase, unittest.TestCase):
         # pinned read the guard is built on answers a refusal of its own, so
         # a tick that could not read the record refuses the issue and marks
         # nothing. The reading is unspent either way.
-        with self.assertLogs(WORKFLOW_LOG), patch.object(
-            self.github, PINNED_READ, side_effect=RefusingOnce(self.github),
+        with self.assertLogs(_support.WORKFLOW_LOG), patch.object(
+            self.github, _support.PINNED_READ, side_effect=RefusingOnce(self.github),
         ):
             self.scheduler.task()
 
         self.assertEqual(
-            self._observed(SPEC.slug), frozenset((OWNER_NUMBER,)),
+            self._observed(_support.SPEC.slug), frozenset((_support.OWNER_NUMBER,)),
         )
 
 
 def _live_owner() -> FakeGitHubClient:
     """The closed `implementing` owner every case here starts from."""
-    return closed_owner(live=True)
+    return _support.closed_owner(live=True)
 
 
 if __name__ == "__main__":

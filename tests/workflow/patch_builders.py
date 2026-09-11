@@ -7,17 +7,13 @@ from unittest.mock import MagicMock
 
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification.models import VerifyResult
+from tests.workflow import patch_models as _support
 from tests.workflow.patch_measurement import _measurement_mocks
 from tests.workflow.patch_models import (
     _AnchorAnswers,
-    _as_mock,
-    _default_infer_subject_prefix,
-    _fetched,
     _ForkPoints,
     _HeadReadings,
-    _published_branch,
     _RemoteTipAnswers,
-    _squashed,
     _TreeReadings,
     _WorkflowRunContext,
 )
@@ -32,7 +28,7 @@ def _execution_mocks(context: _WorkflowRunContext) -> dict[str, object]:
     else:
         new_commits.return_value = bool(commit_sequence)
     return {
-        "run_agent": _as_mock(context.run_agent),
+        "run_agent": _support._as_mock(context.run_agent),
         "_has_new_commits": new_commits,
         "_worktree_dirty_files": MagicMock(
             return_value=list(context.dirty_files),
@@ -82,7 +78,7 @@ def _cleanup_mocks(context: _WorkflowRunContext) -> dict[str, object]:
 def _publication_mocks(context: _WorkflowRunContext) -> dict[str, object]:
     if context.fallback_prefix is None:
         prefix_mock = MagicMock(
-            side_effect=_default_infer_subject_prefix,
+            side_effect=_support._default_infer_subject_prefix,
         )
     else:
         prefix_mock = MagicMock(return_value=context.fallback_prefix)
@@ -91,7 +87,7 @@ def _publication_mocks(context: _WorkflowRunContext) -> dict[str, object]:
         # callable is taken as the push itself, which is what a tick pushing
         # twice needs: the second push is leased against the head the first
         # left, so the pull request has to move under it.
-        "_push_branch": _published_branch(context.push_branch),
+        "_push_branch": _support._published_branch(context.push_branch),
         "_head_sha": MagicMock(side_effect=_HeadReadings(context)),
         "_head_on_branch": MagicMock(
             return_value=bool(context.head_on_branch),
@@ -111,7 +107,7 @@ def _publication_mocks(context: _WorkflowRunContext) -> dict[str, object]:
         # since the published commit contains the remote tip in one direction
         # and is contained by it in the other -- so a callable answering
         # `(worktree, ancestor, revision)` is taken as the probe itself.
-        "_commit_contains": _as_mock(context.commit_contains),
+        "_commit_contains": _support._as_mock(context.commit_contains),
         "_authed_target_fetch": MagicMock(
             return_value=MagicMock(returncode=0, stdout="", stderr=""),
         ),
@@ -127,7 +123,7 @@ def _validation_mocks(context: _WorkflowRunContext) -> dict[str, object]:
     if verify_result is None:
         verify_result = VerifyResult(status="ok")
     return {
-        "_squash_and_force_push": _squashed(context.squash_result),
+        "_squash_and_force_push": _support._squashed(context.squash_result),
         "_run_verify_commands": MagicMock(return_value=verify_result),
         "_rebase_in_progress": MagicMock(
             return_value=bool(context.rebase_in_progress),
@@ -140,7 +136,7 @@ def _conflict_mocks(context: _WorkflowRunContext) -> dict[str, object]:
     if fetch_result is None:
         fetch_result = MagicMock(returncode=0, stdout="", stderr="")
     return {
-        "_authed_fetch": _fetched(fetch_result),
+        "_authed_fetch": _support._fetched(fetch_result),
         # Where the checkout stands against the remote tip it was compared
         # with, as ONE reading: the counts, the head they were taken against
         # -- which is what the push they license is pinned to -- and whether

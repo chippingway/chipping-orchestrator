@@ -36,6 +36,7 @@ from orchestrator.git.worktrees.models import (
     ProvenTip,
     RetentionReason,
 )
+from tests.git.worktrees import maintenance_test_support as _support
 from tests.git.worktrees.artifact_test_support import (
     BASE_BRANCH,
     WIDGET_SLUG,
@@ -53,17 +54,6 @@ from tests.git.worktrees.eligibility_test_support import (
     _github,
     _pull_request,
     _terminal_issue,
-)
-from tests.git.worktrees.maintenance_test_support import (
-    LIFECYCLE_LOGGER,
-    SETTLED_SECONDS,
-    _always_claimed,
-    _CloneOfAllBut,
-    _MaintenanceTestCase,
-    _refused_delete,
-    _stopping,
-    _unanswerable_claim,
-    _unanswerable_continuation,
 )
 from tests.workflow.stages.question.question_real_git_test_support import (
     _run_git,
@@ -91,7 +81,7 @@ REMOTE_DELETE = "_delete_remote_branch_at"
 OTHER_SHA = "b" * OBJECT_ID_LENGTH
 
 
-class OrderedCleanupTest(_MaintenanceTestCase):
+class OrderedCleanupTest(_support._MaintenanceTestCase):
     """A cleared candidate loses its checkout, its remote branch, and its ref."""
 
     def test_every_artifact_of_a_cleared_one_goes(self) -> None:
@@ -139,7 +129,7 @@ class OrderedCleanupTest(_MaintenanceTestCase):
         self.assertEqual(self.gh.write_state_calls, 0)
 
 
-class LegacyLayoutCleanupTest(_MaintenanceTestCase):
+class LegacyLayoutCleanupTest(_support._MaintenanceTestCase):
     """A checkout the layout before namespacing left is taken like any other."""
 
     def test_a_flat_checkout_goes_with_its_branch(self) -> None:
@@ -196,7 +186,7 @@ class LegacyLayoutCleanupTest(_MaintenanceTestCase):
         self.assertEqual(self.remote_branches(), (self.branch, legacy))
 
 
-class SharedCloneCleanupTest(_MaintenanceTestCase):
+class SharedCloneCleanupTest(_support._MaintenanceTestCase):
     """An unattributable flat checkout takes its whole issue out of the pass.
 
     Two entries over one clone, and a flat checkout standing on one of that
@@ -215,7 +205,7 @@ class SharedCloneCleanupTest(_MaintenanceTestCase):
         self.landed()
         flat = self.legacy_checkout()
 
-        with self.assertLogs(LIFECYCLE_LOGGER, level=WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=WARNING):
             swept = self.swept(self.discovered(self.specs))
 
         self.assertEqual(swept, ())
@@ -229,7 +219,7 @@ class SharedCloneCleanupTest(_MaintenanceTestCase):
         self.landed()
         flat = self.legacy_checkout()
 
-        with self.assertLogs(LIFECYCLE_LOGGER, level=WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=WARNING):
             self.swept(self.discovered(self.specs))
 
         self.assertEqual(
@@ -248,9 +238,9 @@ class SharedCloneCleanupTest(_MaintenanceTestCase):
             patch.object(
                 probes,
                 "_checkout_clone",
-                side_effect=_CloneOfAllBut(self.specs[1]),
+                side_effect=_support._CloneOfAllBut(self.specs[1]),
             ),
-            self.assertLogs(LIFECYCLE_LOGGER, level=WARNING),
+            self.assertLogs(_support.LIFECYCLE_LOGGER, level=WARNING),
         ):
             swept = self.swept(self.discovered(self.specs))
 
@@ -269,7 +259,7 @@ class SharedCloneCleanupTest(_MaintenanceTestCase):
         _branch_at(self.clone, other, tip)
         self.world.publish(self.clone, other, tip)
 
-        with self.assertLogs(LIFECYCLE_LOGGER, level=WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=WARNING):
             swept = self.swept(self.discovered(self.specs))
 
         self.assertEqual(len(swept), 1)
@@ -280,7 +270,7 @@ class SharedCloneCleanupTest(_MaintenanceTestCase):
         self.assertEqual(self.local_branches(), self.only_branch)
 
 
-class CheckedOutBranchTest(_MaintenanceTestCase):
+class CheckedOutBranchTest(_support._MaintenanceTestCase):
     """A branch some tree of the clone is standing on is never deleted.
 
     The safety `update-ref -d` gives up for its commit pin. The trees that can
@@ -317,7 +307,7 @@ class CheckedOutBranchTest(_MaintenanceTestCase):
         )
         _unlink_backlink(dropped)
 
-        with self.assertLogs(LIFECYCLE_LOGGER, level=WARNING):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=WARNING):
             swept = self.only_result()
 
         self.assertEqual(swept.outcome, MaintenanceOutcome.RETAINED)
@@ -343,7 +333,7 @@ class CheckedOutBranchTest(_MaintenanceTestCase):
         self.assertEqual(self.local_branches(), self.only_branch)
 
 
-class DistinctCloneCleanupTest(_MaintenanceTestCase):
+class DistinctCloneCleanupTest(_support._MaintenanceTestCase):
     """A second configured repository does not strand the flat checkout.
 
     The end of the reading the discovery takes: attributed to the clone it is
@@ -365,14 +355,14 @@ class DistinctCloneCleanupTest(_MaintenanceTestCase):
         self.assertEqual(self.discovered(specs), ())
 
 
-class GuardedCandidateTest(_MaintenanceTestCase):
+class GuardedCandidateTest(_support._MaintenanceTestCase):
     """Everything in front of the mutation keeps the artifacts where they are."""
 
     def setUp(self) -> None:
         super().setUp()
         self.landed()
         self.worktree = self.settled_checkout()
-        self.long_ago = time.time() - SETTLED_SECONDS
+        self.long_ago = time.time() - _support.SETTLED_SECONDS
 
     def assert_untouched(self, swept) -> None:
         """The candidate is kept, and every artifact is still where it was."""
@@ -382,7 +372,7 @@ class GuardedCandidateTest(_MaintenanceTestCase):
         self.assertEqual(self.remote_branches(), self.only_branch)
 
     def test_an_issue_being_run_is_left_alone(self) -> None:
-        swept = self.only_result(claimed=_always_claimed)
+        swept = self.only_result(claimed=_support._always_claimed)
 
         self.assert_untouched(swept)
         self.assertEqual(swept.reason, MaintenanceReason.ACTIVE_CLAIM)
@@ -390,7 +380,7 @@ class GuardedCandidateTest(_MaintenanceTestCase):
 
     def test_a_guard_that_raises_is_read_as_a_claim(self) -> None:
         with self.assertLogs(maintenance.log.name, level=WARNING):
-            swept = self.only_result(claimed=_unanswerable_claim)
+            swept = self.only_result(claimed=_support._unanswerable_claim)
 
         self.assert_untouched(swept)
         self.assertEqual(swept.reason, MaintenanceReason.CLAIM_UNREADABLE)
@@ -439,7 +429,7 @@ class GuardedCandidateTest(_MaintenanceTestCase):
         self.assertEqual(swept.reason, MaintenanceReason.ACTIVITY_UNREADABLE)
 
 
-class RetainedByClassificationTest(_MaintenanceTestCase):
+class RetainedByClassificationTest(_support._MaintenanceTestCase):
     """A candidate the classification keeps is reported with its own reasons."""
 
     def assert_kept_for(self, swept, reason: RetentionReason) -> None:
@@ -509,7 +499,7 @@ class RetainedByClassificationTest(_MaintenanceTestCase):
         self.assertEqual(self.remote_branches(), self.only_branch)
 
 
-class ExactTipTest(_MaintenanceTestCase):
+class ExactTipTest(_support._MaintenanceTestCase):
     """Nothing is deleted that is not standing exactly where it was proved.
 
     The proof is handed to the teardown directly here, which is the only way to
@@ -592,7 +582,7 @@ class ExactTipTest(_MaintenanceTestCase):
         self.assertEqual(self.local_branches(), self.only_branch)
 
 
-class RefusedStepTest(_MaintenanceTestCase):
+class RefusedStepTest(_support._MaintenanceTestCase):
     """A step that will not run stops the pass and leaves the rest discoverable."""
 
     def test_a_failed_remote_delete_keeps_the_ref(self) -> None:
@@ -602,7 +592,7 @@ class RefusedStepTest(_MaintenanceTestCase):
         worktree = self.settled_checkout()
 
         with patch.object(
-            reclaim, REMOTE_DELETE, side_effect=_refused_delete,
+            reclaim, REMOTE_DELETE, side_effect=_support._refused_delete,
         ):
             swept = self.only_result()
 
@@ -618,7 +608,7 @@ class RefusedStepTest(_MaintenanceTestCase):
         self.settled_checkout()
 
         with patch.object(
-            reclaim, REMOTE_DELETE, side_effect=_refused_delete,
+            reclaim, REMOTE_DELETE, side_effect=_support._refused_delete,
         ):
             self.only_result()
 
@@ -631,7 +621,7 @@ class RefusedStepTest(_MaintenanceTestCase):
         self.settled_checkout()
 
         with patch.object(
-            reclaim, REMOTE_DELETE, side_effect=_refused_delete,
+            reclaim, REMOTE_DELETE, side_effect=_support._refused_delete,
         ):
             self.only_result()
         swept = self.only_result()
@@ -644,7 +634,7 @@ class RefusedStepTest(_MaintenanceTestCase):
         self.landed()
 
         with patch.object(
-            reclaim, "_delete_local_ref_at", side_effect=_refused_delete,
+            reclaim, "_delete_local_ref_at", side_effect=_support._refused_delete,
         ):
             swept = self.only_result()
 
@@ -661,7 +651,7 @@ class RefusedStepTest(_MaintenanceTestCase):
         _branch_at(self.clone, self.branch, None)
 
         with patch.object(
-            reclaim, REMOTE_DELETE, side_effect=_refused_delete,
+            reclaim, REMOTE_DELETE, side_effect=_support._refused_delete,
         ):
             swept = self.only_result()
 
@@ -701,7 +691,7 @@ class RefusedStepTest(_MaintenanceTestCase):
         worktree = self.settled_checkout()
 
         with patch.object(
-            reclaim, "_remove_recognized_worktree", side_effect=_refused_delete,
+            reclaim, "_remove_recognized_worktree", side_effect=_support._refused_delete,
         ):
             swept = self.only_result()
 
@@ -714,7 +704,7 @@ class RefusedStepTest(_MaintenanceTestCase):
         self.assertEqual(self.local_branches(), self.only_branch)
 
 
-class RepeatedPassTest(_MaintenanceTestCase):
+class RepeatedPassTest(_support._MaintenanceTestCase):
     """Running the pass again costs nothing and takes nothing twice."""
 
     def test_a_cleared_host_offers_no_candidate(self) -> None:
@@ -735,7 +725,7 @@ class RepeatedPassTest(_MaintenanceTestCase):
         worktree = self.settled_checkout()
 
         with patch.object(
-            reclaim, "_delete_local_ref_at", side_effect=_refused_delete,
+            reclaim, "_delete_local_ref_at", side_effect=_support._refused_delete,
         ):
             self.only_result()
         swept = self.only_result()
@@ -811,7 +801,7 @@ class StoppedAfter:
         return going
 
 
-class InterruptedPassTest(_MaintenanceTestCase):
+class InterruptedPassTest(_support._MaintenanceTestCase):
     """A pass that may no longer act stops where it is, having taken nothing.
 
     The candidate would otherwise be cleaned: its tip is one the base carries,
@@ -835,16 +825,16 @@ class InterruptedPassTest(_MaintenanceTestCase):
         self.assertEqual(self.remote_branches(), self.only_branch)
 
     def test_a_stopped_run_takes_nothing(self) -> None:
-        with self.assertLogs(LIFECYCLE_LOGGER, level=INFO_LEVEL):
-            swept = self.swept(going=_stopping)
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=INFO_LEVEL):
+            swept = self.swept(going=_support._stopping)
 
         self.assert_nothing_taken(swept)
 
     def test_an_unreadable_continuation_stops_it(self) -> None:
         # Fails closed like every other question in front of a deletion: a run
         # that cannot say whether it is still going is not permission to act.
-        with self.assertLogs(LIFECYCLE_LOGGER, level=WARNING):
-            swept = self.swept(going=_unanswerable_continuation)
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=WARNING):
+            swept = self.swept(going=_support._unanswerable_continuation)
 
         self.assert_nothing_taken(swept)
 
@@ -859,7 +849,7 @@ class InterruptedPassTest(_MaintenanceTestCase):
                 _CLASSIFY_ATTR,
                 StopsWhileClassifying(stopping),
             ),
-            self.assertLogs(LIFECYCLE_LOGGER, level=INFO_LEVEL),
+            self.assertLogs(_support.LIFECYCLE_LOGGER, level=INFO_LEVEL),
         ):
             swept = self.swept(going=stopping)
 
@@ -875,7 +865,7 @@ class InterruptedPassTest(_MaintenanceTestCase):
         self.world.publish(self.clone, second, self.tip)
         going = StoppedAfter(2)
 
-        with self.assertLogs(LIFECYCLE_LOGGER, level=INFO_LEVEL):
+        with self.assertLogs(_support.LIFECYCLE_LOGGER, level=INFO_LEVEL):
             swept = self.swept(going=going)
 
         self.assertEqual(
