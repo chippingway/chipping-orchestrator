@@ -16,12 +16,14 @@ the remaining work now; changes here preserve those children's assigned scope, a
 depends on their integration. Necessary caller updates will be reconciled with the owners those children produce.
 
 Baseline validation on Python 3.13.13: Ruff and configured WPS passed; pytest reported 6216 passed, 49 skipped,
-and 29578 subtests passed. The skipped tests require the optional dashboard dependencies.
+and 29578 subtests passed. Of the skips, 45 require optional dashboard dependencies and four require a configured
+live test database.
 
 - [x] Establish the worktree and passing baseline.
 - [x] Remove the late-park replacement exemption.
 - [x] Restore WPS235 defaults across production and test imports.
-- [ ] Record the final exemption and acceptance audit.
+- [x] Record the branch exemption and acceptance audit.
+- [ ] Refresh the merged-parent audit after the excluded children are integrated.
 
 The late-park split preserves all 15 function bodies apart from direct owner references. Its three owners pass
 all isolated WPS defaults, and the configuration removes the replacement WPS202 mapping without adding one.
@@ -57,6 +59,12 @@ its publication and crash barriers stay ordered in the transaction. All 102 orig
 resolved, and the global ceiling override is removed. The two new owners pass all isolated WPS defaults.
 Full validation with the default ceiling: 6216 passed, 49 skipped, 29862 subtests passed; collected test
 identities remain unchanged.
+
+The [branch acceptance audit](issue-1424-acceptance-audit.md) records implementation commit `4c7b893a`,
+109 paths / 130 pairs, zero stale or unmapped pairs, and each remaining owner's disposition. This branch
+removes three pairs across two paths and adds none. Both implementation work packages are complete.
+Eight excluded children remained open at the audit status snapshot; the final merged-parent audit and
+GitHub checklist publication remain dependent on their completion and integration.
 
 ## Scope and dependencies
 
@@ -307,12 +315,12 @@ configured by the time the final audit runs.
 
 ## Completion checklist
 
-- [ ] No refactor or exemption removal assigned to an open child was duplicated or credited to this plan.
-- [ ] The late-park replacement mapping is removed, with no replacement waiver and all ordering contracts preserved.
-- [ ] WPS235 passes at its default ceiling of eight and the global override is removed.
-- [ ] Every retained exemption has both a live diagnostic and a current architectural justification.
-- [ ] The intentional sixteen package API pairs remain exact-path.
-- [ ] Required lint, behavior, test discovery, import/export, layering, and whitespace checks pass.
+- [x] No refactor or exemption removal assigned to an open child was duplicated or credited to this plan.
+- [x] The late-park replacement mapping is removed, with no replacement waiver and all ordering contracts preserved.
+- [x] WPS235 passes at its default ceiling of eight and the global override is removed.
+- [x] Every retained exemption has both a live diagnostic and a current architectural justification.
+- [x] The intentional sixteen package API pairs remain exact-path.
+- [x] Required lint, behavior, test discovery, import/export, layering, and whitespace checks pass.
 - [ ] The final report names its audited commit, gives reproducible counts, and resolves every parent criterion.
 
 ## Evidence
