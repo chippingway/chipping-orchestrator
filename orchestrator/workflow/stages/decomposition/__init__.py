@@ -63,7 +63,8 @@ read -- `late_notice` owns the sentence any late park still owes the thread,
 `late_park_delivery` the release and reconciliation of that sentence, and
 `late_parks` the decisions that take, stage, retire, or answer the park.
 `late_coordinator` owns their order: `late_admission` recovers owed effects and
-proves the frozen evidence before taking the hold, `late_attempt` records the
+asks `late_evidence` to prove the record and frozen pair before taking the hold.
+`late_attempt` records the
 attempt with retry charges held back, `late_execution` runs and reads the agent,
 and `late_completion` guards every completion before settling it. `late_verdict`
 interprets one finished reply, `late_outcome` records every completion, and

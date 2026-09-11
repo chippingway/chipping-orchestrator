@@ -66,6 +66,10 @@ removes three pairs across two paths and adds none. Both implementation work pac
 Eight excluded children remained open at the audit status snapshot; the final merged-parent audit and
 GitHub checklist publication remain dependent on their completion and integration.
 
+Completion review restored the explicit `_is_adjudicable` predicate and separated recorded/frozen-candidate
+proofs into `late_evidence`. Admission retains its live-generation decision, owed-effect recovery, budget
+gate, and PR hold order. This removes the inlining used by the first coordinator split to fit its new owner.
+
 ## Scope and dependencies
 
 All ten currently tracked children were still open when this plan was prepared. Their implementation, owner moves,
