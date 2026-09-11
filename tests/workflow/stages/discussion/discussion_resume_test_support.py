@@ -32,23 +32,7 @@ from tests.workflow.fixtures import (
     KEY_PARK_REASON,
     _agent,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    DISCUSSION_SESSION,
-    ENSURE_WORKTREE,
-    HEAD_BEFORE_ROUND,
-    KEY_BASE_SHA,
-    KEY_DISCUSSION_AGENT,
-    KEY_DISCUSSION_SESSION_ID,
-    KEY_ROUND_BRANCH,
-    KEY_ROUND_SHA,
-    PARK_DISCUSSION_RESPONSE,
-    RESUME_SESSION_ID,
-    RUN_AGENT,
-    UNMOVED_HEAD_RESUMED,
-    _issue_branch,
-    _paused_view,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion import discussion_test_support as _support
 
 TRUSTED_AUTHOR = "geserdugarov"
 OUTSIDER_AUTHOR = "mallory"
@@ -100,8 +84,8 @@ def _seed_parked_discussion(
     number: int,
     *,
     replies: tuple = (),
-    session_id: str | None = DISCUSSION_SESSION,
-    park_reason: str = PARK_DISCUSSION_RESPONSE,
+    session_id: str | None = _support.DISCUSSION_SESSION,
+    park_reason: str = _support.PARK_DISCUSSION_RESPONSE,
     agent_spec: str | None = None,
 ):
     """An issue this stage parked on a round, plus the thread it parked into.
@@ -113,19 +97,19 @@ def _seed_parked_discussion(
     opened on -- a test about a checkout that has moved off it says so with
     `head_shas`, since that is the probe the hold actually reads.
     """
-    gh, issue = _seed_discussion(number)
+    gh, issue = _support._seed_discussion(number)
     issue.comments.extend(replies)
     parked_state = {
         KEY_AWAITING_HUMAN: True,
         KEY_PARK_REASON: park_reason,
         KEY_LAST_ACTION_COMMENT_ID: PARKED_WATERMARK,
-        KEY_DISCUSSION_AGENT: agent_spec or config.DECOMPOSE_AGENT_SPEC,
-        KEY_ROUND_BRANCH: _issue_branch(number),
-        KEY_ROUND_SHA: HEAD_BEFORE_ROUND,
-        KEY_BASE_SHA: BASE_TIP_SHA,
+        _support.KEY_DISCUSSION_AGENT: agent_spec or config.DECOMPOSE_AGENT_SPEC,
+        _support.KEY_ROUND_BRANCH: _support._issue_branch(number),
+        _support.KEY_ROUND_SHA: _support.HEAD_BEFORE_ROUND,
+        _support.KEY_BASE_SHA: BASE_TIP_SHA,
     }
     if session_id is not None:
-        parked_state[KEY_DISCUSSION_SESSION_ID] = session_id
+        parked_state[_support.KEY_DISCUSSION_SESSION_ID] = session_id
     gh.seed_state(number, **parked_state)
     return gh, issue
 
@@ -154,16 +138,16 @@ def _paused_resumed_round(case, gh, issue, tree: Path):
     with patch.object(
         gh,
         "get_issue",
-        return_value=_paused_view(issue.number, PAUSED_LABEL),
+        return_value=_support._paused_view(issue.number, PAUSED_LABEL),
     ):
         return case._run_discussion_on_worktree(
             gh,
             issue,
             tree,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION, last_message=UNASKED_ROUND,
+                session_id=_support.DISCUSSION_SESSION, last_message=UNASKED_ROUND,
             ),
-            head_shas=(HEAD_BEFORE_ROUND,) * 2,
+            head_shas=(_support.HEAD_BEFORE_ROUND,) * 2,
         )
 
 
@@ -199,7 +183,7 @@ class _DiscussionConversation:
     """
 
     def __init__(self, case, number: int, worktree: Path) -> None:
-        gh, issue = _seed_discussion(number)
+        gh, issue = _support._seed_discussion(number)
         issue.comments.append(_reply(OPENING_NOTE))
         self._case = case
         self._worktree = worktree
@@ -213,25 +197,25 @@ class _DiscussionConversation:
             self.issue.comments.append(
                 FakeComment(id=self.watermark + REPLY_ID_STEP, body=reply),
             )
-        run_options.setdefault("head_shas", UNMOVED_HEAD_RESUMED)
+        run_options.setdefault("head_shas", _support.UNMOVED_HEAD_RESUMED)
         mocks = self._run_tick(
-            _agent(session_id=DISCUSSION_SESSION, last_message=analysis),
+            _agent(session_id=_support.DISCUSSION_SESSION, last_message=analysis),
             **run_options,
         )
         self._case.assert_nothing_published(self.gh, mocks)
         self._case.assert_worktree_preserved(mocks)
-        spawn_call = mocks[RUN_AGENT].call_args
+        spawn_call = mocks[_support.RUN_AGENT].call_args
         return _DiscussionRoundRecord(
             pinned=dict(self.gh.pinned_data(self.issue.number)),
             prompt=spawn_call.args[1],
-            resume_session_id=spawn_call.kwargs.get(RESUME_SESSION_ID),
-            rebuilt_worktree=bool(mocks[ENSURE_WORKTREE].call_count),
+            resume_session_id=spawn_call.kwargs.get(_support.RESUME_SESSION_ID),
+            rebuilt_worktree=bool(mocks[_support.ENSURE_WORKTREE].call_count),
         )
 
     def quiet_tick(self) -> None:
         """One tick with nobody having replied, which must spawn nothing."""
         mocks = self._run_tick(_agent(last_message=UNASKED_ROUND))
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
 
     @property
     def watermark(self) -> int:

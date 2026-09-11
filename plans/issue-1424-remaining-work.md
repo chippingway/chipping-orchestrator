@@ -27,6 +27,10 @@ The late-park split preserves all 15 function bodies apart from direct owner ref
 all isolated WPS defaults, and the configuration removes the replacement WPS202 mapping without adding one.
 Full validation: 6216 passed, 49 skipped, 29704 subtests passed; collected test identities are unchanged.
 
+Discussion test imports: 19 oversized statements replaced with qualified support-owner reads while retaining
+explicit test classes and fixtures. Ruff, WPS, and the full suite pass (6216 passed, 49 skipped); all 6265 test
+identities are unchanged.
+
 ## Scope and dependencies
 
 All ten currently tracked children were still open when this plan was prepared. Their implementation, owner moves,

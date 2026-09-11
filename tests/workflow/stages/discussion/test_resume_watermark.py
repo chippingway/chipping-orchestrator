@@ -27,17 +27,7 @@ from tests.workflow.fixtures import (
     KEY_LAST_ACTION_COMMENT_ID,
     _agent,
 )
-from tests.workflow.stages.discussion.discussion_resume_test_support import (
-    DISCUSSION_REPLY,
-    OPENING_NOTE,
-    REPLY_ID,
-    TRAILING_REPLY_ID,
-    TRUSTED_AUTHOR,
-    UNASKED_ROUND,
-    _mixed_batch,
-    _reply,
-    _seed_parked_discussion,
-)
+from tests.workflow.stages.discussion import discussion_resume_test_support as _support
 from tests.workflow.stages.discussion.discussion_test_support import (
     DISCUSSION_RESPONSE,
     DISCUSSION_SESSION,
@@ -72,7 +62,7 @@ class _AnsweredMidRun:
 
     def __call__(self, *spawn_args, **spawn_kwargs):
         self._issue.comments.append(
-            _reply(_SECOND_THOUGHT, comment_id=TRAILING_REPLY_ID),
+            _support._reply(_SECOND_THOUGHT, comment_id=_support.TRAILING_REPLY_ID),
         )
         return self._agent_result
 
@@ -83,8 +73,8 @@ class DiscussionConsumedWatermarkTest(
     """The ceiling a round leaves, measured against what it actually read."""
 
     def test_a_mid_run_reply_earns_the_next_round(self) -> None:
-        gh, issue = _seed_parked_discussion(
-            _MID_RUN_ISSUE_NUMBER, replies=(_reply(DISCUSSION_REPLY),),
+        gh, issue = _support._seed_parked_discussion(
+            _MID_RUN_ISSUE_NUMBER, replies=(_support._reply(_support.DISCUSSION_REPLY),),
         )
 
         self._run_discussion(
@@ -102,7 +92,7 @@ class DiscussionConsumedWatermarkTest(
         # The park stamped nothing past the reply the prompt quoted, so the
         # comment that landed mid-run is still unread.
         self.assertEqual(
-            gh.pinned_data(issue.number)[KEY_LAST_ACTION_COMMENT_ID], REPLY_ID,
+            gh.pinned_data(issue.number)[KEY_LAST_ACTION_COMMENT_ID], _support.REPLY_ID,
         )
 
         next_mocks = self._run_discussion(
@@ -122,11 +112,11 @@ class DiscussionConsumedWatermarkTest(
         # own trusted ceiling has to be put back over it -- otherwise the
         # outsider's comment is recorded as read by a prompt that never
         # contained it, and allowlisting them later finds it already consumed.
-        gh, issue = _seed_parked_discussion(
-            _TRAILING_ISSUE_NUMBER, replies=_mixed_batch(),
+        gh, issue = _support._seed_parked_discussion(
+            _TRAILING_ISSUE_NUMBER, replies=_support._mixed_batch(),
         )
 
-        with patch.object(config, "ALLOWED_ISSUE_AUTHORS", (TRUSTED_AUTHOR,)):
+        with patch.object(config, "ALLOWED_ISSUE_AUTHORS", (_support.TRUSTED_AUTHOR,)):
             self._run_discussion(
                 gh,
                 issue,
@@ -137,7 +127,7 @@ class DiscussionConsumedWatermarkTest(
             )
 
         self.assertEqual(
-            gh.pinned_data(issue.number)[KEY_LAST_ACTION_COMMENT_ID], REPLY_ID,
+            gh.pinned_data(issue.number)[KEY_LAST_ACTION_COMMENT_ID], _support.REPLY_ID,
         )
 
     def test_the_stage_never_answers_itself(self) -> None:
@@ -148,7 +138,7 @@ class DiscussionConsumedWatermarkTest(
         # quiet because the reply scan knows the stage's own comments, not
         # because the watermark was pushed past them.
         gh, issue = _seed_discussion(_SELF_ANSWER_ISSUE_NUMBER)
-        issue.comments.append(_reply(OPENING_NOTE, comment_id=_EARLY_NOTE_ID))
+        issue.comments.append(_support._reply(_support.OPENING_NOTE, comment_id=_EARLY_NOTE_ID))
 
         self._run_discussion(
             gh,
@@ -167,7 +157,7 @@ class DiscussionConsumedWatermarkTest(
         self.assertGreater(posted_id, _EARLY_NOTE_ID)
 
         quiet_mocks = self._run_discussion(
-            gh, issue, run_agent=_agent(last_message=UNASKED_ROUND),
+            gh, issue, run_agent=_agent(last_message=_support.UNASKED_ROUND),
         )
 
         quiet_mocks[RUN_AGENT].assert_not_called()

@@ -47,35 +47,14 @@ from tests.workflow.fixtures import (
     _agent,
 )
 from tests.workflow.git_owners import seam_patch
+from tests.workflow.stages.discussion import discussion_test_support as _support
 from tests.workflow.stages.discussion.discussion_resume_test_support import (
     DISCUSSION_REPLY,
     _mark_in_flight,
     _reply,
     _seed_parked_discussion,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    CLEANUP_TERMINAL_BRANCH,
-    DISCUSSION_SESSION,
-    ENSURE_PR_WORKTREE,
-    ENSURE_WORKTREE,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    KEY_BASE_SHA,
-    KEY_DISCUSSION_SESSION_ID,
-    KEY_PLAN_PATH,
-    KEY_PR_NUMBER,
-    KEY_PUBLISHING_SHA,
-    KEY_ROUND_BRANCH,
-    KEY_ROUND_SHA,
-    PARK_DISCUSSION_PLAN_PUBLISHED,
-    PARK_DISCUSSION_PUSH_FAILED,
-    REMOTE_BASE_TIP,
-    RUN_AGENT,
-    WORKTREE_PATH,
-    _DiscussionWorkflowMixin,
-    _issue_branch,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _PUBLISHED_ISSUE_NUMBER = 1280
 _UNPUSHED_ISSUE_NUMBER = 1281
@@ -99,11 +78,11 @@ _AMENDED_HEAD = "the-commit-a-reviewer-pushed-onto-the-plan-pr"
 _INHERITING_ROUND = "a round that would inherit it"
 # The tip is read once to judge the branch, and once more by the round that
 # opens when there turns out to be nothing to publish.
-_RESTORED_HEAD = (HEAD_AFTER_COMMIT,) * 2
-_UNPUBLISHED_HEAD = (HEAD_BEFORE_ROUND,) * 3
+_RESTORED_HEAD = (_support.HEAD_AFTER_COMMIT,) * 2
+_UNPUBLISHED_HEAD = (_support.HEAD_BEFORE_ROUND,) * 3
 # What the remote says about the issue branch: the pushed one is there, and the
 # one whose push never landed is not.
-_PUSHED_TIP = HEAD_AFTER_COMMIT
+_PUSHED_TIP = _support.HEAD_AFTER_COMMIT
 _NO_SUCH_BRANCH = ""
 
 
@@ -118,10 +97,10 @@ def _seed_failed_push(issue_number: int):
     gh, issue = _seed_parked_discussion(
         issue_number,
         replies=(_reply(DISCUSSION_REPLY),),
-        park_reason=PARK_DISCUSSION_PUSH_FAILED,
+        park_reason=_support.PARK_DISCUSSION_PUSH_FAILED,
     )
     _mark_in_flight(
-        gh, issue.number, **{KEY_PUBLISHING_SHA: HEAD_AFTER_COMMIT},
+        gh, issue.number, **{_support.KEY_PUBLISHING_SHA: _support.HEAD_AFTER_COMMIT},
     )
     return gh, issue
 
@@ -134,15 +113,15 @@ def _seed_interrupted_publication(issue_number: int):
     session it belongs to. What is deliberately absent is `pr_number` -- the
     crash this describes happens before there is one.
     """
-    gh, issue = _seed_discussion(issue_number)
+    gh, issue = _support._seed_discussion(issue_number)
     gh.seed_state(
         issue_number,
         **{
-            KEY_PUBLISHING_SHA: HEAD_AFTER_COMMIT,
-            KEY_ROUND_BRANCH: _issue_branch(issue_number),
-            KEY_ROUND_SHA: HEAD_BEFORE_ROUND,
-            KEY_BASE_SHA: BASE_TIP_SHA,
-            KEY_DISCUSSION_SESSION_ID: DISCUSSION_SESSION,
+            _support.KEY_PUBLISHING_SHA: _support.HEAD_AFTER_COMMIT,
+            _support.KEY_ROUND_BRANCH: _support._issue_branch(issue_number),
+            _support.KEY_ROUND_SHA: _support.HEAD_BEFORE_ROUND,
+            _support.KEY_BASE_SHA: BASE_TIP_SHA,
+            _support.KEY_DISCUSSION_SESSION_ID: _support.DISCUSSION_SESSION,
         },
     )
     return gh, issue
@@ -155,7 +134,7 @@ def _descends_from_the_plan(worktree, ancestor: str, revision: str) -> bool:
     does not contain theirs. A single answer for both directions would let the
     reading pass for the wrong reason.
     """
-    return (ancestor, revision) == (HEAD_AFTER_COMMIT, _AMENDED_HEAD)
+    return (ancestor, revision) == (_support.HEAD_AFTER_COMMIT, _AMENDED_HEAD)
 
 
 class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
@@ -167,7 +146,7 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # would hand this tick a tree without the plan in it -- and the plan is
         # sitting on a pull request the whole time.
         gh, issue = _seed_interrupted_publication(_PUBLISHED_ISSUE_NUMBER)
-        branch = _issue_branch(issue.number)
+        branch = _support._issue_branch(issue.number)
         gh.existing_open_pr[branch] = FakePR(
             number=_OPEN_PR_NUMBER, head_branch=branch,
         )
@@ -176,29 +155,29 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh, issue, head_shas=_RESTORED_HEAD, remote_branch_tip=_PUSHED_TIP,
         )
 
-        mocks[ENSURE_PR_WORKTREE].assert_called_once()
-        mocks[ENSURE_WORKTREE].assert_not_called()
+        mocks[_support.ENSURE_PR_WORKTREE].assert_called_once()
+        mocks[_support.ENSURE_WORKTREE].assert_not_called()
         # It is the ISSUE branch the remote is asked about, not the base.
-        self.assertEqual(mocks[REMOTE_BASE_TIP].call_args.args[2], branch)
+        self.assertEqual(mocks[_support.REMOTE_BASE_TIP].call_args.args[2], branch)
         # The PR that is already open is adopted rather than duplicated, and
         # no round runs over the top of the design it carries.
         self.assertEqual(gh.opened_prs, [])
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
             (
-                pinned_data[KEY_PR_NUMBER],
-                pinned_data[KEY_PLAN_PATH],
+                pinned_data[_support.KEY_PR_NUMBER],
+                pinned_data[_support.KEY_PLAN_PATH],
                 pinned_data[KEY_PARK_REASON],
             ),
             (
                 _OPEN_PR_NUMBER,
                 self.plan_path(issue.number),
-                PARK_DISCUSSION_PLAN_PUBLISHED,
+                _support.PARK_DISCUSSION_PLAN_PUBLISHED,
             ),
         )
         # The marker is spent by the records that answer it.
-        self.assertIsNone(pinned_data[KEY_PUBLISHING_SHA])
+        self.assertIsNone(pinned_data[_support.KEY_PUBLISHING_SHA])
 
     def test_an_unlanded_push_restores_from_base(self) -> None:
         # The same marker, and the remote says there is no such branch: the
@@ -216,13 +195,13 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
         # Twice: once for the reading that finds nothing to publish, and
         # once for the round that then opens on the restored tree.
-        mocks[ENSURE_WORKTREE].assert_called()
-        mocks[ENSURE_PR_WORKTREE].assert_not_called()
+        mocks[_support.ENSURE_WORKTREE].assert_called()
+        mocks[_support.ENSURE_PR_WORKTREE].assert_not_called()
         self.assertEqual(gh.opened_prs, [])
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         pinned_data = gh.pinned_data(issue.number)
-        self.assertIsNone(pinned_data[KEY_PUBLISHING_SHA])
-        self.assertNotIn(KEY_PLAN_PATH, pinned_data)
+        self.assertIsNone(pinned_data[_support.KEY_PUBLISHING_SHA])
+        self.assertNotIn(_support.KEY_PLAN_PATH, pinned_data)
 
     def test_a_failed_push_retries_from_the_remote(self) -> None:
         # The same lost host, reached by the door nothing opens on its own. The
@@ -239,18 +218,18 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh, issue, head_shas=_RESTORED_HEAD, remote_branch_tip=_PUSHED_TIP,
         )
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[ENSURE_PR_WORKTREE].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.ENSURE_PR_WORKTREE].assert_called_once()
         self.assertEqual(len(gh.opened_prs), 1)
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
             (
                 pinned_data[KEY_PARK_REASON],
-                pinned_data[KEY_PLAN_PATH],
-                pinned_data[KEY_PUBLISHING_SHA],
+                pinned_data[_support.KEY_PLAN_PATH],
+                pinned_data[_support.KEY_PUBLISHING_SHA],
             ),
             (
-                PARK_DISCUSSION_PLAN_PUBLISHED,
+                _support.PARK_DISCUSSION_PLAN_PUBLISHED,
                 self.plan_path(issue.number),
                 None,
             ),
@@ -269,8 +248,8 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
         )
         gh.add_pr(FakePR(
             number=_MERGED_PR_NUMBER,
-            head_branch=_issue_branch(merged_issue.number),
-            head=FakePRRef(sha=HEAD_AFTER_COMMIT),
+            head_branch=_support._issue_branch(merged_issue.number),
+            head=FakePRRef(sha=_support.HEAD_AFTER_COMMIT),
             merged=True,
             state=STATE_CLOSED,
         ))
@@ -284,7 +263,7 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
         # Nothing is pushed, nothing is opened, and no round runs over a design
         # that is already in the base.
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         self.assertEqual(gh.opened_prs, [])
         # Nothing is said to the humans either: they merged it, so a park
         # telling them to go and review it would answer a verdict they have
@@ -294,9 +273,9 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
         pinned_data = gh.pinned_data(merged_issue.number)
         self.assertEqual(
             (
-                pinned_data[KEY_PR_NUMBER],
-                pinned_data[KEY_PLAN_PATH],
-                pinned_data[KEY_PUBLISHING_SHA],
+                pinned_data[_support.KEY_PR_NUMBER],
+                pinned_data[_support.KEY_PLAN_PATH],
+                pinned_data[_support.KEY_PUBLISHING_SHA],
             ),
             (
                 _MERGED_PR_NUMBER,
@@ -319,9 +298,9 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
         )
         gh.add_pr(FakePR(
             number=_AMENDED_PR_NUMBER,
-            head_branch=_issue_branch(amended_issue.number),
+            head_branch=_support._issue_branch(amended_issue.number),
             head=FakePRRef(sha=_AMENDED_HEAD),
-            commit_shas=(HEAD_AFTER_COMMIT,),
+            commit_shas=(_support.HEAD_AFTER_COMMIT,),
         ))
 
         mocks = self._run_over_missing_checkout(
@@ -334,20 +313,20 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
         # Their head already carries the plan, so there is nothing to push --
         # and the older SHA is exactly what a push would send over it.
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         self.assert_nothing_published(gh, mocks)
         pinned_data = gh.pinned_data(amended_issue.number)
         self.assertEqual(
             (
-                pinned_data[KEY_PR_NUMBER],
-                pinned_data[KEY_PLAN_PATH],
+                pinned_data[_support.KEY_PR_NUMBER],
+                pinned_data[_support.KEY_PLAN_PATH],
                 pinned_data[KEY_PARK_REASON],
-                pinned_data[KEY_PUBLISHING_SHA],
+                pinned_data[_support.KEY_PUBLISHING_SHA],
             ),
             (
                 _AMENDED_PR_NUMBER,
                 self.plan_path(amended_issue.number),
-                PARK_DISCUSSION_PLAN_PUBLISHED,
+                _support.PARK_DISCUSSION_PLAN_PUBLISHED,
                 None,
             ),
         )
@@ -365,9 +344,9 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
         )
         gh.add_pr(FakePR(
             number=_CLOSED_PR_NUMBER,
-            head_branch=_issue_branch(closed_issue.number),
+            head_branch=_support._issue_branch(closed_issue.number),
             head=FakePRRef(sha=_AMENDED_HEAD),
-            commit_shas=(HEAD_AFTER_COMMIT,),
+            commit_shas=(_support.HEAD_AFTER_COMMIT,),
             state=STATE_CLOSED,
         ))
 
@@ -381,11 +360,11 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
         # Recorded rather than refused, and said to nobody: what the humans
         # decided needs no park telling them to go and review it.
-        recorded[RUN_AGENT].assert_not_called()
+        recorded[_support.RUN_AGENT].assert_not_called()
         self.assert_nothing_published(gh, recorded)
         self.assertEqual(gh.posted_comments, [])
         self.assertEqual(
-            gh.pinned_data(closed_issue.number)[KEY_PR_NUMBER],
+            gh.pinned_data(closed_issue.number)[_support.KEY_PR_NUMBER],
             _CLOSED_PR_NUMBER,
         )
 
@@ -408,18 +387,18 @@ class DiscussionLostCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
             ]),
             1,
         )
-        finalized[CLEANUP_TERMINAL_BRANCH].assert_called_once()
+        finalized[_support.CLEANUP_TERMINAL_BRANCH].assert_called_once()
 
     def _run_over_missing_checkout(self, gh, issue, **run_options):
         """One tick whose per-issue checkout is not on disk at all."""
         with tempfile.TemporaryDirectory() as parent:
             missing = Path(parent) / f"issue-{issue.number}"
-            with seam_patch(WORKTREE_PATH, MagicMock(return_value=missing)):
+            with seam_patch(_support.WORKTREE_PATH, MagicMock(return_value=missing)):
                 return self._run_discussion(
                     gh,
                     issue,
                     run_agent=_agent(
-                        session_id=DISCUSSION_SESSION,
+                        session_id=_support.DISCUSSION_SESSION,
                         last_message=_INHERITING_ROUND,
                     ),
                     committed_paths=(self.plan_path(issue.number),),

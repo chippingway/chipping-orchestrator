@@ -35,17 +35,8 @@ from tests.workflow.fixtures import (
     _issue_branch,
 )
 from tests.workflow.git_owners import seam_patch
-from tests.workflow.stages.discussion.discussion_test_support import (
-    CLEANUP_TERMINAL_BRANCH,
-    KEY_BRANCH,
-    KEY_PLAN_PATH,
-    KEY_PLAN_SHA,
-    KEY_PR_NUMBER,
-    KEY_PUBLISHING_SHA,
-    RUN_AGENT,
-    _DiscussionWorkflowMixin,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion import discussion_test_support as _support
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 PLAN_SHA = "plan-commit-sha"
 
@@ -165,7 +156,7 @@ class _TerminalTick:
         with contextlib.ExitStack() as stack:
             if self._teardown is not None:
                 stack.enter_context(
-                    seam_patch(CLEANUP_TERMINAL_BRANCH, self._teardown),
+                    seam_patch(_support.CLEANUP_TERMINAL_BRANCH, self._teardown),
                 )
             _discussion._handle_discussion(
                 self._run.gh, _TEST_SPEC, self._run.issue,
@@ -176,7 +167,7 @@ def _seed_published_plan(
     scenario: _PlanScenario, **extra_state,
 ) -> _TerminalRun:
     """A discussion holding the plan PR its publication left behind."""
-    gh, issue = _seed_discussion(scenario.issue_number)
+    gh, issue = _support._seed_discussion(scenario.issue_number)
     issue.closed = scenario.issue_closed
     branch = _issue_branch(scenario.issue_number)
     gh.add_pr(FakePR(
@@ -189,10 +180,10 @@ def _seed_published_plan(
     gh.seed_state(
         scenario.issue_number,
         **{
-            KEY_PLAN_PATH: f"plans/issue-{scenario.issue_number}.md",
-            KEY_PLAN_SHA: PLAN_SHA,
-            KEY_PR_NUMBER: scenario.pr_number,
-            KEY_BRANCH: branch,
+            _support.KEY_PLAN_PATH: f"plans/issue-{scenario.issue_number}.md",
+            _support.KEY_PLAN_SHA: PLAN_SHA,
+            _support.KEY_PR_NUMBER: scenario.pr_number,
+            _support.KEY_BRANCH: branch,
             **extra_state,
         },
     )
@@ -201,7 +192,7 @@ def _seed_published_plan(
 
 def _seed_closed_discussion(issue_number: int, **state) -> _TerminalRun:
     """A discussion a human closed before any plan reached a pull request."""
-    gh, issue = _seed_discussion(issue_number)
+    gh, issue = _support._seed_discussion(issue_number)
     issue.closed = True
     gh.seed_state(issue_number, awaiting_human=True, **state)
     return _TerminalRun(gh, issue)
@@ -224,7 +215,7 @@ def _seed_interrupted_publication(
     push that never landed, or a tick that died before it -- which is what
     tells a genuine pre-PR close from this one.
     """
-    gh, issue = _seed_discussion(scenario.issue_number)
+    gh, issue = _support._seed_discussion(scenario.issue_number)
     issue.closed = scenario.issue_closed
     if with_pr:
         gh.add_pr(FakePR(
@@ -235,7 +226,7 @@ def _seed_interrupted_publication(
             state=scenario.pr_state,
         ))
     gh.seed_state(
-        scenario.issue_number, **{KEY_PUBLISHING_SHA: PLAN_SHA},
+        scenario.issue_number, **{_support.KEY_PUBLISHING_SHA: PLAN_SHA},
     )
     return _TerminalRun(gh, issue)
 
@@ -257,7 +248,7 @@ class _DiscussionTerminalMixin(_DiscussionWorkflowMixin):
         self.assertEqual(run.gh.write_state_calls, 0)
         self.assertEqual(run.gh.posted_comments, [])
         self.assertEqual(run.gh.recorded_events, [])
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         self.assert_worktree_preserved(mocks)
 
     def assert_reaped(self, run: _TerminalRun, teardown) -> None:

@@ -28,6 +28,7 @@ from tests.workflow.fixtures import (
     KEY_PARK_REASON,
     _agent,
 )
+from tests.workflow.stages.discussion import discussion_test_support as _support
 from tests.workflow.stages.discussion.discussion_resume_test_support import (
     DISCUSSION_REPLY,
     PARKED_WATERMARK,
@@ -36,20 +37,7 @@ from tests.workflow.stages.discussion.discussion_resume_test_support import (
     _reply,
     _seed_parked_discussion,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    DIRTY_OVERFLOW_COUNT,
-    DISCUSSION_RESPONSE,
-    DISCUSSION_SESSION,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    PARK_DISCUSSION_COMMITS,
-    PARK_DISCUSSION_DIRTY,
-    PARK_DISCUSSION_UNREADABLE,
-    RUN_AGENT,
-    UNMOVED_HEAD_RESUMED,
-    _dirty_files,
-    _DiscussionWorkflowMixin,
-)
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _DIRTIED_ISSUE_NUMBER = 1130
 _COMMITTED_ISSUE_NUMBER = 1131
@@ -70,18 +58,18 @@ class DiscussionBlockedResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
             mocks = self._blocked_tick(gh, issue, Path(tree))
             repeat_mocks = self._blocked_tick(gh, issue, Path(tree))
 
-        mocks[RUN_AGENT].assert_not_called()
-        repeat_mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        repeat_mocks[_support.RUN_AGENT].assert_not_called()
         # Said once. The reason it left is itself a repair request, so the
         # reply after it changes nothing on the thread.
         self.assertEqual(len(gh.posted_comments), 1)
         self._assert_report_names(
             gh,
             "uncommitted change(s)",
-            f"... ({DIRTY_OVERFLOW_COUNT} more)",
-            f"{_RESET_COMMAND} {HEAD_BEFORE_ROUND}",
+            f"... ({_support.DIRTY_OVERFLOW_COUNT} more)",
+            f"{_RESET_COMMAND} {_support.HEAD_BEFORE_ROUND}",
         )
-        self._assert_reply_kept(gh, issue, PARK_DISCUSSION_DIRTY)
+        self._assert_reply_kept(gh, issue, _support.PARK_DISCUSSION_DIRTY)
 
     def test_an_unreadable_tree_is_reported_once(self) -> None:
         # The resume side of the same probe. `git status` failed, so its list
@@ -98,7 +86,7 @@ class DiscussionBlockedResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
             mocks = self._blocked_tick(gh, issue, checkout, unreadable=True)
             self._blocked_tick(gh, issue, checkout, unreadable=True)
 
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         # One comment across both ticks: the reason this park leaves is itself
         # a repair request, so the second reply into the same tree is held
         # silently -- and a round that had opened would have parked over it.
@@ -107,7 +95,7 @@ class DiscussionBlockedResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh, "could not be read (`git status` or `HEAD` failed)",
         )
         self.assertNotIn(_RESET_COMMAND, gh.posted_comments[0][1])
-        self._assert_reply_kept(gh, issue, PARK_DISCUSSION_UNREADABLE)
+        self._assert_reply_kept(gh, issue, _support.PARK_DISCUSSION_UNREADABLE)
 
     def test_a_new_commit_is_reported_once(self) -> None:
         gh, issue = _seed_parked_discussion(
@@ -120,23 +108,23 @@ class DiscussionBlockedResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 issue,
                 Path(tree),
                 run_agent=_agent(last_message=UNASKED_ROUND),
-                head_shas=(HEAD_AFTER_COMMIT,) * 2,
+                head_shas=(_support.HEAD_AFTER_COMMIT,) * 2,
             )
             repeat_mocks = self._run_discussion_on_worktree(
                 gh,
                 issue,
                 Path(tree),
                 run_agent=_agent(last_message=UNASKED_ROUND),
-                head_shas=(HEAD_AFTER_COMMIT,) * 2,
+                head_shas=(_support.HEAD_AFTER_COMMIT,) * 2,
             )
 
-        mocks[RUN_AGENT].assert_not_called()
-        repeat_mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        repeat_mocks[_support.RUN_AGENT].assert_not_called()
         self.assertEqual(len(gh.posted_comments), 1)
         # The reason has to say which violation it was: the operator's next
         # move differs between commits to drop and edits to clean.
         self._assert_report_names(gh, "commits made since")
-        self._assert_reply_kept(gh, issue, PARK_DISCUSSION_COMMITS)
+        self._assert_reply_kept(gh, issue, _support.PARK_DISCUSSION_COMMITS)
 
     def test_the_reply_survives_the_repair(self) -> None:
         # The whole point of not consuming it: the operator resets the tree
@@ -153,15 +141,15 @@ class DiscussionBlockedResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 issue,
                 Path(tree),
                 run_agent=_agent(
-                    session_id=DISCUSSION_SESSION,
-                    last_message=DISCUSSION_RESPONSE,
+                    session_id=_support.DISCUSSION_SESSION,
+                    last_message=_support.DISCUSSION_RESPONSE,
                 ),
-                head_shas=UNMOVED_HEAD_RESUMED,
+                head_shas=_support.UNMOVED_HEAD_RESUMED,
             )
 
-        resumed_mocks[RUN_AGENT].assert_called_once()
+        resumed_mocks[_support.RUN_AGENT].assert_called_once()
         self.assertIn(
-            DISCUSSION_REPLY, resumed_mocks[RUN_AGENT].call_args.args[1],
+            DISCUSSION_REPLY, resumed_mocks[_support.RUN_AGENT].call_args.args[1],
         )
         self.assertGreaterEqual(
             gh.pinned_data(issue.number)[KEY_LAST_ACTION_COMMENT_ID], REPLY_ID,
@@ -179,9 +167,9 @@ class DiscussionBlockedResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
             issue,
             worktree,
             run_agent=_agent(last_message=UNASKED_ROUND),
-            dirty_files=() if unreadable else _dirty_files(),
+            dirty_files=() if unreadable else _support._dirty_files(),
             tree_readable=not unreadable,
-            head_shas=UNMOVED_HEAD_RESUMED,
+            head_shas=_support.UNMOVED_HEAD_RESUMED,
         )
 
     def _assert_report_names(self, gh, *expected: str) -> None:
