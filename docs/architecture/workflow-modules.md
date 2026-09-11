@@ -689,7 +689,10 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             hand a cleared split to the transaction
       late_admission.py     recover owed owner reads and park notices before the live-generation gate;
                             hold a spent-budget park ahead of the frozen-evidence proof and pull-request hold;
-                            no external hold or agent spawn can run over an unprovable candidate/base pair
+                            the explicit live-generation predicate leaves initial decomposition to its own gate
+      late_evidence.py      prove the record belongs to this issue and carries every frozen field its readers need,
+                            then prove both commits on this host before a pull-request hold or agent spawn; a
+                            failed proof parks with the recorded candidate left for the operator to restore
       late_attempt.py       the durable attempt identity and the retry accounting its pre-spawn write omits;
                             both close-latch checks restore the unspent counters before cancellation can write,
                             so a run declined by shutdown or a live pause costs the issue nothing
