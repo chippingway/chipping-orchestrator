@@ -15,38 +15,19 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from orchestrator.workflow.state import WorkflowLabel
+from tests.workflow.stages.decomposition import (
+    late_test_support as _support,
+    late_transaction_support as _stage_support,
+)
 from tests.workflow.stages.decomposition.late_crash_support import refusing
 from tests.workflow.stages.decomposition.late_run_support import (
     adjudicate,
     agent_reply,
 )
-from tests.workflow.stages.decomposition.late_test_support import (
-    CANDIDATE_SHA,
-    CYCLE_ID,
-    KEYS,
-    LATE_ISSUE_NUMBER,
-    PLAN_PR_NUMBER,
-    QUESTION_REPLY,
-    ROOT_ISSUE,
-    SPLIT_REPLY,
-    seeded_late_issue,
-)
 from tests.workflow.stages.decomposition.late_transaction_support import (
-    CHILDREN,
-    ERROR,
-    EVENT_LATE_CLEANUP,
-    KEY_CHILDREN,
-    KEY_CONSUMERS,
-    KEY_LINKS_ANNOUNCED,
-    KEY_PR_NUMBER,
-    MULTI_LEVEL_CHILDREN,
-    SNAPSHOT_REF,
-    SUPERSESSION_MARKER,
     HeldPlanPrSplitCase,
     LateSplitCase,
     SnapshotSeed,
-    first_child,
-    label_of,
 )
 
 RESOURCE_BRANCH = "branch"
@@ -70,8 +51,8 @@ class ForwardLinkTest(LateSplitCase, unittest.TestCase):
         posted = self.github.posted_comments[-1][1]
         for child in self.github.created_child_issues:
             self.assertIn(f"#{child.number}", posted)
-        self.assertIn(SNAPSHOT_REF, posted)
-        self.assertIn(CANDIDATE_SHA, posted)
+        self.assertIn(_stage_support.SNAPSHOT_REF, posted)
+        self.assertIn(_support.CANDIDATE_SHA, posted)
         self.assertIn(UMBRELLA_FRAGMENT, posted)
 
     def test_a_stamped_announcement_is_not_repeated(self) -> None:
@@ -84,7 +65,7 @@ class ForwardLinkTest(LateSplitCase, unittest.TestCase):
         self._resume()
 
         self.assertEqual(len(self.github.posted_comments), said)
-        self.assertTrue(self._pinned()[KEY_LINKS_ANNOUNCED])
+        self.assertTrue(self._pinned()[_stage_support.KEY_LINKS_ANNOUNCED])
 
     def test_an_earlier_stamp_suppresses_nothing(self) -> None:
         # `decomposed_at` belongs to whichever decomposition last wrote it,
@@ -101,7 +82,7 @@ class ForwardLinkTest(LateSplitCase, unittest.TestCase):
         self.assertEqual(
             len([
                 body for _, body in self.github.posted_comments
-                if SNAPSHOT_REF in body
+                if _stage_support.SNAPSHOT_REF in body
             ]),
             1,
         )
@@ -115,7 +96,7 @@ class SupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
 
         self.assertEqual(self.plan_pr.state, "closed")
         self.assertIn(
-            SUPERSESSION_MARKER,
+            _stage_support.SUPERSESSION_MARKER,
             self.github.posted_pr_comments[-1][1],
         )
 
@@ -123,9 +104,9 @@ class SupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
         self._transact(generation=self.generation)
 
         notice = self.github.posted_pr_comments[-1][1]
-        self.assertIn(f"#{LATE_ISSUE_NUMBER}", notice)
-        self.assertIn(SNAPSHOT_REF, notice)
-        self.assertIn(CANDIDATE_SHA, notice)
+        self.assertIn(f"#{_support.LATE_ISSUE_NUMBER}", notice)
+        self.assertIn(_stage_support.SNAPSHOT_REF, notice)
+        self.assertIn(_support.CANDIDATE_SHA, notice)
         for child in self.github.created_child_issues:
             self.assertIn(f"#{child.number}", notice)
 
@@ -152,24 +133,24 @@ class SupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(
-            self._pinned().get(KEYS.park_reason),
+            self._pinned().get(_support.KEYS.park_reason),
             _late_park_state.PARK_SUPERSESSION_FAILED,
         )
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.DECOMPOSING,
+            _stage_support.label_of(self.github, _support.LATE_ISSUE_NUMBER), WorkflowLabel.DECOMPOSING,
         )
-        self.assertEqual(first_child(self.github).labels[0].name,
+        self.assertEqual(_stage_support.first_child(self.github).labels[0].name,
                          WorkflowLabel.BLOCKED)
 
     def test_an_unreadable_pr_activates_nothing(self) -> None:
         # Both reads it takes -- the hold's own, and the fetch the
         # supersession is made against -- fail closed rather than raising.
-        with refusing(self.github, "get_pr"), self.assertLogs(level=ERROR):
+        with refusing(self.github, "get_pr"), self.assertLogs(level=_stage_support.ERROR):
             outcome = self._transact(generation=self.generation)
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER),
+            _stage_support.label_of(self.github, _support.LATE_ISSUE_NUMBER),
             WorkflowLabel.DECOMPOSING,
         )
 
@@ -182,11 +163,11 @@ class SupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
             "_release_hold",
             return_value=_HeldPrHold(generation=self.generation),
         )
-        with released, refusing(self.github, "get_pr"), self.assertLogs(level=ERROR):
+        with released, refusing(self.github, "get_pr"), self.assertLogs(level=_stage_support.ERROR):
             outcome = self._transact(generation=self.generation)
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
-        self.assertEqual(len(self.github.created_child_issues), len(CHILDREN))
+        self.assertEqual(len(self.github.created_child_issues), len(_stage_support.CHILDREN))
 
     def test_a_retry_says_nothing_twice(self) -> None:
         # The children are already durable by then, so the retry is a read and
@@ -200,7 +181,7 @@ class SupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
         self.assertEqual(
             len([
                 body for _, body in self.github.posted_pr_comments
-                if SUPERSESSION_MARKER in body
+                if _stage_support.SUPERSESSION_MARKER in body
             ]),
             1,
         )
@@ -213,7 +194,7 @@ class RetirementTest(LateSplitCase, unittest.TestCase):
         self._transact()
 
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.UMBRELLA,
+            _stage_support.label_of(self.github, _support.LATE_ISSUE_NUMBER), WorkflowLabel.UMBRELLA,
         )
 
     def test_the_measurement_goes_identity_stays(self) -> None:
@@ -223,11 +204,11 @@ class RetirementTest(LateSplitCase, unittest.TestCase):
         self._transact()
 
         pinned = self._pinned()
-        self.assertNotIn(KEYS.additions, pinned)
-        self.assertNotIn(KEYS.threshold, pinned)
-        self.assertEqual(pinned["late_cycle_id"], CYCLE_ID)
-        self.assertEqual(pinned["late_root_issue"], ROOT_ISSUE)
-        self.assertEqual(pinned[KEYS.candidate_sha], CANDIDATE_SHA)
+        self.assertNotIn(_support.KEYS.additions, pinned)
+        self.assertNotIn(_support.KEYS.threshold, pinned)
+        self.assertEqual(pinned["late_cycle_id"], _support.CYCLE_ID)
+        self.assertEqual(pinned["late_root_issue"], _support.ROOT_ISSUE)
+        self.assertEqual(pinned[_support.KEYS.candidate_sha], _support.CANDIDATE_SHA)
 
     def test_the_ledgers_survive_the_retirement(self) -> None:
         # An obligation the remote is owed does not stop being owed because
@@ -236,19 +217,19 @@ class RetirementTest(LateSplitCase, unittest.TestCase):
 
         pinned = self._pinned()
         self.assertEqual(
-            len(pinned[KEY_CONSUMERS]), len(self.github.created_child_issues),
+            len(pinned[_stage_support.KEY_CONSUMERS]), len(self.github.created_child_issues),
         )
         self.assertEqual(
-            self._resources()[(RESOURCE_SNAPSHOT, SNAPSHOT_REF)],
+            self._resources()[(RESOURCE_SNAPSHOT, _stage_support.SNAPSHOT_REF)],
             STATE_RETAINED,
         )
 
     def test_the_superseded_pull_request_is_dropped(self) -> None:
         # Left in place it would point the merged-PR terminal at a change the
         # umbrella's children are replacing.
-        self._transact(pr_number=PLAN_PR_NUMBER)
+        self._transact(pr_number=_support.PLAN_PR_NUMBER)
 
-        self.assertIsNone(self._pinned().get(KEY_PR_NUMBER))
+        self.assertIsNone(self._pinned().get(_stage_support.KEY_PR_NUMBER))
 
 
 class ActivationTest(LateSplitCase, unittest.TestCase):
@@ -258,18 +239,18 @@ class ActivationTest(LateSplitCase, unittest.TestCase):
         self._transact()
 
         first, second = self.github.created_child_issues
-        self.assertEqual(label_of(self.github, first.number), WorkflowLabel.READY)
-        self.assertEqual(label_of(self.github, second.number), WorkflowLabel.BLOCKED)
+        self.assertEqual(_stage_support.label_of(self.github, first.number), WorkflowLabel.READY)
+        self.assertEqual(_stage_support.label_of(self.github, second.number), WorkflowLabel.BLOCKED)
 
     def test_a_multi_level_plan_frees_one_root(self) -> None:
         # Every slice behind a prerequisite waits for it, the one two levels
         # down included: a walk that released a child whose own dependency is
         # still open would start work on an interface nothing has built.
-        self._transact(children=MULTI_LEVEL_CHILDREN)
+        self._transact(children=_stage_support.MULTI_LEVEL_CHILDREN)
 
         self.assertEqual(
             [
-                label_of(self.github, child.number)
+                _stage_support.label_of(self.github, child.number)
                 for child in self.github.created_child_issues
             ],
             [
@@ -286,8 +267,8 @@ class ActivationTest(LateSplitCase, unittest.TestCase):
 
         flipped = [number for number, _ in self.github.label_history]
         self.assertLess(
-            flipped.index(LATE_ISSUE_NUMBER),
-            flipped.index(first_child(self.github).number),
+            flipped.index(_support.LATE_ISSUE_NUMBER),
+            flipped.index(_stage_support.first_child(self.github).number),
         )
 
 
@@ -313,7 +294,7 @@ class BranchCleanupTest(LateSplitCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
         self.assertEqual(
-            label_of(self.github, first_child(self.github).number),
+            _stage_support.label_of(self.github, _stage_support.first_child(self.github).number),
             WorkflowLabel.READY,
         )
         self.assertIn(
@@ -329,7 +310,7 @@ class BranchCleanupTest(LateSplitCase, unittest.TestCase):
 
         self._transact()
 
-        reported = self._events_named(EVENT_LATE_CLEANUP)
+        reported = self._events_named(_stage_support.EVENT_LATE_CLEANUP)
         self.assertEqual(len(reported), 1)
         self.assertEqual(reported[0]["outcome"], STATE_FAILED)
         self.assertIn(
@@ -356,12 +337,12 @@ class BranchCleanupTest(LateSplitCase, unittest.TestCase):
             ],
         )
         self.assertEqual(
-            label_of(self.github, first_child(self.github).number),
+            _stage_support.label_of(self.github, _stage_support.first_child(self.github).number),
             WorkflowLabel.READY,
         )
 
     def test_a_raising_delete_is_recorded(self) -> None:
-        with refusing(self.github, "delete_remote_branch"), self.assertLogs(level=ERROR):
+        with refusing(self.github, "delete_remote_branch"), self.assertLogs(level=_stage_support.ERROR):
             outcome = self._transact()
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
@@ -371,7 +352,7 @@ class BranchCleanupTest(LateSplitCase, unittest.TestCase):
         # snapshot was proved before any of this -- so a remote that raised
         # is no reason to leave a checkout on a superseded branch for the
         # per-tick base refresh to go on merging into.
-        with refusing(self.github, "delete_remote_branch"), self.assertLogs(level=ERROR):
+        with refusing(self.github, "delete_remote_branch"), self.assertLogs(level=_stage_support.ERROR):
             self._transact()
 
         self.assertTrue(self.teardown.attempted)
@@ -381,7 +362,7 @@ class NoDuplicateTest(LateSplitCase, unittest.TestCase):
     """A transaction resumed after a park repeats none of its effects."""
 
     def test_a_resume_creates_nothing_twice(self) -> None:
-        self.github.unsupersedable_prs.add(PLAN_PR_NUMBER)
+        self.github.unsupersedable_prs.add(_support.PLAN_PR_NUMBER)
         self._transact()
         created = [child.number for child in self.github.created_child_issues]
         said = len(self.github.posted_comments)
@@ -393,9 +374,9 @@ class NoDuplicateTest(LateSplitCase, unittest.TestCase):
             created,
         )
         self.assertEqual(len(self.github.posted_comments), said)
-        self.assertEqual(self._pinned()[KEY_CHILDREN], created)
+        self.assertEqual(self._pinned()[_stage_support.KEY_CHILDREN], created)
         self.assertEqual(
-            len(self._events_named("late_snapshot")), len(CHILDREN),
+            len(self._events_named("late_snapshot")), len(_stage_support.CHILDREN),
         )
 
 
@@ -406,10 +387,10 @@ class CoordinatorHandoffTest(unittest.TestCase):
         # The wiring: the owner read is taken, the settlement hands the split
         # on, and the transaction runs from there rather than from a pinned
         # comment that has moved since.
-        github, issue = seeded_late_issue()
+        github, issue = _support.seeded_late_issue()
 
         outcome, spawn = adjudicate(
-            github, issue, agent_reply(SPLIT_REPLY), transact=True,
+            github, issue, agent_reply(_support.SPLIT_REPLY), transact=True,
         )
 
         spawn.assert_called_once()
@@ -425,10 +406,10 @@ class CoordinatorHandoffTest(unittest.TestCase):
     def test_a_question_reaches_no_transaction(self) -> None:
         # Nothing but a cleared split may create children, so the one verdict
         # that asks a human creates nothing at all.
-        github, issue = seeded_late_issue()
+        github, issue = _support.seeded_late_issue()
 
         outcome, _spawn = adjudicate(
-            github, issue, agent_reply(QUESTION_REPLY), transact=True,
+            github, issue, agent_reply(_support.QUESTION_REPLY), transact=True,
         )
 
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)

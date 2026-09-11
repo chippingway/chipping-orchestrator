@@ -22,25 +22,13 @@ import unittest
 from unittest.mock import patch
 
 from tests.workflow.fixtures import _agent, _iso_hours_ago
+from tests.workflow.stages.decomposition import late_retry_cap_support as _support
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
 )
 from tests.workflow.stages.decomposition.late_content_support import (
     PARK_NOTICE_ID,
     late_issue,
-)
-from tests.workflow.stages.decomposition.late_retry_cap_support import (
-    CAP,
-    CONTINUE_COMMAND,
-    KEY_LAST_ACTION_COMMENT_ID,
-    KEY_RETRY_CAP_NOTICE,
-    KEY_RETRY_CAP_STAGE,
-    NOTICE,
-    PARK_RETRY_CAP,
-    PHASE_STANDING,
-    RETRY_CAP_EVENT,
-    STAGE_DECOMPOSING,
-    trusted,
 )
 from tests.workflow.stages.decomposition.late_test_support import (
     KEYS,
@@ -59,19 +47,19 @@ class StrandedSharedNoticeTest(unittest.TestCase, _DecomposingWorkflowMixin):
     def setUp(self) -> None:
         seeded = late_issue(**{
             KEYS.awaiting: True,
-            KEYS.park_reason: PARK_RETRY_CAP,
-            KEY_RETRY_CAP_STAGE: STAGE_DECOMPOSING,
-            KEY_RETRY_CAP_NOTICE: NOTICE,
-            KEYS.retry_count: CAP,
+            KEYS.park_reason: _support.PARK_RETRY_CAP,
+            _support.KEY_RETRY_CAP_STAGE: _support.STAGE_DECOMPOSING,
+            _support.KEY_RETRY_CAP_NOTICE: _support.NOTICE,
+            KEYS.retry_count: _support.CAP,
             KEYS.retry_window: _iso_hours_ago(1),
-            KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
+            _support.KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
         })
         self.github = seeded[0]
         self.issue = seeded[1]
         # The words a human wrote before anybody told them the issue had
         # stopped: a real command, and no answer at all to a question that has
         # never been put.
-        self.issue.comments.append(trusted(CONTINUE_COMMAND))
+        self.issue.comments.append(_support.trusted(_support.CONTINUE_COMMAND))
         self.standing = self.github.pinned_data(LATE_ISSUE_NUMBER)
 
     def test_the_late_hold_reads_the_shared_field_too(self) -> None:
@@ -96,9 +84,9 @@ class StrandedSharedNoticeTest(unittest.TestCase, _DecomposingWorkflowMixin):
         self.assertEqual(
             [
                 record["phase"] for record in self.github.recorded_events
-                if record["event"] == RETRY_CAP_EVENT
+                if record["event"] == _support.RETRY_CAP_EVENT
             ],
-            [PHASE_STANDING],
+            [_support.PHASE_STANDING],
         )
 
     def test_the_replay_says_it_once_the_thread_reads(self) -> None:
@@ -113,10 +101,10 @@ class StrandedSharedNoticeTest(unittest.TestCase, _DecomposingWorkflowMixin):
         mocks[RUN_AGENT].assert_not_called()
         said = [body for _, body in self.github.posted_comments]
         self.assertEqual(len(said), 1)
-        self.assertIn(NOTICE, said[0])
+        self.assertIn(_support.NOTICE, said[0])
         pinned = self.github.pinned_data(LATE_ISSUE_NUMBER)
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_RETRY_CAP)
-        self.assertNotIn(KEY_RETRY_CAP_NOTICE, pinned)
+        self.assertEqual(pinned.get(KEYS.park_reason), _support.PARK_RETRY_CAP)
+        self.assertNotIn(_support.KEY_RETRY_CAP_NOTICE, pinned)
         self.assertNotIn(KEYS.retry_grant, pinned)
 
 

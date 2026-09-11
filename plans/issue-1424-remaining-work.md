@@ -31,6 +31,9 @@ Discussion test imports: 19 oversized statements replaced with qualified support
 explicit test classes and fixtures. Ruff, WPS, and the full suite pass (6216 passed, 49 skipped); all 6265 test
 identities are unchanged.
 
+Decomposition test imports: 43 oversized statements across 39 files now use their support owners directly.
+Ruff, WPS, and the full suite pass (6216 passed, 49 skipped); all 6265 test identities are unchanged.
+
 ## Scope and dependencies
 
 All ten currently tracked children were still open when this plan was prepared. Their implementation, owner moves,

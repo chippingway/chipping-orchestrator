@@ -32,17 +32,12 @@ from orchestrator.workflow.stages.decomposition import (
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import _TEST_SPEC, _PatchedWorkflowMixin
 from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.stages.decomposition import late_cleanup_support as _support
 from tests.workflow.stages.decomposition.late_cleanup_support import (
-    CHILD_NUMBER,
-    PARENT_NUMBER,
-    SNAPSHOT_REF,
-    SUPERSEDED_BRANCH,
     OwnerSeed,
     RecordedDelete,
     SeededUmbrella,
     SnapshotOutcome,
-    split_umbrella,
-    walk_owner,
 )
 from tests.workflow.stages.decomposition.late_observation_seams import (
     BRANCH_DELETE,
@@ -82,7 +77,7 @@ class LatchedInsideTheReclamationTest(
     def setUp(self) -> None:
         self._fresh_process()
         self.seeded = _owing_both()
-        self.recorded = dict(self.seeded.github.pinned_data(CHILD_NUMBER))
+        self.recorded = dict(self.seeded.github.pinned_data(_support.CHILD_NUMBER))
 
     def test_the_cancellation_is_persisted_first(self) -> None:
         with self.assertLogs(_WORKFLOW_LOG):
@@ -95,9 +90,9 @@ class LatchedInsideTheReclamationTest(
             deleted = self._walked()
 
         self.assertEqual(
-            self.seeded.github.deleted_remote_branches, [SUPERSEDED_BRANCH],
+            self.seeded.github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH],
         )
-        self.assertEqual(deleted.refs, [SNAPSHOT_REF])
+        self.assertEqual(deleted.refs, [_support.SNAPSHOT_REF])
 
     def test_the_child_is_told_nothing(self) -> None:
         # The one effect of a reclamation that reaches another issue, and the
@@ -107,20 +102,20 @@ class LatchedInsideTheReclamationTest(
 
         self.assertEqual(self.seeded.github.posted_comments, [])
         self.assertEqual(
-            self.seeded.github.pinned_data(CHILD_NUMBER), self.recorded,
+            self.seeded.github.pinned_data(_support.CHILD_NUMBER), self.recorded,
         )
 
     def _walked(self) -> RecordedDelete:
         """Poll this umbrella, closing it inside its branch delete."""
         remote = RecordedDelete(SnapshotOutcome.DELETED)
         with remote.answering(), latches_on_call(
-            self.seeded.github, _TEST_SLUG, PARENT_NUMBER, BRANCH_DELETE,
+            self.seeded.github, _TEST_SLUG, _support.PARENT_NUMBER, BRANCH_DELETE,
         ):
-            walk_owner(self, self.seeded)
+            _support.walk_owner(self, self.seeded)
         return remote
 
     def _record(self) -> dict:
-        return self.seeded.github.pinned_data(PARENT_NUMBER)
+        return self.seeded.github.pinned_data(_support.PARENT_NUMBER)
 
 
 class LatchedInsideTheProofTest(
@@ -143,7 +138,7 @@ class LatchedInsideTheProofTest(
     def test_the_mark_is_down_before_the_ref_goes(self) -> None:
         deleted = self._settled()
 
-        self.assertEqual(deleted.refs, [SNAPSHOT_REF])
+        self.assertEqual(deleted.refs, [_support.SNAPSHOT_REF])
         self.assertTrue(deleted.marked)
 
     def test_the_child_is_told_nothing(self) -> None:
@@ -156,11 +151,11 @@ class LatchedInsideTheProofTest(
         deleted = _MarkAtDelete(self.seeded.github)
         state = self.seeded.github.read_pinned_state(self.seeded.parent)
         scan = _parents._read_child_labels(
-            self.seeded.github, self.seeded.parent, [CHILD_NUMBER],
+            self.seeded.github, self.seeded.parent, [_support.CHILD_NUMBER],
         )
         with self.assertLogs(_WORKFLOW_LOG), deleted.answering(), (
             latches_on_child_scan(
-                self.seeded.github, _TEST_SLUG, PARENT_NUMBER,
+                self.seeded.github, _TEST_SLUG, _support.PARENT_NUMBER,
             )
         ):
             _late_cleanup._settled_for_terminal(
@@ -187,7 +182,7 @@ class _MarkAtDelete:
         """Answer the delete, having read what the record says right now."""
         self.refs.append(ref)
         self.marked = bool(
-            self._github.pinned_data(PARENT_NUMBER).get(_KEY_CANCELLED),
+            self._github.pinned_data(_support.PARENT_NUMBER).get(_KEY_CANCELLED),
         )
         return SnapshotOutcome.DELETED
 
@@ -200,7 +195,7 @@ class _MarkAtDelete:
 
 def _owing_both() -> SeededUmbrella:
     """An open umbrella owing a branch and the ref its child was cut from."""
-    return split_umbrella(
+    return _support.split_umbrella(
         LateResourceState.PENDING,
         snapshot=LateResourceState.RETAINED,
         owner=OwnerSeed(label=WorkflowLabel.UMBRELLA, closed=False),

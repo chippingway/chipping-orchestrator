@@ -24,31 +24,8 @@ from orchestrator.workflow.late_split.models import (
     LateResourceState,
 )
 from tests.workflow.fixtures import _PatchedWorkflowMixin
-from tests.workflow.stages.decomposition.late_cleanup_support import (
-    CHILD_KIND,
-    CHILD_NUMBER,
-    DECOMPOSING,
-    EVENT_LATE_CLEANUP,
-    EXPECTED_CHILDREN,
-    LABEL_BLOCKED,
-    LABEL_DONE,
-    LABEL_IN_REVIEW,
-    LABEL_READY,
-    LABEL_REJECTED,
-    PARENT_NUMBER,
-    SNAPSHOT_REF,
-    STATE_FAILED,
-    STATE_RECONCILED,
-    STATE_RETAINED,
-    SUPERSEDED_BRANCH,
-    UNRECORDED_CHILD,
-    WORKFLOW_LOG,
-    OwnerSeed,
-    RecordedDelete,
-    resource_states,
-    seed_unrecorded_child,
-    split_umbrella,
-)
+from tests.workflow.stages.decomposition import late_cleanup_support as _support
+from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
     GENERATION_NUMBER,
@@ -75,24 +52,24 @@ _ANCESTRY_REF = "late_ancestry_snapshot_ref"
 
 # The one ref every case here is about, as the remote records being asked
 # for it.
-_TAKEN = (SNAPSHOT_REF,)
+_TAKEN = (_support.SNAPSHOT_REF,)
 
 
 def _closed(
     owed: LateResourceState,
     snapshot: LateResourceState,
     *,
-    child_label: str = LABEL_DONE,
+    child_label: str = _support.LABEL_DONE,
     child_closed: bool = True,
     phase: LatePhase = LatePhase.CLEANING_UP,
 ):
     """A closed snapshot owner, and the consumer disposition under test."""
-    return split_umbrella(
+    return _support.split_umbrella(
         owed,
         snapshot=snapshot,
         child_label=child_label,
         owner=OwnerSeed(
-            label=DECOMPOSING,
+            label=_support.DECOMPOSING,
             closed=True,
             child_closed=child_closed,
             phase=phase,
@@ -102,20 +79,20 @@ def _closed(
 
 def _seed_nested_generation(seeded) -> None:
     """Give the consumer a split of its own, still holding its own ref."""
-    child = seeded.github.get_issue(CHILD_NUMBER)
+    child = seeded.github.get_issue(_support.CHILD_NUMBER)
     child_state = seeded.github.read_pinned_state(child)
     _late_state.write_late_generation(child_state, late_generation(
         threshold=None,
         additions=None,
         resources=(),
-        current_issue=CHILD_NUMBER,
+        current_issue=_support.CHILD_NUMBER,
         generation=GENERATION_NUMBER + 1,
     ).with_consumers((_GRANDCHILD_NUMBER,)).with_resource(LateResource(
         kind=LateResourceKind.SNAPSHOT_REF,
         target=_NESTED_REF,
         resource_state=LateResourceState.RETAINED,
     )))
-    seeded.github.seed_state(CHILD_NUMBER, **child_state.data)
+    seeded.github.seed_state(_support.CHILD_NUMBER, **child_state.data)
 
 
 class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
@@ -135,16 +112,16 @@ class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
 
         self.assertEqual(tuple(deleted.refs), _TAKEN)
         self.assertEqual(deleted.shas, [CANDIDATE_SHA])
-        self.assertEqual(github.deleted_remote_branches, [SUPERSEDED_BRANCH])
+        self.assertEqual(github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH])
         self.assertEqual(
-            resource_states(github),
+            _support.resource_states(github),
             {
-                SUPERSEDED_BRANCH: STATE_RECONCILED,
-                SNAPSHOT_REF: STATE_RECONCILED,
+                _support.SUPERSEDED_BRANCH: _support.STATE_RECONCILED,
+                _support.SNAPSHOT_REF: _support.STATE_RECONCILED,
             },
         )
         self.assertEqual(
-            github.label_history, [(PARENT_NUMBER, LABEL_REJECTED)],
+            github.label_history, [(_support.PARENT_NUMBER, _support.LABEL_REJECTED)],
         )
         self.assertEqual(github.posted_comments, [])
 
@@ -153,12 +130,12 @@ class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
         # is the whole answer -- and it is not latched. The same ledger with
         # the same consumer reopened keeps the ref, because what decides is
         # the reading taken on the visit that would delete it.
-        for child_closed, asked in ((True, [SNAPSHOT_REF]), (False, [])):
+        for child_closed, asked in ((True, [_support.SNAPSHOT_REF]), (False, [])):
             with self.subTest(child_closed=child_closed):
                 seeded = _closed(
                     LateResourceState.RECONCILED,
                     LateResourceState.RETAINED,
-                    child_label=LABEL_IN_REVIEW,
+                    child_label=_support.LABEL_IN_REVIEW,
                     child_closed=child_closed,
                 )
 
@@ -184,9 +161,9 @@ class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
             {
                 entry["target"]: entry["state"]
                 for entry in
-                seeded.github.pinned_data(CHILD_NUMBER)["late_resources"]
+                seeded.github.pinned_data(_support.CHILD_NUMBER)["late_resources"]
             },
-            {_NESTED_REF: STATE_RETAINED},
+            {_NESTED_REF: _support.STATE_RETAINED},
         )
 
     def test_an_unreadable_consumer_owes_the_ref(self) -> None:
@@ -198,15 +175,15 @@ class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
         )
         seeded.github.get_issue = MagicMock(side_effect=RuntimeError("boom"))
 
-        with self.assertLogs(WORKFLOW_LOG, level="ERROR"):
+        with self.assertLogs(_support.WORKFLOW_LOG, level="ERROR"):
             deleted = seeded.swept(self, _DELETED)
 
         self.assertEqual(deleted.refs, [])
         self.assertEqual(
-            resource_states(seeded.github),
+            _support.resource_states(seeded.github),
             {
-                SUPERSEDED_BRANCH: STATE_RECONCILED,
-                SNAPSHOT_REF: STATE_RETAINED,
+                _support.SUPERSEDED_BRANCH: _support.STATE_RECONCILED,
+                _support.SNAPSHOT_REF: _support.STATE_RETAINED,
             },
         )
 
@@ -226,8 +203,8 @@ class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
         self.assertEqual(tuple(deleted.refs), _TAKEN)
         self.assertEqual(seeded.github.posted_comments, [])
         self.assertEqual(
-            seeded.github.pinned_data(CHILD_NUMBER)[_ANCESTRY_REF],
-            SNAPSHOT_REF,
+            seeded.github.pinned_data(_support.CHILD_NUMBER)[_ANCESTRY_REF],
+            _support.SNAPSHOT_REF,
         )
 
     def test_a_refused_delete_is_asked_again(self) -> None:
@@ -238,11 +215,11 @@ class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
             LateResourceState.RECONCILED, LateResourceState.RETAINED,
         )
 
-        with self.assertLogs(WORKFLOW_LOG, level=_WARNING):
+        with self.assertLogs(_support.WORKFLOW_LOG, level=_WARNING):
             seeded.swept(self, _snapshot_refs.SnapshotOutcome.REFUSED)
 
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_FAILED,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_FAILED,
         )
         reported = [
             event for event in seeded.github.recorded_events
@@ -258,7 +235,7 @@ class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
 
         self.assertEqual(tuple(retried.refs), _TAKEN)
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_RECONCILED,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_RECONCILED,
         )
 
 
@@ -273,7 +250,7 @@ class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
         )
         refused = _snapshot_refs.SnapshotOutcome.REFUSED
 
-        with self.assertLogs(WORKFLOW_LOG, level=_WARNING):
+        with self.assertLogs(_support.WORKFLOW_LOG, level=_WARNING):
             seeded.swept(self, refused)
             written = seeded.github.write_state_calls
             asked = seeded.swept(self, refused)
@@ -281,13 +258,13 @@ class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):
 
         self.assertEqual(tuple(asked.refs), _TAKEN)
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_FAILED,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_FAILED,
         )
         self.assertEqual(seeded.github.write_state_calls, written)
         self.assertEqual(
             len([
                 event for event in seeded.github.recorded_events
-                if event.get("event") == EVENT_LATE_CLEANUP
+                if event.get("event") == _support.EVENT_LATE_CLEANUP
             ]),
             1,
         )
@@ -309,7 +286,7 @@ class WholeLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
         deleted = self._swept(seeded)
 
         self.assertEqual(tuple(deleted.refs), _TAKEN)
-        self.assertEqual(self._ref_state(seeded.github), STATE_RECONCILED)
+        self.assertEqual(self._ref_state(seeded.github), _support.STATE_RECONCILED)
 
     def test_it_settles_the_owner_for_good(self) -> None:
         # What being stuck cost: the sweep came back on every cadence with a
@@ -327,7 +304,7 @@ class WholeLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
         self.assertEqual(seeded.github.write_state_calls, settled)
         self.assertEqual(seeded.github.posted_comments, [])
         self.assertEqual(
-            seeded.github.label_history, [(PARENT_NUMBER, LABEL_REJECTED)],
+            seeded.github.label_history, [(_support.PARENT_NUMBER, _support.LABEL_REJECTED)],
         )
 
     def test_a_ledger_the_split_may_lead_is_kept(self) -> None:
@@ -340,30 +317,30 @@ class WholeLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
         # owner-check claim may not write over it. On one an EARLIER binary
         # left, the claim already did -- and what upgrades it is the count the
         # transaction put down in that same write, which nothing moved.
-        upgraded = {EXPECTED_CHILDREN: 2}
+        upgraded = {_support.EXPECTED_CHILDREN: 2}
         for phase, evidence in (
             (LatePhase.SPLITTING, {}), (LatePhase.OWNER_CHECK, upgraded),
         ):
             with self.subTest(phase=phase):
                 seeded = self._orphan(phase)
                 seeded.github.seed_state(
-                    PARENT_NUMBER,
+                    _support.PARENT_NUMBER,
                     **{
-                        **seeded.github.pinned_data(PARENT_NUMBER),
+                        **seeded.github.pinned_data(_support.PARENT_NUMBER),
                         **evidence,
                     },
                 )
-                seed_unrecorded_child(seeded.github)
+                _support.seed_unrecorded_child(seeded.github)
 
                 deleted = self._swept(seeded)
 
                 self.assertEqual(deleted.refs, [])
                 self.assertEqual(
-                    self._ref_state(seeded.github), STATE_RETAINED,
+                    self._ref_state(seeded.github), _support.STATE_RETAINED,
                 )
                 self.assertEqual(seeded.github.label_history, [])
                 self.assertFalse(
-                    seeded.github.get_issue(UNRECORDED_CHILD).closed,
+                    seeded.github.get_issue(_support.UNRECORDED_CHILD).closed,
                 )
 
     def test_a_part_written_ledger_is_kept(self) -> None:
@@ -386,26 +363,26 @@ class WholeLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
                     LateResourceState.RETAINED,
                     phase=phase,
                 )
-                seed_unrecorded_child(seeded.github)
+                _support.seed_unrecorded_child(seeded.github)
 
                 deleted = self._swept(seeded)
 
                 self.assertEqual(deleted.refs, [])
                 self.assertEqual(
-                    self._ref_state(seeded.github), STATE_RETAINED,
+                    self._ref_state(seeded.github), _support.STATE_RETAINED,
                 )
                 self.assertEqual(seeded.github.posted_comments, [])
                 self.assertFalse(
-                    seeded.github.get_issue(UNRECORDED_CHILD).closed,
+                    seeded.github.get_issue(_support.UNRECORDED_CHILD).closed,
                 )
 
     def _orphan(self, phase: LatePhase):
         """A closed owner holding a ref, with no child recorded or made."""
-        return split_umbrella(
+        return _support.split_umbrella(
             LateResourceState.RECONCILED,
             snapshot=LateResourceState.RETAINED,
             owner=OwnerSeed(
-                label=DECOMPOSING, closed=True, child=False, phase=phase,
+                label=_support.DECOMPOSING, closed=True, child=False, phase=phase,
             ),
         )
 
@@ -415,7 +392,7 @@ class WholeLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
 
     def _ref_state(self, github) -> str:
         """What the owner's ledger now says about the one ref it held."""
-        return resource_states(github)[SNAPSHOT_REF]
+        return _support.resource_states(github)[_support.SNAPSHOT_REF]
 
 
 class FinishedLoopTest(_PatchedWorkflowMixin, unittest.TestCase):
@@ -448,7 +425,7 @@ class FinishedLoopTest(_PatchedWorkflowMixin, unittest.TestCase):
                 self.assertEqual(self._reclaimed(deleted), _TAKEN)
                 self.assertEqual(
                     tuple(seeded.github.label_history),
-                    ((PARENT_NUMBER, LABEL_REJECTED),),
+                    ((_support.PARENT_NUMBER, _support.LABEL_REJECTED),),
                 )
 
     def test_a_short_register_keeps_the_ref(self) -> None:
@@ -475,10 +452,10 @@ class FinishedLoopTest(_PatchedWorkflowMixin, unittest.TestCase):
             phase=phase,
         )
         seeded.github.seed_state(
-            PARENT_NUMBER,
+            _support.PARENT_NUMBER,
             **{
-                **seeded.github.pinned_data(PARENT_NUMBER),
-                EXPECTED_CHILDREN: expected,
+                **seeded.github.pinned_data(_support.PARENT_NUMBER),
+                _support.EXPECTED_CHILDREN: expected,
             },
         )
         return seeded
@@ -508,7 +485,7 @@ class UntouchedConsumerTest(_PatchedWorkflowMixin, unittest.TestCase):
 
         self.assertEqual(tuple(deleted.refs), _TAKEN)
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_RECONCILED,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_RECONCILED,
         )
         self.assertEqual(seeded.github.posted_comments, [])
 
@@ -517,7 +494,7 @@ class UntouchedConsumerTest(_PatchedWorkflowMixin, unittest.TestCase):
         # nothing, so a consumer left on one never becomes terminal. It is
         # still ended -- so the ref goes -- and it is still untouched, on
         # every label a stranded child can be wearing.
-        for child_label in (LABEL_READY, LABEL_BLOCKED, LABEL_IN_REVIEW):
+        for child_label in (_support.LABEL_READY, _support.LABEL_BLOCKED, _support.LABEL_IN_REVIEW):
             with self.subTest(child_label=child_label):
                 seeded = _closed(
                     LateResourceState.RECONCILED,
@@ -525,14 +502,14 @@ class UntouchedConsumerTest(_PatchedWorkflowMixin, unittest.TestCase):
                     child_label=child_label,
                 )
 
-                recorded = dict(seeded.github.pinned_data(CHILD_NUMBER))
+                recorded = dict(seeded.github.pinned_data(_support.CHILD_NUMBER))
 
                 deleted = self._sweep(seeded)
 
                 self.assertEqual(tuple(deleted.refs), _TAKEN)
                 self.assertEqual(seeded.github.posted_comments, [])
                 self.assertEqual(
-                    seeded.github.pinned_data(CHILD_NUMBER), recorded,
+                    seeded.github.pinned_data(_support.CHILD_NUMBER), recorded,
                 )
 
     def test_an_unreadable_child_still_holds_the_ref(self) -> None:
@@ -544,12 +521,12 @@ class UntouchedConsumerTest(_PatchedWorkflowMixin, unittest.TestCase):
         )
         seeded.github.get_issue = MagicMock(side_effect=RuntimeError("boom"))
 
-        with self.assertLogs(WORKFLOW_LOG, level=_WARNING):
+        with self.assertLogs(_support.WORKFLOW_LOG, level=_WARNING):
             deleted = self._sweep(seeded)
 
         self.assertEqual(deleted.refs, [])
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_RETAINED,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_RETAINED,
         )
 
     def test_an_ordered_ref_already_gone_finishes(self) -> None:
@@ -563,7 +540,7 @@ class UntouchedConsumerTest(_PatchedWorkflowMixin, unittest.TestCase):
         self._sweep(seeded, _ABSENT)
 
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_RECONCILED,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_RECONCILED,
         )
         self.assertEqual(seeded.github.posted_comments, [])
 
@@ -586,17 +563,17 @@ class SpentLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
         # receipts it says nothing further is owed on, and the terminal that
         # takes the issue out of the sweep. No consumer is read to establish
         # any of it, and a second pass writes nothing at all.
-        seeded = split_umbrella(
+        seeded = _support.split_umbrella(
             LateResourceState.RECONCILED,
-            owner=OwnerSeed(label=DECOMPOSING, closed=True),
+            owner=OwnerSeed(label=_support.DECOMPOSING, closed=True),
         )
 
         self._asks_nothing(seeded)
         written = seeded.github.write_state_calls
 
         self.assertEqual(
-            resource_states(seeded.github, CHILD_KIND),
-            {str(CHILD_NUMBER): STATE_RECONCILED},
+            _support.resource_states(seeded.github, _support.CHILD_KIND),
+            {str(_support.CHILD_NUMBER): _support.STATE_RECONCILED},
         )
         # And what that discharge is FOR: `rejected` authorizes a restart,
         # which projects a fresh cycle only over a ledger with nothing
@@ -608,7 +585,7 @@ class SpentLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
             ),
         ))
         self.assertEqual(
-            seeded.github.label_history, [(PARENT_NUMBER, LABEL_REJECTED)],
+            seeded.github.label_history, [(_support.PARENT_NUMBER, _support.LABEL_REJECTED)],
         )
 
         self._asks_nothing(seeded)
@@ -624,13 +601,13 @@ class SpentLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
         )
         github = seeded.github
         github.seed_state(
-            PARENT_NUMBER,
+            _support.PARENT_NUMBER,
             **{
-                **github.pinned_data(PARENT_NUMBER),
+                **github.pinned_data(_support.PARENT_NUMBER),
                 "late_resources": _OPAQUE_RESOURCES,
             },
         )
-        with self.assertLogs(WORKFLOW_LOG, level=_WARNING):
+        with self.assertLogs(_support.WORKFLOW_LOG, level=_WARNING):
             self._asks_nothing(seeded)
 
         self.assertEqual(github.deleted_remote_branches, [])
@@ -644,9 +621,9 @@ class SpentLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
         )
         github = seeded.github
         github.seed_state(
-            PARENT_NUMBER,
+            _support.PARENT_NUMBER,
             **{
-                **github.pinned_data(PARENT_NUMBER),
+                **github.pinned_data(_support.PARENT_NUMBER),
                 "late_consumers": _OPAQUE_CONSUMERS,
             },
         )
@@ -654,14 +631,14 @@ class SpentLedgerTest(_PatchedWorkflowMixin, unittest.TestCase):
         deleted = seeded.swept(self)
 
         self.assertEqual(
-            github.deleted_remote_branches, [SUPERSEDED_BRANCH],
+            github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH],
         )
         self.assertEqual(deleted.refs, [])
         self.assertEqual(
-            resource_states(github),
+            _support.resource_states(github),
             {
-                SUPERSEDED_BRANCH: STATE_RECONCILED,
-                SNAPSHOT_REF: STATE_RETAINED,
+                _support.SUPERSEDED_BRANCH: _support.STATE_RECONCILED,
+                _support.SNAPSHOT_REF: _support.STATE_RETAINED,
             },
         )
 

@@ -24,6 +24,7 @@ from orchestrator.workflow.late_split.models import LatePhase
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
+from tests.workflow.stages.decomposition import late_transaction_support as _support
 from tests.workflow.stages.decomposition.late_close_race_support import (
     closes_when_children_exist,
 )
@@ -35,18 +36,7 @@ from tests.workflow.stages.decomposition.late_test_support import (
     KEYS,
     PLAN_PR_NUMBER,
 )
-from tests.workflow.stages.decomposition.late_transaction_support import (
-    CHILDREN,
-    KEY_CHILDREN,
-    KEY_EXPECTED_CHILDREN,
-    KEY_LINKS_ANNOUNCED,
-    KEY_SPLIT_CHILDREN,
-    KEY_UMBRELLA,
-    SNAPSHOT_REF,
-    HeldPlanPrSplitCase,
-    LateSplitCase,
-    label_of,
-)
+from tests.workflow.stages.decomposition.late_transaction_support import HeldPlanPrSplitCase, LateSplitCase
 
 _RESOURCE_SNAPSHOT = "snapshot_ref"
 _PR_OPEN = "open"
@@ -81,8 +71,8 @@ class ClosedBeforeChildrenTest(LateSplitCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
         self.assertEqual(self.github.created_child_issues, [])
-        self.assertIsNone(self._pinned().get(KEY_CHILDREN))
-        self.assertIsNone(self._pinned().get(KEY_UMBRELLA))
+        self.assertIsNone(self._pinned().get(_support.KEY_CHILDREN))
+        self.assertIsNone(self._pinned().get(_support.KEY_UMBRELLA))
 
     def test_the_mark_records_its_boundary(self) -> None:
         # `snapshotting` is where the interruption happened, and keeping it is
@@ -104,7 +94,7 @@ class ClosedBeforeChildrenTest(LateSplitCase, unittest.TestCase):
             self._transact()
 
         self.assertEqual(
-            self._resources()[(_RESOURCE_SNAPSHOT, SNAPSHOT_REF)],
+            self._resources()[(_RESOURCE_SNAPSHOT, _support.SNAPSHOT_REF)],
             _STATE_RETAINED,
         )
 
@@ -194,10 +184,10 @@ class ClosedMidLoopTest(LateSplitCase, unittest.TestCase):
 
         pinned = self._pinned()
         self.assertEqual(
-            pinned[KEY_SPLIT_CHILDREN],
+            pinned[_support.KEY_SPLIT_CHILDREN],
             [self.github.created_child_issues[0].number],
         )
-        self.assertEqual(pinned[KEY_EXPECTED_CHILDREN], len(CHILDREN))
+        self.assertEqual(pinned[_support.KEY_EXPECTED_CHILDREN], len(_support.CHILDREN))
 
     def test_the_boundary_says_the_loop_was_running(self) -> None:
         # Which is what keeps the ref: one child of two is a partial split,
@@ -211,7 +201,7 @@ class ClosedMidLoopTest(LateSplitCase, unittest.TestCase):
             pinned[KEYS.cancelled_phase], LatePhase.SPLITTING.value,
         )
         self.assertEqual(
-            self._resources()[(_RESOURCE_SNAPSHOT, SNAPSHOT_REF)],
+            self._resources()[(_RESOURCE_SNAPSHOT, _support.SNAPSHOT_REF)],
             _STATE_RETAINED,
         )
 
@@ -219,8 +209,8 @@ class ClosedMidLoopTest(LateSplitCase, unittest.TestCase):
         with self.assertLogs(_WORKFLOW_LOG), self.closing:
             self._transact()
 
-        self.assertIsNone(self._pinned().get(KEY_LINKS_ANNOUNCED))
-        self.assertEqual(label_of(self.github, self.issue.number), _DECOMPOSING)
+        self.assertIsNone(self._pinned().get(_support.KEY_LINKS_ANNOUNCED))
+        self.assertEqual(_support.label_of(self.github, self.issue.number), _DECOMPOSING)
 
 
 class ClosedBeforeActivationTest(LateSplitCase, unittest.TestCase):
@@ -235,16 +225,16 @@ class ClosedBeforeActivationTest(LateSplitCase, unittest.TestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.closing = closes_when_children_exist(self, len(CHILDREN))
+        self.closing = closes_when_children_exist(self, len(_support.CHILDREN))
 
     def test_every_child_was_created_and_recorded(self) -> None:
         with self.assertLogs(_WORKFLOW_LOG), self.closing:
             outcome = self._transact()
 
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
-        self.assertEqual(len(self.github.created_child_issues), len(CHILDREN))
+        self.assertEqual(len(self.github.created_child_issues), len(_support.CHILDREN))
         self.assertEqual(
-            len(self._pinned()[KEY_SPLIT_CHILDREN]), len(CHILDREN),
+            len(self._pinned()[_support.KEY_SPLIT_CHILDREN]), len(_support.CHILDREN),
         )
 
     def test_none_of_them_is_started(self) -> None:
@@ -256,10 +246,10 @@ class ClosedBeforeActivationTest(LateSplitCase, unittest.TestCase):
 
         self.assertEqual(
             [
-                label_of(self.github, child.number)
+                _support.label_of(self.github, child.number)
                 for child in self.github.created_child_issues
             ],
-            [_BLOCKED for _ in CHILDREN],
+            [_BLOCKED for _ in _support.CHILDREN],
         )
 
     def test_the_parent_is_not_made_an_umbrella(self) -> None:
@@ -269,8 +259,8 @@ class ClosedBeforeActivationTest(LateSplitCase, unittest.TestCase):
         with self.assertLogs(_WORKFLOW_LOG), self.closing:
             self._transact()
 
-        self.assertEqual(label_of(self.github, self.issue.number), _DECOMPOSING)
-        self.assertIsNone(self._pinned().get(KEY_LINKS_ANNOUNCED))
+        self.assertEqual(_support.label_of(self.github, self.issue.number), _DECOMPOSING)
+        self.assertIsNone(self._pinned().get(_support.KEY_LINKS_ANNOUNCED))
 
     def test_the_record_proves_the_loop_finished(self) -> None:
         # Which is what lets the ending release the ref once the children
@@ -282,7 +272,7 @@ class ClosedBeforeActivationTest(LateSplitCase, unittest.TestCase):
         pinned = self._pinned()
         self.assertTrue(pinned[KEYS.cancelled])
         self.assertEqual(
-            pinned[KEY_EXPECTED_CHILDREN], len(pinned[KEY_SPLIT_CHILDREN]),
+            pinned[_support.KEY_EXPECTED_CHILDREN], len(pinned[_support.KEY_SPLIT_CHILDREN]),
         )
 
 

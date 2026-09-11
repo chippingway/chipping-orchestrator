@@ -22,26 +22,15 @@ from orchestrator.workflow.late_split.models import (
     LatePhase,
     LateResourceState,
 )
+from tests.workflow.stages.decomposition import late_cleanup_support as _support
 from tests.workflow.stages.decomposition.late_cancel_support import (
     ClosedOwnerCase,
 )
 from tests.workflow.stages.decomposition.late_cleanup_support import (
-    CHILD_NUMBER,
-    DECOMPOSING,
-    LABEL_BLOCKED,
-    LABEL_DONE,
-    LABEL_REJECTED,
-    PARENT_NUMBER,
-    SNAPSHOT_REF,
-    STATE_FAILED,
-    STATE_RECONCILED,
-    STATE_RETAINED,
-    SUPERSEDED_BRANCH,
     OwnerSeed,
     RecordedDelete,
     SeededUmbrella,
     SnapshotOutcome,
-    split_umbrella,
 )
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
@@ -68,7 +57,7 @@ _CHILD_KIND = "child"
 
 _CANCELLED_HEADING = "**Cancelled.**"
 
-_MARKER = f"<!--orchestrator-late-cancellation:issue={PARENT_NUMBER}"
+_MARKER = f"<!--orchestrator-late-cancellation:issue={_support.PARENT_NUMBER}"
 
 _WORKFLOW_LOG = "orchestrator.workflow"
 
@@ -86,7 +75,7 @@ _OPAQUE_RESOURCES = '[{"kind": "unknown-to-this-binary"}]'
 # what makes an entry under it invisible to everything keyed to that field.
 _ORPHANED_PR = "99"
 
-_RETIRED = ((PARENT_NUMBER, LABEL_REJECTED),)
+_RETIRED = ((_support.PARENT_NUMBER, _support.LABEL_REJECTED),)
 
 # The moment the post-agent owner read marked a close it caught during a
 # run, which the sweep behind it settles from rather than replaces.
@@ -99,10 +88,10 @@ def _unstarted_owner(*, recorded: bool = True) -> SeededUmbrella:
     `recorded=False` is the issue beside it that never entered the late gate
     at all, which wears one of the same two swept labels and owns no cycle.
     """
-    return split_umbrella(
+    return _support.split_umbrella(
         None,
         owner=OwnerSeed(
-            label=DECOMPOSING,
+            label=_support.DECOMPOSING,
             closed=True,
             recorded=recorded,
             child=False,
@@ -127,7 +116,7 @@ class _MarkWatchingDelete(RecordedDelete):
 
     def __call__(self, *call_args, **call_options):
         self.marks.append(
-            self._github.pinned_data(PARENT_NUMBER).get(KEYS.cancelled),
+            self._github.pinned_data(_support.PARENT_NUMBER).get(KEYS.cancelled),
         )
         return super().__call__(*call_args, **call_options)
 
@@ -191,11 +180,11 @@ class CancellationMarkTest(ClosedOwnerCase, unittest.TestCase):
             _late_state.read_late_generation(state).cancel(_GUARD_STAMP),
             phase=LatePhase.CANCELLING,
         ))
-        seeded.github.seed_state(PARENT_NUMBER, **state.data)
+        seeded.github.seed_state(_support.PARENT_NUMBER, **state.data)
 
         taken = self._swept(seeded)
 
-        self.assertEqual(taken.refs, [SNAPSHOT_REF])
+        self.assertEqual(taken.refs, [_support.SNAPSHOT_REF])
         self.assertEqual(
             self._pinned(seeded).get(KEYS.cancelled_at), _GUARD_STAMP,
         )
@@ -273,10 +262,10 @@ class HeldPlanPrTest(ClosedOwnerCase, unittest.TestCase):
             seeded, _EVENT_CLEANUP, _PLAN_PR_KIND,
         )
         self.assertEqual(len(reported), 1)
-        self.assertEqual(reported[0].get("outcome"), STATE_RECONCILED)
+        self.assertEqual(reported[0].get("outcome"), _support.STATE_RECONCILED)
         self.assertEqual(reported[0].get("stage"), _DECOMPOSING_STAGE)
         self.assertEqual(
-            self._states(seeded)[_PLAN_PR_TARGET], STATE_RECONCILED,
+            self._states(seeded)[_PLAN_PR_TARGET], _support.STATE_RECONCILED,
         )
 
     def test_a_settled_plan_pr_is_told_only_once(self) -> None:
@@ -312,7 +301,7 @@ class HeldPlanPrTest(ClosedOwnerCase, unittest.TestCase):
         github = seeded.github
         self.assertEqual(github.posted_pr_comments, [])
         self.assertEqual(github.pulls[PLAN_PR_NUMBER].state, _PR_OPEN)
-        self.assertEqual(self._states(seeded)[_PLAN_PR_TARGET], STATE_FAILED)
+        self.assertEqual(self._states(seeded)[_PLAN_PR_TARGET], _support.STATE_FAILED)
 
     def test_a_refused_close_is_reported(self) -> None:
         seeded = self._closed_owner(snapshot=None)
@@ -321,7 +310,7 @@ class HeldPlanPrTest(ClosedOwnerCase, unittest.TestCase):
         with self.assertLogs(_WORKFLOW_LOG):
             self._swept(seeded)
 
-        self.assertEqual(self._states(seeded)[_PLAN_PR_TARGET], STATE_FAILED)
+        self.assertEqual(self._states(seeded)[_PLAN_PR_TARGET], _support.STATE_FAILED)
         self.assertEqual(
             [
                 record["failure"]
@@ -342,7 +331,7 @@ class HeldPlanPrTest(ClosedOwnerCase, unittest.TestCase):
         self._swept(seeded)
 
         self.assertEqual(
-            self._states(seeded)[_PLAN_PR_TARGET], STATE_RECONCILED,
+            self._states(seeded)[_PLAN_PR_TARGET], _support.STATE_RECONCILED,
         )
         self.assertEqual(tuple(self._labels(seeded)), _RETIRED)
 
@@ -392,7 +381,7 @@ class BoundaryTest(ClosedOwnerCase, unittest.TestCase):
         deleted = self._swept(seeded)
 
         self.assertEqual(deleted.refs, [])
-        self.assertEqual(self._states(seeded)[SNAPSHOT_REF], STATE_RETAINED)
+        self.assertEqual(self._states(seeded)[_support.SNAPSHOT_REF], _support.STATE_RETAINED)
         self.assertEqual(self._labels(seeded), [])
 
     def test_a_child_that_exists_is_left_alone(self) -> None:
@@ -403,9 +392,9 @@ class BoundaryTest(ClosedOwnerCase, unittest.TestCase):
         self._swept(seeded)
 
         github = seeded.github
-        child = github.get_issue(CHILD_NUMBER)
+        child = github.get_issue(_support.CHILD_NUMBER)
         self.assertFalse(child.closed)
-        self.assertEqual(github.workflow_label(child), LABEL_BLOCKED)
+        self.assertEqual(github.workflow_label(child), _support.LABEL_BLOCKED)
         self.assertEqual(github.posted_comments, [])
 
     def test_a_reclaimed_ref_still_touches_no_child(self) -> None:
@@ -416,15 +405,15 @@ class BoundaryTest(ClosedOwnerCase, unittest.TestCase):
         # pinned write, no label, and the child is left closed as it was.
         seeded = self._closed_owner()
         github = seeded.github
-        recorded = dict(github.pinned_data(CHILD_NUMBER))
+        recorded = dict(github.pinned_data(_support.CHILD_NUMBER))
 
         deleted = self._swept(seeded)
 
-        child = github.get_issue(CHILD_NUMBER)
-        self.assertEqual(deleted.refs, [SNAPSHOT_REF])
+        child = github.get_issue(_support.CHILD_NUMBER)
+        self.assertEqual(deleted.refs, [_support.SNAPSHOT_REF])
         self.assertEqual(github.posted_comments, [])
-        self.assertEqual(github.pinned_data(CHILD_NUMBER), recorded)
-        self.assertEqual(github.workflow_label(child), LABEL_DONE)
+        self.assertEqual(github.pinned_data(_support.CHILD_NUMBER), recorded)
+        self.assertEqual(github.workflow_label(child), _support.LABEL_DONE)
         self.assertTrue(child.closed)
 
     def test_a_superseded_branch_is_taken_once(self) -> None:
@@ -442,16 +431,16 @@ class BoundaryTest(ClosedOwnerCase, unittest.TestCase):
         # recorded: a `reconciled` entry re-taken as owed would ask the remote
         # to delete it again.
         for recorded, phase, asked in (
-            (None, LatePhase.SUPERSEDING, [SUPERSEDED_BRANCH]),
+            (None, LatePhase.SUPERSEDING, [_support.SUPERSEDED_BRANCH]),
             (LateResourceState.RECONCILED, LatePhase.SUPERSEDING, []),
-            (None, LatePhase.SPLITTING, [SUPERSEDED_BRANCH]),
+            (None, LatePhase.SPLITTING, [_support.SUPERSEDED_BRANCH]),
         ):
             with self.subTest(recorded=recorded, phase=phase):
-                seeded = split_umbrella(
+                seeded = _support.split_umbrella(
                     recorded,
                     snapshot=LateResourceState.RETAINED,
                     owner=OwnerSeed(
-                        label=DECOMPOSING,
+                        label=_support.DECOMPOSING,
                         closed=True,
                         child=False,
                         announced=True,
@@ -466,8 +455,8 @@ class BoundaryTest(ClosedOwnerCase, unittest.TestCase):
                     seeded.github.deleted_remote_branches, asked,
                 )
                 self.assertEqual(
-                    self._states(seeded)[SUPERSEDED_BRANCH],
-                    STATE_RECONCILED,
+                    self._states(seeded)[_support.SUPERSEDED_BRANCH],
+                    _support.STATE_RECONCILED,
                 )
 
     def test_an_unsettled_plan_pr_keeps_its_branch(self) -> None:
@@ -480,11 +469,11 @@ class BoundaryTest(ClosedOwnerCase, unittest.TestCase):
         # retirement that FOLLOWS a supersession. Nothing is lost by waiting:
         # the pull request is re-asked on every visit, and the one that closes
         # it takes the branch on the way the sibling case above does.
-        seeded = split_umbrella(
+        seeded = _support.split_umbrella(
             None,
             snapshot=LateResourceState.RETAINED,
             owner=OwnerSeed(
-                label=DECOMPOSING,
+                label=_support.DECOMPOSING,
                 closed=True,
                 child=False,
                 phase=LatePhase.SUPERSEDING,
@@ -500,7 +489,7 @@ class BoundaryTest(ClosedOwnerCase, unittest.TestCase):
             seeded.github.pulls[PLAN_PR_NUMBER].state, _PR_OPEN,
         )
         self.assertEqual(seeded.github.deleted_remote_branches, [])
-        self.assertNotIn(SUPERSEDED_BRANCH, self._states(seeded))
+        self.assertNotIn(_support.SUPERSEDED_BRANCH, self._states(seeded))
         self.assertEqual(self._labels(seeded), [])
 
     def test_a_cancelled_ref_stays_reclaimable(self) -> None:
@@ -511,13 +500,13 @@ class BoundaryTest(ClosedOwnerCase, unittest.TestCase):
 
         held = self._swept(seeded)
         self.assertEqual(held.refs, [])
-        self.assertEqual(self._states(seeded)[SNAPSHOT_REF], STATE_RETAINED)
+        self.assertEqual(self._states(seeded)[_support.SNAPSHOT_REF], _support.STATE_RETAINED)
         self.assertEqual(self._labels(seeded), [])
 
-        seeded.github.get_issue(CHILD_NUMBER).closed = True
+        seeded.github.get_issue(_support.CHILD_NUMBER).closed = True
         taken = self._swept(seeded)
 
-        self.assertEqual(taken.refs, [SNAPSHOT_REF])
+        self.assertEqual(taken.refs, [_support.SNAPSHOT_REF])
         self.assertEqual(taken.shas, [CANDIDATE_SHA])
         self.assertEqual(tuple(self._labels(seeded)), _RETIRED)
 
@@ -534,7 +523,7 @@ class TerminalTest(ClosedOwnerCase, unittest.TestCase):
         seeded = self._refusing_remote()
 
         self.assertEqual(
-            self._states(seeded)[SUPERSEDED_BRANCH], STATE_FAILED,
+            self._states(seeded)[_support.SUPERSEDED_BRANCH], _support.STATE_FAILED,
         )
         self.assertEqual(self._labels(seeded), [])
 
@@ -545,7 +534,7 @@ class TerminalTest(ClosedOwnerCase, unittest.TestCase):
         self._swept(seeded)
 
         self.assertEqual(
-            self._states(seeded)[SUPERSEDED_BRANCH], STATE_RECONCILED,
+            self._states(seeded)[_support.SUPERSEDED_BRANCH], _support.STATE_RECONCILED,
         )
         self.assertEqual(tuple(self._labels(seeded)), _RETIRED)
 
@@ -576,13 +565,13 @@ class TerminalTest(ClosedOwnerCase, unittest.TestCase):
         orphaned = [{
             "kind": _PLAN_PR_KIND,
             "target": _ORPHANED_PR,
-            "state": STATE_FAILED,
+            "state": _support.STATE_FAILED,
         }]
         for ledger in (_OPAQUE_RESOURCES, orphaned):
             with self.subTest(ledger=ledger):
                 seeded = self._closed_owner(owed=LateResourceState.PENDING)
                 seeded.github.seed_state(
-                    PARENT_NUMBER,
+                    _support.PARENT_NUMBER,
                     **{**self._pinned(seeded), KEYS.resources: ledger},
                 )
 
@@ -633,7 +622,7 @@ class TerminalTest(ClosedOwnerCase, unittest.TestCase):
         self.assertEqual(seeded.github.write_state_calls, written)
         self.assertEqual(
             seeded.github.deleted_remote_branches,
-            [SUPERSEDED_BRANCH, SUPERSEDED_BRANCH],
+            [_support.SUPERSEDED_BRANCH, _support.SUPERSEDED_BRANCH],
         )
 
     def _refusing_remote(self) -> SeededUmbrella:

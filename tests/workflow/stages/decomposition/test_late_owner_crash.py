@@ -28,6 +28,7 @@ from orchestrator.workflow.late_split.models import LatePhase
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
+from tests.workflow.stages.decomposition import late_settlement_support as _support
 from tests.workflow.stages.decomposition.late_content_support import (
     PARK_REVISION_DIRTY,
     reply,
@@ -44,20 +45,7 @@ from tests.workflow.stages.decomposition.late_run_support import (
     WorktreeSeed,
     adjudicate,
 )
-from tests.workflow.stages.decomposition.late_settlement_support import (
-    ERROR,
-    NAME,
-    OWNER_GUARD,
-    OWNER_READ,
-    PARKING_COMPLETIONS,
-    REASON,
-    RUN,
-    TREE,
-    WORKFLOW_LOG,
-    GuardedLateCase,
-    killed_at,
-    unreadable_owner,
-)
+from tests.workflow.stages.decomposition.late_settlement_support import GuardedLateCase
 from tests.workflow.stages.decomposition.late_test_support import KEYS
 
 # The two places a tick can die and still have to leave the read owed: inside
@@ -65,8 +53,8 @@ from tests.workflow.stages.decomposition.late_test_support import KEYS
 # is the one that decides whether the obligation belongs to the write that
 # recorded the result or to the step after it.
 _SEAMS = (
-    ("inside the read", OWNER_READ),
-    ("before the guard", OWNER_GUARD),
+    ("inside the read", _support.OWNER_READ),
+    ("before the guard", _support.OWNER_GUARD),
 )
 
 
@@ -122,7 +110,7 @@ class KilledTickTest(RevisionCase):
         """Seed one issue and run a revision the kill at `seam` cuts short."""
         self._seed(**DEV_PIN)
         reply(self.issue)
-        with killed_at(seam), self.assertRaises(KeyboardInterrupt):
+        with _support.killed_at(seam), self.assertRaises(KeyboardInterrupt):
             self._revise(measurement=measurement)
 
     def _adjudicate_again(self):
@@ -131,7 +119,7 @@ class KilledTickTest(RevisionCase):
 
     def _retry_unread(self):
         """The next tick, whose own read fails, log line included."""
-        with unreadable_owner(self.github), self.assertLogs(WORKFLOW_LOG, level=ERROR):
+        with _support.unreadable_owner(self.github), self.assertLogs(_support.WORKFLOW_LOG, level=_support.ERROR):
             return self._adjudicate_again()
 
     def _assert_owes_the_read(self) -> None:
@@ -153,13 +141,13 @@ class KilledCompletionTest(GuardedLateCase, unittest.TestCase):
     """
 
     def test_the_park_and_the_claim_survive(self) -> None:
-        for completion in PARKING_COMPLETIONS:
-            with self.subTest(completion=completion[NAME]):
+        for completion in _support.PARKING_COMPLETIONS:
+            with self.subTest(completion=completion[_support.NAME]):
                 self._complete_and_die(completion)
 
                 pinned = self._pinned()
                 self.assertEqual(
-                    pinned.get(KEYS.park_reason), completion[REASON],
+                    pinned.get(KEYS.park_reason), completion[_support.REASON],
                 )
                 self.assertTrue(pinned.get(KEYS.owner_check_pending))
                 self.assertEqual(
@@ -171,8 +159,8 @@ class KilledCompletionTest(GuardedLateCase, unittest.TestCase):
         # from later: nothing brings a tick back to the read, so an issue
         # somebody closed while this one was dying is one the cycle never
         # finds out about -- and the cleanup path never runs against it.
-        for completion in PARKING_COMPLETIONS:
-            with self.subTest(completion=completion[NAME]):
+        for completion in _support.PARKING_COMPLETIONS:
+            with self.subTest(completion=completion[_support.NAME]):
                 self._complete_and_die(completion)
                 self.issue.closed = True
 
@@ -191,8 +179,8 @@ class KilledCompletionTest(GuardedLateCase, unittest.TestCase):
         whole tick and the state it leaves is what the next assertion reads.
         """
         self.setUp()
-        with killed_at(OWNER_GUARD), self.assertRaises(KeyboardInterrupt):
-            self._adjudicate(completion[RUN], worktree=completion[TREE])
+        with _support.killed_at(_support.OWNER_GUARD), self.assertRaises(KeyboardInterrupt):
+            self._adjudicate(completion[_support.RUN], worktree=completion[_support.TREE])
 
 
 class KilledReconciliationTest(RevisionCase):
@@ -227,5 +215,5 @@ class KilledReconciliationTest(RevisionCase):
         """One finished developer run whose checkout could not be read."""
         self._seed(**DEV_PIN)
         reply(self.issue)
-        with killed_at(OWNER_GUARD), self.assertRaises(KeyboardInterrupt):
+        with _support.killed_at(_support.OWNER_GUARD), self.assertRaises(KeyboardInterrupt):
             self._revise(seed=WorktreeSeed(dirty=DIRTY_TREE))

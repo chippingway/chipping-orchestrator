@@ -40,22 +40,10 @@ from tests.support.fakes import (
     make_issue,
 )
 from tests.workflow.fixtures import LABEL_DECOMPOSING
+from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     adjudicate,
     agent_reply,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    CANDIDATE_SHA,
-    KEY_PLAN_PATH,
-    KEYS,
-    LATE_ISSUE_NUMBER,
-    PLAN_PATH,
-    PLAN_PR_NUMBER,
-    QUESTION_ASKED,
-    SHA_LENGTH,
-    SPLIT_REPLY,
-    late_generation,
-    seed_plan_pr,
 )
 
 HUMAN = "geserdugarov"
@@ -82,8 +70,8 @@ SECOND_ID = 13
 # carrying when the park fired, and what `reply` lands above.
 PARK_NOTICE_ID = 100
 
-REVISED_SHA = "d" * SHA_LENGTH
-REVISED_BASE_SHA = "e" * SHA_LENGTH
+REVISED_SHA = "d" * _support.SHA_LENGTH
+REVISED_BASE_SHA = "e" * _support.SHA_LENGTH
 REVISED_ADDITIONS = 310
 
 KEY_TITLE_BODY_HASH = "late_title_body_hash"
@@ -125,7 +113,7 @@ def human_comment(
     )
 
 
-def authorization(named: str = CANDIDATE_SHA) -> str:
+def authorization(named: str = _support.CANDIDATE_SHA) -> str:
     """The whole comment that authorizes one candidate to publish unsplit.
 
     Built against a commit rather than fixed, because half of what these tests
@@ -228,19 +216,19 @@ def late_issue(
     """
     github = FakeGitHubClient()
     issue = make_issue(
-        LATE_ISSUE_NUMBER,
+        _support.LATE_ISSUE_NUMBER,
         label=LABEL_DECOMPOSING,
         title=ISSUE_TITLE,
         body=ISSUE_BODY,
         comments=list(comments),
     )
     github.add_issue(issue)
-    recorded = late_generation() if generation is None else generation
+    recorded = _support.late_generation() if generation is None else generation
     if baseline:
         recorded = baselined(recorded, issue)
     written = PinnedState(data=dict(extra_state))
     _late_state.write_late_generation(written, recorded)
-    github.seed_state(LATE_ISSUE_NUMBER, **written.data)
+    github.seed_state(_support.LATE_ISSUE_NUMBER, **written.data)
     return github, issue
 
 
@@ -252,35 +240,35 @@ CATEGORY_SCOPE = "scope_ambiguous"
 # recorded against this exact cycle, generation, and commit, which is what
 # makes it an answer the next tick would otherwise reuse.
 RECORDED_QUESTION = MappingProxyType({
-    KEYS.verdict: str(LateVerdict.QUESTION),
-    KEYS.category: CATEGORY_SCOPE,
-    KEYS.question: QUESTION_ASKED,
-    KEYS.run_cycle_id: late_generation().cycle_id,
-    KEYS.run_generation: late_generation().generation,
-    KEYS.source_sha: CANDIDATE_SHA,
-    KEYS.session_id: LATE_SESSION,
+    _support.KEYS.verdict: str(LateVerdict.QUESTION),
+    _support.KEYS.category: CATEGORY_SCOPE,
+    _support.KEYS.question: _support.QUESTION_ASKED,
+    _support.KEYS.run_cycle_id: _support.late_generation().cycle_id,
+    _support.KEYS.run_generation: _support.late_generation().generation,
+    _support.KEYS.source_sha: _support.CANDIDATE_SHA,
+    _support.KEYS.session_id: LATE_SESSION,
 })
 
 # A completed adjudication that decided this candidate is one change: the
 # record a later tick reuses instead of paying for a second run.
 RECORDED_SINGLE = MappingProxyType({
-    KEYS.verdict: str(LateVerdict.SINGLE),
-    KEYS.run_cycle_id: late_generation().cycle_id,
-    KEYS.run_generation: late_generation().generation,
-    KEYS.source_sha: CANDIDATE_SHA,
-    KEYS.session_id: LATE_SESSION,
+    _support.KEYS.verdict: str(LateVerdict.SINGLE),
+    _support.KEYS.run_cycle_id: _support.late_generation().cycle_id,
+    _support.KEYS.run_generation: _support.late_generation().generation,
+    _support.KEYS.source_sha: _support.CANDIDATE_SHA,
+    _support.KEYS.session_id: LATE_SESSION,
 })
 
 ASKED_STATE = MappingProxyType({
     **RECORDED_QUESTION,
-    KEYS.awaiting: True,
-    KEYS.park_reason: PARK_QUESTION,
+    _support.KEYS.awaiting: True,
+    _support.KEYS.park_reason: PARK_QUESTION,
     KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
 })
 
 DRIFT_PARKED = MappingProxyType({
-    KEYS.awaiting: True,
-    KEYS.park_reason: PARK_CONTENT_DRIFT,
+    _support.KEYS.awaiting: True,
+    _support.KEYS.park_reason: PARK_CONTENT_DRIFT,
     KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
 })
 
@@ -289,14 +277,14 @@ DRIFT_PARKED = MappingProxyType({
 # is read only while that park stands and settles only the verdict behind it.
 SINGLE_PARKED = MappingProxyType({
     **RECORDED_SINGLE,
-    KEYS.awaiting: True,
-    KEYS.park_reason: PARK_SINGLE_DECISION,
+    _support.KEYS.awaiting: True,
+    _support.KEYS.park_reason: PARK_SINGLE_DECISION,
     KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
 })
 
 REVISION_PARKED = MappingProxyType({
-    KEYS.awaiting: True,
-    KEYS.park_reason: PARK_REVISION_DIRTY,
+    _support.KEYS.awaiting: True,
+    _support.KEYS.park_reason: PARK_REVISION_DIRTY,
     KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
 })
 
@@ -316,11 +304,11 @@ class LateContentCase(unittest.TestCase):
 
     def _seed_with_plan_pr(self, **state) -> None:
         self._seed(
-            pr_number=PLAN_PR_NUMBER, **{KEY_PLAN_PATH: PLAN_PATH}, **state,
+            pr_number=_support.PLAN_PR_NUMBER, **{_support.KEY_PLAN_PATH: _support.PLAN_PATH}, **state,
         )
-        self.plan_pr = seed_plan_pr(self.github)
+        self.plan_pr = _support.seed_plan_pr(self.github)
 
-    def _run(self, reply=SPLIT_REPLY, **run_fields):
+    def _run(self, reply=_support.SPLIT_REPLY, **run_fields):
         """One adjudication, defaulting to the verdict that leaves state put.
 
         These modules are about what a human's content does to a candidate,
@@ -338,7 +326,7 @@ class LateContentCase(unittest.TestCase):
         )
 
     def _pinned(self) -> dict:
-        return self.github.pinned_data(LATE_ISSUE_NUMBER)
+        return self.github.pinned_data(_support.LATE_ISSUE_NUMBER)
 
     def _bodies(self) -> list:
         return [body for _, body in self.github.posted_comments]

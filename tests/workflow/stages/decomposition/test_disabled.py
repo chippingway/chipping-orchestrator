@@ -13,17 +13,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow.fixtures import (
-    _TEST_SPEC,
-    BACKEND_CLAUDE,
-    KEY_AWAITING_HUMAN,
-    KEY_LAST_ACTION_COMMENT_ID,
-    LABEL_BLOCKED,
-    LABEL_DECOMPOSING,
-    LABEL_IMPLEMENTING,
-    _agent,
-    _manifest,
-)
+from tests.workflow import fixtures as _support
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
 )
@@ -95,7 +85,7 @@ INTERRUPTED_USAGE_ISSUE_NUMBER = 623
 DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
-SPLIT_MANIFEST = _manifest(
+SPLIT_MANIFEST = _support._manifest(
     '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
@@ -106,14 +96,14 @@ def _disabled_labeled_fixture():
     github = FakeGitHubClient()
     issue = make_issue(
         DISABLED_LABELED_ISSUE_NUMBER,
-        label=LABEL_DECOMPOSING,
+        label=_support.LABEL_DECOMPOSING,
     )
     github.add_issue(issue)
     github.seed_state(
         DISABLED_LABELED_ISSUE_NUMBER,
         awaiting_human=True,
         park_reason="(test) decomposer asked a question",
-        decomposer_agent=BACKEND_CLAUDE,
+        decomposer_agent=_support.BACKEND_CLAUDE,
         decomposer_session_id=DECOMPOSER_SESSION,
         last_action_comment_id=PRIOR_ACTION_COMMENT_ID,
         pickup_comment_id=100,
@@ -136,18 +126,18 @@ class DecompositionDisabledTest(
 
         with patch.object(config, CONFIG_DECOMPOSE, False):
             self._run(
-                lambda: _pickup._handle_pickup(gh, _TEST_SPEC, issue),
-                run_agent=_agent(session_id=DEV_SESSION, last_message="done"),
+                lambda: _pickup._handle_pickup(gh, _support._TEST_SPEC, issue),
+                run_agent=_support._agent(session_id=DEV_SESSION, last_message="done"),
                 has_new_commits=[False, True],
                 push_branch=True,
             )
 
         self.assertNotIn(
-            LABEL_DECOMPOSING,
+            _support.LABEL_DECOMPOSING,
             [lbl for _, lbl in gh.label_history],
         )
         self.assertIn(
-            (DISABLED_PICKUP_ISSUE_NUMBER, LABEL_IMPLEMENTING),
+            (DISABLED_PICKUP_ISSUE_NUMBER, _support.LABEL_IMPLEMENTING),
             gh.label_history,
         )
         self.assertEqual(gh.created_child_issues, [])
@@ -171,7 +161,7 @@ class DecompositionDisabledTest(
             mocks = self._run_decomposing(
                 gh,
                 issue,
-                run_agent=_agent(session_id=DEV_SESSION, last_message=IMPLEMENTED_MESSAGE),
+                run_agent=_support._agent(session_id=DEV_SESSION, last_message=IMPLEMENTED_MESSAGE),
                 has_new_commits=[False, True],
                 push_branch=True,
             )
@@ -188,17 +178,17 @@ class DecompositionDisabledTest(
         # Label transitioned to implementing. Must never have routed
         # through `blocked` (that would have implied children created).
         self.assertIn(
-            LABEL_IMPLEMENTING,
+            _support.LABEL_IMPLEMENTING,
             _labels_for_issue(gh, DISABLED_LABELED_ISSUE_NUMBER),
         )
         self.assertNotIn(
-            LABEL_BLOCKED,
+            _support.LABEL_BLOCKED,
             _labels_for_issue(gh, DISABLED_LABELED_ISSUE_NUMBER),
         )
 
         # Decomposer-side park state cleared so `_handle_implementing`'s
         # awaiting_human resume branch doesn't fire on stale state.
-        self.assertFalse(gh.pinned_data(DISABLED_LABELED_ISSUE_NUMBER).get(KEY_AWAITING_HUMAN))
+        self.assertFalse(gh.pinned_data(DISABLED_LABELED_ISSUE_NUMBER).get(_support.KEY_AWAITING_HUMAN))
         self.assertIsNone(gh.pinned_data(DISABLED_LABELED_ISSUE_NUMBER).get("park_reason"))
 
         # Routing comment posted; no children created.
@@ -227,7 +217,7 @@ class DecompositionDisabledTest(
         # replay `_handle_ready` already prevents on the single-decision
         # happy path.
         gh = FakeGitHubClient()
-        issue = make_issue(DISABLED_RATCHET_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        issue = make_issue(DISABLED_RATCHET_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         # Decomposer-era HITL comments newer than the parked
         # last_action_comment_id (which is anchored on the original
         # pickup or an earlier decomposer round).
@@ -250,7 +240,7 @@ class DecompositionDisabledTest(
             DISABLED_RATCHET_ISSUE_NUMBER,
             awaiting_human=True,
             park_reason="(test) decomposer asked a question",
-            decomposer_agent=BACKEND_CLAUDE,
+            decomposer_agent=_support.BACKEND_CLAUDE,
             decomposer_session_id=DECOMPOSER_SESSION,
             last_action_comment_id=PRIOR_ACTION_COMMENT_ID,
             pickup_comment_id=100,
@@ -260,13 +250,13 @@ class DecompositionDisabledTest(
             self._run_decomposing(
                 gh,
                 issue,
-                run_agent=_agent(session_id=DEV_SESSION, last_message=IMPLEMENTED_MESSAGE),
+                run_agent=_support._agent(session_id=DEV_SESSION, last_message=IMPLEMENTED_MESSAGE),
                 has_new_commits=[False, True],
                 push_branch=True,
             )
 
         state = gh.pinned_data(DISABLED_RATCHET_ISSUE_NUMBER)
-        last_action = state.get(KEY_LAST_ACTION_COMMENT_ID)
+        last_action = state.get(_support.KEY_LAST_ACTION_COMMENT_ID)
         # Must be past the highest decomposing-era comment so the
         # in_review watermark seed treats them as already-consumed.
         self.assertIsInstance(last_action, int)
@@ -280,7 +270,7 @@ class DecompositionDisabledTest(
         gh = FakeGitHubClient()
         issue = make_issue(
             DISABLED_MONOTONIC_ISSUE_NUMBER,
-            label=LABEL_DECOMPOSING,
+            label=_support.LABEL_DECOMPOSING,
         )
         # One older comment; latest visible id is 500.
         issue.comments.append(
@@ -302,14 +292,14 @@ class DecompositionDisabledTest(
             self._run_decomposing(
                 gh,
                 issue,
-                run_agent=_agent(session_id=DEV_SESSION, last_message=IMPLEMENTED_MESSAGE),
+                run_agent=_support._agent(session_id=DEV_SESSION, last_message=IMPLEMENTED_MESSAGE),
                 has_new_commits=[False, True],
                 push_branch=True,
             )
 
         # Must not regress below the previously persisted high water mark.
         self.assertGreaterEqual(
-            gh.pinned_data(DISABLED_MONOTONIC_ISSUE_NUMBER).get(KEY_LAST_ACTION_COMMENT_ID),
+            gh.pinned_data(DISABLED_MONOTONIC_ISSUE_NUMBER).get(_support.KEY_LAST_ACTION_COMMENT_ID),
             PRESERVED_HIGH_WATERMARK,
         )
 
@@ -324,7 +314,7 @@ class DecompositionDisabledTest(
         gh = FakeGitHubClient()
         parent = make_issue(
             HALF_COMPLETE_DISABLED_PARENT_NUMBER,
-            label=LABEL_DECOMPOSING,
+            label=_support.LABEL_DECOMPOSING,
         )
         gh.add_issue(parent)
         _seed_blocked_children(
@@ -335,7 +325,7 @@ class DecompositionDisabledTest(
         gh.seed_state(
             HALF_COMPLETE_DISABLED_PARENT_NUMBER,
             children=list(RECOVERY_CHILD_NUMBERS),
-            decomposer_agent=BACKEND_CLAUDE,
+            decomposer_agent=_support.BACKEND_CLAUDE,
             decomposer_session_id=DECOMPOSER_SESSION,
         )
 
@@ -343,16 +333,16 @@ class DecompositionDisabledTest(
             mocks = self._run_decomposing(
                 gh,
                 parent,
-                run_agent=_agent(),
+                run_agent=_support._agent(),
             )
 
         mocks[RUN_AGENT].assert_not_called()
         self.assertIn(
-            LABEL_BLOCKED,
+            _support.LABEL_BLOCKED,
             _labels_for_issue(gh, HALF_COMPLETE_DISABLED_PARENT_NUMBER),
         )
         self.assertNotIn(
-            LABEL_IMPLEMENTING,
+            _support.LABEL_IMPLEMENTING,
             _labels_for_issue(gh, HALF_COMPLETE_DISABLED_PARENT_NUMBER),
         )
         self.assertEqual(gh.created_child_issues, [])

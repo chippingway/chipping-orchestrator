@@ -14,6 +14,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 )
 from tests.support.fakes import make_issue
 from tests.workflow.fixtures import LABEL_DONE
+from tests.workflow.stages.decomposition import late_transaction_support as _support
 from tests.workflow.stages.decomposition.late_crash_support import (
     recording_children,
     refusing,
@@ -26,23 +27,6 @@ from tests.workflow.stages.decomposition.late_test_support import (
     KEYS,
     LATE_ISSUE_NUMBER,
     ROOT_ISSUE,
-)
-from tests.workflow.stages.decomposition.late_transaction_support import (
-    CHILDREN,
-    KEY_CHILDREN,
-    KEY_CONSUMERS,
-    KEY_DEP_GRAPH,
-    KEY_EXPECTED_CHILDREN,
-    KEY_PARENT_NUMBER,
-    KEY_UMBRELLA,
-    MULTI_LEVEL_CHILDREN,
-    MULTI_LEVEL_GRAPH,
-    PARK_CHILDREN_FAILED,
-    SNAPSHOT_REF,
-    LateSplitCase,
-    ancestry_of,
-    first_child,
-    label_of,
 )
 
 RESOURCE_CHILD = "child"
@@ -87,12 +71,12 @@ _PRIOR_MANIFEST = MappingProxyType({
 DEPTHS = ((0, 1), (1, 2), (2, 3))
 
 
-class SplitChildrenCase(LateSplitCase):
+class SplitChildrenCase(_support.LateSplitCase):
     """A case that reads the register this generation records its children on."""
 
     def _recorded(self) -> list:
         """The child numbers the parent records for this generation."""
-        return self._pinned().get(KEY_CHILDREN) or []
+        return self._pinned().get(_support.KEY_CHILDREN) or []
 
 
 class ChildCreationOrderTest(SplitChildrenCase, unittest.TestCase):
@@ -105,8 +89,8 @@ class ChildCreationOrderTest(SplitChildrenCase, unittest.TestCase):
         self._transact()
 
         pinned = self._pinned()
-        self.assertEqual(pinned[KEY_EXPECTED_CHILDREN], len(CHILDREN))
-        self.assertTrue(pinned[KEY_UMBRELLA])
+        self.assertEqual(pinned[_support.KEY_EXPECTED_CHILDREN], len(_support.CHILDREN))
+        self.assertTrue(pinned[_support.KEY_UMBRELLA])
 
     def test_a_child_is_recorded_as_a_consumer(self) -> None:
         # A child recorded as one and not the other is a child the snapshot
@@ -115,8 +99,8 @@ class ChildCreationOrderTest(SplitChildrenCase, unittest.TestCase):
 
         created = [child.number for child in self.github.created_child_issues]
         pinned = self._pinned()
-        self.assertEqual(pinned[KEY_CHILDREN], created)
-        self.assertEqual(pinned[KEY_CONSUMERS], sorted(created))
+        self.assertEqual(pinned[_support.KEY_CHILDREN], created)
+        self.assertEqual(pinned[_support.KEY_CONSUMERS], sorted(created))
         for number in created:
             self.assertEqual(
                 self._resources()[(RESOURCE_CHILD, str(number))],
@@ -126,7 +110,7 @@ class ChildCreationOrderTest(SplitChildrenCase, unittest.TestCase):
     def test_the_dependency_graph_travels_with_them(self) -> None:
         self._transact()
 
-        self.assertEqual(self._pinned()[KEY_DEP_GRAPH], {"1": [0]})
+        self.assertEqual(self._pinned()[_support.KEY_DEP_GRAPH], {"1": [0]})
 
     def test_a_recorded_child_is_adopted(self) -> None:
         # The retry a crash after the first child leaves: the parent's own
@@ -147,9 +131,9 @@ class ChildCreationOrderTest(SplitChildrenCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(
-            self._pinned().get(KEYS.park_reason), PARK_CHILDREN_FAILED,
+            self._pinned().get(KEYS.park_reason), _support.PARK_CHILDREN_FAILED,
         )
-        self.assertEqual(self._pinned()[KEY_EXPECTED_CHILDREN], len(CHILDREN))
+        self.assertEqual(self._pinned()[_support.KEY_EXPECTED_CHILDREN], len(_support.CHILDREN))
 
     def test_a_refused_seed_keeps_the_record(self) -> None:
         # The child exists on GitHub by then, so the parent must already know
@@ -157,10 +141,10 @@ class ChildCreationOrderTest(SplitChildrenCase, unittest.TestCase):
         with refusing_child_writes(self.github), self.assertLogs(level="ERROR"):
             outcome = self._transact()
 
-        created = first_child(self.github).number
+        created = _support.first_child(self.github).number
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(self._recorded(), [created])
-        self.assertEqual(self._pinned()[KEY_CONSUMERS], [created])
+        self.assertEqual(self._pinned()[_support.KEY_CONSUMERS], [created])
 
     def test_a_resumed_walk_records_no_fewer(self) -> None:
         # A resumed pass rebuilds the recorded list as it goes, and a write
@@ -203,7 +187,7 @@ class PriorDecompositionTest(SplitChildrenCase, unittest.TestCase):
         self._transact()
 
         created = [child.number for child in self.github.created_child_issues]
-        self.assertEqual(len(created), len(CHILDREN))
+        self.assertEqual(len(created), len(_support.CHILDREN))
         self.assertNotIn(_DONE_CHILD, created)
         self.assertEqual(self._recorded(), created)
 
@@ -213,7 +197,7 @@ class PriorDecompositionTest(SplitChildrenCase, unittest.TestCase):
         for number in self.settled:
             with self.subTest(child=number):
                 self.assertEqual(
-                    label_of(self.github, number), LABEL_DONE,
+                    _support.label_of(self.github, number), LABEL_DONE,
                 )
                 self.assertEqual(self.github.pinned_data(number), {})
 
@@ -222,7 +206,7 @@ class PriorDecompositionTest(SplitChildrenCase, unittest.TestCase):
         # children behind dependencies that are not theirs.
         self._transact(children=(dict(UNSIZED_SLICE),))
 
-        self.assertIsNone(self._pinned().get(KEY_DEP_GRAPH))
+        self.assertIsNone(self._pinned().get(_support.KEY_DEP_GRAPH))
 
 
 class ChildInheritanceTest(SplitChildrenCase, unittest.TestCase):
@@ -241,14 +225,14 @@ class ChildInheritanceTest(SplitChildrenCase, unittest.TestCase):
         self._transact()
 
         self.assertEqual(
-            self._child_state(self._first())[KEY_PARENT_NUMBER],
+            self._child_state(self._first())[_support.KEY_PARENT_NUMBER],
             LATE_ISSUE_NUMBER,
         )
 
     def test_it_carries_the_snapshot_and_commit(self) -> None:
         seeded = self._seeded_ancestry()
 
-        self.assertEqual(seeded.snapshot_ref, SNAPSHOT_REF)
+        self.assertEqual(seeded.snapshot_ref, _support.SNAPSHOT_REF)
         self.assertEqual(seeded.snapshot_sha, CANDIDATE_SHA)
 
     def test_a_child_carries_its_declared_scope(self) -> None:
@@ -259,10 +243,10 @@ class ChildInheritanceTest(SplitChildrenCase, unittest.TestCase):
 
         self.assertEqual(
             [
-                ancestry_of(self.github, child.number).scope
+                _support.ancestry_of(self.github, child.number).scope
                 for child in self.github.created_child_issues
             ],
-            [child[BODY] for child in CHILDREN],
+            [child[BODY] for child in _support.CHILDREN],
         )
 
     def test_a_re_seed_leaves_child_work_alone(self) -> None:
@@ -280,24 +264,26 @@ class ChildInheritanceTest(SplitChildrenCase, unittest.TestCase):
 
     def _first(self) -> int:
         """The number of the child that owns the manifest's first slice."""
-        return first_child(self.github).number
+        return _support.first_child(self.github).number
 
     def _seeded_ancestry(self):
         """Split once, and read what the first child was seeded with."""
         self._transact()
-        return ancestry_of(self.github, self._first())
+        return _support.ancestry_of(self.github, self._first())
 
 
 class ChildBodyTest(SplitChildrenCase, unittest.TestCase):
     """A child's body says where the work is and how it may be reused."""
 
     def test_it_opens_on_the_declared_slice(self) -> None:
-        self.assertTrue(self._body().startswith(CHILDREN[0][BODY]))
+        self.assertTrue(
+            self._body().startswith(_support.CHILDREN[0][BODY]),
+        )
 
     def test_it_names_the_snapshot_and_both_commits(self) -> None:
         body = self._body()
 
-        self.assertIn(SNAPSHOT_REF, body)
+        self.assertIn(_support.SNAPSHOT_REF, body)
         self.assertIn(CANDIDATE_SHA, body)
         self.assertIn(self.generation.base_sha, body)
         self.assertIn(BASE_BRANCH, body)
@@ -315,10 +301,10 @@ class ChildBodyTest(SplitChildrenCase, unittest.TestCase):
         # The developer implementing the slice is the one who has to keep to
         # it, and the parent's pinned comment is not somewhere they read.
         body = self._body()
-        estimated = CHILDREN[0][ESTIMATE]
+        estimated = _support.CHILDREN[0][ESTIMATE]
 
         self.assertIn(f"{BUDGET_HEADING}: {estimated} lines", body)
-        self.assertTrue(body.startswith(CHILDREN[0][BODY]))
+        self.assertTrue(body.startswith(_support.CHILDREN[0][BODY]))
 
     def test_the_budget_says_which_paths_it_counts(self) -> None:
         # Read as implementation alone it would leave out the tests and the
@@ -337,15 +323,15 @@ class ChildBodyTest(SplitChildrenCase, unittest.TestCase):
         # the slice unchanged.
         self._transact(children=(dict(UNSIZED_SLICE),))
 
-        body = first_child(self.github).body
+        body = _support.first_child(self.github).body
         self.assertNotIn(BUDGET_HEADING, body)
         self.assertTrue(body.startswith(UNSIZED_SLICE[BODY]))
-        self.assertIn(SNAPSHOT_REF, body)
+        self.assertIn(_support.SNAPSHOT_REF, body)
 
     def _body(self) -> str:
         """The body the first slice's child was opened with."""
         self._transact()
-        return first_child(self.github).body
+        return _support.first_child(self.github).body
 
 
 class MultiLevelPlanTest(SplitChildrenCase, unittest.TestCase):
@@ -353,7 +339,7 @@ class MultiLevelPlanTest(SplitChildrenCase, unittest.TestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self._transact(children=MULTI_LEVEL_CHILDREN)
+        self._transact(children=_support.MULTI_LEVEL_CHILDREN)
         self.created = list(self.github.created_child_issues)
 
     def test_the_register_keeps_the_manifest_order(self) -> None:
@@ -362,15 +348,15 @@ class MultiLevelPlanTest(SplitChildrenCase, unittest.TestCase):
         self.assertEqual(
             self._recorded(), [child.number for child in self.created],
         )
-        self.assertEqual(len(self.created), len(MULTI_LEVEL_CHILDREN))
+        self.assertEqual(len(self.created), len(_support.MULTI_LEVEL_CHILDREN))
 
     def test_every_level_of_the_graph_is_recorded(self) -> None:
-        self.assertEqual(self._pinned()[KEY_DEP_GRAPH], MULTI_LEVEL_GRAPH)
+        self.assertEqual(self._pinned()[_support.KEY_DEP_GRAPH], _support.MULTI_LEVEL_GRAPH)
 
     def test_a_slice_owns_its_scope_and_budget(self) -> None:
         for index, child in enumerate(self.created):
             with self.subTest(slice=index):
-                declared = MULTI_LEVEL_CHILDREN[index]
+                declared = _support.MULTI_LEVEL_CHILDREN[index]
                 estimated = declared[ESTIMATE]
                 self.assertTrue(child.body.startswith(declared[BODY]))
                 self.assertIn(
@@ -382,8 +368,8 @@ class MultiLevelPlanTest(SplitChildrenCase, unittest.TestCase):
         # commit, however deep in the plan its own slice sits.
         for child in self.created:
             with self.subTest(child=child.number):
-                seeded = ancestry_of(self.github, child.number)
-                self.assertEqual(seeded.snapshot_ref, SNAPSHOT_REF)
+                seeded = _support.ancestry_of(self.github, child.number)
+                self.assertEqual(seeded.snapshot_ref, _support.SNAPSHOT_REF)
                 self.assertEqual(seeded.snapshot_sha, CANDIDATE_SHA)
                 self.assertEqual(seeded.parent_issue, LATE_ISSUE_NUMBER)
                 self.assertIn(CHERRY_PICK, child.body)
@@ -400,9 +386,9 @@ class LineageDepthTest(SplitChildrenCase, unittest.TestCase):
 
                 self._transact(generation=deeper)
 
-                child = first_child(self.github)
+                child = _support.first_child(self.github)
                 self.assertEqual(
-                    ancestry_of(self.github, child.number).lineage_depth,
+                    _support.ancestry_of(self.github, child.number).lineage_depth,
                     born_at,
                 )
 
@@ -417,7 +403,7 @@ class LineageDepthTest(SplitChildrenCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(self.github.created_child_issues, [])
-        self.assertIsNone(self._pinned().get(KEY_CHILDREN))
+        self.assertIsNone(self._pinned().get(_support.KEY_CHILDREN))
 
     def test_an_unknown_depth_creates_nothing(self) -> None:
         # A lineage that cannot say how deep it is cannot show it has room.

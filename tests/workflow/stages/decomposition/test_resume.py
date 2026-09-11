@@ -12,17 +12,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow.fixtures import (
-    BACKEND_CLAUDE,
-    BACKEND_CODEX,
-    KEY_AWAITING_HUMAN,
-    KEY_LAST_ACTION_COMMENT_ID,
-    LABEL_BLOCKED,
-    LABEL_DECOMPOSING,
-    _agent,
-    _iso_hours_ago,
-    _manifest,
-)
+from tests.workflow import fixtures as _support
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
 )
@@ -99,7 +89,7 @@ INTERRUPTED_USAGE_ISSUE_NUMBER = 623
 DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER = 624
 
 SINGLE_MANIFEST_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
-SPLIT_MANIFEST = _manifest(
+SPLIT_MANIFEST = _support._manifest(
     '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
@@ -121,9 +111,9 @@ class HandleDecomposingResumeTest(
                         user=FakeUser(TRUSTED_AUTHOR),
                     ),
                 ),
-                label=LABEL_DECOMPOSING,
+                label=_support.LABEL_DECOMPOSING,
                 last_action_comment_id=PRIOR_ACTION_COMMENT_ID,
-                backend=BACKEND_CLAUDE,
+                backend=_support.BACKEND_CLAUDE,
                 session_id=DECOMPOSER_SESSION,
             )
         )
@@ -131,7 +121,7 @@ class HandleDecomposingResumeTest(
         mocks = self._run_decomposing(
             gh,
             issue,
-            run_agent=_agent(
+            run_agent=_support._agent(
                 session_id=DECOMPOSER_SESSION,
                 last_message=SPLIT_MANIFEST,
             ),
@@ -141,13 +131,13 @@ class HandleDecomposingResumeTest(
         # backend.
         mocks[RUN_AGENT].assert_called_once()
         call = mocks[RUN_AGENT].call_args
-        self.assertEqual(call.args[0], BACKEND_CLAUDE)
+        self.assertEqual(call.args[0], _support.BACKEND_CLAUDE)
         self.assertEqual(call.kwargs.get("resume_session_id"), DECOMPOSER_SESSION)
         self.assertIn("please split into 2", call.args[1])
 
-        self.assertIn((RESUME_ISSUE_NUMBER, LABEL_BLOCKED), gh.label_history)
+        self.assertIn((RESUME_ISSUE_NUMBER, _support.LABEL_BLOCKED), gh.label_history)
         self.assertEqual(len(gh.created_child_issues), 2)
-        self.assertFalse(gh.pinned_data(RESUME_ISSUE_NUMBER).get(KEY_AWAITING_HUMAN))
+        self.assertFalse(gh.pinned_data(RESUME_ISSUE_NUMBER).get(_support.KEY_AWAITING_HUMAN))
 
     def test_resume_filters_untrusted_reply(self) -> None:
         # With `ALLOWED_ISSUE_AUTHORS` set, an outsider reply on a parked
@@ -170,9 +160,9 @@ class HandleDecomposingResumeTest(
                         user=FakeUser("mallory"),
                     ),
                 ),
-                label=LABEL_DECOMPOSING,
+                label=_support.LABEL_DECOMPOSING,
                 last_action_comment_id=PRIOR_ACTION_COMMENT_ID,
-                backend=BACKEND_CLAUDE,
+                backend=_support.BACKEND_CLAUDE,
                 session_id=DECOMPOSER_SESSION,
             )
         )
@@ -180,7 +170,7 @@ class HandleDecomposingResumeTest(
             mocks = self._run_decomposing(
                 gh,
                 issue,
-                run_agent=_agent(
+                run_agent=_support._agent(
                     session_id=DECOMPOSER_SESSION,
                     last_message=SPLIT_MANIFEST,
                 ),
@@ -189,7 +179,7 @@ class HandleDecomposingResumeTest(
         self.assertNotIn(malicious_url, prompt)
         self.assertIn("please split into A and B", prompt)
         self.assertEqual(
-            gh.pinned_data(FILTERED_RESUME_ISSUE_NUMBER)[KEY_LAST_ACTION_COMMENT_ID],
+            gh.pinned_data(FILTERED_RESUME_ISSUE_NUMBER)[_support.KEY_LAST_ACTION_COMMENT_ID],
             HUMAN_REPLY_COMMENT_ID,
         )
 
@@ -207,22 +197,22 @@ class HandleDecomposingResumeTest(
                         user=FakeUser(TRUSTED_AUTHOR),
                     ),
                 ),
-                label=LABEL_DECOMPOSING,
+                label=_support.LABEL_DECOMPOSING,
                 last_action_comment_id=PRIOR_ACTION_COMMENT_ID,
-                backend=BACKEND_CLAUDE,
+                backend=_support.BACKEND_CLAUDE,
                 session_id=DECOMPOSER_SESSION,
             )
         )
-        manifest = _manifest('{"decision": "single", "rationale": "trivial"}')
+        manifest = _support._manifest('{"decision": "single", "rationale": "trivial"}')
 
-        with patch.object(config, "DECOMPOSE_AGENT", BACKEND_CODEX):
+        with patch.object(config, "DECOMPOSE_AGENT", _support.BACKEND_CODEX):
             mocks = self._run_decomposing(
                 gh,
                 issue,
-                run_agent=_agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
+                run_agent=_support._agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
             )
 
-        self.assertEqual(mocks[RUN_AGENT].call_args.args[0], BACKEND_CLAUDE)
+        self.assertEqual(mocks[RUN_AGENT].call_args.args[0], _support.BACKEND_CLAUDE)
         self.assertEqual(
             mocks[RUN_AGENT].call_args.kwargs.get("resume_session_id"),
             DECOMPOSER_SESSION,
@@ -233,7 +223,7 @@ class HandleDecomposingResumeTest(
         # gate that took it -- so a sentence an unreadable thread left owed is
         # said at stage entry or never said at all.
         gh = FakeGitHubClient()
-        issue = make_issue(RETRY_CAP_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        issue = make_issue(RETRY_CAP_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         gh.add_issue(issue)
         gh.seed_state(
             RETRY_CAP_ISSUE_NUMBER,
@@ -242,10 +232,10 @@ class HandleDecomposingResumeTest(
             retry_cap_stage=STAGE_DECOMPOSING,
             retry_cap_notice=STRANDED_NOTICE,
             retry_count=config.MAX_RETRIES_PER_DAY,
-            retry_window_start=_iso_hours_ago(1),
+            retry_window_start=_support._iso_hours_ago(1),
         )
 
-        mocks = self._run_decomposing(gh, issue, run_agent=_agent())
+        mocks = self._run_decomposing(gh, issue, run_agent=_support._agent())
 
         mocks[RUN_AGENT].assert_not_called()
         self.assertEqual(len(gh.posted_comments), 1)
@@ -256,22 +246,22 @@ class HandleDecomposingResumeTest(
 
     def test_decompose_retry_cap_parks(self) -> None:
         gh = FakeGitHubClient()
-        issue = make_issue(RETRY_CAP_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        issue = make_issue(RETRY_CAP_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         gh.add_issue(issue)
         gh.seed_state(
             RETRY_CAP_ISSUE_NUMBER,
             retry_count=config.MAX_RETRIES_PER_DAY,
-            retry_window_start=_iso_hours_ago(1),
+            retry_window_start=_support._iso_hours_ago(1),
         )
 
         mocks = self._run_decomposing(
             gh,
             issue,
-            run_agent=_agent(),
+            run_agent=_support._agent(),
         )
 
         mocks[RUN_AGENT].assert_not_called()
-        self.assertTrue(gh.pinned_data(RETRY_CAP_ISSUE_NUMBER).get(KEY_AWAITING_HUMAN))
+        self.assertTrue(gh.pinned_data(RETRY_CAP_ISSUE_NUMBER).get(_support.KEY_AWAITING_HUMAN))
         last_comment = gh.posted_comments[-1][1]
         self.assertIn(
             f"hit retry cap ({config.MAX_RETRIES_PER_DAY}/day) for decomposing",

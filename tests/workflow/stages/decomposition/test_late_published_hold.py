@@ -19,6 +19,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from tests.support.fakes import FakeGitHubClient
+from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_published_support import (
     published_generation,
     seed_published_pr,
@@ -29,20 +30,6 @@ from tests.workflow.stages.decomposition.late_recorder_support import (
 from tests.workflow.stages.decomposition.late_run_support import (
     adjudicate,
     agent_reply,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    HOLD_MARKER_PREFIX,
-    KEYS,
-    LATE_ISSUE_NUMBER,
-    OTHER_SHA,
-    PLAN_PR_BODY,
-    PLAN_PR_NUMBER,
-    PUBLISHED_HEAD_SHA,
-    PUBLISHED_PR_NUMBER,
-    SPLIT_REPLY,
-    generation_state,
-    seed_late_issue,
-    seed_plan_pr,
 )
 
 # Whichever pull request the issue records, which a publication has already
@@ -73,8 +60,8 @@ class _PublishedHoldCase(unittest.TestCase):
     def setUp(self) -> None:
         self.github = FakeGitHubClient()
         self.generation = published_generation()
-        self.issue = seed_late_issue(
-            self.github, self.generation, pr_number=PUBLISHED_PR_NUMBER,
+        self.issue = _support.seed_late_issue(
+            self.github, self.generation, pr_number=_support.PUBLISHED_PR_NUMBER,
         )
         self.published_pr = seed_published_pr(self.github)
 
@@ -87,7 +74,7 @@ class _PublishedHoldCase(unittest.TestCase):
         )
 
     def _pinned(self) -> dict:
-        return self.github.pinned_data(LATE_ISSUE_NUMBER)
+        return self.github.pinned_data(_support.LATE_ISSUE_NUMBER)
 
 
 class PublishedPrHoldTest(_PublishedHoldCase):
@@ -102,9 +89,9 @@ class PublishedPrHoldTest(_PublishedHoldCase):
         hold = self._reconcile()
 
         self.assertTrue(hold.held)
-        self.assertEqual(hold.generation.plan_pr_number, PUBLISHED_PR_NUMBER)
+        self.assertEqual(hold.generation.plan_pr_number, _support.PUBLISHED_PR_NUMBER)
         self.assertEqual(hold.generation.plan_pr_body, published_body)
-        self.assertIn(HOLD_MARKER_PREFIX, self.published_pr.body)
+        self.assertIn(_support.HOLD_MARKER_PREFIX, self.published_pr.body)
 
     def test_the_notice_names_the_pending_push(self) -> None:
         # The work on this pull request was published a while ago, so a notice
@@ -125,10 +112,10 @@ class PublishedPrHoldTest(_PublishedHoldCase):
         with patch.object(self.github, EDIT_PR_BODY, recorder):
             hold = self._reconcile()
 
-        self.assertEqual(hold.generation.plan_pr_head, PUBLISHED_HEAD_SHA)
+        self.assertEqual(hold.generation.plan_pr_head, _support.PUBLISHED_HEAD_SHA)
         self.assertEqual(
-            [held.get(KEYS.plan_pr_head) for held in recorder.snapshots],
-            [PUBLISHED_HEAD_SHA],
+            [held.get(_support.KEYS.plan_pr_head) for held in recorder.snapshots],
+            [_support.PUBLISHED_HEAD_SHA],
         )
 
     def test_the_published_head_is_left_alone(self) -> None:
@@ -136,14 +123,14 @@ class PublishedPrHoldTest(_PublishedHoldCase):
         # proved. A pull request somebody pushed to between the two is marked
         # over its current tip, and re-stamping the entry from that reading
         # would move the evidence a settlement pins its push to.
-        self.published_pr.head.sha = OTHER_SHA
+        self.published_pr.head.sha = _support.OTHER_SHA
 
         hold = self._reconcile()
 
-        self.assertEqual(hold.generation.plan_pr_head, OTHER_SHA)
-        self.assertEqual(hold.generation.published_sha, PUBLISHED_HEAD_SHA)
+        self.assertEqual(hold.generation.plan_pr_head, _support.OTHER_SHA)
+        self.assertEqual(hold.generation.published_sha, _support.PUBLISHED_HEAD_SHA)
         self.assertEqual(
-            self._pinned().get(KEYS.published_sha), PUBLISHED_HEAD_SHA,
+            self._pinned().get(_support.KEYS.published_sha), _support.PUBLISHED_HEAD_SHA,
         )
 
     def test_a_moved_head_changes_nothing(self) -> None:
@@ -152,13 +139,13 @@ class PublishedPrHoldTest(_PublishedHoldCase):
         # notice is about a change a human could merge, so it stands, the
         # recorded reading is kept, and the movement is reported.
         first = self._reconcile()
-        self.published_pr.head.sha = OTHER_SHA
+        self.published_pr.head.sha = _support.OTHER_SHA
 
         with self.assertLogs(WORKFLOW_LOG, level=INFO_LEVEL):
             second = self._reconcile(first.generation)
 
         self.assertTrue(second.held)
-        self.assertEqual(second.generation.plan_pr_head, PUBLISHED_HEAD_SHA)
+        self.assertEqual(second.generation.plan_pr_head, _support.PUBLISHED_HEAD_SHA)
         self.assertEqual(len(self.github.edited_pr_bodies), 1)
 
 
@@ -188,9 +175,9 @@ class PublishedHoldBoundaryTest(_PublishedHoldCase):
         hold = self._reconcile(held)
 
         self.assertTrue(hold.held)
-        self.assertEqual(hold.generation.plan_pr_number, PUBLISHED_PR_NUMBER)
-        self.assertEqual(self.plan_pr.body, PLAN_PR_BODY)
-        self.assertIn(HOLD_MARKER_PREFIX, self.published_pr.body)
+        self.assertEqual(hold.generation.plan_pr_number, _support.PUBLISHED_PR_NUMBER)
+        self.assertEqual(self.plan_pr.body, _support.PLAN_PR_BODY)
+        self.assertIn(_support.HOLD_MARKER_PREFIX, self.published_pr.body)
 
     def test_a_stale_hold_nothing_can_release_parks(self) -> None:
         # The preserved body is the only copy of the plan PR's description,
@@ -207,7 +194,7 @@ class PublishedHoldBoundaryTest(_PublishedHoldCase):
 
         self.assertTrue(hold.failed)
         self.assertFalse(hold.held)
-        self.assertEqual(hold.generation.plan_pr_number, PLAN_PR_NUMBER)
+        self.assertEqual(hold.generation.plan_pr_number, _support.PLAN_PR_NUMBER)
         self.assertEqual(self.published_pr.body, published_body)
 
     def test_a_crossed_spelling_is_ours_and_rewritten(self) -> None:
@@ -218,9 +205,9 @@ class PublishedHoldBoundaryTest(_PublishedHoldCase):
         # human's words it would park the issue displaced instead, with a
         # "do not merge" nothing would ever take back off.
         held = published_generation(
-            plan_pr_number=PUBLISHED_PR_NUMBER,
-            plan_pr_head=PUBLISHED_HEAD_SHA,
-            plan_pr_body=PLAN_PR_BODY,
+            plan_pr_number=_support.PUBLISHED_PR_NUMBER,
+            plan_pr_head=_support.PUBLISHED_HEAD_SHA,
+            plan_pr_body=_support.PLAN_PR_BODY,
         )
         self.published_pr.body = _late_hold._unpublished_hold_body(held)
 
@@ -251,11 +238,11 @@ class PublishedHoldBoundaryTest(_PublishedHoldCase):
         the developer was resumed, their push landed, and the re-measurement
         entered the gate on the pull request the work is now on.
         """
-        self.plan_pr = seed_plan_pr(self.github)
+        self.plan_pr = _support.seed_plan_pr(self.github)
         held = published_generation(
-            plan_pr_number=PLAN_PR_NUMBER,
+            plan_pr_number=_support.PLAN_PR_NUMBER,
             plan_pr_head=self.plan_pr.head.sha,
-            plan_pr_body=PLAN_PR_BODY,
+            plan_pr_body=_support.PLAN_PR_BODY,
         )
         self.plan_pr.body = _late_hold._unpublished_hold_body(held)
         return held
@@ -277,7 +264,7 @@ class _BodiesAtSpawn:
     def __call__(self, *_called, **_options):
         self.bodies.append({
             number: self._github.get_pr(number).body
-            for number in (PLAN_PR_NUMBER, PUBLISHED_PR_NUMBER)
+            for number in (_support.PLAN_PR_NUMBER, _support.PUBLISHED_PR_NUMBER)
         })
         return self._agent_result
 
@@ -296,14 +283,14 @@ class PublishedHoldBeforeSpawnTest(_PublishedHoldCase):
         # after it. Starting a decomposer with the notice still on the plan PR
         # leaves the change a human could merge carrying nothing at all.
         self._seed_crossed_hold()
-        watched = _BodiesAtSpawn(self.github, agent_reply(SPLIT_REPLY))
+        watched = _BodiesAtSpawn(self.github, agent_reply(_support.SPLIT_REPLY))
 
         outcome, spawn = adjudicate(self.github, self.issue, watched)
 
         spawn.assert_called_once()
         self.assertNotEqual(outcome.disposition, _LateDisposition.PARKED)
-        self.assertIn(HOLD_MARKER_PREFIX, watched.bodies[0][PUBLISHED_PR_NUMBER])
-        self.assertEqual(watched.bodies[0][PLAN_PR_NUMBER], PLAN_PR_BODY)
+        self.assertIn(_support.HOLD_MARKER_PREFIX, watched.bodies[0][_support.PUBLISHED_PR_NUMBER])
+        self.assertEqual(watched.bodies[0][_support.PLAN_PR_NUMBER], _support.PLAN_PR_BODY)
 
     def test_an_immovable_hold_spawns_nothing(self) -> None:
         # The notice cannot be moved, so no agent runs under a pull request
@@ -321,18 +308,18 @@ class PublishedHoldBeforeSpawnTest(_PublishedHoldCase):
 
     def _seed_crossed_hold(self) -> None:
         """Re-seed this issue holding the plan PR it marked before the push."""
-        plan_pr = seed_plan_pr(self.github)
+        plan_pr = _support.seed_plan_pr(self.github)
         held = published_generation(
-            plan_pr_number=PLAN_PR_NUMBER,
+            plan_pr_number=_support.PLAN_PR_NUMBER,
             plan_pr_head=plan_pr.head.sha,
-            plan_pr_body=PLAN_PR_BODY,
+            plan_pr_body=_support.PLAN_PR_BODY,
         )
         plan_pr.body = _late_hold._unpublished_hold_body(held)
         self.github.seed_state(
-            LATE_ISSUE_NUMBER,
+            _support.LATE_ISSUE_NUMBER,
             **{
-                **generation_state(held),
-                KEY_PR_NUMBER: PUBLISHED_PR_NUMBER,
+                **_support.generation_state(held),
+                KEY_PR_NUMBER: _support.PUBLISHED_PR_NUMBER,
             },
         )
 

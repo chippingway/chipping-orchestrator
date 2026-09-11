@@ -14,28 +14,10 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from tests.support.fakes import FakeLabel
+from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     LateCase,
     agent_reply,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    ADDITIONS,
-    CANDIDATE_SHA,
-    EVENT_LATE_VERDICT,
-    KEYS,
-    LATE_FENCE,
-    LATE_SESSION_ID,
-    NEXT_GENERATION,
-    NO_BLOCK_REPLY,
-    QUESTION_ASKED,
-    QUESTION_REPLY,
-    SINGLE_REPLY,
-    SPLIT_BLOCKER,
-    SPLIT_REPLY,
-    THRESHOLD,
-    generation_state,
-    late_generation,
-    seed_late_issue,
 )
 
 PAUSED_LABEL = "paused"
@@ -47,7 +29,7 @@ SPLIT_CHILDREN = 2
 # be able to tell apart.
 FIRST_UNPARSED = "no fenced block at all, just prose."
 
-SECOND_UNPARSED = f"```{LATE_FENCE}\nnot json\n```"
+SECOND_UNPARSED = f"```{_support.LATE_FENCE}\nnot json\n```"
 
 PARK_UNPARSED = "late_manifest_invalid"
 
@@ -77,7 +59,7 @@ class RetriedRunParkTest(LateCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         spawn.assert_called_once()
-        self.assertEqual(self._pinned()[KEYS.park_reason], PARK_UNPARSED)
+        self.assertEqual(self._pinned()[_support.KEYS.park_reason], PARK_UNPARSED)
         self.assertEqual(len(self.github.posted_comments), 2)
 
 
@@ -88,64 +70,64 @@ class DeclinedRunTest(LateCase, unittest.TestCase):
         # A declined run costs the issue's daily budget nothing, exactly as a
         # declined run in every other stage does: the pre-spawn write carries
         # the late identity and leaves the counters as it found them.
-        paused = _PausedDuringRun(self.issue, agent_reply(SINGLE_REPLY))
+        paused = _PausedDuringRun(self.issue, agent_reply(_support.SINGLE_REPLY))
 
         outcome, _ = self._adjudicate(paused)
 
         self.assertEqual(outcome.disposition, _LateDisposition.DEFERRED)
-        self.assertNotIn(KEYS.verdict, self._pinned())
-        self.assertNotIn(KEYS.session_id, self._pinned())
-        self.assertNotIn(KEYS.retry_count, self._pinned())
+        self.assertNotIn(_support.KEYS.verdict, self._pinned())
+        self.assertNotIn(_support.KEYS.session_id, self._pinned())
+        self.assertNotIn(_support.KEYS.retry_count, self._pinned())
 
     def test_a_declined_run_keeps_a_granted_attempt(self) -> None:
         # The attempt a human bought is spent by the same gate the counters
         # are, and refunded by the same pre-spawn write: a run a mid-run pause
         # declines leaves the continuation to be taken again rather than
         # charging somebody's one word for an answer nobody got.
-        self.issue = seed_late_issue(
-            self.github, late_generation(), retry_cap_continued=1,
+        self.issue = _support.seed_late_issue(
+            self.github, _support.late_generation(), retry_cap_continued=1,
         )
-        paused = _PausedDuringRun(self.issue, agent_reply(SINGLE_REPLY))
+        paused = _PausedDuringRun(self.issue, agent_reply(_support.SINGLE_REPLY))
 
         outcome, _ = self._adjudicate(paused)
 
         self.assertEqual(outcome.disposition, _LateDisposition.DEFERRED)
-        self.assertEqual(self._pinned().get(KEYS.retry_grant), 1)
+        self.assertEqual(self._pinned().get(_support.KEYS.retry_grant), 1)
 
     def test_an_interrupted_run_is_not_read(self) -> None:
         outcome, _ = self._adjudicate(
-            agent_reply(SINGLE_REPLY, interrupted=True),
+            agent_reply(_support.SINGLE_REPLY, interrupted=True),
         )
 
         self.assertEqual(outcome.disposition, _LateDisposition.DEFERRED)
-        self.assertNotIn(KEYS.verdict, self._pinned())
+        self.assertNotIn(_support.KEYS.verdict, self._pinned())
         # A shutdown sweep landing here over and over must not exhaust the
         # cap without ever producing an answer.
-        self.assertNotIn(KEYS.retry_count, self._pinned())
+        self.assertNotIn(_support.KEYS.retry_count, self._pinned())
         # The spawn record is deliberately durable: it is what the retry
         # measures itself against.
-        self.assertEqual(self._pinned().get(KEYS.source_sha), CANDIDATE_SHA)
+        self.assertEqual(self._pinned().get(_support.KEYS.source_sha), _support.CANDIDATE_SHA)
 
     def test_a_timeout_parks_and_keeps_its_session(self) -> None:
         # A timed-out run still opened a session a later resume has to land
         # on, and it did spend the retry slot the park now records.
         outcome, _ = self._adjudicate(
-            agent_reply("", session_id=LATE_SESSION_ID, timed_out=True),
+            agent_reply("", session_id=_support.LATE_SESSION_ID, timed_out=True),
         )
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertIn("timed out", self.github.posted_comments[-1][1])
-        self.assertNotIn(KEYS.verdict, self._pinned())
-        self.assertEqual(self._pinned().get(KEYS.session_id), LATE_SESSION_ID)
-        self.assertEqual(outcome.run.session_id, LATE_SESSION_ID)
-        self.assertEqual(self._pinned().get(KEYS.retry_count), 1)
+        self.assertNotIn(_support.KEYS.verdict, self._pinned())
+        self.assertEqual(self._pinned().get(_support.KEYS.session_id), _support.LATE_SESSION_ID)
+        self.assertEqual(outcome.run.session_id, _support.LATE_SESSION_ID)
+        self.assertEqual(self._pinned().get(_support.KEYS.retry_count), 1)
 
     def test_a_reply_with_no_block_parks(self) -> None:
-        outcome, _ = self._adjudicate(agent_reply(NO_BLOCK_REPLY))
+        outcome, _ = self._adjudicate(agent_reply(_support.NO_BLOCK_REPLY))
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
-        self.assertIn(LATE_FENCE, self.github.posted_comments[-1][1])
-        self.assertNotIn(KEYS.verdict, self._pinned())
+        self.assertIn(_support.LATE_FENCE, self.github.posted_comments[-1][1])
+        self.assertNotIn(_support.KEYS.verdict, self._pinned())
 
 
 class DecidedOutcomeTest(LateCase, unittest.TestCase):
@@ -153,30 +135,30 @@ class DecidedOutcomeTest(LateCase, unittest.TestCase):
 
     def test_a_finished_run_records_its_result(self) -> None:
         outcome, spawn = self._adjudicate(
-            agent_reply(SINGLE_REPLY, session_id=LATE_SESSION_ID),
+            agent_reply(_support.SINGLE_REPLY, session_id=_support.LATE_SESSION_ID),
         )
 
         spawn.assert_called_once()
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(outcome.adjudication.verdict, LateVerdict.SINGLE)
-        self.assertEqual(self._pinned().get(KEYS.session_id), LATE_SESSION_ID)
-        self.assertEqual(self._pinned().get(KEYS.verdict), LateVerdict.SINGLE)
+        self.assertEqual(self._pinned().get(_support.KEYS.session_id), _support.LATE_SESSION_ID)
+        self.assertEqual(self._pinned().get(_support.KEYS.verdict), LateVerdict.SINGLE)
         self.assertEqual(
-            self._pinned().get(KEYS.split_blocker), SPLIT_BLOCKER,
+            self._pinned().get(_support.KEYS.split_blocker), _support.SPLIT_BLOCKER,
         )
         # What is reported is read back off pinned state, so a caller asking
         # the run for its session gets the one a later resume would land on.
-        self.assertEqual(outcome.run.session_id, LATE_SESSION_ID)
+        self.assertEqual(outcome.run.session_id, _support.LATE_SESSION_ID)
         self.assertEqual(outcome.run.verdict, LateVerdict.SINGLE)
 
     def test_a_question_parks_with_what_it_asks(self) -> None:
-        outcome, _ = self._adjudicate(agent_reply(QUESTION_REPLY))
+        outcome, _ = self._adjudicate(agent_reply(_support.QUESTION_REPLY))
 
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
-        self.assertIn(QUESTION_ASKED, self.github.posted_comments[-1][1])
-        self.assertTrue(self._pinned().get(KEYS.awaiting))
+        self.assertIn(_support.QUESTION_ASKED, self.github.posted_comments[-1][1])
+        self.assertTrue(self._pinned().get(_support.KEYS.awaiting))
         self.assertEqual(
-            self._pinned().get(KEYS.category),
+            self._pinned().get(_support.KEYS.category),
             LateVerdictCategory.SCOPE_AMBIGUOUS,
         )
 
@@ -189,19 +171,19 @@ class DecidedOutcomeTest(LateCase, unittest.TestCase):
             **_bounded_state(),
         )
 
-        outcome, _ = self._adjudicate(agent_reply(SPLIT_REPLY))
+        outcome, _ = self._adjudicate(agent_reply(_support.SPLIT_REPLY))
 
         self.assertEqual(outcome.adjudication.verdict, LateVerdict.QUESTION)
         self.assertEqual(
-            self._pinned().get(KEYS.category),
+            self._pinned().get(_support.KEYS.category),
             LateVerdictCategory.LINEAGE_BOUND,
         )
-        self.assertEqual(self._pinned().get(KEYS.verdict), LateVerdict.QUESTION)
+        self.assertEqual(self._pinned().get(_support.KEYS.verdict), LateVerdict.QUESTION)
 
     def test_the_verdict_carries_its_measurement(self) -> None:
-        self._adjudicate(agent_reply(SINGLE_REPLY))
+        self._adjudicate(agent_reply(_support.SINGLE_REPLY))
 
-        recorded = self._events_named(EVENT_LATE_VERDICT)
+        recorded = self._events_named(_support.EVENT_LATE_VERDICT)
         self.assertEqual(len(recorded), 1)
         decided = recorded[0]
         self.assertEqual(decided.get("verdict"), LateVerdict.SINGLE)
@@ -209,38 +191,38 @@ class DecidedOutcomeTest(LateCase, unittest.TestCase):
             decided.get("category"),
             LateVerdictCategory.GENERATED_ARTIFACTS,
         )
-        self.assertEqual(decided.get("additions"), ADDITIONS)
-        self.assertEqual(decided.get("threshold"), THRESHOLD)
-        self.assertEqual(decided.get("source_sha"), CANDIDATE_SHA)
+        self.assertEqual(decided.get("additions"), _support.ADDITIONS)
+        self.assertEqual(decided.get("threshold"), _support.THRESHOLD)
+        self.assertEqual(decided.get("source_sha"), _support.CANDIDATE_SHA)
 
     def test_a_later_generation_re_adjudicates(self) -> None:
         # A recorded answer names the generation it answered, so the next
         # frozen candidate is a new question rather than a settled one.
-        self._adjudicate(agent_reply(SINGLE_REPLY))
+        self._adjudicate(agent_reply(_support.SINGLE_REPLY))
         self.github.seed_state(
             self.issue.number,
             **_nextgeneration_state(self._pinned()),
         )
 
-        outcome, spawn = self._adjudicate(agent_reply(QUESTION_REPLY))
+        outcome, spawn = self._adjudicate(agent_reply(_support.QUESTION_REPLY))
 
         spawn.assert_called_once()
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
         self.assertEqual(
-            self._pinned().get(KEYS.run_generation), NEXT_GENERATION,
+            self._pinned().get(_support.KEYS.run_generation), _support.NEXT_GENERATION,
         )
 
 
 def _bounded_state() -> dict:
     """The seeded pinned state of a generation at the lineage bound."""
-    return generation_state(late_generation(lineage_depth=MAX_LINEAGE_DEPTH))
+    return _support.generation_state(_support.late_generation(lineage_depth=MAX_LINEAGE_DEPTH))
 
 
 def _nextgeneration_state(recorded: dict) -> dict:
     """The same issue's state once a second candidate has been frozen."""
     return {
         **recorded,
-        **generation_state(late_generation(generation=NEXT_GENERATION)),
+        **_support.generation_state(_support.late_generation(generation=_support.NEXT_GENERATION)),
     }
 
 

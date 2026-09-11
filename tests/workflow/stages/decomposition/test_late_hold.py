@@ -12,25 +12,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_session as _late_session,
 )
 from tests.support.fakes import FakeGitHubClient, FakePRRef
+from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import HoldSnapshot
-from tests.workflow.stages.decomposition.late_test_support import (
-    ADDITIONS,
-    BASE_SHA,
-    CANDIDATE_SHA,
-    CYCLE_ID,
-    GENERATION_NUMBER,
-    HOLD_MARKER_PREFIX,
-    KEY_PLAN_PATH,
-    KEYS,
-    LATE_ISSUE_NUMBER,
-    PLAN_PATH,
-    PLAN_PR_BODY,
-    PLAN_PR_NUMBER,
-    THRESHOLD,
-    late_generation,
-    seed_late_issue,
-    seed_plan_pr,
-)
 
 # What a re-measured candidate reports, and therefore what the notice a
 # re-marked hold quotes. Any number but the first generation's does.
@@ -48,9 +31,9 @@ HUMAN_REPLACEMENT = "a human rewrote the description mid-hold"
 # changed under one reads it as a human's own description, and the copy it
 # replaced is then never put back.
 CURRENT_HOLD = (
-    f"<!--orchestrator-late-hold:cycle={CYCLE_ID}-->\n"
+    f"<!--orchestrator-late-hold:cycle={_support.CYCLE_ID}-->\n"
     ":hourglass: **Held by the orchestrator.** The committed implementation "
-    f"for issue #{LATE_ISSUE_NUMBER} measured past the size ceiling, so it is being "
+    f"for issue #{_support.LATE_ISSUE_NUMBER} measured past the size ceiling, so it is being "
     "adjudicated before anything is published. Do not merge this pull "
     "request while the hold stands.\n\n"
     "This description is temporary. The original is preserved in the issue's "
@@ -64,10 +47,10 @@ CURRENT_HOLD = (
 # -- an upgrade meets them unchanged, and a spelling this binary cannot
 # recognize is a hold it can never take back off.
 SUPERSEDED_HOLD = (
-    f"<!--orchestrator-late-hold:cycle={CYCLE_ID}:generation={GENERATION_NUMBER}-->\n"
+    f"<!--orchestrator-late-hold:cycle={_support.CYCLE_ID}:generation={_support.GENERATION_NUMBER}-->\n"
     ":hourglass: **Held by the orchestrator.** The committed implementation "
-    f"for issue #{LATE_ISSUE_NUMBER} measures {ADDITIONS} added lines against a ceiling "
-    f"of {THRESHOLD}, so it is being adjudicated before anything is "
+    f"for issue #{_support.LATE_ISSUE_NUMBER} measures {_support.ADDITIONS} added lines against a ceiling "
+    f"of {_support.THRESHOLD}, so it is being adjudicated before anything is "
     "published. Do not merge this pull request while the hold "
     "stands.\n\n"
     "This description is temporary. The original is preserved in the "
@@ -107,24 +90,24 @@ class _HoldCase(unittest.TestCase):
 
     def setUp(self) -> None:
         self.github = FakeGitHubClient()
-        self.issue = seed_late_issue(
+        self.issue = _support.seed_late_issue(
             self.github,
-            late_generation(),
-            pr_number=PLAN_PR_NUMBER,
-            **{KEY_PLAN_PATH: PLAN_PATH},
+            _support.late_generation(),
+            pr_number=_support.PLAN_PR_NUMBER,
+            **{_support.KEY_PLAN_PATH: _support.PLAN_PATH},
         )
-        self.plan_pr = seed_plan_pr(self.github)
+        self.plan_pr = _support.seed_plan_pr(self.github)
 
     def _reconcile(self, generation=None):
         return _late_hold._reconcile_hold(
             self.github,
             self.issue,
             self.github.read_pinned_state(self.issue),
-            late_generation() if generation is None else generation,
+            _support.late_generation() if generation is None else generation,
         )
 
     def _pinned(self) -> dict:
-        return self.github.pinned_data(LATE_ISSUE_NUMBER)
+        return self.github.pinned_data(_support.LATE_ISSUE_NUMBER)
 
 
 class PlanPrHoldTest(_HoldCase):
@@ -134,7 +117,7 @@ class PlanPrHoldTest(_HoldCase):
         # An issue that never published a plan PR has nothing to mark, which
         # is not a failure: the caller spawns exactly as it would have.
         self.github = FakeGitHubClient()
-        self.issue = seed_late_issue(self.github, late_generation())
+        self.issue = _support.seed_late_issue(self.github, _support.late_generation())
 
         hold = self._reconcile()
 
@@ -151,14 +134,14 @@ class PlanPrHoldTest(_HoldCase):
             hold = self._reconcile()
 
         self.assertTrue(hold.held)
-        self.assertEqual(hold.generation.plan_pr_number, PLAN_PR_NUMBER)
-        self.assertEqual(hold.generation.plan_pr_body, PLAN_PR_BODY)
+        self.assertEqual(hold.generation.plan_pr_number, _support.PLAN_PR_NUMBER)
+        self.assertEqual(hold.generation.plan_pr_body, _support.PLAN_PR_BODY)
         self.assertEqual(
-            [held.get(KEYS.plan_pr_body) for held in recorder.snapshots],
-            [PLAN_PR_BODY],
+            [held.get(_support.KEYS.plan_pr_body) for held in recorder.snapshots],
+            [_support.PLAN_PR_BODY],
         )
         self.assertEqual(
-            [held.get(KEYS.plan_pr_head) for held in recorder.snapshots],
+            [held.get(_support.KEYS.plan_pr_head) for held in recorder.snapshots],
             [self.plan_pr.head.sha],
         )
 
@@ -168,16 +151,16 @@ class PlanPrHoldTest(_HoldCase):
         # and a word changed here reads every one of them as somebody's own
         # description -- refusing to restore what it replaced, for good.
         self.assertEqual(
-            _late_hold._hold_body(late_generation()), CURRENT_HOLD,
+            _late_hold._hold_body(_support.late_generation()), CURRENT_HOLD,
         )
 
     def test_hold_body_carries_the_generation(self) -> None:
-        generation = late_generation()
+        generation = _support.late_generation()
 
         self._reconcile(generation)
 
         self.assertIn(_late_hold._hold_marker(generation), self.plan_pr.body)
-        self.assertNotIn(PLAN_PR_BODY, self.plan_pr.body)
+        self.assertNotIn(_support.PLAN_PR_BODY, self.plan_pr.body)
 
     def test_retry_over_its_own_hold_is_a_no_op(self) -> None:
         # Idempotence is what lets the caller retry a failed reconciliation on
@@ -221,8 +204,8 @@ class ReappliedHoldTest(_HoldCase):
         # nothing could start an agent under -- so it is recognized, and the
         # same edit that would have applied a fresh hold rewrites it in the
         # spelling every later comparison is made against.
-        held = late_generation(
-            plan_pr_number=PLAN_PR_NUMBER, plan_pr_body=PLAN_PR_BODY,
+        held = _support.late_generation(
+            plan_pr_number=_support.PLAN_PR_NUMBER, plan_pr_body=_support.PLAN_PR_BODY,
         )
         self.plan_pr.body = SUPERSEDED_HOLD
 
@@ -232,7 +215,7 @@ class ReappliedHoldTest(_HoldCase):
         self.assertFalse(hold.displaced)
         self.assertFalse(hold.failed)
         self.assertEqual(self.plan_pr.body, _late_hold._hold_body(held))
-        self.assertEqual(hold.generation.plan_pr_body, PLAN_PR_BODY)
+        self.assertEqual(hold.generation.plan_pr_body, _support.PLAN_PR_BODY)
 
     def test_an_advanced_generation_needs_no_re_mark(self) -> None:
         # The counter advances on every reconciliation that lands, and the
@@ -273,13 +256,13 @@ class ReappliedHoldTest(_HoldCase):
         # the edit leaves the description recorded beside the identity, and
         # nothing on the pull request says the hold was ever taken.
         first = self._reconcile()
-        self.plan_pr.body = PLAN_PR_BODY
+        self.plan_pr.body = _support.PLAN_PR_BODY
 
         second = self._reconcile(first.generation)
 
         self.assertTrue(second.held)
-        self.assertEqual(second.generation.plan_pr_body, PLAN_PR_BODY)
-        self.assertIn(HOLD_MARKER_PREFIX, self.plan_pr.body)
+        self.assertEqual(second.generation.plan_pr_body, _support.PLAN_PR_BODY)
+        self.assertIn(_support.HOLD_MARKER_PREFIX, self.plan_pr.body)
 
 
 class SettledPlanPrTest(_HoldCase):
@@ -292,8 +275,8 @@ class SettledPlanPrTest(_HoldCase):
         # Refusing it would leave a merged plan describing a hold that ended.
         self.plan_pr.state = CLOSED
         self.plan_pr.body = SUPERSEDED_HOLD
-        held = late_generation(
-            plan_pr_number=PLAN_PR_NUMBER, plan_pr_body=PLAN_PR_BODY,
+        held = _support.late_generation(
+            plan_pr_number=_support.PLAN_PR_NUMBER, plan_pr_body=_support.PLAN_PR_BODY,
         )
 
         release = _late_hold._release_hold(
@@ -301,14 +284,14 @@ class SettledPlanPrTest(_HoldCase):
         )
 
         self.assertFalse(release.failed)
-        self.assertEqual(self.plan_pr.body, PLAN_PR_BODY)
+        self.assertEqual(self.plan_pr.body, _support.PLAN_PR_BODY)
 
     def test_a_settled_plan_pr_re_anchors_nothing(self) -> None:
         # A human merging or closing the plan PR has decided something about
         # that pull request and nothing about the commit under adjudication.
         self.plan_pr.state = CLOSED
-        held = late_generation(
-            plan_pr_number=PLAN_PR_NUMBER, plan_pr_body=PLAN_PR_BODY,
+        held = _support.late_generation(
+            plan_pr_number=_support.PLAN_PR_NUMBER, plan_pr_body=_support.PLAN_PR_BODY,
         )
 
         hold = self._reconcile(held)
@@ -316,10 +299,10 @@ class SettledPlanPrTest(_HoldCase):
         self.assertFalse(hold.held)
         self.assertFalse(hold.failed)
         self.assertEqual(self.github.edited_pr_bodies, [])
-        self.assertEqual(hold.generation.candidate_sha, CANDIDATE_SHA)
-        self.assertEqual(hold.generation.base_sha, BASE_SHA)
-        self.assertEqual(hold.generation.plan_pr_number, PLAN_PR_NUMBER)
-        self.assertEqual(hold.generation.plan_pr_body, PLAN_PR_BODY)
+        self.assertEqual(hold.generation.candidate_sha, _support.CANDIDATE_SHA)
+        self.assertEqual(hold.generation.base_sha, _support.BASE_SHA)
+        self.assertEqual(hold.generation.plan_pr_number, _support.PLAN_PR_NUMBER)
+        self.assertEqual(hold.generation.plan_pr_body, _support.PLAN_PR_BODY)
 
 
 class PlanPrProvenanceTest(_HoldCase):
@@ -331,10 +314,10 @@ class PlanPrProvenanceTest(_HoldCase):
         # human's account of a change under review with a notice about
         # another one.
         self.github = FakeGitHubClient()
-        self.issue = seed_late_issue(
-            self.github, late_generation(), pr_number=PLAN_PR_NUMBER,
+        self.issue = _support.seed_late_issue(
+            self.github, _support.late_generation(), pr_number=_support.PLAN_PR_NUMBER,
         )
-        seed_plan_pr(self.github)
+        _support.seed_plan_pr(self.github)
 
         hold = self._reconcile()
 
@@ -348,14 +331,14 @@ class PlanPrProvenanceTest(_HoldCase):
         # by the commit its head is on, so a head that moved off the recorded
         # plan commit is somebody's implementation and not this issue's plan.
         self.github = FakeGitHubClient()
-        self.issue = seed_late_issue(
+        self.issue = _support.seed_late_issue(
             self.github,
-            late_generation(),
-            pr_number=PLAN_PR_NUMBER,
-            discussion_plan_sha=BASE_SHA,
+            _support.late_generation(),
+            pr_number=_support.PLAN_PR_NUMBER,
+            discussion_plan_sha=_support.BASE_SHA,
         )
-        self.plan_pr = seed_plan_pr(self.github)
-        self.plan_pr.head.sha = CANDIDATE_SHA
+        self.plan_pr = _support.seed_plan_pr(self.github)
+        self.plan_pr.head.sha = _support.CANDIDATE_SHA
 
         hold = self._reconcile()
 
@@ -368,14 +351,14 @@ class PlanPrProvenanceTest(_HoldCase):
         # the pull request into an implementation whose description this
         # would then preserve and replace.
         self.github = FakeGitHubClient()
-        self.issue = seed_late_issue(
+        self.issue = _support.seed_late_issue(
             self.github,
-            late_generation(),
-            pr_number=PLAN_PR_NUMBER,
-            discussion_plan_sha=BASE_SHA,
+            _support.late_generation(),
+            pr_number=_support.PLAN_PR_NUMBER,
+            discussion_plan_sha=_support.BASE_SHA,
         )
-        self.plan_pr = seed_plan_pr(self.github)
-        self.plan_pr.head.sha = BASE_SHA
+        self.plan_pr = _support.seed_plan_pr(self.github)
+        self.plan_pr.head.sha = _support.BASE_SHA
         fetched = MagicMock(side_effect=self.github.get_pr)
 
         with patch.object(self.github, GET_PR, fetched):
@@ -397,7 +380,7 @@ class PlanPrProvenanceTest(_HoldCase):
         self.assertTrue(hold.failed)
         self.assertFalse(hold.held)
         self.assertEqual(self.github.edited_pr_bodies, [])
-        self.assertNotIn(KEYS.plan_pr_body, self._pinned())
+        self.assertNotIn(_support.KEYS.plan_pr_body, self._pinned())
 
     def test_the_locked_spec_decides_what_fits(self) -> None:
         # An agent spec is an operator's command line and is bounded by
@@ -408,7 +391,7 @@ class PlanPrProvenanceTest(_HoldCase):
         self.assertTrue(self._reconcile().held)
 
         self.github.seed_state(
-            LATE_ISSUE_NUMBER, **{**self._pinned(), KEYS.agent: LONG_SPEC},
+            _support.LATE_ISSUE_NUMBER, **{**self._pinned(), _support.KEYS.agent: LONG_SPEC},
         )
         self.plan_pr.body = "p" * (_late_session.MAX_RECORDED_BODY - HEADROOM_UNDER_THE_CEILING)
 
@@ -432,7 +415,7 @@ class PlanPrProvenanceTest(_HoldCase):
         self.assertTrue(hold.failed)
         self.assertFalse(hold.held)
         self.assertEqual(self.github.edited_pr_bodies, [])
-        self.assertEqual(self.plan_pr.body, PLAN_PR_BODY)
+        self.assertEqual(self.plan_pr.body, _support.PLAN_PR_BODY)
 
 
 class _UnreadablePr:
@@ -444,19 +427,19 @@ class _UnreadablePr:
     """
 
     def __init__(self, failing: str) -> None:
-        self.number = PLAN_PR_NUMBER
+        self.number = _support.PLAN_PR_NUMBER
         self.state = OPEN
         self._failing = failing
 
     @property
     def body(self) -> str:
         self._refuse("body")
-        return PLAN_PR_BODY
+        return _support.PLAN_PR_BODY
 
     @property
     def head(self) -> FakePRRef:
         self._refuse("head")
-        return FakePRRef(sha=CANDIDATE_SHA)
+        return FakePRRef(sha=_support.CANDIDATE_SHA)
 
     @property
     def merged(self) -> bool:
@@ -497,9 +480,9 @@ class PlanPrHoldFailureTest(_HoldCase):
         self.assertTrue(hold.failed)
         # The identity and the original body are already durable, so the
         # retry re-applies the edit rather than re-capturing a body.
-        self.assertEqual(self._pinned().get(KEYS.plan_pr_body), PLAN_PR_BODY)
+        self.assertEqual(self._pinned().get(_support.KEYS.plan_pr_body), _support.PLAN_PR_BODY)
         self.assertEqual(
-            self._pinned().get(KEYS.plan_pr_number), PLAN_PR_NUMBER,
+            self._pinned().get(_support.KEYS.plan_pr_number), _support.PLAN_PR_NUMBER,
         )
 
     def test_a_lazy_read_that_fails_is_closed(self) -> None:
@@ -526,9 +509,9 @@ class PlanPrHoldFailureTest(_HoldCase):
         self.assertTrue(hold.failed)
         self.assertFalse(hold.held)
         self.assertEqual(self.github.edited_pr_bodies, [])
-        self.assertEqual(self.plan_pr.body, PLAN_PR_BODY)
-        self.assertNotIn(KEYS.plan_pr_head, self._pinned())
-        self.assertNotIn(KEYS.plan_pr_body, self._pinned())
+        self.assertEqual(self.plan_pr.body, _support.PLAN_PR_BODY)
+        self.assertNotIn(_support.KEYS.plan_pr_head, self._pinned())
+        self.assertNotIn(_support.KEYS.plan_pr_body, self._pinned())
 
     def test_a_foreign_hold_is_refused(self) -> None:
         # Capturing a hold as though it were somebody's description would

@@ -19,6 +19,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 from orchestrator.workflow.stages.decomposition.late_session import (
     MAX_RECORDED_BODY,
 )
+from tests.workflow.stages.decomposition import late_settlement_support as _support
 from tests.workflow.stages.decomposition.late_content_support import (
     PARK_REVISION_UNANSWERED,
     RefusedComment,
@@ -30,17 +31,7 @@ from tests.workflow.stages.decomposition.late_revision_support import (
     RevisionCase,
 )
 from tests.workflow.stages.decomposition.late_run_support import agent_reply
-from tests.workflow.stages.decomposition.late_settlement_support import (
-    ERROR,
-    HUMAN_REWRITE,
-    PARK_HOLD_FAILED,
-    SINGLE_RUN,
-    SPLIT_RUN,
-    WORKFLOW_LOG,
-    GuardedLateCase,
-    HeldPlanPrCase,
-    unreadable_owner,
-)
+from tests.workflow.stages.decomposition.late_settlement_support import GuardedLateCase, HeldPlanPrCase
 from tests.workflow.stages.decomposition.late_test_support import KEYS
 
 DISPLACED_NOTICE = "a description this orchestrator did not write"
@@ -71,18 +62,18 @@ class SupersededNoticeTest(HeldPlanPrCase, unittest.TestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.plan_pr.body = HUMAN_REWRITE
+        self.plan_pr.body = _support.HUMAN_REWRITE
         with RefusedComment(self.github), self.assertRaises(RuntimeError):
-            self._adjudicate(SINGLE_RUN)
+            self._adjudicate(_support.SINGLE_RUN)
 
     def test_the_refusal_stands_with_nothing_said(self) -> None:
         pinned = self._pinned()
 
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_HOLD_FAILED)
+        self.assertEqual(pinned.get(KEYS.park_reason), _support.PARK_HOLD_FAILED)
         self.assertEqual(self.github.posted_comments, [])
 
     def test_the_re_taking_attempt_says_it_once(self) -> None:
-        outcome, spawn = self._adjudicate(SINGLE_RUN)
+        outcome, spawn = self._adjudicate(_support.SINGLE_RUN)
 
         spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
@@ -105,7 +96,7 @@ class UnrecordableNoticeTest(RevisionCase):
         self._seed(**DEV_PIN)
         reply(self.issue)
 
-        with self.assertLogs(WORKFLOW_LOG, level=ERROR) as logged:
+        with self.assertLogs(_support.WORKFLOW_LOG, level=_support.ERROR) as logged:
             self._revise(reply=agent_reply(TOO_LONG_TO_QUOTE), seed=UNCHANGED)
             refusals = [
                 line for line in logged.output if REFUSED_TO_RECORD in line
@@ -133,14 +124,14 @@ class StrandedGuardNoticeTest(GuardedLateCase, unittest.TestCase):
         super().setUp()
         with (
             RefusedComment(self.github),
-            unreadable_owner(self.github),
-            self.assertLogs(WORKFLOW_LOG, level=ERROR),
+            _support.unreadable_owner(self.github),
+            self.assertLogs(_support.WORKFLOW_LOG, level=_support.ERROR),
             self.assertRaises(RuntimeError),
         ):
-            self._adjudicate(SPLIT_RUN)
+            self._adjudicate(_support.SPLIT_RUN)
 
     def test_a_failing_read_says_the_stranded_one(self) -> None:
-        with unreadable_owner(self.github), self.assertLogs(WORKFLOW_LOG, level=ERROR):
+        with _support.unreadable_owner(self.github), self.assertLogs(_support.WORKFLOW_LOG, level=_support.ERROR):
             outcome, spawn = self._adjudicate()
 
         spawn.assert_not_called()

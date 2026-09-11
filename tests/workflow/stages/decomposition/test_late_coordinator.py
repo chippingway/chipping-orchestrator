@@ -23,6 +23,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 )
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.fixtures import STAGE_DECOMPOSING
+from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     HoldSnapshot,
     LateCase,
@@ -30,24 +31,6 @@ from tests.workflow.stages.decomposition.late_run_support import (
     WorktreeSeed,
     adjudicate,
     agent_reply,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    BASE_SHA,
-    CANDIDATE_SHA,
-    EVENT_LATE_FAILURE,
-    KEY_PLAN_PATH,
-    KEYS,
-    LATE_ISSUE_NUMBER,
-    MERGED_SHA,
-    PLAN_PATH,
-    PLAN_PR_BODY,
-    PLAN_PR_NUMBER,
-    ROLE_DECOMPOSER,
-    SPLIT_REPLY,
-    UNDERSIZED_ADDITIONS,
-    late_generation,
-    seed_late_issue,
-    seed_plan_pr,
 )
 
 FUTURE_WINDOW = "2999-01-01T00:00:00+00:00"
@@ -64,10 +47,10 @@ GRANTED = 1
 # cycle, which is cleanup-only.
 _NOT_LATE_CASES = (
     ("never entered the gate", LateGeneration()),
-    ("measured under its ceiling", late_generation(
-        additions=UNDERSIZED_ADDITIONS,
+    ("measured under its ceiling", _support.late_generation(
+        additions=_support.UNDERSIZED_ADDITIONS,
     )),
-    ("cancelled cycle", late_generation(cancelled=True)),
+    ("cancelled cycle", _support.late_generation(cancelled=True)),
 )
 
 WORKFLOW_LOG = "orchestrator.workflow"
@@ -84,7 +67,7 @@ class _MergedDuringRun:
 
     def __call__(self, *_args, **_kwargs):
         self._plan_pr.merged = True
-        self._plan_pr.head.sha = MERGED_SHA
+        self._plan_pr.head.sha = _support.MERGED_SHA
         return self._agent_result
 
 
@@ -116,7 +99,7 @@ class NotLateTest(unittest.TestCase):
                 github = FakeGitHubClient()
 
                 outcome, spawn = adjudicate(
-                    github, seed_late_issue(github, generation),
+                    github, _support.seed_late_issue(github, generation),
                 )
 
                 self.assertEqual(
@@ -132,25 +115,25 @@ class HoldBeforeSpawnTest(LateCase, unittest.TestCase):
     def setUp(self) -> None:
         super().setUp()
         self.github = FakeGitHubClient()
-        self.issue = seed_late_issue(
+        self.issue = _support.seed_late_issue(
             self.github,
-            late_generation(),
-            pr_number=PLAN_PR_NUMBER,
-            **{KEY_PLAN_PATH: PLAN_PATH},
+            _support.late_generation(),
+            pr_number=_support.PLAN_PR_NUMBER,
+            **{_support.KEY_PLAN_PATH: _support.PLAN_PATH},
         )
-        self.plan_pr = seed_plan_pr(self.github)
+        self.plan_pr = _support.seed_plan_pr(self.github)
 
     def test_the_hold_lands_before_the_agent_runs(self) -> None:
         recorder = HoldSnapshot(self.github)
 
         with patch.object(self.github, "edit_pr_body", recorder):
-            self._adjudicate(agent_reply(SPLIT_REPLY))
+            self._adjudicate(agent_reply(_support.SPLIT_REPLY))
 
         self.assertEqual(
-            [held.get(KEYS.plan_pr_body) for held in recorder.snapshots],
-            [PLAN_PR_BODY],
+            [held.get(_support.KEYS.plan_pr_body) for held in recorder.snapshots],
+            [_support.PLAN_PR_BODY],
         )
-        self.assertNotIn(PLAN_PR_BODY, self.plan_pr.body)
+        self.assertNotIn(_support.PLAN_PR_BODY, self.plan_pr.body)
 
     def test_a_failed_hold_parks_without_spawning(self) -> None:
         refused = patch.object(
@@ -162,13 +145,13 @@ class HoldBeforeSpawnTest(LateCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         spawn.assert_not_called()
-        self.assertTrue(self._pinned().get(KEYS.awaiting))
+        self.assertTrue(self._pinned().get(_support.KEYS.awaiting))
         self.assertEqual(
-            self._pinned().get(KEYS.phase), LatePhase.HOLDING_PLAN_PR,
+            self._pinned().get(_support.KEYS.phase), LatePhase.HOLDING_PLAN_PR,
         )
         # The gate still precedes the pre-spawn write, so a run that never
         # happened leaves no record claiming it did.
-        self.assertNotIn(KEYS.source_sha, self._pinned())
+        self.assertNotIn(_support.KEYS.source_sha, self._pinned())
 
     def test_an_unpersisted_hold_parks_unspawned(self) -> None:
         # A write that does not land leaves no preserved body, so there is no
@@ -186,7 +169,7 @@ class HoldBeforeSpawnTest(LateCase, unittest.TestCase):
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         spawn.assert_not_called()
         self.assertEqual(self.github.edited_pr_bodies, [])
-        self.assertEqual(self.plan_pr.body, PLAN_PR_BODY)
+        self.assertEqual(self.plan_pr.body, _support.PLAN_PR_BODY)
 
     def test_an_unholdable_body_parks_every_tick(self) -> None:
         # The failure this leaves unreachable: a body that fits the comment
@@ -203,7 +186,7 @@ class HoldBeforeSpawnTest(LateCase, unittest.TestCase):
                 self.assertEqual(parked.disposition, _LateDisposition.PARKED)
                 unspawned.assert_not_called()
                 self.assertEqual(self.github.edited_pr_bodies, [])
-                self.assertTrue(self._pinned().get(KEYS.awaiting))
+                self.assertTrue(self._pinned().get(_support.KEYS.awaiting))
 
     def test_a_failed_hold_records_its_failure(self) -> None:
         refused = patch.object(
@@ -213,7 +196,7 @@ class HoldBeforeSpawnTest(LateCase, unittest.TestCase):
         with refused, self.assertLogs(WORKFLOW_LOG, level=ERROR):
             self._adjudicate()
 
-        recorded = self._events_named(EVENT_LATE_FAILURE)
+        recorded = self._events_named(_support.EVENT_LATE_FAILURE)
         self.assertEqual(len(recorded), 1)
         self.assertEqual(
             recorded[0].get("failure"), LateFailure.PLAN_PR_HOLD_FAILED,
@@ -223,58 +206,58 @@ class HoldBeforeSpawnTest(LateCase, unittest.TestCase):
     def test_a_merge_mid_run_re_anchors_nothing(self) -> None:
         # The pull request is settled by a human; the commit under
         # adjudication is not, and stays the evidence every later step reads.
-        merged = _MergedDuringRun(self.plan_pr, agent_reply(SPLIT_REPLY))
+        merged = _MergedDuringRun(self.plan_pr, agent_reply(_support.SPLIT_REPLY))
 
         self._adjudicate(merged)
 
-        self.assertEqual(self._pinned().get(KEYS.candidate_sha), CANDIDATE_SHA)
-        self.assertEqual(self._pinned().get(KEYS.base_sha), BASE_SHA)
-        self.assertEqual(self._pinned().get(KEYS.source_sha), CANDIDATE_SHA)
+        self.assertEqual(self._pinned().get(_support.KEYS.candidate_sha), _support.CANDIDATE_SHA)
+        self.assertEqual(self._pinned().get(_support.KEYS.base_sha), _support.BASE_SHA)
+        self.assertEqual(self._pinned().get(_support.KEYS.source_sha), _support.CANDIDATE_SHA)
 
 
 class SpawnPersistenceTest(LateCase, unittest.TestCase):
     """What is durable before the run, and what the run adds to it."""
 
     def test_the_run_is_recorded_before_the_spawn(self) -> None:
-        recorder = SpawnSnapshot(self.github, agent_reply(SPLIT_REPLY))
+        recorder = SpawnSnapshot(self.github, agent_reply(_support.SPLIT_REPLY))
 
         self._adjudicate(recorder)
 
         self.assertEqual(len(recorder.snapshots), 1)
         recorded = recorder.snapshots[0]
-        self.assertEqual(recorded.get(KEYS.role), ROLE_DECOMPOSER)
+        self.assertEqual(recorded.get(_support.KEYS.role), _support.ROLE_DECOMPOSER)
         self.assertEqual(
-            recorded.get(KEYS.agent), config.DECOMPOSE_AGENT_SPEC,
+            recorded.get(_support.KEYS.agent), config.DECOMPOSE_AGENT_SPEC,
         )
-        self.assertEqual(recorded.get(KEYS.source_sha), CANDIDATE_SHA)
-        self.assertEqual(recorded.get(KEYS.run_generation), 1)
-        self.assertEqual(recorded.get(KEYS.phase), LatePhase.ADJUDICATING)
-        self.assertNotIn(KEYS.verdict, recorded)
+        self.assertEqual(recorded.get(_support.KEYS.source_sha), _support.CANDIDATE_SHA)
+        self.assertEqual(recorded.get(_support.KEYS.run_generation), 1)
+        self.assertEqual(recorded.get(_support.KEYS.phase), LatePhase.ADJUDICATING)
+        self.assertNotIn(_support.KEYS.verdict, recorded)
         # The identity is durable before the agent starts; the retry slot it
         # holds is not, so a run this tick then declines costs nothing.
-        self.assertNotIn(KEYS.retry_count, recorded)
+        self.assertNotIn(_support.KEYS.retry_count, recorded)
 
     def test_a_grant_is_unspent_before_the_spawn(self) -> None:
         # The attempt a human bought is charged by the same gate the counters
         # are, so the pre-spawn write has to leave it as it found it too --
         # a run this tick then declines must not spend a continuation nobody
         # got an answer for.
-        self.issue = seed_late_issue(
-            self.github, late_generation(), retry_cap_continued=GRANTED,
+        self.issue = _support.seed_late_issue(
+            self.github, _support.late_generation(), retry_cap_continued=GRANTED,
         )
-        recorder = SpawnSnapshot(self.github, agent_reply(SPLIT_REPLY))
+        recorder = SpawnSnapshot(self.github, agent_reply(_support.SPLIT_REPLY))
 
         self._adjudicate(recorder)
 
-        self.assertEqual(recorder.snapshots[0].get(KEYS.retry_grant), GRANTED)
+        self.assertEqual(recorder.snapshots[0].get(_support.KEYS.retry_grant), GRANTED)
         # The run that finished is what makes the spend durable.
-        self.assertEqual(self._pinned().get(KEYS.retry_grant), 0)
+        self.assertEqual(self._pinned().get(_support.KEYS.retry_grant), 0)
 
     def test_the_refund_covers_every_charged_field(self) -> None:
         # The set the pre-spawn write puts back has to mirror what the shared
         # gate writes, both roads through it: a field charged here and not
         # refunded there is spent by a run the tick goes on to decline.
-        for grant in ({}, {KEYS.retry_grant: GRANTED}):
+        for grant in ({}, {_support.KEYS.retry_grant: GRANTED}):
             with self.subTest(grant=grant):
                 state = self.github.read_pinned_state(self.issue)
                 state.data.update(grant)
@@ -296,15 +279,15 @@ class SpawnPersistenceTest(LateCase, unittest.TestCase):
                 )
 
     def test_it_spends_the_shared_retry_and_usage(self) -> None:
-        self._adjudicate(agent_reply(SPLIT_REPLY))
+        self._adjudicate(agent_reply(_support.SPLIT_REPLY))
 
-        self.assertEqual(self._pinned().get(KEYS.retry_count), 1)
-        self.assertEqual(self._pinned().get(KEYS.agent_runs), 1)
+        self.assertEqual(self._pinned().get(_support.KEYS.retry_count), 1)
+        self.assertEqual(self._pinned().get(_support.KEYS.agent_runs), 1)
 
     def test_an_exhausted_budget_parks_unspawned(self) -> None:
-        self.issue = seed_late_issue(
+        self.issue = _support.seed_late_issue(
             self.github,
-            late_generation(),
+            _support.late_generation(),
             retry_count=config.MAX_RETRIES_PER_DAY,
             retry_window_start=FUTURE_WINDOW,
         )
@@ -313,10 +296,10 @@ class SpawnPersistenceTest(LateCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         spawn.assert_not_called()
-        self.assertTrue(self._pinned().get(KEYS.awaiting))
+        self.assertTrue(self._pinned().get(_support.KEYS.awaiting))
         # The gate still precedes the pre-spawn write, so a run that never
         # happened leaves no record claiming it did.
-        self.assertNotIn(KEYS.source_sha, self._pinned())
+        self.assertNotIn(_support.KEYS.source_sha, self._pinned())
 
     def test_a_missing_worktree_parks_unspawned(self) -> None:
         # The frozen commit is evidence this host either holds or does not;
@@ -330,13 +313,13 @@ class SpawnPersistenceTest(LateCase, unittest.TestCase):
         self.assertIn("not on this host", self.github.posted_comments[-1][1])
 
     def test_a_recorded_answer_is_not_paid_for_twice(self) -> None:
-        self._adjudicate(agent_reply(SPLIT_REPLY))
+        self._adjudicate(agent_reply(_support.SPLIT_REPLY))
 
         outcome, spawn = self._adjudicate()
 
         spawn.assert_not_called()
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
-        self.assertEqual(outcome.run.source_sha, CANDIDATE_SHA)
+        self.assertEqual(outcome.run.source_sha, _support.CANDIDATE_SHA)
         # Rebuilt from the record, so the caller acts on the same answer the
         # first tick got rather than on a second run's.
         self.assertEqual(outcome.adjudication.verdict, LateVerdict.SPLIT)
@@ -352,9 +335,9 @@ class FrozenEvidenceTest(unittest.TestCase):
         # produces a diff against nothing and a record two sinks refuse --
         # after the run has been paid for.
         cases = (
-            ("no frozen base", late_generation(base_sha="")),
-            ("no frozen candidate", late_generation(candidate_sha="")),
-            ("no root issue", late_generation(root_issue=0)),
+            ("no frozen base", _support.late_generation(base_sha="")),
+            ("no frozen candidate", _support.late_generation(candidate_sha="")),
+            ("no root issue", _support.late_generation(root_issue=0)),
             # A record about a different issue: positive, well-shaped, and
             # not this issue's. Acting on it would show the agent a prompt
             # naming two issues, mark a pull request in a foreign
@@ -362,17 +345,17 @@ class FrozenEvidenceTest(unittest.TestCase):
             # names rather than the one it ran on.
             (
                 "another issue's record",
-                late_generation(current_issue=LATE_ISSUE_NUMBER + 1),
+                _support.late_generation(current_issue=_support.LATE_ISSUE_NUMBER + 1),
             ),
         )
         for name, generation in cases:
             with self.subTest(case=name):
                 github = FakeGitHubClient()
-                issue = seed_late_issue(
-                    github, generation, pr_number=PLAN_PR_NUMBER,
-                    **{KEY_PLAN_PATH: PLAN_PATH},
+                issue = _support.seed_late_issue(
+                    github, generation, pr_number=_support.PLAN_PR_NUMBER,
+                    **{_support.KEY_PLAN_PATH: _support.PLAN_PATH},
                 )
-                seed_plan_pr(github)
+                _support.seed_plan_pr(github)
 
                 self._assert_refused(github, issue)
 
@@ -390,11 +373,11 @@ class FrozenEvidenceTest(unittest.TestCase):
         for name, seed in cases:
             with self.subTest(case=name):
                 github = FakeGitHubClient()
-                issue = seed_late_issue(
-                    github, late_generation(), pr_number=PLAN_PR_NUMBER,
-                    **{KEY_PLAN_PATH: PLAN_PATH},
+                issue = _support.seed_late_issue(
+                    github, _support.late_generation(), pr_number=_support.PLAN_PR_NUMBER,
+                    **{_support.KEY_PLAN_PATH: _support.PLAN_PATH},
                 )
-                seed_plan_pr(github)
+                _support.seed_plan_pr(github)
 
                 self._assert_refused(
                     github, issue, worktree=seed,
@@ -403,7 +386,7 @@ class FrozenEvidenceTest(unittest.TestCase):
 
     def test_an_unshowable_pair_is_reported(self) -> None:
         github = FakeGitHubClient()
-        issue = seed_late_issue(github, late_generation())
+        issue = _support.seed_late_issue(github, _support.late_generation())
 
         with self.assertLogs(WORKFLOW_LOG, level=ERROR):
             adjudicate(
@@ -412,7 +395,7 @@ class FrozenEvidenceTest(unittest.TestCase):
 
         failures = [
             record for record in github.recorded_events
-            if record.get("event") == EVENT_LATE_FAILURE
+            if record.get("event") == _support.EVENT_LATE_FAILURE
         ]
         self.assertEqual(len(failures), 1)
 
@@ -427,7 +410,7 @@ class FrozenEvidenceTest(unittest.TestCase):
         spawn.assert_not_called()
         self.assertEqual(github.edited_pr_bodies, [])
         self.assertTrue(
-            github.pinned_data(issue.number).get(KEYS.awaiting),
+            github.pinned_data(issue.number).get(_support.KEYS.awaiting),
         )
         self.assertIn(said, github.posted_comments[-1][1])
 
@@ -442,9 +425,9 @@ class MutationGuardTest(LateCase, unittest.TestCase):
     """
 
     def test_a_moved_head_refuses_the_verdict(self) -> None:
-        self._refused(WorktreeSeed(head=MERGED_SHA))
+        self._refused(WorktreeSeed(head=_support.MERGED_SHA))
 
-        self.assertIn(CANDIDATE_SHA, self.github.posted_comments[-1][1])
+        self.assertIn(_support.CANDIDATE_SHA, self.github.posted_comments[-1][1])
 
     def test_an_unreadable_head_is_refused(self) -> None:
         # Proving nothing is the same answer as proving it moved: what a
@@ -459,11 +442,11 @@ class MutationGuardTest(LateCase, unittest.TestCase):
 
     def _refused(self, seed) -> None:
         """Run against `seed` and assert the verdict was not accepted."""
-        outcome, _ = self._adjudicate(agent_reply(SPLIT_REPLY), worktree=seed)
+        outcome, _ = self._adjudicate(agent_reply(_support.SPLIT_REPLY), worktree=seed)
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
-        self.assertNotIn(KEYS.verdict, self._pinned())
-        self.assertTrue(self._pinned().get(KEYS.awaiting))
+        self.assertNotIn(_support.KEYS.verdict, self._pinned())
+        self.assertTrue(self._pinned().get(_support.KEYS.awaiting))
         self.assertIn("read-only", self.github.posted_comments[-1][1])
 
 

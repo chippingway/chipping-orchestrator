@@ -20,27 +20,8 @@ from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.workflow.late_split.models import LateResourceState
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import _PatchedWorkflowMixin
-from tests.workflow.stages.decomposition.late_cleanup_support import (
-    CHILD_NUMBER,
-    EVENT_LATE_CLEANUP,
-    LABEL_DONE,
-    LABEL_READY,
-    LABEL_REJECTED,
-    PARENT_NUMBER,
-    RESOLVED_STAMP,
-    SNAPSHOT_REF,
-    STATE_FAILED,
-    STATE_RECONCILED,
-    SUPERSEDED_BRANCH,
-    UMBRELLA,
-    WORKFLOW_LOG,
-    OwnerSeed,
-    RecordedDelete,
-    SeededUmbrella,
-    resource_states,
-    split_umbrella,
-    walk_owner,
-)
+from tests.workflow.stages.decomposition import late_cleanup_support as _support
+from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete, SeededUmbrella
 from tests.workflow.stages.decomposition.late_crash_support import refusing
 
 # Four targets a ledger entry could name and this issue is not published under:
@@ -69,8 +50,8 @@ class _UmbrellaCleanupCase(_PatchedWorkflowMixin):
 
     def _walk(self, owed: LateResourceState, **teardown) -> SeededUmbrella:
         """Seed an umbrella owing its branch that way, and run one tick."""
-        seeded = split_umbrella(owed)
-        walk_owner(self, seeded, **teardown)
+        seeded = _support.split_umbrella(owed)
+        _support.walk_owner(self, seeded, **teardown)
         return seeded
 
 
@@ -81,23 +62,23 @@ class UmbrellaCleanupTest(_UmbrellaCleanupCase, unittest.TestCase):
         seeded = self._walk(LateResourceState.PENDING)
 
         self.assertEqual(
-            seeded.github.deleted_remote_branches, [SUPERSEDED_BRANCH],
+            seeded.github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH],
         )
         self.assertTrue(seeded.parent.closed)
-        self.assertIn(RESOLVED_STAMP, seeded.github.pinned_data(PARENT_NUMBER))
+        self.assertIn(_support.RESOLVED_STAMP, seeded.github.pinned_data(_support.PARENT_NUMBER))
 
     def test_it_records_what_the_reclamation_did(self) -> None:
         seeded = self._walk(LateResourceState.PENDING)
 
         self.assertEqual(
-            resource_states(seeded.github), {SUPERSEDED_BRANCH: STATE_RECONCILED},
+            _support.resource_states(seeded.github), {_support.SUPERSEDED_BRANCH: _support.STATE_RECONCILED},
         )
         reported = [
             record for record in seeded.github.recorded_events
-            if record.get("event") == EVENT_LATE_CLEANUP
+            if record.get("event") == _support.EVENT_LATE_CLEANUP
         ]
         self.assertEqual(len(reported), 1)
-        self.assertEqual(reported[0]["outcome"], STATE_RECONCILED)
+        self.assertEqual(reported[0]["outcome"], _support.STATE_RECONCILED)
 
     def test_a_failed_obligation_is_retried(self) -> None:
         # "Recorded and retried" is the whole contract: the entry names the
@@ -105,7 +86,7 @@ class UmbrellaCleanupTest(_UmbrellaCleanupCase, unittest.TestCase):
         seeded = self._walk(LateResourceState.FAILED)
 
         self.assertEqual(
-            seeded.github.deleted_remote_branches, [SUPERSEDED_BRANCH],
+            seeded.github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH],
         )
         self.assertTrue(seeded.parent.closed)
 
@@ -118,11 +99,11 @@ class UmbrellaCleanupTest(_UmbrellaCleanupCase, unittest.TestCase):
         seeded = self._walk(LateResourceState.RETAINED)
 
         self.assertEqual(
-            seeded.github.deleted_remote_branches, [SUPERSEDED_BRANCH],
+            seeded.github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH],
         )
         self.assertTrue(seeded.parent.closed)
         self.assertEqual(
-            resource_states(seeded.github), {SUPERSEDED_BRANCH: STATE_RECONCILED},
+            _support.resource_states(seeded.github), {_support.SUPERSEDED_BRANCH: _support.STATE_RECONCILED},
         )
 
     def test_a_settled_one_costs_no_second_call(self) -> None:
@@ -135,15 +116,15 @@ class UmbrellaCleanupTest(_UmbrellaCleanupCase, unittest.TestCase):
         # Every umbrella that reached its terminal another way answers the
         # same question without a write.
         github = FakeGitHubClient()
-        parent = make_issue(PARENT_NUMBER, label=UMBRELLA)
+        parent = make_issue(_support.PARENT_NUMBER, label=_support.UMBRELLA)
         github.add_issue(parent)
-        github.add_issue(make_issue(CHILD_NUMBER, label=LABEL_DONE))
+        github.add_issue(make_issue(_support.CHILD_NUMBER, label=_support.LABEL_DONE))
         github.seed_state(
-            PARENT_NUMBER, children=[CHILD_NUMBER], umbrella=True,
+            _support.PARENT_NUMBER, children=[_support.CHILD_NUMBER], umbrella=True,
         )
         seeded = SeededUmbrella(github=github, parent=parent)
 
-        walk_owner(self, seeded)
+        _support.walk_owner(self, seeded)
 
         self.assertEqual(seeded.github.deleted_remote_branches, [])
         self.assertTrue(seeded.parent.closed)
@@ -160,36 +141,36 @@ class UmbrellaParkedCleanupTest(_UmbrellaCleanupCase, unittest.TestCase):
     """
 
     def test_a_parked_umbrella_still_frees_the_remote(self) -> None:
-        for child_label in (LABEL_REJECTED, LABEL_READY):
+        for child_label in (_support.LABEL_REJECTED, _support.LABEL_READY):
             with self.subTest(child_label=child_label):
                 seeded, deleted = self._parked(child_label)
                 github = seeded.github
 
-                self.assertEqual(deleted.refs, [SNAPSHOT_REF])
+                self.assertEqual(deleted.refs, [_support.SNAPSHOT_REF])
                 self.assertEqual(
-                    github.deleted_remote_branches, [SUPERSEDED_BRANCH],
+                    github.deleted_remote_branches, [_support.SUPERSEDED_BRANCH],
                 )
                 self.assertEqual(
-                    set(resource_states(github).values()), {STATE_RECONCILED},
+                    set(_support.resource_states(github).values()), {_support.STATE_RECONCILED},
                 )
 
     def test_the_park_is_left_exactly_as_it_was(self) -> None:
         # The settlement decides no terminal and takes nothing back: the
         # parent is still stopped for the human, still open, and still on the
         # label that brings the next tick back to it.
-        for child_label in (LABEL_REJECTED, LABEL_READY):
+        for child_label in (_support.LABEL_REJECTED, _support.LABEL_READY):
             with self.subTest(child_label=child_label):
                 seeded, _deleted = self._parked(child_label)
-                parked = seeded.github.pinned_data(PARENT_NUMBER)
+                parked = seeded.github.pinned_data(_support.PARENT_NUMBER)
 
                 self.assertTrue(parked[_PARKED])
                 self.assertFalse(seeded.parent.closed)
-                self.assertNotIn(RESOLVED_STAMP, parked)
+                self.assertNotIn(_support.RESOLVED_STAMP, parked)
                 self.assertEqual(seeded.github.label_history, [])
 
     def _parked(self, child_label: str):
         """One umbrella tick over a child ended the way a park reads it."""
-        seeded = split_umbrella(
+        seeded = _support.split_umbrella(
             LateResourceState.PENDING,
             snapshot=LateResourceState.RETAINED,
             child_label=child_label,
@@ -197,7 +178,7 @@ class UmbrellaParkedCleanupTest(_UmbrellaCleanupCase, unittest.TestCase):
         )
         deleted = RecordedDelete(SnapshotOutcome.DELETED)
         with deleted.answering():
-            walk_owner(self, seeded)
+            _support.walk_owner(self, seeded)
         return seeded, deleted
 
 
@@ -207,16 +188,16 @@ class UmbrellaCleanupRefusalTest(_UmbrellaCleanupCase, unittest.TestCase):
     def test_a_refusal_holds_the_umbrella_open(self) -> None:
         # Closing here would leave an obligation nobody ever settles: nothing
         # revisits a closed umbrella, and no other tick reads this ledger.
-        seeded = split_umbrella(LateResourceState.PENDING)
+        seeded = _support.split_umbrella(LateResourceState.PENDING)
         seeded.github._pull_state._delete_remote_branch_returns_ok = False
 
-        with self.assertLogs(WORKFLOW_LOG, level=_WARNING):
-            teardown = walk_owner(self, seeded)
+        with self.assertLogs(_support.WORKFLOW_LOG, level=_WARNING):
+            teardown = _support.walk_owner(self, seeded)
 
         self.assertFalse(seeded.parent.closed)
-        self.assertNotIn(RESOLVED_STAMP, seeded.github.pinned_data(PARENT_NUMBER))
+        self.assertNotIn(_support.RESOLVED_STAMP, seeded.github.pinned_data(_support.PARENT_NUMBER))
         self.assertEqual(
-            resource_states(seeded.github), {SUPERSEDED_BRANCH: STATE_FAILED},
+            _support.resource_states(seeded.github), {_support.SUPERSEDED_BRANCH: _support.STATE_FAILED},
         )
         self.assertTrue(teardown.attempted)
 
@@ -227,58 +208,58 @@ class UmbrellaCleanupRefusalTest(_UmbrellaCleanupCase, unittest.TestCase):
         # branch that the per-tick base refresh goes on merging into for as
         # long as the refusal lasts -- and the ledger cannot show it, because
         # the entry reads `failed` either way.
-        seeded = split_umbrella(LateResourceState.PENDING)
+        seeded = _support.split_umbrella(LateResourceState.PENDING)
 
-        with refusing(seeded.github, "delete_remote_branch"), self.assertLogs(WORKFLOW_LOG, level=_ERROR):
-            teardown = walk_owner(self, seeded)
+        with refusing(seeded.github, "delete_remote_branch"), self.assertLogs(_support.WORKFLOW_LOG, level=_ERROR):
+            teardown = _support.walk_owner(self, seeded)
 
-        self.assertEqual(teardown.issues, [PARENT_NUMBER])
+        self.assertEqual(teardown.issues, [_support.PARENT_NUMBER])
         self.assertEqual(
             teardown.branch_deleted.call_args.args[1:],
-            (PARENT_NUMBER, SUPERSEDED_BRANCH),
+            (_support.PARENT_NUMBER, _support.SUPERSEDED_BRANCH),
         )
         self.assertFalse(seeded.parent.closed)
 
     def test_a_retained_branch_that_stays_holds_it(self) -> None:
         # The other half: owed means owed, so a delete that does not land on
         # one of these holds the terminal exactly as it does on a `pending`.
-        seeded = split_umbrella(LateResourceState.RETAINED)
+        seeded = _support.split_umbrella(LateResourceState.RETAINED)
         seeded.github._pull_state._delete_remote_branch_returns_ok = False
 
-        with self.assertLogs(WORKFLOW_LOG, level=_WARNING):
-            teardown = walk_owner(self, seeded)
+        with self.assertLogs(_support.WORKFLOW_LOG, level=_WARNING):
+            teardown = _support.walk_owner(self, seeded)
 
         self.assertFalse(seeded.parent.closed)
         self.assertEqual(
-            resource_states(seeded.github), {SUPERSEDED_BRANCH: STATE_FAILED},
+            _support.resource_states(seeded.github), {_support.SUPERSEDED_BRANCH: _support.STATE_FAILED},
         )
         self.assertTrue(teardown.attempted)
 
     def test_a_checkout_that_stays_holds_the_terminal(self) -> None:
         # A remote delete that succeeded beside a checkout that would not come
         # down is not a settled obligation.
-        with self.assertLogs(WORKFLOW_LOG, level=_WARNING):
+        with self.assertLogs(_support.WORKFLOW_LOG, level=_WARNING):
             seeded = self._walk(
                 LateResourceState.PENDING, local_gone=False,
             )
 
         self.assertFalse(seeded.parent.closed)
         self.assertEqual(
-            resource_states(seeded.github), {SUPERSEDED_BRANCH: STATE_FAILED},
+            _support.resource_states(seeded.github), {_support.SUPERSEDED_BRANCH: _support.STATE_FAILED},
         )
 
     def test_a_local_teardown_that_lands_later_closes(self) -> None:
         # "Recorded and retried" over the WHOLE ordinary cleanup, not just its
         # remote half: the entry stays owed until every surface is gone.
-        seeded = split_umbrella(LateResourceState.PENDING)
-        with self.assertLogs(WORKFLOW_LOG, level=_WARNING):
-            walk_owner(self, seeded, local_gone=False)
+        seeded = _support.split_umbrella(LateResourceState.PENDING)
+        with self.assertLogs(_support.WORKFLOW_LOG, level=_WARNING):
+            _support.walk_owner(self, seeded, local_gone=False)
 
-        walk_owner(self, seeded)
+        _support.walk_owner(self, seeded)
 
         self.assertTrue(seeded.parent.closed)
         self.assertEqual(
-            resource_states(seeded.github), {SUPERSEDED_BRANCH: STATE_RECONCILED},
+            _support.resource_states(seeded.github), {_support.SUPERSEDED_BRANCH: _support.STATE_RECONCILED},
         )
 
     def test_a_foreign_branch_is_never_deleted(self) -> None:
@@ -288,17 +269,17 @@ class UmbrellaCleanupRefusalTest(_UmbrellaCleanupCase, unittest.TestCase):
         # over an obligation nobody settled.
         for foreign in (_MAIN, _ANOTHER_ISSUE, _NOT_OURS, _ANOTHER_REPOSITORY):
             with self.subTest(branch=foreign):
-                seeded = split_umbrella(
+                seeded = _support.split_umbrella(
                     LateResourceState.PENDING, branch=foreign,
                 )
 
-                with self.assertLogs(WORKFLOW_LOG, level=_ERROR):
-                    walk_owner(self, seeded)
+                with self.assertLogs(_support.WORKFLOW_LOG, level=_ERROR):
+                    _support.walk_owner(self, seeded)
 
                 self.assertEqual(seeded.github.deleted_remote_branches, [])
                 self.assertFalse(seeded.parent.closed)
                 self.assertEqual(
-                    resource_states(seeded.github), {foreign: STATE_FAILED},
+                    _support.resource_states(seeded.github), {foreign: _support.STATE_FAILED},
                 )
 
 

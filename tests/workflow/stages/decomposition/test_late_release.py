@@ -31,19 +31,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_cleanup as _late_cleanup,
 )
 from tests.workflow.fixtures import _PatchedWorkflowMixin
-from tests.workflow.stages.decomposition.late_cleanup_support import (
-    CHILD_NUMBER,
-    PARENT_NUMBER,
-    SNAPSHOT_REF,
-    STATE_FAILED,
-    STATE_RECLAIMING,
-    STATE_RECONCILED,
-    OwnerSeed,
-    RecordedDelete,
-    resource_states,
-    split_umbrella,
-    walk_owner,
-)
+from tests.workflow.stages.decomposition import late_cleanup_support as _support
+from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete
 from tests.workflow.stages.decomposition.late_test_support import (
     CYCLE_ID,
     GENERATION_NUMBER,
@@ -66,7 +55,7 @@ _REAL_ORDERED = _late_cleanup._ordered
 
 def _reclaiming():
     """An umbrella whose branch is settled and whose ref is about to go."""
-    return split_umbrella(
+    return _support.split_umbrella(
         LateResourceState.RECONCILED,
         snapshot=LateResourceState.RETAINED,
         owner=OwnerSeed(),
@@ -75,7 +64,7 @@ def _reclaiming():
 
 def _reopened(ordered: LateResourceState):
     """An owner whose ref is already ordered, whose one child is open again."""
-    return split_umbrella(
+    return _support.split_umbrella(
         LateResourceState.RECONCILED,
         snapshot=ordered,
         owner=OwnerSeed(child_closed=False),
@@ -86,7 +75,7 @@ def _walk_with(case, seeded, outcome, **answers) -> RecordedDelete:
     """Run the umbrella terminal with the remote answering `outcome`."""
     deleted = RecordedDelete(outcome, **answers)
     with deleted.answering():
-        walk_owner(case, seeded)
+        _support.walk_owner(case, seeded)
     return deleted
 
 
@@ -105,8 +94,8 @@ class _ReleaseCase(_PatchedWorkflowMixin):
 
     def assert_untouched(self, seeded) -> None:
         """The child's pinned comment is as the split left it."""
-        child_state = seeded.github.pinned_data(CHILD_NUMBER)
-        self.assertEqual(child_state[_ANCESTRY_REF], SNAPSHOT_REF)
+        child_state = seeded.github.pinned_data(_support.CHILD_NUMBER)
+        self.assertEqual(child_state[_ANCESTRY_REF], _support.SNAPSHOT_REF)
         self.assertIn(_ANCESTRY_SHA, child_state)
         self.assertFalse(child_state.get(_PARKED))
 
@@ -126,14 +115,14 @@ class _ReleaseCase(_PatchedWorkflowMixin):
         """Every comment this pass has posted on the one consumer."""
         return [
             body for number, body in seeded.github.posted_comments
-            if number == CHILD_NUMBER
+            if number == _support.CHILD_NUMBER
         ]
 
 
     def _order_then_reopen(self, seeded, walk, generation, ref):
         """Record the decision as the owner does, then reopen the child."""
         recorded = _REAL_ORDERED(walk, generation, ref)
-        seeded.github.get_issue(CHILD_NUMBER).closed = False
+        seeded.github.get_issue(_support.CHILD_NUMBER).closed = False
         return recorded
 
 
@@ -146,7 +135,7 @@ class ToldConsumerTest(_ReleaseCase, unittest.TestCase):
         _walk_with(self, seeded, _DELETED)
 
         self.assert_told_once(seeded)
-        self.assertIn(str(PARENT_NUMBER), self.told(seeded)[0])
+        self.assertIn(str(_support.PARENT_NUMBER), self.told(seeded)[0])
 
     def test_the_receipt_names_this_reclamation(self) -> None:
         # Scoped to the owner, the cycle, and the generation, so a consumer of
@@ -156,7 +145,7 @@ class ToldConsumerTest(_ReleaseCase, unittest.TestCase):
         _walk_with(self, seeded, _DELETED)
 
         self.assertIn(
-            f"owner={PARENT_NUMBER} cycle={CYCLE_ID} "
+            f"owner={_support.PARENT_NUMBER} cycle={CYCLE_ID} "
             f"generation={GENERATION_NUMBER}",
             self.told(seeded)[0],
         )
@@ -193,7 +182,7 @@ class ReopenedAfterDeletionTest(_ReleaseCase, unittest.TestCase):
         _walk_with(self, seeded, _DELETED)
         self.assertTrue(seeded.parent.closed)
 
-        seeded.github.get_issue(CHILD_NUMBER).closed = False
+        seeded.github.get_issue(_support.CHILD_NUMBER).closed = False
 
         self.assert_told_once(seeded)
 
@@ -204,17 +193,17 @@ class ReopenedAfterDeletionTest(_ReleaseCase, unittest.TestCase):
         seeded = _reclaiming()
         died = RecordedDelete(_DELETED, raising=KeyboardInterrupt("died"))
         with self.assertRaises(KeyboardInterrupt), died.answering():
-            walk_owner(self, seeded)
+            _support.walk_owner(self, seeded)
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_RECLAIMING,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_RECLAIMING,
         )
         self.assertEqual(self.told(seeded), [])
-        seeded.github.get_issue(CHILD_NUMBER).closed = False
+        seeded.github.get_issue(_support.CHILD_NUMBER).closed = False
 
         _walk_with(self, seeded, _ABSENT, presence=_ABSENT)
 
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_RECONCILED,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_RECONCILED,
         )
         self.assert_told_once(seeded)
 
@@ -255,9 +244,9 @@ class OrderedRetryTest(_ReleaseCase, unittest.TestCase):
                 deleted = _walk_with(self, seeded, _DELETED)
 
                 self.assertEqual(deleted.refs, [])
-                self.assertEqual(deleted.observed, [SNAPSHOT_REF])
+                self.assertEqual(deleted.observed, [_support.SNAPSHOT_REF])
                 self.assertEqual(
-                    resource_states(seeded.github)[SNAPSHOT_REF],
+                    _support.resource_states(seeded.github)[_support.SNAPSHOT_REF],
                     str(ordered),
                 )
                 self.assertFalse(seeded.parent.closed)
@@ -271,9 +260,9 @@ class OrderedRetryTest(_ReleaseCase, unittest.TestCase):
 
         deleted = _walk_with(self, seeded, _ABSENT, presence=_ABSENT)
 
-        self.assertEqual(deleted.refs, [SNAPSHOT_REF])
+        self.assertEqual(deleted.refs, [_support.SNAPSHOT_REF])
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_RECONCILED,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_RECONCILED,
         )
         self.assert_told_once(seeded)
 
@@ -289,7 +278,7 @@ class OrderedRetryTest(_ReleaseCase, unittest.TestCase):
 
         self.assertEqual(deleted.refs, [])
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_RECLAIMING,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_RECLAIMING,
         )
         self.assertFalse(seeded.parent.closed)
         self.assert_untouched(seeded)
@@ -304,7 +293,7 @@ class OrderedRetryTest(_ReleaseCase, unittest.TestCase):
             _walk_with(self, seeded, _DELETED, raising=RuntimeError("boom"))
 
         self.assertEqual(
-            resource_states(seeded.github)[SNAPSHOT_REF], STATE_FAILED,
+            _support.resource_states(seeded.github)[_support.SNAPSHOT_REF], _support.STATE_FAILED,
         )
         self.assertIn(
             "snapshot_delete_failed",

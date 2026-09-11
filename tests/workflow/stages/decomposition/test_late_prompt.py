@@ -18,21 +18,7 @@ from orchestrator.workflow.stages.decomposition.late_reply import _SPLIT_BLOCKER
 from orchestrator.workflow.stages.decomposition.validation import _MAX_CHILDREN
 from tests.support.fakes import make_issue
 from tests.workflow.fixtures import _TEST_SPEC
-from tests.workflow.stages.decomposition.late_test_support import (
-    ADDITIONS,
-    BASE_SHA,
-    CANDIDATE_SHA,
-    LATE_FENCE,
-    LATE_ISSUE_NUMBER,
-    ROOT_ISSUE,
-    SCOPE,
-    SPLIT_BLOCKER,
-    SPLIT_REPLY,
-    THRESHOLD,
-    late_block,
-    late_generation,
-    split_reply_of,
-)
+from tests.workflow.stages.decomposition import late_test_support as _support
 
 # The budget the JSON template shows, read back out of the composed prompt so
 # what a case checks is the figure an agent would copy.
@@ -42,7 +28,7 @@ _TEMPLATE_ESTIMATE = re.compile(f'"{_budget.ESTIMATE}": ([0-9]+)')
 # against, the narrow one an operator may configure -- where the standing
 # example figure is itself an oversized child -- and the narrowest ceiling
 # that leaves a child anything to claim.
-_CEILINGS = (THRESHOLD, 250, 2)
+_CEILINGS = (_support.THRESHOLD, 250, 2)
 
 ISSUE_TITLE = "make the thing work"
 ISSUE_BODY = "the original ask, as a human wrote it"
@@ -51,13 +37,13 @@ THREAD = "@alice: please keep the migration out of it"
 
 def _prompt_for(generation=None) -> str:
     issue = make_issue(
-        LATE_ISSUE_NUMBER, title=ISSUE_TITLE, body=ISSUE_BODY,
+        _support.LATE_ISSUE_NUMBER, title=ISSUE_TITLE, body=ISSUE_BODY,
     )
     return _prompt._build_late_decompose_prompt(
         _TEST_SPEC,
         issue,
         THREAD,
-        late_generation() if generation is None else generation,
+        _support.late_generation() if generation is None else generation,
         [],
     )
 
@@ -70,12 +56,12 @@ class LatePromptContextTest(unittest.TestCase):
             ISSUE_TITLE,
             ISSUE_BODY,
             THREAD,
-            SCOPE,
-            f"git diff {BASE_SHA}...{CANDIDATE_SHA}",
-            f"candidate commit: {CANDIDATE_SHA}",
-            f"base commit: {BASE_SHA}",
-            f"{ADDITIONS} lines",
-            f"ceiling of {THRESHOLD}",
+            _support.SCOPE,
+            f"git diff {_support.BASE_SHA}...{_support.CANDIDATE_SHA}",
+            f"candidate commit: {_support.CANDIDATE_SHA}",
+            f"base commit: {_support.BASE_SHA}",
+            f"{_support.ADDITIONS} lines",
+            f"ceiling of {_support.THRESHOLD}",
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, _prompt_for())
@@ -93,7 +79,7 @@ class LatePromptContextTest(unittest.TestCase):
         # changes nobody measured.
         composed = _prompt_for()
 
-        self.assertNotIn(f"{BASE_SHA}..{CANDIDATE_SHA}`", composed)
+        self.assertNotIn(f"{_support.BASE_SHA}..{_support.CANDIDATE_SHA}`", composed)
         self.assertIn("THREE dots, not two", composed)
 
     def test_a_single_is_not_offered_as_a_publication(self) -> None:
@@ -121,8 +107,8 @@ class LatePromptContextTest(unittest.TestCase):
     def test_it_places_the_issue_in_its_lineage(self) -> None:
         composed = _prompt_for()
 
-        self.assertIn(f"root issue: #{ROOT_ISSUE}", composed)
-        self.assertIn(f"this issue: #{LATE_ISSUE_NUMBER}", composed)
+        self.assertIn(f"root issue: #{_support.ROOT_ISSUE}", composed)
+        self.assertIn(f"this issue: #{_support.LATE_ISSUE_NUMBER}", composed)
         self.assertIn(f"lineage depth: 1 of at most {MAX_LINEAGE_DEPTH}", composed)
 
 
@@ -132,7 +118,7 @@ class LatePromptContractTest(unittest.TestCase):
     def test_it_names_the_fence_and_decisions(self) -> None:
         composed = _prompt_for()
 
-        self.assertIn(LATE_FENCE, composed)
+        self.assertIn(_support.LATE_FENCE, composed)
         for decision in ('"single"', '"split"', '"question"'):
             with self.subTest(decision=decision):
                 self.assertIn(decision, composed)
@@ -179,17 +165,17 @@ class LatePromptContractTest(unittest.TestCase):
         self.assertIn(f'`"{_SPLIT_BLOCKER}"`', _prompt_for())
 
         adjudication, _refusal = _late_reply._parse_late_reply(
-            late_block(json.dumps({
-                "decision": "single", _SPLIT_BLOCKER: SPLIT_BLOCKER,
+            _support.late_block(json.dumps({
+                "decision": "single", _SPLIT_BLOCKER: _support.SPLIT_BLOCKER,
             })),
-            THRESHOLD,
+            _support.THRESHOLD,
         )
         unexplained, refused = _late_reply._parse_late_reply(
-            late_block(json.dumps({"decision": "single"})), THRESHOLD,
+            _support.late_block(json.dumps({"decision": "single"})), _support.THRESHOLD,
         )
 
         self.assertEqual(
-            adjudication.split_blocker_explanation, SPLIT_BLOCKER,
+            adjudication.split_blocker_explanation, _support.SPLIT_BLOCKER,
         )
         self.assertIsNone(unexplained)
         self.assertIn(_SPLIT_BLOCKER, refused)
@@ -201,14 +187,14 @@ class LatePromptContractTest(unittest.TestCase):
         )
         for depth, offered in cases:
             with self.subTest(depth=depth):
-                composed = _prompt_for(late_generation(lineage_depth=depth))
+                composed = _prompt_for(_support.late_generation(lineage_depth=depth))
                 self.assertEqual("`split` is available" in composed, offered)
                 self.assertEqual(
                     "may NOT split further" in composed, not offered,
                 )
 
     def test_an_unreadable_depth_reads_unknown(self) -> None:
-        composed = _prompt_for(late_generation(lineage_depth=None))
+        composed = _prompt_for(_support.late_generation(lineage_depth=None))
 
         self.assertIn("lineage depth: unknown", composed)
 
@@ -255,7 +241,7 @@ class LateSplitPlanTest(unittest.TestCase):
 
         for fragment in (
             f'`"{_budget.ESTIMATE}"` is REQUIRED on every child',
-            f"strictly below {THRESHOLD}",
+            f"strictly below {_support.THRESHOLD}",
             "NO PATH MAY BE EXCLUDED",
             "REVIEW FIXES",
             "ACTUAL CUMULATIVE MEASUREMENT",
@@ -270,16 +256,16 @@ class LateSplitPlanTest(unittest.TestCase):
         # accepted, and one sized at the ceiling is refused by the number the
         # agent was given rather than by one it never saw.
         proposed, refusal = _late_reply._parse_late_reply(
-            SPLIT_REPLY, THRESHOLD,
+            _support.SPLIT_REPLY, _support.THRESHOLD,
         )
         oversized, refused = _late_reply._parse_late_reply(
-            split_reply_of(THRESHOLD), THRESHOLD,
+            _support.split_reply_of(_support.THRESHOLD), _support.THRESHOLD,
         )
 
         self.assertIsNone(refusal)
         self.assertEqual(proposed.child_count, 2)
         self.assertIsNone(oversized)
-        self.assertIn(f"{THRESHOLD}-line ceiling", refused)
+        self.assertIn(f"{_support.THRESHOLD}-line ceiling", refused)
 
     def test_the_example_it_shows_is_acceptable(self) -> None:
         # A template is copied verbatim, so the budget in it is judged by the
@@ -288,13 +274,13 @@ class LateSplitPlanTest(unittest.TestCase):
         # handing out the one shape that parks the candidate it is about.
         for ceiling in _CEILINGS:
             with self.subTest(ceiling=ceiling):
-                composed = _prompt_for(late_generation(threshold=ceiling))
+                composed = _prompt_for(_support.late_generation(threshold=ceiling))
                 shown = int(
                     _TEMPLATE_ESTIMATE.search(composed).group(1),
                 )
 
                 proposed, refusal = _late_reply._parse_late_reply(
-                    split_reply_of(shown), ceiling,
+                    _support.split_reply_of(shown), ceiling,
                 )
 
                 self.assertIsNone(refusal)
@@ -304,7 +290,7 @@ class LateSplitPlanTest(unittest.TestCase):
         # A generation that cannot say what it was measured against still
         # asks for the number, worded on the block that carries the ceiling
         # rather than on a figure this prompt would have to invent.
-        composed = _prompt_for(late_generation(threshold=None))
+        composed = _prompt_for(_support.late_generation(threshold=None))
 
         self.assertIn(
             "strictly below the ceiling this candidate was measured against",
