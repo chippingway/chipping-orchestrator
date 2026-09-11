@@ -1,6 +1,6 @@
 # Issue #1424: branch acceptance audit
 
-Audited implementation: `4c7b893a0f112dec0b676fe5b02a118f5a46eb08` on `reduce-flake8-exclusions`, 2026-09-11.
+Audited implementation: `0918fbafcd6f9f16547b771a115dc3f569dec9e4` on `reduce-flake8-exclusions`, 2026-09-11.
 The audit report commit changes working notes only; the source and lint configuration are those of this SHA.
 
 Both implementation gaps identified by [PR #1697](https://github.com/chippingway/orchestrator/pull/1697) are
@@ -15,12 +15,14 @@ pending the excluded children and integration; this report does not close or mod
 | Original parent, `4c384cba` | 75 | 100 | 0 | 100 |
 | Planning snapshot, `e3a0b434` | 112 | 95 | 39 | 134 |
 | Implementation base, `68f8fa73` | 111 | 94 | 39 | 133 |
-| Audited implementation, `4c7b893a` | 109 | 91 | 39 | 130 |
+| Integrated `main`, `3d22380d` | 110 | 93 | 39 | 132 |
+| Audited implementation, `0918fbaf` | 108 | 90 | 39 | 129 |
 | After integrating all tracked children, projected | 100 | 81 | 39 | 120 |
 
-- This branch removes **3 pairs across 2 paths**, adds **0 pairs**, and leaves **0 stale or unmapped pairs**.
+- Compared with integrated `main`, this branch removes **3 pairs across 2 paths** and adds **0 pairs**.
+- The current inventory has **0 stale or unmapped pairs**. #1736 separately removes one pair from the initial base.
 - WPS235: **102 violations across 96 files → 0**. The global `max-import-from-members = 30` override is gone.
-- **52 of the original 100 pairs are absent**; 48 remain. Another 82 current pairs were absent from that original
+- **53 of the original 100 pairs are absent**; 47 remain. Another 82 current pairs were absent from that original
   snapshot. These are path/rule measurements, not a percentage of implementation effort or credit for later additions.
 - The projected 120 pairs assume the remaining assigned removals land with no intervening additions.
 
@@ -32,7 +34,7 @@ The three removals delivered here are:
 | Rule | Current live/configured pairs |
 |---|---:|
 | WPS201 | 8 |
-| WPS202 | 95 |
+| WPS202 | 94 |
 | WPS204 | 3 |
 | WPS214 | 8 |
 | WPS410 | 8 |
@@ -40,10 +42,10 @@ The three removals delivered here are:
 
 ## Excluded work and integration
 
-Child status snapshot: 2026-09-11 09:03 UTC. Eight children remain open: #1728–#1735. #1736 and #1737 have merged. The
-branch base already includes #1737;
-#1736 merged into `main` during this implementation and is not included in the audited branch. Its terminal
-mapping therefore still appears in the branch inventory. Neither child removal is credited to this branch.
+Child status snapshot: 2026-09-11 09:25 UTC. Eight children remain open: #1728–#1735. #1736 and #1737 have merged.
+The initial branch base includes #1737. The audited implementation also integrates #1736 through
+[PR #1739](https://github.com/chippingway/orchestrator/pull/1739), merged into `main` at `3d22380d`.
+Neither child removal is credited to this branch's three removals. The eight open children target nine pairs.
 No process-group, streamed-command, worktree-selection/attribution/claims, late-revision, late-content, stranded
 discussion-evidence, or plan-terminal extraction assigned to those children was duplicated.
 
@@ -57,13 +59,13 @@ deliveries and their prior audit evidence are retained; the two known gaps now h
 
 | Criterion | Evidence and disposition |
 |---|---|
-| Twenty identified WPS201 removals | Existing #1516 / PR #1526; this branch restores no mapping. |
-| No stale paths or rules | All 130 configured pairs equal isolated diagnostic pairs. |
+| Twenty identified WPS201 removals | Existing #1516 / PR #1526; all twenty mappings remain absent. |
+| No stale paths or rules | All 129 configured pairs equal isolated diagnostic pairs. |
 | Snapshot namespace WPS202 removal | Existing #1517 / PR #1528; still absent. |
 | Named large owners split or justified | Prior merged deliveries plus the owner disposition index below. |
 | No raised global WPS limit | Override removed here; all WPS limits use defaults. |
 | No blanket/glob/facade/source suppression | Exact paths only; no replacement mechanism added. |
-| No replacement structural exemption | Late-park mapping removed; all ten new production owners need no exemption. |
+| No replacement structural exemption | Late-park mapping removed; all eleven new production owners need no exemption. |
 | Workflow contracts preserved | Function comparisons and existing behavior/crash/ordering tests pass. |
 | Docs and patches match owners | Architecture, state-machine references, package docs, and patch targets updated. |
 | Before/after counts reported | Tables above identify the original, branch, and projected integrated snapshots. |
@@ -76,15 +78,16 @@ workflow. Report-publication automation #1702 remains excluded. A local checklis
 
 Locked environment: CPython 3.13.13, Ruff 0.16.5, Flake8 7.3.0, wemake-python-styleguide 1.8.0.
 Ruff, import sorting, configured WPS, whitespace checks, and the complete pytest suite pass.
-Pytest: **6216 passed, 49 skipped, 29862 subtests passed**. Of the skips, 45 need optional dashboard dependencies and
+Pytest: **6216 passed, 49 skipped, 29924 subtests passed**. Of the skips, 45 need optional dashboard dependencies and
 four need a configured live Postgres test database.
 All **6265 collected test identities** are unchanged from the implementation baseline. Import-owner subtest counts
 vary as the owner/import inventory changes; no test case or independent assertion was removed.
 
 The worktree ownership table still asserts the same 193 name/owner pairs, and the theme retains its source objects.
 The park split preserves all 15 function bodies apart from owner references; the implementing recovery split does
-the same for all seven. The coordinator and transaction comparisons preserve 17 and 34 bodies respectively;
-their few restructured branches retain the admission predicate and snapshot-before-children sequence.
+the same for all seven. The coordinator's six owners preserve all 19 original function bodies, including the
+explicit admission predicate. The transaction preserves 34 of 36 bodies; its two restructured branches retain
+the snapshot-before-children sequence and guarded publication order.
 Existing tests cover notice persistence/retry, budget/latch accounting, publication guards, and crash recovery.
 
 ```sh
@@ -93,7 +96,7 @@ uv run ruff check orchestrator tests
 uv run ruff check orchestrator tests --select=I001
 uv run flake8 orchestrator tests --select=WPS
 uv run pytest tests
-git diff --check 68f8fa73...HEAD
+git diff --check 3d22380d...HEAD
 uv run flake8 --isolated orchestrator tests --select=WPS235
 uv run flake8 --isolated orchestrator tests \
   --select=WPS201,WPS202,WPS204,WPS214,WPS410,WPS412
@@ -114,7 +117,7 @@ preparation and retirement have their own clean owners. This does not claim that
 | Disposition | Paths | Pairs |
 |---|---:|---:|
 | Intentional package API | 8 | 16 |
-| Assigned child work | 9 | 10 |
+| Assigned child work | 8 | 9 |
 | Retained production | 61 | 65 |
 | Retained tests | 31 | 39 |
 
@@ -156,8 +159,6 @@ preparation and retirement have their own clean owners. This does not claim that
   here.
 - [orchestrator/workflow/stages/discussion/run.py](../orchestrator/workflow/stages/discussion/run.py)
   WPS202. Assigned to [#1735](https://github.com/chippingway/orchestrator/issues/1735); pending integration here.
-- [orchestrator/workflow/stages/discussion/terminal.py](../orchestrator/workflow/stages/discussion/terminal.py)
-  WPS202. Assigned to [#1736](https://github.com/chippingway/orchestrator/issues/1736); pending integration here.
 
 ### Retained production
 
@@ -241,16 +242,13 @@ preparation and retirement have their own clean owners. This does not claim that
   WPS202. Retain. The carriers one late adjudication hands between its owners.
 - [orchestrator/workflow/stages/decomposition/late_notice.py](../orchestrator/workflow/stages/decomposition/late_notice.py)
   WPS202. Retain. The sentence a park owes the issue, until it has actually been said.
--
-[orchestrator/workflow/stages/decomposition/late_owner.py](../orchestrator/workflow/stages/decomposition/late_owner.py)
+- [orchestrator/workflow/stages/decomposition/late_owner.py][late-owner]
   WPS202. Retain. The fresh read that stands between a finished run and what it earns.
--
-[orchestrator/workflow/stages/decomposition/late_reply.py](../orchestrator/workflow/stages/decomposition/late_reply.py)
+- [orchestrator/workflow/stages/decomposition/late_reply.py][late-reply]
   WPS202. Retain. One fenced block at the end of a LATE reply, or a reason it is not one.
 - [orchestrator/workflow/stages/decomposition/late_restart.py](../orchestrator/workflow/stages/decomposition/late_restart.py)
   WPS202. Retain. The fresh attempt an operator authorizes once a cancelled cycle has ended.
--
-[orchestrator/workflow/stages/decomposition/late_reuse.py](../orchestrator/workflow/stages/decomposition/late_reuse.py)
+- [orchestrator/workflow/stages/decomposition/late_reuse.py][late-reuse]
   WPS202. Retain. What a child born of a split proves before it starts on what it was cut from.
 - [orchestrator/workflow/stages/decomposition/late_session.py](../orchestrator/workflow/stages/decomposition/late_session.py)
   WPS202. Retain. The late run one issue is locked to: read back, recorded, and spawned.
@@ -260,18 +258,15 @@ preparation and retirement have their own clean owners. This does not claim that
   WPS202. Retain. The order a `split` manifest becomes child issues in, and why it is that order.
 - [orchestrator/workflow/stages/decomposition/umbrella.py](../orchestrator/workflow/stages/decomposition/umbrella.py)
   WPS202. Retain. A parent whose whole intent is covered by its children.
--
-[orchestrator/workflow/stages/decomposition/validation.py](../orchestrator/workflow/stages/decomposition/validation.py)
+- [orchestrator/workflow/stages/decomposition/validation.py][validation]
   WPS202. Retain. What a `split` payload must satisfy before any child issue is created.
--
-[orchestrator/workflow/stages/implementing/disposition.py](../orchestrator/workflow/stages/implementing/disposition.py)
+- [orchestrator/workflow/stages/implementing/disposition.py][disposition]
   WPS202. Retain. What a finished dev run leaves behind, and the timeout's second chance.
 - [orchestrator/workflow/stages/implementing/late_command.py](../orchestrator/workflow/stages/implementing/late_command.py)
   WPS202. Retain. The one reply a park for an authorization is ever ended by.
 - [orchestrator/workflow/stages/implementing/late_consent.py](../orchestrator/workflow/stages/implementing/late_consent.py)
   WPS202. Retain. The park an adjudicated candidate with nobody behind it waits on.
--
-[orchestrator/workflow/stages/implementing/late_freeze.py](../orchestrator/workflow/stages/implementing/late_freeze.py)
+- [orchestrator/workflow/stages/implementing/late_freeze.py][late-freeze]
   WPS202. Retain. The pair a count is taken over, and what a record has to carry to be one.
 - [orchestrator/workflow/stages/implementing/late_gate.py](../orchestrator/workflow/stages/implementing/late_gate.py)
   WPS202. Retain. The size question a committed candidate answers before it is published.
@@ -338,8 +333,7 @@ preparation and retirement have their own clean owners. This does not claim that
   WPS202. Retain. The round a resolution earns when the size gate holds it off the PR.
 - [tests/workflow/stages/decomposition/late_content_support.py](../tests/workflow/stages/decomposition/late_content_support.py)
   WPS202. Retain. The issue thread the late content, guidance, and revision tests read.
--
-[tests/workflow/stages/decomposition/late_test_support.py](../tests/workflow/stages/decomposition/late_test_support.py)
+- [tests/workflow/stages/decomposition/late_test_support.py][late-test-support]
   WPS202. Retain. The one oversized candidate the late-mode tests adjudicate.
 - [tests/workflow/stages/decomposition/test_late_authorize.py](../tests/workflow/stages/decomposition/test_late_authorize.py)
   WPS201; WPS202; WPS204. Retain. What publishes an oversized candidate a human read, and what does not.
@@ -353,6 +347,14 @@ preparation and retirement have their own clean owners. This does not claim that
   WPS202. Retain. The one rewrite the transfer's tests grant, refuse, or settle a permit for.
 - [tests/workflow/stages/implementing/test_late_gate_retry.py](../tests/workflow/stages/implementing/test_late_gate_retry.py)
   WPS202. Retain. What a human's reply to a measurement park buys, and what it may not.
--
-[tests/workflow/stages/implementing/test_late_transfer.py](../tests/workflow/stages/implementing/test_late_transfer.py)
+- [tests/workflow/stages/implementing/test_late_transfer.py][test-late-transfer]
   WPS202. Retain. What a rewrite of an adjudicated commit may carry, and what it may not.
+
+[late-owner]: ../orchestrator/workflow/stages/decomposition/late_owner.py
+[late-reply]: ../orchestrator/workflow/stages/decomposition/late_reply.py
+[late-reuse]: ../orchestrator/workflow/stages/decomposition/late_reuse.py
+[validation]: ../orchestrator/workflow/stages/decomposition/validation.py
+[disposition]: ../orchestrator/workflow/stages/implementing/disposition.py
+[late-freeze]: ../orchestrator/workflow/stages/implementing/late_freeze.py
+[late-test-support]: ../tests/workflow/stages/decomposition/late_test_support.py
+[test-late-transfer]: ../tests/workflow/stages/implementing/test_late_transfer.py

@@ -60,15 +60,22 @@ resolved, and the global ceiling override is removed. The two new owners pass al
 Full validation with the default ceiling: 6216 passed, 49 skipped, 29862 subtests passed; collected test
 identities remain unchanged.
 
-The [branch acceptance audit](issue-1424-acceptance-audit.md) records implementation commit `4c7b893a`,
-109 paths / 130 pairs, zero stale or unmapped pairs, and each remaining owner's disposition. This branch
-removes three pairs across two paths and adds none. Both implementation work packages are complete.
+The [branch acceptance audit](issue-1424-acceptance-audit.md) records implementation commit `0918fbaf`,
+108 paths / 129 pairs, zero stale or unmapped pairs, and each remaining owner's disposition. Compared with
+integrated `main` at `3d22380d`, this branch removes three pairs across two paths and adds none.
+Both implementation work packages are complete.
 Eight excluded children remained open at the audit status snapshot; the final merged-parent audit and
 GitHub checklist publication remain dependent on their completion and integration.
 
 Completion review restored the explicit `_is_adjudicable` predicate and separated recorded/frozen-candidate
 proofs into `late_evidence`. Admission retains its live-generation decision, owed-effect recovery, budget
 gate, and PR hold order. This removes the inlining used by the first coordinator split to fit its new owner.
+All 19 original coordinator function bodies are preserved apart from owner references across the six owners.
+
+Integrated the completed #1736 extraction from `main` at `3d22380d` in commit `0918fbaf`. Its removal is credited
+to the child separately. Ruff, configured WPS, and full validation pass: 6216 passed, 49 skipped, 29924 subtests
+passed, with all 6265 test identities unchanged. Eight open children still own nine exemption removals; final
+integration and the parent audit remain outstanding.
 
 ## Scope and dependencies
 
