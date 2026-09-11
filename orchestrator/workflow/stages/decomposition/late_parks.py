@@ -1,175 +1,30 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a late park claims, what it still owes the thread, and when it stops.
+"""The decisions that take, stage, retire, or answer a late park.
 
-A park is two things that cannot be made one operation: the durable claim
-that this issue is waiting on a human, and the comment telling them what they
-are waiting to do. The claim goes first everywhere in this mode -- a comment
-GitHub refuses must not take a finished run's result down with it -- and this
-owner is that order. Every reason a late exit hands the issue back under is
-spelled here, because each is a durable pinned value and because the set
-below is read against them.
+A pre-run park stages its claim, commits it through ``late_park_state``, and
+then asks ``late_park_delivery`` to say what is owed. A post-run caller stages
+the same claim with its result but releases it only after its owner guard.
+Keeping these calls ordered protects the result when a comment fails without
+making delivery recovery another park decision.
 
-The write is here for the same reason. A park and whatever the step that took
-it staged are one durable act, so the persist every owner in this mode reaches
-for is this one: what a step staged goes down carrying the park's own claim
-rather than in a second write a crash could lose.
-
-That order has one cost, and paying it is the other thing this owner does. A
-flag written before its comment is a flag that reads as delivered when the
-comment fails, and every later tick would take the human as told -- so what
-the park still owes the thread is recorded beside the flag on the same write
-and dropped only by the post that discharges it. The field is the
-`late_notice` leaf's; the three readings of it are this owner's, because they
-are readings of the ordering rule rather than of the field: whether a park is
-a repeat, whether a stranded sentence is one nothing else would ever say, and
-whether the tick that found it is the one that should say it.
-
-One park here carries a reason this owner did not invent. A late adjudication
-spends the same per-issue day of tokens every other agent run does, so a spawn
-the shared budget refuses parks as `retry_cap` -- the reason every stage's gate
-takes -- staged through this owner because everything that refusal leaves
-standing is late state that has to ride the same write. It is the one park
-whose audit goes out on the budget's own stream rather than as a late verdict
-or a typed late failure, and the one no later attempt supersedes: a retry is
-exactly what it refuses.
-
-Both endings sit beside the taking. A park a fresh attempt answers is retired
-before that attempt runs, and one a human answers is cleared by the step that
-took the answer -- and a sentence either of them still owed goes with it,
-because what that sentence describes is over.
-
-The consumed-comment watermark those endings ratchet is not a field of this
-mode's at all; it is the issue-wide record of what the workflow has already
-acted on. It is moved from here because every step that takes a human's answer
-or finds a notice already on the thread is here, and a reply one of them spent
-without moving the mark is one the later validating -> in_review handoff finds
-again as fresh PR feedback.
-
-What holds this above the size a module is ordinarily kept to is the park
-lifecycle itself: take, stage, stand, release, reconcile, redeliver, retire,
-answer -- one function per step of it, plus the write they all ride out on and
-the shared watermark they move. The set is closed by that lifecycle rather
-than by what has accumulated, and splitting a step off would put the durable
-half of a park and the sentence it owes in two owners, which is the one thing
-this module exists to keep in one.
+A fresh attempt retires only the reasons it can answer. A human's answer
+clears its own park and any notice that park still owed; neither path may
+silently dismiss the other reasons that require a human decision.
 """
 from __future__ import annotations
 
 import logging
 
-from orchestrator import config
-from orchestrator.workflow.engine import (
-    guards as _guards,
-    retry_budget as _retry_budget,
-)
-from orchestrator.workflow.late_split import (
-    formats as _formats,
-    state as _late_state,
-)
+from orchestrator.workflow.engine import retry_budget as _retry_budget
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
+    late_park_delivery as _late_park_delivery,
+    late_park_state as _late_park_state,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateContext,
-    _StagedPark,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _StagedPark
 
 log = logging.getLogger("orchestrator.workflow")
-
-_AWAITING_HUMAN = "awaiting_human"
-
-_PARK_REASON = "park_reason"
-
-# The issue-wide record of what the workflow has already acted on. Shared with
-# every other stage, which is why this mode has to keep it moving: a reply this
-# mode read and acted on is one the later validating -> in_review handoff must
-# not find again as fresh PR feedback.
-_LAST_ACTION_COMMENT_ID = "last_action_comment_id"
-
-# Every way this mode hands an issue back, spelled once because each is a
-# durable pinned value and because the set below is read against them.
-PARK_HOLD_FAILED = "late_plan_pr_hold_failed"
-PARK_INCOMPLETE = "late_generation_incomplete"
-PARK_WORKTREE_MISSING = "late_worktree_missing"
-# The recorded commits are HERE-or-not, which is a different answer
-# from a checkout that is gone: the worktree can be present and still
-# not hold the pair, on a host the branch never reached.
-PARK_EVIDENCE_MISSING = "late_evidence_missing"
-PARK_WORKTREE_MUTATED = "late_worktree_mutated"
-PARK_TIMEOUT = "late_adjudicator_timeout"
-PARK_UNPARSED = "late_manifest_invalid"
-PARK_UNRECORDABLE = "late_result_unrecordable"
-PARK_OWNER_UNREADABLE = "late_owner_unreadable"
-PARK_SNAPSHOT_FAILED = "late_snapshot_failed"
-PARK_CHILDREN_FAILED = "late_children_failed"
-PARK_SUPERSESSION_FAILED = "late_supersession_failed"
-PARK_PR_UNRECONCILED = "late_pr_unreconciled"
-PARK_QUESTION = "late_question"
-PARK_CONTENT_DRIFT = "late_content_drift"
-PARK_REVISION_DIRTY = "late_revision_dirty"
-PARK_REVISION_UNMEASURED = "late_revision_unmeasured"
-PARK_REVISION_UNANSWERED = "late_revision_unanswered"
-# What an adjudication that could not split the candidate hands back under.
-# The agent has answered the question it was asked and the answer is that this
-# oversized change stays one change, which is a thing only a human may
-# license: the park is the workflow saying so and waiting.
-PARK_SINGLE_DECISION = "late_single_decision"
-
-# The shared spawn budget's own park, spelled by the engine that decides it
-# rather than again here. A late adjudication is charged to the same per-issue
-# day of tokens every other agent run is, so what stops it when that day is
-# spent is the same durable reason every other stage's gate takes -- and it has
-# to READ as that reason, because the tick that meets it next may be an initial
-# decomposition rather than an adjudication.
-PARK_RETRY_CAP = _retry_budget.PARK_RETRY_CAP
-
-# The parks a fresh attempt answers, and therefore retires before it runs. A
-# hold that failed has now been reconciled, a worktree that was gone is back, a
-# run that timed out or answered unusably is about to be re-run, and a pull
-# request lookup nobody could take is about to be taken again, and each of the
-# three transaction steps -- the snapshot, the children, the supersession -- is
-# about to be reconciled again from the same recorded verdict, at no agent's
-# cost. The eight left out are the ones no retry answers. `PARK_QUESTION` is the announcement
-# itself, and the four content
-# parks are the workflow waiting to be told what an edited scope, a worktree
-# the developer left changed, a candidate nobody could measure, or a developer
-# that changed nothing and vouched for nothing now means. Retiring one of those
-# would drop the very state the next tick reads to tell a human's answer from
-# the silence before it.
-#
-# `PARK_SINGLE_DECISION` is left out because the attempt that would supersede
-# it does not exist: the verdict is recorded, so every later tick reuses the
-# same answer and reaches the same park at no agent's cost. Retiring it would
-# clear the flag and re-take it one step later, saying the same sentence to
-# the same thread once a poll while the human it is addressed to reads it.
-#
-# `PARK_RETRY_CAP` is left out for the plainest reason of the eight: a retry is
-# exactly what it refuses. The attempt that would supersede it is the one the
-# budget has no room for, so retiring it here would clear the flag and then
-# meet the same spent budget one step later -- announcing the same sentence
-# once a poll, and taking the park a human has to answer down in between.
-#
-# `PARK_OWNER_UNREADABLE` is left out for a different reason: it IS answered by
-# a retry, but by one that runs before any of this -- the pending owner check
-# the generation records, which is what brings a tick back to the read at all.
-# That reconciliation reads the standing reason to decide whether it owes the
-# thread a follow-up, so retiring the park here would erase the only durable
-# evidence that this mode had said anything to retire.
-_SUPERSEDED_PARKS = frozenset((
-    PARK_HOLD_FAILED,
-    PARK_EVIDENCE_MISSING,
-    PARK_INCOMPLETE,
-    PARK_WORKTREE_MISSING,
-    PARK_WORKTREE_MUTATED,
-    PARK_TIMEOUT,
-    PARK_UNPARSED,
-    PARK_UNRECORDABLE,
-    PARK_PR_UNRECONCILED,
-    PARK_SNAPSHOT_FAILED,
-    PARK_CHILDREN_FAILED,
-    PARK_SUPERSESSION_FAILED,
-))
 
 
 def _park(context: _LateContext, message: str, *, reason: str) -> None:
@@ -181,8 +36,8 @@ def _park(context: _LateContext, message: str, *, reason: str) -> None:
     the write and the notice.
     """
     _stage_park(context, message, reason=reason)
-    _persist(context)
-    _release_staged_park(context)
+    _late_park_state._persist(context)
+    _late_park_delivery._release_staged_park(context)
 
 
 def _park_on_spent_budget(
@@ -218,7 +73,7 @@ def _park_on_spent_budget(
     _park(
         context,
         _retry_budget._cap_message(decision),
-        reason=PARK_RETRY_CAP,
+        reason=_late_park_state.PARK_RETRY_CAP,
     )
 
 
@@ -249,9 +104,9 @@ def _stage_park(context: _LateContext, message: str, *, reason: str) -> None:
     durable half rides whatever write comes next and no comment can be posted
     ahead of it.
     """
-    repeated = _stands_already(context, reason)
-    context.state.set(_AWAITING_HUMAN, True)
-    context.state.set(_PARK_REASON, reason)
+    repeated = _late_park_state._stands_already(context, reason)
+    context.state.set(_late_park_state._AWAITING_HUMAN, True)
+    context.state.set(_late_park_state._PARK_REASON, reason)
     if repeated:
         log.info(
             "issue=#%d is already parked as %s; not repeating the notice",
@@ -260,94 +115,6 @@ def _stage_park(context: _LateContext, message: str, *, reason: str) -> None:
         return
     context.staged_park = _StagedPark(message=message, reason=reason)
     _late_notice._owe_notice(context, context.staged_park)
-
-
-def _release_staged_park(context: _LateContext) -> None:
-    """Say what a park already recorded is for, if it still owes a sentence.
-
-    Called once the owner has been read and came back open, so nothing is said
-    to a thread whose issue this tick could not prove is still there. A park
-    whose notice this drops is not lost: the park itself is durable, and
-    whatever re-takes it announces the reason it fails for THEN, which is the
-    current one rather than one an outage ago.
-
-    The mention goes through the shared park so the watermark it ratchets is
-    the one every other park in this repository ratchets -- that id is the
-    response boundary a reply is measured against, and a notice that did not
-    move it would let a comment written before it read as an answer to it.
-
-    The obligation is dropped between the post and the write, which is the
-    only order that fails the right way: a crash in that window leaves the
-    sentence owed by a thread that already has it, so the next tick repeats
-    one comment -- the same window every park in this repository has -- rather
-    than dropping one nobody ever said.
-
-    What goes out is the sentence with whatever it NAMES put back, so a notice
-    that leaves the recorded explanation on the record rather than copying it
-    reaches the thread whole -- and reaches it identically here and on a
-    redelivery, which is what the reconciliation that looks for it depends on.
-    """
-    staged = context.staged_park
-    if staged is None:
-        return
-    context.staged_park = None
-    _guards._park_awaiting_human(
-        context.gh,
-        context.issue,
-        context.state,
-        f"{config.HITL_MENTIONS} {_late_notice._filled(context, staged)}",
-        reason=staged.reason,
-    )
-    context.state.set(_PARK_REASON, staged.reason)
-    _late_notice._notice_settled(context)
-    _audit_retry_cap(context, staged, _retry_budget.RetryCapPhase.DELIVERED)
-    _persist(context)
-
-
-def _stands_already(context: _LateContext, reason: str) -> bool:
-    """Whether this issue is already parked for exactly this reason.
-
-    Asked of what the tick FOUND, not only of what it has staged. A park this
-    tick retired into memory and is now re-taking for the same reason is the
-    same park -- the step it named failed again, nothing about the issue moved
-    between them, and the human it mentioned has already been told.
-
-    "Nothing moved between them" is what the memory really claims, which is why
-    the run that could move something clears it. Past a spawn the reason is no
-    longer enough to call two parks the same: an agent answered, and a second
-    categorized question or a second unusable reply says something the first
-    notice did not. Suppressing those would leave an outcome recorded, durable,
-    and never announced -- so only the reconciliation retries that spawn
-    nothing keep the memory that quiets them.
-
-    A park somebody cleared is not standing, whatever reason it carried, so an
-    issue a human un-parked is announced to again rather than silently
-    re-parked.
-
-    And a park whose sentence was never said is not one the human has been
-    told about, whatever its flag claims. The flag goes down before the
-    comment goes out, so a refused post leaves one standing over a thread that
-    was told nothing -- and answering from the flag alone would call that a
-    repeat and suppress every later attempt to say it. What makes a park a
-    repeat is the sentence, so that is what is asked.
-    """
-    if context.retired_park == reason:
-        return True
-    if not _stands_for(context, reason):
-        return False
-    return _late_notice._owed_notice(context) is None
-
-
-def _stands_for(context: _LateContext, reason: str) -> bool:
-    """Whether this issue is parked, right now, for exactly this reason.
-
-    The flag alone, with nothing said about whether anybody was told. Asked by
-    the steps that RETIRE a park -- which is owed to a park either way -- as
-    against the ones that decide whether to repeat its notice.
-    """
-    if not context.state.get(_AWAITING_HUMAN):
-        return False
-    return context.state.get(_PARK_REASON) == reason
 
 
 def _release_unsuperseded_park(context: _LateContext) -> None:
@@ -370,126 +137,10 @@ def _release_unsuperseded_park(context: _LateContext) -> None:
     comment stranded is exactly a sentence nothing else will ever say.
     """
     staged = context.staged_park or _late_notice._owed_notice(context)
-    if staged is None or staged.reason in _SUPERSEDED_PARKS:
+    if staged is None or staged.reason in _late_park_state._SUPERSEDED_PARKS:
         return
     context.staged_park = staged
-    _release_staged_park(context)
-
-
-def _reconcile_notice_delivery(context: _LateContext) -> None:
-    """Discharge an obligation the thread shows was already discharged.
-
-    The first thing a tick asks, ahead of even the owed owner read, because
-    everything that reads the obligation afterwards would read it wrong. The
-    post and the write that records it are two operations, so a write that
-    failed after a post that landed leaves pinned state claiming a sentence is
-    owed to a thread that already has it -- and two different steps then draw
-    two different wrong conclusions from it. The redelivery repeats a comment,
-    which is cheap; the guard's own recovery reads it as proof that nobody was
-    ever told and clears the park WITHOUT the follow-up it promised, which is
-    a sentence nothing else will ever say.
-
-    So both halves the failed write was carrying are put back: the obligation
-    is dropped, and the consumed watermark is ratcheted to the comment that
-    actually carried it -- the id a park's own mention is supposed to move it
-    to, and the one the follow-up's own at-most-once check is scoped by.
-
-    Nothing is said here and nothing is decided. A notice the thread does not
-    carry is left exactly as it was, for the retry below to say.
-    """
-    owed = _late_notice._owed_notice(context)
-    if owed is None:
-        return
-    delivered = _late_notice._delivered_id(context, owed)
-    if delivered is None:
-        return
-    log.info(
-        "issue=#%d already carries the notice for park %s; recording it as "
-        "said rather than saying it twice",
-        context.issue.number, owed.reason,
-    )
-    _late_notice._notice_settled(context)
-    _mark_replies_read(context, delivered)
-    _audit_retry_cap(context, owed, _retry_budget.RetryCapPhase.RECONCILED)
-    _persist(context)
-
-
-def _redeliver_park_notice(context: _LateContext) -> None:
-    """Say what a standing park is for, if a refused comment never did.
-
-    The retry the durable half of a park earns. It runs at the top of a tick,
-    ahead of every gate a park routes past, because a park is exactly the
-    state that stops a tick reaching anything: the drift park consumes
-    nothing and returns, the stalled revision waits for a reply, and the
-    recorded question is answered from the record -- so a sentence hung off
-    any of them would never be said.
-
-    The tick's own snapshot is what it is said on, which is the same standing
-    every park taken BEFORE a run has: the issue was fetched seconds ago by
-    the poll that routed it here, and nothing has been paid for since. A
-    cancelled cycle is the one exception -- its parks explain a candidate
-    nobody is adjudicating any more, and its issue is one somebody closed.
-
-    A park a fresh attempt supersedes is left to that attempt, which runs
-    just below this and either retires the park or re-takes it and says the
-    reason it fails for now. Saying the old sentence first would announce a
-    wall this tick is about to walk through.
-
-    Idempotent by what it clears: the obligation is dropped by the post that
-    discharges it, so a notice reaches the thread once per park rather than
-    once per tick.
-    """
-    generation = context.generation
-    if not generation.is_present or generation.cancelled:
-        return
-    owed = _late_notice._owed_notice(context)
-    if owed is None or owed.reason in _SUPERSEDED_PARKS:
-        return
-    log.info(
-        "issue=#%d is parked as %s with its notice unsaid; posting it now",
-        context.issue.number, owed.reason,
-    )
-    context.staged_park = owed
-    _release_staged_park(context)
-
-
-def _audit_retry_cap(
-    context: _LateContext,
-    staged: _StagedPark,
-    phase: _retry_budget.RetryCapPhase,
-) -> None:
-    """Report a spent-budget park's step on the budget's own stream.
-
-    Only that park's. Every other reason this owner takes is a fact about the
-    candidate, and what those report is a late verdict or a typed late
-    failure; this one is a fact about the issue's day of tokens, and what an
-    operator counts it beside is every other stage's refusal on the same
-    budget.
-
-    Emitted from the two seams where a sentence actually reaches the thread
-    rather than from the refusal that owes it, because that is what the two
-    phases claim: one comment paid for, and one found already posted by a tick
-    whose write did not land.
-    """
-    if staged.reason != PARK_RETRY_CAP:
-        return
-    _retry_budget._emit_phase(context.gh, context.issue, context.state, phase)
-
-
-def _stands_parked(context: _LateContext) -> bool:
-    """Whether this issue is already stopped waiting on a human.
-
-    The flag alone, asked by the two steps that must not talk over a reason
-    somebody else's park already took. The owner guard is one: an issue that a
-    timeout, an unusable reply, or a stalled revision has already handed back
-    is one nobody is going to publish anyway, and replacing that reason with
-    "the owner could not be read" would swap the thing the human is being
-    asked about for one they cannot answer -- what brings the next tick back
-    to the read in that case is the generation's own pending marker, not the
-    park. The announcement a recorded question earns is the other: a question
-    the issue is already waiting on a human for is not asked twice.
-    """
-    return bool(context.state.get(_AWAITING_HUMAN))
+    _late_park_delivery._release_staged_park(context)
 
 
 def _retire_park(context: _LateContext) -> bool:
@@ -523,37 +174,15 @@ def _retire_park(context: _LateContext) -> bool:
     owed is what makes it moot: the step it named has been reconciled, so
     what the sentence describes is over.
     """
-    standing = context.state.get(_PARK_REASON)
-    if standing not in _SUPERSEDED_PARKS:
+    standing = context.state.get(_late_park_state._PARK_REASON)
+    if standing not in _late_park_state._SUPERSEDED_PARKS:
         return False
     if _late_notice._owed_notice(context) is None:
         context.retired_park = standing
     _late_notice._notice_settled(context)
-    context.state.set(_AWAITING_HUMAN, False)
-    context.state.set(_PARK_REASON, None)
+    context.state.set(_late_park_state._AWAITING_HUMAN, False)
+    context.state.set(_late_park_state._PARK_REASON, None)
     return True
-
-
-def _mark_replies_read(context: _LateContext, through) -> None:
-    """Record the trusted conversation this tick acted on as read, issue-wide.
-
-    The late fingerprints are this mode's own bookkeeping; the watermark moved
-    here is everybody's. A reply that resolved a park, certified a candidate,
-    or reopened a question has been ACTED on, and leaving the shared watermark
-    behind would let the validating -> in_review handoff read the same comment
-    as fresh PR feedback -- routing the pull request to `fixing` over an answer
-    this mode already spent, or resuming the developer on input it handled.
-
-    `through` is the highest TRUSTED comment folded in, so an untrusted comment
-    sitting above it stays unconsumed exactly as it does on every other resume:
-    nothing an outsider posts is marked read on their behalf. A one-way ratchet,
-    because a park notice or another stage may already have moved it further.
-    """
-    if not _formats.whole_number(through):
-        return
-    prior = context.state.get(_LAST_ACTION_COMMENT_ID)
-    if not _formats.whole_number(prior) or through > prior:
-        context.state.set(_LAST_ACTION_COMMENT_ID, through)
 
 
 def _answer_park(context: _LateContext) -> None:
@@ -578,11 +207,5 @@ def _answer_park(context: _LateContext) -> None:
     already given.
     """
     _late_notice._notice_settled(context)
-    context.state.set(_AWAITING_HUMAN, False)
-    context.state.set(_PARK_REASON, None)
-
-
-def _persist(context: _LateContext) -> None:
-    """Write the generation this tick reached, and the state around it."""
-    _late_state.write_late_generation(context.state, context.generation)
-    context.gh.write_pinned_state(context.issue, context.state)
+    context.state.set(_late_park_state._AWAITING_HUMAN, False)
+    context.state.set(_late_park_state._PARK_REASON, None)

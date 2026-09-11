@@ -19,9 +19,13 @@ Baseline validation on Python 3.13.13: Ruff and configured WPS passed; pytest re
 and 29578 subtests passed. The skipped tests require the optional dashboard dependencies.
 
 - [x] Establish the worktree and passing baseline.
-- [ ] Remove the late-park replacement exemption.
+- [x] Remove the late-park replacement exemption.
 - [ ] Restore WPS235 defaults across production and test imports.
 - [ ] Record the final exemption and acceptance audit.
+
+The late-park split preserves all 15 function bodies apart from direct owner references. Its three owners pass
+all isolated WPS defaults, and the configuration removes the replacement WPS202 mapping without adding one.
+Full validation: 6216 passed, 49 skipped, 29704 subtests passed; collected test identities are unchanged.
 
 ## Scope and dependencies
 

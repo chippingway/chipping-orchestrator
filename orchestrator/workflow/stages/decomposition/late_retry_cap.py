@@ -52,6 +52,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -98,7 +99,7 @@ def _park_owns_the_tick(context: _LateContext) -> bool:
         return False
     if _park_is_explained(context):
         if _continuation_is_bought(context):
-            _late_parks._persist(context)
+            _late_park_state._persist(context)
             return False
         log.info(
             "issue=#%d stands on a spent spawn budget; holding its late "
@@ -214,7 +215,7 @@ def _continuation_is_bought(context: _LateContext) -> bool:
         "issue=#%d was continued by a trusted operator command; granting one "
         "more late adjudication attempt", context.issue.number,
     )
-    _late_parks._mark_replies_read(
+    _late_park_state._mark_replies_read(
         context, max(reply.id for reply in answered),
     )
     _late_parks._answer_park(context)

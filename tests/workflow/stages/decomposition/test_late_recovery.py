@@ -9,7 +9,7 @@ from unittest.mock import patch
 from orchestrator.workflow.late_split.events import LateVerdictCategory
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
-    late_parks as _parks,
+    late_park_state as _late_park_state,
     late_session as _session,
 )
 from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
@@ -296,7 +296,7 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
         spawn.assert_called_once()
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
         self.assertIn(QUESTION_ASKED, self.github.posted_comments[-1][1])
-        self.assertEqual(self._pinned().get(KEYS.park_reason), _parks.PARK_QUESTION)
+        self.assertEqual(self._pinned().get(KEYS.park_reason), _late_park_state.PARK_QUESTION)
 
     def test_a_retried_hold_leaves_no_stale_park(self) -> None:
         # The reason a failed hold left is not the one an issue whose verdict
@@ -308,7 +308,7 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
 
         self.assertEqual(
             self._pinned().get(KEYS.park_reason),
-            _parks.PARK_SINGLE_DECISION,
+            _late_park_state.PARK_SINGLE_DECISION,
         )
 
     def test_a_reused_answer_persists_the_retirement(self) -> None:
@@ -345,7 +345,7 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
         self.assertEqual(recovered.disposition, _LateDisposition.DECIDED)
         self.assertIn(QUESTION_ASKED, self.github.posted_comments[-1][1])
         self.assertEqual(
-            self._pinned().get(KEYS.park_reason), _parks.PARK_QUESTION,
+            self._pinned().get(KEYS.park_reason), _late_park_state.PARK_QUESTION,
         )
 
     def test_a_repeated_failure_says_it_once(self) -> None:
@@ -375,7 +375,7 @@ class RetriedHoldTest(LateCase, unittest.TestCase):
         self.assertEqual(self.github.edited_pr_bodies, [])
         self.assertEqual(
             self._pinned().get(KEYS.park_reason),
-            _parks.PARK_HOLD_FAILED,
+            _late_park_state.PARK_HOLD_FAILED,
         )
 
     def _fail_the_hold(self) -> None:

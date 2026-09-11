@@ -40,7 +40,7 @@ from orchestrator.workflow.late_split import endings as _endings
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     late_owner as _late_owner,
-    late_parks as _late_parks,
+    late_park_state as _late_park_state,
     late_verdict_push as _late_verdict_push,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -163,7 +163,7 @@ def _published(context: _LateContext) -> _LateDisposition | None:
             opaque_consumers=live.opaque_consumers,
         )
         _endings.record_retired_cycle(context.state, live.cycle_id)
-        _late_parks._persist(context)
+        _late_park_state._persist(context)
     return _reinstated(context, live, retiring)
 
 

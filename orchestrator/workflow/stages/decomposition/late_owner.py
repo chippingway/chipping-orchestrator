@@ -106,6 +106,8 @@ from orchestrator.workflow.late_split.models import (
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
     late_outcome as _late_outcome,
+    late_park_delivery as _late_park_delivery,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -239,7 +241,7 @@ def _guarded_owner(context: _LateContext) -> _OwnerState:
         _unreadable(context)
     else:
         _cleared(context)
-        _late_parks._release_staged_park(context)
+        _late_park_delivery._release_staged_park(context)
     context.staged_park = None
     return reading
 
@@ -427,14 +429,14 @@ def _cleared(context: _LateContext) -> None:
     a record, and a post that landed beside a write that did not would read as
     a silence -- costing the human the one sentence this park promises them.
     """
-    if _late_parks._stands_for(context, _late_parks.PARK_OWNER_UNREADABLE):
+    if _late_park_state._stands_for(context, _late_park_state.PARK_OWNER_UNREADABLE):
         if _late_notice._owed_notice(context) is None:
             _announce_recovery(context)
         _late_parks._answer_park(context)
     context.generation = replace(
         context.generation, owner_check_pending=False,
     )
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
 
 
 def _cancelled(context: _LateContext) -> None:
@@ -482,7 +484,7 @@ def _cancelled(context: _LateContext) -> None:
         owner_check_pending=False,
     )
     _late_notice._notice_settled(context)
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     _late_outcome._emit_cancellation(context)
 
 
@@ -500,7 +502,7 @@ def _claim_dropped(context: _LateContext) -> None:
     context.generation = replace(
         context.generation, owner_check_pending=False,
     )
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
 
 
 def _unreadable(context: _LateContext) -> None:
@@ -525,7 +527,7 @@ def _unreadable(context: _LateContext) -> None:
     because silence there is unbounded and a stray comment is not.
     """
     _late_outcome._emit_failure(context, LateFailure.OWNER_READ_FAILED)
-    if _late_parks._stands_parked(context):
+    if _late_park_state._stands_parked(context):
         log.info(
             "issue=#%d is already parked; leaving the owner read owed rather "
             "than replacing what it is parked on",
@@ -536,7 +538,7 @@ def _unreadable(context: _LateContext) -> None:
     _late_parks._park(
         context,
         _UNREADABLE_PARK,
-        reason=_late_parks.PARK_OWNER_UNREADABLE,
+        reason=_late_park_state.PARK_OWNER_UNREADABLE,
     )
 
 

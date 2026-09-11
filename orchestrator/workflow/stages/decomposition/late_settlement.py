@@ -94,7 +94,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_handback as _late_handback,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
-    late_parks as _late_parks,
+    late_park_state as _late_park_state,
     late_reconcile as _late_reconcile,
     late_unsplit as _late_unsplit,
     late_verdict as _late_verdict,
@@ -252,7 +252,7 @@ def _handed_back(context: _LateContext) -> _LateDisposition | None:
     )
     _recorded_identity(context)
     _recorded_debt(context)
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     stopped = _late_owner._latch_stops(context)
     if stopped is not None:
         return stopped

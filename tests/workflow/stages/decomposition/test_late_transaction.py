@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.workflow.stages.decomposition import (
+    late_park_state as _late_park_state,
     late_transaction as _late_transaction,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -152,7 +153,7 @@ class SupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(
             self._pinned().get(KEYS.park_reason),
-            _late_transaction._late_parks.PARK_SUPERSESSION_FAILED,
+            _late_park_state.PARK_SUPERSESSION_FAILED,
         )
         self.assertEqual(
             label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.DECOMPOSING,

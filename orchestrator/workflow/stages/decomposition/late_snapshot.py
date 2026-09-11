@@ -59,6 +59,7 @@ from orchestrator.workflow.late_split.models import (
 )
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -189,7 +190,7 @@ def _recorded(
     context.generation = replace(
         updated, phase=LatePhase.SNAPSHOTTING,
     )
-    _late_parks._persist(context)
+    _late_park_state._persist(context)
     return True
 
 
@@ -252,5 +253,5 @@ def _parked(context: _LateContext, reason: str) -> None:
     _late_parks._park(
         context,
         _SNAPSHOT_FAILED_PARK.format(reason=reason),
-        reason=_late_parks.PARK_SNAPSHOT_FAILED,
+        reason=_late_park_state.PARK_SNAPSHOT_FAILED,
     )

@@ -33,6 +33,7 @@ from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -135,7 +136,7 @@ def _accepted_push_landed(context: _LateContext, worktree) -> bool:
     _late_outcome._emit_failure(context, LateFailure.PR_RECONCILE_FAILED)
     _late_parks._park(
         context, _ACCEPTED_PUSH_FAILED_PARK,
-        reason=_late_parks.PARK_PR_UNRECONCILED,
+        reason=_late_park_state.PARK_PR_UNRECONCILED,
     )
     return False
 
@@ -173,6 +174,6 @@ def _proved_before_the_handoff(context: _LateContext, worktree) -> bool:
         _UNPROVED_CHECKOUT_PARK.format(
             candidate=context.generation.candidate_sha,
         ),
-        reason=_late_parks.PARK_PR_UNRECONCILED,
+        reason=_late_park_state.PARK_PR_UNRECONCILED,
     )
     return False

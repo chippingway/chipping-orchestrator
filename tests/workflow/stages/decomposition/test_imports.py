@@ -41,6 +41,8 @@ _OWNERS = (
     "late_notice",
     "late_outcome",
     "late_owner",
+    "late_park_delivery",
+    "late_park_state",
     "late_parks",
     "late_prompt",
     "late_proof",

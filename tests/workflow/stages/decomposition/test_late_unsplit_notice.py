@@ -37,7 +37,7 @@ from orchestrator.github.pinned_state import (
 )
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
-    late_parks as _late_parks,
+    late_park_state as _late_park_state,
     late_session as _late_session,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -640,7 +640,7 @@ class PiecedQuoteNoticeTest(GuardedLateCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(
-            pinned.get(KEYS.park_reason), _late_parks.PARK_SINGLE_DECISION,
+            pinned.get(KEYS.park_reason), _late_park_state.PARK_SINGLE_DECISION,
         )
         self.assertEqual(pinned.get(KEYS.split_blocker), _BOTH_RUNS_BLOCKER)
 
@@ -901,7 +901,7 @@ class CarriedTextNoticeTest(_NoticeCase, unittest.TestCase):
         # it exists for.
         self.assertEqual(
             _late_notice._NAMES_THE_EXPLANATION,
-            _late_parks.PARK_SINGLE_DECISION,
+            _late_park_state.PARK_SINGLE_DECISION,
         )
 
 

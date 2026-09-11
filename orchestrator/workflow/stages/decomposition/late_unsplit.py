@@ -22,6 +22,7 @@ from dataclasses import replace
 
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
+    late_park_state as _late_park_state,
     late_parks as _late_parks,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -114,7 +115,7 @@ def _parked_single(
     a sentence a refused comment stranded gets instead is the redelivery every
     unsuperseded park's notice gets, at the top of the tick.
     """
-    if _late_parks._stands_for(context, _late_parks.PARK_SINGLE_DECISION):
+    if _late_park_state._stands_for(context, _late_park_state.PARK_SINGLE_DECISION):
         return replace(
             finished,
             disposition=_LateDisposition.PARKED,
@@ -131,7 +132,7 @@ def _parked_single(
     _late_parks._park(
         context,
         _unsplit_notice(context),
-        reason=_late_parks.PARK_SINGLE_DECISION,
+        reason=_late_park_state.PARK_SINGLE_DECISION,
     )
     return replace(
         finished,

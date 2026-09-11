@@ -757,19 +757,21 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             describe: a verdict, a typed late failure -- carrying the step and the line behind it
                             where the reading was a re-measurement, so a reading that did not happen reads alike
                             wherever it was taken -- and the cancellation an owner read earns
-      late_parks.py         every reason a late exit hands the issue back under, and the durable write each of
-                            them rides out on: the park staged for the owner read to release, released anyway
-                            where nothing would ever say it, and re-said at the top of a later tick when the
-                            comment that should have said it was refused; the repeat that suppresses a second
-                            notice, read off the sentence rather than off the flag, since a park whose comment was
-                            refused is one nobody has been told about; the obligation discharged from what the
-                            thread already carries where a failed write left the record claiming the opposite; the
-                            parks a fresh attempt retires ahead of itself and the ones only a human's answer
-                            clears; and the shared consumed-comment watermark every one of those answers
-                            ratchets. The shared spawn budget's `retry_cap` is the one park here whose reason this
-                            owner did not invent: it is staged like the rest so the late record rides its write,
-                            and it is the only one audited on the budget's own stream rather than as a late
-                            verdict or a typed late failure
+      late_parks.py         the decisions that take, stage, retire, or answer a late park: a pre-run park stages
+                            its claim, persists it through `late_park_state`, and releases its notice through
+                            `late_park_delivery`; a post-run park is staged with its result and released only
+                            after the owner guard. A fresh attempt retires only the reasons it answers, while a
+                            human's answer clears its own park and any sentence that park still owes
+      late_park_state.py    the park reasons, pinned keys, standing-claim predicates, and shared generation write
+                            every late writer uses. The consumed-comment watermark ratchets here so a spent reply
+                            cannot become fresh feedback in a later stage. Repeated parks read both the flag and
+                            the owed notice, since a flag whose comment failed has told nobody anything
+      late_park_delivery.py the release, redelivery, and reconciliation of a persisted park's notice. A delivered
+                            comment is recognized on the thread when its settling write failed, so recovery
+                            discharges the obligation without saying it twice. The shared spawn budget's
+                            `retry_cap` keeps its delivery and reconciliation phases on the budget's own audit
+                            stream. This owner reads state and notice owners directly and never calls back into
+                            park decisions
       late_notice.py        the sentence a park owes the issue until it is actually on the thread: the durable
                             `{reason, message}` beside the flag, matched against the park it explains, the thread
                             read that discharges one a failed write left claiming the opposite of what GitHub holds,
