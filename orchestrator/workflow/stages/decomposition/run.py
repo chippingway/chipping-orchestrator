@@ -43,12 +43,10 @@ from contextlib import ExitStack
 
 from github.Issue import Issue
 
-from orchestrator import config
-from orchestrator.agents import AgentResult
+from orchestrator import agents, config
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, decomposition as _worktree_decomposition
-from orchestrator.github.client import GitHubClient
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     guards as _guards,
     retry_budget as _retry_budget,
@@ -58,24 +56,24 @@ from orchestrator.workflow.stages.decomposition import (
     drift as _drift,
     handoff as _handoff,
     late_coordinator as _late_coordinator,
-    late_models as _late_models,
-    models as _models,
     outcomes as _outcomes,
     recovery as _recovery,
     retry_cap as _retry_cap,
     session as _session,
     state as _state,
 )
+from orchestrator.workflow.stages.decomposition.late_models import _LateDisposition
+from orchestrator.workflow.stages.decomposition.models import _DecomposerCleanup, _DecomposerRunPlan
 
 log = logging.getLogger("orchestrator.workflow")
 
 
 
 def _settle_decomposer_run(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     issue: Issue,
-    state: PinnedState,
-    decomposer_result: AgentResult,
+    state: _pinned_state.PinnedState,
+    decomposer_result: agents.AgentResult,
 ) -> bool:
     """Fold this run's usage and park on a live pause or timeout.
 
@@ -125,42 +123,42 @@ def _settle_decomposer_run(
 
 
 def _prepare_decomposer_run(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     spec: config.RepoSpec,
     issue: Issue,
-    state: PinnedState,
-) -> _models._DecomposerRunPlan:
+    state: _pinned_state.PinnedState,
+) -> _DecomposerRunPlan:
     # User-content drift FIRST, so it runs BEFORE the half-finished recovery:
     # otherwise recovery could finalize against a stale manifest when the issue
     # was edited during a crash window.
     _drift._reset_decomposing_on_drift(gh, issue, state)
 
     if _recovery._recover_stale_manifest(gh, issue, state):
-        return _models._DecomposerRunPlan(agent_result=None)
+        return _DecomposerRunPlan(agent_result=None)
 
     if _handoff._route_disabled_to_implementing(gh, spec, issue, state):
-        return _models._DecomposerRunPlan(agent_result=None)
+        return _DecomposerRunPlan(agent_result=None)
 
     if state.get(_state._AWAITING_HUMAN):
         decomposer_result = _session._resume_decomposer_on_human_reply(
             gh, spec, issue, state,
         )
-        return _models._DecomposerRunPlan(
+        return _DecomposerRunPlan(
             agent_result=decomposer_result,
             # A no-reply dirty park keeps its inspection worktree intact.
             keep_worktree=decomposer_result is None,
         )
-    return _models._DecomposerRunPlan(
+    return _DecomposerRunPlan(
         agent_result=_session._spawn_fresh_decomposer(gh, spec, issue, state),
     )
 
 
 def _process_decomposer_run(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     spec: config.RepoSpec,
     issue: Issue,
-    state: PinnedState,
-    run_plan: _models._DecomposerRunPlan,
+    state: _pinned_state.PinnedState,
+    run_plan: _DecomposerRunPlan,
 ) -> None:
     decomposer_result = run_plan.agent_result
     if decomposer_result is None:
@@ -204,7 +202,7 @@ def _process_decomposer_run(
 
 
 def _late_adjudication_owns_the_tick(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: _client.GitHubClient, spec: config.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
 ) -> bool:
     """Whether this `decomposing` tick belongs to the late size gate.
 
@@ -231,12 +229,12 @@ def _late_adjudication_owns_the_tick(
     adjudicated = _late_coordinator._adjudicate_late_generation(
         gh, spec, issue, state,
     )
-    if adjudicated.disposition != _late_models._LateDisposition.NOT_LATE:
+    if adjudicated.disposition != _LateDisposition.NOT_LATE:
         return True
     return _handoff._settled_candidate_owns_the_tick(gh, spec, issue, state)
 
 
-def _handle_decomposing(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_decomposing(gh: _client.GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
     state = gh.read_pinned_state(issue)
     # Ahead of the late route as well as the gates below it: a retry-cap park
     # is this budget's, not the size gate's, and the sentence it owes is owed
@@ -250,10 +248,10 @@ def _handle_decomposing(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -
     # human buying another attempt, not by an edit, a setting, or a comment.
     if _retry_cap._park_owns_the_tick(gh, issue, state):
         return
-    cleanup = _models._DecomposerCleanup(
+    cleanup = _DecomposerCleanup(
         spec=spec,
         issue_number=issue.number,
-        run_plan=_models._DecomposerRunPlan(agent_result=None),
+        run_plan=_DecomposerRunPlan(agent_result=None),
     )
     with ExitStack() as cleanup_stack:
         cleanup_stack.callback(cleanup.close)

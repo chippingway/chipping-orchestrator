@@ -38,6 +38,11 @@ Other test support imports: 28 oversized statements across 27 files are resolved
 the full suite passing (6216 passed, 49 skipped). Test identities remain unchanged. This completes 90 of
 the original 102 oversized statements; the two remaining test cases concern explicit owner/export tables.
 
+Value, model, and export imports: all test statements and seven of the ten production statements now fit
+the default limit. Theme exports retain their owner objects; worktree guard tables retain every ownership
+assertion. Ruff, WPS, and all 6265 collected test identities pass unchanged (6216 passed, 49 skipped).
+Three production coordinators remain.
+
 ## Scope and dependencies
 
 All ten currently tracked children were still open when this plan was prepared. Their implementation, owner moves,

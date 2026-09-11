@@ -18,6 +18,7 @@ caller may name it at module load in an install carrying none of the optional
 """
 from __future__ import annotations
 
+from orchestrator.observability.dashboard import palette as _palette, tokens as _tokens
 from orchestrator.observability.dashboard.css import PAGE_CSS as PAGE_CSS
 from orchestrator.observability.dashboard.formatting import (
     fmt_money as fmt_money,
@@ -26,41 +27,38 @@ from orchestrator.observability.dashboard.formatting import (
     fmt_tokens as fmt_tokens,
 )
 from orchestrator.observability.dashboard.layout import base_layout as base_layout
-from orchestrator.observability.dashboard.palette import (
-    ACCENT as ACCENT,
-    AGENT_ROLE_COLORS as AGENT_ROLE_COLORS,
-    BACKEND_COLORS as BACKEND_COLORS,
-    BACKGROUND as BACKGROUND,
-    BORDER as BORDER,
-    CARD_BG as CARD_BG,
-    CATEGORICAL_PALETTE as CATEGORICAL_PALETTE,
-    COST_SOURCE_COLORS as COST_SOURCE_COLORS,
-    DANGER as DANGER,
-    EVENT_COLORS as EVENT_COLORS,
-    GRID as GRID,
-    INK as INK,
-    MUTED_TEXT as MUTED_TEXT,
-    MUTED_TEXT_SOFT as MUTED_TEXT_SOFT,
-    NEUTRAL as NEUTRAL,
-    PRIMARY as PRIMARY,
-    REVIEW_ROUND_COLORS as REVIEW_ROUND_COLORS,
-    SECONDARY as SECONDARY,
-    STAGE_COLORS as STAGE_COLORS,
-    SUCCESS as SUCCESS,
-    SURFACE as SURFACE,
-    TEXT as TEXT,
-    TOKEN_TYPE_COLORS as TOKEN_TYPE_COLORS,
-    WARNING as WARNING,
-    color_for as color_for,
-)
-from orchestrator.observability.dashboard.tokens import (
-    CARD_PADDING as CARD_PADDING,
-    CONTENT_MAX_WIDTH as CONTENT_MAX_WIDTH,
-    FONT_FAMILY as FONT_FAMILY,
-    FONT_SIZE as FONT_SIZE,
-    GRID_GAP as GRID_GAP,
-    MONO_FONT_FAMILY as MONO_FONT_FAMILY,
-    RADIUS as RADIUS,
-    TITLE_FONT_SIZE as TITLE_FONT_SIZE,
-    TOPBAR_STICKY_HEIGHT as TOPBAR_STICKY_HEIGHT,
-)
+from orchestrator.observability.dashboard.palette import color_for as color_for
+
+ACCENT = _palette.ACCENT
+AGENT_ROLE_COLORS = _palette.AGENT_ROLE_COLORS
+BACKEND_COLORS = _palette.BACKEND_COLORS
+BACKGROUND = _palette.BACKGROUND
+BORDER = _palette.BORDER
+CARD_BG = _palette.CARD_BG
+CATEGORICAL_PALETTE = _palette.CATEGORICAL_PALETTE
+COST_SOURCE_COLORS = _palette.COST_SOURCE_COLORS
+DANGER = _palette.DANGER
+EVENT_COLORS = _palette.EVENT_COLORS
+GRID = _palette.GRID
+INK = _palette.INK
+MUTED_TEXT = _palette.MUTED_TEXT
+MUTED_TEXT_SOFT = _palette.MUTED_TEXT_SOFT
+NEUTRAL = _palette.NEUTRAL
+PRIMARY = _palette.PRIMARY
+REVIEW_ROUND_COLORS = _palette.REVIEW_ROUND_COLORS
+SECONDARY = _palette.SECONDARY
+STAGE_COLORS = _palette.STAGE_COLORS
+SUCCESS = _palette.SUCCESS
+SURFACE = _palette.SURFACE
+TEXT = _palette.TEXT
+TOKEN_TYPE_COLORS = _palette.TOKEN_TYPE_COLORS
+WARNING = _palette.WARNING
+CARD_PADDING = _tokens.CARD_PADDING
+CONTENT_MAX_WIDTH = _tokens.CONTENT_MAX_WIDTH
+FONT_FAMILY = _tokens.FONT_FAMILY
+FONT_SIZE = _tokens.FONT_SIZE
+GRID_GAP = _tokens.GRID_GAP
+MONO_FONT_FAMILY = _tokens.MONO_FONT_FAMILY
+RADIUS = _tokens.RADIUS
+TITLE_FONT_SIZE = _tokens.TITLE_FONT_SIZE
+TOPBAR_STICKY_HEIGHT = _tokens.TOPBAR_STICKY_HEIGHT
