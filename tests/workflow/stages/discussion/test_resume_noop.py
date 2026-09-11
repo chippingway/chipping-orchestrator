@@ -30,6 +30,7 @@ from tests.workflow.fixtures import (
     KEY_PARK_REASON,
     _agent,
 )
+from tests.workflow.stages.discussion import discussion_test_support as _support
 from tests.workflow.stages.discussion.discussion_resume_test_support import (
     DISCUSSION_REPLY,
     OUTSIDER_AUTHOR,
@@ -40,17 +41,7 @@ from tests.workflow.stages.discussion.discussion_resume_test_support import (
     _reply,
     _seed_parked_discussion,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    ENSURE_WORKTREE,
-    HEAD_AFTER_COMMIT,
-    PARK_DISCUSSION_COMMITS,
-    PARK_DISCUSSION_DIRTY,
-    PARK_DISCUSSION_RESPONSE,
-    RUN_AGENT,
-    UNMOVED_HEAD_RESUMED,
-    _dirty_files,
-    _DiscussionWorkflowMixin,
-)
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _QUIET_ISSUE_NUMBER = 1110
 _OUTSIDER_ONLY_ISSUE_NUMBER = 1111
@@ -99,7 +90,7 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh, issue, run_agent=_agent(last_message="", interrupted=True),
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         self.assertEqual(gh.posted_comments, [])
         self._assert_reply_unconsumed(gh, issue)
         # The round's provenance write and the charge its spawn took are all
@@ -116,7 +107,7 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
         gh, issue = _seed_parked_discussion(
             _MOVED_ANCHOR_ISSUE_NUMBER,
             replies=(_reply(DISCUSSION_REPLY),),
-            park_reason=PARK_DISCUSSION_COMMITS,
+            park_reason=_support.PARK_DISCUSSION_COMMITS,
         )
         writes_before = gh.write_state_calls
 
@@ -126,7 +117,7 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 issue,
                 Path(tree),
                 run_agent=_agent(last_message=UNASKED_ROUND),
-                head_shas=(HEAD_AFTER_COMMIT,) * 2,
+                head_shas=(_support.HEAD_AFTER_COMMIT,) * 2,
             )
 
         self._assert_reply_still_waiting(
@@ -134,7 +125,7 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
             issue,
             mocks,
             writes_before,
-            park_reason=PARK_DISCUSSION_COMMITS,
+            park_reason=_support.PARK_DISCUSSION_COMMITS,
         )
 
     def test_a_dirty_tree_holds_the_resume(self) -> None:
@@ -144,7 +135,7 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
         gh, issue = _seed_parked_discussion(
             _DIRTY_TREE_ISSUE_NUMBER,
             replies=(_reply(DISCUSSION_REPLY),),
-            park_reason=PARK_DISCUSSION_DIRTY,
+            park_reason=_support.PARK_DISCUSSION_DIRTY,
         )
         writes_before = gh.write_state_calls
 
@@ -154,14 +145,14 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 issue,
                 Path(tree),
                 run_agent=_agent(last_message=UNASKED_ROUND),
-                dirty_files=_dirty_files(),
-                head_shas=UNMOVED_HEAD_RESUMED,
+                dirty_files=_support._dirty_files(),
+                head_shas=_support.UNMOVED_HEAD_RESUMED,
             )
 
         self._assert_reply_still_waiting(
-            gh, issue, mocks, writes_before, park_reason=PARK_DISCUSSION_DIRTY,
+            gh, issue, mocks, writes_before, park_reason=_support.PARK_DISCUSSION_DIRTY,
         )
-        mocks[ENSURE_WORKTREE].assert_not_called()
+        mocks[_support.ENSURE_WORKTREE].assert_not_called()
 
     def _assert_reply_unconsumed(self, gh, issue, park_reason=None) -> None:
         pinned_data = gh.pinned_data(issue.number)
@@ -170,7 +161,7 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
         )
         self.assertEqual(
             pinned_data[KEY_PARK_REASON],
-            park_reason or PARK_DISCUSSION_RESPONSE,
+            park_reason or _support.PARK_DISCUSSION_RESPONSE,
         )
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
 
@@ -181,10 +172,10 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
         mocks,
         writes_before: int,
         *,
-        park_reason: str = PARK_DISCUSSION_RESPONSE,
+        park_reason: str = _support.PARK_DISCUSSION_RESPONSE,
     ) -> None:
         """No round, no comment, no event, and not one durable write."""
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         self.assertEqual(gh.posted_comments, [])
         self.assertEqual(gh.recorded_events, [])
         self.assertEqual(gh.write_state_calls, writes_before)

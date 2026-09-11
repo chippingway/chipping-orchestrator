@@ -33,6 +33,7 @@ from tests.workflow.fixtures import (
     KEY_PARK_REASON,
     _agent,
 )
+from tests.workflow.stages.discussion import discussion_test_support as _support
 from tests.workflow.stages.discussion.discussion_resume_test_support import (
     DISCUSSION_REPLY,
     MALICIOUS_URL,
@@ -42,22 +43,7 @@ from tests.workflow.stages.discussion.discussion_resume_test_support import (
     _reply,
     _seed_parked_discussion,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    DISCUSSION_RESPONSE,
-    DISCUSSION_SESSION,
-    DISCUSSION_TOPIC,
-    HEAD_BEFORE_ROUND,
-    KEY_DISCUSSION_AGENT,
-    KEY_DISCUSSION_SESSION_ID,
-    KEY_ROUND_SHA,
-    MOVED_HEAD_RESUMED,
-    PARK_DISCUSSION_PLAN_INVALID,
-    PARK_DISCUSSION_RESPONSE,
-    RESUME_SESSION_ID,
-    RUN_AGENT,
-    _DiscussionWorkflowMixin,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _RESUME_ISSUE_NUMBER = 1100
 _MIXED_BATCH_ISSUE_NUMBER = 1101
@@ -83,19 +69,19 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION,
-                last_message=DISCUSSION_RESPONSE,
+                session_id=_support.DISCUSSION_SESSION,
+                last_message=_support.DISCUSSION_RESPONSE,
             ),
         )
 
         self.assert_nothing_published(gh, mocks)
         self.assert_worktree_preserved(mocks)
-        spawn_call = mocks[RUN_AGENT].call_args
+        spawn_call = mocks[_support.RUN_AGENT].call_args
         # The round the humans answered is the one continued, and what it is
         # sent is the answer plus the instruction to redraw the tree -- not an
         # opening analysis that would ask the settled questions again.
         self.assertEqual(
-            spawn_call.kwargs.get(RESUME_SESSION_ID), DISCUSSION_SESSION,
+            spawn_call.kwargs.get(_support.RESUME_SESSION_ID), _support.DISCUSSION_SESSION,
         )
         self.assertEqual(
             spawn_call.args[1],
@@ -115,12 +101,12 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 gh,
                 issue,
                 run_agent=_agent(
-                    session_id=DISCUSSION_SESSION,
-                    last_message=DISCUSSION_RESPONSE,
+                    session_id=_support.DISCUSSION_SESSION,
+                    last_message=_support.DISCUSSION_RESPONSE,
                 ),
             )
 
-        prompt = mocks[RUN_AGENT].call_args.args[1]
+        prompt = mocks[_support.RUN_AGENT].call_args.args[1]
         self.assertIn(DISCUSSION_REPLY, prompt)
         self.assertNotIn(MALICIOUS_URL, prompt)
 
@@ -130,12 +116,12 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # that opens is a NEW conversation, so a backend that hands back no id
         # has to leave none behind: kept, the pin would have the next reply
         # resume an argument about a design the thread has moved past.
-        gh, issue = _seed_discussion(_STALE_SESSION_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_STALE_SESSION_ISSUE_NUMBER)
         gh.seed_state(
             issue.number,
             **{
-                KEY_DISCUSSION_AGENT: config.DECOMPOSE_AGENT_SPEC,
-                KEY_DISCUSSION_SESSION_ID: _PREVIOUS_SESSION,
+                _support.KEY_DISCUSSION_AGENT: config.DECOMPOSE_AGENT_SPEC,
+                _support.KEY_DISCUSSION_SESSION_ID: _PREVIOUS_SESSION,
             },
         )
 
@@ -143,12 +129,12 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh,
             issue,
             run_agent=_agent(
-                session_id="", last_message=DISCUSSION_RESPONSE,
+                session_id="", last_message=_support.DISCUSSION_RESPONSE,
             ),
         )
 
         self.assertIsNone(
-            gh.pinned_data(issue.number)[KEY_DISCUSSION_SESSION_ID],
+            gh.pinned_data(issue.number)[_support.KEY_DISCUSSION_SESSION_ID],
         )
 
         issue.comments.append(_reply(DISCUSSION_REPLY))
@@ -156,15 +142,15 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION,
-                last_message=DISCUSSION_RESPONSE,
+                session_id=_support.DISCUSSION_SESSION,
+                last_message=_support.DISCUSSION_RESPONSE,
             ),
         )
 
         # So the reply that follows rebuilds the whole context instead of
         # resuming a conversation nothing on this thread belongs to.
-        spawn_call = reply_mocks[RUN_AGENT].call_args
-        self.assertIsNone(spawn_call.kwargs.get(RESUME_SESSION_ID))
+        spawn_call = reply_mocks[_support.RUN_AGENT].call_args
+        self.assertIsNone(spawn_call.kwargs.get(_support.RESUME_SESSION_ID))
         self.assertIn(_FULL_PROMPT_CLAUSE, spawn_call.args[1])
 
     def test_a_sessionless_round_rebuilds_context(self) -> None:
@@ -182,24 +168,24 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION,
-                last_message=DISCUSSION_RESPONSE,
+                session_id=_support.DISCUSSION_SESSION,
+                last_message=_support.DISCUSSION_RESPONSE,
             ),
         )
 
-        spawn_call = mocks[RUN_AGENT].call_args
-        self.assertIsNone(spawn_call.kwargs.get(RESUME_SESSION_ID))
+        spawn_call = mocks[_support.RUN_AGENT].call_args
+        self.assertIsNone(spawn_call.kwargs.get(_support.RESUME_SESSION_ID))
         prompt = spawn_call.args[1]
         self.assertIn(_FULL_PROMPT_CLAUSE, prompt)
         self.assertNotIn(_FOLLOWUP_CLAUSE, prompt)
         # The issue and the reply both reach it, the reply through the
         # trust-filtered conversation block rather than as a quote of its own.
-        self.assertIn(DISCUSSION_TOPIC, prompt)
+        self.assertIn(_support.DISCUSSION_TOPIC, prompt)
         self.assertIn(DISCUSSION_REPLY, prompt)
         # And the recovered round's own session is what the next one resumes.
         self.assertEqual(
-            gh.pinned_data(issue.number)[KEY_DISCUSSION_SESSION_ID],
-            DISCUSSION_SESSION,
+            gh.pinned_data(issue.number)[_support.KEY_DISCUSSION_SESSION_ID],
+            _support.DISCUSSION_SESSION,
         )
 
     def test_a_resumed_round_that_commits_parks(self) -> None:
@@ -219,29 +205,29 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 issue,
                 Path(tree),
                 run_agent=_agent(
-                    session_id=DISCUSSION_SESSION,
+                    session_id=_support.DISCUSSION_SESSION,
                     last_message="done, I went ahead and built it",
                 ),
-                head_shas=MOVED_HEAD_RESUMED,
+                head_shas=_support.MOVED_HEAD_RESUMED,
             )
 
         self.assert_nothing_published(gh, mocks)
         self.assert_worktree_preserved(mocks)
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_PLAN_INVALID,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_PLAN_INVALID,
         )
-        self.assertEqual(pinned_data[KEY_ROUND_SHA], HEAD_BEFORE_ROUND)
-        self.assertIn(HEAD_BEFORE_ROUND, gh.posted_comments[-1][1])
+        self.assertEqual(pinned_data[_support.KEY_ROUND_SHA], _support.HEAD_BEFORE_ROUND)
+        self.assertIn(_support.HEAD_BEFORE_ROUND, gh.posted_comments[-1][1])
 
     def _assert_parked_on_the_next_frontier(self, gh, issue) -> None:
         pinned_data = gh.pinned_data(issue.number)
-        self.assertEqual(pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_RESPONSE)
+        self.assertEqual(pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_RESPONSE)
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
         self.assertGreaterEqual(
             pinned_data[KEY_LAST_ACTION_COMMENT_ID], REPLY_ID,
         )
-        self.assertIn(f"> {DISCUSSION_RESPONSE}", gh.posted_comments[-1][1])
+        self.assertIn(f"> {_support.DISCUSSION_RESPONSE}", gh.posted_comments[-1][1])
 
 
 if __name__ == "__main__":

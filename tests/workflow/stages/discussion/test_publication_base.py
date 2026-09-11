@@ -30,24 +30,8 @@ from tests.workflow.fixtures import (
     TEST_BASE_BRANCH,
     _agent,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    COMMITTED_PATHS,
-    DISCUSSION_SESSION,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    KEY_BASE_SHA,
-    KEY_DISCUSSION_SESSION_ID,
-    KEY_PLAN_PATH,
-    KEY_ROUND_BRANCH,
-    KEY_ROUND_OPEN,
-    KEY_ROUND_SHA,
-    MOVED_HEAD,
-    PARK_DISCUSSION_PLAN_INVALID,
-    REMOTE_BASE_TIP,
-    _DiscussionWorkflowMixin,
-    _issue_branch,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion import discussion_test_support as _support
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _PINNED_ISSUE_NUMBER = 1270
 _RECOVERED_ISSUE_NUMBER = 1271
@@ -61,7 +45,7 @@ _INHERITING_ROUND = "a round that would inherit it"
 _RECORDED_BASE = "the-base-that-rounds-work-was-given"
 # A publication that opens no round of its own reads the tip twice: once
 # against the anchor, and once as the tip it would push.
-_RECOVERED_HEAD = (HEAD_AFTER_COMMIT,) * 2
+_RECOVERED_HEAD = (_support.HEAD_AFTER_COMMIT,) * 2
 _NO_READING = "could not be established"
 
 
@@ -73,27 +57,27 @@ class DiscussionPlanBaseTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # recorded on the issue -- so what the branch is finally measured
         # against is a commit established off-host and out of the round's
         # reach, not a local ref sitting in the object store it writes into.
-        gh, issue = _seed_discussion(_PINNED_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_PINNED_ISSUE_NUMBER)
 
         mocks = self._run_discussion(
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION, last_message=_CONFIRMED,
+                session_id=_support.DISCUSSION_SESSION, last_message=_CONFIRMED,
             ),
-            head_shas=MOVED_HEAD,
+            head_shas=_support.MOVED_HEAD,
             committed_paths=(self.plan_path(issue.number),),
         )
 
-        base_read = mocks[REMOTE_BASE_TIP].call_args_list[0]
+        base_read = mocks[_support.REMOTE_BASE_TIP].call_args_list[0]
         self.assertEqual(
             (base_read.args[0], base_read.args[2]),
             (_TEST_SPEC, TEST_BASE_BRANCH),
         )
         pinned_data = gh.pinned_data(issue.number)
-        self.assertEqual(pinned_data[KEY_BASE_SHA], BASE_TIP_SHA)
+        self.assertEqual(pinned_data[_support.KEY_BASE_SHA], BASE_TIP_SHA)
         self.assertEqual(
-            mocks[COMMITTED_PATHS].call_args.args[1], BASE_TIP_SHA,
+            mocks[_support.COMMITTED_PATHS].call_args.args[1], BASE_TIP_SHA,
         )
         self.assertEqual(len(gh.opened_prs), 1)
 
@@ -103,15 +87,15 @@ class DiscussionPlanBaseTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # given. Reading the base again here would measure the commit against
         # whatever the base branch has moved to since, and against a local ref
         # the round itself had every chance to repoint.
-        gh, issue = _seed_discussion(_RECOVERED_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_RECOVERED_ISSUE_NUMBER)
         gh.seed_state(
             issue.number,
             **{
-                KEY_ROUND_BRANCH: _issue_branch(issue.number),
-                KEY_ROUND_SHA: HEAD_BEFORE_ROUND,
-                KEY_ROUND_OPEN: True,
-                KEY_BASE_SHA: _RECORDED_BASE,
-                KEY_DISCUSSION_SESSION_ID: DISCUSSION_SESSION,
+                _support.KEY_ROUND_BRANCH: _support._issue_branch(issue.number),
+                _support.KEY_ROUND_SHA: _support.HEAD_BEFORE_ROUND,
+                _support.KEY_ROUND_OPEN: True,
+                _support.KEY_BASE_SHA: _RECORDED_BASE,
+                _support.KEY_DISCUSSION_SESSION_ID: _support.DISCUSSION_SESSION,
             },
         )
 
@@ -126,7 +110,7 @@ class DiscussionPlanBaseTest(unittest.TestCase, _DiscussionWorkflowMixin):
             )
 
         self.assertEqual(
-            mocks[COMMITTED_PATHS].call_args.args[1], _RECORDED_BASE,
+            mocks[_support.COMMITTED_PATHS].call_args.args[1], _RECORDED_BASE,
         )
         # The base is the record's, not a fresh read's. The publication does
         # ask the remote about the plan's own branch before it moves it.
@@ -139,15 +123,15 @@ class DiscussionPlanBaseTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # a diff reported against nothing are not a reading of the branch, and
         # a publication resting on them would push whatever the agent had put
         # beneath the plan.
-        gh, issue = _seed_discussion(_NO_BASE_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_NO_BASE_ISSUE_NUMBER)
 
         mocks = self._run_discussion(
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION, last_message=_CONFIRMED,
+                session_id=_support.DISCUSSION_SESSION, last_message=_CONFIRMED,
             ),
-            head_shas=MOVED_HEAD,
+            head_shas=_support.MOVED_HEAD,
             committed_paths=(self.plan_path(issue.number),),
             remote_base_tip=None,
         )
@@ -156,9 +140,9 @@ class DiscussionPlanBaseTest(unittest.TestCase, _DiscussionWorkflowMixin):
         self.assert_worktree_preserved(mocks)
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_PLAN_INVALID,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_PLAN_INVALID,
         )
-        self.assertNotIn(KEY_PLAN_PATH, pinned_data)
+        self.assertNotIn(_support.KEY_PLAN_PATH, pinned_data)
         # Reported as a reading that never happened rather than as an empty
         # diff, which an operator would answer by resetting the branch.
         _, body = gh.posted_comments[0]

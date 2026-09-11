@@ -21,21 +21,8 @@ from tests.workflow.fixtures import (
     KEY_PARK_REASON,
     _agent,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    BRANCH_TIP_SHA,
-    DISCUSSION_RESPONSE,
-    DISCUSSION_SESSION,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    KEY_ROUND_BRANCH,
-    KEY_ROUND_OPEN,
-    KEY_ROUND_SHA,
-    PARK_DISCUSSION_PLAN_INVALID,
-    RUN_AGENT,
-    _DiscussionWorkflowMixin,
-    _issue_branch,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion import discussion_test_support as _support
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _INHERITED_ISSUE_NUMBER = 1010
 _MOVED_TIP_ISSUE_NUMBER = 1011
@@ -58,14 +45,14 @@ class DiscussionMissingWorktreeRecoveryTest(
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION,
-                last_message=DISCUSSION_RESPONSE,
+                session_id=_support.DISCUSSION_SESSION,
+                last_message=_support.DISCUSSION_RESPONSE,
             ),
-            branch_tip_sha=HEAD_BEFORE_ROUND,
-            unpushed_branch=_issue_branch(issue.number),
+            branch_tip_sha=_support.HEAD_BEFORE_ROUND,
+            unpushed_branch=_support._issue_branch(issue.number),
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         self.assertEqual(
             gh.pinned_data(issue.number)[KEY_PARK_REASON], "discussion_response",
         )
@@ -77,13 +64,13 @@ class DiscussionMissingWorktreeRecoveryTest(
             gh,
             issue,
             run_agent=_agent(last_message="a round that would inherit it"),
-            branch_tip_sha=HEAD_AFTER_COMMIT,
+            branch_tip_sha=_support.HEAD_AFTER_COMMIT,
         )
 
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_PLAN_INVALID,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_PLAN_INVALID,
         )
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
 
@@ -92,14 +79,14 @@ class DiscussionMissingWorktreeRecoveryTest(
         # legacy ref. Deriving the namespaced name here instead would read a
         # branch the round never touched -- unchanged, while the commit it
         # made sits on the branch it did.
-        gh, issue = _seed_discussion(_LEGACY_ANCHOR_ISSUE_NUMBER)
-        anchored_branch = _issue_branch(issue.number, legacy=True)
+        gh, issue = _support._seed_discussion(_LEGACY_ANCHOR_ISSUE_NUMBER)
+        anchored_branch = _support._issue_branch(issue.number, legacy=True)
         gh.seed_state(
             issue.number,
             **{
-                KEY_ROUND_BRANCH: anchored_branch,
-                KEY_ROUND_SHA: HEAD_BEFORE_ROUND,
-                KEY_ROUND_OPEN: True,
+                _support.KEY_ROUND_BRANCH: anchored_branch,
+                _support.KEY_ROUND_SHA: _support.HEAD_BEFORE_ROUND,
+                _support.KEY_ROUND_OPEN: True,
             },
         )
 
@@ -107,13 +94,13 @@ class DiscussionMissingWorktreeRecoveryTest(
             gh,
             issue,
             run_agent=_agent(last_message="a round that would inherit it"),
-            branch_tip_sha=HEAD_AFTER_COMMIT,
+            branch_tip_sha=_support.HEAD_AFTER_COMMIT,
         )
 
         self.assertEqual(
-            mocks[BRANCH_TIP_SHA].call_args.args, (_TEST_SPEC, anchored_branch),
+            mocks[_support.BRANCH_TIP_SHA].call_args.args, (_TEST_SPEC, anchored_branch),
         )
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
 
     def test_a_branch_that_no_longer_exists_replays(self) -> None:
         # Nothing to attribute: no worktree and no branch means the withheld
@@ -124,13 +111,13 @@ class DiscussionMissingWorktreeRecoveryTest(
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION,
-                last_message=DISCUSSION_RESPONSE,
+                session_id=_support.DISCUSSION_SESSION,
+                last_message=_support.DISCUSSION_RESPONSE,
             ),
             branch_tip_sha="",
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
 
     def _seed_unfinished_round(self, issue_number: int):
         """An issue whose last round ended without reaching a disposition.
@@ -140,13 +127,13 @@ class DiscussionMissingWorktreeRecoveryTest(
         left unpatched, so the checkout it names is not on disk -- the case
         where the tip can only be read off that branch.
         """
-        gh, issue = _seed_discussion(issue_number)
+        gh, issue = _support._seed_discussion(issue_number)
         gh.seed_state(
             issue.number,
             **{
-                KEY_ROUND_BRANCH: _issue_branch(issue_number),
-                KEY_ROUND_SHA: HEAD_BEFORE_ROUND,
-                KEY_ROUND_OPEN: True,
+                _support.KEY_ROUND_BRANCH: _support._issue_branch(issue_number),
+                _support.KEY_ROUND_SHA: _support.HEAD_BEFORE_ROUND,
+                _support.KEY_ROUND_OPEN: True,
             },
         )
         return gh, issue

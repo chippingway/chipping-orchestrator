@@ -33,24 +33,8 @@ from tests.workflow.fixtures import (
     KEY_PARK_REASON,
     _agent,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    DISCUSSION_RESPONSE,
-    DISCUSSION_SESSION,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    KEY_DISCUSSION_AGENT,
-    KEY_DISCUSSION_SESSION_ID,
-    KEY_ROUND_SHA,
-    PARK_DISCUSSION_PLAN_INVALID,
-    PARK_DISCUSSION_RESPONSE,
-    RUN_AGENT,
-    SPEC_ARGS,
-    SPEC_BACKEND,
-    SPEC_WITH_ARGS,
-    _configured_spec,
-    _DiscussionWorkflowMixin,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion import discussion_test_support as _support
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _ONE_WRITE_ISSUE_NUMBER = 960
 _ORDERING_ISSUE_NUMBER = 961
@@ -108,7 +92,7 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # belongs to the second, so it never outlives the analysis it points
         # at. Between them sit only the writes the spawn's own charge takes,
         # which carry the provenance forward and nothing of the round.
-        gh, issue = _seed_discussion(_ONE_WRITE_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_ONE_WRITE_ISSUE_NUMBER)
         recorder = _WriteRecorder(gh)
 
         with patch.object(gh, _WRITE_PINNED_STATE, recorder):
@@ -116,14 +100,14 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 gh,
                 issue,
                 run_agent=_agent(
-                    session_id=DISCUSSION_SESSION,
-                    last_message=DISCUSSION_RESPONSE,
+                    session_id=_support.DISCUSSION_SESSION,
+                    last_message=_support.DISCUSSION_RESPONSE,
                 ),
             )
 
         # Opened: the provenance, and nothing a park would carry -- which is
         # also what each of the charge's own writes carries forward.
-        opened = (config.DECOMPOSE_AGENT_SPEC, HEAD_BEFORE_ROUND, None, None)
+        opened = (config.DECOMPOSE_AGENT_SPEC, _support.HEAD_BEFORE_ROUND, None, None)
 
         self.assertEqual(len(recorder.writes), 2 + AGENT_RUN_CHARGE_WRITES)
         self.assertEqual(
@@ -135,9 +119,9 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 # anchor that stands because the round did not move the branch.
                 (
                     config.DECOMPOSE_AGENT_SPEC,
-                    HEAD_BEFORE_ROUND,
-                    DISCUSSION_SESSION,
-                    PARK_DISCUSSION_RESPONSE,
+                    _support.HEAD_BEFORE_ROUND,
+                    _support.DISCUSSION_SESSION,
+                    _support.PARK_DISCUSSION_RESPONSE,
                 ),
             ],
         )
@@ -147,7 +131,7 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # analysis leaves the issue un-parked and the next tick re-opens the
         # round rather than waiting on a human for a comment nobody can see.
         # The provenance write ahead of it predates the round entirely.
-        gh, issue = _seed_discussion(_ORDERING_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_ORDERING_ISSUE_NUMBER)
         recorder = _WriteRecorder(gh)
 
         with patch.object(gh, _WRITE_PINNED_STATE, recorder):
@@ -155,8 +139,8 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 gh,
                 issue,
                 run_agent=_agent(
-                    session_id=DISCUSSION_SESSION,
-                    last_message=DISCUSSION_RESPONSE,
+                    session_id=_support.DISCUSSION_SESSION,
+                    last_message=_support.DISCUSSION_RESPONSE,
                 ),
             )
 
@@ -168,18 +152,18 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
         )
 
     def test_the_full_spec_is_staged_before_the_spawn(self) -> None:
-        gh, issue = _seed_discussion(_LOCKED_SPEC_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_LOCKED_SPEC_ISSUE_NUMBER)
         # An empty session id is the CLI hiccup the pre-spawn pin exists for:
         # the round still lands a park, and the spec has to be in it.
         observer = _SpawnObserver(
             gh,
             _agent(
-                session_id=_NO_SESSION_ID, last_message=DISCUSSION_RESPONSE,
+                session_id=_NO_SESSION_ID, last_message=_support.DISCUSSION_RESPONSE,
             ),
         )
 
-        with _configured_spec(
-            SPEC_WITH_ARGS, SPEC_BACKEND, SPEC_ARGS,
+        with _support._configured_spec(
+            _support.SPEC_WITH_ARGS, _support.SPEC_BACKEND, _support.SPEC_ARGS,
         ), patch.object(
             gh, _READ_PINNED_STATE, observer.read_pinned_state,
         ):
@@ -189,22 +173,22 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # string -- a stage that stored `claude` alone would drop the args
         # every later round of this conversation has to run under.
         self.assertEqual(
-            observer.staged_at_spawn.get(KEY_DISCUSSION_AGENT), SPEC_WITH_ARGS,
+            observer.staged_at_spawn.get(_support.KEY_DISCUSSION_AGENT), _support.SPEC_WITH_ARGS,
         )
         pinned_data = gh.pinned_data(issue.number)
-        self.assertEqual(pinned_data[KEY_DISCUSSION_AGENT], SPEC_WITH_ARGS)
+        self.assertEqual(pinned_data[_support.KEY_DISCUSSION_AGENT], _support.SPEC_WITH_ARGS)
         # No session id came back, so the round records that it has none --
         # written rather than left out, since a fresh round is a new
         # conversation and any pin it found belongs to a finished one. The
         # spec is pinned anyway, which is the whole point of staging it first.
-        self.assertIsNone(pinned_data[KEY_DISCUSSION_SESSION_ID])
+        self.assertIsNone(pinned_data[_support.KEY_DISCUSSION_SESSION_ID])
 
     def test_a_crashed_round_leaves_its_provenance(self) -> None:
         # The spawn raising is the exit that reaches no disposition at all, so
         # it is the one the provenance write exists for: the tick dies, and
         # what survives is the record of what the checkout looked like when
         # the round opened. No park, no session, no comment.
-        gh, issue = _seed_discussion(_SPAWN_FAILURE_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_SPAWN_FAILURE_ISSUE_NUMBER)
 
         with self.assertRaises(RuntimeError):
             self._run_discussion(
@@ -214,19 +198,19 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
             )
 
         pinned_data = gh.pinned_data(issue.number)
-        self.assertEqual(pinned_data[KEY_ROUND_SHA], HEAD_BEFORE_ROUND)
+        self.assertEqual(pinned_data[_support.KEY_ROUND_SHA], _support.HEAD_BEFORE_ROUND)
         self.assertEqual(
-            pinned_data[KEY_DISCUSSION_AGENT], config.DECOMPOSE_AGENT_SPEC,
+            pinned_data[_support.KEY_DISCUSSION_AGENT], config.DECOMPOSE_AGENT_SPEC,
         )
         self.assertNotIn(KEY_PARK_REASON, pinned_data)
-        self.assertNotIn(KEY_DISCUSSION_SESSION_ID, pinned_data)
+        self.assertNotIn(_support.KEY_DISCUSSION_SESSION_ID, pinned_data)
         self.assertEqual(gh.posted_comments, [])
 
     def test_a_crashed_round_s_commit_is_recovered(self) -> None:
         # Two ticks: the round commits and the process dies before it can be
         # assessed, then the next tick reads the anchor back and names the
         # commit instead of opening a round that would inherit it.
-        gh, issue = _seed_discussion(_CRASH_RECOVERY_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_CRASH_RECOVERY_ISSUE_NUMBER)
 
         with tempfile.TemporaryDirectory() as tree:
             with self.assertRaises(RuntimeError):
@@ -235,7 +219,7 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
                     issue,
                     Path(tree),
                     run_agent=self._raise_on_spawn,
-                    head_shas=(HEAD_BEFORE_ROUND,),
+                    head_shas=(_support.HEAD_BEFORE_ROUND,),
                 )
 
             recovery_mocks = self._run_discussion_on_worktree(
@@ -245,17 +229,17 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 run_agent=_agent(last_message="a round that would inherit it"),
                 # Read twice: the tip has moved off the anchor, and the
                 # publication check reads what that tip would publish.
-                head_shas=(HEAD_AFTER_COMMIT,) * 2,
+                head_shas=(_support.HEAD_AFTER_COMMIT,) * 2,
             )
 
-        recovery_mocks[RUN_AGENT].assert_not_called()
+        recovery_mocks[_support.RUN_AGENT].assert_not_called()
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_PLAN_INVALID,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_PLAN_INVALID,
         )
         # Reporting the commit does not spend the anchor: it is the tip an
         # operator has to reset back to, and what clears the relabel after.
-        self.assertEqual(pinned_data[KEY_ROUND_SHA], HEAD_BEFORE_ROUND)
+        self.assertEqual(pinned_data[_support.KEY_ROUND_SHA], _support.HEAD_BEFORE_ROUND)
         self.assertEqual(len(gh.posted_comments), 1)
 
     def _raise_on_spawn(self, *spawn_args, **spawn_kwargs):
@@ -264,9 +248,9 @@ class DiscussionPersistenceTest(unittest.TestCase, _DiscussionWorkflowMixin):
     def _written_round(self, written_state: dict) -> tuple:
         """The four fields that say which side of the spawn a write is on."""
         return (
-            written_state.get(KEY_DISCUSSION_AGENT),
-            written_state.get(KEY_ROUND_SHA),
-            written_state.get(KEY_DISCUSSION_SESSION_ID),
+            written_state.get(_support.KEY_DISCUSSION_AGENT),
+            written_state.get(_support.KEY_ROUND_SHA),
+            written_state.get(_support.KEY_DISCUSSION_SESSION_ID),
             written_state.get(KEY_PARK_REASON),
         )
 

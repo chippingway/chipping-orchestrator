@@ -20,28 +20,13 @@ import unittest
 from unittest.mock import patch
 
 from tests.workflow.fixtures import _agent
+from tests.workflow.stages.discussion import discussion_test_support as _support
 from tests.workflow.stages.discussion.discussion_resume_test_support import (
     DISCUSSION_REPLY,
     _reply,
     _seed_parked_discussion,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    DISCUSSION_RESPONSE,
-    DISCUSSION_SESSION,
-    FLIPPED_ARGS,
-    FLIPPED_BACKEND,
-    FLIPPED_SPEC,
-    KEY_DISCUSSION_AGENT,
-    RESUME_SESSION_ID,
-    RUN_AGENT,
-    SPEC_ARGS,
-    SPEC_BACKEND,
-    SPEC_WITH_ARGS,
-    _configured_spec,
-    _DiscussionWorkflowMixin,
-    _paused_view,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _REPLAY_ISSUE_NUMBER = 1000
 _FIRST_SPAWN_ISSUE_NUMBER = 1001
@@ -51,21 +36,21 @@ _RESUME_ISSUE_NUMBER = 1002
 class DiscussionSessionLockTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
     def test_a_first_spawn_takes_the_configured_spec(self) -> None:
-        gh, issue = _seed_discussion(_FIRST_SPAWN_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_FIRST_SPAWN_ISSUE_NUMBER)
 
-        with _configured_spec(SPEC_WITH_ARGS, SPEC_BACKEND, SPEC_ARGS):
+        with _support._configured_spec(_support.SPEC_WITH_ARGS, _support.SPEC_BACKEND, _support.SPEC_ARGS):
             mocks = self._run_discussion(
                 gh,
                 issue,
                 run_agent=_agent(
-                    session_id=DISCUSSION_SESSION,
-                    last_message=DISCUSSION_RESPONSE,
+                    session_id=_support.DISCUSSION_SESSION,
+                    last_message=_support.DISCUSSION_RESPONSE,
                 ),
             )
 
-        self._assert_ran_under(mocks, SPEC_BACKEND, SPEC_ARGS)
+        self._assert_ran_under(mocks, _support.SPEC_BACKEND, _support.SPEC_ARGS)
         self.assertEqual(
-            gh.pinned_data(issue.number)[KEY_DISCUSSION_AGENT], SPEC_WITH_ARGS,
+            gh.pinned_data(issue.number)[_support.KEY_DISCUSSION_AGENT], _support.SPEC_WITH_ARGS,
         )
 
     def test_a_replay_keeps_the_locked_spec(self) -> None:
@@ -73,33 +58,36 @@ class DiscussionSessionLockTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # anchor and its pin. The operator then flips `DECOMPOSE_AGENT` before
         # the replay: the round that reopens is still the one this issue's
         # discussion belongs to, so it runs under the pinned spec.
-        gh, issue = _seed_discussion(_REPLAY_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_REPLAY_ISSUE_NUMBER)
 
-        with _configured_spec(SPEC_WITH_ARGS, SPEC_BACKEND, SPEC_ARGS), patch.object(
-            gh,
-            "get_issue",
-            return_value=_paused_view(_REPLAY_ISSUE_NUMBER, "paused"),
+        with (
+            _support._configured_spec(_support.SPEC_WITH_ARGS, _support.SPEC_BACKEND, _support.SPEC_ARGS),
+            patch.object(
+                gh,
+                "get_issue",
+                return_value=_support._paused_view(_REPLAY_ISSUE_NUMBER, "paused"),
+            ),
         ):
             self._run_discussion(
                 gh,
                 issue,
-                run_agent=_agent(last_message=DISCUSSION_RESPONSE),
+                run_agent=_agent(last_message=_support.DISCUSSION_RESPONSE),
             )
 
-        with _configured_spec(FLIPPED_SPEC, FLIPPED_BACKEND, FLIPPED_ARGS):
+        with _support._configured_spec(_support.FLIPPED_SPEC, _support.FLIPPED_BACKEND, _support.FLIPPED_ARGS):
             replay_mocks = self._run_discussion(
                 gh,
                 issue,
                 run_agent=_agent(
-                    session_id=DISCUSSION_SESSION,
-                    last_message=DISCUSSION_RESPONSE,
+                    session_id=_support.DISCUSSION_SESSION,
+                    last_message=_support.DISCUSSION_RESPONSE,
                 ),
             )
 
-        self._assert_ran_under(replay_mocks, SPEC_BACKEND, SPEC_ARGS)
+        self._assert_ran_under(replay_mocks, _support.SPEC_BACKEND, _support.SPEC_ARGS)
         # And the flip did not overwrite the pin on the way through.
         self.assertEqual(
-            gh.pinned_data(issue.number)[KEY_DISCUSSION_AGENT], SPEC_WITH_ARGS,
+            gh.pinned_data(issue.number)[_support.KEY_DISCUSSION_AGENT], _support.SPEC_WITH_ARGS,
         )
 
     def test_a_resume_keeps_the_lock_and_session(self) -> None:
@@ -110,31 +98,31 @@ class DiscussionSessionLockTest(unittest.TestCase, _DiscussionWorkflowMixin):
         gh, issue = _seed_parked_discussion(
             _RESUME_ISSUE_NUMBER,
             replies=(_reply(DISCUSSION_REPLY),),
-            agent_spec=SPEC_WITH_ARGS,
+            agent_spec=_support.SPEC_WITH_ARGS,
         )
 
-        with _configured_spec(FLIPPED_SPEC, FLIPPED_BACKEND, FLIPPED_ARGS):
+        with _support._configured_spec(_support.FLIPPED_SPEC, _support.FLIPPED_BACKEND, _support.FLIPPED_ARGS):
             resume_mocks = self._run_discussion(
                 gh,
                 issue,
                 run_agent=_agent(
-                    session_id=DISCUSSION_SESSION,
-                    last_message=DISCUSSION_RESPONSE,
+                    session_id=_support.DISCUSSION_SESSION,
+                    last_message=_support.DISCUSSION_RESPONSE,
                 ),
             )
 
-        self._assert_ran_under(resume_mocks, SPEC_BACKEND, SPEC_ARGS)
+        self._assert_ran_under(resume_mocks, _support.SPEC_BACKEND, _support.SPEC_ARGS)
         self.assertEqual(
-            resume_mocks[RUN_AGENT].call_args.kwargs.get(RESUME_SESSION_ID),
-            DISCUSSION_SESSION,
+            resume_mocks[_support.RUN_AGENT].call_args.kwargs.get(_support.RESUME_SESSION_ID),
+            _support.DISCUSSION_SESSION,
         )
         self.assertEqual(
-            gh.pinned_data(issue.number)[KEY_DISCUSSION_AGENT], SPEC_WITH_ARGS,
+            gh.pinned_data(issue.number)[_support.KEY_DISCUSSION_AGENT], _support.SPEC_WITH_ARGS,
         )
 
     def _assert_ran_under(self, mocks, backend: str, extra_args: tuple) -> None:
-        mocks[RUN_AGENT].assert_called_once()
-        spawn_call = mocks[RUN_AGENT].call_args
+        mocks[_support.RUN_AGENT].assert_called_once()
+        spawn_call = mocks[_support.RUN_AGENT].call_args
         self.assertEqual(spawn_call.args[0], backend)
         self.assertEqual(spawn_call.kwargs.get("extra_args"), extra_args)
 

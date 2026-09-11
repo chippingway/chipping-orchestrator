@@ -28,6 +28,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.workflow.fixtures import KEY_PARK_REASON, _agent
+from tests.workflow.stages.discussion import discussion_test_support as _support
 from tests.workflow.stages.discussion.discussion_resume_test_support import (
     DISCUSSION_REPLY,
     UNASKED_ROUND,
@@ -35,19 +36,7 @@ from tests.workflow.stages.discussion.discussion_resume_test_support import (
     _reply,
     _seed_parked_discussion,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    HEAD_AFTER_COMMIT,
-    KEY_DISCUSSION_SESSION_ID,
-    KEY_PUBLISHING_SHA,
-    MOVED_HEAD,
-    PARK_DISCUSSION_PLAN_PUBLISHED,
-    PARK_DISCUSSION_PUSH_FAILED,
-    PUSH_BRANCH,
-    RUN_AGENT,
-    _DiscussionWorkflowMixin,
-    _issue_branch,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _RETRY_ISSUE_NUMBER = 1243
 _UNREPLIED_PUSH_ISSUE_NUMBER = 1246
@@ -62,7 +51,7 @@ _CONFIRMED_DESIGN = "confirmed -- writing it up"
 _HELD_SESSION = "d-sess-held"
 # A tick that publishes without opening a round reads the tip twice: once
 # against the anchor, and once as the tip a publication would push.
-_RECOVERED_HEAD = (HEAD_AFTER_COMMIT,) * 2
+_RECOVERED_HEAD = (_support.HEAD_AFTER_COMMIT,) * 2
 
 
 class DiscussionRetryTest(unittest.TestCase, _DiscussionWorkflowMixin):
@@ -82,7 +71,7 @@ class DiscussionRetryTest(unittest.TestCase, _DiscussionWorkflowMixin):
         self.assertEqual(len(gh.opened_prs), 1)
         self.assertEqual(
             gh.pinned_data(issue.number)[KEY_PARK_REASON],
-            PARK_DISCUSSION_PLAN_PUBLISHED,
+            _support.PARK_DISCUSSION_PLAN_PUBLISHED,
         )
 
     def test_an_unreplied_failure_waits_for_one(self) -> None:
@@ -120,19 +109,19 @@ class DiscussionRetryTest(unittest.TestCase, _DiscussionWorkflowMixin):
         self.assertEqual(len(gh.opened_prs), 1)
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_PLAN_PUBLISHED,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_PLAN_PUBLISHED,
         )
-        self.assertIsNone(pinned_data[KEY_PUBLISHING_SHA])
+        self.assertIsNone(pinned_data[_support.KEY_PUBLISHING_SHA])
 
     def _seed_failed_push(self, issue_number: int, **park_options):
         """An issue whose publication was pushing when the push failed."""
         gh, issue = _seed_parked_discussion(
             issue_number,
-            park_reason=PARK_DISCUSSION_PUSH_FAILED,
+            park_reason=_support.PARK_DISCUSSION_PUSH_FAILED,
             **park_options,
         )
         _mark_in_flight(
-            gh, issue.number, **{KEY_PUBLISHING_SHA: HEAD_AFTER_COMMIT},
+            gh, issue.number, **{_support.KEY_PUBLISHING_SHA: _support.HEAD_AFTER_COMMIT},
         )
         return gh, issue
 
@@ -144,9 +133,9 @@ class DiscussionRetryTest(unittest.TestCase, _DiscussionWorkflowMixin):
             run_agent=_agent(last_message=UNASKED_ROUND),
             head_shas=_RECOVERED_HEAD,
             committed_paths=(self.plan_path(issue.number),),
-            remote_branch_tip=HEAD_AFTER_COMMIT,
+            remote_branch_tip=_support.HEAD_AFTER_COMMIT,
         )
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         return mocks
 
 
@@ -160,24 +149,24 @@ class DiscussionFailedRetryTest(unittest.TestCase, _DiscussionWorkflowMixin):
         gh, issue = _seed_parked_discussion(
             _FAILED_RETRY_ISSUE_NUMBER,
             replies=(_reply(DISCUSSION_REPLY),),
-            park_reason=PARK_DISCUSSION_PUSH_FAILED,
+            park_reason=_support.PARK_DISCUSSION_PUSH_FAILED,
         )
         _mark_in_flight(
-            gh, issue.number, **{KEY_PUBLISHING_SHA: HEAD_AFTER_COMMIT},
+            gh, issue.number, **{_support.KEY_PUBLISHING_SHA: _support.HEAD_AFTER_COMMIT},
         )
 
         with tempfile.TemporaryDirectory() as tree:
             retry_mocks = self._failing_retry(gh, issue, Path(tree))
             repeat_mocks = self._failing_retry(gh, issue, Path(tree))
 
-        retry_mocks[PUSH_BRANCH].assert_called_once()
+        retry_mocks[_support.PUSH_BRANCH].assert_called_once()
         self.assertEqual(
             gh.pinned_data(issue.number)[KEY_PARK_REASON],
-            PARK_DISCUSSION_PUSH_FAILED,
+            _support.PARK_DISCUSSION_PUSH_FAILED,
         )
         # The second tick finds nothing unread, so it pushes nothing and says
         # nothing: the operator's next reply is what asks again.
-        repeat_mocks[PUSH_BRANCH].assert_not_called()
+        repeat_mocks[_support.PUSH_BRANCH].assert_not_called()
         self.assertEqual(len(gh.posted_comments), 1)
 
     def _failing_retry(self, gh, issue, tree: Path):
@@ -204,8 +193,8 @@ class DiscussionHeldLookupTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # answered by returning without writing it takes the session id the
         # round opened under -- leaving the retry a valid plan it cannot
         # attribute, which it refuses as unpublishable.
-        gh, issue = _seed_discussion(_HELD_LOOKUP_ISSUE_NUMBER)
-        gh.unreadable_pr_lookups.add(_issue_branch(issue.number))
+        gh, issue = _support._seed_discussion(_HELD_LOOKUP_ISSUE_NUMBER)
+        gh.unreadable_pr_lookups.add(_support._issue_branch(issue.number))
 
         with tempfile.TemporaryDirectory() as tree:
             held = self._round_that_commits(gh, issue, Path(tree))
@@ -216,10 +205,10 @@ class DiscussionHeldLookupTest(unittest.TestCase, _DiscussionWorkflowMixin):
             self.assertEqual(
                 (
                     gh.posted_comments,
-                    gh.pinned_data(issue.number)[KEY_PUBLISHING_SHA],
-                    gh.pinned_data(issue.number)[KEY_DISCUSSION_SESSION_ID],
+                    gh.pinned_data(issue.number)[_support.KEY_PUBLISHING_SHA],
+                    gh.pinned_data(issue.number)[_support.KEY_DISCUSSION_SESSION_ID],
                 ),
-                ([], HEAD_AFTER_COMMIT, _HELD_SESSION),
+                ([], _support.HEAD_AFTER_COMMIT, _HELD_SESSION),
             )
 
             gh.unreadable_pr_lookups.clear()
@@ -230,7 +219,7 @@ class DiscussionHeldLookupTest(unittest.TestCase, _DiscussionWorkflowMixin):
         self.assertIn(_HELD_SESSION, gh.opened_prs[0].body)
         self.assertEqual(
             gh.pinned_data(issue.number)[KEY_PARK_REASON],
-            PARK_DISCUSSION_PLAN_PUBLISHED,
+            _support.PARK_DISCUSSION_PLAN_PUBLISHED,
         )
 
     def _round_that_commits(self, gh, issue, tree: Path):
@@ -242,7 +231,7 @@ class DiscussionHeldLookupTest(unittest.TestCase, _DiscussionWorkflowMixin):
             run_agent=_agent(
                 session_id=_HELD_SESSION, last_message=_CONFIRMED_DESIGN,
             ),
-            head_shas=MOVED_HEAD,
+            head_shas=_support.MOVED_HEAD,
             committed_paths=(self.plan_path(issue.number),),
         )
 

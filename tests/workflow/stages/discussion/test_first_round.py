@@ -23,28 +23,8 @@ from tests.workflow.fixtures import (
     KEY_PARK_REASON,
     _agent,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    DISCUSSION_RESPONSE,
-    DISCUSSION_SESSION,
-    ENSURE_DECOMPOSE_WORKTREE,
-    ENSURE_WORKTREE,
-    KEY_DISCUSSION_AGENT,
-    KEY_DISCUSSION_SESSION_ID,
-    KEY_LAST_DISCUSSION_AT,
-    PARK_DISCUSSION_COMMITS,
-    PARK_DISCUSSION_DIRTY,
-    PARK_DISCUSSION_PLAN_INVALID,
-    PARK_DISCUSSION_PUSH_FAILED,
-    PARK_DISCUSSION_RESPONSE,
-    PARK_DISCUSSION_SILENT,
-    PARK_DISCUSSION_STRANDED,
-    PARK_DISCUSSION_TIMEOUT,
-    PARK_FOREIGN_QUESTION,
-    RUN_AGENT,
-    _DiscussionWorkflowMixin,
-    _issue_branch,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion import discussion_test_support as _support
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _FIRST_ROUND_ISSUE_NUMBER = 910
 _WORKTREE_ISSUE_NUMBER = 911
@@ -57,14 +37,14 @@ _PARKED_WATERMARK = 44000
 _STAGE_DISCUSSION = "discussion"
 _ROLE_DECOMPOSER = "decomposer"
 _DISCUSSION_PARKS = (
-    PARK_DISCUSSION_RESPONSE,
-    PARK_DISCUSSION_COMMITS,
-    PARK_DISCUSSION_PLAN_INVALID,
-    PARK_DISCUSSION_PUSH_FAILED,
-    PARK_DISCUSSION_DIRTY,
-    PARK_DISCUSSION_SILENT,
-    PARK_DISCUSSION_STRANDED,
-    PARK_DISCUSSION_TIMEOUT,
+    _support.PARK_DISCUSSION_RESPONSE,
+    _support.PARK_DISCUSSION_COMMITS,
+    _support.PARK_DISCUSSION_PLAN_INVALID,
+    _support.PARK_DISCUSSION_PUSH_FAILED,
+    _support.PARK_DISCUSSION_DIRTY,
+    _support.PARK_DISCUSSION_SILENT,
+    _support.PARK_DISCUSSION_STRANDED,
+    _support.PARK_DISCUSSION_TIMEOUT,
 )
 
 
@@ -72,14 +52,14 @@ class DiscussionFirstRoundTest(unittest.TestCase, _DiscussionWorkflowMixin):
     """What one opening round publishes, records, and leaves on disk."""
 
     def test_response_posts_and_parks(self) -> None:
-        gh, issue = _seed_discussion(_FIRST_ROUND_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_FIRST_ROUND_ISSUE_NUMBER)
 
         mocks = self._run_discussion(
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION,
-                last_message=DISCUSSION_RESPONSE,
+                session_id=_support.DISCUSSION_SESSION,
+                last_message=_support.DISCUSSION_RESPONSE,
             ),
         )
 
@@ -89,43 +69,43 @@ class DiscussionFirstRoundTest(unittest.TestCase, _DiscussionWorkflowMixin):
         self.assertEqual(len(gh.posted_comments), 1)
         _, body = gh.posted_comments[0]
         self.assertIn(config.HITL_MENTIONS, body)
-        self.assertIn(f"> {DISCUSSION_RESPONSE}", body)
+        self.assertIn(f"> {_support.DISCUSSION_RESPONSE}", body)
 
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
             (
-                pinned_data[KEY_DISCUSSION_AGENT],
-                pinned_data[KEY_DISCUSSION_SESSION_ID],
+                pinned_data[_support.KEY_DISCUSSION_AGENT],
+                pinned_data[_support.KEY_DISCUSSION_SESSION_ID],
                 pinned_data[KEY_PARK_REASON],
             ),
             (
                 config.DECOMPOSE_AGENT_SPEC,
-                DISCUSSION_SESSION,
-                PARK_DISCUSSION_RESPONSE,
+                _support.DISCUSSION_SESSION,
+                _support.PARK_DISCUSSION_RESPONSE,
             ),
         )
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
-        self.assertIn(KEY_LAST_DISCUSSION_AT, pinned_data)
+        self.assertIn(_support.KEY_LAST_DISCUSSION_AT, pinned_data)
 
     def test_round_runs_in_the_issue_worktree(self) -> None:
         # The design under discussion is the design this branch will carry, so
         # the round reads the issue's own checkout rather than the decomposer's
         # scratch one -- and that tree survives the park for the next round and
         # the operator to read.
-        gh, issue = _seed_discussion(_WORKTREE_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_WORKTREE_ISSUE_NUMBER)
 
         mocks = self._run_discussion(
             gh,
             issue,
-            run_agent=_agent(last_message=DISCUSSION_RESPONSE),
+            run_agent=_agent(last_message=_support.DISCUSSION_RESPONSE),
         )
 
-        mocks[ENSURE_WORKTREE].assert_called_once_with(
+        mocks[_support.ENSURE_WORKTREE].assert_called_once_with(
             _TEST_SPEC,
             issue.number,
-            branch=_issue_branch(issue.number),
+            branch=_support._issue_branch(issue.number),
         )
-        mocks[ENSURE_DECOMPOSE_WORKTREE].assert_not_called()
+        mocks[_support.ENSURE_DECOMPOSE_WORKTREE].assert_not_called()
         self.assert_worktree_preserved(mocks)
 
     def test_decomposer_answers_as_discussion(self) -> None:
@@ -133,16 +113,16 @@ class DiscussionFirstRoundTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # is the decomposer reasoning before anything is decomposed -- but the
         # run is attributed to `discussion`, so its analytics rows and audit
         # events do not read as a decomposition that never happened.
-        gh, issue = _seed_discussion(_ROLE_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_ROLE_ISSUE_NUMBER)
 
         mocks = self._run_discussion(
             gh,
             issue,
-            run_agent=_agent(last_message=DISCUSSION_RESPONSE),
+            run_agent=_agent(last_message=_support.DISCUSSION_RESPONSE),
         )
 
-        mocks[RUN_AGENT].assert_called_once()
-        call = mocks[RUN_AGENT].call_args
+        mocks[_support.RUN_AGENT].assert_called_once()
+        call = mocks[_support.RUN_AGENT].call_args
         self.assertEqual(call.args[0], config.DECOMPOSE_AGENT)
         self.assertEqual(
             call.kwargs.get("extra_args"), config.DECOMPOSE_AGENT_ARGS,
@@ -163,16 +143,16 @@ class DiscussionFirstRoundTest(unittest.TestCase, _DiscussionWorkflowMixin):
         )
 
     def test_round_uses_the_discussion_prompt(self) -> None:
-        gh, issue = _seed_discussion(_PROMPT_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_PROMPT_ISSUE_NUMBER)
 
         mocks = self._run_discussion(
             gh,
             issue,
-            run_agent=_agent(last_message=DISCUSSION_RESPONSE),
+            run_agent=_agent(last_message=_support.DISCUSSION_RESPONSE),
         )
 
         self.assertEqual(
-            mocks[RUN_AGENT].call_args.args[1],
+            mocks[_support.RUN_AGENT].call_args.args[1],
             _prompts._build_discussion_prompt(
                 _TEST_SPEC,
                 issue,
@@ -199,11 +179,11 @@ class DiscussionFirstRoundTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # while another stage has it parked arrives awaiting a reply nobody
         # will send it here. Gating on bare `awaiting_human` would leave it
         # inert for good, so only this stage's own park suppresses a round.
-        gh, issue = _seed_discussion(_FOREIGN_PARK_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_FOREIGN_PARK_ISSUE_NUMBER)
         gh.seed_state(
             issue.number,
             awaiting_human=True,
-            park_reason=PARK_FOREIGN_QUESTION,
+            park_reason=_support.PARK_FOREIGN_QUESTION,
             dev_agent=config.DEV_AGENT_SPEC,
             last_action_comment_id=_PARKED_WATERMARK,
         )
@@ -212,26 +192,26 @@ class DiscussionFirstRoundTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION,
-                last_message=DISCUSSION_RESPONSE,
+                session_id=_support.DISCUSSION_SESSION,
+                last_message=_support.DISCUSSION_RESPONSE,
             ),
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         pinned_data = gh.pinned_data(issue.number)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_RESPONSE,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_RESPONSE,
         )
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
 
     def _assert_no_round(self, issue_number: int, park_reason: str) -> None:
-        gh, issue = _seed_discussion(issue_number)
+        gh, issue = _support._seed_discussion(issue_number)
         gh.seed_state(
             issue.number,
             awaiting_human=True,
             park_reason=park_reason,
             discussion_agent=config.DECOMPOSE_AGENT_SPEC,
-            discussion_session_id=DISCUSSION_SESSION,
+            discussion_session_id=_support.DISCUSSION_SESSION,
             last_action_comment_id=_PARKED_WATERMARK,
         )
         before_writes = gh.write_state_calls
@@ -242,8 +222,8 @@ class DiscussionFirstRoundTest(unittest.TestCase, _DiscussionWorkflowMixin):
             run_agent=_agent(last_message="a second opening round"),
         )
 
-        mocks[RUN_AGENT].assert_not_called()
-        mocks[ENSURE_WORKTREE].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
+        mocks[_support.ENSURE_WORKTREE].assert_not_called()
         self.assertEqual(gh.posted_comments, [])
         self.assertEqual(gh.write_state_calls, before_writes)
         self.assertEqual(gh.recorded_events, [])

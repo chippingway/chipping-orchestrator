@@ -38,6 +38,7 @@ from tests.workflow.fixtures import (
     STATE_CLOSED,
     _agent,
 )
+from tests.workflow.stages.discussion import discussion_test_support as _support
 from tests.workflow.stages.discussion.discussion_resume_test_support import (
     DISCUSSION_REPLY,
     UNASKED_ROUND,
@@ -46,30 +47,7 @@ from tests.workflow.stages.discussion.discussion_resume_test_support import (
     _reply,
     _seed_parked_discussion,
 )
-from tests.workflow.stages.discussion.discussion_test_support import (
-    DISCUSSION_SESSION,
-    HEAD_AFTER_COMMIT,
-    HEAD_BEFORE_ROUND,
-    KEY_BASE_SHA,
-    KEY_DISCUSSION_SESSION_ID,
-    KEY_PLAN_PATH,
-    KEY_PUBLISHING_SHA,
-    KEY_ROUND_BRANCH,
-    KEY_ROUND_OPEN,
-    KEY_ROUND_SHA,
-    MOVED_HEAD,
-    PARK_DISCUSSION_COMMITS,
-    PARK_DISCUSSION_PLAN_PUBLISHED,
-    PARK_DISCUSSION_PUSH_FAILED,
-    PARK_DISCUSSION_STALE_PUBLISH,
-    PARK_DISCUSSION_UNATTRIBUTED,
-    PARK_FOREIGN_QUESTION,
-    PUSH_BRANCH,
-    RUN_AGENT,
-    _DiscussionWorkflowMixin,
-    _issue_branch,
-    _seed_discussion,
-)
+from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
 
 _RECOVERED_ISSUE_NUMBER = 1240
 _ORDERING_ISSUE_NUMBER = 1242
@@ -104,7 +82,7 @@ _FOREIGN_TIP = "the-commit-a-reviewer-pushed-onto-the-plan-branch"
 # the inherited PR head a round reset the branch off before committing its plan.
 _UNCONTAINED_TIPS = (
     (_DIVERGED_ISSUE_NUMBER, _FOREIGN_TIP),
-    (_RESET_BRANCH_ISSUE_NUMBER, HEAD_BEFORE_ROUND),
+    (_RESET_BRANCH_ISSUE_NUMBER, _support.HEAD_BEFORE_ROUND),
 )
 
 _INHERITING_ROUND = "a round that would inherit it"
@@ -112,7 +90,7 @@ _CONFIRMED_DESIGN = "confirmed -- writing it up"
 
 # A tick that publishes without opening a round reads the tip twice: once
 # against the anchor, and once as the tip a publication would push.
-_RECOVERED_HEAD = (HEAD_AFTER_COMMIT,) * 2
+_RECOVERED_HEAD = (_support.HEAD_AFTER_COMMIT,) * 2
 
 
 class _OrderedClient:
@@ -136,7 +114,7 @@ class _OrderedClient:
 
     def write_pinned_state(self, issue, state):
         self.order.append("state")
-        self.marked_shas.append(state.get(KEY_PUBLISHING_SHA))
+        self.marked_shas.append(state.get(_support.KEY_PUBLISHING_SHA))
         return self._write_pinned_state(issue, state)
 
 
@@ -149,13 +127,13 @@ class DiscussionRecoveredPlanTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # that round would have, rather than costing the humans the artifact.
         recovered = self._publish_recovered(_RECOVERED_ISSUE_NUMBER)
 
-        recovered.mocks[RUN_AGENT].assert_not_called()
-        recovered.mocks[PUSH_BRANCH].assert_called_once()
+        recovered.mocks[_support.RUN_AGENT].assert_not_called()
+        recovered.mocks[_support.PUSH_BRANCH].assert_called_once()
         self.assertEqual(len(recovered.gh.opened_prs), 1)
         self.assertEqual(
-            recovered.pinned[KEY_PARK_REASON], PARK_DISCUSSION_PLAN_PUBLISHED,
+            recovered.pinned[KEY_PARK_REASON], _support.PARK_DISCUSSION_PLAN_PUBLISHED,
         )
-        self.assertEqual(recovered.pinned[KEY_ROUND_SHA], HEAD_AFTER_COMMIT)
+        self.assertEqual(recovered.pinned[_support.KEY_ROUND_SHA], _support.HEAD_AFTER_COMMIT)
 
     def test_a_plan_with_no_session_is_refused(self) -> None:
         # The other half of the same crash: the round that made this commit
@@ -168,14 +146,14 @@ class DiscussionRecoveredPlanTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
         self.assert_nothing_published(unattributed.gh, unattributed.mocks)
         self.assertEqual(
-            unattributed.pinned[KEY_PARK_REASON], PARK_DISCUSSION_UNATTRIBUTED,
+            unattributed.pinned[KEY_PARK_REASON], _support.PARK_DISCUSSION_UNATTRIBUTED,
         )
-        self.assertNotIn(KEY_PLAN_PATH, unattributed.pinned)
+        self.assertNotIn(_support.KEY_PLAN_PATH, unattributed.pinned)
         # The commit is left where it is: the plan is real, only its
         # provenance is missing, and the message asks for the reset that lets
         # a round write it again under a session.
         _, body = unattributed.gh.posted_comments[0]
-        self.assertIn(HEAD_BEFORE_ROUND, body)
+        self.assertIn(_support.HEAD_BEFORE_ROUND, body)
 
     def test_the_pr_is_bracketed_by_the_two_writes(self) -> None:
         # The marker goes first, so a tick that dies past it leaves a tip the
@@ -194,7 +172,7 @@ class DiscussionRecoveredPlanTest(unittest.TestCase, _DiscussionWorkflowMixin):
         self.assertEqual(recorded.order, ["state", "pr", "state"])
         self.assertEqual(gh.write_state_calls - writes_before, 2)
         self.assertEqual(
-            recorded.marked_shas, [HEAD_AFTER_COMMIT, None],
+            recorded.marked_shas, [_support.HEAD_AFTER_COMMIT, None],
         )
 
     def _publish_recovered(
@@ -218,15 +196,15 @@ class DiscussionRecoveredPlanTest(unittest.TestCase, _DiscussionWorkflowMixin):
         round opening a NEW conversation drops the pin and can be cut short
         before it records the id it opened.
         """
-        seeded = _seed_discussion(issue_number)
+        seeded = _support._seed_discussion(issue_number)
         round_records = {
-            KEY_ROUND_BRANCH: _issue_branch(issue_number),
-            KEY_ROUND_SHA: HEAD_BEFORE_ROUND,
-            KEY_ROUND_OPEN: True,
-            KEY_BASE_SHA: BASE_TIP_SHA,
+            _support.KEY_ROUND_BRANCH: _support._issue_branch(issue_number),
+            _support.KEY_ROUND_SHA: _support.HEAD_BEFORE_ROUND,
+            _support.KEY_ROUND_OPEN: True,
+            _support.KEY_BASE_SHA: BASE_TIP_SHA,
         }
         if attributed:
-            round_records[KEY_DISCUSSION_SESSION_ID] = DISCUSSION_SESSION
+            round_records[_support.KEY_DISCUSSION_SESSION_ID] = _support.DISCUSSION_SESSION
         seeded[0].seed_state(issue_number, **round_records)
         return seeded
 
@@ -264,11 +242,11 @@ class DiscussionMarkedParkTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # nothing is unread on the thread, and waiting for one would mean
         # waiting for a human to answer the same round twice.
         published = self._tick_over_park(
-            _INTERRUPTED_ISSUE_NUMBER, in_flight=HEAD_AFTER_COMMIT,
+            _INTERRUPTED_ISSUE_NUMBER, in_flight=_support.HEAD_AFTER_COMMIT,
         )
 
         self.assertEqual(len(published.gh.opened_prs), 1)
-        self.assertEqual(published.park_reason, PARK_DISCUSSION_PLAN_PUBLISHED)
+        self.assertEqual(published.park_reason, _support.PARK_DISCUSSION_PLAN_PUBLISHED)
 
     def test_an_unattributed_plan_commit_is_refused(self) -> None:
         # Nothing here began publishing anything: the round that earned this
@@ -284,8 +262,8 @@ class DiscussionMarkedParkTest(unittest.TestCase, _DiscussionWorkflowMixin):
         self.assert_nothing_published(refused.gh, refused.mocks)
         # Reported as the commit it is, and nothing recorded that would let a
         # later tick read the issue as having published a plan.
-        self.assertEqual(refused.park_reason, PARK_DISCUSSION_COMMITS)
-        self.assertNotIn(KEY_PLAN_PATH, refused.pinned)
+        self.assertEqual(refused.park_reason, _support.PARK_DISCUSSION_COMMITS)
+        self.assertNotIn(_support.KEY_PLAN_PATH, refused.pinned)
 
     def test_a_moved_tip_parks_instead_of_publishing(self) -> None:
         # The commit the branch is on now is plan-shaped too, which is exactly
@@ -294,7 +272,7 @@ class DiscussionMarkedParkTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # begun for a different one.
         stale = self._tick_over_park(
             _STALE_ISSUE_NUMBER,
-            in_flight=HEAD_BEFORE_ROUND,
+            in_flight=_support.HEAD_BEFORE_ROUND,
             # The round flag stands too, exactly as a crash mid-publication
             # leaves it: without the marker being authoritative, this commit
             # would be read as that round's own work and published.
@@ -304,16 +282,16 @@ class DiscussionMarkedParkTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
         self.assert_nothing_published(stale.gh, stale.mocks)
         self.assertEqual(
-            stale.park_reason, PARK_DISCUSSION_STALE_PUBLISH,
+            stale.park_reason, _support.PARK_DISCUSSION_STALE_PUBLISH,
         )
         # Both SHAs are named: restoring the first is what lets the
         # publication finish on its own.
         _, body = stale.gh.posted_comments[0]
-        self.assertIn(HEAD_BEFORE_ROUND, body)
-        self.assertIn(HEAD_AFTER_COMMIT, body)
+        self.assertIn(_support.HEAD_BEFORE_ROUND, body)
+        self.assertIn(_support.HEAD_AFTER_COMMIT, body)
         # The marker stands, so a restored branch republishes rather than
         # costing the humans the artifact.
-        self.assertEqual(stale.pinned[KEY_PUBLISHING_SHA], HEAD_BEFORE_ROUND)
+        self.assertEqual(stale.pinned[_support.KEY_PUBLISHING_SHA], _support.HEAD_BEFORE_ROUND)
 
     def _tick_over_park(
         self,
@@ -333,9 +311,9 @@ class DiscussionMarkedParkTest(unittest.TestCase, _DiscussionWorkflowMixin):
         gh, issue = _seed_parked_discussion(issue_number, **park_options)
         records = {}
         if in_flight:
-            records[KEY_PUBLISHING_SHA] = in_flight
+            records[_support.KEY_PUBLISHING_SHA] = in_flight
         if round_open:
-            records[KEY_ROUND_OPEN] = True
+            records[_support.KEY_ROUND_OPEN] = True
         if records:
             _mark_in_flight(gh, issue.number, **records)
 
@@ -349,7 +327,7 @@ class DiscussionMarkedParkTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 committed_paths=(self.plan_path(issue.number),),
             )
 
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         return _ParkedTick(
             gh=gh, mocks=mocks, pinned=dict(gh.pinned_data(issue.number)),
         )
@@ -380,7 +358,7 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
                 self.assert_nothing_published(refused.gh, refused.mocks)
                 self.assertEqual(
-                    refused.park_reason, PARK_DISCUSSION_PUSH_FAILED,
+                    refused.park_reason, _support.PARK_DISCUSSION_PUSH_FAILED,
                 )
                 # The tip that is there is named, so an operator can see what
                 # would have been discarded.
@@ -389,7 +367,7 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
                 # And the marker stands, so the retry is still there to be made
                 # once the branch and the remote agree again.
                 self.assertEqual(
-                    refused.pinned[KEY_PUBLISHING_SHA], HEAD_AFTER_COMMIT,
+                    refused.pinned[_support.KEY_PUBLISHING_SHA], _support.HEAD_AFTER_COMMIT,
                 )
 
     def test_an_unreadable_remote_is_not_overwritten(self) -> None:
@@ -401,9 +379,9 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
         )
 
         self.assert_nothing_published(unreadable.gh, unreadable.mocks)
-        self.assertEqual(unreadable.park_reason, PARK_DISCUSSION_PUSH_FAILED)
+        self.assertEqual(unreadable.park_reason, _support.PARK_DISCUSSION_PUSH_FAILED)
         self.assertEqual(
-            unreadable.pinned[KEY_PUBLISHING_SHA], HEAD_AFTER_COMMIT,
+            unreadable.pinned[_support.KEY_PUBLISHING_SHA], _support.HEAD_AFTER_COMMIT,
         )
 
     def test_the_lease_pins_the_tip_that_was_read(self) -> None:
@@ -413,13 +391,13 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # the window between the two commands refuses the push instead of
         # becoming the tip it is allowed to clobber.
         published = self._publish_over_remote(
-            _LEASED_ISSUE_NUMBER, HEAD_AFTER_COMMIT,
+            _LEASED_ISSUE_NUMBER, _support.HEAD_AFTER_COMMIT,
         )
 
         self.assertEqual(len(published.gh.opened_prs), 1)
-        push = published.mocks[PUSH_BRANCH].call_args
-        self.assertEqual(push.kwargs["force_with_lease"], HEAD_AFTER_COMMIT)
-        self.assertEqual(push.kwargs["revision"], HEAD_AFTER_COMMIT)
+        push = published.mocks[_support.PUSH_BRANCH].call_args
+        self.assertEqual(push.kwargs["force_with_lease"], _support.HEAD_AFTER_COMMIT)
+        self.assertEqual(push.kwargs["revision"], _support.HEAD_AFTER_COMMIT)
 
     def test_a_refusal_leaves_its_own_retry(self) -> None:
         # The FIRST attempt is the one that has to leave something behind. It
@@ -428,14 +406,14 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
         # marker there is no publication to finish and no round open, the park's
         # own reason suppresses the repair request, and the thread goes quiet
         # with neither a push nor an agent ever running again.
-        gh, issue = _seed_discussion(_RECONCILED_ISSUE_NUMBER)
+        gh, issue = _support._seed_discussion(_RECONCILED_ISSUE_NUMBER)
 
         refused = self._publish_first_round(gh, issue)
 
-        self.assertEqual(refused.park_reason, PARK_DISCUSSION_PUSH_FAILED)
+        self.assertEqual(refused.park_reason, _support.PARK_DISCUSSION_PUSH_FAILED)
         self.assertEqual(refused.gh.opened_prs, [])
         self.assertEqual(
-            refused.pinned[KEY_PUBLISHING_SHA], HEAD_AFTER_COMMIT,
+            refused.pinned[_support.KEY_PUBLISHING_SHA], _support.HEAD_AFTER_COMMIT,
         )
 
         # The operator reconciles the branch and says so on the thread.
@@ -443,8 +421,8 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
         published = self._retry_on_reply(gh, issue)
 
         self.assertEqual(len(published.gh.opened_prs), 1)
-        self.assertEqual(published.park_reason, PARK_DISCUSSION_PLAN_PUBLISHED)
-        self.assertIsNone(published.pinned[KEY_PUBLISHING_SHA])
+        self.assertEqual(published.park_reason, _support.PARK_DISCUSSION_PLAN_PUBLISHED)
+        self.assertIsNone(published.pinned[_support.KEY_PUBLISHING_SHA])
 
     def _publish_first_round(self, gh, issue) -> _ParkedTick:
         """A round that commits the plan onto a branch the remote has moved."""
@@ -452,9 +430,9 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
             gh,
             issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION, last_message=_CONFIRMED_DESIGN,
+                session_id=_support.DISCUSSION_SESSION, last_message=_CONFIRMED_DESIGN,
             ),
-            head_shas=MOVED_HEAD,
+            head_shas=_support.MOVED_HEAD,
             committed_paths=(self.plan_path(issue.number),),
             remote_branch_tip=_FOREIGN_TIP,
             commit_contains=False,
@@ -471,10 +449,10 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
             run_agent=_agent(last_message=UNASKED_ROUND),
             head_shas=_RECOVERED_HEAD,
             committed_paths=(self.plan_path(issue.number),),
-            remote_branch_tip=HEAD_AFTER_COMMIT,
+            remote_branch_tip=_support.HEAD_AFTER_COMMIT,
         )
 
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         return _ParkedTick(
             gh=gh, mocks=mocks, pinned=dict(gh.pinned_data(issue.number)),
         )
@@ -485,7 +463,7 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
         """One tick recovering a marked publication over a given remote tip."""
         gh, issue = _seed_parked_discussion(issue_number)
         _mark_in_flight(
-            gh, issue.number, **{KEY_PUBLISHING_SHA: HEAD_AFTER_COMMIT},
+            gh, issue.number, **{_support.KEY_PUBLISHING_SHA: _support.HEAD_AFTER_COMMIT},
         )
 
         mocks = self._run_discussion_in_temp_checkout(
@@ -498,7 +476,7 @@ class DiscussionDivergedBranchTest(unittest.TestCase, _DiscussionWorkflowMixin):
             commit_contains=contains,
         )
 
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         return _ParkedTick(
             gh=gh, mocks=mocks, pinned=dict(gh.pinned_data(issue.number)),
         )
@@ -532,18 +510,18 @@ class DiscussionResetOverPublicationTest(
             run_agent=_agent(last_message=_INHERITING_ROUND),
             # Enough for the round this must not open, so a regression fails
             # on the agent having run rather than on a probe running dry.
-            head_shas=(HEAD_BEFORE_ROUND,) * 5,
+            head_shas=(_support.HEAD_BEFORE_ROUND,) * 5,
             committed_paths=(self.plan_path(plan_issue.number),),
-            remote_branch_tip=HEAD_AFTER_COMMIT,
+            remote_branch_tip=_support.HEAD_AFTER_COMMIT,
         )
 
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         self.assert_nothing_published(gh, mocks)
         pinned_data = gh.pinned_data(plan_issue.number)
         # The record that knows a publication is out there survives.
-        self.assertEqual(pinned_data[KEY_PUBLISHING_SHA], HEAD_AFTER_COMMIT)
+        self.assertEqual(pinned_data[_support.KEY_PUBLISHING_SHA], _support.HEAD_AFTER_COMMIT)
         self.assertEqual(
-            pinned_data[KEY_PARK_REASON], PARK_DISCUSSION_STALE_PUBLISH,
+            pinned_data[KEY_PARK_REASON], _support.PARK_DISCUSSION_STALE_PUBLISH,
         )
         _, body = gh.posted_comments[0]
         # Told where the plan really is, and not told to reset it away: a local
@@ -567,17 +545,17 @@ class DiscussionResetOverPublicationTest(
             gh,
             plan_issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION, last_message=_INHERITING_ROUND,
+                session_id=_support.DISCUSSION_SESSION, last_message=_INHERITING_ROUND,
             ),
-            head_shas=(HEAD_BEFORE_ROUND,) * 5,
+            head_shas=(_support.HEAD_BEFORE_ROUND,) * 5,
             remote_branch_tip=_FOREIGN_TIP,
             commit_contains=False,
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         self.assert_nothing_published(gh, mocks)
         self.assertIsNone(
-            gh.pinned_data(plan_issue.number)[KEY_PUBLISHING_SHA],
+            gh.pinned_data(plan_issue.number)[_support.KEY_PUBLISHING_SHA],
         )
 
     def test_a_closed_pr_does_not_keep_the_marker(self) -> None:
@@ -591,8 +569,8 @@ class DiscussionResetOverPublicationTest(
         )
         gh.add_pr(FakePR(
             number=_CLOSED_PR_NUMBER,
-            head_branch=_issue_branch(_CLOSED_PR_RESET_ISSUE_NUMBER),
-            head=FakePRRef(sha=HEAD_AFTER_COMMIT),
+            head_branch=_support._issue_branch(_CLOSED_PR_RESET_ISSUE_NUMBER),
+            head=FakePRRef(sha=_support.HEAD_AFTER_COMMIT),
             state=STATE_CLOSED,
         ))
 
@@ -600,16 +578,16 @@ class DiscussionResetOverPublicationTest(
             gh,
             plan_issue,
             run_agent=_agent(
-                session_id=DISCUSSION_SESSION, last_message=_INHERITING_ROUND,
+                session_id=_support.DISCUSSION_SESSION, last_message=_INHERITING_ROUND,
             ),
-            head_shas=(HEAD_BEFORE_ROUND,) * 5,
+            head_shas=(_support.HEAD_BEFORE_ROUND,) * 5,
             remote_branch_tip=_NO_SUCH_BRANCH,
         )
 
-        mocks[RUN_AGENT].assert_called_once()
+        mocks[_support.RUN_AGENT].assert_called_once()
         self.assert_nothing_published(gh, mocks)
         self.assertIsNone(
-            gh.pinned_data(plan_issue.number)[KEY_PUBLISHING_SHA],
+            gh.pinned_data(plan_issue.number)[_support.KEY_PUBLISHING_SHA],
         )
 
     def _seed_published_elsewhere(self, issue_number: int):
@@ -619,16 +597,16 @@ class DiscussionResetOverPublicationTest(
         local ref never moved off, and the pull request the crash opened is up
         on that branch with nothing pinned pointing at it.
         """
-        gh, plan_issue = _seed_discussion(issue_number)
-        branch = _issue_branch(issue_number)
+        gh, plan_issue = _support._seed_discussion(issue_number)
+        branch = _support._issue_branch(issue_number)
         gh.seed_state(
             issue_number,
             **{
-                KEY_PUBLISHING_SHA: HEAD_AFTER_COMMIT,
-                KEY_ROUND_BRANCH: branch,
-                KEY_ROUND_SHA: HEAD_BEFORE_ROUND,
-                KEY_BASE_SHA: BASE_TIP_SHA,
-                KEY_DISCUSSION_SESSION_ID: DISCUSSION_SESSION,
+                _support.KEY_PUBLISHING_SHA: _support.HEAD_AFTER_COMMIT,
+                _support.KEY_ROUND_BRANCH: branch,
+                _support.KEY_ROUND_SHA: _support.HEAD_BEFORE_ROUND,
+                _support.KEY_BASE_SHA: BASE_TIP_SHA,
+                _support.KEY_DISCUSSION_SESSION_ID: _support.DISCUSSION_SESSION,
             },
         )
         gh.existing_open_pr[branch] = FakePR(
@@ -676,11 +654,11 @@ class DiscussionOpenRoundOwnershipTest(
                 committed_paths=(self.plan_path(issue.number),),
             )
 
-        recovery_mocks[RUN_AGENT].assert_not_called()
+        recovery_mocks[_support.RUN_AGENT].assert_not_called()
         self.assertEqual(len(gh.opened_prs), 1)
         self.assertEqual(
             gh.pinned_data(issue.number)[KEY_PARK_REASON],
-            PARK_DISCUSSION_PLAN_PUBLISHED,
+            _support.PARK_DISCUSSION_PLAN_PUBLISHED,
         )
 
     def test_a_foreign_stage_commit_is_not_published(self) -> None:
@@ -692,25 +670,25 @@ class DiscussionOpenRoundOwnershipTest(
         # that the tip moved, never by whom. The open-round record is what says
         # it, and no round of this stage was running.
         gh, relabeled = _seed_parked_discussion(
-            _FOREIGN_COMMIT_ISSUE_NUMBER, park_reason=PARK_FOREIGN_QUESTION,
+            _FOREIGN_COMMIT_ISSUE_NUMBER, park_reason=_support.PARK_FOREIGN_QUESTION,
         )
 
         mocks = self._foreign_park_tick(gh, relabeled)
 
         # A plan-shaped commit is exactly the dangerous case: every other check
         # passes it, and only the ownership record refuses it.
-        mocks[RUN_AGENT].assert_not_called()
+        mocks[_support.RUN_AGENT].assert_not_called()
         self.assert_nothing_published(gh, mocks)
         self.assert_worktree_preserved(mocks)
         pinned_data = gh.pinned_data(relabeled.number)
         self.assertEqual(
-            (pinned_data[KEY_PARK_REASON], pinned_data.get(KEY_PLAN_PATH)),
-            (PARK_DISCUSSION_COMMITS, None),
+            (pinned_data[KEY_PARK_REASON], pinned_data.get(_support.KEY_PLAN_PATH)),
+            (_support.PARK_DISCUSSION_COMMITS, None),
         )
         # The park names the anchor to reset back to, so the operator is not
         # told to throw away commits the branch arrived carrying.
         self.assertIn(
-            f"{_RESET_COMMAND} {HEAD_BEFORE_ROUND}",
+            f"{_RESET_COMMAND} {_support.HEAD_BEFORE_ROUND}",
             gh.posted_comments[-1][1],
         )
 
@@ -720,16 +698,16 @@ class DiscussionOpenRoundOwnershipTest(
         # under it is the plan that round wrote and publishing it is right.
         gh, interrupted = _seed_parked_discussion(
             _INTERRUPTED_FOREIGN_ISSUE_NUMBER,
-            park_reason=PARK_FOREIGN_QUESTION,
+            park_reason=_support.PARK_FOREIGN_QUESTION,
         )
-        _mark_in_flight(gh, interrupted.number, **{KEY_ROUND_OPEN: True})
+        _mark_in_flight(gh, interrupted.number, **{_support.KEY_ROUND_OPEN: True})
 
         self._foreign_park_tick(gh, interrupted)
 
         self.assertEqual(len(gh.opened_prs), 1)
         self.assertEqual(
             gh.pinned_data(interrupted.number)[KEY_PARK_REASON],
-            PARK_DISCUSSION_PLAN_PUBLISHED,
+            _support.PARK_DISCUSSION_PLAN_PUBLISHED,
         )
 
     def _foreign_park_tick(self, gh, issue):
