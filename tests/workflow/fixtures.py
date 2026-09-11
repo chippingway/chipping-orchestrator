@@ -14,10 +14,6 @@ from __future__ import annotations
 
 from tests.workflow import (
     agent_failure_values as _agent_failure_values,
-    authorized_exemption as _authorized_exemption_values,
-    other_labels as _other_labels,
-    patch_models as _patch_models,
-    patch_runner as _patch_runner,
     recovery_followup as _recovery_followup,
     repo_values as _repo_values,
     stage_labels as _stage_labels,
@@ -26,7 +22,24 @@ from tests.workflow import (
     value_helpers as _value_helpers,
     verdict_values as _verdict_values,
 )
+from tests.workflow.authorized_exemption import (
+    _authorize_command as _make_authorize_command,
+    _authorized_exemption as _make_authorized_exemption,
+    _damaged_authorization as _make_damaged_authorization,
+    _fabricated_authorization as _make_fabricated_authorization,
+    _legacy_exemption as _make_legacy_exemption,
+)
 from tests.workflow.engine import event_values as _event_values
+from tests.workflow.other_labels import (
+    LABEL_BLOCKED as _LABEL_BLOCKED,
+    LABEL_DONE as _LABEL_DONE,
+    LABEL_READY as _LABEL_READY,
+    LABEL_REJECTED as _LABEL_REJECTED,
+    LABEL_RESOLVING_CONFLICT as _LABEL_RESOLVING_CONFLICT,
+    LABEL_UMBRELLA as _LABEL_UMBRELLA,
+)
+from tests.workflow.patch_models import DEFAULT_PR_HEAD_SHA as _DEFAULT_PR_HEAD_SHA, _agent as _agent_result
+from tests.workflow.patch_runner import _PatchedWorkflowMixin as _WorkflowMixin
 
 EVENT_AGENT_EXIT = _event_values.EVENT_AGENT_EXIT
 EVENT_AGENT_SPAWN = _event_values.EVENT_AGENT_SPAWN
@@ -37,12 +50,12 @@ EVENT_SKILL_TRIGGERED = _event_values.EVENT_SKILL_TRIGGERED
 EVENT_STAGE_ENTER = _event_values.EVENT_STAGE_ENTER
 EVENT_STAGE_EVALUATION = _event_values.EVENT_STAGE_EVALUATION
 
-LABEL_BLOCKED = _other_labels.LABEL_BLOCKED
-LABEL_DONE = _other_labels.LABEL_DONE
-LABEL_READY = _other_labels.LABEL_READY
-LABEL_REJECTED = _other_labels.LABEL_REJECTED
-LABEL_RESOLVING_CONFLICT = _other_labels.LABEL_RESOLVING_CONFLICT
-LABEL_UMBRELLA = _other_labels.LABEL_UMBRELLA
+LABEL_BLOCKED = _LABEL_BLOCKED
+LABEL_DONE = _LABEL_DONE
+LABEL_READY = _LABEL_READY
+LABEL_REJECTED = _LABEL_REJECTED
+LABEL_RESOLVING_CONFLICT = _LABEL_RESOLVING_CONFLICT
+LABEL_UMBRELLA = _LABEL_UMBRELLA
 
 LABEL_DECOMPOSING = _stage_labels.LABEL_DECOMPOSING
 LABEL_DISCUSSION = _stage_labels.LABEL_DISCUSSION
@@ -68,7 +81,7 @@ BASE_TIP_SHA = _repo_values.BASE_TIP_SHA
 BACKEND_CODEX = _repo_values.BACKEND_CODEX
 MEASURED_BASE_SHA = _repo_values.MEASURED_BASE_SHA
 SHA_LENGTH = _repo_values.SHA_LENGTH
-DEFAULT_PR_HEAD_SHA = _patch_models.DEFAULT_PR_HEAD_SHA
+DEFAULT_PR_HEAD_SHA = _DEFAULT_PR_HEAD_SHA
 MEASURED_CANDIDATE_SHA = _repo_values.MEASURED_CANDIDATE_SHA
 STATE_CLOSED = _repo_values.STATE_CLOSED
 STATE_OPEN = _repo_values.STATE_OPEN
@@ -123,11 +136,11 @@ _manifest = _value_helpers._manifest
 _open_pr_for = _value_helpers._open_pr_for
 _state_with_pr_number = _value_helpers._state_with_pr_number
 
-_authorize_command = _authorized_exemption_values._authorize_command
-_authorized_exemption = _authorized_exemption_values._authorized_exemption
-_damaged_authorization = _authorized_exemption_values._damaged_authorization
-_fabricated_authorization = _authorized_exemption_values._fabricated_authorization
-_legacy_exemption = _authorized_exemption_values._legacy_exemption
+_authorize_command = _make_authorize_command
+_authorized_exemption = _make_authorized_exemption
+_damaged_authorization = _make_damaged_authorization
+_fabricated_authorization = _make_fabricated_authorization
+_legacy_exemption = _make_legacy_exemption
 
-_agent = _patch_models._agent
-_PatchedWorkflowMixin = _patch_runner._PatchedWorkflowMixin
+_agent = _agent_result
+_PatchedWorkflowMixin = _WorkflowMixin

@@ -17,21 +17,7 @@ Streamlit nor Plotly, so an importer that never renders still loads cleanly.
 """
 from __future__ import annotations
 
-from orchestrator.observability.dashboard.palette import (
-    ACCENT,
-    BACKGROUND,
-    BORDER,
-    CARD_BG,
-    DANGER,
-    GRID,
-    INK,
-    MUTED_TEXT,
-    MUTED_TEXT_SOFT,
-    SUCCESS,
-    SURFACE,
-    TOKEN_TYPE_COLORS,
-    WARNING,
-)
+from orchestrator.observability.dashboard import palette as _palette
 from orchestrator.observability.dashboard.tokens import (
     CARD_PADDING,
     CONTENT_MAX_WIDTH,
@@ -44,21 +30,21 @@ from orchestrator.observability.dashboard.tokens import (
 PAGE_CSS = f"""
 <style>
   :root {{
-    --orch-bg: {BACKGROUND};
-    --orch-card: {CARD_BG};
-    --orch-ink: {INK};
-    --orch-muted: {MUTED_TEXT};
-    --orch-muted-soft: {MUTED_TEXT_SOFT};
-    --orch-border: {BORDER};
-    --orch-grid: {GRID};
-    --orch-chip: {SURFACE};
-    --orch-accent: {ACCENT};
-    --orch-success: {SUCCESS};
-    --orch-warn: {WARNING};
-    --orch-danger: {DANGER};
-    --orch-input: {TOKEN_TYPE_COLORS['Input']};
-    --orch-output: {TOKEN_TYPE_COLORS['Output']};
-    --orch-cache: {TOKEN_TYPE_COLORS['Cache']};
+    --orch-bg: {_palette.BACKGROUND};
+    --orch-card: {_palette.CARD_BG};
+    --orch-ink: {_palette.INK};
+    --orch-muted: {_palette.MUTED_TEXT};
+    --orch-muted-soft: {_palette.MUTED_TEXT_SOFT};
+    --orch-border: {_palette.BORDER};
+    --orch-grid: {_palette.GRID};
+    --orch-chip: {_palette.SURFACE};
+    --orch-accent: {_palette.ACCENT};
+    --orch-success: {_palette.SUCCESS};
+    --orch-warn: {_palette.WARNING};
+    --orch-danger: {_palette.DANGER};
+    --orch-input: {_palette.TOKEN_TYPE_COLORS['Input']};
+    --orch-output: {_palette.TOKEN_TYPE_COLORS['Output']};
+    --orch-cache: {_palette.TOKEN_TYPE_COLORS['Cache']};
     --orch-radius: {RADIUS};
     --orch-pad: {CARD_PADDING};
     --orch-gap: {GRID_GAP};

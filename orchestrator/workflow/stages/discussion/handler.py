@@ -81,7 +81,6 @@ from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.stages.discussion import (
     checkout_parks as _checkout_parks,
-    models as _models,
     outcomes as _outcomes,
     recovery as _recovery,
     run as _run,
@@ -90,10 +89,11 @@ from orchestrator.workflow.stages.discussion import (
     state as _state,
     terminal as _terminal,
 )
+from orchestrator.workflow.stages.discussion.models import _DiscussionRun
 
 
 def _run_discussion_round(
-    run: _models._DiscussionRun, replies: list | None = None,
+    run: _DiscussionRun, replies: list | None = None,
 ) -> None:
     """Open one round and publish whatever it turns out to have left."""
     round_result = _run._open_discussion_round(run, replies)
@@ -102,7 +102,7 @@ def _run_discussion_round(
         _outcomes._route_discussion_outcome(run, round_result, outcome)
 
 
-def _resume_parked_discussion(run: _models._DiscussionRun) -> None:
+def _resume_parked_discussion(run: _DiscussionRun) -> None:
     """Answer the humans' reply to the parked round, or leave it parked.
 
     A tick nobody has answered is a no-op in the strict sense -- nothing
@@ -118,7 +118,7 @@ def _resume_parked_discussion(run: _models._DiscussionRun) -> None:
 
 
 def _hold_resume_for_repair(
-    run: _models._DiscussionRun, replies: list,
+    run: _DiscussionRun, replies: list,
 ) -> bool:
     """True when no round may open on this checkout as it stands.
 
@@ -170,7 +170,7 @@ def _handle_discussion(
     gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
 ) -> None:
     """Open the discussion, answer the humans in it, or wait on them."""
-    discussion_run = _models._DiscussionRun.start(gh, spec, issue)
+    discussion_run = _DiscussionRun.start(gh, spec, issue)
     if _terminal._drain_discussion_terminals(discussion_run):
         return
     if _recovery._finish_interrupted_publication(discussion_run):

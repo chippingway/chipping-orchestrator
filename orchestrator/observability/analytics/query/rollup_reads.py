@@ -28,21 +28,21 @@ from __future__ import annotations
 from typing import Any
 
 from orchestrator.observability.analytics.query import (
-    activity_models as _activity_models,
     backend_efficiency as _backend_efficiency,
-    conditions as _conditions,
-    cost_models as _cost_models,
     kpi_totals as _kpi_totals,
-    overview_models as _overview_models,
     repo_breakdowns as _repo_breakdowns,
     requests as _requests,
-    run_models as _run_models,
     stage_breakdowns as _stage_breakdowns,
     summary_queries as _summary_queries,
-    summary_results as _summary_results,
     throughput_days as _throughput_days,
     time_series as _time_series,
 )
+from orchestrator.observability.analytics.query.activity_models import ThroughputDayRow
+from orchestrator.observability.analytics.query.conditions import agent_event_excluded
+from orchestrator.observability.analytics.query.cost_models import BackendEfficiencyRow, RepoBreakdownRow
+from orchestrator.observability.analytics.query.overview_models import Summary, TimeSeriesPoint
+from orchestrator.observability.analytics.query.run_models import StageBreakdown
+from orchestrator.observability.analytics.query.summary_results import summary_from_rows
 
 _SUMMARY_SIGNATURE = _requests.FILTERED_READ_SIGNATURE.replace(
     return_annotation="Summary",
@@ -67,13 +67,13 @@ _THROUGHPUT_SIGNATURE = _requests.FILTERED_READ_SIGNATURE.replace(
 )
 
 
-def get_summary(*args: Any, **kwargs: Any) -> _overview_models.Summary:
+def get_summary(*args: Any, **kwargs: Any) -> Summary:
     """Return aggregate counts for the selected reporting window."""
     request = _requests.bind_read_request(_SUMMARY_SIGNATURE, args, kwargs)
     query = _requests.resolve_read_query(request)
     if not query.available:
-        return _overview_models.Summary()
-    return _summary_results.summary_from_rows(
+        return Summary()
+    return summary_from_rows(
         _summary_queries.query_summary_rows(query, _requests.window_filters(request)),
     )
 
@@ -81,19 +81,19 @@ def get_summary(*args: Any, **kwargs: Any) -> _overview_models.Summary:
 get_summary.__signature__ = _SUMMARY_SIGNATURE
 
 
-def get_kpi_prev(*args: Any, **kwargs: Any) -> _overview_models.Summary:
+def get_kpi_prev(*args: Any, **kwargs: Any) -> Summary:
     """Return previous-window scalar totals used by KPI comparisons."""
     request = _requests.bind_read_request(_KPI_PREVIOUS_SIGNATURE, args, kwargs)
     query = _requests.resolve_read_query(request)
     if not query.available:
-        return _overview_models.Summary()
+        return Summary()
     return _kpi_totals.kpi_prev_summary(query, _requests.window_filters(request))
 
 
 get_kpi_prev.__signature__ = _KPI_PREVIOUS_SIGNATURE
 
 
-def get_time_series(*args: Any, **kwargs: Any) -> list[_overview_models.TimeSeriesPoint]:
+def get_time_series(*args: Any, **kwargs: Any) -> list[TimeSeriesPoint]:
     """Return daily event, cost, and token aggregates."""
     request = _requests.bind_read_request(_TIME_SERIES_SIGNATURE, args, kwargs)
     query = _requests.resolve_read_query(request)
@@ -105,7 +105,7 @@ def get_time_series(*args: Any, **kwargs: Any) -> list[_overview_models.TimeSeri
 get_time_series.__signature__ = _TIME_SERIES_SIGNATURE
 
 
-def get_stage_breakdown(*args: Any, **kwargs: Any) -> list[_run_models.StageBreakdown]:
+def get_stage_breakdown(*args: Any, **kwargs: Any) -> list[StageBreakdown]:
     """Return per-stage activity and cost aggregates."""
     request = _requests.bind_read_request(_STAGE_BREAKDOWN_SIGNATURE, args, kwargs)
     query = _requests.resolve_read_query(request)
@@ -120,13 +120,13 @@ get_stage_breakdown.__signature__ = _STAGE_BREAKDOWN_SIGNATURE
 def get_backend_efficiency(
     *args: Any,
     **kwargs: Any,
-) -> list[_cost_models.BackendEfficiencyRow]:
+) -> list[BackendEfficiencyRow]:
     """Return per-backend agent-run efficiency aggregates."""
     request = _requests.bind_read_request(_BACKEND_EFFICIENCY_SIGNATURE, args, kwargs)
     query = _requests.resolve_read_query(request)
     if not query.available:
         return []
-    if _conditions.agent_event_excluded(request.filters.events):
+    if agent_event_excluded(request.filters.events):
         return []
     return _backend_efficiency.backend_efficiency_rows(query, _requests.window_filters(request))
 
@@ -134,7 +134,7 @@ def get_backend_efficiency(
 get_backend_efficiency.__signature__ = _BACKEND_EFFICIENCY_SIGNATURE
 
 
-def get_repo_breakdown(*args: Any, **kwargs: Any) -> list[_cost_models.RepoBreakdownRow]:
+def get_repo_breakdown(*args: Any, **kwargs: Any) -> list[RepoBreakdownRow]:
     """Return per-repository activity aggregates."""
     request = _requests.bind_read_request(_REPO_BREAKDOWN_SIGNATURE, args, kwargs)
     query = _requests.resolve_read_query(request)
@@ -149,7 +149,7 @@ get_repo_breakdown.__signature__ = _REPO_BREAKDOWN_SIGNATURE
 def get_throughput_breakdown(
     *args: Any,
     **kwargs: Any,
-) -> list[_activity_models.ThroughputDayRow]:
+) -> list[ThroughputDayRow]:
     """Return daily resolved and rejected issue counts."""
     request = _requests.bind_read_request(_THROUGHPUT_SIGNATURE, args, kwargs)
     query = _requests.resolve_read_query(request)
