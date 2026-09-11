@@ -47,6 +47,11 @@ Implementing recovery now separates authorization-command handling from measurem
 with the original dispatcher preserving their order. All seven function bodies are unchanged apart from owner
 references. All three owners pass isolated WPS defaults; full checks pass (6216 passed, 49 skipped).
 
+Late adjudication now has separate admission, attempt-accounting, execution, and completion owners. Its
+coordinator retains the ordered routing and recorded-answer reuse. The five owners pass all isolated WPS
+defaults, removing both existing coordinator mappings (WPS201 and WPS202). Full checks pass with 6216 passed,
+49 skipped, and the same 6265 test identities. Only the split transaction remains above the WPS235 default.
+
 ## Scope and dependencies
 
 All ten currently tracked children were still open when this plan was prepared. Their implementation, owner moves,

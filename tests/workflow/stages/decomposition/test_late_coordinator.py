@@ -15,7 +15,7 @@ from orchestrator.workflow.late_split.models import (
     LateVerdict,
 )
 from orchestrator.workflow.stages.decomposition import (
-    late_coordinator as _coordinator,
+    late_attempt as _late_attempt,
     late_session as _late_session,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -275,7 +275,7 @@ class SpawnPersistenceTest(LateCase, unittest.TestCase):
                         name for name, charge in state.data.items()
                         if before.get(name) != charge
                     },
-                    set(_coordinator._ACCOUNTING_FIELDS),
+                    set(_late_attempt._ACCOUNTING_FIELDS),
                 )
 
     def test_it_spends_the_shared_retry_and_usage(self) -> None:
