@@ -602,7 +602,13 @@ provably clean checkout standing on the rewritten commit, a leased head that pee
 one end nothing else here reads as an object, since the lease may name a different commit from the accepted one — an
 issue re-read and found *unchanged* — open, carrying no `paused` or `backlog`, and still on the stage the rewrite
 recorded, since the entry read that stage off the issue the tick opened with and a relabel during the rewrite is
-invisible to every other reading — and canonical fingerprints that agree. The accepted one is re-taken over the pair
+invisible to every other reading — a rewritten base the base branch really carries, frozen from what the **remote**
+says that branch is at and held to reachability rather than to equality, since the branch advances on its own while a
+base carrying work no remote has is one only this host ever saw — and canonical fingerprints that agree. Those
+fingerprints are what the base proof is for: their equality says the rewrite contributes what was adjudicated *over
+the base it names*, and choosing that base is what a rebase does, so a fork point taken against
+`refs/remotes/<remote>/<base>` — a ref the issue's own worktree can repoint — would let a replay onto work no remote
+has fingerprint as exactly the adjudicated change. The accepted one is re-taken over the pair
 the **record** names rather than the pair the caller claims — so the record proves itself, base included, instead of
 having its digest read back against an end nothing checked — and the caller's own claim about what it replaced is held
 to that same digest, as is the digest any permission already standing there recorded: carried forward unchecked, a
