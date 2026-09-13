@@ -26,6 +26,7 @@ from tests.workflow.fixtures import (
     _TEST_SPEC,
     LABEL_VALIDATING,
     MEASURED_CANDIDATE_SHA,
+    _authorized_exemption,
 )
 from tests.workflow.observation_support import ObservedCloseCase
 from tests.workflow.stages.implementing import late_gate_test_support as support
@@ -96,7 +97,7 @@ class LatchedCloseHoldsThePublicationTest(_CloseCase, unittest.TestCase):
         # count, or a `single` verdict would ship on a closed issue.
         self._seed(**{
             **support.recorded_generation(),
-            support.KEY_EXEMPT_SHA: MEASURED_CANDIDATE_SHA,
+            **_authorized_exemption(),
         })
         self._latch_close(_REPO_SLUG, support.GATE_ISSUE_NUMBER)
 

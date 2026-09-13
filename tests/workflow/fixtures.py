@@ -5,14 +5,16 @@
 Each name below is defined by the leaf beside it -- the event names, the two
 label vocabularies, the repo spec and backend values, the pinned-state keys and
 role names, the verdict messages, the provider-failure messages, the
-recovery-follow-up wording, the value builders, and the hermetic patch context
-a stage handler runs inside. This module is the one import site the tests that
+recovery-follow-up wording, the pinned fields an authorized settlement leaves,
+the value builders, and the hermetic patch context a stage handler runs
+inside. This module is the one import site the tests that
 span several of those leaves reach them through.
 """
 from __future__ import annotations
 
 from tests.workflow import (
     agent_failure_values as _agent_failure_values,
+    authorized_exemption as _authorized_exemption_values,
     other_labels as _other_labels,
     patch_models as _patch_models,
     patch_runner as _patch_runner,
@@ -120,6 +122,12 @@ _issue_branch = _value_helpers._issue_branch
 _manifest = _value_helpers._manifest
 _open_pr_for = _value_helpers._open_pr_for
 _state_with_pr_number = _value_helpers._state_with_pr_number
+
+_authorize_command = _authorized_exemption_values._authorize_command
+_authorized_exemption = _authorized_exemption_values._authorized_exemption
+_damaged_authorization = _authorized_exemption_values._damaged_authorization
+_fabricated_authorization = _authorized_exemption_values._fabricated_authorization
+_legacy_exemption = _authorized_exemption_values._legacy_exemption
 
 _agent = _patch_models._agent
 _PatchedWorkflowMixin = _patch_runner._PatchedWorkflowMixin

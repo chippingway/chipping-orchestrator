@@ -45,9 +45,16 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                      than publishing it unsplit -- one
                                      trusted /orchestrator
                                      authorize-oversized <commit> settles it
-     candidate == late_exempt_sha ─► publish unmeasured (the one commit an
-                                     authorized settlement accepted, and only
-                                     it)
+     candidate == late_exempt_sha ─► publish unmeasured, but only where the
+       AND late_override_*           late_override_* terms an operator
+                                     authorized name the same commit and the
+                                     contribution between the pair that record
+                                     names still fingerprints to what it says:
+                                     the exemption is an adjudicator's answer
+                                     and half a bypass. Only the exemption ─►
+                                     the ordinary reading, and past the
+                                     ceiling a park late_unauthorized_exemption
+                                     the same authorize-oversized command ends
      candidate == late_approved_sha ► publish unmeasured, named against it:
                                      the commit this gate approved and has
                                      still to push, brought back by a crash
@@ -210,6 +217,17 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                      that head, its number, and the stage it
                                      came from goes down before
                                      label=workflow:decomposing
+                                     ... unless an exemption nothing
+                                     authorized names the candidate, where
+                                     the same record goes down and the issue
+                                     parks late_unauthorized_exemption
+                                     instead: the change was ruled one change
+                                     already, so what it waits for is the
+                                     operator rather than a second
+                                     adjudicator. A commit the PR is already
+                                     standing on is never held that way --
+                                     the push moves nothing and only the
+                                     bookkeeping is owed
      tree not provably clean      ─► park late_measurement_failed. A dirty
                                      tree parks naming its paths one step
                                      earlier; the gate refuses the reading a

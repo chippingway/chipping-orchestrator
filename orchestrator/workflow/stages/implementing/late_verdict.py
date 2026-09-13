@@ -32,6 +32,8 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
 from orchestrator.workflow.stages.implementing import (
+    late_authority as _authority,
+    late_consent as _consent,
     late_parks as _parks,
     late_records as _records,
 )
@@ -69,7 +71,27 @@ def _settled(gate: _records._Gate, generation: LateGeneration) -> bool:
 
     Strictly past the ceiling, which is the record's own comparison: a
     candidate exactly at the configured value publishes, so the trigger cannot
-    move by one line when the threshold is retuned.
+    move by one line when the threshold is retuned. That boundary is the same
+    one for every candidate here, an adjudicated one included: a commit an
+    exemption names and no operator authorization stands behind is measured
+    like any other, and one that comes back at or below the ceiling publishes
+    on the count exactly as it always did.
+
+    An oversized one is held, and only WHERE differs. A candidate nothing has
+    ruled on goes to the adjudication. One an exemption already names has been
+    ruled on -- what it is missing is the human, not the verdict -- so sending
+    it back would pay for a second adjudicator over an answered question and
+    risk a `split` cutting children out of work somebody decided ships whole.
+    It waits for the authorization instead, which `late_consent` owns: the
+    park, the command that ends one, and the answer a command naming another
+    commit earns. A count the ceiling lets through takes that park down on its
+    way into the retirement's own durable write, because what the park waits
+    for is a person and this reading says no person was ever needed:
+    published under a record still saying a human holds the issue, the commit
+    would have the source stage stop on its parked road every poll after. A
+    candidate that command DID name publishes down the accepted road's own
+    retirement rather than one of its own, so the generation is retired ahead
+    of the effects it licenses exactly as it is for every other publication.
 
     A count in hand is what a measurement park was waiting for, so this is
     where one is retired -- here and at the unmeasured verdict beside it, and
@@ -89,9 +111,14 @@ def _settled(gate: _records._Gate, generation: LateGeneration) -> bool:
     """
     _parks._retire_spent_park(gate.state)
     settled = _parks._measured(generation)
-    if settled.is_oversized:
+    if not settled.is_oversized:
+        _parks._retire_authorized_park(gate.state)
+        return _accepted(gate, settled)
+    if not _authority._unauthorized_exemption(gate, settled.candidate_sha):
         return _routed(gate, settled)
-    return _accepted(gate, settled)
+    if not _consent._authorizes_the_park(gate, settled):
+        return True
+    return _authorized(gate, settled)
 
 
 def _accepted(gate: _records._Gate, generation: LateGeneration) -> bool:
@@ -461,7 +488,14 @@ def _unmeasured_verdict(
     what comes back is the same answer with the hold taken off. The default is
     the empty one, which is the road that proved no commit at all.
 
-    `permitted_sha` on it is handed straight back rather than derived, because
+    `basis` on it says what ADMITTED the candidate, and only the answer that
+    admitted it can say. Any road that re-asked here would be taking the proof
+    a SECOND time, and a proof that succeeded at the gate and fails a moment
+    later -- a store that stopped answering in between -- would record an
+    operator's bypass as ordinary unmeasured debt, which the tick after a
+    crash spends without asking anyone.
+
+    `permitted_sha` is handed straight back rather than derived, because
     only the caller knows which of the roads past the measurement this is. A
     transfer's is the one road whose publication may MOVE a human's verdict,
     and the write past the push has to be able to tell it from every other
@@ -481,13 +515,13 @@ def _unmeasured_verdict(
         return _records._HELD
     _parks._retire_authorized_park(gate.state)
     _owed_by_an_unmeasured_push(
-        gate, admitted.candidate_sha, _frozen_lease(gate),
+        gate, admitted.candidate_sha, _frozen_lease(gate), admitted.basis,
     )
     return replace(admitted, held=False)
 
 
 def _owed_by_an_unmeasured_push(
-    gate: _records._Gate, candidate_sha: str, lease: str,
+    gate: _records._Gate, candidate_sha: str, lease: str, basis: str = "",
 ) -> None:
     """Name the commit an unmeasured publication owes a push for, durably.
 
@@ -531,12 +565,12 @@ def _owed_by_an_unmeasured_push(
     that instead. What the switch decides is the measurement; the account of
     what a push is putting where is not its to turn off.
     """
-    if _stages_unmeasured_debt(gate, candidate_sha, lease):
+    if _stages_unmeasured_debt(gate, candidate_sha, lease, basis):
         gate.gh.write_pinned_state(gate.issue, gate.state)
 
 
 def _stages_unmeasured_debt(
-    gate: _records._Gate, candidate_sha: str, lease: str,
+    gate: _records._Gate, candidate_sha: str, lease: str, basis: str = "",
 ) -> bool:
     """Put the debt an unmeasured push owes in memory, and say whether it did.
 
@@ -553,12 +587,22 @@ def _stages_unmeasured_debt(
     honest: an owner that staged nothing has nothing of this to make durable
     and says so, instead of spending a request on a comment it did not change.
 
-    What the debt RESTS on is the UNMEASURED basis, which is what every road
-    reaching here is: a rewrite permit, a supersession the switch let past, a
-    receipt the remote already carries. Each of those is a record this
-    workflow made for itself and re-derives on the next tick, so it answers
-    for its own bypass and nothing about the debt it leaves has to be
-    revalidated before the tick after a crash spends it.
+    What the debt RESTS on is handed DOWN from the answer that admitted the
+    candidate rather than re-derived here, and that difference is the whole of
+    it. A commit an exemption and an authorization both vouch for leaves a
+    debt that may be spent only while that authorization can still be read --
+    but proving one is a git reading, and a second reading is a second chance
+    to fail. Re-asked here, a store that stopped answering between the gate's
+    proof and this write would record an operator's bypass as ordinary
+    unmeasured debt, and the tick after a crash would spend it without asking
+    anyone. Handed down, the record says what the gate actually decided on.
+
+    A road that carried nothing records the ordinary unmeasured basis, and so
+    does a value from outside this build's own vocabulary: what a caller
+    cannot name is not a claim the record may carry. That is every other road
+    here -- a rewrite permit, a supersession the switch let past, a receipt
+    the remote already carries -- each a record this workflow made for itself
+    and re-derives on the next tick.
     """
     if _parks._approved_commit(gate.state) == candidate_sha:
         return False
@@ -569,9 +613,10 @@ def _stages_unmeasured_debt(
         "standing at %s; recording the debt before the push that pays it",
         gate.issue.number, candidate_sha, lease,
     )
-    _parks._approve(
-        gate.state, candidate_sha, lease, _parks.LateApprovalBasis.UNMEASURED,
-    )
+    admitted = _parks.LateApprovalBasis.UNMEASURED
+    if basis in tuple(_parks.LateApprovalBasis):
+        admitted = _parks.LateApprovalBasis(basis)
+    _parks._approve(gate.state, candidate_sha, lease, admitted)
     _late_state.write_late_spends(gate.state, gate.spends.fields)
     return True
 

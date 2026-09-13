@@ -1211,7 +1211,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
      implementation the first one finished. Each hands its answer to the same committed-work seam a finished run
      publishes through, so a recovery reaches exactly the outcomes a fresh disposition does — published, held, or
      parked again with the reason it fails for now — and decides nothing the gate would have decided. None of them
-     CREATES a park; no road in this build takes the third one at all.
+     CREATES a park; the third one is taken by the reading itself, on an oversized candidate whose exemption has no
+     operator authorization behind it.
      - The third is the one every poll reaches, because an issue behind it has committed work and no run to dispose:
        nothing else on the tick would measure the candidate again or say a sentence the park still owes. What a poll
        costs is what the thread says — the command is acted on, guidance falls through to the ordinary resume, and a
@@ -1306,7 +1307,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        grandchild cannot keep committing into the worktree after the timeout is recorded.
      - new commits + clean tree → the **late size gate** first (`implementing/late_gate.py` and the
        `late_records` / `late_freeze` / `late_evidence` / `late_verdict` / `late_parks` owners under it, plus
-       `late_consent` / `late_command` for the `late_unauthorized_exemption` park no road in this build CREATES,
+       `late_authority` for whether an adjudicated commit has a human behind it and `late_consent` / `late_command`
+       for the `late_unauthorized_exemption` park an oversized one without one takes,
        whose standing form the recovery above routes on every poll), the
        one seam
        all three committed dispositions publish through — a run that finished, a timeout that had committed, and a
@@ -1317,11 +1319,17 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        ([`../configuration.md`](../configuration.md#cadence-and-budgets)) added lines routes the issue to
        `workflow:decomposing` with nothing pushed and no pull request opened; at or below it publishes as below and
        the generation is dropped, leaving `late_retired_cycle_id` so the next candidate cannot answer to the same
-       cycle number. Three commits skip the measurement because this workflow already decided about them, each
+       cycle number. Four commits skip the measurement because this workflow already decided about them, each
        named exactly and only by its own record: the one an authorized settlement accepted (`late_exempt_sha`,
-       which an adjudicator's own `single` never writes -- that parks for the decision), the one the
-       gate approved and has still to push (`late_approved_sha`), and the one this stage already pushed
-       (`implementing_published_sha`). So does every candidate while `DECOMPOSE=off` — except
+       which an adjudicator's own `single` never writes -- that parks for the decision) *and* an operator
+       authorized (the `late_override_*` group, whose recorded pair is fingerprinted again here and held to the
+       digest it carries — an exemption alone is half a bypass and goes to the ordinary reading), the one the
+       gate approved and has still to push (`late_approved_sha`, unless its `late_approved_basis` says the debt
+       rests on that same unauthorized exemption), the one this stage already pushed
+       (`implementing_published_sha`), and
+       the one an open pull request this call froze is already standing on, where the push would move nothing and
+       only the bookkeeping behind a publication that has happened is owed. So does every candidate while
+       `DECOMPOSE=off` — except
        one this issue has a recorded generation for *that same commit*, one it owes a push for, and
        one **answering a reading the gate itself recorded**. A generation naming some OTHER candidate is one a
        resumed developer's fresh commit has moved past, and the fresh commit is new work: published untouched with

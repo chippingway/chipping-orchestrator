@@ -29,6 +29,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.conflicts import state as _state
 from orchestrator.workflow.stages.implementing import late_parks as _parks
 from orchestrator.workflow.state import WorkflowLabel
+from tests.support.authorization import _authorize
 from tests.workflow.repo_values import (
     CONTRIBUTION_DIGEST,
     DIGEST_LENGTH,
@@ -112,6 +113,10 @@ def adjudicated_state(*, identity: bool = True, damaged: tuple = ()) -> dict:
     is seeded with exactly what an adjudication produces -- and damaged the way
     a live comment gets damaged, by taking a member out of a group that really
     round-tripped.
+
+    The terms an operator authorized the publication on go down with the
+    verdict, since an exemption is half a bypass and a replay of a commit only
+    it names earns no transfer.
     """
     state = PinnedState(state_data={})
     _exemption.record_exemption(state, ADJUDICATED_HEAD)
@@ -122,6 +127,9 @@ def adjudicated_state(*, identity: bool = True, damaged: tuple = ()) -> dict:
             candidate_sha=ADJUDICATED_HEAD,
             fingerprint=CONTRIBUTION_DIGEST,
         )
+    _authorize(
+        state, ADJUDICATED_HEAD, ADJUDICATED_BASE, CONTRIBUTION_DIGEST,
+    )
     for taken in damaged:
         state.data.pop(taken, None)
     return state.data

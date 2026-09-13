@@ -231,12 +231,15 @@ def _unentered(
     on the branch. Recorded against the caller's own lease, a tick that dies
     between the push and the receipt comes back to an issue that says which
     commit is owed a publication and what it is pinned to, rather than to one
-    that looks as though it has published nothing.
+    that looks as though it has published nothing. What it RESTS on comes off
+    the verdict rather than being asked again here: only the answer that
+    admitted the candidate can say, and a second proof is a second chance to
+    fail -- one that would record an operator's bypass as ordinary debt.
     """
     revision = verdict.candidate_sha or _checkout_head(gate)
     if not verdict.held:
         _verdict_owner._owed_by_an_unmeasured_push(
-            gate, revision, entered.head,
+            gate, revision, entered.head, verdict.basis,
         )
     return _PublishedCandidate(
         held=verdict.held,

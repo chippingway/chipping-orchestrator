@@ -240,7 +240,15 @@ where you put it rather than greeted a second time, so nothing runs again until 
 - `/orchestrator authorize-oversized <commit>` — post this as the entire comment on an issue parked under
   `workflow:decomposing` because the late decomposer read its committed candidate as one change it could not split.
   That park is the orchestrator refusing to publish past `MAX_ADDED_LINES` on an agent's say-so; this command is you
-  deciding it may, and it is the only reply that does. `<commit>` is the candidate's full git object id — an
+  deciding it may, and it is the only reply that does. It also ends the `late_unauthorized_exemption` park, which an
+  issue takes wherever it publishes from when its committed candidate carries an exemption an older build recorded
+  without an operator's decision behind it — or one whose authorization a hand edit or a half-written crash left
+  unreadable. The record is left exactly as found either way — nothing is deleted or rewritten to take that park —
+  and a change measuring at or below the ceiling publishes without the command at all. Whether prose does anything
+  there depends on where the issue is: before it has a pull request a reply resumes the developer, and once one
+  carries the work the command is the only reply that stage reads — the park comment says which of the two you are
+  looking at.
+  `<commit>` is the candidate's full git object id — an
   abbreviation is refused, since nothing here ever writes one. The park comment names the commit, and spells the whole
   command out ready to copy. Nothing else authorizes a publication:
   `/orchestrator continue` is refused, prose is guidance (which resumes the dev agent against it and re-measures what

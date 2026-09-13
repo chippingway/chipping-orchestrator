@@ -19,6 +19,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
+    overrides as _overrides,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -148,26 +149,39 @@ class _SettlementCase(unittest.TestCase):
         return self.github.read_pinned_state(self.issue)
 
     def _assert_carried(self) -> None:
-        """The verdict is on the rewritten commit, with what it contributes."""
+        """The verdict is on the rewritten commit, with what it contributes.
+
+        The operator authorization travels with it, because the two are one
+        claim in two halves: left behind, the rewritten commit would carry a
+        verdict with no gesture standing for it and the gate would stop a
+        publication a human has already decided.
+        """
         durable = self._durable()
         self.assertTrue(_exemption.is_exempt(durable, REWRITTEN_SHA))
         identity = _exemption.read_semantic_identity(durable)
         self.assertEqual(identity.base_sha, MERGE_BASE_SHA)
         self.assertEqual(identity.candidate_sha, REWRITTEN_SHA)
         self.assertEqual(identity.fingerprint, ACCEPTED_DIGEST)
+        self.assertTrue(_overrides.is_authorized(durable, REWRITTEN_SHA))
         self.assertEqual(
             _rewrites.read_rewrite_authorization(durable).phase,
             _rewrites.LateRewritePhase.PUBLISHED,
         )
 
     def _assert_left_put(self) -> None:
-        """The verdict is exactly where the adjudication put it."""
+        """The verdict is exactly where the adjudication put it.
+
+        The authorization with it: an exemption that did not move is still
+        half a bypass, and one whose other half had moved would name a commit
+        nobody granted it for.
+        """
         durable = self._durable()
         self.assertTrue(_exemption.is_exempt(durable, ACCEPTED_SHA))
         self.assertEqual(
             _exemption.read_semantic_identity(durable).candidate_sha,
             ACCEPTED_SHA,
         )
+        self.assertTrue(_overrides.is_authorized(durable, ACCEPTED_SHA))
 
 
 class LandedTransferTest(_SettlementCase):

@@ -47,6 +47,7 @@ from orchestrator.workflow.stages.implementing import (
     late_transfer as _transfer,
 )
 from orchestrator.workflow.state import WorkflowLabel
+from tests.support.authorization import _authorize
 from tests.support.fakes import (
     FakeGitHubClient,
     FakeLabel,
@@ -107,14 +108,18 @@ class _RealReplayCase(ObservedCloseCase, ReplayRepositoryMixin):
         ))
         github.seed_state(ISSUE_NUMBER, pr_number=PR_NUMBER)
         state = github.read_pinned_state(issue)
+        contributes = self._contributes(
+            self.replay.accepted_base, self.replay.accepted,
+        )
         _exemption.record_exemption(state, self.replay.accepted)
         _exemption.record_semantic_identity(
             state,
             base_sha=self.replay.accepted_base,
             candidate_sha=self.replay.accepted,
-            fingerprint=self._contributes(
-                self.replay.accepted_base, self.replay.accepted,
-            ),
+            fingerprint=contributes,
+        )
+        _authorize(
+            state, self.replay.accepted, self.replay.accepted_base, contributes,
         )
         github.write_pinned_state(issue, state)
         return _late_records._gate(

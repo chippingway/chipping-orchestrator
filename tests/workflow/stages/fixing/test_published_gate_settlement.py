@@ -25,6 +25,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.stages.implementing import late_push as _late_push
+from tests.workflow.fixtures import _authorized_exemption
 from tests.workflow.stages.fixing import (
     fixing_test_support as fixing,
     published_gate_support as support,
@@ -53,9 +54,6 @@ config = fixing.config
 PUBLICATION_PAID = "_publication_paid"
 TICK_DIED = "the tick died around the settlement"
 
-# The verdict a human's adjudication reached, which is what carries a commit
-# past the measurement without a generation being frozen for it.
-KEY_EXEMPT_SHA = "late_exempt_sha"
 KEY_SPENDS = "late_spends"
 
 # What the in_review fix route leaves `review_round` at: reset to zero, since
@@ -173,7 +171,7 @@ class UnmeasuredDebtTest(unittest.TestCase, _SizeGateFixtureMixin):
         a tick's work later.
         """
         return self._seed_fix_round(**{
-            KEY_EXEMPT_SHA: MEASURED_CANDIDATE_SHA,
+            **_authorized_exemption(),
             **support.receipt_group(
                 MEASURED_CANDIDATE_SHA,
                 lease=PR_HEAD_SHA,

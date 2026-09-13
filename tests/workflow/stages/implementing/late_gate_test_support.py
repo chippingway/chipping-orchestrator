@@ -103,6 +103,12 @@ KEY_CURRENT_ISSUE = "late_current_issue"
 KEY_LINEAGE_DEPTH = "late_lineage_depth"
 KEY_SCOPE = "late_scope"
 KEY_EXEMPT_SHA = "late_exempt_sha"
+
+# The park an adjudicated candidate is held on while nothing says a human
+# authorized publishing it: its own reason, because what ends it is a named
+# command rather than another reading or another look at the checkout.
+PARK_UNAUTHORIZED_EXEMPTION = "late_unauthorized_exemption"
+
 KEY_RETIRED_CYCLE = "late_retired_cycle_id"
 
 PHASE_MEASURING = "measuring"

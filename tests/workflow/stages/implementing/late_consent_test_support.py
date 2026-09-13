@@ -70,6 +70,11 @@ FINGERPRINT_CONTRIBUTION = "_fingerprint_contribution"
 FROZEN_PAIR = "_frozen_pair"
 COUNT_ADDED_LINES = "_count_added_lines"
 SETTLED = "_settled"
+# The two the verdict owner reaches past that one: the publication a count at
+# or below the ceiling earns, and the hold an oversized candidate nobody has
+# ruled on is routed by.
+ACCEPTED = "_accepted"
+ROUTED = "_routed"
 RECONCILED_MEASUREMENT = "_reconciled_measurement"
 FRESHLY_MEASURED = "_freshly_measured"
 PARK_AWAITING_HUMAN = "_park_awaiting_human"
@@ -199,14 +204,16 @@ PUBLISHED_ENTRY = _records._PublicationEntry(
 def measured_pair(**overrides) -> dict:
     """The pair the freeze wrote, which is all a standing park carries.
 
-    Deliberately without the count: a generation answering "oversized" is what
-    this workflow means by an adjudication in flight, so a park that recorded
-    one would be relabelled out from under itself before anything could answer
-    it. What the announce-once guard compares is the COMMIT.
+    Deliberately without the count, which is what the freeze itself persists:
+    a generation answering "oversized" is what this workflow means by an
+    adjudication in flight, so a park that recorded one would be relabelled
+    out from under itself before anything could answer it -- and a recorded
+    number is what the gate acts on instead of taking the reading again. What
+    the announce-once guard compares is the COMMIT.
     """
     recorded = PinnedState(data={})
     _late_state.write_late_generation(
-        recorded, replace(measured(), additions=0, **overrides),
+        recorded, replace(measured(), additions=None, **overrides),
     )
     return recorded.data
 
@@ -231,20 +238,22 @@ class FreezesThePair:
         if self._pair is None:
             return None
         frozen = replace(
-            self._pair, candidate_sha=candidate_sha, additions=0,
+            self._pair, candidate_sha=candidate_sha, additions=None,
         )
         _late_state.write_late_generation(gate.state, frozen)
         gate.gh.write_pinned_state(gate.issue, gate.state)
-        return replace(frozen, additions=None)
+        return frozen
 
 
 @dataclass(frozen=True)
 class GateDecision:
-    """What one gate call answered, and which road it took to answer it.
+    """What one gate call answered, and whether it needed a reading to.
 
-    The road is the point on the door's own cases: the policy behind it and
-    the ordinary measurement below it reach the same two verdicts, so a case
-    asking only what came back could not tell which one decided.
+    Both facts, because the roads past the gate reach the same two verdicts:
+    a commit two records vouch for publishes without a count, and one an
+    exemption alone names publishes only once the count says the ceiling lets
+    it through, so a case asking only what came back could not tell them
+    apart.
     """
 
     verdict: object
@@ -491,26 +500,24 @@ class _ParkedCase(_PatchedWorkflowMixin):
 class _ConsentCase(_ParkedCase):
     """One gate call asking whether this candidate may publish as it stands."""
 
-    def _authorizes(
-        self,
-        contribution=CONTRIBUTED,
-        parked_over: str = MEASURED_CANDIDATE_SHA,
-        **entered,
-    ) -> bool:
-        """The reply half alone, over a park already standing on this commit."""
+    def _authorizes(self, contribution=CONTRIBUTED, **entered) -> bool:
+        """The reply half alone, over the reading the gate has already taken."""
         with patch.object(
             _fingerprint, FINGERPRINT_CONTRIBUTION, return_value=contribution,
         ):
             return _consent._authorizes_the_park(
-                self._gate(**entered), measured(), parked_over,
+                self._gate(**entered), measured(),
             )
 
     def _holds(self, counted=OVERSIZED, pair=..., **entered) -> bool:
-        """A whole gate call behind the door, freeze and count included.
+        """The whole ordinary reading this park is reached from.
 
-        The road a restart actually takes, so the record this tick writes and
-        the record the last one left are two different things -- which is what
-        every case about a lost write and a moved candidate turns on.
+        The gate's own freeze-and-count rather than a road of this owner's,
+        because that is what a tick actually walks: the park is what an
+        oversized answer to it earns, and every way the reading can fail is
+        the measurement's own. The record this tick writes and the record the
+        last one left are two different things, which is what every case about
+        a lost write and a moved candidate turns on.
         """
         frozen = measured() if pair is ... else pair
         with (
@@ -521,43 +528,51 @@ class _ConsentCase(_ParkedCase):
                 return_value=CONTRIBUTED,
             ),
         ):
-            return _consent._holds_until_authorized(
+            return _reading._freshly_measured(
                 self._gate(**entered), measured(), MEASURED_CANDIDATE_SHA,
             )
 
     def _decides(self, counted=OVERSIZED, **entered) -> GateDecision:
-        """One whole gate decision over this candidate, its door included.
+        """One whole gate decision over this candidate, reading and all.
 
-        The ordinary measurement below the door is stubbed at its own seam
-        rather than run: what a case here asks is which road the tick took,
-        and the readings beside it own their own answers.
+        The measurement is RUN rather than stubbed, because the road this park
+        is reached down is the ordinary one: a case that cut the reading out
+        would answer a question no tick asks. What says which road was taken
+        is whether a count was needed at all.
         """
         with (
             patch.object(_freeze, FROZEN_PAIR, FreezesThePair(measured())),
-            patch.object(_additions, COUNT_ADDED_LINES, return_value=counted),
+            patch.object(
+                _additions, COUNT_ADDED_LINES, return_value=counted,
+            ) as counting,
             patch.object(
                 _fingerprint, FINGERPRINT_CONTRIBUTION,
                 return_value=CONTRIBUTED,
             ),
-            patch.object(
-                _reading, RECONCILED_MEASUREMENT, return_value=True,
-            ) as reconciled,
-            patch.object(_reading, FRESHLY_MEASURED, return_value=True) as fresh,
         ):
+            gate = self._gate(**entered)
             verdict = _gate._decided(
-                self._gate(**entered), measured(), MEASURED_CANDIDATE_SHA,
+                gate,
+                _late_state.read_late_generation(gate.state),
+                MEASURED_CANDIDATE_SHA,
             )
-            ordinary = reconciled.called or fresh.called
+            ordinary = counting.called
         return GateDecision(verdict=verdict, measured=ordinary)
 
-    def _crashes_past_our_sentence(self) -> None:
+    def _crashes_past_our_sentence(self, *, parked: bool = True) -> None:
         """Run one whole call, and lose the write past whatever it posted.
 
         The window itself rather than a count of writes, so the same helper
         reproduces it for the park's notice and for the refusal alike: what it
         kills is always the write that would have recorded the sentence this
         call just said.
+
+        `parked=False` is the call that TAKES the park, which is the only one
+        that says its notice: a park already standing over the pair the freeze
+        just wrote has said that sentence on an earlier tick, so a case
+        seeding one would reproduce the quiet road instead of the window.
         """
+        self._seed(parked=parked)
         with (
             patch.object(
                 self.github, WRITE_PINNED_STATE,
