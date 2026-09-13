@@ -19,8 +19,10 @@ per-file-ignores =
     orchestrator/runtime/exclusion.py:WPS202
     orchestrator/git/base_sync/attempts.py:WPS202
     orchestrator/git/base_sync/persistence.py:WPS202
+    orchestrator/git/base_sync/transfers.py:WPS201,WPS202
     orchestrator/git/snapshots/refs.py:WPS202
     orchestrator/workflow/state.py:WPS202
+    orchestrator/workflow/late_split/exemption.py:WPS202
     orchestrator/workflow/late_split/models.py:WPS214
     orchestrator/workflow/late_split/rewrites.py:WPS202
     orchestrator/workflow/late_split/lineage.py:WPS202
@@ -101,6 +103,7 @@ per-file-ignores =
     tests/workflow/engine/usage_test_support.py:WPS202
     tests/workflow/late_split/generation_test_support.py:WPS202
     tests/workflow/late_split/test_events.py:WPS202
+    tests/workflow/late_split/test_exemption.py:WPS202
     tests/workflow/patch_models.py:WPS202
     tests/workflow/stages/implementing/test_late_transfer.py:WPS202
     tests/workflow/stages/implementing/late_transfer_test_support.py:WPS202

@@ -1,6 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The one commit an accepted candidate publishes under, and what it carries."""
+"""The one commit an accepted candidate publishes under, and what it carries.
+
+The seeds sit beside the cases rather than in a module of their own, and that
+is what the member count here buys: every record a case is asked about is
+written through the owner's own writer, so a case cannot be posed against a
+comment no write would produce -- and damage is made the way a live comment
+gets damaged, by taking a member out of a group that really round-tripped.
+"""
 from __future__ import annotations
 
 import unittest
@@ -326,3 +333,49 @@ class SemanticIdentityTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClaimedExemptionTest(unittest.TestCase):
+    """Telling a comment that never had a verdict from one something damaged.
+
+    The readers beside this answer None for both, which is right for the gate
+    -- its only move is to measure the candidate afresh -- and wrong for a
+    caller whose move is to walk past the issue as though nothing were in
+    flight. What that caller asks is presence, and these are the three answers
+    it can get.
+    """
+
+    def test_a_comment_with_no_verdict_claims_none(
+        self,
+    ) -> None:
+        self.assertFalse(_exemption.unreadable_exemption(empty_state()))
+
+    def test_a_whole_record_shows_its_claim(self) -> None:
+        self.assertFalse(_exemption.unreadable_exemption(identified_state()))
+
+    def test_a_legacy_comment_is_complete(self) -> None:
+        # The exempt commit and nothing beside it, which is the whole of what
+        # an older binary wrote. It costs a later tick the transfer rather
+        # than the verdict, so it may not read as damage.
+        self.assertFalse(_exemption.unreadable_exemption(exempted_state()))
+
+    def test_an_exemption_that_is_not_a_commit(
+        self,
+    ) -> None:
+        for written in _NOT_A_COMMIT:
+            with self.subTest(written=written):
+                state = exempted_state()
+                state.data[_exemption.LATE_EXEMPT_SHA] = written
+
+                self.assertTrue(_exemption.unreadable_exemption(state))
+
+    def test_an_unreadable_identity_still_claims(
+        self,
+    ) -> None:
+        # A group with a member present that does not read back whole says
+        # what this commit contributes and cannot be held to it.
+        for described, damage in _UNUSABLE_IDENTITIES.items():
+            with self.subTest(record=described):
+                self.assertTrue(
+                    _exemption.unreadable_exemption(damaged_state(damage)),
+                )

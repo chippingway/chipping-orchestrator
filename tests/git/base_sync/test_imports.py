@@ -45,12 +45,14 @@ _FROZEN_OWNER = "orchestrator.git.base_sync.frozen"
 
 _ATTEMPTS_OWNER = "orchestrator.git.base_sync.attempts"
 
+_TRANSFERS_OWNER = "orchestrator.git.base_sync.transfers"
+
 _OWNERS = (
     _MODELS_OWNER, _PRE_PR_OWNER, _REFRESH_OWNER, _REFRESH_SELECTION_OWNER,
     _STATE_OWNER, _PERSISTENCE_OWNER, _OUTCOMES_OWNER, _SNAPSHOT_OWNER,
     _RECOVERY_OWNER, _STARTUP_OWNER, _ELIGIBILITY_OWNER, _PUBLICATION_OWNER,
     _GUARDS_OWNER, _PR_OWNER, _CONFLICTS_OWNER, _FROZEN_OWNER,
-    _ATTEMPTS_OWNER,
+    _ATTEMPTS_OWNER, _TRANSFERS_OWNER,
 )
 
 _MODULES = ("orchestrator.git.base_sync", *_OWNERS)
@@ -120,6 +122,7 @@ _OWNER_ONLY_NAMES = (
     "_recover_pending_auto_base_rebase",
     "_refresh_base_and_worktrees",
     "_reset_clear_and_park",
+    "_rewritten_by_the_rebase",
     "_route_pr_worktree_to_resolving_conflict",
     "_start_auto_rebase",
     "_sync_pr_worktree_to_base",

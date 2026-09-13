@@ -784,6 +784,15 @@ def _recorded_candidate(state: _pinned_state.PinnedState) -> str:
     return _late_state.read_late_generation(state).candidate_sha
 
 
+# Everything one standing debt goes down as, taken as one group: the commit a
+# push is owed for, the head that push is pinned to, and the grounds the debt
+# rests on. Spelled once so the reader that refuses a half-written group and
+# the write that ends one cannot come to disagree about what the group is.
+_APPROVAL_KEYS = (
+    _state._APPROVED_SHA, _state._APPROVED_LEASE, _state._APPROVED_BASIS,
+)
+
+
 def _approved_commit(state: _pinned_state.PinnedState) -> str:
     """The commit an approval owes a publication for, or "" where none does.
 
@@ -859,6 +868,40 @@ def _unreadable_basis(state: _pinned_state.PinnedState) -> bool:
     if state.get(_state._APPROVED_BASIS) is None:
         return False
     return not _approved_basis(state)
+
+
+def _unreadable_approval(state: _pinned_state.PinnedState) -> bool:
+    """Whether this comment CLAIMS a debt it cannot show whole.
+
+    Presence rather than truth, and the question a caller asks before it acts
+    on a debt having been PAID. The readers above answer "nothing owed" for a
+    group a hand edit or a half-written crash left unreadable exactly as
+    readily as for one the write that pays a debt blanked -- which is the
+    right answer for a road deciding whether to spend an approval, and the
+    wrong one for a road deciding whether the write that should have settled a
+    publication landed at all. Read as the absence, a group standing over a
+    commit nobody can name would pass as a debt somebody paid.
+
+    Three shapes count, and each is the group disagreeing with itself. A
+    member carrying something beside a commit this build cannot read is one:
+    the debt names no commit and the record is still claiming one. A lease
+    present that is not a commit is another, since the head a published
+    approval was frozen against is what its retry is pinned to and a value
+    nothing can read is no pin. And a basis the record carries and cannot name
+    is the third, on the terms `_unreadable_basis` beside it already states.
+
+    False for the ordinary comment, which carries a group of nulls: the write
+    that ends a debt blanks these fields rather than removing them, so all
+    three absent is the record nobody wrote.
+    """
+    if all(state.get(key) is None for key in _APPROVAL_KEYS):
+        return False
+    if not _approved_commit(state):
+        return True
+    leased = state.get(_state._APPROVED_LEASE) is not None
+    if leased and not _approved_lease(state):
+        return True
+    return _unreadable_basis(state)
 
 
 def _approve(
@@ -1005,9 +1048,8 @@ def _forget_approval(state: _pinned_state.PinnedState) -> None:
     left standing would be restored by the next approval on this issue and
     applied to a round it was never owed for.
     """
-    state.set(_state._APPROVED_SHA, None)
-    state.set(_state._APPROVED_LEASE, None)
-    state.set(_state._APPROVED_BASIS, None)
+    for key in _APPROVAL_KEYS:
+        state.set(key, None)
     _late_state.write_late_spends(state, ())
 
 
