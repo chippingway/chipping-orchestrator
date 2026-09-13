@@ -121,7 +121,10 @@ takes instead of publishing — adjudication runs under the existing decomposing
 own the same edge, and they own it because the gate stands in front of every push onto a pull request the remote
 already carries: a commit joining a branch a pull request is open on is measured for what that pull request would COME
 TO, and one past the ceiling is held off it and adjudicated from whichever of the five states that push was reached
-under. The pre-PR states own no such edge — nothing there has a publication to be measured against.
+under. A candidate an exemption nothing authorized names takes none of those edges at any of the six: the change has
+been ruled one change already, so it is held where it stands under `late_unauthorized_exemption` and waits for the
+operator instead ([the HITL park](#pinned-state)). The pre-PR states own no such edge — nothing there has a
+publication to be measured against.
 The same five own the edge BACK — `workflow:decomposing → workflow:validating` / `workflow:documenting` /
 `in_review` / `workflow:fixing` / `workflow:resolving_conflict` — because a settlement returns the
 issue to the stage it was taken out of rather than to `workflow:implementing`: that stage is the only owner of the
@@ -840,8 +843,10 @@ The keys that matter for the state machine fall into a few groups:
   The same rule decides which parks a road may retire at all. A reading answers the park a READING was owed, so
   `late_parks._retire_spent_park` ends `late_measurement_failed` and nothing else; this park waits on a person,
   and no reading anybody takes answers a person, so it comes off only where a publication under it actually
-  happens — `late_parks._retire_authorized_park`, called past every refusal on the one gate road that publishes a
-  commit an override already covers.
+  happens — `late_parks._retire_authorized_park`, called past every refusal on both of the gate's answers that
+  publish without asking anybody: every road that skips the reading altogether, which under a standing park means a
+  commit an override now covers or the bookkeeping owed for one its own pull request already stands on, and a fresh
+  count the ceiling lets through, which says no person was ever needed for a change this size.
 
   Where the publication does happen, that same reading is what **spends** the command. `late_consent` consumes the
   reply in the write that records an authorization from it, but two of the gate's roads publish without reading the

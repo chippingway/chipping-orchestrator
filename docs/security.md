@@ -594,6 +594,20 @@ since all leave a trusted comment claiming something GitHub no longer agrees wit
 irreversible there — a force-push over somebody's work, a second pull request opened over work the first already
 carries — so the publication side proves the record against the remote rather than acting on it.
 
+- **An agent's own verdict cannot waive the added-line ceiling.** `late_exempt_sha` records that a late adjudication
+  ruled a committed candidate one coherent change, and an adjudicator is an agent — so on its own it says a decision
+  was made and nothing about who made it, which is the one claim a guard against agents publishing unreviewed bulk
+  may not be waived by. A commit it names alone is therefore measured like any other candidate, and an oversized one
+  parks `late_unauthorized_exemption` for an operator instead of publishing. What skips the reading is that field
+  asked together with the `late_override_*` group a trusted whole-comment `/orchestrator authorize-oversized
+  <commit>` writes, both naming the same commit — and the group is PROVED rather than read, since every term of it
+  but one is the pinned comment agreeing with itself: the contribution between the pair it records is fingerprinted
+  again at the gate and held to the digest it carries, so a hand edit that names this candidate over a pair nobody
+  froze costs a measurement rather than buying a bypass. A record an older build wrote with no authorization beside
+  it, one a crash half-wrote, and one whose digest no longer agrees are the same answer, and none of them is
+  repaired or deleted to reach it. The same question is asked of a publication DEBT before it is spent and of a
+  rewrite before an exemption may move onto the commit it produced
+  ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).
 - **A publication receipt is a group, and a partial one is damage.** `implementing_published_sha`,
   `implementing_published_lease` and `implementing_published_pr` are written in one call and cleared in one call, so a
   group that reads back partial — a key that has gone, a value this build cannot read, a commit with no number beside

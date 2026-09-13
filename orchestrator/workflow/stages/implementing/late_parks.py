@@ -703,12 +703,16 @@ def _retire_authorized_park(state: _pinned_state.PinnedState) -> None:
     """Drop the authorization park a publication under it is the answer to.
 
     The park an adjudicated candidate takes when nobody has authorized it,
-    taken down by the one tick that publishes the commit an override already
-    covers. That road never reads the thread -- the record answers the park's
-    own question before the gate's door is reached -- so nothing else on it
-    would ever take the flag off, and a published commit would leave an issue
-    still saying a human is holding it, with the source stage's parked road
-    stopping on every poll after.
+    taken down by both of the answers that publish one from under it without
+    asking anybody. One is the unmeasured road, where the record answers the
+    park's own question -- an override that now covers the commit, or the
+    bookkeeping owed for one its own pull request already stands on. The other
+    is a fresh count the ceiling lets through, which answers something else
+    entirely: nobody's permission was ever needed for a change this size, so
+    the candidate is not this park's to hold. Neither reads the thread, so
+    nothing else on either would take the flag off, and a published commit
+    would leave an issue still saying a human is holding it, with the source
+    stage's parked road stopping on every poll after.
 
     Retired where the publication is DECIDED rather than on the way into the
     gate, which is the whole of what keeps it apart from the measurement park

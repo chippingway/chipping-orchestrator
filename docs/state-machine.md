@@ -230,7 +230,9 @@ parks the issue as `retry_cap`, says so once, and stands until a human answers i
 of the drift and resume roads below it, so the only thing that lifts it is a trusted `/orchestrator continue` buying
 one more attempt, exactly as on `workflow:decomposing`. New commits on a clean
 tree are measured by the late size gate and then push the branch, open or reuse a PR, and set `workflow:validating`;
-a candidate strictly past `MAX_ADDED_LINES` is held unpublished and routed to `workflow:decomposing` instead, and one
+a candidate strictly past `MAX_ADDED_LINES` is held unpublished and routed to `workflow:decomposing` instead —
+unless an exemption nothing authorized names it, which is a change already ruled one change, so it parks
+`late_unauthorized_exemption` for the operator rather than paying for a second adjudicator — and one
 that could not be measured parks rather than publishing — except a base the TRANSPORT could not reach, which is
 counted quietly for three consecutive misses on the same pair, saying nothing and spawning nothing, before the fourth
 takes that park. The park keeps the frozen pair, names the step the reading stopped at once per step, and is answered
