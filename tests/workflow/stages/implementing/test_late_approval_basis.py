@@ -52,10 +52,16 @@ _LANDED = _publication._PublishedCandidate(
 )
 
 
-def _approved(basis: _parks.LateApprovalBasis) -> PinnedState:
-    """A pinned comment carrying one approval granted on that basis."""
+def _approved(
+    basis: _parks.LateApprovalBasis, *, lease: str = _LEASE_SHA,
+) -> PinnedState:
+    """A pinned comment carrying one approval granted on that basis.
+
+    `lease=""` is the pre-publication shape -- what every implementing-seam
+    approval is -- whose push takes its own reading of the remote.
+    """
     state = PinnedState(data={})
-    _parks._approve(state, MEASURED_CANDIDATE_SHA, _LEASE_SHA, basis)
+    _parks._approve(state, MEASURED_CANDIDATE_SHA, lease, basis)
     return state
 
 
@@ -128,6 +134,52 @@ class ApprovalBasisRecordTest(unittest.TestCase):
 
         self.assertIsNone(state.get(_state._APPROVED_SHA))
         self.assertIsNone(state.get(_state._APPROVED_BASIS))
+
+    def test_a_half_written_group_is_damage(self) -> None:
+        # Presence rather than truth, which is the gap a road deciding whether
+        # a debt was PAID has to act on: the readers answer "nothing owed" for
+        # a group a hand edit left unreadable exactly as they answer for one
+        # the write that pays a debt blanked, so a group standing over a
+        # commit nobody can name would otherwise pass as a debt somebody paid.
+        for described, key, written in (
+            ("a commit that is not one", _state._APPROVED_SHA, "not-a-commit"),
+            ("a commit taken from under its lease", _state._APPROVED_SHA, None),
+            (
+                "a lease that is not a commit",
+                _state._APPROVED_LEASE,
+                MEASURED_CANDIDATE_SHA[:7],
+            ),
+            (
+                "a basis this build cannot name",
+                _state._APPROVED_BASIS,
+                _NOT_A_BASIS,
+            ),
+        ):
+            with self.subTest(described):
+                state = _approved(_parks.LateApprovalBasis.READING)
+                state.set(key, written)
+
+                self.assertTrue(_parks._unreadable_approval(state))
+
+        # And every shape a sound comment arrives in. The paid one is a group
+        # of nulls, since the write that ends a debt blanks these fields
+        # rather than removing them, and the legacy one carries the commit
+        # alone, which is complete for what it says.
+        paid = _approved(_parks.LateApprovalBasis.AUTHORIZATION)
+        _parks._forget_approval(paid)
+
+        for described, state in (
+            ("one a settlement paid", paid),
+            ("a whole group", _approved(_parks.LateApprovalBasis.READING)),
+            ("a pre-publication approval", _approved(
+                _parks.LateApprovalBasis.READING, lease="",
+            )),
+            ("an older binary's approval", PinnedState(
+                data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA},
+            )),
+        ):
+            with self.subTest(described):
+                self.assertFalse(_parks._unreadable_approval(state))
 
     def test_an_operators_gesture_names_two(self) -> None:
         # The group readers ask about rather than either member, since what

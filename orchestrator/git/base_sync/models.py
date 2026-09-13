@@ -175,6 +175,12 @@ class _AutoRebaseRecoveryContext:
     pr_number: int
     label: str
     pending_pre_rebase_sha: str
+    # What the interrupted attempt recorded about its own replay, where it got
+    # as far as recording anything: the head it produced, and the publication
+    # it produced it for. The anchor beside it names the lease and can prove
+    # neither, so this is what says the checkout in front of this recovery is
+    # that attempt's work and what its permit's terms are re-asked against.
+    pending_rewrite: _PendingRewrite = _PendingRewrite()
     behind: int = 0
     unparking_consumed_max: int | None = None
 

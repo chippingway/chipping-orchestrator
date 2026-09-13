@@ -21,13 +21,16 @@ last is held by the loader itself rather than by a check.
 - **At module scope, one exception.** The only name a lower layer may bind above itself is `workflow/state.py`, for
   the label vocabulary it is typed by, and only `github/` and `git/` may bind it — matched on the module boundary in
   the same check, so a sibling of the state owner cannot inherit the exemption by wearing the same prefix.
-- **Over every scope, seven more, each declared per module.** A base sync runs in the git layer but reports to the
+- **Over every scope, eight more, each declared per module.** A base sync runs in the git layer but reports to the
   issue it was started for: `base_sync/conflicts.py`, `base_sync/persistence.py`, and `base_sync/publication.py`
   reach `workflow/engine/comments.py`; `persistence` also `workflow/engine/guards.py` and
   `workflow/stages/implementing/late_parks.py`, to drop the debt the size gate recorded when a refused push sends
   the branch back to where it started; `base_sync/attempts.py` reaches `workflow/late_split/formats.py`, for the
   shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
-  refuses; and `publication` also
+  refuses; `base_sync/transfers.py` reaches `workflow/late_split/exemption.py` and `rewrites.py` plus
+  `workflow/stages/implementing/late_parks.py`, because the evidence one exemption transfer is decided on is spread
+  over the exemption, the permission, the debt written with it, and the receipt, and every one of those is a pinned
+  record a layer above this package; and `publication` also
   `workflow/stages/implementing/late_push.py` and `late_records.py` — the gated push the rebase it is about to
   force-push goes through, since a base that moved changes what the branch adds to it and a pull request may not be
   grown past the ceiling by a refresh either. `publication/rewrite.py` reaches `late_rewrite.py` for the same reason
@@ -355,13 +358,22 @@ orchestrator/
                         against the head this owner read, so a checkout something moved between that read and the
                         gate's own refuses rather than publishing one commit while the notice, the event, and the
                         `validating` route name another -- the lease-pinned force-push, and what an accepted push
-                        writes; and the rewrite evidence handed to that gate beside the candidate, since a clean
-                        replay of a commit an authorized settlement accepted may carry the exemption over: the pair the
-                        pinned record already holds, the pair the replay produced -- over a base frozen from what
-                        the REMOTE says the branch is at, never off the local ref the rebase named, which any
-                        worktree sharing the store can repoint after this tick's fetch -- and the pull request,
-                        stage, and pre-rebase anchor the push is made against, empty where either half cannot be
-                        shown
+                        writes. The rewrite evidence it hands that gate beside the candidate is assembled by
+                        `transfers` rather than here, since the tick that makes the rewrite is not the only one
+                        that needs it
+      transfers.py      what a rebase replaced, and how far the transfer of the exemption over it got. The evidence
+                        a permit is granted on: the pair the pinned record already holds, the pair the replay
+                        produced -- over a base frozen from what the REMOTE says the branch is at, never off the
+                        local ref the rebase named, which any worktree sharing the store can repoint after this
+                        tick's fetch -- and the pull request, stage, and pre-rebase anchor the push is made against,
+                        taken from the interrupted attempt's own record where a caller hands one in and empty where
+                        either pair cannot be shown. Beside it the closed set of answers a tick coming back to a
+                        crash is decided on -- no transfer, a replay no permission was written for, one still
+                        outstanding, one already settled, and a claim nobody can check -- with the evidence
+                        re-derived for the first of those alone, the accounting a road that publishes nothing new
+                        owes, and the rollback a receipt beside a remote that has moved describes. Only the
+                        publisher's own assembly is on a running road; every classification waits for the recovery
+                        that is taught to decide on it
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
                         with
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals
@@ -819,6 +831,8 @@ off a facade:
   `pre_pr` and `pr`, `refresh_selection` asks `frozen` alone, `pr` asks `eligibility`, `startup`, and `publication` in
   that order, and `guards` ends in `persistence`. On the recovery side `recovery` calls `snapshot`, `outcomes`, and
   `persistence`. `attempts` is under both: it owns the record one rebase attempt leaves of itself, and every owner
-  that writes a member of that record or ends it calls through it rather than spelling a key of its own. The three
+  that writes a member of that record or ends it calls through it rather than spelling a key of its own. `transfers`
+  sits beside it on the same terms — it owns what a rebase replaced and how far the transfer of an exemption over it
+  got, `publication` calls it for the evidence the size gate is handed, and nothing else reaches it yet. The three
   keyword-call adapters — the PR sync, the conflict route, and the crash recovery — still take the argument lists
   their callers spell and normalize each into the typed context entry point beside it.

@@ -2247,6 +2247,48 @@ rather than preserving.
   commit nothing exempts — so it is replaced without ceremony. Read as a claim it would refuse every transfer the
   issue could ever earn again.
 
+  **Which window a crash left the transfer in.** The grant sits between the rebase and the push, and both of those
+  sit between the anchor and the receipt, so a tick coming back to an interrupted attempt has five durable moments
+  with four windows between them and has to say which one it is looking at before it finishes anything.
+  [`git/base_sync/transfers.py`](../../orchestrator/git/base_sync/transfers.py) is where that is read, off the pinned
+  comment alone — no git and no request, so the issues that never earned a verdict pay nothing for a question that is
+  not about them — and the answers are closed. *Nothing*: no exemption at all, which is the ordinary interrupted
+  rebase. *Unrecorded*: an exemption and no permission, so the grant was still ahead of the crash and the evidence is
+  re-derived exactly as the dead tick would have taken it — both pairs, the base the REMOTE names, the anchor as the
+  lease, and the pull request and stage `pending_auto_base_rebase_rewrite_pr` / `_stage` recorded, never the ones the
+  issue reads as now. *Outstanding*: a permission for this very head whose `late_approved_sha` and lease agree with
+  it, so the record IS the evidence and the receipt is what is still owed. *Settled*: the receipt landed and the
+  exemption is already on the head, so one write has finished the transfer and a second claim about it would be a
+  second move. *Unvouched*: everything else — a group this build cannot read whole, an exemption CLAIMED and not
+  shown, a proof nothing can be reported from, an outstanding permission naming another commit, or one whose lease,
+  publication, stage, digest, accepted pair, or paired debt belongs to some other attempt. Only *unrecorded* is
+  handed evidence this owner made, and that asymmetry is the safety rule: a grant replaces the whole group rather
+  than adding beside it, so assembling a claim over one already standing would repair a record nobody checked under
+  the authority of the transfer being decided. A *settled* record whose `late_rewrite_to_sha` is this attempt's own
+  anchor is passed over rather than refused — it is the PREVIOUS rotation, which is never cleared and whose lease
+  belongs to the attempt before this one. So is a group the exemption has moved PAST, asked through
+  `claims_the_exemption` exactly as the grant asks it: nothing but the next grant clears that group, so a later
+  adjudication accepting fresh work leaves a settled rotation standing over a commit nothing exempts, and the
+  fail-closed reader answers for it with the same bare None a damaged record gets. Read as damage, one finished
+  transfer would park every rebase the issue could ever earn again.
+
+  Two more questions belong to the roads that publish nothing new. Whether a rewrite the pull request already
+  carries can be ACCOUNTED for, asked because finishing that road clears the anchor and the anchor is the only thing
+  that brings the tick back: *settled* and *unrecorded* both leave a receipt naming the commit, read whole — the
+  commit, the head it was pinned to, and the publication it went onto, held against this attempt's own anchor and
+  pull request, and every member through the fail-closed reader that answers a hand edit as the absence — with the
+  debt beside it asked as well, and asked by PRESENCE: an approval still standing over a receipted commit is a write
+  that did not land whole, and so is one this build cannot read back whole, which `_unreadable_approval` on the
+  [`late_parks`](../../orchestrator/workflow/stages/implementing/late_parks.py) owner tells from the group of nulls
+  the write that pays a debt leaves. Anything else parks with the anchor left pinned and a human settles the comment.
+  And whether the record says a replay reached a remote that no longer has it, which a *settled* transfer says
+  outright and a whole receipt says for a replay no permit ever licensed: the head they rolled back to is the very
+  head a retry would lease its force-push against, so the lease would be satisfied and the rollback would be gone.
+  **None of these readings is on a running road yet.** The publisher's own evidence is — it is what the size gate is
+  handed on every exempt rebase — but the classification, the re-derivation, the accounting, and the rollback answer
+  are consulted by no caller, so an interrupted transfer is still recovered on the anchor and the divergence counts
+  alone. They are written now so the recovery taught to act on them has the whole set to act on.
+
   `late_rewrite_proof` sits beside that group and deliberately outside it. It records which reading proved the push a
   settlement was taken on had landed — `pushed` for the leased force-push that moved the pull request off the head the
   permit was granted against, `already_published` for the leased no-op that found the remote standing on the rewritten

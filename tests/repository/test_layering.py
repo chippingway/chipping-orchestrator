@@ -100,10 +100,12 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # above this layer, so the import waits for the call that needs it -- at
 # module scope it would be a cycle, since the workflow imports base sync back.
 #
-# The rebase is also a rewrite of whatever the branch stood on, so the same two
-# owners reach the transfer seam: the publisher reads the exemption a verdict
-# left and assembles the record that would authorize it to move, and the
-# reset-and-park tail drops the permission its rollback will never spend.
+# The rebase is also a rewrite of whatever the branch stood on, so the transfer
+# seam is reached from two places: the owner that assembles the evidence a
+# permit is granted on and classifies how far an interrupted transfer got --
+# which reads the exemption, the permission, and the receipt and debt beside
+# them -- and the reset-and-park tail, which drops the permission its rollback
+# will never spend.
 #
 # The record one attempt leaves of its own replay reaches the late domain for
 # one thing only: the shape a recorded commit is held to. Spelled twice, a
@@ -120,8 +122,11 @@ _CALL_TIME_HOPS = MappingProxyType({
         _LATE_RECORDS,
         _LATE_TRANSFER,
     ),
-    f"{_BASE_SYNC}.publication": (
-        _COMMENTS, _EXEMPTION, _LATE_PUSH, _LATE_RECORDS, _REWRITES,
+    f"{_BASE_SYNC}.publication": (_COMMENTS, _LATE_PUSH, _LATE_RECORDS),
+    f"{_BASE_SYNC}.transfers": (
+        _EXEMPTION,
+        f"{PACKAGE}.workflow.stages.implementing.late_parks",
+        _REWRITES,
     ),
     f"{_PUBLICATION}.rewrite": (_LATE_REWRITE,),
 })
