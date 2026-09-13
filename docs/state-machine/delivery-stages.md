@@ -1711,7 +1711,11 @@ was read over BEFORE the replay destroys both, and hands them to the gate throug
 the record and decides nothing. That head is also the head the force-push is leased against, which is where this
 differs from the squash: there the collapsed head and the lease are two facts. The two contributions are read over
 two DIFFERENT fork points, because moving the base is the whole of what a rebase does, and `late_transfer` grants
-the permit only over everything above — including that the two fingerprint alike.
+the permit only over everything above — including that the two fingerprint alike, and that the fork point the replay
+landed on is a commit the remote's own base branch reaches. That second one is what a fork point cannot say for
+itself: it is taken against `refs/remotes/<remote>/<base>`, which lives in the object store the issue's agent writes
+to, and a replay onto a base carrying work no remote has fingerprints as exactly the adjudicated change while the
+commit it produced carries that work as well.
 
 The replay also writes itself DOWN, because the tick that runs one is not always the tick that publishes it. The
 head it is about to replace, that head's fork point, and the pull request it is being made against go onto the

@@ -1901,7 +1901,11 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             accepted one -- an issue re-read past the close latch and found UNCHANGED -- open,
                             carrying no `paused` or `backlog`, and still on the stage the rewrite recorded, since
                             the entry read that stage off the issue the tick opened with and a relabel during the
-                            rewrite is invisible to every other reading -- and canonical fingerprints that agree.
+                            rewrite is invisible to every other reading -- a rewritten base the base branch really
+                            carries, frozen from what the REMOTE says that branch is at and held to reachability
+                            rather than to equality, since the branch advances on its own while a base carrying
+                            work no remote has is one only this host ever saw -- and canonical fingerprints that
+                            agree.
                             The accepted one is taken over the pair the RECORD names rather than the pair the
                             caller claims, so a hand-edited `late_exempt_base_sha` is the record failing to prove
                             itself instead of a field nothing ever reads, and the caller's own claim about what it

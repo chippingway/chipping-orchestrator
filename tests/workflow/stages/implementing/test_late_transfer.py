@@ -126,6 +126,16 @@ _MOVED_CHECKOUTS = MappingProxyType({
     "a head this host cannot peel": _UNPEELABLE_HEAD,
 })
 
+# Every rewrite this build authorizes, with a stage that really makes it. The
+# base a rewritten contribution is read over is proved the same way for each,
+# so the rule is exercised over every road an exemption can travel rather than
+# over the one the fixture happens to describe.
+_SUPPORTED_REWRITES = MappingProxyType({
+    _rewrites.LateRewriteKind.SQUASH: WorkflowLabel.VALIDATING,
+    _rewrites.LateRewriteKind.CONFLICT_REBASE: WorkflowLabel.RESOLVING_CONFLICT,
+    _rewrites.LateRewriteKind.AUTO_CLEAN_REBASE: WorkflowLabel.IN_REVIEW,
+})
+
 # Every way the two contributions are not one contribution.
 _UNEQUAL_CONTRIBUTIONS = MappingProxyType({
     "an accepted pair whose content is gone": {
@@ -387,6 +397,65 @@ class RefusedProvenanceTest(_TransferCase, unittest.TestCase):
             _rewrites.read_rewrite_authorization(self.state).rewrite,
             _support.rewrite(),
         )
+
+
+class ProvenBaseTest(_TransferCase, unittest.TestCase):
+    """What the base branch the rewritten contribution sits over has to be.
+
+    The end the two digests cannot speak for. Their equality says the rewrite
+    contributes what was adjudicated OVER THE BASE IT NAMES, and a rebase is
+    free to name one -- so a base carrying work no remote has subtracts that
+    work from the answer, and the pair fingerprints alike while the object it
+    names carries the adjudicated change and that bulk together.
+    """
+
+    def test_every_rewrite_earns_it_over_the_branch(self) -> None:
+        # The proof is one question the permit asks of every road an exemption
+        # can travel, so each authorized kind is held to it and each one still
+        # earns the permit over a base the branch really carries.
+        for kind, stage in _SUPPORTED_REWRITES.items():
+            with self.subTest(rewrite=str(kind)):
+                made = self._entered_from(kind, stage)
+
+                self.assertEqual(self._carried(**made), _transfer._CARRIED_OVER)
+
+    def test_a_base_the_branch_does_not_carry_refuses(self) -> None:
+        # The forgery this proof is here for: `refs/remotes/<remote>/<base>`
+        # is writable from the checkout the agent runs in, so a fork point
+        # taken against it names whatever that ref was pointed at. Held to the
+        # branch the remote really carries, the rewrite falls through to the
+        # ordinary cumulative gate on every road it could have travelled.
+        for kind, stage in _SUPPORTED_REWRITES.items():
+            with self.subTest(rewrite=str(kind)):
+                made = self._entered_from(kind, stage)
+                self.reading.carried.discard(MERGE_BASE_SHA)
+
+                self.assertEqual(self._carried(**made), "")
+                self._assert_untouched()
+
+    def test_an_unnamed_base_branch_refuses(self) -> None:
+        # A tip nothing established is not a branch to hold a base to, and
+        # what refusing costs is the transfer rather than the decision: the
+        # exemption stays where the adjudication put it.
+        self.reading.base = FrozenCommit(
+            failure=MeasurementFailure.BASE_UNREADABLE,
+        )
+
+        self.assertEqual(self._carried(), "")
+        self._assert_untouched()
+
+    def _entered_from(self, kind, stage) -> dict:
+        """The same rewrite made by another owner, from the stage that makes it.
+
+        The stage travels three times over because it is three claims: the
+        evidence's own provenance, the publication the call was entered on,
+        and the label the issue reads back as when the permit re-fetches it.
+        """
+        self._adjudicated(labels=(str(stage),))
+        return {
+            "rewrite": _support.rewrite(kind=kind, source_stage=stage),
+            "entry": _support.entry(stage=stage),
+        }
 
 
 class RefusedPublicationTest(_TransferCase, unittest.TestCase):

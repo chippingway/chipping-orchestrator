@@ -608,6 +608,17 @@ carries — so the publication side proves the record against the remote rather 
   repaired or deleted to reach it. The same question is asked of a publication DEBT before it is spent and of a
   rewrite before an exemption may move onto the commit it produced
   ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).
+- **A base-relative reading is only as good as the base, and the base ref is agent-writable.** A transfer moves an
+  exemption onto a rewritten commit only where both contributions fingerprint alike, and a contribution is what a
+  candidate adds *over its base*. A rebase chooses that base, and the fork point behind the object it produces is
+  resolved against `refs/remotes/<remote>/<base>` — a ref in the object store the issue's own worktree shares, which
+  anything running there can repoint after this tick's fetch. Replayed onto a base carrying work no remote has, the
+  rewrite fingerprints to exactly the digest the adjudication recorded while the commit it produced carries that
+  work and the adjudicated change together, so the permit would waive the reading for bulk nobody saw. The permit
+  therefore freezes the base branch from what the REMOTE says it is at and refuses a recorded base that tip does not
+  reach — reachability rather than equality, since the branch advances on its own and a squash collapses over a fork
+  point the branch has had for days. Refusing costs the transfer and never the decision: the exemption stays where
+  the adjudication put it and the ordinary cumulative gate measures the rewritten commit.
 - **A publication receipt is a group, and a partial one is damage.** `implementing_published_sha`,
   `implementing_published_lease` and `implementing_published_pr` are written in one call and cleared in one call, so a
   group that reads back partial — a key that has gone, a value this build cannot read, a commit with no number beside

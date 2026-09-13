@@ -35,6 +35,11 @@ refusal the moment one does not:
   commit, and the head the push is leased against peels to a commit this host
   really holds -- it is allowed to differ from the accepted one, so nothing
   else here would ever read that object;
+* the base the rewritten contribution is read over is a commit the base
+  branch really carries, taken from what the REMOTE says that branch is at
+  rather than from the ref beside the work: equality of two digests says the
+  rewrite contributes what was adjudicated over the base it names, and a base
+  carrying work no remote has subtracts that work from the answer;
 * the issue itself is confirmed by a read taken now, not by the snapshot the
   tick opened with, and confirmed UNCHANGED rather than merely open: no
   `paused` or `backlog` control label, and still on the workflow stage the
@@ -232,6 +237,21 @@ _LATCHED_CLOSE = (
     "a poll observed this issue closed and nothing has settled the reading"
 )
 
+# What a freeze that established nothing is reported as where it named no
+# failure of its own, so the line an operator reads always says something.
+_UNNAMED_BASE = "the remote named nothing"
+
+_UNFROZEN_BASE = (
+    "the commit the remote says `{branch}` is at could not be frozen, so "
+    "nothing here can say which base the rewritten contribution is read over "
+    "({failure})"
+)
+
+_FOREIGN_BASE = (
+    "the rewritten contribution is read over `{base}`, which this host does "
+    "not show `{branch}` carrying as of `{tip}`"
+)
+
 _UNFINGERPRINTABLE = (
     "the contribution {side} `{base}...{candidate}` could not be "
     "fingerprinted ({failure})"
@@ -407,10 +427,12 @@ def _permit(
     comment, which is the one thing a grant would DESTROY rather than merely
     read. Then the publication, which this call has already read. Then the two
     local git reads -- the checkout, and the lease as an object this host has
-    to hold. Then the issue, which is a request. And the fingerprints last,
-    because they are the heaviest reading in the domain -- every object either
-    contribution names is read back in full -- and there is no point taking
-    them for a transfer something cheaper has already refused.
+    to hold. Then the two requests: the issue, and the branch the rewritten
+    contribution claims to be read over, which is the one end no digest can
+    prove for itself. And the fingerprints last, because they are the heaviest
+    reading in the domain -- every object either contribution names is read
+    back in full -- and there is no point taking them for a transfer something
+    cheaper has already refused.
 
     The operator authorization behind the exemption is asked with them rather
     than at the door for that same reason: proving one is a fingerprint, since
@@ -426,6 +448,7 @@ def _permit(
         _unproven_checkout,
         _unproven_lease,
         _unconfirmed_owner,
+        _unproven_base,
         _unauthorized_exemption,
     ):
         refusal = question(gate, rewrite)
@@ -767,6 +790,70 @@ def _moved_issue(fetched: Issue, source_stage: WorkflowLabel | None) -> str:
     if stage != source_stage:
         return _RELABELLED_OWNER.format(frozen=source_stage, read=stage)
     return ""
+
+
+def _unproven_base(
+    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+) -> str:
+    """Why the base the rewrite was read over is not the branch's, or "".
+
+    The one end of the evidence the digests cannot prove for themselves, and
+    the reason is what equality of the two fingerprints actually says: the
+    rewritten pair contributes what the accepted pair did. Over WHICH base it
+    contributes it is the caller's claim, and a rewrite that moves the base --
+    which is what a rebase is -- is free to name one that is not the branch's
+    at all. A base carrying work the remote does not have subtracts that work
+    from the rewritten contribution, so the pair fingerprints to the digest a
+    human ruled on while the object it names carries that change AND the bulk
+    the forged base swallowed. Granted, the exemption moves onto it and the
+    gate publishes it without a reading.
+
+    That claim is not the caller's to make good either, and it is not enough
+    that the caller read the base off `refs/remotes/<remote>/<base>`. That ref
+    lives in the object store the issue's agent writes to and any worktree
+    sharing it can repoint -- after this tick's fetch, at that -- so a fork
+    point taken against it and the branch the remote really carries are two
+    different answers whenever something in that checkout wants them to be.
+
+    So the base branch is frozen from the REMOTE, the way every other reading
+    that has to mean something off this host freezes it, and the recorded base
+    is held to being a commit that tip's history contains. Reachability rather
+    than equality, because the base moves on its own: a rebase replays onto
+    the tip it fetched a moment ago and a squash collapses over the fork point
+    the branch has had for days, and both are commits the branch really
+    carries. What is not one is a commit nobody but this host has ever seen.
+
+    Asked of the REWRITTEN pair alone. The accepted pair's base is the one the
+    adjudication froze, and it is proved where it is used: the record either
+    fingerprints to the digest it recorded over its own pair or refuses, which
+    no reading of the base branch could add to.
+
+    A tip this host cannot establish refuses like everything else here, and
+    what it costs is the transfer rather than the decision -- the exemption
+    stays where it is and the ordinary cumulative gate measures the rewritten
+    commit. So does a base this store cannot read, since a commit nothing can
+    walk has not been shown to be on the branch whatever it is really named.
+
+    One authenticated read, on a tick that has an exemption to carry and a
+    rewrite claiming to carry it. A caller that froze the same branch for
+    itself pays it twice, and it is asked here anyway: what a permit may not
+    do is take the base a rewrite was measured over from the rewrite.
+    """
+    frozen = _measurement_commits._freeze_base_commit(gate.spec, gate.worktree)
+    if not frozen.is_frozen:
+        return _UNFROZEN_BASE.format(
+            branch=gate.spec.base_branch,
+            failure=frozen.failure or _UNNAMED_BASE,
+        )
+    if _verification_probes._commit_contains(
+        gate.worktree, rewrite.to_base_sha, frozen.sha,
+    ):
+        return ""
+    return _FOREIGN_BASE.format(
+        base=rewrite.to_base_sha,
+        branch=gate.spec.base_branch,
+        tip=frozen.sha,
+    )
 
 
 def _equal_contributions(

@@ -88,6 +88,14 @@ class _RealReplayCase(ObservedCloseCase, ReplayRepositoryMixin):
         # asked for.
         self._fresh_process()
         self.replay = self.build_replay()
+        # The one reading in this fixture that leaves the host. Both the
+        # permit and the measurement freeze the base branch from the remote,
+        # which there is no token for here; the ancestry and the fingerprints
+        # decided against it are the repository's own.
+        self.enterContext(patch.object(
+            _measurement_commits, FREEZE_BASE,
+            MagicMock(return_value=FrozenCommit(sha=self.replay.replayed_base)),
+        ))
 
     def _adjudicated(self, candidate: str):
         """The gate for an issue whose exemption names the replayed commit.
@@ -204,6 +212,31 @@ class ReplayedTransferRealGitTest(_RealReplayCase, unittest.TestCase):
         self.assertEqual(authorized.rewrite.to_sha, self.replay.replayed)
         self.assertEqual(
             authorized.rewrite.to_base_sha, self.replay.replayed_base,
+        )
+
+    def test_a_base_no_remote_has_earns_nothing(self) -> None:
+        # The forgery the base proof is here for, decided over real objects.
+        # Both ends fingerprint alike -- the forged base carries the bulk, so
+        # the replay is read as adding exactly what was adjudicated -- and the
+        # commit it produced carries that bulk and the adjudicated change
+        # together. Held to the branch the remote really answers for, the
+        # permit refuses and the ordinary cumulative gate measures it.
+        forged = self.replays_onto_a_forged_base(self.replay)
+        gate = self._adjudicated(forged.replayed)
+        self.assertEqual(
+            self._contributes(forged.replayed_base, forged.replayed),
+            self._contributes(self.replay.accepted_base, self.replay.accepted),
+        )
+
+        carried = _transfer._carried_over(
+            self._gate_for(gate, forged.replayed), forged.replayed,
+        )
+
+        self.assertEqual(carried, "")
+        self.assertIsNone(_rewrites.read_rewrite_authorization(gate.state))
+        self.assertEqual(
+            gate.gh.pinned_data(ISSUE_NUMBER)[_exemption.LATE_EXEMPT_SHA],
+            self.replay.accepted,
         )
 
     def _gate_for(self, gate, candidate: str):
@@ -346,14 +379,9 @@ class AuthoredChangeRealGitTest(_RealReplayCase, unittest.TestCase):
     def _publishes(self, gate, candidate: str):
         """One gated publication of this candidate, under a ceiling it is past.
 
-        Every reading but two is the real one. The base freeze goes to the
-        remote, which this fixture has no token to reach, and the push is the
-        network hop itself.
+        Every reading but two is the real one. The base freeze the case seeds
+        goes to the remote, and the push is the network hop itself.
         """
-        self.enterContext(patch.object(
-            _measurement_commits, FREEZE_BASE,
-            MagicMock(return_value=FrozenCommit(sha=self.replay.replayed_base)),
-        ))
         self.enterContext(patch.object(
             _branch_transport, PUSH_BRANCH, MagicMock(return_value=True),
         ))

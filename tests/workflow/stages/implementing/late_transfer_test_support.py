@@ -63,6 +63,11 @@ MERGE_BASE_SHA = "b" * SHA_LENGTH
 REWRITTEN_SHA = "c" * SHA_LENGTH
 STRANGER_SHA = "d" * SHA_LENGTH
 
+# Where the remote says the base branch is now. Deliberately not the merge
+# base the rewrite sits over: a base branch moves on its own, so what a permit
+# holds the recorded base to is being a commit this tip's history carries.
+BASE_TIP_SHA = "2" * SHA_LENGTH
+
 # A whole object id this issue has nothing to do with: another commit that
 # types exactly as any of the four above, which is what a hand edit can move a
 # recorded end to without the reader refusing it.
@@ -106,6 +111,7 @@ UNDER_THE_CEILING = 3
 PROVE_CANDIDATE = "_prove_candidate_commit"
 WORKTREE_STATUS = "_worktree_status"
 FINGERPRINT = "_fingerprint_contribution"
+COMMIT_CONTAINS = "_commit_contains"
 
 CLEAN = _WorktreeStatus(readable=True)
 
@@ -245,7 +251,7 @@ def _over(base_sha: str) -> str:
 
 
 class Readings:
-    """The three readings a permit spends, and what each answers this case.
+    """The readings a permit spends, and what each answers this case.
 
     One controller installed once rather than a patch per case, because the
     refusals are a family: every one of them is the ordinary world with a
@@ -264,6 +270,12 @@ class Readings:
     fingerprint identically to the frozen one and every reading of it would
     agree by construction.
 
+    The base branch is a reading of its own and is kept apart from the
+    digests, because it answers the question no digest can: which commits the
+    branch a rewrite claims to sit over really carries. `carried` is that
+    branch's history as far as this domain asks about it, and the merge base
+    the rewrite is read over is on it unless a case takes it off.
+
     `absent` is the other half of the ordinary world being ordinary: every
     commit the evidence names is an object this host holds unless a case says
     otherwise.
@@ -274,6 +286,8 @@ class Readings:
         self.tree = CLEAN
         self.digests: dict = {}
         self.absent: set = set()
+        self.base = FrozenCommit(sha=BASE_TIP_SHA)
+        self.carried: set = {MERGE_BASE_SHA, BASE_TIP_SHA}
 
     def stands_on(self, head) -> None:
         """Put the checkout on this commit, or on this failed proof."""
@@ -303,6 +317,19 @@ class Readings:
         """What `git status` said about the tree a push would publish from."""
         return self.tree
 
+    def frozen_base(self, spec, worktree) -> FrozenCommit:
+        """What the remote says this repository's base branch is at."""
+        return self.base
+
+    def carries(self, worktree, ancestor: str, revision: str) -> bool:
+        """Whether the base branch's tip really reaches this commit.
+
+        Asked of the tip this case froze and of nothing else, so a permit that
+        reached for some other revision would answer False rather than being
+        waved through by a probe that agrees with everything.
+        """
+        return revision == self.base.sha and ancestor in self.carried
+
     def fingerprint(
         self, worktree, base_sha: str, candidate_sha: str,
     ) -> ContributionFingerprint:
@@ -322,13 +349,16 @@ def readings(fixture) -> Readings:
     """Install the ordinary world a transfer is granted in, and hand it back.
 
     The checkout stands on the rewritten commit over a provably clean tree,
-    and both contributions fingerprint to the digest the adjudication
-    recorded, so a case that touches nothing is a permit and a case about a
+    the base branch the remote names carries the merge base the rewrite sits
+    over, and both contributions fingerprint to the digest the adjudication
+    recorded -- so a case that touches nothing is a permit and a case about a
     refusal moves exactly one answer.
     """
     answers = Readings()
     fixture.enterContext(seam_patch(PROVE_CANDIDATE, answers.proved))
     fixture.enterContext(seam_patch(WORKTREE_STATUS, answers.status))
+    fixture.enterContext(seam_patch(FREEZE_BASE, answers.frozen_base))
+    fixture.enterContext(seam_patch(COMMIT_CONTAINS, answers.carries))
     fixture.enterContext(seam_patch(FINGERPRINT, answers.fingerprint))
     return answers
 
@@ -372,10 +402,10 @@ def measures(fixture, additions: int = UNDER_THE_CEILING) -> None:
     refusal is not a hold, so the rewritten commit falls through to the
     measurement, and only a count under the ceiling reaches the push whose
     receipt the settlement rides.
+
+    The base the count is taken over is the one `readings` already froze, so
+    the measurement and the permit are answered about the same base branch.
     """
-    fixture.enterContext(seam_patch(
-        FREEZE_BASE, lambda spec, worktree: FrozenCommit(sha=MERGE_BASE_SHA),
-    ))
     fixture.enterContext(seam_patch(
         BASE_PRESENT,
         lambda spec, worktree, base_sha: _BaseObject(present=True),
