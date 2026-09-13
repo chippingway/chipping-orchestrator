@@ -763,8 +763,9 @@ the one this stage already pushed (`implementing_published_sha`, brought back by
 while an exemption nothing authorizes names it — where the push would move nothing and only the bookkeeping behind a
 publication that has happened is owed. The fifth is a NEW candidate while `DECOMPOSE=off`, and the sixth is a
 workflow rewrite that EARNED the exemption of the commit it replaced — a squash on approval, or the clean base rebase
-the per-tick refresh publishes (`late_rewrite_*`, granted only over two recomputed fingerprints that agree, and only
-where an operator authorization stands behind the exemption it would move). So a
+the per-tick refresh publishes (`late_rewrite_*`, granted only over two recomputed fingerprints that agree — taken
+over a rewritten base the remote's own base branch reaches — and only where an operator authorization stands behind
+the exemption it would move). So a
 reading that never happened is not always a reading that failed: an issue whose branch is published, or whose commit a
 verdict settled, reaches the seam again and leaves no `late_measurement` behind, which is the shape a threshold study
 sees for a candidate that was counted once and acted on twice. The switch is not silence either — a candidate this
