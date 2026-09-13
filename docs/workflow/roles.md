@@ -369,7 +369,9 @@ while the push it licenses has not run, so the head rides on the approval and pi
 the retry after a failed one, which skips the measurement because the commit is already approved, and the ordinary
 publication a settled verdict hands it back to. One past the ceiling is held with the pull request left exactly
 where it stood, and the issue is adjudicated from whichever of `workflow:validating`, `workflow:documenting`,
-`in_review`, `workflow:fixing`, or `workflow:resolving_conflict` that push was reached under. A tree that is not
+`in_review`, `workflow:fixing`, or `workflow:resolving_conflict` that push was reached under — or, where an exemption
+nothing authorized names the commit, parked `late_unauthorized_exemption` on that same stage, since a change already
+ruled one change is owed the operator rather than a second adjudicator. A tree that is not
 provably clean, a pull request nothing could read, one that is closed or merged, and a head that moved off what a
 live record froze are each a refusal rather than a reading: nothing is pushed and a human is asked.
 
