@@ -2159,6 +2159,17 @@ rather than preserving.
   `record_semantic_identity` refuses on the way in too — a field that is not a whole object id or a whole digest,
   and an identity naming any commit but the exempt one, are not written at all.
 
+  The group is read by PRESENCE as well, and the difference is which caller is asking. A road whose move is to
+  MEASURE is right to take a damaged group for an absent one, since it counts the candidate afresh either way; a road
+  whose move is to walk PAST an issue as though no verdict were in flight is not, and a half-written group, a
+  hand-edited digest, and a field carrying `null` all read as nothing there. `unreadable_exemption` on the
+  [`exemption`](../../orchestrator/workflow/late_split/exemption.py) owner is what tells the two apart: a comment
+  carrying any member of the group whose exempt commit cannot be read back is claiming one it cannot show, and so is
+  an identity group with a member present that does not read back whole. The legacy shape is neither, which is why
+  the identity half is asked by presence rather than by truth — a comment written before the group existed carries
+  the exempt commit alone and is complete for what it says. It is read by the transfer classification below and by
+  no live road yet.
+
   The group belongs to the commit `late_exempt_sha` named when it was written, so `record_exemption` **drops it
   whenever it moves that field to another commit**. Nothing else would: a verdict whose fingerprint could not be read
   records the commit alone and writes nothing over the fields beside it, and those fields match by name — an issue
@@ -2309,9 +2320,10 @@ rather than preserving.
 
   Its LIFECYCLE is live and its readings are not, the same split the attempt record above has. The settlement writes
   the proof and the reporting owner drops it behind the record it feeds, so a comment carries one only inside that
-  window — but `unreported_transfer` and `stranded_transfer_proof` are consulted by no road yet, so a process lost
-  inside it still leaves a settled transfer neither sink hears about. What the durable proof buys today is that the
-  fact is there to report from once a reader is taught to look.
+  window — but `unreported_transfer` is consulted by nothing at all and `stranded_transfer_proof` only by the
+  transfer classification above, which is itself consulted by no road, so a process lost inside it still leaves a
+  settled transfer neither sink hears about. What the durable proof buys today is that the fact is there to report
+  from once a reader is taught to look.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,
   `late_override_fingerprint`, `late_override_fingerprint_format`, `late_override_additions`,
   `late_override_threshold`, and `late_override_comment_id` are the terms an operator authorized one oversized
