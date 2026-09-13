@@ -347,7 +347,9 @@ orchestrator/
                         while the anchor still stands. Beside them the three-valued read of the group -- absent,
                         in flight, or damaged -- held to the shape every other recorded commit is and reached
                         through a call-time import of the late domain's own formats, the presence read the
-                        checkpoint gets, and the whole-record clear every step that ends an attempt goes through
+                        checkpoint gets, and the whole-record clear every step that ends an attempt goes through.
+                        The writes and the clear are on the running roads; the two readings are consulted by no
+                        caller yet and wait for the recovery that is taught to decide on them
       publication.py    the post-rebase checks, the size gate the rebase passes before it publishes -- reached
                         through a call-time import, since it sits in the workflow layer above this one, and named
                         against the head this owner read, so a checkout something moved between that read and the

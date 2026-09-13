@@ -1287,6 +1287,13 @@ The keys that matter for the state machine fall into a few groups:
   go through the same clear — so no road can leave a member behind. That clear is held to the reset LANDING wherever
   one is made: a reset that failed abandoned nothing, and the comment is then the only account of where the checkout
   may be standing, so nothing is dropped and the next tick still has an anchor to come back with.
+  **What is live today is the record, not yet the decisions above.** Every write and the clear are on the running
+  roads: the terms and the anchor go down before `git rebase`, the replay goes down before the dirty check, both
+  finishes mark what they announced, and every ending drops the group. The readings — the three answers, the presence
+  test on the mark — are implemented beside them and consulted by no road yet, so an interrupted attempt is still
+  recovered on the anchor and the divergence counts alone, and a crash between an announcement and its relabel still
+  costs the stream a second `base_rebased` and the pull request a second notice. The keys are written now so that the
+  recovery taught to act on them has a record to act on for attempts that were in flight before it shipped.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since
@@ -2257,6 +2264,12 @@ rather than preserving.
   which `stranded_transfer_proof` answers as the damage it is rather than as nothing owed. A rollback drops it with
   the permission it described, and a fresh grant drops it with the transfer it replaces, since the phase going back to
   `authorized` is what would leave it unreadable beside the new one.
+
+  Its LIFECYCLE is live and its readings are not, the same split the attempt record above has. The settlement writes
+  the proof and the reporting owner drops it behind the record it feeds, so a comment carries one only inside that
+  window — but `unreported_transfer` and `stranded_transfer_proof` are consulted by no road yet, so a process lost
+  inside it still leaves a settled transfer neither sink hears about. What the durable proof buys today is that the
+  fact is there to report from once a reader is taught to look.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,
   `late_override_fingerprint`, `late_override_fingerprint_format`, `late_override_additions`,
   `late_override_threshold`, and `late_override_comment_id` are the terms an operator authorized one oversized

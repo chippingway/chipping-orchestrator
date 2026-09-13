@@ -2271,7 +2271,11 @@ Announced once, since an operator has to put the checkout back before anything c
 A branch some owner deliberately moved OFF the approved commit never reaches that refusal, because an approval whose
 commit was abandoned is superseded and the owner doing the abandoning drops it: the auto rebase's reset — which puts
 the branch back on the pre-rebase SHA when its own push is refused, leaving the approved commit only in the reflog —
-clears the approval with the recovery anchor.
+clears the approval with the whole record of the attempt. Both drops are held to that reset LANDING. A reset git
+refused abandoned nothing, so the approval still names a commit the checkout may be standing on and the record beside
+it is the only account of which attempt put it there; dropped there, the next tick would have no anchor to bring the
+recovery back with and no id to ask for the candidate by (see
+[`labels-and-state.md`](labels-and-state.md#pinned-state)).
 
 The same answer is asked at the no-feedback bounce, which reaches a missing checkout on its own: a publication that
 finds no worktree has always simply not published, and with a pair frozen and never counted that is not enough. No
