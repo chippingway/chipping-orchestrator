@@ -219,9 +219,12 @@ def spent(state) -> None:
     exemption and the identity beside it describe the pair the rewrite
     produced, and the phase says the move is done. Written through the record
     owner rather than spelled here, so a case about what a reader does past
-    the receipt is seeded with exactly what the receipt leaves.
+    the receipt is seeded with exactly what the receipt leaves -- the proof
+    the settlement kept for its own report included.
     """
-    _rewrites.record_rewrite_publication(state)
+    _rewrites.record_rewrite_publication(
+        state, _rewrites.LateRewriteProof.PUSHED,
+    )
 
 
 def gate(github, issue, state, **overrides) -> _records._Gate:

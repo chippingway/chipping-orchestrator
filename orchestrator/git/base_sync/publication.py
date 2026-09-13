@@ -29,13 +29,9 @@ contribution has to get.
 """
 from __future__ import annotations
 
-from orchestrator.git.base_sync import guards
+from orchestrator.git.base_sync import attempts, guards
 from orchestrator.git.base_sync.models import _AutoRebaseContext
-from orchestrator.git.base_sync.state import (
-    _PENDING_PUSH_SHA,
-    _REVIEW_ROUND,
-    log,
-)
+from orchestrator.git.base_sync.state import _REVIEW_ROUND, log
 from orchestrator.git.measurement import commits as measurement_commits
 from orchestrator.git.verification import probes
 from orchestrator.git.worktrees import paths
@@ -194,9 +190,24 @@ def _finalize_auto_rebase(
     branch: str,
     after_sha: str,
 ) -> None:
-    """Publish the notice, audit event, validating route, and pinned state."""
+    """Publish the notice, audit event, validating route, and pinned state.
+
+    The announcement is made durable in the middle of that sequence and the
+    break is the point. Everything this tail announces -- the notice on the
+    pull request, the `base_rebased` event on both sinks -- goes out before
+    the relabel, and the write that clears the attempt goes out after it, so a
+    process lost in between would come back to a record that looks unfinished
+    and say all of it a second time for one publication that happened once.
+    Written while the anchor and the replay still stand, since those are what
+    bring that tick back at all, and the clear rides this tail's own last
+    write so they stand until every road is behind it.
+
+    The round is reset ahead of the event rather than with the clear, because
+    the event reports the round the reviewer is being asked to spend afresh on
+    the rewritten head, and a crash past that write leaves the same 0 the
+    finish itself would have written.
+    """
     _post_auto_rebase_notice(context, after_sha)
-    context.state.set(_PENDING_PUSH_SHA, None)
     context.state.set(_REVIEW_ROUND, 0)
     log.info(
         "issue=#%d auto base rebase pushed %s/%s -> %s; routing %r -> "
@@ -208,6 +219,8 @@ def _finalize_auto_rebase(
         context.label,
     )
     _emit_auto_rebase_event(context, after_sha)
+    attempts._announces(context, after_sha)
+    attempts._clears_the_attempt(context.state)
     context.gh.set_workflow_label(context.issue, WorkflowLabel.VALIDATING)
     context.gh.write_pinned_state(context.issue, context.state)
 
@@ -225,6 +238,13 @@ def _publish_auto_rebase(
         guards._finish_noop_auto_rebase(context)
         return
 
+    # Before the first step that can leave this replay standing. The head is
+    # what says the divergence a later tick finds is this attempt's own work
+    # rather than a worktree somebody rebuilt, and everything below -- the
+    # dirty park, the gate that may hand the issue to an adjudication, the
+    # push, the finalize -- leaves a rewritten branch behind if the process
+    # dies under it.
+    attempts._records_the_replay(context, after_sha)
     dirty_files = probes._worktree_dirty_files(context.worktree)
     if dirty_files:
         guards._park_dirty_auto_rebase(context, before_sha, dirty_files)

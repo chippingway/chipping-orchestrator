@@ -63,6 +63,9 @@ _FORMAT = _rewrites.LATE_REWRITE_FINGERPRINT_FORMAT
 _PR_NUMBER = _rewrites.LATE_REWRITE_PR_NUMBER
 _STAGE = _rewrites.LATE_REWRITE_SOURCE_STAGE
 _LEASE = _rewrites.LATE_REWRITE_LEASE
+# Deliberately outside the group below: the note is about the record a settled
+# transfer owes the sinks rather than about the permission it was granted on.
+_PROOF = _rewrites.LATE_REWRITE_PROOF
 
 _AUTHORIZATION_KEYS = (
     _KIND, _PHASE, _FROM, _FROM_BASE, _TO, _TO_BASE,
@@ -123,6 +126,11 @@ _REFUSED_WRITES = MappingProxyType({
     "a base that is prose": {"to_base_sha": "the merge base"},
     "a lease that is not a commit": {"lease": 7},
 })
+
+
+# Which reading a settlement was proved by, which the record now carries until
+# the report it owes has been made.
+_SETTLING_PROOF = _rewrites.LateRewriteProof.PUSHED
 
 
 def granted_rewrite(**overrides) -> _rewrites.LateRewrite:
@@ -278,7 +286,7 @@ class SpentAuthorizationTest(unittest.TestCase):
         # reader here can tell from a hand edit.
         state = authorized_state()
 
-        spent = _rewrites.record_rewrite_publication(state)
+        spent = _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
 
         self.assertEqual(spent, granted_rewrite())
         self.assertEqual(_exemption.read_exemption(state), REWRITTEN_SHA)
@@ -300,7 +308,7 @@ class SpentAuthorizationTest(unittest.TestCase):
         # that has already been made.
         state = authorized_state(operator=True)
 
-        _rewrites.record_rewrite_publication(state)
+        _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
 
         self.assertTrue(_overrides.is_authorized(state, REWRITTEN_SHA))
         carried = _overrides.read_publication_override(state).publication
@@ -313,14 +321,14 @@ class SpentAuthorizationTest(unittest.TestCase):
         # exactly as the accepted one would have been.
         state = authorized_state()
 
-        _rewrites.record_rewrite_publication(state)
+        _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
 
         self.assertIsNone(_overrides.read_publication_override(state))
 
     def test_a_spent_permission_is_not_outstanding(self) -> None:
         state = authorized_state()
 
-        _rewrites.record_rewrite_publication(state)
+        _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
 
         self.assertFalse(_rewrites.outstanding_permission(state))
 
@@ -328,26 +336,113 @@ class SpentAuthorizationTest(unittest.TestCase):
         # Every way a permission fails to be one this build granted: nothing
         # standing at all, a group damaged past reading, and one already
         # spent. Each would move a human's verdict on evidence nobody checked.
+        spent = authorized_state()
+        _rewrites.record_rewrite_publication(spent, _SETTLING_PROOF)
         refused = {
             "no permission at all": PinnedState(data={}),
             "a damaged permission": damaged_state({_LEASE: None}),
-            "a permission already spent": _published_state(),
+            "a permission already spent": spent,
         }
         for described, state in refused.items():
             with self.subTest(standing=described):
                 before = dict(state.data)
 
                 with self.assertRaises(InvalidLateValue):
-                    _rewrites.record_rewrite_publication(state)
+                    _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
 
                 self.assertEqual(state.data, before)
 
+class SettlementProofTest(unittest.TestCase):
+    """The note a settled transfer keeps until its record has been made.
 
-def _published_state() -> PinnedState:
-    """The comment one settled transfer leaves, through the write that makes it."""
-    state = authorized_state()
-    _rewrites.record_rewrite_publication(state)
-    return state
+    Which reading proved the push landed is the one fact nothing later could
+    re-derive -- the receipt looks identical either way -- so it stands on the
+    comment between the write that settles the transfer and the record that
+    write owes the sinks.
+    """
+
+    def test_a_settlement_owes_its_own_reading(self) -> None:
+        # The record goes to the sinks behind the write that settles the
+        # transfer, and which reading proved the push landed is the one fact
+        # nothing later could re-derive -- the receipt looks identical either
+        # way. So it is kept until the report is out.
+        state = self._settled()
+
+        self.assertEqual(
+            _rewrites.unreported_transfer(state), _SETTLING_PROOF,
+        )
+        self.assertFalse(_rewrites.stranded_transfer_proof(state))
+
+        _rewrites.forget_transfer_proof(state)
+
+        self.assertIsNone(_rewrites.unreported_transfer(state))
+        self.assertFalse(_rewrites.stranded_transfer_proof(state))
+
+    def test_an_unreportable_proof_is_damage(self) -> None:
+        # Presence is what tells these apart from a comment that owes
+        # nothing, and each of them answers None for the report: read as
+        # "nothing owed", a road finishes over a settled transfer no sink
+        # ever heard about.
+        stranded = {
+            "a reading this build does not know": self._damaged_proof(
+                {_PROOF: "not-a-reading"},
+            ),
+            "a phase the settlement never reached": self._damaged_proof(
+                {_PHASE: str(_rewrites.LateRewritePhase.AUTHORIZED)},
+            ),
+            "a permission short of a member": self._damaged_proof(
+                {_LEASE: None},
+            ),
+        }
+        for described, state in stranded.items():
+            with self.subTest(standing=described):
+                self.assertIsNone(_rewrites.unreported_transfer(state))
+                self.assertTrue(_rewrites.stranded_transfer_proof(state))
+
+    def test_a_grant_drops_the_proof_it_replaces(self) -> None:
+        # A grant replaces the whole group, so the proof beside it describes
+        # the transfer being replaced -- and the phase going back to
+        # `authorized` is what would leave it unreadable. Only a report whose
+        # own drop-write GitHub refused gets one this far, and that record
+        # has already been made.
+        state = self._settled()
+        _exemption.record_exemption(state, REWRITTEN_SHA)
+
+        _rewrites.record_rewrite_authorization(
+            state,
+            granted_rewrite(from_sha=REWRITTEN_SHA, to_sha=CANDIDATE_SHA),
+            CONTRIBUTION_DIGEST,
+        )
+
+        self.assertFalse(_rewrites.stranded_transfer_proof(state))
+        self.assertIsNone(_rewrites.unreported_transfer(state))
+
+    def test_a_rollback_drops_the_proof_beside_it(self) -> None:
+        # The proof describes the transfer being dropped, so kept it would
+        # stand over no authorization at all -- which every reader here
+        # refuses as damage, on a comment nothing is left to repair it from.
+        state = self._settled()
+
+        _rewrites.clear_rewrite_authorization(state)
+
+        self.assertNotIn(_PROOF, state.data)
+        self.assertFalse(_rewrites.stranded_transfer_proof(state))
+
+    def _settled(self) -> PinnedState:
+        """The comment one settled transfer leaves, through its own write."""
+        state = authorized_state()
+        _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
+        return state
+
+    def _damaged_proof(self, damage: dict) -> PinnedState:
+        """A settled transfer whose proof stands over one edited field."""
+        state = self._settled()
+        for key, written in damage.items():
+            if written is None:
+                state.data.pop(key, None)
+            else:
+                state.data[key] = written
+        return state
 
 
 class DamagedAuthorizationTest(unittest.TestCase):

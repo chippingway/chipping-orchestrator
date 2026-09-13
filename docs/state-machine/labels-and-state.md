@@ -1244,10 +1244,49 @@ The keys that matter for the state machine fall into a few groups:
   committed work to publish either way at that point — so the freeze ends with the stage that needed it rather than
   following the issue through review.
   `pending_auto_base_rebase_push_sha` — set to the pre-rebase local HEAD immediately BEFORE
-  `_rebase_base_into_worktree`; cleared on every exit. A non-empty value on entry means a previous tick rebased and died
+  `_rebase_base_into_worktree`; cleared on every exit that leaves the branch where the attempt found it. A non-empty
+  value on entry means a previous tick rebased and died
   before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
   head, or park as `auto_base_rebase_push_failed`. It is also what tells the approval that interrupted attempt wrote
   from a stage's, so the refresh is not frozen out of finishing its own route (see [Base refresh](#base-refresh)).
+  `pending_auto_base_rebase_rewrite_pr` + `pending_auto_base_rebase_rewrite_stage` — the TERMS of the same attempt,
+  written in the anchor's own statement, before `git rebase` is allowed to touch the branch. They say which
+  publication the attempt was made for, which is not a thing the anchor can prove: read off the issue on the tick
+  after a crash they would compare today with today, and a relabel or a repoint made while the process was down would
+  pass as the dead tick's own.
+  `pending_auto_base_rebase_rewrite_sha` — what that rebase produced, written on the reading the publication itself is
+  decided from and before the first step that can leave the replay standing. It is the only thing that can say the
+  divergent checkout a later tick finds is that attempt's own work: a rebase REPLAYS the branch, so a worktree
+  somebody rebuilt, an operator's reset, and a branch pointed at other work all present the same shape and all satisfy
+  the same lease.
+  The group is read whole or not at all and typed against the same shapes every other late field is — an abbreviation
+  or a value that is not a whole git object id is no head, a pull request that is not an identity is none, and a stage
+  no publication is entered from describes an attempt this workflow never made. Absent, IN FLIGHT, and DAMAGED are
+  three answers rather than one. A comment carrying none of the three is an attempt from before this record existed,
+  or one whose anchor is all that was ever pinned. A comment carrying the terms and no head is the window between git
+  returning and the write that records what it produced: nothing names the commit in the checkout, but the terms still
+  say which publication the attempt in flight was for. And a comment that claims the record and cannot show it — a
+  member taken out, terms missing under a head that is there, a head that is not a commit — is neither, because read
+  as either one it resembles, exactly the state nobody can vouch for would take a road reserved for one that can.
+  Because the write that ends an attempt blanks these fields rather than removing them, a group of nulls is the record
+  nobody wrote and a member carrying something beside one that does not is the record something took apart.
+  `pending_auto_base_rebase_announced_sha` is the last member and covers the last window a finish has: everything a
+  finish announces — the notice on the pull request, the `base_rebased` event on both sinks — goes out before the
+  relabel, and the write that clears this record goes out after it, so the head it has already said it published is
+  recorded in between, while the anchor and the replay still stand. A tick lost there comes back to a comment that
+  says the announcement was made rather than to an attempt that looks unfinished, which is what stops a second
+  `base_rebased` on the stream and a second notice on the pull request for one publication that happened once. BOTH
+  finishes write it and for the same reason — the refresh's own publishing tail, which announces the rebase it just
+  pushed, and the recovery, which announces one an earlier tick left — since neither is distinguishable afterwards
+  from an attempt that never got that far. It is
+  read by PRESENCE, like every other checkpoint here: the key standing at all says a finish announced THIS attempt's
+  replay, so a value naming any other head — or naming no commit — is a mark something took apart rather than an
+  answer a reader may give as "nothing was announced".
+  The whole group is dropped by the one write that ends an attempt — the reset that puts the branch back, the no-op
+  that moved nothing, the relabel that takes the issue out of the refresh's reach, and the finalize that publishes all
+  go through the same clear — so no road can leave a member behind. That clear is held to the reset LANDING wherever
+  one is made: a reset that failed abandoned nothing, and the comment is then the only account of where the checkout
+  may be standing, so nothing is dropped and the next tick still has an anchor to come back with.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since
@@ -2200,6 +2239,24 @@ rather than preserving.
   transfer is doing — the exemption moved on since, which dropped the identity and left this group describing a
   commit nothing exempts — so it is replaced without ceremony. Read as a claim it would refuse every transfer the
   issue could ever earn again.
+
+  `late_rewrite_proof` sits beside that group and deliberately outside it. It records which reading proved the push a
+  settlement was taken on had landed — `pushed` for the leased force-push that moved the pull request off the head the
+  permit was granted against, `already_published` for the leased no-op that found the remote standing on the rewritten
+  commit already — and it is the one fact nothing later could re-derive, since the receipt looks identical either way.
+  `record_rewrite_publication` writes it in the same statement as the move, and the reporting owner drops it in a
+  write of its own ordered after the `late_transfer` record it feeds, so a process lost between the settlement and
+  that record leaves the next reader something to report from rather than a verdict that moved with nothing anywhere
+  saying so. That drop is the reporting owner's own last step rather than a caller's, because a comment still
+  carrying a proof MEANS a report is owed: left standing it would say a settled transfer had never been announced for
+  as long as the issue lives. A drop GitHub refuses is logged and walked past — the record has been made and a later
+  tick reading that comment may make it again, which is the safe way round. It is outside the group a reader is
+  held to WHOLE because the transfer is settled whether or not it has been reported, and a record short of this member
+  is not one to refuse. It is read by PRESENCE all the same: the key standing over a proof this build does not know, a
+  phase the settlement never reached, or an authorization it cannot read whole is a comment saying two things at once,
+  which `stranded_transfer_proof` answers as the damage it is rather than as nothing owed. A rollback drops it with
+  the permission it described, and a fresh grant drops it with the transfer it replaces, since the phase going back to
+  `authorized` is what would leave it unreadable beside the new one.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,
   `late_override_fingerprint`, `late_override_fingerprint_format`, `late_override_additions`,
   `late_override_threshold`, and `late_override_comment_id` are the terms an operator authorized one oversized

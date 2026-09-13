@@ -24,8 +24,13 @@ nobody has pushed yet, and ``pr`` owns the order a pushed branch's
 synchronization asks its owners in. Those owners are ``eligibility`` for the
 label, park, PR-state, recovery, and clean-tree gates a PR-having worktree
 clears before any rewrite is attempted, and ``startup`` for the pre-rebase
-anchor its rebase is begun from and the abort / route / park its failure
-takes. What a finished rebase is force-published with lives in
+anchor and terms its rebase is begun from and the abort / route / park its
+failure takes. What one attempt records ABOUT itself -- the head its replay
+produced, the mark a finish leaves of its own announcement, and the reading
+that tells a record nobody wrote from one something took apart -- lives in
+``attempts``, beside the clear every step that ends an attempt goes through,
+because the write that makes a member and the step that drops it are several
+roads over one record. What a finished rebase is force-published with lives in
 ``publication``, the refusals that keep it from being published at all live in
 ``guards``, and the relabel, notice, and audit event a rebase that really
 conflicted is handed to its stage with live in ``conflicts``. Every base-sync

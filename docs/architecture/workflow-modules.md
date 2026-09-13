@@ -1978,7 +1978,11 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             refuses ends the tick and reports nothing, and a rotation that moved no verdict -- a
                             permission left standing, one the publication went past -- says nothing either.
                             Deliberately no second `late_verdict` beside it, which would read as a second
-                            adjudication of work nobody was asked about twice
+                            adjudication of work nobody was asked about twice. The proof the settlement kept for
+                            this record is dropped by this owner's own write, ordered after it: a comment still
+                            carrying one MEANS a report is owed, so left standing it would say a settled transfer
+                            had never been announced. A drop GitHub refuses is logged and walked past, since the
+                            record has been made and a later tick may make it again
       late_terminal.py      whether the work a late record still owes a push for has already ended, asked ahead of
                             every road the reconciliation takes because all of them publish while the terminal that
                             drains such work runs inside the stage handler behind it. Two facts, since an issue's

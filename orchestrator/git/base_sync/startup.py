@@ -2,14 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """Anchoring one auto-rebase, and the two ways starting it can end badly.
 
-The pre-rebase SHA is the whole reason these three helpers live together. It
-is the lease a later force-push is pinned to and the anchor a crashed tick is
+The pre-rebase SHA is the whole reason these helpers live together. It is the
+lease a later force-push is pinned to and the anchor a crashed tick is
 recovered from, so it has to be readable before git is allowed to move HEAD
 and pinned before the rewrite runs -- an attempt that mutated the worktree
 first and recorded the anchor second would leave a tick that died in between
 with a rewritten branch nobody can compare against. Reading it fails closed,
 and a rebase that then fails is aborted back onto it before the outcome is
 routed: conflicted files are the dev agent's work, anything else is a park.
+
+The attempt's own terms go down in the anchor's own statement for the same
+reason the anchor does: they are what a later tick re-asks this attempt's
+publication checks against, and read off the issue after a crash they would
+compare today with today.
 """
 from __future__ import annotations
 
@@ -17,12 +22,14 @@ from github.PullRequest import PullRequest
 
 from orchestrator import config
 from orchestrator.git import commands
-from orchestrator.git.base_sync import conflicts, persistence, pre_pr
+from orchestrator.git.base_sync import attempts, conflicts, persistence, pre_pr
 from orchestrator.git.base_sync.models import _AutoRebaseContext
 from orchestrator.git.base_sync.state import (
     _AWAITING_HUMAN,
     _PARK_REASON,
     _PENDING_PUSH_SHA,
+    _PENDING_REWRITE_PR,
+    _PENDING_REWRITE_STAGE,
     _REASON_AUTO_BASE_REBASE_FAILED,
     log,
 )
@@ -61,12 +68,30 @@ def _record_auto_rebase_attempt(
     before_sha: str,
     consumed_comment_id: int | None,
 ) -> None:
-    """Persist the recovery anchor and any retry unpark before git runs."""
+    """Persist the anchor, the attempt's terms, and any retry unpark.
+
+    All of it before git runs, because every field here is something the
+    branch moving would make unanswerable. The anchor is the head the pull
+    request is standing on and the head the force-push behind this rebase is
+    leased against. The TERMS beside it -- the pull request this attempt
+    publishes onto and the stage it was entered from -- are what a later tick
+    re-asks the attempt's own publication checks against: read off the issue
+    then they would compare today with today, and a relabel or a repoint made
+    while the process was down would pass as this tick's own.
+
+    They go down here rather than with the head the rebase produces, and that
+    is what makes the window between `git rebase` returning and the write
+    recording its output recoverable at all. A crash there leaves a checkout
+    on a replay nothing names -- but the terms on the comment still say which
+    publication the attempt in flight was for.
+    """
     if consumed_comment_id is not None:
         context.state.set("last_action_comment_id", consumed_comment_id)
         context.state.set(_AWAITING_HUMAN, False)
         context.state.set(_PARK_REASON, None)
     context.state.set(_PENDING_PUSH_SHA, before_sha)
+    context.state.set(_PENDING_REWRITE_PR, context.pr_number)
+    context.state.set(_PENDING_REWRITE_STAGE, str(context.label))
     context.gh.write_pinned_state(context.issue, context.state)
 
 
@@ -83,7 +108,7 @@ def _handle_failed_auto_rebase(
             context.issue.number,
             (abort.stderr or "").strip(),
         )
-    context.state.set(_PENDING_PUSH_SHA, None)
+    attempts._clears_the_attempt(context.state)
     if conflicted_files:
         conflicts._route_pr_worktree_to_resolving_conflict(
             context.gh,

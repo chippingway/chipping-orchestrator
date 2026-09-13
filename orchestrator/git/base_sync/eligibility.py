@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from github.PullRequest import PullRequest
 
-from orchestrator.git.base_sync import recovery
+from orchestrator.git.base_sync import attempts, recovery
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseDecision,
@@ -28,7 +28,6 @@ from orchestrator.git.base_sync.state import (
     _AUTO_REBASE_PARK_REASONS,
     _AWAITING_HUMAN,
     _PARK_REASON,
-    _PENDING_PUSH_SHA,
     _PR_REFRESH_DETOUR_LABELS,
     log,
 )
@@ -133,11 +132,11 @@ def _open_auto_rebase_pr(
     if pr_status == "open":
         return pr
     if context.pending_pre_rebase_sha:
-        context.state.set(_PENDING_PUSH_SHA, None)
+        attempts._clears_the_attempt(context.state)
         context.gh.write_pinned_state(context.issue, context.state)
         log.info(
-            "issue=#%d PR #%d is %s and a recovery anchor was "
-            "pinned; clearing the stale flag",
+            "issue=#%d PR #%d is %s and an attempt was still in flight for "
+            "it; ending the whole record it left",
             context.issue.number,
             context.pr_number,
             pr_status,

@@ -23,9 +23,19 @@ onto the object that replaced the one they made it about, so a second
 was asked about twice -- and a rotation that moved no verdict says nothing at
 all, because a permission left standing and one this publication went past
 both leave the exemption exactly where the adjudication put it.
+
+Once is also what the write behind the record is for. The settlement keeps the
+proof it was taken on -- which reading showed the push had landed, the one fact
+nothing later could re-derive -- on the comment precisely so a process lost
+between the settlement and this record leaves the next reader something to
+report from. A comment still carrying one therefore MEANS a report is owed, so
+the drop is this owner's own last step rather than a caller's: left standing,
+it would say a settled transfer had never been announced for as long as the
+issue lives.
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 
 from orchestrator.workflow.late_split import (
@@ -39,6 +49,8 @@ from orchestrator.workflow.stages.implementing import (
     late_records as _records,
     late_rotation as _rotation,
 )
+
+log = logging.getLogger("orchestrator.workflow")
 
 
 def _reports_the_transfer(
@@ -81,6 +93,40 @@ def _reports_the_transfer(
         _reported(gate, rewrite),
         stage=rewrite.source_stage,
     )
+    _forgets_the_reported_proof(gate, rewrite)
+
+
+def _forgets_the_reported_proof(
+    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+) -> None:
+    """Drop the proof the record above was made from, durably.
+
+    Ordered strictly after the record, and made durable HERE rather than left
+    for the caller, because the caller's next write is not guaranteed: the push
+    tail's own write is the one that settles the transfer and it is already
+    behind this call. A proof left standing is not inert -- it is what says a
+    report is still owed -- so every later tick that reads it would announce
+    the same transfer again.
+
+    It is the one write in this domain that carries nothing but the fact that
+    something has already been said, and it costs a request on the rare tick a
+    verdict actually moves.
+
+    A write GitHub refuses leaves the proof on the COMMENT, which is the safe
+    way round: the record has been made and a later tick reading that comment
+    may make it again, rather than a settled transfer nobody ever announced.
+    So it is logged and the tick carries on -- this call is the last thing the
+    push tail does, so the staged drop it leaves behind reaches no reader.
+    """
+    _rewrites.forget_transfer_proof(gate.state)
+    try:
+        gate.gh.write_pinned_state(gate.issue, gate.state)
+    except Exception:
+        log.warning(
+            "issue=#%d reported the transfer onto %s and could not drop the "
+            "proof it was made from; a later tick may report it again",
+            gate.issue.number, rewrite.to_sha, exc_info=True,
+        )
 
 
 def _reported(
