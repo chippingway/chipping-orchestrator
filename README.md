@@ -35,9 +35,8 @@ this path:
    to land under the ceiling — a child issue states the all-path budget its slice was proposed at, and that number
    binds nothing: a child is measured exactly as its parent was, over the whole of its own base-to-candidate diff
    across every path and however many commits it took, and one that lands past the ceiling is split again;
-   adjudicated as
-   *one* change — a verdict that has to say why no safe split of the work was available — nothing is published and
-   the issue waits for you, because publishing an oversized change unsplit is
+   adjudicated as *one* change — a verdict that has to say why no safe split of the work was available — nothing is
+   published and the issue waits for you, because publishing an oversized change unsplit is
    a decision the orchestrator does not make for itself. The commit, its worktree and any pull request it stands under
    are left exactly as they are, no further decomposer is spawned against them, and replying with what to change
    resumes the dev agent and re-measures what comes back — or
@@ -266,9 +265,8 @@ where you put it rather than greeted a second time, so nothing runs again until 
   commit's: a child a split creates later is a separate issue with a pinned record of its own, so it carries neither
   the exemption nor your authorization and its first candidate is measured from scratch. A command naming any other
   commit gets one reply saying so and changes nothing, and an edit to the issue title, body or earlier comments
-  outranks the command
-  entirely: the issue parks on the edit first, and the decision has to be made again against the requirements as they
-  now read.
+  outranks the command entirely: the issue parks on the edit first, and the decision has to be made again against the
+  requirements as they now read.
 
   Publishing it needs the issue's checkout, and where that is not ready the orchestrator holds rather than asking you
   twice. The worktree has to be on this host, its tree carrying nothing a push would leave behind, and its head still

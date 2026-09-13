@@ -1333,8 +1333,7 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        that skips a reading, so the slice it commits is measured here like any other candidate — the frozen base
        against the commit being published, across implementation, tests and documentation alike, over however many
        commits the slice took — and the addition budget stated on its body is not something this gate reads at all.
-       So does every candidate while
-       `DECOMPOSE=off` — except
+       So does every candidate while `DECOMPOSE=off` — except
        one this issue has a recorded generation for *that same commit*, one it owes a push for, and
        one **answering a reading the gate itself recorded**. A generation naming some OTHER candidate is one a
        resumed developer's fresh commit has moved past, and the fresh commit is new work: published untouched with
