@@ -2151,8 +2151,17 @@ rather than preserving.
   rebase, and the four the refresh drives for its own -- so a pairing no owner here produces reads back as no
   authorization at all. None of them claims the contribution SURVIVED either: a replay that resolved content
   conflicts and a squash of work nobody adjudicated both carry a kind this build authorizes over evidence that
-  fingerprints to something else, and the permit refuses them on the fingerprints rather than on the kind. The
-  publication group scopes the whole claim to one push onto one pull request. `late_rewrite_phase` is what says
+  fingerprints to something else, and the permit refuses them on the fingerprints rather than on the kind. Nor do
+  those fingerprints answer for the base they are read over. What their equality says is that the rewrite
+  contributes what was adjudicated *over the base `late_rewrite_to_base_sha` names*, and choosing that base is what
+  a rebase does: read over one carrying work no remote has, the rewritten pair fingerprints to the accepted digest
+  while the object it names carries that work and the adjudicated change together. `refs/remotes/<remote>/<base>`
+  is no proof of it either, since that ref lives in the object store the issue's agent writes to. So the permit
+  freezes the base branch from what the REMOTE says it is at and holds the recorded base to being a commit that
+  tip's history reaches — reachability rather than equality, because the branch advances on its own and a squash
+  collapses over a fork point the branch has had for days, while a commit only this host has ever seen is on no
+  branch at all.
+  The publication group scopes the whole claim to one push onto one pull request. `late_rewrite_phase` is what says
   whether the move has happened, and every other reading turns on it. It binds the group to the exemption, and which
   end binds follows from it: `late_rewrite_from_sha` while the record stands at `authorized`, `late_rewrite_to_sha`
   once the receipt has moved it to `published`. It is also what a rollback reads — a force-push the remote refuses

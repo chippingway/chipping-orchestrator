@@ -25,7 +25,7 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from types import MappingProxyType
 
@@ -47,6 +47,15 @@ AMENDED_CONTENT = "one\ntwo\nthrees\n"
 # contribution is read over.
 BASE_FILE = "unrelated.txt"
 
+# What a base nobody published carries, and the branch it is parked on. The
+# ref an agent's checkout shares decides which commit a rebase replays onto
+# and which one the fork point behind it comes back as, so a commit this side
+# of the remote is all it takes to read a contribution over a base the base
+# branch has never had.
+FORGED_FILE = "unpublished.txt"
+
+_FORGED_BRANCH = "forged-base"
+
 # Who every object this fixture writes is authored and committed by. Handed to
 # each command that writes one -- the commits, the amend, and the rebase --
 # rather than left to the host, since a checkout with no git identity
@@ -58,8 +67,10 @@ _AUTHOR = MappingProxyType({
     "GIT_COMMITTER_EMAIL": "dev@example.com",
 })
 
-# The one command every named commit in this fixture is read back by.
+# The one command every named commit in this fixture is read back by, and the
+# one every branch in it is moved onto.
 _REV_PARSE = "rev-parse"
+_CHECKOUT = "checkout"
 _HEAD = "HEAD"
 
 
@@ -139,6 +150,45 @@ class ReplayRepositoryMixin:
             replayed_base=self._fork_point(worktree),
         )
 
+    def replays_onto_a_forged_base(
+        self, replay: ReplayedBranch,
+    ) -> ReplayedBranch:
+        """Point the base ref at a commit the remote has not got, and replay.
+
+        The shape a base-relative reading cannot tell from an honest one.
+        `refs/remotes/<remote>/<base>` lives in the object store the agent's
+        checkout shares, so a commit made here and never pushed is a base as
+        far as every local reading is concerned: the rebase replays onto it,
+        and the fork point behind the object that comes out names it.
+
+        What makes it worth a real repository is what the digests then say.
+        The forged base carries work the branch is no longer read as adding,
+        so the replay contributes exactly what the adjudication accepted and
+        fingerprints to the same id -- while the commit it produced carries
+        that work and the adjudicated change together.
+        """
+        worktree = replay.worktree
+        run_git(
+            _CHECKOUT, "-B", _FORGED_BRANCH,
+            f"{REMOTE_NAME}/{BASE_BRANCH}", cwd=worktree,
+        )
+        (worktree / FORGED_FILE).write_text("work no remote has\n")
+        forged = _commit(worktree, "feat: unpublished")
+        run_git(_CHECKOUT, TOPIC_BRANCH, cwd=worktree)
+        run_git(
+            "update-ref", f"refs/remotes/{REMOTE_NAME}/{BASE_BRANCH}", forged,
+            cwd=worktree,
+        )
+        run_git(
+            "rebase", f"{REMOTE_NAME}/{BASE_BRANCH}",
+            cwd=worktree, env_extra=_AUTHOR,
+        )
+        return replace(
+            replay,
+            replayed=_named(worktree),
+            replayed_base=self._fork_point(worktree),
+        )
+
     def writes_one_byte(self, replay: ReplayedBranch) -> str:
         """Amend a single byte into the replayed commit, and name what it left.
 
@@ -175,7 +225,7 @@ class ReplayRepositoryMixin:
         (worktree / "README.md").write_text("hello\n")
         _commit(worktree, "initial")
         run_git("push", REMOTE_NAME, BASE_BRANCH, cwd=worktree)
-        run_git("checkout", "-b", TOPIC_BRANCH, cwd=worktree)
+        run_git(_CHECKOUT, "-b", TOPIC_BRANCH, cwd=worktree)
         (worktree / TOPIC_FILE).write_text(TOPIC_CONTENT)
         _commit(worktree, "feat: the adjudicated change")
         # Published before the base moves, so the remote stands on the head
@@ -187,11 +237,11 @@ class ReplayRepositoryMixin:
 
     def _advances_the_base(self, worktree: Path) -> None:
         """Move the base branch on, the way another issue's merge does."""
-        run_git("checkout", BASE_BRANCH, cwd=worktree)
+        run_git(_CHECKOUT, BASE_BRANCH, cwd=worktree)
         (worktree / BASE_FILE).write_text("somebody else's work\n")
         _commit(worktree, "feat: unrelated")
         run_git("push", REMOTE_NAME, BASE_BRANCH, cwd=worktree)
-        run_git("checkout", TOPIC_BRANCH, cwd=worktree)
+        run_git(_CHECKOUT, TOPIC_BRANCH, cwd=worktree)
         run_git("fetch", REMOTE_NAME, cwd=worktree)
 
     def _fork_point(self, worktree: Path) -> str:

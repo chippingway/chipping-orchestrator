@@ -601,7 +601,13 @@ oversized publication are all such callers
 ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#late-generation-state)).
 
 The two endpoints decide what is fingerprinted and are deliberately not in the digest, so the same work over the same
-base fingerprints alike no matter which commits carry it. Both commits are proven present before the listing runs, so
+base fingerprints alike no matter which commits carry it. That is also the limit of what comparing two digests
+settles: they agree that the same work was contributed over the bases each was taken between, and say nothing about
+whether either base is one the repository's base branch really has. Where a rewrite CHOOSES that base — which is what
+a rebase does — the permit carrying an exemption across proves it separately, freezing the base branch from the remote
+and refusing a recorded base that tip does not reach
+([`security.md`](security.md#what-a-trusted-pinned-record-still-cannot-license)).
+Both commits are proven present before the listing runs, so
 an end this host does not hold is reported as `fingerprint_base_absent` / `fingerprint_candidate_absent` rather than
 surfacing as a diff error, and a listing that failed records `fingerprint_diff_failed` with no digest beside it —
 what a failed `git diff` writes to stdout is nothing, which is also what a candidate that changes nothing writes.
