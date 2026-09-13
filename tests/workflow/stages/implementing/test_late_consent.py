@@ -12,17 +12,24 @@ further than the reading that found it.
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.implementing import (
     late_command as _command,
     late_consent as _consent,
+    late_parks as _parks,
     late_verdict as _verdict_owner,
     state as _state,
 )
-from tests.workflow.fixtures import MEASURED_BASE_SHA, MEASURED_CANDIDATE_SHA
+from tests.workflow.fixtures import (
+    MEASURED_BASE_SHA,
+    MEASURED_CANDIDATE_SHA,
+    _authorized_exemption,
+)
 from tests.workflow.interleaving import _RacesTheStep
 from tests.workflow.stages.implementing import (
     late_consent_test_support as support,
@@ -30,76 +37,43 @@ from tests.workflow.stages.implementing import (
 
 _ORCH_MARKER = _comments._ORCH_COMMENT_MARKER
 
+# The park a reading nobody could take earns, the step its notice names, and
+# the two families the sinks carry for a reading that happened and one that
+# did not.
+_MEASUREMENT_FAILED = "late_measurement_failed"
+_DIFF_FAILED = MeasurementFailure.DIFF_FAILED
+_MEASUREMENT_EVENT = "late_measurement"
+_FAILURE_EVENT = "late_failure"
+
+# The pair a tick freezes over a commit no record on this issue names, which
+# is what a resumed developer's fresh work looks like to the gate.
+_MOVED_PAIR = replace(support.measured(), candidate_sha=support.STRANGER_SHA)
+
 # The sentence only the side of publication with a resume behind it may offer.
 _RESUMED_AGAINST_IT = "the developer is resumed against it"
-
-
-class StandingParkTest(support._ConsentCase, unittest.TestCase):
-    """The one door into this policy, and what each half of it answers.
-
-    Nothing in this build takes the park, so the door is the whole of what
-    keeps the policy off every other issue.
-    """
-
-    def test_only_this_park_is_behind_the_door(self) -> None:
-        # Each says who is waiting behind which question. The flag alone is
-        # any of a dozen things a human is holding, and the reason alone is a
-        # park somebody has already answered.
-        for described, parked, seeded, expected in (
-            ("standing", True, {}, True),
-            ("another reason", True, {_state._PARK_REASON: "late_worktree_missing"}, False),
-            ("nobody waiting", True, {_state._AWAITING_HUMAN: False}, False),
-            ("nothing at all", False, {}, False),
-        ):
-            with self.subTest(park=described):
-                self.setUp()
-                self._seed(parked=parked, **seeded)
-
-                self.assertIs(self._at_the_door(), expected)
-
-    def test_only_an_adjudicated_commit_is_behind_it(self) -> None:
-        # What this park collects is HALF of a two-part bypass: an
-        # adjudicator's ruling that the change is one change, and an operator
-        # who agreed to publish it past the ceiling. Entered without the
-        # first, a command alone would earn the override group, take the park
-        # off, and publish a candidate nobody has ruled on.
-        for described, exempted in (
-            ("this candidate", MEASURED_CANDIDATE_SHA),
-            ("another commit", support.STRANGER_SHA),
-            ("nothing at all", None),
-            ("an abbreviation", MEASURED_CANDIDATE_SHA[:support.ABBREVIATED]),
-            ("prose", "the one above"),
-        ):
-            with self.subTest(exemption=described):
-                self.setUp()
-                self._seed(**{support.KEY_EXEMPT_SHA: exempted})
-
-                self.assertIs(
-                    self._at_the_door(), exempted == MEASURED_CANDIDATE_SHA,
-                )
-
-    def _at_the_door(self) -> bool:
-        return _consent._awaits_an_operator(
-            self._gate(), MEASURED_CANDIDATE_SHA,
-        )
 
 
 class GateDoorTest(support._ConsentCase, unittest.TestCase):
     """Which road one whole gate decision takes, and what it leaves behind.
 
-    The policy behind the door and the ordinary measurement below it reach
-    the same two verdicts, so a case asking only what came back could not
-    tell which of them decided.
+    This owner's road and the ordinary measurement beside it reach the same
+    two verdicts, so a case asking only what came back could not tell which of
+    them decided.
     """
 
     def test_a_command_publishes_nothing_unruled(self) -> None:
-        # The end of the same road, through the gate that walks it. Entered on
-        # the park fields alone, a command naming the freshly measured head
-        # earns the override group, takes the park off, and hands the caller a
-        # publish verdict -- a bypass carrying only the operator's half of it.
+        # What the park collects is HALF of a two-part bypass: an
+        # adjudicator's ruling that the change is one change, and an operator
+        # who agreed to publish it past the ceiling. Reached without the
+        # first, a command alone would earn the override group and publish a
+        # candidate nobody has ruled on -- so a commit no exemption names goes
+        # to the ordinary reading, which routes an oversized one to the
+        # adjudication that has never seen it.
         for described, exempted in (
             ("nothing at all", None),
             ("another commit", support.STRANGER_SHA),
+            ("an abbreviation", MEASURED_CANDIDATE_SHA[:support.ABBREVIATED]),
+            ("prose", "the one above"),
         ):
             with self.subTest(exemption=described):
                 self.setUp()
@@ -117,34 +91,54 @@ class GateDoorTest(support._ConsentCase, unittest.TestCase):
                     support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned(),
                 )
 
-    def test_an_adjudicated_commit_still_publishes(self) -> None:
-        # The other direction, so the door is narrowed rather than shut: the
-        # candidate an adjudicator did rule on is answered by the policy
-        # exactly as before, on the operator's command and this tick's count.
+    def test_an_adjudicated_commit_takes_this_road(self) -> None:
+        # The other direction: the candidate an adjudicator did rule on and
+        # nobody authorized is MEASURED like any other, and what the operator
+        # authorizes is that reading -- a change of this size against this
+        # ceiling -- rather than a number read back off the comment.
         self._seed(**support.measured_pair())
         commanded = self._reply(support.AUTHORIZE)
 
         decided = self._decides()
 
         self.assertFalse(decided.verdict.held)
-        self.assertFalse(decided.measured)
+        self.assertTrue(decided.measured)
         self.assertEqual(decided.verdict.candidate_sha, MEASURED_CANDIDATE_SHA)
+        authorized = self._pinned()
         self.assertEqual(
-            self._pinned()[support.KEY_OVERRIDE_COMMENT_ID], commanded,
+            authorized[support.KEY_OVERRIDE_COMMENT_ID], commanded,
+        )
+        self.assertEqual(
+            authorized[support.KEY_OVERRIDE_ADDITIONS],
+            support.OVERSIZED_ADDITIONS,
+        )
+
+    def test_an_authorized_commit_skips_the_reading(self) -> None:
+        # And the far side of the same road, which is what a recorded
+        # authorization buys: the exemption and the terms an operator granted
+        # it on both name the commit, so the gate publishes it without a
+        # count and without asking anybody a second time.
+        self._seed(parked=False, **_authorized_exemption())
+
+        decided = self._decides()
+
+        self.assertFalse(decided.verdict.held)
+        self.assertFalse(decided.measured)
+        self.assertEqual(
+            decided.verdict.basis, str(_parks.LateApprovalBasis.ADJUDICATION),
         )
 
 
 class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
-    """The reading taken behind the door, which is a COUNT every time.
+    """The reading this park is reached from, which is a COUNT every time.
 
-    Never the exemption the park was taken to doubt: read as "already
-    decided" it would publish the very bypass the park withholds.
+    Never the exemption alone: read as "already decided" it would publish the
+    very bypass the park withholds.
     """
 
     def test_an_oversized_count_holds_for_a_person(self) -> None:
-        # The exemption on the record is exactly what the park doubts, so the
-        # reading behind the door is this tick's own count rather than the
-        # record's answer.
+        # The exemption on the record is exactly what the park doubts, so what
+        # decides is this tick's own count rather than the record's answer.
         self.assertTrue(self._holds(support.OVERSIZED))
 
         self.assertEqual(
@@ -165,14 +159,14 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
         self.assertEqual(self.github.posted_comments, [])
 
     def test_a_settled_candidate_leaves_no_park(self) -> None:
-        # The retirement beside the settlement drops only a park a fresh
-        # READING answers, so without this the gate publishes a commit while
-        # the record still says a human is holding the issue -- and the source
+        # The retirement a published candidate earns drops the park in its own
+        # durable write, so without this the gate publishes a commit while the
+        # record still says a human is holding the issue -- and the source
         # stage takes its parked road on every poll after, waiting for a reply
         # to a question this tick answered.
         settles = support.SettlesWithItsOwnWrite()
 
-        with patch.object(_verdict_owner, support.SETTLED, settles):
+        with patch.object(_verdict_owner, support.ACCEPTED, settles):
             self._holds(support.FITS)
 
         for described, record in (
@@ -182,18 +176,39 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
             with self.subTest(park=described):
                 self.assertFalse(record[_state._AWAITING_HUMAN])
                 self.assertIsNone(record[_state._PARK_REASON])
-                self.assertIsNone(record[_state._HELD_RECEIPT])
 
-    def test_a_count_nobody_could_take_holds_as_found(self) -> None:
-        # Nothing about a diff this host cannot read is the operator's doing,
-        # so the park, the command and the record are all still there for the
-        # poll that can take the reading.
-        self._reply(support.AUTHORIZE)
+    def test_a_lost_count_parks_as_a_reading(self) -> None:
+        # The reading is the gate's ordinary one, so a diff this host cannot
+        # read fails exactly where every other lost reading does: the typed
+        # measurement park, said to the thread and reported to both sinks.
+        # Held silently instead, a fresh legacy record would poll forever with
+        # nothing parked, nothing said, and no failure telemetry.
+        self._seed(parked=False)
 
-        self.assertTrue(self._holds(support.UNCOUNTABLE))
+        self._run_tick(added_lines=_DIFF_FAILED)
 
-        self.assertEqual(self.github.posted_comments, [])
-        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
+        pinned = self._pinned()
+        self.assertEqual(pinned[_state._PARK_REASON], _MEASUREMENT_FAILED)
+        self.assertIn(str(_DIFF_FAILED), self.github.posted_comments[0][1])
+        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, pinned)
+        self.assertEqual(pinned[support.KEY_EXEMPT_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertIn(
+            _FAILURE_EVENT,
+            [record["event"] for record in self.github.recorded_events],
+        )
+
+    def test_a_measured_candidate_reaches_both_sinks(self) -> None:
+        # The other half of using the ordinary reading: a count that DID come
+        # back emits the measurement event every other candidate's does, so an
+        # issue held for an operator is visible to the same telemetry.
+        self._seed(parked=False)
+
+        self._holds(support.OVERSIZED)
+
+        self.assertIn(
+            _MEASUREMENT_EVENT,
+            [record["event"] for record in self.github.recorded_events],
+        )
 
     def test_a_pair_nothing_froze_holds_as_found(self) -> None:
         self._reply(support.AUTHORIZE)
@@ -203,19 +218,18 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
         self.assertEqual(self.github.posted_comments, [])
         self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
 
-    def test_a_park_over_another_commit_speaks_again(self) -> None:
-        # The freeze between the door and this question persists the pair in
-        # hand, so the commit a park stands over has to be read before it. Read
-        # after, every park compares equal to the candidate being asked about
-        # -- and a human holding this issue over one commit is never told about
-        # the one a resumed developer has since committed.
+    def test_a_candidate_it_moved_past_is_adjudicated(self) -> None:
+        # A resumed developer's fresh commit is not the change anybody was
+        # asked about, and no exemption names it -- so it goes to the
+        # adjudication, which takes the stale park down on its way. Left
+        # standing, the human would go on holding an issue over a commit the
+        # branch has moved off.
         self._seed(**support.measured_pair(candidate_sha=support.STRANGER_SHA))
 
-        self.assertTrue(self._holds(support.OVERSIZED))
+        with patch.object(_verdict_owner, support.ROUTED, return_value=True):
+            self.assertTrue(self._holds(support.OVERSIZED, pair=_MOVED_PAIR))
 
-        said = self.github.posted_comments[0][1]
-        self.assertIn(support.AUTHORIZE, said)
-        self.assertNotIn(support.STRANGER_SHA, said)
+        self.assertEqual(self.github.posted_comments, [])
 
 
 class AuthorizationParkTest(support._ConsentCase, unittest.TestCase):

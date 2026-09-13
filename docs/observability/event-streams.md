@@ -751,14 +751,20 @@ it exactly once, and the records go on either way. A candidate refused before ei
 generation of its own to be correlated by, so the identity is *minted* for the record — derived from what the pinned
 comment already says, so a reading that keeps failing reports the same attempt rather than a fresh cycle per tick —
 and deliberately not persisted, since a pinned cycle with no candidate under it freezes nothing and would be read as a
-live cycle by the guard that ends one when the issue closes. A candidate the gate skips emits nothing, and five do.
-Three are commits this workflow has already decided about, each named exactly and only by its own record: the one an
-authorized settlement accepted (`late_exempt_sha`), the one the gate itself approved and has still to push
+live cycle by the guard that ends one when the issue closes. A candidate the gate skips emits nothing, and six do.
+Four are commits this workflow has already decided about, each named exactly and only by its own record: the one an
+authorized settlement accepted AND an operator authorized (`late_exempt_sha` asked as a pair with the
+`late_override_*` group, whose recorded pair is re-fingerprinted before either counts — an exemption is an
+adjudicator's answer, so a commit only it names is measured like any other and emits a record), the one the gate
+itself approved and has still to push
 (`late_approved_sha`, brought back by a crash between the write that approves a candidate and the push it licenses),
-and the one this stage already pushed (`implementing_published_sha`, brought back by a relabel to
-`workflow:validating` that did not land). The fourth is a NEW candidate while `DECOMPOSE=off`, and the fifth is a
+the one this stage already pushed (`implementing_published_sha`, brought back by a relabel to
+`workflow:validating` that did not land), and the one an open pull request this call FROZE is already standing on
+while an exemption nothing authorizes names it — where the push would move nothing and only the bookkeeping behind a
+publication that has happened is owed. The fifth is a NEW candidate while `DECOMPOSE=off`, and the sixth is a
 workflow rewrite that EARNED the exemption of the commit it replaced — a squash on approval, or the clean base rebase
-the per-tick refresh publishes (`late_rewrite_*`, granted only over two recomputed fingerprints that agree). So a
+the per-tick refresh publishes (`late_rewrite_*`, granted only over two recomputed fingerprints that agree, and only
+where an operator authorization stands behind the exemption it would move). So a
 reading that never happened is not always a reading that failed: an issue whose branch is published, or whose commit a
 verdict settled, reaches the seam again and leaves no `late_measurement` behind, which is the shape a threshold study
 sees for a candidate that was counted once and acted on twice. The switch is not silence either — a candidate this

@@ -38,6 +38,7 @@ from tests.git.base_sync.real_git_test_support import (
     _RefreshBaseRealGitFixture,
 )
 from tests.git.base_sync.refresh_test_support import _patched
+from tests.support.authorization import _authorize
 from tests.support.fakes import (
     FakeGitHubClient,
     FakePR,
@@ -146,6 +147,10 @@ class AdjudicatedRebaseRealGitFixture(_RefreshBaseRealGitFixture):
         The branch is published first, because the head the pull request is
         standing on is the head the force-push is leased against and the two
         are one fact on a branch this workflow keeps in step with its remote.
+
+        Both halves of the bypass go down, since an exemption alone earns no
+        transfer: the adjudication's verdict, and the terms an operator
+        authorized that publication on.
         """
         self._git(PUSH_COMMAND, ORIGIN_REMOTE, PR_BRANCH, cwd=self._wt)
         self._open_pull_request()
@@ -158,6 +163,7 @@ class AdjudicatedRebaseRealGitFixture(_RefreshBaseRealGitFixture):
             candidate_sha=accepted,
             fingerprint=self._contribution(),
         )
+        _authorize(state, accepted, self._merge_base(), self._contribution())
         self._gh.write_pinned_state(self._gh._issues[ISSUE], state)
 
     def _open_pull_request(self) -> None:

@@ -52,10 +52,15 @@ reads the attribution back off one somebody else opened; and
 `handoff` owns the last write and the relabel it goes out ahead of.
 
 `late_gate` is the order its own questions are asked in and nothing else, so
-eight owners sit under it: what one gate call is ABOUT and the identity every
+nine owners sit under it: what one gate call is ABOUT and the identity every
 refusal is reported under is `late_records`, the pair a count is taken over is
 `late_freeze`, what a recovery proves before it acts on a recorded commit is
-`late_evidence`, what a receipt naming this stage's own push has to PROVE
+`late_evidence`, whether the human behind an adjudicated commit is one this
+issue can SHOW -- the exemption and the operator authorization asked together,
+both held to one commit, with the contribution between the pair that
+authorization names re-fingerprinted here, since an exemption is an agent's
+verdict and half a bypass alone -- is `late_authority`, what a receipt naming
+this stage's own push has to PROVE
 before it excuses a candidate from being read -- its own numbered pull
 request, open here, on the branch the seam would push, standing on that exact
 commit -- is `late_delivery`, what a measured candidate earns -- the push, the
@@ -63,9 +68,10 @@ commit -- is `late_delivery`, what a measured candidate earns -- the push, the
 `late_verdict`, and the one park shape every unreadable reading takes, with
 the typed failure both sinks carry and the approval group whose basis says
 which owner granted a publication debt, is `late_parks`. The last two are the
-park an adjudicated candidate with no operator authorization behind it waits
-on: `late_consent` takes it, records what an operator's command authorizes
-from the gate's own reading, and answers a command it may not act on, while
+park an oversized candidate `late_authority` calls exempt on a record nobody
+authorized waits on: `late_consent` takes it, records what an operator's
+command authorizes from the gate's own reading, and answers a command it may
+not act on, while
 `late_command` beside it decides which reply on a standing park a tick should
 act on at all -- the last fresh trusted reply, and how far reading it got.
 

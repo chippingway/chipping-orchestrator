@@ -314,16 +314,28 @@ class _GateVerdict:
     gate, and a candidate the gate then lets through publishes on the count
     rather than on the exemption.
 
-    The two are separate because the write past the push turns on the second
-    and only the second. A permission standing on the comment is evidence a
-    permit was once granted, not that it still holds: a repointed pull
-    request, a relabelled issue, a moved remote, or a contribution that no
-    longer fingerprints alike each refuse it while the ordinary reading may
+    The first two are separate because the write past the push turns on the
+    second and only the second. A permission standing on the comment is
+    evidence a permit was once granted, not that it still holds: a repointed
+    pull request, a relabelled issue, a moved remote, or a contribution that
+    no longer fingerprints alike each refuse it while the ordinary reading may
     still publish the same commit. Read off the record instead, that
     publication would rotate a human's verdict onto a rewrite this tick
     declined to vouch for.
 
-    `delivered_pr` is the third, and it travels for the same reason as the
+    `basis` is what ADMITTED this candidate, carried as the wire value the
+    approval group records. It travels for the reason the commit does: the
+    caller's next step records a debt, and only the answer that let the
+    candidate past can say what that debt rests on. Re-derived at the write
+    instead, a proof that succeeded here and fails a moment later -- a store
+    that stopped answering between the two readings -- would record an
+    operator's bypass as ordinary unmeasured debt, which the tick after a
+    crash then spends without asking anyone.
+
+    Empty for every road that decided nothing to carry, and read back as the
+    ordinary unmeasured basis there.
+
+    `delivered_pr` is the fourth, and it travels for the same reason as the
     commit: only the answer that admitted this candidate read the pull request
     it is already standing on, and the seam behind it would otherwise resolve
     a branch for itself and reuse whatever pull request happened to be open on
@@ -336,6 +348,7 @@ class _GateVerdict:
     held: bool
     candidate_sha: str = ""
     permitted_sha: str = ""
+    basis: str = ""
     delivered_pr: int = 0
 
 

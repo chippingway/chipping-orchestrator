@@ -154,22 +154,57 @@ class StandingBasisTest(unittest.TestCase):
                     _parks._standing_basis(_approved(basis)), basis,
                 )
 
-    def test_a_record_that_cannot_say_says_nothing(self) -> None:
-        # A comment that never said and one a hand edit moved outside the
-        # vocabulary are the same fact -- this record cannot show what its
-        # approval rests on -- and the answer a reader owes that fact is the
-        # exemption beside it. Answered `unmeasured` instead, an unknown would
-        # be promoted to a decision nobody made, and the reader would stop
-        # falling back.
+    def test_a_record_that_never_said_says_nothing(self) -> None:
+        # The comment an older build left: an approval and no account of its
+        # grounds. Answered `unmeasured` instead, an unknown would be promoted
+        # to a decision nobody made and the reader would stop falling back to
+        # the exemption, which is the only evidence such a record ever had.
+        state = _approved(_parks.LateApprovalBasis.READING)
+        state.set(_state._APPROVED_BASIS, None)
+
+        self.assertIsNone(_parks._standing_basis(state))
+
+    def test_a_damaged_one_is_carried_verbatim(self) -> None:
+        # The opposite record, and the one a carry-forward may not launder: a
+        # field a hand edit moved outside the vocabulary CLAIMS grounds it
+        # cannot name, which the readers fail closed on. Put back as an
+        # absence, one re-record would turn it into the legacy shape above and
+        # the tick after that would spend the debt without asking anybody.
+        state = _approved(_parks.LateApprovalBasis.READING)
+        state.set(_state._APPROVED_BASIS, _NOT_A_BASIS)
+
+        self.assertEqual(_parks._standing_basis(state), _NOT_A_BASIS)
+
+        _parks._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
+
+        self.assertEqual(state.get(_state._APPROVED_BASIS), _NOT_A_BASIS)
+
+    def test_a_field_this_build_cannot_read_is_damage(self) -> None:
+        # Presence and truth asked together, which is what tells the two
+        # apart: an approval an older binary wrote carries no field and earns
+        # the fallback to the exemption beside it, while one whose field
+        # cannot be read claims grounds it cannot name and earns nothing.
         for described, written in (
-            ("never written", None),
-            ("outside the vocabulary", _NOT_A_BASIS),
+            ("a spelling from nowhere", _NOT_A_BASIS),
+            ("a value of another type", 7),
         ):
-            with self.subTest(record=described):
+            with self.subTest(basis=described):
                 state = _approved(_parks.LateApprovalBasis.READING)
                 state.set(_state._APPROVED_BASIS, written)
 
-                self.assertIsNone(_parks._standing_basis(state))
+                self.assertTrue(_parks._unreadable_basis(state))
+
+    def test_nothing_else_is_damage(self) -> None:
+        # Both shapes an absence arrives in -- a comment that never carried
+        # the field, and one carrying it as JSON null, which is an older
+        # binary's value or a hand edit -- and every value this build writes.
+        unwritten = _approved(_parks.LateApprovalBasis.READING)
+        unwritten.set(_state._APPROVED_BASIS, None)
+        defensible = [_approved(basis) for basis in _parks.LateApprovalBasis]
+
+        for state in (PinnedState(data={}), unwritten, *defensible):
+            with self.subTest(basis=state.get(_state._APPROVED_BASIS)):
+                self.assertFalse(_parks._unreadable_basis(state))
 
 
 class SeamMintedDebtTest(unittest.TestCase):

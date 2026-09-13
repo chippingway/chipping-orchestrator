@@ -23,6 +23,7 @@ from tests.git.publication.squash_gate_support import (
     PublicationSeed,
     _squash_gate,
 )
+from tests.support.authorization import _authorize
 
 MAX_ADDED_LINES = "MAX_ADDED_LINES"
 
@@ -114,8 +115,10 @@ class _AdjudicatedSquashMixin:
         """The gate for an issue whose exemption names the pre-squash head.
 
         The pinned comment is exactly what a settled `single` verdict leaves:
-        the accepted commit, and the canonical digest of what it contributes
-        over the base the adjudication was measured from.
+        the accepted commit, the canonical digest of what it contributes over
+        the base the adjudication was measured from, and the terms an operator
+        authorized that publication on -- an exemption is half a bypass, and a
+        squash of a commit only it names earns no transfer.
 
         `base` replaces that end, which is the one field of the record a hand
         edit can move without the reader refusing it: another commit in this
@@ -128,13 +131,16 @@ class _AdjudicatedSquashMixin:
         """
         gate = _squash_gate(self, PublicationSeed())
         accepted = accepted or self._head_sha()
+        recorded_base = base or self._base_sha()
+        recorded_digest = digest or self._contribution(accepted)
         _exemption.record_exemption(gate.state, accepted)
         _exemption.record_semantic_identity(
             gate.state,
-            base_sha=base or self._base_sha(),
+            base_sha=recorded_base,
             candidate_sha=accepted,
-            fingerprint=digest or self._contribution(accepted),
+            fingerprint=recorded_digest,
         )
+        _authorize(gate.state, accepted, recorded_base, recorded_digest)
         gate.gh.write_pinned_state(gate.issue, gate.state)
         return gate
 

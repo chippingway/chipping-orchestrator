@@ -17,10 +17,12 @@ So the exemption may MOVE, and this owner is the whole of what it may move on.
 A permit is granted only when every one of these holds, and the answer is a
 refusal the moment one does not:
 
-* the commit the rewrite came from is the exact commit this issue exempts, and
-  the semantic record beside it is whole -- the frozen pair the adjudication
-  was taken between, the digest of what lay between them, and the scheme it
-  was taken under;
+* the commit the rewrite came from is the exact commit this issue exempts, an
+  operator authorization stands behind that exemption -- it is half a bypass
+  without one, and a move would hand the rewrite a permission the accepted
+  commit never had -- and the semantic record beside it is whole: the frozen
+  pair the adjudication was taken between, the digest of what lay between
+  them, and the scheme it was taken under;
 * the evidence names a rewrite kind this build authorizes, from a stage that
   really makes that kind, and names every end of both contributions, the pull
   request, and the lease at the shape each of those takes;
@@ -132,6 +134,7 @@ from orchestrator.workflow.late_split import (
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_authority as _authority,
     late_records as _records,
     late_verdict as _verdict_owner,
     state as _state,
@@ -190,6 +193,10 @@ _REPLACED_PUBLICATION = (
 _MOVED_REMOTE = (
     "the force-push is leased against `{lease}` and pull request #{number} "
     "stands at `{standing}`"
+)
+
+_UNAUTHORIZED_EXEMPTION = (
+    "no operator authorization stands behind the exemption for `{accepted}`"
 )
 
 _UNREADABLE_AUTHORIZATION = (
@@ -404,6 +411,13 @@ def _permit(
     because they are the heaviest reading in the domain -- every object either
     contribution names is read back in full -- and there is no point taking
     them for a transfer something cheaper has already refused.
+
+    The operator authorization behind the exemption is asked with them rather
+    than at the door for that same reason: proving one is a fingerprint, since
+    every other term of an authorization is the pinned comment agreeing with
+    itself. Its own reading is the first of the three, because a transfer that
+    may not happen at all should not pay for the two that compare
+    contributions.
     """
     for question in (
         _unusable_evidence,
@@ -412,6 +426,7 @@ def _permit(
         _unproven_checkout,
         _unproven_lease,
         _unconfirmed_owner,
+        _unauthorized_exemption,
     ):
         refusal = question(gate, rewrite)
         if refusal:
@@ -421,6 +436,44 @@ def _permit(
         return permit
     disagreeing = _disagreeing_authorization(gate, permit.fingerprint)
     return _Permit(refusal=disagreeing) if disagreeing else permit
+
+
+def _unauthorized_exemption(
+    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+) -> str:
+    """Why the exemption this would move licenses nothing, or "".
+
+    An exemption is half a bypass: it says an ADJUDICATOR ruled the change one
+    coherent whole, and the operator authorization beside it is what says a
+    human agreed to publish past the ceiling. A commit only the exemption
+    names is one the ordinary gate measures, so moving that exemption onto a
+    rewrite would hand the rewritten commit a permission the accepted one
+    never had -- and this owner's grant is the one road that skips the reading
+    without any record naming the commit in advance.
+
+    PROVED rather than parsed, which is why this is asked among the
+    fingerprints rather than at the door. Every term of an authorization but
+    the digest is the pinned comment agreeing with itself, and a hand edit
+    arranges that as easily as a crash: a group naming the accepted commit
+    over a base nobody froze, with a digest of nothing, reads back whole and
+    would license this grant -- and past the grant an oversized change no
+    human ever saw publishes on a rewrite the gate never measured. The digest
+    is the one term the objects answer, so it is re-taken between the pair the
+    record names and held to what the record says. Asked through the owner the
+    GATE asks it through, so an authorization means the same thing on both
+    roads past the measurement.
+
+    The record an older binary left reaches it too: a `single` verdict wrote
+    the exemption alone before a human's own decision was required at
+    publication, and so does any comment whose authorization this build cannot
+    read back whole.
+
+    Refused, nothing moves and the rewritten commit is measured by the
+    ordinary cumulative gate exactly as every other refusal here leaves it.
+    """
+    if _authority._publishes_on_an_exemption(gate, rewrite.from_sha):
+        return ""
+    return _UNAUTHORIZED_EXEMPTION.format(accepted=rewrite.from_sha)
 
 
 def _unreadable_authorization(

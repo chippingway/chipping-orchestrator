@@ -267,7 +267,14 @@ class _SizeGateAssertionsMixin:
 class _SizeGateFixtureMixin(support._FixingFixtureMixin, _SizeGateAssertionsMixin):
     """The seed and the run one fix round through the gate is driven by."""
 
-    def _seed_fix_round(self, **extra_state):
+    def _seed_fix_round(self, *, pr_head: str = support.PR_HEAD_SHA, **extra_state):
+        """One fix round, with the head its pull request is standing on.
+
+        `pr_head` is a parameter because a pull request already standing on
+        the commit in hand is a state of its own rather than a variation: a
+        push there would move nothing, so what a tick can still owe it is the
+        bookkeeping behind a publication that has already happened.
+        """
         long_ago = support.datetime.now(support.timezone.utc) - support.timedelta(
             hours=1,
         )
@@ -278,7 +285,7 @@ class _SizeGateFixtureMixin(support._FixingFixtureMixin, _SizeGateAssertionsMixi
             created_at=long_ago,
         )
         return support.IssueScenario(*self._seed(
-            pr=self._open_pr(),
+            pr=self._open_pr(head=support.FakePRRef(sha=pr_head)),
             issue_comments=[feedback],
             extra_state=extra_state or None,
         ))

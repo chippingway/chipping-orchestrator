@@ -130,7 +130,7 @@ class StrandedSentenceTest(support._ConsentCase, unittest.TestCase):
         # side of the post it died on. Answered off the record alone, the next
         # poll mentions the same people a second time about a decision they
         # have already been asked for.
-        self._crashes_past_our_sentence()
+        self._crashes_past_our_sentence(parked=False)
 
         self.assertTrue(self._holds())
 
@@ -141,7 +141,7 @@ class StrandedSentenceTest(support._ConsentCase, unittest.TestCase):
         # The whole cost of getting this wrong. A second notice moves the
         # watermark past everything under it, so the reply an operator wrote
         # between the two ticks would be consumed unread.
-        self._crashes_past_our_sentence()
+        self._crashes_past_our_sentence(parked=False)
         spoke = self._reply(support.GUIDANCE)
 
         self.assertTrue(self._holds())
@@ -177,7 +177,7 @@ class StrandedSentenceTest(support._ConsentCase, unittest.TestCase):
         # What the unclaimed sentence costs, bounded: it stands in the reading
         # as somebody's word, which is no command, so the park holds -- and
         # the operator's next command is the last fresh reply and publishes.
-        self._crashes_past_our_sentence()
+        self._crashes_past_our_sentence(parked=False)
         commanded = self._reply(support.AUTHORIZE)
 
         self.assertFalse(self._holds())

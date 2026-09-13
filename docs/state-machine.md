@@ -107,7 +107,9 @@ worktree rebases locally; a PR-having one in `workflow:validating` / `workflow:d
 `workflow:validating`, reaching `workflow:resolving_conflict` only when the rebase actually leaves conflicted files.
 That push goes through the size gate, and where the branch was standing on the commit an authorized settlement
 accepted the refresh hands the gate the same rewrite evidence a squash does, so a replay that contributes what a human
-already ruled on carries the exemption over instead of being adjudicated again. The `question` and `discussion` labels
+already ruled on carries the exemption — and the operator authorization that made it a bypass — over instead of being
+adjudicated again. A transfer of an exemption nothing authorizes is refused, since moving one would hand the
+rewritten commit a permission the accepted one never had. The `question` and `discussion` labels
 — and the parks and in-flight discussion records that outlive them — skip both paths. The failure modes, their durable
 `park_reason` tokens, and the refresh-owned retry are in
 [`state-machine/labels-and-state.md#base-refresh`](state-machine/labels-and-state.md#base-refresh).
@@ -241,7 +243,8 @@ provably clean between the measurement and the handoff refuses the publication o
 checkout does. Every park that gate takes is routed by one owner (`implementing/late_recovery.py`) ahead of every
 spawn and back through the same committed-work seam, because on all of them the work is committed already: the
 measurement park above, the handoff's own moved-checkout park, and a standing `late_unauthorized_exemption` — the
-park an operator's `/orchestrator authorize-oversized <commit>` ends, which no road in this build creates. A
+park an oversized candidate takes when the exemption naming it has no operator authorization behind it, ended by a
+trusted whole-comment `/orchestrator authorize-oversized <commit>`. A
 `timed_out` run disposes on whether the run left a commit — HEAD moved past `pre_implement_sha` AND the branch is
 ahead of `<remote>/<base>`, since a head that moved onto the base was written by nobody. The park it leaves freezes
 the branch out of the pre-tick base refresh, and the next tick's silent recovery asks that same pair, so a base a
@@ -284,10 +287,17 @@ and spends the debt the push pays. What it measures is what the pull request wou
 base the remote names to the candidate, so the whole pull request rather than the diff this one push adds — and a
 candidate strictly past `MAX_ADDED_LINES` is held off the branch and routed to `workflow:decomposing` from whichever
 of `workflow:validating` / `workflow:documenting` / `in_review` / `workflow:fixing` / `workflow:resolving_conflict`
-that push was reached under. The stage, the pull request, and the head it stands on are frozen into the record before
-any effect — and that pull request has to be open on the branch this publication will push, and have its head in this
-repository, since the number and the branch are two fields on one pinned comment whose two can disagree and a fork
-carries this repository's ref names over its commits; the push it allows is named against the measured commit and
+that push was reached under. The commit an adjudication accepted skips the reading only where an operator's
+`late_override_*` authorization names it too and the contribution between the pair that record names still
+fingerprints to what it says: an exemption is an agent's verdict, so on its own it is half a bypass, and a commit
+only it names is measured like any other. The one thing such a commit still buys is the bookkeeping behind a
+publication that has already happened — a pull request this call froze and found standing on that exact commit
+finishes its relabel, receipt and debt, since the push would move nothing and holding it back would strand published
+work under a stage no later tick advances. The stage, the pull request, and the head it stands on are frozen into
+the record before any effect — and that pull request has to be open on the branch this publication will push, and
+have its head in this repository, since the number and the branch are two fields on one pinned comment whose two can
+disagree and a fork carries this repository's ref names over its commits; the push it allows is named against the
+measured commit and
 leased against that frozen head; a tree that is not provably clean, an unreadable or closed pull request, and a head
 that moved off the frozen one each park rather than push. A pair frozen and never counted is measured ahead of the
 handler on the next tick, by the dispatcher, on the stage the record names — and one whose checkout is not on this

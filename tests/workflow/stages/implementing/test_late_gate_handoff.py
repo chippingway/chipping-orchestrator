@@ -29,6 +29,7 @@ from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     SHA_LENGTH,
     _agent,
+    _authorized_exemption,
 )
 from tests.workflow.stages.implementing import late_gate_test_support as support
 
@@ -165,7 +166,7 @@ class UnpublishedCommitTest(support._GateCase, unittest.TestCase):
         # Without the second one nothing here would tell the accepted
         # implementation from whatever the rebuild put on the branch.
         self._seed(**{
-            support.KEY_EXEMPT_SHA: MEASURED_CANDIDATE_SHA,
+            **_authorized_exemption(),
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
         })
 
@@ -246,7 +247,7 @@ class ApprovedCommitPublicationTest(support._GateCase, unittest.TestCase):
         # are written together, and either is enough for the commit to be the
         # one this tick publishes.
         self._seed(**{
-            support.KEY_EXEMPT_SHA: MEASURED_CANDIDATE_SHA,
+            **_authorized_exemption(),
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
         })
 

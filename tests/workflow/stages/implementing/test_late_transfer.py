@@ -15,6 +15,7 @@ from orchestrator.git.measurement.models import (
 from orchestrator.git.verification.probes import _WorktreeStatus
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
+    overrides as _overrides,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -296,6 +297,31 @@ class RefusedEvidenceTest(_TransferCase, unittest.TestCase):
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
 
+    def test_an_unauthorized_exemption_moves_none(self) -> None:
+        # An exemption is half a bypass: it says an ADJUDICATOR ruled the
+        # change one whole, and the operator authorization beside it is what
+        # says a human agreed to publish past the ceiling. A commit only the
+        # exemption names is one the ordinary gate measures, so moving that
+        # exemption onto a rewrite would hand the rewritten commit a
+        # permission the accepted one never had -- and this grant is the one
+        # road past the reading that no record names in advance.
+        self._adjudicated(authorized=False)
+
+        self.assertEqual(self._carried(), "")
+        self._assert_untouched()
+
+    def test_a_fabricated_authorization_moves_none(self) -> None:
+        # Every term of an authorization but the digest is the pinned comment
+        # agreeing with itself, and a hand edit arranges that as easily as a
+        # crash: a group naming the accepted commit over a pair nobody read
+        # parses whole and would license this grant. The digest is the one
+        # term the OBJECTS answer, so it is re-taken between the pair the
+        # record names and held to what that record says.
+        self._adjudicated(authorized=OTHER_DIGEST)
+
+        self.assertEqual(self._carried(), "")
+        self._assert_untouched()
+
     def test_unusable_evidence_refuses(self) -> None:
         for described, overrides in _UNUSABLE_EVIDENCE.items():
             with self.subTest(evidence=described):
@@ -494,6 +520,14 @@ class _RecoveryCase(_TransferCase):
             self.github, self.issue, self.state, rewrite=None,
         )
 
+    def _re_asked(self) -> str:
+        """What the permit answers when the recovery asks it again."""
+        return _transfer._carried_over(self.recovery, REWRITTEN_SHA)
+
+    def _bypasses(self, candidate: str = REWRITTEN_SHA) -> bool:
+        """Whether the approval alone would carry this commit past the gate."""
+        return _gate._approved_on_a_reading(self.recovery, candidate)
+
     def _recovered(self, damage: dict) -> None:
         """That comment, with one field of the permission moved or gone."""
         for key, written in damage.items():
@@ -520,7 +554,7 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
         # The recovery has no plan behind it and no rewrite to describe, so
         # both pairs, the publication, and the lease come off the permission
         # the grant left -- and every question is asked again over them.
-        carried = _transfer._carried_over(self.recovery, REWRITTEN_SHA)
+        carried = self._re_asked()
 
         self.assertEqual(carried, _transfer._CARRIED_OVER)
         self.assertEqual(
@@ -538,18 +572,14 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
         self.assertTrue(
             _transfer._licensed_by_a_permit(self.state),
         )
-        self.assertFalse(
-            _gate._approved_on_a_reading(self.recovery, REWRITTEN_SHA),
-        )
+        self.assertFalse(self._bypasses())
 
     def test_an_ordinary_approval_still_bypasses(self) -> None:
         # Every approval but a permit's is the gate's own earlier reading,
         # brought back by a crash, and it answers exactly as it always did.
         _rewrites.clear_rewrite_authorization(self.state)
 
-        self.assertTrue(
-            _gate._approved_on_a_reading(self.recovery, REWRITTEN_SHA),
-        )
+        self.assertTrue(self._bypasses())
 
     def test_an_unreadable_published_record_defers(self) -> None:
         # `published` is recognized only from a record this build can vouch
@@ -569,9 +599,7 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
                 self.assertTrue(
                     _transfer._licensed_by_a_permit(self.state),
                 )
-                self.assertFalse(
-                    _gate._approved_on_a_reading(self.recovery, REWRITTEN_SHA),
-                )
+                self.assertFalse(self._bypasses())
 
     def test_a_published_record_bound_away_defers(self) -> None:
         # The phase-bound end of a `published` record is the rewritten commit,
@@ -585,9 +613,7 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
         })
 
         self.assertTrue(_transfer._licensed_by_a_permit(self.state))
-        self.assertFalse(
-            _gate._approved_on_a_reading(self.recovery, REWRITTEN_SHA),
-        )
+        self.assertFalse(self._bypasses())
 
     def test_a_spent_permission_bypasses_again(self) -> None:
         # A transfer that settled leaves its record behind for good. Read as a
@@ -601,9 +627,7 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
         )
 
         self.assertFalse(_transfer._licensed_by_a_permit(self.state))
-        self.assertTrue(
-            _gate._approved_on_a_reading(self.recovery, STRANGER_SHA),
-        )
+        self.assertTrue(self._bypasses(STRANGER_SHA))
 
     def test_a_permission_for_another_commit_defers(self) -> None:
         # The permission and the debt go down in one write for one commit, so
@@ -614,12 +638,8 @@ class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
         self.state.data[_rewrites.LATE_REWRITE_TO_SHA] = FOREIGN_SHA
 
         self.assertTrue(_transfer._licensed_by_a_permit(self.state))
-        self.assertFalse(
-            _gate._approved_on_a_reading(self.recovery, REWRITTEN_SHA),
-        )
-        self.assertEqual(
-            _transfer._carried_over(self.recovery, REWRITTEN_SHA), "",
-        )
+        self.assertFalse(self._bypasses())
+        self.assertEqual(self._re_asked(), "")
 
 
 class RevalidatedRecoveryTest(_RecoveryCase, unittest.TestCase):
@@ -630,6 +650,31 @@ class RevalidatedRecoveryTest(_RecoveryCase, unittest.TestCase):
     debt's bare object id to the remote.
     """
 
+    def test_a_legacy_authorization_is_revalidated(self) -> None:
+        # The restart road asked over a comment whose operator authorization
+        # is gone -- an older binary's record, or one a hand edit left. The
+        # permission the grant wrote still names the rewrite, but the
+        # exemption it would move licenses nothing without a human behind it,
+        # so the permit refuses on the re-ask and the ordinary cumulative gate
+        # measures the rewrite.
+        _overrides.clear_publication_override(self.state)
+        self.github.write_pinned_state(self.issue, self.state)
+
+        self.assertEqual(self._re_asked(), "")
+        self.assertFalse(self._bypasses())
+
+    def test_a_stale_authorization_is_revalidated(self) -> None:
+        # The same on a record that still reads whole and no longer describes
+        # what is here: the digest is the one term the objects answer, so a
+        # group somebody edited between the grant and this poll takes the
+        # bypass down with it rather than riding the debt's object id out.
+        self._recovered({
+            _overrides.LATE_OVERRIDE_FINGERPRINT: OTHER_DIGEST,
+        })
+
+        self.assertEqual(self._re_asked(), "")
+        self.assertFalse(self._bypasses())
+
     def test_a_malformed_permission_is_measured(self) -> None:
         # The record the recovery would rebuild its evidence from is one this
         # build cannot read, so there is nothing to re-ask the permit over --
@@ -639,12 +684,8 @@ class RevalidatedRecoveryTest(_RecoveryCase, unittest.TestCase):
             with self.subTest(claim=described):
                 self._recovered(damage)
 
-                self.assertEqual(
-                    _transfer._carried_over(self.recovery, REWRITTEN_SHA), "",
-                )
-                self.assertFalse(
-                    _gate._approved_on_a_reading(self.recovery, REWRITTEN_SHA),
-                )
+                self.assertEqual(self._re_asked(), "")
+                self.assertFalse(self._bypasses())
 
     def test_a_disagreeing_digest_is_measured(self) -> None:
         # The digest the permission recorded is what it says it was granted
@@ -655,9 +696,7 @@ class RevalidatedRecoveryTest(_RecoveryCase, unittest.TestCase):
         # transfer being decided. So the permit refuses and the record stands.
         self._recovered({_rewrites.LATE_REWRITE_FINGERPRINT: OTHER_DIGEST})
 
-        self.assertEqual(
-            _transfer._carried_over(self.recovery, REWRITTEN_SHA), "",
-        )
+        self.assertEqual(self._re_asked(), "")
         authorized = _rewrites.read_rewrite_authorization(
             self.github.read_pinned_state(self.issue),
         )
@@ -672,17 +711,13 @@ class RevalidatedRecoveryTest(_RecoveryCase, unittest.TestCase):
         # one nothing may make unmeasured.
         self.state.set(_state._PR_NUMBER, PR_NUMBER + 1)
 
-        self.assertEqual(
-            _transfer._carried_over(self.recovery, REWRITTEN_SHA), "",
-        )
+        self.assertEqual(self._re_asked(), "")
 
     def test_a_relabelled_issue_is_measured(self) -> None:
         self.issue.labels.clear()
         self.issue.labels.append(_support.FakeLabel(str(WorkflowLabel.FIXING)))
 
-        self.assertEqual(
-            _transfer._carried_over(self.recovery, REWRITTEN_SHA), "",
-        )
+        self.assertEqual(self._re_asked(), "")
 
 
 class LostReceiptRecoveryTest(_RecoveryCase, unittest.TestCase):

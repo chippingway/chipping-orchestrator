@@ -123,8 +123,7 @@ class LateApprovalBasis(StrEnum):
 # gesture can still be read. Named as a group because that is the question a
 # reader has of the basis -- whether a debt has to be revalidated, rather than
 # which owner granted it -- so the membership is stated once here instead of
-# being re-derived by each of them. Nothing reads it while the gate has no road
-# collecting an authorization, and it is the whole of what the two share.
+# being re-derived by each of them, and it is the whole of what the two share.
 AUTHORIZED_BASES = frozenset((
     LateApprovalBasis.ADJUDICATION,
     LateApprovalBasis.AUTHORIZATION,
@@ -822,10 +821,10 @@ def _approved_basis(state: _pinned_state.PinnedState) -> str:
     own vocabulary carries reads back, so a hand edit and a spelling from
     somewhere else are both "no basis" rather than a basis nothing checked.
 
-    "" is also the honest answer for an approval an older binary wrote, which
-    carried no basis at all. What a reader owes such a record is the answer it
-    can still defend -- the exemption beside it -- rather than a guess dressed
-    as provenance.
+    "" is also what an approval an older binary wrote reads back as, which
+    carried no basis at all -- and a reader that acts on the two ALIKE is the
+    one thing this may not be used for. `_unreadable_basis` beside it is what
+    tells them apart, because only the absent one earns the compatibility.
     """
     written = state.get(_state._APPROVED_BASIS)
     if written in tuple(LateApprovalBasis):
@@ -833,11 +832,36 @@ def _approved_basis(state: _pinned_state.PinnedState) -> str:
     return ""
 
 
+def _unreadable_basis(state: _pinned_state.PinnedState) -> bool:
+    """Whether the record CARRIES a basis this build cannot read.
+
+    Presence and truth asked together, because the answer is the gap between
+    them, and it is a gap a reader has to act on differently at each end. An
+    approval an older binary wrote carries no field at all: there the
+    exemption beside it is the only evidence there ever was, and reading it is
+    the compatibility this domain owes live issues. One whose field a hand
+    edit or a half-written crash left unreadable is the opposite record -- it
+    CLAIMS grounds and cannot say which -- and reading that as the absence
+    above hands a bypass to the one shape an attacker or an accident reaches
+    by touching the single field the fallback turns on.
+
+    So this is what the readers key the fail-closed road on, and the absence
+    keeps the fallback to itself. `None` is asked beside the key because the
+    payload is JSON and a field can be present and null, which is an older
+    binary's value or a hand edit and is an absence either way.
+    """
+    if not state.carries(_state._APPROVED_BASIS):
+        return False
+    if state.get(_state._APPROVED_BASIS) is None:
+        return False
+    return not _approved_basis(state)
+
+
 def _approve(
     state: _pinned_state.PinnedState,
     candidate_sha: str,
     lease: str,
-    basis: LateApprovalBasis | None,
+    basis: LateApprovalBasis | str | None,
 ) -> None:
     """Record the commit a publication is owed, what pins it, and its grounds.
 
@@ -859,6 +883,12 @@ def _approve(
     reader: a basis names a decision, while an absence hands the question to
     the exemption beside it -- and a caller inventing one here would answer a
     question it was never in a position to.
+
+    A bare string is the third of those and is written back unchanged: a
+    caller carrying forward a basis this build cannot read is preserving the
+    record's own claim to grounds it cannot name, which the readers fail
+    closed on. Turned into either of the two above it would become a decision
+    nobody made or an absence the exemption answers for.
     """
     state.set(_state._APPROVED_SHA, candidate_sha)
     state.set(_state._APPROVED_LEASE, lease or None)
@@ -931,8 +961,8 @@ def _minted_basis(state: _pinned_state.PinnedState) -> LateApprovalBasis:
 
 def _standing_basis(
     state: _pinned_state.PinnedState,
-) -> LateApprovalBasis | None:
-    """What the standing approval rests on, or None where it cannot say.
+) -> LateApprovalBasis | str | None:
+    """What the standing approval rests on, exactly as the record holds it.
 
     The debt a caller re-records is the one that was already there -- the same
     commit, now the head the pull request stands on -- so what it rests on is
@@ -940,19 +970,26 @@ def _standing_basis(
     about a checkout that stopped being what went out changes the grounds a
     publication was allowed on.
 
-    None where the record never said, and where a hand edit left a value from
-    outside this build's vocabulary. Both are the same fact -- this comment
-    cannot show what its approval rests on -- and the answer a reader owes
-    that fact is the exemption beside it. Answered `unmeasured` instead, an
-    unknown would be promoted to a decision nobody made: the reader would stop
-    falling back, and a legacy `late_approved_sha` standing over the very
-    commit an exemption names would read as debt this workflow owns and be
-    spent without anybody being asked.
+    None where the record never said, which is the shape an older build left
+    and the one the exemption beside it answers for. Answered `unmeasured`
+    instead, an unknown would be promoted to a decision nobody made: the
+    reader would stop falling back, and a legacy `late_approved_sha` standing
+    over the very commit an exemption names would read as debt this workflow
+    owns and be spent without anybody being asked.
+
+    A value this build cannot read is handed back VERBATIM rather than as
+    either of those. It is neither a decision nor an absence -- it is a record
+    claiming grounds it cannot name -- and the readers fail closed on exactly
+    that shape. Rewritten as an absence here, one carry-forward would launder
+    the damage into the legacy road and the next tick would spend the debt
+    without asking anyone.
     """
     standing = _approved_basis(state)
-    if not standing:
-        return None
-    return LateApprovalBasis(standing)
+    if standing:
+        return LateApprovalBasis(standing)
+    if _unreadable_basis(state):
+        return state.get(_state._APPROVED_BASIS)
+    return None
 
 
 def _forget_approval(state: _pinned_state.PinnedState) -> None:

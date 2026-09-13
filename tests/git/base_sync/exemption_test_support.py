@@ -37,6 +37,7 @@ from tests.git.base_sync.refresh_test_support import (
     ISSUE,
     _patched,
 )
+from tests.support.authorization import _authorize
 
 SHA_LENGTH = 40
 DIGEST_LENGTH = 64
@@ -130,6 +131,10 @@ def adjudicated(
     semantic record existed, so the exact commit is exempt and nothing on it
     says what that commit contributes.
 
+    The terms an operator authorized the publication on go down with it
+    either way, since an exemption is half a bypass and a rewrite of a commit
+    only it names earns no transfer.
+
     `accepted` is the commit a human ruled on, and it defaults to the head the
     rebase finds because that is the ordinary case rather than the rule. A
     case naming another commit is seeding the world where the two are distinct
@@ -145,4 +150,5 @@ def adjudicated(
             candidate_sha=accepted,
             fingerprint=ACCEPTED_DIGEST,
         )
+    _authorize(state, accepted, ACCEPTED_BASE_SHA, ACCEPTED_DIGEST)
     test_case.gh.write_pinned_state(issue, state)

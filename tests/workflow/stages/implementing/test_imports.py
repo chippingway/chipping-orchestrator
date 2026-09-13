@@ -33,6 +33,7 @@ _OWNERS = (
     "handoff",
     _HANDLER_OWNER,
     "late_accepted",
+    "late_authority",
     "late_authorship",
     "late_claims",
     "late_command",

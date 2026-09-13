@@ -39,6 +39,7 @@ from orchestrator.workflow.stages.implementing import (
     state as _state,
 )
 from orchestrator.workflow.state import WorkflowLabel
+from tests.support.authorization import _authorize
 from tests.support.fakes import (
     FakeGitHubClient,
     FakeLabel,
@@ -151,6 +152,7 @@ class Adjudicated:
 def adjudicated(
     *,
     identity: bool = True,
+    authorized: str | bool = True,
     digest: str = ACCEPTED_DIGEST,
     base: str = MERGE_BASE_SHA,
     labels: tuple | None = None,
@@ -160,6 +162,17 @@ def adjudicated(
     `identity=False` is the legacy shape: a comment written before the
     semantic record existed, or one whose fingerprint could not be taken, so
     only the exact commit is exempt.
+
+    `authorized=False` is the OTHER legacy shape, one policy further back: an
+    exemption a `single` verdict recorded before an operator's own
+    authorization was required at publication. The exemption is there and no
+    gesture stands behind it, so the accepted commit goes to the ordinary
+    cumulative gate like any other candidate.
+
+    A DIGEST there is the hand edit a shape check cannot catch: the group
+    parses, names the accepted commit, and describes a decision nobody made
+    over a pair nobody read. `True` writes the identity's own, since the two
+    describe one contribution wherever a real settlement wrote them.
 
     `base` is the pair's other end, replaceable because it is the one field a
     hand edit can move without the record refusing to read back: a whole
@@ -177,6 +190,11 @@ def adjudicated(
     github.seed_state(ISSUE_NUMBER, **{_state._PR_NUMBER: PR_NUMBER})
     state = github.read_pinned_state(issue)
     _exemption.record_exemption(state, ACCEPTED_SHA)
+    if authorized:
+        _authorize(
+            state, ACCEPTED_SHA, base,
+            digest if authorized is True else authorized,
+        )
     if identity:
         _exemption.record_semantic_identity(
             state,
