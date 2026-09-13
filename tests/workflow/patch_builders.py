@@ -60,7 +60,7 @@ def _worktree_mocks(context: _WorkflowRunContext) -> dict[str, object]:
         # default, and whatever a test about a deleted branch or a move that
         # could not be made names instead.
         "_anchor_pr_worktree": MagicMock(side_effect=_AnchorAnswers(context)),
-        "_ensure_worktree": MagicMock(return_value=_FAKE_WT),
+        "_ensure_worktree": MagicMock(return_value=context.issue_worktree),
         "_ensure_pr_worktree": MagicMock(return_value=_FAKE_WT),
         "_ensure_decompose_worktree": MagicMock(return_value=_FAKE_WT),
         "_decompose_worktree_path": MagicMock(return_value=_FAKE_WT),

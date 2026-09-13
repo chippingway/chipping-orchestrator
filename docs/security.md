@@ -607,7 +607,10 @@ carries — so the publication side proves the record against the remote rather 
   it, one a crash half-wrote, and one whose digest no longer agrees are the same answer, and none of them is
   repaired or deleted to reach it. The same question is asked of a publication DEBT before it is spent and of a
   rewrite before an exemption may move onto the commit it produced
-  ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).
+  ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)). Both halves are bound to
+  one commit on one issue, and neither travels: work committed on top of the authorized commit is measured as the
+  fresh candidate it is, and a child a split creates carries neither record — so no decision an operator made about
+  one change reaches work nobody has read.
 - **A base-relative reading is only as good as the base, and the base ref is agent-writable.** A transfer moves an
   exemption onto a rewritten commit only where both contributions fingerprint alike, and a contribution is what a
   candidate adds *over its base*. A rebase chooses that base, and the fork point behind the object it produces is

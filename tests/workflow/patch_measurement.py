@@ -41,6 +41,11 @@ class _CountedAdditions:
     is a reading that did not happen and carries no count at all, because
     "unknown" and "small" are the two answers this domain exists to keep
     apart.
+
+    A CALLABLE seed is taken as the reading itself, which is what a case
+    about the number rather than about the decision needs: the production
+    count, over a real checkout, so what the gate acts on is what git says
+    the candidate adds rather than what a test chose to tell it.
     """
 
     def __init__(self, context: _WorkflowRunContext) -> None:
@@ -48,6 +53,8 @@ class _CountedAdditions:
 
     def __call__(self, worktree, base_sha: str, candidate_sha: str):
         counted = self._context.added_lines
+        if callable(counted):
+            return counted(worktree, base_sha, candidate_sha)
         if isinstance(counted, MeasurementFailure):
             return AdditionMeasurement(
                 base_sha=base_sha, candidate_sha=candidate_sha,
