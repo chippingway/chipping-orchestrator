@@ -20,6 +20,10 @@ _PINNED_CONTRACT = (
     (state._REVIEW_ROUND, "review_round"),
     (state._CONFLICT_ROUND, "conflict_round"),
     (state._PENDING_PUSH_SHA, "pending_auto_base_rebase_push_sha"),
+    (state._PENDING_REWRITE_PR, "pending_auto_base_rebase_rewrite_pr"),
+    (state._PENDING_REWRITE_STAGE, "pending_auto_base_rebase_rewrite_stage"),
+    (state._PENDING_REWRITE_SHA, "pending_auto_base_rebase_rewrite_sha"),
+    (state._PENDING_ANNOUNCED_SHA, "pending_auto_base_rebase_announced_sha"),
     (state._REASON_AUTO_BASE_REBASE_FAILED, "auto_base_rebase_failed"),
     (state._REASON_AUTO_BASE_REBASE_PUSH_FAILED, "auto_base_rebase_push_failed"),
 )

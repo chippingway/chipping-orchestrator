@@ -104,7 +104,14 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # owners reach the transfer seam: the publisher reads the exemption a verdict
 # left and assembles the record that would authorize it to move, and the
 # reset-and-park tail drops the permission its rollback will never spend.
+#
+# The record one attempt leaves of its own replay reaches the late domain for
+# one thing only: the shape a recorded commit is held to. Spelled twice, a
+# comment would come to accept what every other reader in the tree refuses.
 _CALL_TIME_HOPS = MappingProxyType({
+    f"{_BASE_SYNC}.attempts": (
+        f"{PACKAGE}.workflow.late_split.formats",
+    ),
     f"{_BASE_SYNC}.conflicts": (_COMMENTS,),
     f"{_BASE_SYNC}.persistence": (
         _COMMENTS,

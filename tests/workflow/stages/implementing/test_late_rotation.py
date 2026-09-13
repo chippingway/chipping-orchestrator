@@ -25,6 +25,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.implementing import (
     late_push as _push,
     late_records as _records,
+    late_rotation as _rotation,
     late_transfer_telemetry as _telemetry_owner,
     state as _state,
 )
@@ -284,6 +285,12 @@ class ReceiptAndRecordTest(_SettlementCase):
     for -- and nothing is reported. Taken, the push tail asks the telemetry
     owner for itself, past that write, so the comment a reader finds at the
     moment the record is made already carries the verdict it is about.
+
+    The window past the record is the same question once more. The proof is on
+    the comment precisely because a process lost between the settlement and the
+    record it owes could not re-derive which reading proved the push landed, so
+    a comment still carrying one MEANS a report is owed -- and the reporting
+    owner ends its life in a write of its own, ordered after the record.
     """
 
     def test_the_record_is_made_over_a_durable_move(self) -> None:
@@ -318,6 +325,48 @@ class ReceiptAndRecordTest(_SettlementCase):
         )
         self.assertNotIn(KEY_RECEIPT_SHA, self._durable().data)
         self.assertEqual(self._records_of(EVENT_TRANSFER), [])
+
+    def test_a_reported_transfer_owes_nothing_after(self) -> None:
+        self._publishes(standing=LEASED_SHA, granted=False)
+
+        durable = self._durable()
+        self._reported()
+        self.assertNotIn(_rewrites.LATE_REWRITE_PROOF, durable.data)
+        self.assertIsNone(_rewrites.unreported_transfer(durable))
+        self.assertFalse(_rewrites.stranded_transfer_proof(durable))
+
+    def test_a_refused_drop_leaves_the_report_owed(self) -> None:
+        # The safe way round: the record has been made and a later tick may
+        # make it again, rather than a settled transfer nobody ever announced.
+        # So the tick carries on and the proof stands for the next reader.
+        _support.granted(self.state)
+        _support.spent(self.state)
+        # The settlement's own write, which is what the push tail makes before
+        # it asks this owner for the record: the proof is durable from here,
+        # and only the drop behind the record is refused below.
+        self.github.write_pinned_state(self.issue, self.state)
+        rotation = _rotation._Rotation(
+            staged=True,
+            rewrite=_support.rewrite(),
+            proof=_rewrites.LateRewriteProof.PUSHED,
+        )
+
+        with patch.object(
+            self.github, PINNED_WRITE, side_effect=RuntimeError("refused"),
+        ):
+            _telemetry_owner._reports_the_transfer(
+                _support.gate(self.github, self.issue, self.state), rotation,
+            )
+
+        self.assertEqual(len(self._records_of(EVENT_TRANSFER)), 1)
+        # Read off the comment rather than off this process's own object,
+        # because the comment is what the next tick opens: the drop was
+        # staged and the write that would have made it durable was refused,
+        # so the report stands owed and may be made again.
+        self.assertEqual(
+            _rewrites.unreported_transfer(self._durable()),
+            _rewrites.LateRewriteProof.PUSHED,
+        )
 
 
 class SupersededPermissionTest(_SettlementCase):

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import commands
@@ -51,6 +52,23 @@ EMIT_EVENT = "emit_event"
 SET_LABEL = "set_workflow_label"
 
 WRITE_STATE = "write_pinned_state"
+
+KEY_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
+
+# Everything one interrupted attempt carries past the anchor: the replay it
+# recorded making and the publication it made it for, the head a finish said
+# it had already announced, and the debt the gate wrote before the push. A
+# reset that landed abandons every one of them; a reset that failed abandons
+# none.
+_IN_FLIGHT = MappingProxyType({
+    fixtures.KEY_PENDING_PUSH_SHA: fixtures.PRE_REBASE_SHA,
+    "pending_auto_base_rebase_rewrite_sha": fixtures.RECOVERED_SHA,
+    "pending_auto_base_rebase_rewrite_pr": fixtures.PR_NUMBER,
+    "pending_auto_base_rebase_rewrite_stage": fixtures.VALIDATING,
+    KEY_ANNOUNCED_SHA: fixtures.RECOVERED_SHA,
+    "late_approved_sha": fixtures.RECOVERED_SHA,
+    "late_approved_lease": fixtures.PRE_REBASE_SHA,
+})
 
 
 class ParkAutoRebaseFailureTest(unittest.TestCase):
@@ -156,10 +174,27 @@ class ResetClearAndParkTest(unittest.TestCase):
             fixtures.PARK_DIRTY,
         )
 
-    def test_failed_reset_still_parks(self) -> None:
-        # The `awaiting_human` flag is what short-circuits the same-tick
-        # handlers, so it has to land even when the worktree is left on an
-        # unexpected SHA for the operator to inspect.
+    def test_a_landed_reset_drops_the_whole_attempt(self) -> None:
+        # The branch is back where the attempt started, so every field
+        # describing what it did past that point names a commit only the
+        # reflog still has.
+        context, _, _ = self._reset_and_park(in_flight=True)
+
+        published = context.gh.pinned_data(fixtures.ISSUE)
+        for field in _IN_FLIGHT:
+            with self.subTest(field=field):
+                self.assertIsNone(published.get(field))
+
+    def test_a_failed_reset_keeps_the_whole_attempt(self) -> None:
+        # The park lands either way -- `awaiting_human` is what
+        # short-circuits the same-tick handlers, and it has to land even when
+        # the worktree is left on an unexpected SHA for the operator to
+        # inspect. What may not go with it is the record: a reset that failed
+        # abandoned nothing, so the comment is the only account of where the
+        # checkout may be standing. Dropped there, the next tick has no
+        # anchor to bring the recovery back with and no id to ask for the
+        # candidate by, and the permission the reset could not undo is left
+        # with nothing naming the attempt it belongs to.
         failed = MagicMock(
             return_value=fixtures._git_result(
                 returncode=fixtures.GIT_FAILURE_EXIT_CODE,
@@ -167,11 +202,13 @@ class ResetClearAndParkTest(unittest.TestCase):
             ),
         )
 
-        context, _, _ = self._reset_and_park(hardened=failed)
+        context, _, _ = self._reset_and_park(hardened=failed, in_flight=True)
 
         published = context.gh.pinned_data(fixtures.ISSUE)
         self.assertTrue(published.get(fixtures.KEY_AWAITING_HUMAN))
-        self.assertIsNone(published.get(fixtures.KEY_PENDING_PUSH_SHA))
+        for field, recorded in _IN_FLIGHT.items():
+            with self.subTest(field=field):
+                self.assertEqual(published.get(field), recorded)
 
     def _reset_and_park(
         self,
@@ -179,10 +216,12 @@ class ResetClearAndParkTest(unittest.TestCase):
         hardened: MagicMock | None = None,
         clean: bool = False,
         reason: str = fixtures.PARK_PUSH_FAILED,
+        in_flight: bool = False,
     ):
-        context = fixtures._recovery_context(
-            pending_auto_base_rebase_push_sha=fixtures.PRE_REBASE_SHA,
-        )
+        seeded = dict(_IN_FLIGHT) if in_flight else {
+            fixtures.KEY_PENDING_PUSH_SHA: fixtures.PRE_REBASE_SHA,
+        }
+        context = fixtures._recovery_context(**seeded)
         hardened = hardened or MagicMock(return_value=fixtures._git_result())
         ordered: list[str] = []
         recorder = _OrderedCall(ordered, fixtures.GIT_HARDENED, hardened)
@@ -354,14 +393,18 @@ class FinalizeRecoveredRebaseTest(unittest.TestCase):
             )
 
         self.assertTrue(routed)
-        # Notice, audit event, and relabel all land before the single
-        # pinned-state write that commits them; the staged anchor clear and
-        # review-round reset are only durable once that write returns.
+        # Notice and audit event first, then the write that records the
+        # announcement while the anchor still stands, then the relabel and
+        # the single write that commits the attempt clear and the
+        # review-round reset. A tick lost between the two writes comes back
+        # to a finish that says it announced itself, and owes only the write
+        # it never made rather than all of it again.
         self.assertEqual(
             ordered,
             [
                 PR_COMMENT,
                 f"{EMIT_EVENT}:{REBASED_EVENT}",
+                WRITE_STATE,
                 SET_LABEL,
                 f"{EMIT_EVENT}:{STAGE_ENTER_EVENT}",
                 WRITE_STATE,
@@ -371,6 +414,43 @@ class FinalizeRecoveredRebaseTest(unittest.TestCase):
         published = context.gh.pinned_data(fixtures.ISSUE)
         self.assertIsNone(published.get(fixtures.KEY_PENDING_PUSH_SHA))
         self.assertEqual(published.get(fixtures.KEY_REVIEW_ROUND), 0)
+
+    def test_the_mark_is_durable_before_the_relabel(self) -> None:
+        # The mark is the only thing that tells the window between a finish's
+        # announcement and its relabel from an attempt that never got that
+        # far, so it has to be on the comment before the relabel -- and it may
+        # say nothing else, because the anchor beside it is what brings the
+        # tick that reads it back at all.
+        context = fixtures._recovery_context(
+            behind=0,
+            pending_auto_base_rebase_push_sha=fixtures.PRE_REBASE_SHA,
+        )
+        announced: list[dict] = []
+
+        with patch.object(
+            context.gh,
+            SET_LABEL,
+            lambda *_args: announced.append(
+                dict(context.gh.pinned_data(fixtures.ISSUE)),
+            ),
+        ):
+            persistence._finalize_recovered_rebase(
+                context,
+                local_head=fixtures.RECOVERED_SHA,
+                method=RECOVERY_METHOD,
+                notice=NOTICE,
+            )
+
+        self.assertEqual(
+            announced[0].get(KEY_ANNOUNCED_SHA), fixtures.RECOVERED_SHA,
+        )
+        self.assertEqual(
+            announced[0].get(fixtures.KEY_PENDING_PUSH_SHA),
+            fixtures.PRE_REBASE_SHA,
+        )
+        self.assertIsNone(
+            context.gh.pinned_data(fixtures.ISSUE).get(KEY_ANNOUNCED_SHA),
+        )
 
 
 if __name__ == "__main__":

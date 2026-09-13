@@ -201,8 +201,8 @@ def _carried(
     -- which is now, because the push has landed and the commit is one the
     pull request really carries.
     """
-    rewrite = _rewrites.record_rewrite_publication(gate.state)
     proof = _proved_by(published)
+    rewrite = _rewrites.record_rewrite_publication(gate.state, proof)
     log.info(
         "issue=#%d carried the exemption for %s onto %s, which pull request "
         "#%d %s; the %s rewrite is settled",

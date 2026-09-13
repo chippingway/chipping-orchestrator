@@ -21,11 +21,13 @@ last is held by the loader itself rather than by a check.
 - **At module scope, one exception.** The only name a lower layer may bind above itself is `workflow/state.py`, for
   the label vocabulary it is typed by, and only `github/` and `git/` may bind it — matched on the module boundary in
   the same check, so a sibling of the state owner cannot inherit the exemption by wearing the same prefix.
-- **Over every scope, six more, each declared per module.** A base sync runs in the git layer but reports to the
+- **Over every scope, seven more, each declared per module.** A base sync runs in the git layer but reports to the
   issue it was started for: `base_sync/conflicts.py`, `base_sync/persistence.py`, and `base_sync/publication.py`
   reach `workflow/engine/comments.py`; `persistence` also `workflow/engine/guards.py` and
   `workflow/stages/implementing/late_parks.py`, to drop the debt the size gate recorded when a refused push sends
-  the branch back to where it started; and `publication` also
+  the branch back to where it started; `base_sync/attempts.py` reaches `workflow/late_split/formats.py`, for the
+  shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
+  refuses; and `publication` also
   `workflow/stages/implementing/late_push.py` and `late_records.py` — the gated push the rebase it is about to
   force-push goes through, since a base that moved changes what the branch adds to it and a pull request may not be
   grown past the ceiling by a refresh either. `publication/rewrite.py` reaches `late_rewrite.py` for the same reason
@@ -336,7 +338,16 @@ orchestrator/
       eligibility.py    the label, park, open-PR, recovery, and clean-tree gates one PR sync clears
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
       pr.py             the order a PR-having worktree's gates, rebase, and publication are asked in
-      startup.py        the pre-rebase HEAD guard and the anchor persisted before git runs
+      startup.py        the pre-rebase HEAD guard, and the anchor and the attempt's terms persisted before git
+                        runs
+      attempts.py       the record one auto-rebase attempt leaves of itself, and the two members no other
+                        write is in a position to make: the head the replay produced, put down before the first
+                        step that can leave it standing, and the announcement checkpoint BOTH finishes -- the
+                        publisher's own tail and the recovery's -- write between their notice and their relabel,
+                        while the anchor still stands. Beside them the three-valued read of the group -- absent,
+                        in flight, or damaged -- held to the shape every other recorded commit is and reached
+                        through a call-time import of the late domain's own formats, the presence read the
+                        checkpoint gets, and the whole-record clear every step that ends an attempt goes through
       publication.py    the post-rebase checks, the size gate the rebase passes before it publishes -- reached
                         through a call-time import, since it sits in the workflow layer above this one, and named
                         against the head this owner read, so a checkout something moved between that read and the
@@ -360,10 +371,11 @@ orchestrator/
                         the base it now sits on, and one something moved since is not the head the finalize
                         behind the push records
       outcomes.py       the already-published, unknown-comparison, diverged, dirty, and failed-push answers
-      persistence.py    the parks, the reset-and-park tail -- which drops the debt it abandons, and the permission
-                        a transfer granted for the same commit, only once the reset has actually landed, since a
-                        refused one may leave the branch still standing on the approved commit -- and the state /
-                        notice / event writes a recovery ends in
+      persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
+                        abandons, and the permission a transfer granted for the same commit, only once the reset
+                        has actually landed, since a refused one may leave the branch still standing on the
+                        approved commit -- and the state / notice / event writes a recovery ends in, which
+                        reach `attempts` for the announcement they owe before their relabel
       models.py         the frozen contexts, requests, snapshots, and decisions
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
@@ -804,5 +816,7 @@ off a facade:
 - `base_sync/` — `models` and `state` carry only data. On the sync side `refresh` calls `refresh_selection` before
   `pre_pr` and `pr`, `refresh_selection` asks `frozen` alone, `pr` asks `eligibility`, `startup`, and `publication` in
   that order, and `guards` ends in `persistence`. On the recovery side `recovery` calls `snapshot`, `outcomes`, and
-  `persistence`. The three keyword-call adapters — the PR sync, the conflict route, and the crash recovery — still
-  take the argument lists their callers spell and normalize each into the typed context entry point beside it.
+  `persistence`. `attempts` is under both: it owns the record one rebase attempt leaves of itself, and every owner
+  that writes a member of that record or ends it calls through it rather than spelling a key of its own. The three
+  keyword-call adapters — the PR sync, the conflict route, and the crash recovery — still take the argument lists
+  their callers spell and normalize each into the typed context entry point beside it.

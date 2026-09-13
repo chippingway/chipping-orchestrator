@@ -10,13 +10,22 @@ one sets before that write is staged in memory, so a tick that dies partway
 leaves the recovery anchor pinned and the next tick re-derives the same
 outcome from it instead of resuming a half-finished one. Both sides hinge on
 that anchor: parking clears it after resetting HEAD back onto it, finalizing
-clears it once the rewrite is confirmed published.
+clears it once the rewrite is confirmed published, and each of them ends the
+whole record of the attempt rather than the one field it names.
+
+A finalize breaks that single write in exactly one place, and the break is the
+point: the head it has just announced is recorded between the audit event and
+the relabel, while the anchor still stands, so the last window of a finish is
+one a later tick can tell from an attempt that never got that far. That write
+belongs to `attempts` rather than here, because the publisher's own tail owes
+it in the same moment and for the same reason.
 """
 from __future__ import annotations
 
 from github.Issue import Issue
 
 from orchestrator.git import commands
+from orchestrator.git.base_sync import attempts
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseRecoveryContext,
@@ -25,7 +34,6 @@ from orchestrator.git.base_sync.state import (
     _AUTO_REBASE_PARK_REASONS,
     _AWAITING_HUMAN,
     _PARK_REASON,
-    _PENDING_PUSH_SHA,
     _REVIEW_ROUND,
     log,
 )
@@ -96,8 +104,8 @@ def _reset_clear_and_park(
     and it still lands even if the worktree is left on an unexpected SHA
     for the operator to inspect.
 
-    The debt the reset abandoned is dropped with the anchor, and only once
-    the reset has actually LANDED. The size gate measures a rebased head
+    What the park DROPS is held to that reset landing, and every record it
+    would drop is held to it alike. The size gate measures a rebased head
     before it is pushed and, at or under the ceiling, records it as a commit
     still owed a publication -- and a reset that landed puts the branch back
     on the pre-rebase SHA, so that commit is not on this branch any more and
@@ -107,15 +115,21 @@ def _reset_clear_and_park(
     reconciliation ahead of every handler stops the tick for a publication
     that is never coming. An approval whose commit was abandoned is
     superseded, which has always been one of the three things that drops one
-    -- so the owner doing the abandoning is the one that drops it.
+    -- so the owner doing the abandoning is the one that drops it. The whole
+    attempt goes with it for the same reason: the reset put HEAD back on the
+    anchor, so a follow-up tick would find the branch exactly where the
+    attempt started and have nothing to recover.
 
-    A reset that FAILED abandoned nothing, and the record is the only thing
-    naming what the checkout may still be standing on: the approved commit,
-    the head its push is pinned to, and the route bookkeeping that push
-    closes. Dropped there, the exact-candidate retry has nothing to ask for
-    by id and the next tick measures whatever the worktree turns out to be.
-    So the two are ordered -- the reset is proved first, and the record
-    follows it rather than the intent.
+    A reset that FAILED abandoned nothing, and what the comment carries is the
+    only account of where the checkout may be standing: the anchor the branch
+    would go back to, the replay the attempt recorded making and the
+    publication it made it for, the approved commit, the head its push is
+    pinned to, and the route bookkeeping that push closes. Dropped there, the
+    next tick has no anchor to bring the recovery back with and no id to ask
+    for the candidate by -- it measures whatever the worktree turns out to be,
+    while the permission the reset could not undo is left with nothing naming
+    the attempt it belongs to. So nothing is dropped: the reset is proved
+    first, and every record follows it rather than the intent.
 
     The permission a transfer granted goes in the same write and for the same
     reason: a rebase of a commit an authorized settlement accepted may be licensed to
@@ -147,8 +161,8 @@ def _reset_clear_and_park(
                 "the reset failed: %s",
                 context.issue.number, (cleaned.stderr or "").strip(),
             )
-    context.state.set(_PENDING_PUSH_SHA, None)
     if restored:
+        attempts._clears_the_attempt(context.state)
         _forgets_the_reset(context, reset_sha)
     _park_auto_rebase_failure(
         context.gh,
@@ -194,14 +208,23 @@ def _forgets_the_reset(
 def _prepare_recovered_rebase_state(
     context: _AutoRebaseRecoveryContext,
 ) -> None:
-    """Clear the recovery anchor and commit any pending human retry."""
+    """Clear the whole attempt and commit any pending human retry.
+
+    The three things every finish on this route owes its own write, staged
+    together so no road can make one of them and forget another. The retry is
+    the one that is easy to lose: a parked attempt is re-entered only because
+    a human replied, and a finish that dropped the record without spending
+    that reply would leave the issue routed to a stage that stands down on the
+    auto-rebase park still flagged beside it, with nothing left to bring the
+    tick back.
+    """
     if context.unparking_consumed_max is not None:
         context.state.set(
             "last_action_comment_id", context.unparking_consumed_max,
         )
         context.state.set(_AWAITING_HUMAN, False)
         context.state.set(_PARK_REASON, None)
-    context.state.set(_PENDING_PUSH_SHA, None)
+    attempts._clears_the_attempt(context.state)
     context.state.set(_REVIEW_ROUND, 0)
 
 
@@ -282,8 +305,15 @@ def _finalize_recovered_rebase(
     method: str,
     notice: str,
 ) -> bool:
-    """Finalize a recovered push and route it according to current base lag."""
-    _prepare_recovered_rebase_state(context)
+    """Finalize a recovered push and route it according to current base lag.
+
+    The announcement comes first and is made durable before anything is
+    cleared, so the window between it and the relabel is one a later tick can
+    tell from an attempt that never got this far. What the clear rides is
+    still the last write, since the anchor is what brings that tick back.
+    """
     _post_recovered_rebase_notice(context, notice)
     _emit_recovered_rebase_event(context, local_head, method)
+    attempts._announces(context, local_head)
+    _prepare_recovered_rebase_state(context)
     return _route_recovered_rebase(context, local_head, method)
