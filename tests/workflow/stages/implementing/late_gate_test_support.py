@@ -286,7 +286,13 @@ class _MeasurementAssertions:
 class _GateCase(
     _PublicationAssertions, _MeasurementAssertions, _PatchedWorkflowMixin,
 ):
-    """One implementing tick whose candidate is already committed."""
+    """One implementing tick whose candidate is already committed.
+
+    Everything past `setUp` reads the issue in hand rather than the number
+    that one seeds, so a case whose issue is a child a real split created --
+    an issue whose number nothing can know in advance -- inherits the whole of
+    this without re-stating it.
+    """
 
     def setUp(self) -> None:
         self.github = FakeGitHubClient()
@@ -296,7 +302,7 @@ class _GateCase(
 
     def _seed(self, **state) -> None:
         """Replace this issue's pinned state with the one a test is about."""
-        self.github.seed_state(GATE_ISSUE_NUMBER, **state)
+        self.github.seed_state(self.issue.number, **state)
 
     def _reply(self, body: str) -> None:
         """Add one trusted human comment past the consumed watermark."""
@@ -349,7 +355,7 @@ class _GateCase(
             opened.head.sha = revision
 
     def _pinned(self) -> dict:
-        return self.github.pinned_data(GATE_ISSUE_NUMBER)
+        return self.github.pinned_data(self.issue.number)
 
     def _records(self, family: str) -> list[dict]:
         return [

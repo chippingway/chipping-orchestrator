@@ -1376,6 +1376,13 @@ and never split hunks mechanically to make the change smaller. File and hunk bou
 a change partitioned along them is one nobody can build or review — the judgment about what belongs to a slice stays
 with the developer who implements it.
 
+What a child is *not* born with is anything that let its parent publish. The exemption an authorized settlement
+recorded and the `late_override_*` terms an operator authorized that publication on are each bound to one commit on
+one issue, and a child is neither — so a child's pinned comment carries nothing the size gate reads as already
+decided, and the first candidate it commits is measured from the frozen base across every path, over however many
+commits the slice took. Inherited, a bypass would publish exactly what the split was made to prevent: bulk nobody
+adjudicated, under a permission granted for a different change.
+
 The body also states the **addition budget** the adjudication sized that slice at, and says which of the slice's
 paths the estimate covers: implementation, tests, documentation, fixtures, generated files — every path the child
 commits, with none excluded. That sentence is there because the developer who reads it is the one who has to keep to

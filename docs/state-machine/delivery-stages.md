@@ -1328,7 +1328,12 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        rests on that same unauthorized exemption), the one this stage already pushed
        (`implementing_published_sha`), and
        the one an open pull request this call froze is already standing on, where the push would move nothing and
-       only the bookkeeping behind a publication that has happened is owed. So does every candidate while
+       only the bookkeeping behind a publication that has happened is owed. None of the four crosses between issues:
+       a child of a split is a separate issue whose pinned comment carries its `late_ancestry_*` group and no record
+       that skips a reading, so the slice it commits is measured here like any other candidate — the frozen base
+       against the commit being published, across implementation, tests and documentation alike, over however many
+       commits the slice took — and the addition budget stated on its body is not something this gate reads at all.
+       So does every candidate while
        `DECOMPOSE=off` — except
        one this issue has a recorded generation for *that same commit*, one it owes a push for, and
        one **answering a reading the gate itself recorded**. A generation naming some OTHER candidate is one a

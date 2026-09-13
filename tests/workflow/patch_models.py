@@ -13,6 +13,7 @@ from orchestrator.git.publication import models as _publication_models
 from orchestrator.git.verification.probes import _WorktreeStatus
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow.repo_values import (
+    _FAKE_WT,
     BASE_TIP_SHA,
     CONTRIBUTION_DIGEST,
     FORK_POINT_SHA,
@@ -87,6 +88,11 @@ class _WorkflowRunContext:
     authed_fetch_result: Any = None
     analytics_log_path: Any = None
     trajectory_log_path: Any = None
+    # The checkout a round is handed, which is what every reading of the
+    # committed work is taken in. A path nothing on this host holds is the
+    # ordinary world, since a hermetic run never reaches git; a case whose
+    # answer comes from real objects names the repository it built instead.
+    issue_worktree: Any = _FAKE_WT
     # What the size gate reads about the candidate a publication is about to
     # push. The default world is the ordinary one -- a commit this host holds,
     # a base the remote named, and a diff well under any ceiling -- so a test
@@ -103,6 +109,9 @@ class _WorkflowRunContext:
     # is a host the pair was not frozen on, where the retry has to park rather
     # than ask the remote for whatever the branch has moved to.
     base_object_present: bool = True
+    # A count is the ordinary seed, and a callable is the reading ITSELF --
+    # what an acceptance case hands in so the gate acts on a number git
+    # produced over a real checkout rather than on one a test chose.
     added_lines: Any = 0
     # What the contribution between the frozen pair fingerprints to -- the
     # digest, or a `FingerprintFailure` for a reading that never happened and

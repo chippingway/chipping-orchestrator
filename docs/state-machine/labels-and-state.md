@@ -1941,7 +1941,14 @@ rather than preserving.
   closed. The depth and the root are what the child's own size gate mints its generation from, so automatic
   splitting stops at the same bound three generations down as it does at the root — a child that could not say how
   deep it is would read as a root and buy the lineage another generation, which is why an unreadable depth reads
-  back unknown rather than 0. The cycle, the generation, and the parent issue are what a record about this child is
+  back unknown rather than 0. This group is also the WHOLE of what descends. A child is created with a pinned comment
+  of its own and seeded with exactly these keys, the parent link and the creation stamp — never with the parent's
+  `late_exempt_sha`, never with the `late_override_*` terms an operator authorized that parent's publication on, and
+  never with its measurement — so the first candidate a child commits reaches the size gate carrying no record that
+  skips a reading, and is measured from the frozen base across every path, over however many commits the slice took.
+  A bypass that descended would publish the one thing a split exists to prevent: bulk nobody adjudicated, under a
+  permission granted for a different change on a different issue. The cycle, the generation, and the parent issue are
+  what a record about this child is
   correlated back to the adjudication that created it by. The snapshot ref and commit are the only durable pointer
   to the work the child is meant to reuse, since the branch it was committed on is superseded and the pull request
   that carried it is closed — both halves or neither, because a ref with no commit cannot be verified against

@@ -32,7 +32,10 @@ this path:
    what they add against `MAX_ADDED_LINES` and then pushes the branch and opens the PR. A candidate past that ceiling
    is held unpublished and sent back to `workflow:decomposing` to be adjudicated. Split there, it becomes children
    that reuse the work already committed, each owning its own implementation, tests and documentation and each sized
-   to land under the ceiling — a child issue states the all-path budget its slice was proposed at; adjudicated as
+   to land under the ceiling — a child issue states the all-path budget its slice was proposed at, and that number
+   binds nothing: a child is measured exactly as its parent was, over the whole of its own base-to-candidate diff
+   across every path and however many commits it took, and one that lands past the ceiling is split again;
+   adjudicated as
    *one* change — a verdict that has to say why no safe split of the work was available — nothing is published and
    the issue waits for you, because publishing an oversized change unsplit is
    a decision the orchestrator does not make for itself. The commit, its worktree and any pull request it stands under
@@ -259,8 +262,11 @@ where you put it rather than greeted a second time, so nothing runs again until 
   digest with the candidate, the base, the added-line count, the ceiling it was counted against and the id of your
   comment, and then publishes: the commit is exempted from the ceiling, the branch is pushed (onto the existing pull
   request where the candidate already had one), and the issue goes back to the stage it came from. Only that commit
-  is exempt — anything committed on top of it is measured again. A command naming any other commit gets one reply
-  saying so and changes nothing, and an edit to the issue title, body or earlier comments outranks the command
+  is exempt — anything committed on top of it is measured again, and it is that issue's decision as much as that
+  commit's: a child a split creates later is a separate issue with a pinned record of its own, so it carries neither
+  the exemption nor your authorization and its first candidate is measured from scratch. A command naming any other
+  commit gets one reply saying so and changes nothing, and an edit to the issue title, body or earlier comments
+  outranks the command
   entirely: the issue parks on the edit first, and the decision has to be made again against the requirements as they
   now read.
 
