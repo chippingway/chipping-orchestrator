@@ -611,29 +611,13 @@ workflow/                   marker package for state, engine, and stage owners
                             replacement is taken; an open pull request whose restoration failed keeps the handoff held
       late_hold.py          preserve the chosen pull request's identity, head, and body before applying its hold;
                             refuse unrecorded or displaced descriptions and report moved heads without restamping them
-      late_verdict.py       what one finished reply decides: the lineage-bound refusal recorded as the categorized
-                            question it actually is, the record written and persisted before anything is posted,
-                            and the announcement a recorded question is reconciled by -- made past the owner
-                            guard rather than beside the record, and suppressed where a park already stands. All
-                            three sentences a read reply hands the issue back under are worded here -- the
-                            unusable reply, the outcome too large to record, and the question itself -- since the
-                            reason is a shared value this mode's park owner is read against and the sentence is
-                            the failing step's own to say. Too large is asked of the COMMENT alone -- how an
-                            explanation will render is never grounds to refuse the verdict carrying it, since that
-                            park is superseded and the refusal would buy a second run and leave a `single` short of
-                            the durable park a human's decision is owed on
-      late_outcome.py       what every completion leaves on the record: the write that closes one by carrying the
-                            owner read it now owes -- under `owner_check` unless a split transaction was
-                            interrupted, whose boundary the record itself refuses to let any pre-split write
-                            rewind, since the phase is all that says a loop was in flight when nothing is
-                            recorded yet -- the answer a crashed tick reads back rather than paying an agent for
-                            a second time, the session a timeout or a contaminated worktree pins before the issue
-                            is handed back, the one record every ending hands its caller -- a decided one
-                            travelling on the adjudication itself rather than on a re-read of the comment it was
-                            written to -- and the three emissions each written straight after the state they
-                            describe: a verdict, a typed late failure -- carrying the step and the line behind it
-                            where the reading was a re-measurement, so a reading that did not happen reads alike
-                            wherever it was taken -- and the cancellation an owner read earns
+      late_verdict_retirement.py
+                            retire the generation inside the observation window; a close before or inside its write
+                            leaves a durable cancelled cycle for cleanup, including reinstatement after retirement
+      late_verdict_debt.py  keep unmeasured candidate, lease, basis, and route spends together; stage debt for a transfer's
+                            coordinated write or persist it before publication, and drop superseded approvals
+      late_verdict.py       approve accepted or authorized work, route oversized work with its unpublished notice,
+                            retire answered parks, and coordinate generation retirement with route and publication debt
       late_parks.py         the decisions that take, stage, retire, or answer a late park: a pre-run park stages
                             its claim, persists it through `late_park_state`, and releases its notice through
                             `late_park_delivery`; a post-run park is staged with its result and released only
@@ -1079,26 +1063,11 @@ workflow/                   marker package for state, engine, and stage owners
                             settlement; both heads must be readable and the run must leave commits above its floor
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved
-      late_gate.py          the order the size gate's questions are asked in, taken over one subject so both seams
-                            ask them the same way: the switch, the commit the caller named -- proved against the
-                            checkout before anything is persisted or pushed, since between the caller's read and this
-                            one the worktree is writable and a commit landing there is a different candidate, and
-                            every RECOVERY names one too, since no developer ran and the reading that licensed it
-                            was about a commit a previous tick recorded -- the four records that
-                            say a commit is already decided (the adjudication's exemption asked as a pair with the
-                            operator authorization beside it, the commit an open pull request this call froze is
-                            already standing on, the gate's own unspent
-                            approval, and the commit this stage already pushed -- that last one proved by
-                            `late_delivery` rather than read off the note, once per call and for every candidate,
-                            since a second reading is a second answer over a decision already made), a record
-                            already answering, and
-                            the count that answers a pair nothing has yet. A commit an exemption names and no
-                            authorization stands behind takes none of those roads and is answered past the switch
-                            by the ordinary reading, which `late_consent` parks an oversized answer to: the
-                            exemption is an agent's verdict, so reading it here as "already decided" would publish
-                            half a bypass. What ADMITTED the candidate travels out with the verdict, because this
-                            is the only place that knows and a proof taken again at the write is a second chance
-                            to fail
+      late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
+                            take a fresh or resumed measurement; the verdict carries the basis admitting publication
+      late_gate_permission.py
+                            read the authorized exemption, frozen remote tip, unspent approval, and proved receipt;
+                            an unknown candidate reaches the switch only after those records have answered
       late_authority.py     whether the human behind an adjudicated commit is one this issue can show, which is
                             what every road past the measurement asks before it takes one. The exemption and the
                             `late_override_*` authorization are asked TOGETHER and both held to naming one commit,
@@ -1367,73 +1336,14 @@ workflow/                   marker package for state, engine, and stage owners
                             itself -- and the window is the widest any publication has, since the pull request was
                             last read by the reconciliation and the exemption, the identity, the debt, the park
                             persist and both checkout probes all run between that reading and the push
-      late_rewrite.py       the publication a squash-on-approval may rewrite and the push it then makes, and the
-                            switch asked ahead of both: a squash is NEW work by the switch's own definition -- the
-                            commit it publishes is one it makes itself -- so `DECOMPOSE=off` freezes no entry:
-                            no pull request is read for the MEASUREMENT and nothing parks over one, and what such
-                            an install does is squash and push under the lease this stage read for itself, which is
-                            the second answer that makes the skipped reading safe: a remote somebody moved rejects
-                            it. What the switch does not reach is the terminal-safety barrier immediately before
-                            that push, which reads the recorded pull request on every install -- a setting about
-                            what enters the measurement does not license force-moving one somebody merged. The road with NO push behind it is given its
-                            own entry point here for exactly that reason, and the switch does not reach that one --
-                            a recovery that drops a record and hands the branch back has no lease to answer with,
-                            so the reading it skipped would be the last thing before `documenting` had the issue.
-                            The gate's own switch question is asked here because the seam reaches it twice and the
-                            first of the two is the pull-request read the switch is meant to save.
-                            With the
-                            switch on: entered on
-                            that pull request before the reset destroys anything locally, so a closed or unreadable
-                            one, a dirty tree, or a head that moved costs a refusal rather than a rewrite and a
-                            rollback; then the commit the squash MADE goes through the whole gate, because that is the
-                            object the push would put on the pull request -- the tree is the approved one, but the
-                            base moves, and this is the last push before a human is asked to merge. That commit is
-                            checked on both sides of the gate, since the gate proves the checkout for itself and a
-                            first generation has no record to prove it against, so something committing over the
-                            worktree in that window would be measured and published in its place. Which holds keep
-                            the rewrite is answered here too (`_rewrite_stands`), over the three records that can
-                            point at a commit: the receipt naming the squash says a push landed, the approval says a
-                            push is still owed for it, and a live record says the adjudication owns it or the
-                            reconciliation still owes it a count -- and a checkout that is not the squash says
-                            something else made the commit. Anything else is a reading that REFUSED and froze
-                            nothing, where the squash is a local commit nobody measured and the caller puts the
-                            branch back rather than leave a retry one commit to call success. Asked as a group
-                            because a road that lost a write can leave any subset of them down: a transfer whose
-                            grant landed and whose push the remote took has the APPROVAL naming the squash while the
-                            receipt still names the head that commit was pushed over, and rolling back there would
-                            take the checkout off an object the remote already carries. And the debt a
-                            rollback abandons is dropped there, durably, since the reconciliation ahead of every
-                            handler would otherwise stop the tick for a publication that is never coming -- with the
-                            permission an authorized transfer holds dropped on the same write, since the commit it
-                            was granted for is on no branch any more and the reset landed on a head the record
-                            itself names as the one the rewrite found -- the accepted end for a squash, the lease
-                            for a rebase. The before-state the rewrite destroyed -- the head it replaced and the
-                            merge base both sides are read over, taken from the PLAN rather than from the entry,
-                            since the entry admits a remote tip a durable record says this issue's own push put
-                            there and only the plan says which commit was collapsed -- is handed into the gate
-                            beside the publication it was entered on as the evidence `late_transfer` grants a
-                            transfer on.
-                            That same before-state is what this owner makes DURABLE before the reset, and what a
-                            tick coming back to a half-finished rotation is answered from: the three terms go onto
-                            the pinned comment ahead of anything destructive (`_records_the_collapse`, refusing the
-                            rewrite outright where GitHub will not take the write), the record is read back and
-                            dropped here, and `_resumed_entry` is the entry a resume freezes -- over the head the
-                            record names, or over the rewritten commit itself where a receipt dates that tip to
-                            this attempt, and NAMING the commit, which a fresh squash cannot do and which is what
-                            lets a pull request already standing on the rewrite be admitted as this issue's own
-                            push having landed. The drop rides the write of whichever owner ends the claim: the
-                            rollback where a reset put the branch back, the reset that never ran, and the approval
-                            handoff's own write -- taken ahead of its relabel -- where a push landed. While it
-                            stands it also holds the branch out of the pre-tick base refresh, since a rebase
-                            replaces the collapse with a commit carrying the base advance and the recovery's own
-                            tree proof stops answering. `_already_published` is the receipt and the head it
-                            replaced asked as one question, and it is what both ends of the resumed window turn
-                            on: the entry is frozen over the rewritten commit where it answers yes, and a push
-                            that then does not go out may not put the branch back, since the remote has the
-                            commit and the count the handoff owes a notice would go with the record. The ENTRY's
-                            own frozen tip answers the second of those beside it and covers more: a crash
-                            between a push and its receipt leaves no receipt to date, and what says the pull
-                            request carries the commit there is the reading this tick took of it
+      late_collapse_state.py
+                            immutable pre-squash values and durable head/base/count claims written before reset;
+                            failed writes restore in-memory state, and handoff or proved rollback clears the claim
+      late_squash_proof.py  prove the checkout still holds the squash, decide whether approval, receipt, generation,
+                            or a changed checkout keeps it standing, and choose the receipt-proved retry lease
+      late_rewrite.py       enter and publish a squash, with the switch governing measurement and every push retaining
+                            its terminal barrier; hand the actual pre-squash pair to transfer, name a resumed candidate,
+                            and drop abandoned approval, transfer permission, and collapse claim after proved rollback
       late_transfer.py      whether a rewrite may carry an adjudication's exemption onto the object it produced,
                             rather than have the same change measured past the same ceiling and adjudicated a
                             second time with a pull request already open over the work. A permit is granted only

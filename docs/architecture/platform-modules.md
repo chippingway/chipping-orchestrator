@@ -37,13 +37,13 @@ last is held by the loader itself rather than by a check.
   `workflow/stages/implementing/late_push.py` and `late_records.py` — the gated push the rebase it is about to
   force-push goes through, since a base that moved changes what the branch adds to it and a pull request may not be
   grown past the ceiling by a refresh either. Both base-sync `publication` and `recovery` load the frozen `_Entered`
-  value from `late_gate_models.py` inside that call. `publication/rewrite.py` reaches `late_rewrite.py` for the same
-  reason
-  one seam over: a squash-on-approval force-pushes onto a pull request the remote already carries, so it is entered
-  on that publication before it rewrites anything and pushes through the gate's own call. Each waits for the call
-  that needs it. The same check declares them per module: an undeclared hop fails wherever it is written, and one of
-  these fails if it is bound at module scope after all — where it would be a cycle, since the workflow imports base
-  sync back.
+  value from `late_gate_models.py` inside that call. `publication/rewrite.py` reaches `late_rewrite.py` to enter
+  a squash on its existing publication and publish through the size gate. Its reset and push steps also load
+  `late_collapse_state.py` and `late_squash_proof.py`; `publication/resume.py` reads both, and `squash.py` and
+  `standing.py` read the collapse state. These preserve the claim written before a destructive reset and prove
+  whether a resumed squash may publish or roll back. Each import waits for the call that needs it. The same check
+  declares them per module: an undeclared hop fails wherever it is written, and one of these fails if it is bound
+  at module scope after all — where it would be a cycle, since the workflow imports the Git owners back.
 - **Package boundaries.** Every package has a marker initializer. Callers import defining modules, so naming a
   package costs no owner behind it. `config/settings.py` binds each resolved setting as a module attribute and is
   the reload and patch target. Package import checks and `tests/config/test_surface.py` hold those boundaries;

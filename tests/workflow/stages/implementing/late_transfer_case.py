@@ -19,7 +19,7 @@ from orchestrator.workflow.late_split import (
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
-    late_gate as _gate,
+    late_gate_permission as _late_gate_permission,
     late_transfer as _transfer,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -204,7 +204,7 @@ class _RecoveryCase(_TransferCase):
 
     def _bypasses(self, candidate: str = _transfer_payloads.REWRITTEN_SHA) -> bool:
         """Whether the approval alone would carry this commit past the gate."""
-        return _gate._approved_on_a_reading(self.recovery, candidate)
+        return _late_gate_permission._approved_on_a_reading(self.recovery, candidate)
 
     def _recovered(self, damage: dict) -> None:
         """That comment, with one field of the permission moved or gone."""

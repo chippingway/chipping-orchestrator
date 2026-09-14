@@ -213,10 +213,11 @@ def _resumed_squash(
     either. The barrier that reads the recorded pull request on every install
     reads only whether it has ended, which is no tree proof.
     """
-    gated = rewrite._gated_rewrite()
-    recorded = gated._recorded_collapse(gate.state)
+    from orchestrator.workflow.stages.implementing import late_collapse_state
+
+    recorded = late_collapse_state._recorded_collapse(gate.state)
     if recorded is None:
-        if gated._claims_a_collapse(gate.state):
+        if late_collapse_state._claims_a_collapse(gate.state):
             return rewrite._squash_failure(_UNREADABLE_COLLAPSE)
         return None
     unprovable = _unprovable_claim(gate, recorded)
@@ -245,12 +246,14 @@ def _outstanding_collapse(
     the entry, the rewrite, and the push, and refuses if any of them will not
     have it.
     """
+    from orchestrator.workflow.stages.implementing import late_collapse_state
+
     if plan.count == 1 and plan.original_head != recorded.head:
         return _finished_collapse(gate, branch, plan.original_head, recorded)
     unaccountable = _unaccountable_branch(gate, plan, recorded)
     if unaccountable:
         return rewrite._squash_failure(unaccountable)
-    rewrite._gated_rewrite()._forgets_the_collapse(gate.state)
+    late_collapse_state._forgets_the_collapse(gate.state)
     return None
 
 
@@ -333,6 +336,8 @@ def _finished_collapse(
     leaves the retry the approved commits to squash afresh rather than one
     commit it would report as having nothing to squash.
     """
+    from orchestrator.workflow.stages.implementing import late_squash_proof
+
     unrecovered = _unrecovered_collapse(gate, recorded, squashed)
     if unrecovered:
         return rewrite._squash_failure(unrecovered)
@@ -342,7 +347,7 @@ def _finished_collapse(
         return rewrite._published_squash(
             gate, branch, entry, squashed, recorded,
         )
-    if gated._rewrite_stands(gate, squashed):
+    if late_squash_proof._rewrite_stands(gate, squashed):
         return rewrite._squash_failure(entry.refusal)
     return rewrite._rollback_squash(
         gate, recorded.head,

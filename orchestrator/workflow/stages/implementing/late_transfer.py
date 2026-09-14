@@ -143,7 +143,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.implementing import (
     late_authority as _authority,
     late_gate_models as _late_gate_models,
-    late_verdict as _verdict_owner,
+    late_verdict_debt as _late_verdict_debt,
     state as _state,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -1032,7 +1032,7 @@ def _authorized(
         rewrite.kind, recorded,
     )
     _rewrites.record_rewrite_authorization(gate.state, rewrite, fingerprint)
-    _verdict_owner._stages_unmeasured_debt(
+    _late_verdict_debt._stages_unmeasured_debt(
         gate, rewrite.to_sha, rewrite.lease,
     )
     return _persisted(gate, before)

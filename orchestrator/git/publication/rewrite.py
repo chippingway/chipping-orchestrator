@@ -185,7 +185,9 @@ def _rewrite_squash(
     pre-squash head would leave the record naming a commit that no longer
     exists here.
     """
-    collapsed = _gated_rewrite()._collapse_of(
+    from orchestrator.workflow.stages.implementing import late_collapse_state
+
+    collapsed = late_collapse_state._collapse_of(
         head=plan.original_head,
         base_sha=plan.base_sha,
         count=plan.count,
@@ -199,7 +201,7 @@ def _rewrite_squash(
         # describes a collapse that did not happen. Left standing it would
         # send the next tick's recovery at a branch still carrying every
         # commit it names. The park the caller takes is what makes it durable.
-        _gated_rewrite()._forgets_the_collapse(gate.state)
+        late_collapse_state._forgets_the_collapse(gate.state)
         return _squash_failure(f"reset --soft failed: {detail}")
 
     commit_result = _create_squash_commit(gate.worktree, plan.message)
@@ -297,13 +299,15 @@ def _published_squash(
     held, are records a reset is SUPPOSED to drop, so neither of them is asked
     here.
     """
+    from orchestrator.workflow.stages.implementing import late_collapse_state, late_squash_proof
+
     gated = _gated_rewrite()
     published = gated._publishes_rewrite(
         gate, branch, entry, new_sha,
-        gated._Collapsed(head=collapsed.head, base_sha=collapsed.base_sha),
+        late_collapse_state._Collapsed(head=collapsed.head, base_sha=collapsed.base_sha),
     )
     if published.held:
-        if gated._rewrite_stands(gate, new_sha):
+        if late_squash_proof._rewrite_stands(gate, new_sha):
             return models._SquashOutcome(held=True)
         return _rollback_squash(
             gate,
@@ -313,7 +317,7 @@ def _published_squash(
             models._SquashOutcome(held=True),
         )
     if not published.landed:
-        if entry.published_sha == new_sha or gated._already_published(
+        if entry.published_sha == new_sha or late_squash_proof._already_published(
             gate.state, collapsed.head, new_sha, entry.pr_number,
         ):
             return _squash_failure(_UNCONFIRMED_PUBLICATION.format(

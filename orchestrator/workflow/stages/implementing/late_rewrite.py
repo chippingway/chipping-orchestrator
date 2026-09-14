@@ -1,141 +1,32 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The push a squash-on-approval makes over the branch it just rewrote.
+"""Enter a squash on its publication and publish the commit the rewrite makes.
 
-The tenth seam that publishes onto a pull request the remote already carries,
-and it goes through the whole gate like the other nine. What it publishes is a
-NEW object: a squash collapses the approved commits into one commit that did
-not exist when any earlier push was measured, so that commit is the candidate
--- proved, frozen against the base the remote names now, counted, and either
-pushed or held. Measuring the head it replaces instead would gate one commit
-and publish another.
-
-The count it earns is ordinarily the count the last gated push already
-answered, because the tree is the same tree. Ordinarily is not always: the
-BASE moves, and a base that advanced since that push changes what this branch
-adds to it. That is the reading this seam exists to take -- it is the last
-push before a human is asked to merge, so a pull request that has crossed the
-ceiling since anyone looked would otherwise reach the merge button
-unadjudicated.
-
-A candidate the RECORD names ends the tick without a rollback. Past the
-ceiling the gate has moved the issue to `workflow:decomposing` and an
-authorized settlement publishes the squash from the branch; short of a count
-the
-pair is one the reconciliation ahead of the next handler owes a reading, and
-that reading can only be taken in the checkout it was frozen on. Either way
-restoring the pre-squash head would leave a record naming a commit this branch
-no longer has -- adjudicated over a commit nobody has, or refused by every
-later tick as a candidate that moved. The same holds for a push that landed
-and for a checkout something committed over: in each the squash is somebody's
-and a reset is the destructive step.
-
-A REFUSED one is the opposite and is told apart from all of them, because the
-squash there is a local commit nobody measured, nobody published, and nothing
-recorded -- an entry that could not prove itself deliberately persists none.
-Left on the branch it is the ONE commit a retry finds, which takes the
-nothing-to-squash road and reports success without measuring or pushing
-anything -- so the approved work reaches the merge button neither counted nor
-on the remote. `_rewrite_stands` is what the caller asks before it decides.
-
-The entry is asked TWICE, and the first time is not redundant. A pull request
-nothing could read, one a human closed mid-review, a dirty tree, or a head
-that moved out from under the reading are all answerable while the branch is
-still intact, and asking them there is what keeps a doomed publication from
-costing a rewrite and a rollback to learn about. Closing a pull request does
-not move its branch, so that first reading is also the only thing standing
-between a `--force-with-lease` and a publication nobody can merge.
-
-What the squash also carries into the gate is the before-state it destroyed.
-The head the pull request was standing on, the merge base the plan was
-collapsed onto, and the commit that came out are the whole of the evidence
-`late_transfer` grants a transfer on -- so a squash of the exact commit an
-adjudication accepted can be recognized as the same contribution rather than
-measured past the same ceiling and adjudicated a second time. Nothing here
-decides that; what this owner owes it is the pair of pairs, taken before the
-reset, that no reading past the rewrite could produce. The rollback is the
-other end of the same obligation: a push the remote refuses puts the branch
-back onto the commit the exemption never left -- the grant records a
-PERMISSION and moves nothing, and only the receipt of a landed push spends it
--- so what the reset owes is dropping the permission it will never spend.
-
-The before-state is said out loud first, and that is what makes the rotation
-recoverable at all. The rewrite destroys the only evidence of what it was
-about, so the head it is collapsing, the base it is collapsing over, and how
-many commits go in go onto the pinned comment BEFORE the reset -- and a tick
-that comes back to a one-commit branch reads them rather than guessing. What
-it does with them is resume: the same leased publication the squash would have
-made, entered on the head this collapse accounts for, handed the same
-before-state, and finished with the count only the record still holds. Nothing
-is squashed again, and an already-landed one is finished as the leased no-op
-it is rather than remeasured or readjudicated.
+The switch governs measurement entry, while every push keeps its terminal
+barrier. Resumes name their recorded candidate, and a proved rollback drops
+its abandoned approval, transfer permission, and collapse claim together.
 """
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 
-from orchestrator.config import settings as config
-from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
-    formats as _formats,
     rewrite_values as _rewrite_values,
     state as _late_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_collapse_state as _late_collapse_state,
     late_freeze as _freeze,
     late_gate_models as _late_gate_models,
     late_overflow as _overflow,
     late_parks as _parks,
     late_push as _push,
-    late_records as _records,
+    late_squash_proof as _late_squash_proof,
     late_transfer as _transfer,
 )
 
 log = logging.getLogger("orchestrator.workflow")
-
-
-# The revision a checkout's own head is named by.
-_HEAD = "HEAD"
-
-
-# How a squash can fail to be the thing this owner publishes. Each is spelled
-# as the park comment reads it, because what an operator has to reconcile
-# differs by which side of the push it was noticed on.
-_MOVED_CHECKOUT = (
-    "the squash made `{squashed}` and the checkout stands on `{head}`"
-)
-
-
-_MOVED_SQUASH_PARK = (
-    "{mentions} the reviewer approved this pull request and the orchestrator "
-    "squashed its commits, but the checkout it squashed in is not the one the "
-    "squash left behind: {refusal}. Something committed over the worktree "
-    "while the publication was being made, so nothing has been handed on -- "
-    "and the branch is left exactly as it was found rather than reset, since "
-    "whatever moved it made a commit nobody here can account for. Reconcile "
-    "the worktree with what landed and the next tick squashes afresh."
-)
-
-
-@dataclass(frozen=True)
-class _Collapsed:
-    """What the plan taken before the reset says this squash replaced.
-
-    The two facts the rewrite destroys and nothing past it can recover: the
-    head that was collapsed, and the merge base it was read over. They travel
-    together because they are one reading -- the plan takes both while the
-    branch is still intact -- and as a record rather than as two arguments so
-    the seam that hands them over cannot transpose them.
-
-    Empty for a caller with no plan behind it, which is what a squash the
-    switch kept out of the gate has: nothing is measured there and no transfer
-    is decided, so there is no before-state for either to be about.
-    """
-
-    head: str = ""
-    base_sha: str = ""
 
 
 def _switched_off(gate: _late_gate_models._Gate) -> bool:
@@ -238,7 +129,7 @@ def _publishes_rewrite(
     branch: str,
     entry: _late_gate_models._PublicationEntry,
     squashed: str,
-    collapsed: _Collapsed,
+    collapsed: _late_collapse_state._Collapsed,
 ) -> _push._PushedCandidate:
     """Measure the squashed commit, then publish what it earned.
 
@@ -277,7 +168,7 @@ def _publishes_rewrite(
     that plan still holds them -- the head is off the branch by the time this
     runs and the base is not derivable from the object that replaced it.
     """
-    if not _standing_on_the_squash(gate, squashed):
+    if not _late_squash_proof._standing_on_the_squash(gate, squashed):
         return _push._PushedCandidate(held=True)
     return _push._publishes(
         gate, branch,
@@ -297,7 +188,7 @@ def _publishes_rewrite(
 def _rewritten(
     entry: _late_gate_models._PublicationEntry,
     squashed: str,
-    collapsed: _Collapsed,
+    collapsed: _late_collapse_state._Collapsed,
 ) -> _rewrite_values.LateRewrite:
     """What this squash replaced, and the publication it replaced it on.
 
@@ -331,125 +222,6 @@ def _rewritten(
         source_stage=entry.stage,
         lease=entry.published_sha,
     )
-
-
-def _rewrite_stands(gate: _late_gate_models._Gate, squashed: str) -> bool:
-    """Whether a HELD squash must be left on the branch it rewrote.
-
-    A hold is not one state. Three of its shapes leave the squashed commit
-    somebody's, and in each the reset the caller would otherwise take is the
-    destructive step:
-
-    * the push LANDED and only the handoff was held -- the receipt names the
-      squash, so the remote carries it and a reset would take the branch off
-      a commit the pull request has;
-    * a DEBT names it -- the approval says this commit is owed a push and no
-      other may be pushed in its place, so a reset would leave the
-      reconciliation ahead of every later handler asking for a checkout back
-      for work only the reflog still has;
-    * the RECORD names it -- any live generation whose candidate is the
-      squash, not merely an oversized one. Past the ceiling the adjudication
-      owns it and an authorized settlement publishes it from this branch;
-      short of a count the pair is one the reconciliation ahead of the next
-      handler owes a reading, and that reading can only be taken in the
-      checkout it was frozen on -- put back, the record names a commit the
-      branch no longer has, and every later tick refuses it as a candidate
-      that moved instead of measuring it again;
-    * the checkout is not the squash at all -- something committed over it --
-      and a reset would destroy work nobody here can account for.
-
-    Everything else is a reading that refused before it froze anything: a pull
-    request a human closed mid-rewrite, a head somebody moved under it, an
-    approval nothing could pin. Those persist no record -- an entry that could
-    not prove itself deliberately writes none -- so nothing names the squash,
-    and leaving it on the branch is what makes the retry find ONE commit, take
-    the nothing-to-squash road, and report success without measuring or
-    pushing anything -- so the approved work reaches the merge button neither
-    counted nor on the remote. Put back, the retry finds the commits it was
-    approved with and squashes, measures, and publishes them afresh.
-
-    The two questions are one rule read from its ends: the branch may go back
-    only where nothing durable is left pointing at what is on it.
-
-    The checkout is proved again here rather than taken from the reading
-    before the push, and the two guard different steps: that one decides
-    whether to PUBLISH, and a whole gated push stands between it and the
-    reset this one decides.
-    """
-    if _named_by(gate.state, squashed):
-        return True
-    proved = _measurement_commits._prove_candidate_commit(gate.worktree, _HEAD)
-    return not (proved.is_frozen and proved.sha == squashed)
-
-
-def _named_by(state, squashed: str) -> bool:
-    """Whether this record names the squash as work something still owns.
-
-    Three fields, because three different things point at a commit and each
-    outlives the step that wrote it: the receipt says the remote has it, the
-    approval says a push is owed for it, and a live generation says a reading
-    is about it. Any one of them left naming a commit the branch no longer has
-    is a record every later tick trips over -- so the reset is the destructive
-    step wherever one of them answers.
-
-    Asked as a group rather than one at a time because they are written by
-    different owners in different orders, and a road that lost a write can
-    leave any subset of them down: a transfer whose grant landed and whose
-    push was refused has the approval naming the squash while the receipt
-    still names the head it replaced.
-    """
-    named = (
-        _parks._published_commit(state),
-        _parks._approved_commit(state),
-        _late_state.read_late_generation(state).candidate_sha,
-    )
-    return bool(squashed) and squashed in named
-
-
-def _standing_on_the_squash(gate: _late_gate_models._Gate, squashed: str) -> bool:
-    """Whether the checkout is still the commit the squash just made.
-
-    Proved rather than read: a revision this host cannot peel is not a head
-    that matches anything. A checkout standing somewhere else is not rolled
-    back to the pre-squash head either -- whatever moved it committed
-    something, and a reset would destroy work nobody here can account for. It
-    parks with the branch exactly as it was found.
-    """
-    proved = _measurement_commits._prove_candidate_commit(gate.worktree, _HEAD)
-    if proved.is_frozen and proved.sha == squashed:
-        return True
-    return _refuses_the_squash(
-        gate,
-        _MOVED_CHECKOUT.format(
-            squashed=squashed, head=proved.sha or "an unreadable head",
-        ),
-    )
-
-
-def _refuses_the_squash(gate: _late_gate_models._Gate, refusal: str) -> bool:
-    """Park a squash whose checkout is not the commit it was handed, and stop.
-
-    Reported and parked the way every other reading this gate could not take
-    is, so an operator sees one shape for "the checkout is not what this was
-    about" whichever side of the push it was noticed on. The flags are left in
-    memory for the caller that ran this to persist, exactly as the gate's own
-    parks are.
-    """
-    log.error(
-        "issue=#%d cannot publish the squash it made (%s); refusing to hand a "
-        "checkout nobody squashed to the pull request",
-        gate.issue.number, refusal,
-    )
-    _parks._parked(
-        gate, _records._reportable(gate, _late_state.read_late_generation(
-            gate.state,
-        )),
-        refusal,
-        _MOVED_SQUASH_PARK.format(
-            mentions=config.HITL_MENTIONS, refusal=refusal,
-        ),
-    )
-    return False
 
 
 def _forgets_the_rollback(gate: _late_gate_models._Gate, restored: str) -> None:
@@ -488,119 +260,12 @@ def _forgets_the_rollback(gate: _late_gate_models._Gate, restored: str) -> None:
     if owed:
         _parks._forget_approval(gate.state)
     carried_back = _transfer._abandoned_authorization(gate, restored)
-    collapsed = _claims_a_collapse(gate.state)
+    collapsed = _late_collapse_state._claims_a_collapse(gate.state)
     if collapsed:
-        _forgets_the_collapse(gate.state)
+        _late_collapse_state._forgets_the_collapse(gate.state)
     if not (owed or carried_back or collapsed):
         return
     gate.gh.write_pinned_state(gate.issue, gate.state)
-
-
-def _records_the_collapse(
-    gate: _late_gate_models._Gate, head: str, base_sha: str, count: int,
-) -> str:
-    """Say what this squash is about to collapse, durably, before it does.
-
-    The one write that has to happen while the branch can still describe
-    itself. A squash replaces the commits a reviewer approved with a single
-    object carrying the same tree, so past the reset the head it replaced is
-    off the branch, the count is gone with the commits it counted, and what is
-    left looks exactly like a branch nobody ever squashed. A process that dies
-    in that window comes back to a one-commit branch, a remote still standing
-    on the head it replaced, and nothing on the comment saying a rewrite was
-    begun -- and the retry takes the nothing-to-squash road and reports
-    success without measuring or pushing anything.
-
-    So the terms go down first. They are what a later tick tells an
-    interrupted rotation from a finished one BY, and they are the whole of
-    what it may take on trust: everything else the resumed publication needs
-    is asked again of the world it is about.
-
-    A write GitHub refuses is answered by NOT rewriting. The staged payload is
-    put back exactly as it was found and the caller is handed the reason, so
-    the approved commits stay on the branch and the next tick squashes them
-    afresh -- rather than a collapse being made that nothing on the comment
-    could ever account for.
-
-    Answers with the refusal, or "" where the terms are durable.
-    """
-    before = dict(gate.state.data)
-    try:
-        _collapses.record_pending_collapse(
-            gate.state, head=head, base_sha=base_sha, count=count,
-        )
-    except _formats.InvalidLateValue as refused:
-        return f"the squash could not be recorded before it ran ({refused})"
-    try:
-        gate.gh.write_pinned_state(gate.issue, gate.state)
-    except Exception:
-        log.warning(
-            "issue=#%d could not record the squash it was about to make of "
-            "%s; leaving the approved commits on the branch",
-            gate.issue.number, head, exc_info=True,
-        )
-        gate.state.data.clear()
-        gate.state.data.update(before)
-        return "the squash could not be recorded before it ran"
-    return ""
-
-
-def _claims_a_collapse(state) -> bool:
-    """Whether this comment claims a squash somebody may not have finished.
-
-    Presence rather than readability, which is the difference the caller acts
-    on: a comment carrying no claim has nothing to recover, and one carrying a
-    claim this build cannot read has a branch nobody can account for. Read
-    through the fail-closed reader alone, the second would be waved past as
-    the first -- and the branch it is about is the one that looks like it has
-    nothing to squash.
-
-    It is also what a failure asks before it words a human's notice: an issue
-    still claiming a collapse is one whose branch may be standing on it rather
-    than on the commits a reviewer approved.
-    """
-    return _collapses.carries_pending_collapse(state)
-
-
-def _recorded_collapse(state) -> _collapses.LateCollapse | None:
-    """The squash this issue began and may not have finished, or None."""
-    return _collapses.read_pending_collapse(state)
-
-
-def _forgets_the_collapse(state) -> None:
-    """Drop the record of a squash nothing is waiting on any more.
-
-    Staged rather than persisted, and every caller of it has a durable write
-    of its own behind it: the reset a rollback made, the reset that never ran,
-    the fresh terms the next squash records, and the write the approval handoff
-    makes once its notice has gone out. A process dying before one of those
-    comes back to a record still standing over a branch the recovery reads
-    again and answers the same way -- an already-published collapse is
-    finished a second time as the leased no-op it is, and an untouched branch
-    is squashed afresh.
-
-    Taken over the pinned STATE rather than over a gate, because the owner
-    that finally drops one is the stage handoff, which has no candidate to
-    build a gate around: past the push there is nothing left to decide about.
-    """
-    _collapses.clear_pending_collapse(state)
-
-
-def _collapse_of(
-    head: str, base_sha: str, count: int,
-) -> _collapses.LateCollapse:
-    """The three facts a squash destroys, as the record every owner holds one.
-
-    Built here rather than by the caller that took them, so the plan a fresh
-    squash makes and the record a resumed one reads back are the same shape
-    all the way down: the head that is being collapsed, the base it is
-    collapsed over, and how many commits go in. The publication tail past the
-    reset is handed one of these whichever of the two produced it, and nothing
-    below has to know which.
-    """
-    return _collapses.LateCollapse(
-        head=head, base_sha=base_sha, count=count,
-    )
 
 
 def _resumed_entry(
@@ -633,66 +298,5 @@ def _resumed_entry(
         gate.issue.number, recorded.head, recorded.count, squashed,
     )
     return _entered_rewrite(
-        gate, _leased_head(gate, recorded, squashed), candidate=squashed,
+        gate, _late_squash_proof._leased_head(gate, recorded, squashed), candidate=squashed,
     )
-
-
-def _leased_head(
-    gate: _late_gate_models._Gate,
-    recorded: _collapses.LateCollapse,
-    squashed: str,
-) -> str:
-    """The head a resumed collapse is entered on, of the two it may be.
-
-    The recorded head is the ordinary one: the collapse was made over it, the
-    pull request is still standing there, and the force-push that finishes the
-    rotation is what moves it.
-
-    The SQUASH itself is the other, and only where a durable receipt says this
-    issue's own push put it there -- the commit recorded as published, dated
-    to this attempt by the head it replaced. That is the window a tick that
-    pushed and died before its handoff leaves: the remote already carries the
-    rewrite, so entering on the head it moved off would refuse the very
-    publication this recovery exists to finish, and the retry would remeasure
-    a squash the pull request already has. Entered on the commit instead, the
-    publication is the leased no-op it should be and the handoff behind it
-    finishes with the count only the record still holds.
-
-    The receipt alone would not say it. It is never cleared, so it goes on
-    naming a commit this stage pushed rounds ago; what dates it to THIS
-    collapse is the head it was pinned to, which is the head the record says
-    was rewritten.
-    """
-    if _already_published(
-        gate.state, recorded.head, squashed,
-        _parks._recorded_pull_request(gate.state),
-    ):
-        return squashed
-    return recorded.head
-
-
-def _already_published(
-    state, replaced: str, squashed: str, pull_request: int,
-) -> bool:
-    """Whether a durable receipt says this issue's push put the squash out.
-
-    The receipt, the head it was pinned to, and the pull request it went onto,
-    asked as one question, because none answers it alone: a receipt is never
-    cleared, so on its own it goes on naming a commit this stage pushed rounds
-    ago; a head with no receipt beside it names no push at all; and the two
-    together still say nothing about WHICH publication received the commit, so
-    a branch pushed from that head onto a pull request since closed and
-    REPLACED by another on the same ref answers for both. All three date one
-    push to one collapse -- the commit that went out, from the head this record
-    says was rewritten, onto the publication the caller is proving against.
-
-    Two owners ask it and they are the two ends of the same window. The entry
-    a resume freezes is taken over the rewritten commit where this answers
-    yes, since the pull request is already standing there. And a push that
-    then does NOT go out may not put the branch back there: the remote carries
-    the commit, so a reset would take the checkout off it and the count the
-    handoff still owes a notice would go with the record.
-    """
-    return _parks._publication_from(
-        state, replaced, pull_request,
-    ) == squashed

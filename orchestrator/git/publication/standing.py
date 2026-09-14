@@ -27,13 +27,15 @@ from __future__ import annotations
 from dataclasses import replace
 
 from orchestrator.git.measurement import commits as measurement_commits
-from orchestrator.git.publication import models, resume, rewrite
+from orchestrator.git.publication import models, resume
 from orchestrator.git.verification import probes as verification_probes
 
 
 def _claims_a_collapse(gate) -> bool:
     """Whether this issue records a squash somebody may not have finished."""
-    return rewrite._gated_rewrite()._claims_a_collapse(gate.state)
+    from orchestrator.workflow.stages.implementing import late_collapse_state
+
+    return late_collapse_state._claims_a_collapse(gate.state)
 
 
 def _tells_the_caller_where_the_branch_is(
@@ -89,7 +91,9 @@ def _where_the_branch_stands(gate) -> str:
     Everything else is unknown, and saying so is the whole of what this
     reading owes.
     """
-    recorded = rewrite._gated_rewrite()._recorded_collapse(gate.state)
+    from orchestrator.workflow.stages.implementing import late_collapse_state
+
+    recorded = late_collapse_state._recorded_collapse(gate.state)
     head = verification_probes._head_sha(gate.worktree)
     if recorded is None or not head:
         return models.BRANCH_UNKNOWN

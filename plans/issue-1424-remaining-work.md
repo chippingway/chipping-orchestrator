@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 9 paths and 11 pairs (11 production, 0
-test), all matching isolated diagnostics. One hundred eighteen pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 6 paths and 8 pairs (8 production, 0
+test), all matching isolated diagnostics. One hundred twenty-one pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201 and WPS202. The files must stay until that set is empty and
 validation passes.
@@ -189,12 +189,20 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 13 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate cleanup state and readings, consumer-ledger proof, branch reclamation,
+- `20bdcf5a`: separate cleanup state and readings, consumer-ledger proof, branch reclamation,
   consumer receipts, snapshot reclamation, and attempted-result accounting. Two production pairs removed,
   completing removal of every decomposition-stage exclusion. Of 130 compared function/method bodies and
   90 whole definitions, all production bodies match; one test difference moves its reopen hook to the
   snapshot-reclamation owner. All 1,646 focused tests pass.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 11 remaining production
+  pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate gate permission readings, durable collapse state, squash proofs,
+  verdict retirement, and unmeasured publication debt. Three production WPS202 pairs removed. The Git-side
+  squash and recovery callers retain deferred imports of the defining workflow owners. Of 149 compared
+  function/method bodies and 119 whole definitions, nine differences are the inspected deferred owner lookups;
+  all other bodies match. All 835 focused tests pass.
+  Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All eight remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes

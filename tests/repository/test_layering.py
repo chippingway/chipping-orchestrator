@@ -80,6 +80,10 @@ _LATE_ENTRY = f"{PACKAGE}.workflow.stages.implementing.late_gate_models._Entered
 
 _LATE_REWRITE = f"{PACKAGE}.workflow.stages.implementing.late_rewrite"
 
+_LATE_COLLAPSE = f"{PACKAGE}.workflow.stages.implementing.late_collapse_state"
+
+_LATE_SQUASH_PROOF = f"{PACKAGE}.workflow.stages.implementing.late_squash_proof"
+
 _LATE_TRANSFER = f"{PACKAGE}.workflow.stages.implementing.late_transfer"
 
 # The exemption a verdict left and the record that authorizes it to move: the
@@ -145,7 +149,10 @@ _CALL_TIME_HOPS = MappingProxyType({
         _REWRITES,
         _REWRITE_VALUES,
     ),
-    f"{_PUBLICATION}.rewrite": (_LATE_REWRITE,),
+    f"{_PUBLICATION}.rewrite": (_LATE_REWRITE, _LATE_COLLAPSE, _LATE_SQUASH_PROOF),
+    f"{_PUBLICATION}.resume": (_LATE_COLLAPSE, _LATE_SQUASH_PROOF),
+    f"{_PUBLICATION}.squash": (_LATE_COLLAPSE,),
+    f"{_PUBLICATION}.standing": (_LATE_COLLAPSE,),
 })
 
 
