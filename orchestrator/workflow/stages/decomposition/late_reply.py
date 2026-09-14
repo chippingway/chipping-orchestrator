@@ -123,15 +123,6 @@ _NO_SPLIT_BLOCKER = (
     "safe split of this work is available"
 )
 
-_NO_ESTIMATE = (
-    f"child {{0}} needs an `{_budget.ESTIMATE}` of at least one whole line"
-)
-
-_ESTIMATE_PAST_CEILING = (
-    f"child {{0}} declares an `{_budget.ESTIMATE}` of {{1}}, which is not "
-    "below the {2}-line ceiling this split has to get under"
-)
-
 
 def _parse_late_reply(
     last_message: str, threshold: int | None,
@@ -209,7 +200,7 @@ def _split_adjudication(
     if split_error is not None:
         return None, split_error
     children = tuple(late_manifest.get("children") or ())
-    budget_error = _estimates_error(children, threshold)
+    budget_error = _budget._estimates_error(children, threshold)
     if budget_error is not None:
         return None, budget_error
     return _LateAdjudication(
@@ -218,31 +209,6 @@ def _split_adjudication(
         rationale=_text(late_manifest, "rationale"),
         children=children,
     ), None
-
-
-def _estimates_error(
-    children: tuple, threshold: int | None,
-) -> str | None:
-    """Return the first child whose declared addition budget is not one.
-
-    What a budget IS is the shared owner's, since the record this reply
-    becomes and the child issue it creates both read one back. What an absent
-    one costs is this owner's alone: a fresh reply that declared no size for a
-    slice is refused, because a proposal nobody sized can still be re-asked
-    for the price of the run that is already over.
-
-    A number at or past the ceiling is refused beside it, because a child that
-    big is this same adjudication again with an issue number in front of it.
-    """
-    for child_index, child in enumerate(children):
-        estimated = _budget.declared_budget(child)
-        if estimated is None:
-            return _NO_ESTIMATE.format(child_index)
-        if threshold is not None and estimated >= threshold:
-            return _ESTIMATE_PAST_CEILING.format(
-                child_index, estimated, threshold,
-            )
-    return None
 
 
 def _question_adjudication(
