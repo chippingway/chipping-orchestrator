@@ -22,7 +22,7 @@ from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.implementing import (
-    late_consent as _consent,
+    late_consent_state as _consent_state,
     late_records as _records,
 )
 from tests.workflow.fixtures import (
@@ -104,7 +104,7 @@ CONTINUE = "/orchestrator continue"
 # The receipt the park's own notice is stamped with, which is what a tick that
 # died before saying it leaves on the record and what the sentence itself
 # carries once it lands.
-PARK_RECEIPT = _consent._RECEIPTS["parked"].format(
+PARK_RECEIPT = _consent_state._RECEIPTS["parked"].format(
     issue=ISSUE_NUMBER, scope=MEASURED_CANDIDATE_SHA,
 )
 
@@ -123,7 +123,7 @@ AT_THE_LIMIT = MappingProxyType({
 
 def refusal_receipt(comment_id: int) -> str:
     """The receipt the answer to one reply is stamped with."""
-    return _consent._RECEIPTS["refused"].format(
+    return _consent_state._RECEIPTS["refused"].format(
         issue=ISSUE_NUMBER, scope=comment_id,
     )
 

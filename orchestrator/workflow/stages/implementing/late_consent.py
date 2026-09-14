@@ -1,63 +1,15 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The park an adjudicated candidate with nobody behind it waits on.
+"""Request and record an operator's authorization for an adjudicated oversized commit.
 
-What an oversized reading is owed where `late_authority` beside this says the
-exemption naming the candidate has no operator authorization standing behind
-it -- the record an older binary wrote, where a `single` verdict recorded an
-exemption on its own, and the record a hand edit or a half-written crash
-leaves. It is a HOLD rather than a route back to `workflow:decomposing`, and
-that difference is the whole of what the compatibility is worth: the change
-has already been ruled one change, so sending it back would pay for a second
-adjudicator over an answered question and risk a `split` cutting children out
-of work somebody decided ships whole. What is missing is a person, so the park
-asks for one.
-
-The ordinary cumulative reading is what reaches this owner, and that is the
-whole of the contract: the generation handed in is the pair the gate froze and
-the count it took, so the terms an authorization is recorded on are this
-tick's rather than a number read back off the pinned comment. It also means
-every way a reading can fail is answered where it always was -- the
-measurement park, the typed failure on both sinks, the bounded quiet retry --
-rather than a second time here. An issue already standing behind the park
-comes back down the same road, which `late_recovery` drives on every poll.
-
-The COUNT is deliberately not made durable. A generation carrying a reading
-past its ceiling is exactly what this workflow means by an adjudication in
-flight -- the dispatcher restores `workflow:decomposing` over one before any
-stage sees the issue, the coordinator owns every later tick, and a fresh
-adjudicator is paid for -- so a park that recorded one would be relabelled out
-from under itself on the next poll and nothing could ever answer it. What
-stays on the comment is the pair the freeze already recorded, and the reading
-is re-taken by the tick that acts, which is the tick an authorization's terms
-have to be written from anyway.
-
-Nothing is deleted, migrated, or repaired to take it. The exemption, the
-identity beside it, the approval naming the commit a push is owed for, and
-every other field are left exactly as found: the record is what an
-authorization would be checked against, and a park that tidied the pinned
-comment on the way would destroy the evidence it exists to ask about.
-
-What ends it is a trusted whole-comment `/orchestrator authorize-oversized
-<commit>` naming the parked candidate, which `late_command` reads. Acted on
-HERE rather than at the gate's door because this is the only place holding a
-reading: an operator authorizes a change of THIS size against THAT ceiling,
-and the terms of the record are the pair this call froze, the additions it
-counted, and the ceiling it counted them against.
-
-Every notice is worded on the side of publication the park was taken on,
-because what a reply that is NOT the command is worth differs there. Before a
-pull request exists the ordinary resume is still in front of the issue, so
-prose reaches the developer and the sentence offers it. Past one it does not:
-the debt reconciliation that brings a parked issue back to the gate stops the
-tick ahead of the stage handler on every poll, so nothing would carry a
-human's words to an agent, and a notice promising otherwise would have
-somebody writing into a thread nothing reads.
+The command must name the frozen candidate in full. Its contribution is
+fingerprinted again before recording the measured terms and retiring the
+park together; unreadable content remains parked and its answer unread.
+Wrong-candidate refusals use the same scoped receipt and consumption rules.
 """
 from __future__ import annotations
 
 import logging
-from types import MappingProxyType
 
 from orchestrator.config import settings as config
 from orchestrator.git.measurement import fingerprint as _fingerprint
@@ -68,56 +20,16 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.late_split import (
     overrides as _overrides,
     payloads as _payloads,
-    state as _late_state,
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_command as _command,
+    late_consent_state as _consent_state,
     late_records as _records,
     state as _state,
 )
 
 log = logging.getLogger("orchestrator.workflow")
-
-# The receipt each sentence this owner writes is stamped with, scoped to the
-# one thing it is the answer to: the candidate a park was taken over, and the
-# reply a refusal was written for. HTML comments, so both are invisible in the
-# rendered thread.
-#
-# Each is what keeps a second poll from saying the same thing to the same
-# people twice, because neither the sentence nor its consequence can be made
-# one operation with the write that records it. Recorded BEFORE the sentence
-# carrying it goes out, so the record says a sentence is outstanding and the
-# thread says whether it landed: a receipt the thread carries is a sentence
-# that was said, and one it carries nowhere is one still owed.
-#
-# Both halves of the thread's answer are asked -- the receipt and the author
-# -- and that is the safe direction for SILENCING a sentence and the wrong one
-# for claiming a comment. These strings are public text, deterministic from an
-# issue and a commit, and recording one publishes it, since the record is
-# itself a comment; the login beside it may be the operator's own. So read as
-# proof of authorship a retraction written under a quoted receipt would be
-# taken for one of ours and deleted from the reading -- publishing the
-# authorization beneath it on consent withdrawn. Silencing a sentence costs a
-# poll; claiming a comment costs whatever its author said. Attribution is
-# `late_recovery`'s, on the one thing that can bear it: a secret it commits to
-# by DIGEST before the seam is entered, stamped on every sentence that call
-# posts -- these among them, since both are worded inside it.
-_RECEIPTS = MappingProxyType({
-    "parked": (
-        "<!--orchestrator-unauthorized-exemption-parked:"
-        "issue={issue}:candidate={scope}-->"
-    ),
-    "refused": (
-        "<!--orchestrator-unauthorized-exemption-refused:"
-        "issue={issue}:read={scope}-->"
-    ),
-})
-
-
-def _receipt(gate: _records._Gate, said: str, scope) -> str:
-    """The receipt one sentence of ours is stamped with, scoped to its subject."""
-    return _RECEIPTS[said].format(issue=gate.issue.number, scope=scope)
 
 # What every notice here ends on, worded on the side of publication the park
 # was taken on. Before there is a pull request the ordinary resume is still in
@@ -233,10 +145,10 @@ def _parked_for_authorization(
     checked against, and a park that repaired the pinned comment on the way
     would destroy the evidence it exists to ask about.
     """
-    receipt = _receipt(gate, "parked", generation.candidate_sha)
-    standing = _stands_over(gate, generation)
-    if standing and not _owes_the_notice(gate, receipt):
-        _recorded_as_said(gate)
+    receipt = _consent_state._receipt(gate, "parked", generation.candidate_sha)
+    standing = _consent_state._stands_over(gate, generation)
+    if standing and not _consent_state._owes_the_notice(gate, receipt):
+        _consent_state._recorded_as_said(gate)
         return True
     log.warning(
         "issue=#%d exempts candidate %s on a record no operator "
@@ -245,7 +157,7 @@ def _parked_for_authorization(
         gate.issue.number, generation.candidate_sha,
         generation.additions, generation.threshold,
     )
-    _held(gate, receipt)
+    _consent_state._held(gate, receipt)
     _guards._park_awaiting_human(
         gate.gh, gate.issue, gate.state,
         _PARK_NOTICE.format(
@@ -260,87 +172,6 @@ def _parked_for_authorization(
     gate.state.set(_state._HELD_RECEIPT, None)
     gate.gh.write_pinned_state(gate.issue, gate.state)
     return True
-
-
-def _recorded_as_said(gate: _records._Gate) -> None:
-    """Catch the record up with a thread that already carries our sentence.
-
-    An outstanding receipt says a tick died between recording a sentence and
-    recording having said it. Reaching here is the thread having answered
-    which side of the post that was -- everything this owner owes has been
-    said -- so the record is brought into line with it.
-
-    Left standing instead, the receipt would have every later poll of a park
-    nobody has answered read the whole thread again to reach the same
-    conclusion, and would go on saying something is outstanding when nothing
-    is. Dropping it costs one write, once.
-
-    Nothing is owed at this point whichever sentence the receipt was for. The
-    park's own notice would have taken the announcing road rather than this
-    one, and the refusal's at-most-once guard asks the thread for its own
-    scoped receipt rather than this field.
-    """
-    if gate.state.get(_state._HELD_RECEIPT) is None:
-        return
-    gate.state.set(_state._HELD_RECEIPT, None)
-    gate.gh.write_pinned_state(gate.issue, gate.state)
-
-
-def _owes_the_notice(gate: _records._Gate, receipt: str) -> bool:
-    """Whether a sentence this park recorded is still owed to the thread.
-
-    Two questions, and the record answers only the first. A park carrying no
-    receipt has nothing outstanding -- the write past the post dropped it --
-    so the ordinary quiet poll is answered without a request. A park still
-    carrying one is a tick that died somewhere between recording the sentence
-    and recording having said it, and WHICH side of the post it died on is a
-    question only the thread can answer.
-
-    So the thread is asked, on the same terms and for the same reason the
-    refusal beside this one asks it: the receipt AND the author, which is the
-    safe direction to fail in for a question about SILENCING a sentence.
-    Read from anybody, a receipt somebody pasted would silence a notice a
-    human is owed; read this way, the worst a reviewer sharing this token can
-    do by quoting our notice back is cost a poll.
-
-    What may never be built on THIS evidence is the opposite claim -- that
-    some comment on the thread is OURS. The receipt is deterministic from the
-    issue and the candidate, and recording it publishes it: the record is
-    itself a comment, so the string is readable before the sentence it names
-    exists, by the operator whose consent this park collects and from a login
-    they may share with us. Claimed on that basis, a retraction they wrote
-    under it would be deleted from every later reading and the authorization
-    beneath it would become the last word and publish on consent withdrawn.
-
-    Nothing here writes the id ledger that says a comment is ours. The one
-    attribution `late_recovery` does make rests on a SECRET, minted per
-    handoff into the publication seam and recorded there by its digest alone
-    -- which is the claim this receipt cannot support and is not asked for.
-    Every sentence this owner words goes out from inside that seam call, so
-    the secret is on them too, beside the receipt this read is about.
-    """
-    if gate.state.get(_state._HELD_RECEIPT) != receipt:
-        return False
-    return not _command._already_said(gate, receipt)
-
-
-def _held(gate: _records._Gate, receipt: str) -> None:
-    """Make this park, and the receipt it is about to say, durable first.
-
-    Both halves go down in one write and both are the same precaution. The
-    park is what a restarted tick reads to know somebody is already waiting
-    behind this candidate; the receipt is what tells a later poll that the
-    sentence saying so never got out, and it can only do that if it was
-    written down before the comment carrying it existed.
-
-    The park's flags are set here rather than left to the guard below, because
-    the guard sets them AFTER it posts -- which is the window this write
-    exists to close.
-    """
-    gate.state.set(_state._AWAITING_HUMAN, True)
-    gate.state.set(_state._PARK_REASON, _command.PARK_UNAUTHORIZED_EXEMPTION)
-    gate.state.set(_state._HELD_RECEIPT, receipt)
-    gate.gh.write_pinned_state(gate.issue, gate.state)
 
 
 def _decided_by(gate: _records._Gate, candidate_sha: str) -> str:
@@ -364,32 +195,6 @@ def _decided_by(gate: _records._Gate, candidate_sha: str) -> str:
     """
     asked = _HOW_TO_DECIDE if gate.entry is None else _HOW_TO_DECIDE_PUBLISHED
     return asked.format(candidate=candidate_sha)
-
-
-def _stands_over(
-    gate: _records._Gate, generation: LateGeneration,
-) -> bool:
-    """Whether this park is already up, over this very candidate.
-
-    Both halves of the park are required. The flag and the reason say somebody
-    is waiting behind this question rather than behind a timeout, a dirty
-    tree, or a reading nobody could take; the recorded candidate says they are
-    waiting behind THIS one.
-
-    Read off the durable record, which the freeze ahead of this call has
-    already written the pair onto -- so what is compared is the commit the
-    park is about rather than a count nothing persists. A park a resumed
-    developer's fresh commit has moved past never reaches this owner at all:
-    the road in is an exemption naming the candidate in hand, and a hold
-    routes the issue to the adjudication, which clears whatever park it
-    supersedes on the way.
-    """
-    if gate.state.get(_state._PARK_REASON) != _command.PARK_UNAUTHORIZED_EXEMPTION:
-        return False
-    if not gate.state.get(_state._AWAITING_HUMAN):
-        return False
-    recorded = _late_state.read_late_generation(gate.state)
-    return recorded.candidate_sha == generation.candidate_sha
 
 
 def _recorded_authorization(
@@ -445,7 +250,7 @@ def _recorded_authorization(
         "was measured on and letting it past the gate",
         gate.issue.number, generation.candidate_sha, answer.comment_id,
     )
-    _consumed(gate, answer)
+    _consent_state._consumed(gate, answer)
     gate.state.set(_state._AWAITING_HUMAN, False)
     gate.state.set(_state._PARK_REASON, None)
     gate.state.set(_state._HELD_RECEIPT, None)
@@ -497,7 +302,7 @@ def _refused(
         "command and leaving the park where it stands",
         gate.issue.number, answer.named, generation.candidate_sha,
     )
-    marker = _receipt(gate, "refused", answer.comment_id)
+    marker = _consent_state._receipt(gate, "refused", answer.comment_id)
     said = 0
     if not _command._already_said(gate, marker):
         gate.state.set(_state._HELD_RECEIPT, marker)
@@ -516,35 +321,7 @@ def _refused(
         # already carried our receipt -- there is no new comment, and the one
         # there was in the reading that found it.
         said = _payloads.as_identity(getattr(posted, "id", 0)) or 0
-    _consumed(gate, answer, said)
+    _consent_state._consumed(gate, answer, said)
     gate.state.set(_state._HELD_RECEIPT, None)
     gate.gh.write_pinned_state(gate.issue, gate.state)
     return True
-
-
-def _consumed(
-    gate: _records._Gate, answer: _command._Answer, said: int = 0,
-) -> None:
-    """Record what this tick read as read, and its own answer with it.
-
-    Staged rather than written, so it lands with whatever else the caller is
-    recording or not at all: a watermark moved without the answer beside it
-    would drop a command nobody acted on.
-
-    It starts at the furthest comment the READING got to, which is what the
-    reader hands back rather than a fresh look at the thread: a tick that
-    consumed past whatever the tip has become since would swallow a reply
-    posted in the meantime -- a retraction of the very command being acted on
-    is the case that matters -- unread, unanswered and gone for good. Consumed
-    to what was read, that reply is still there for the next poll, which is
-    the most a reading taken before it can honestly offer.
-
-    Then it reaches the answer this tick POSTED, and `read_through` beside the
-    reading decides how far that is: over our own comments and no further,
-    since a sentence of ours left unconsumed is read on the next poll as
-    guidance nobody wrote, while a watermark jumped straight to its id would
-    swallow the corrected command an operator posted in the same window.
-    """
-    gate.state.set(
-        _state._LAST_ACTION_COMMENT_ID, answer.read_through(gate, said),
-    )

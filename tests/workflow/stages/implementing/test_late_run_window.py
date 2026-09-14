@@ -20,7 +20,10 @@ import unittest
 from unittest.mock import MagicMock
 
 from orchestrator.workflow.engine import comments as _comments
-from orchestrator.workflow.stages.implementing import parks as _parks, state as _state
+from orchestrator.workflow.stages.implementing import (
+    park_watermarks as _park_watermarks,
+    state as _state,
+)
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
 from tests.workflow.fixtures import LABEL_IMPLEMENTING, _agent
 from tests.workflow.stages.implementing import (
@@ -147,7 +150,7 @@ class ReadThisFarFallbackTest(unittest.TestCase):
         self.assertEqual(self._read_this_far(said_before), standing)
 
     def _read_this_far(self, said_before) -> int | None:
-        return _parks._read_this_far(
+        return _park_watermarks._read_this_far(
             self.github, self.issue, self.state, said_before,
         )
 

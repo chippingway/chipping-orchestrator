@@ -16,8 +16,8 @@ from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
+    candidate_recovery as _candidate_recovery,
     checkout_recovery as _checkout_recovery,
-    disposition as _disposition,
     late_evidence as _late_evidence,
     late_parks as _late_parks,
     models as _models,
@@ -91,7 +91,7 @@ def _try_recover_late_measurement_park(
         stdout="",
         stderr="",
     )
-    _disposition._publish_committed_work(
+    _candidate_recovery._publish_committed_work(
         gh, spec, issue, state, _models._RecoveredWork(
             agent_result, wt, _late_parks._recorded_candidate(state),
         ),
@@ -148,7 +148,7 @@ def _try_recover_moved_candidate_park(
         stdout="",
         stderr="",
     )
-    _disposition._publish_committed_work(
+    _candidate_recovery._publish_committed_work(
         gh, spec, issue, state, _models._RecoveredWork(agent_result, wt, restored),
     )
     gh.write_pinned_state(issue, state)

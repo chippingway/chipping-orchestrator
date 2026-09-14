@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 28 paths and 32 pairs (32 production, 0
-test), all matching isolated diagnostics. Ninety-seven pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 25 paths and 29 pairs (29 production, 0
+test), all matching isolated diagnostics. One hundred pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201, WPS202, and WPS204. The files must stay until that set is empty and
 validation passes.
@@ -129,12 +129,22 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 36 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate child-manifest validation, safe explanation fencing, and late-park
+- `4b822ed9`: separate child-manifest validation, safe explanation fencing, and late-park
   answers; move fresh-reply estimate bounds to the existing child-budget owner. Four production WPS202 pairs
   removed. The original owners retain manifest envelopes and cycles, structured replies, notice obligations,
   and content-drift routing. All 51 function/method bodies and 49 whole definitions match after resolving owner
   imports. The focused run passes 1,110 tests.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 32 remaining production
+  pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate park watermarks, worktree refusals, commit-pinned candidate recovery,
+  and authorization-park state. Three production WPS202 pairs removed. Agent-result decisions retain their run
+  attribution and timeout rules; consent retains the contribution proof and coordinated authorization write.
+  Of 152 compared function/method bodies and 105 whole definitions, every production body matches; four test
+  differences are only mock-owner updates. The focused run passes 965 tests after its naming-only failure is
+  corrected, and the corrected repository/import run passes 80 tests. Callers retain live module lookups for
+  their operations and import immutable state keys directly where required by the import limits.
+  Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 29 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes

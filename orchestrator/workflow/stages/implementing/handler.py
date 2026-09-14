@@ -48,6 +48,7 @@ from orchestrator.workflow.stages.discussion.state import (
     _PLAN_SHA as _DISCUSSION_PLAN_SHA,
 )
 from orchestrator.workflow.stages.implementing import (
+    candidate_recovery as _candidate_recovery,
     continue_command as _continue_command,
     disposition as _disposition,
     drift as _drift,
@@ -55,7 +56,9 @@ from orchestrator.workflow.stages.implementing import (
     plan_handoff as _plan_handoff,
     read_only_relabel as _read_only_relabel,
     spawn as _spawn,
-    state as _state,
+)
+from orchestrator.workflow.stages.implementing.state import (
+    _PR_NUMBER,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -97,7 +100,7 @@ def _recorded_pr_is_the_plan(
     asked about, and a second read is a second moment. Given the head it
     holds, the answer is about that read and there is nothing left to fail.
     """
-    if state.get(_state._PR_NUMBER) is None:
+    if state.get(_PR_NUMBER) is None:
         return False
     if state.get(_DISCUSSION_PLAN_PATH):
         return True
@@ -259,7 +262,7 @@ def _terminal_or_relabel_holds(
         return True
     if _late_recovery._recovers_a_late_park(gh, spec, issue, state):
         return True
-    if _disposition._holds_unreconciled_candidate(gh, spec, issue, state):
+    if _candidate_recovery._holds_unreconciled_candidate(gh, spec, issue, state):
         return True
     return _continue_command._handle_parked_continue_command(gh, spec, issue, state)
 

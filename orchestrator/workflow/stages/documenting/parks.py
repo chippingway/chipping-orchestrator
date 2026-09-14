@@ -30,7 +30,7 @@ from orchestrator.workflow.stages.documenting import (
     models as _models,
     state as _state,
 )
-from orchestrator.workflow.stages.implementing import parks as _dev_parks
+from orchestrator.workflow.stages.implementing import checkout_parks as _checkout_parks, parks as _dev_parks
 from orchestrator.workflow.state import WorkflowLabel
 
 
@@ -85,7 +85,7 @@ def _park_documenting_dirty(
 ) -> None:
     """Park an uncommitted docs edit via `_on_dirty_worktree`; writes pinned
     state."""
-    _dev_parks._on_dirty_worktree(
+    _checkout_parks._on_dirty_worktree(
         ctx.gh, ctx.issue, ctx.state, documentation_result, dirty,
     )
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)

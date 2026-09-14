@@ -60,7 +60,7 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
-    disposition as _disposition,
+    candidate_recovery as _candidate_recovery,
     drift_preflight as _drift_preflight,
     models as _models,
     session as _session,
@@ -237,7 +237,7 @@ def _prepare_active_dev_run(
     one already finished.
     """
     worktree = _ensure_dev_worktree(spec, issue, state)
-    if _disposition._holds_approved_commit(gh, spec, issue, state, worktree):
+    if _candidate_recovery._holds_approved_commit(gh, spec, issue, state, worktree):
         gh.write_pinned_state(issue, state)
         return None
     before_sha = _verification_probes._head_sha(worktree)

@@ -48,8 +48,8 @@ from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
+    candidate_recovery as _candidate_recovery,
     checkout_recovery as _checkout_recovery,
-    disposition as _disposition,
     late_authorship as _authorship,
     late_command as _late_command,
     models as _models,
@@ -294,7 +294,7 @@ def _publishes_under_the_park(
     _authorship._records_a_commitment(state, _authorship._commits_to(opening))
     gh.write_pinned_state(issue, state)
     saying = _authorship._StampsWhatItPosts(gh, issue, state, opening)
-    _disposition._publish_committed_work(
+    _candidate_recovery._publish_committed_work(
         saying, spec, issue, state,
         _models._RecoveredWork(
             AgentResult(

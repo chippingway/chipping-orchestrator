@@ -22,8 +22,8 @@ from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.stages.implementing import (
+    candidate_recovery as _candidate_recovery,
     checkout_recovery as _checkout_recovery,
-    disposition as _disposition,
     late_command as _late_command,
     late_evidence as _late_evidence,
     late_parks as _late_parks,
@@ -111,7 +111,7 @@ class _RoutingCase(_consent_case._ParkedCase):
         about which road a parked tick takes.
         """
         seams = _Routed(
-            published=patch.object(_disposition, _PUBLISH_COMMITTED_WORK),
+            published=patch.object(_candidate_recovery, _PUBLISH_COMMITTED_WORK),
         )
         with (
             patch.object(
