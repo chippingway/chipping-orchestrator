@@ -98,6 +98,28 @@ class RecoveryRealGitTest(RecoveryGitFixtureMixin, unittest.TestCase):
         self.assertEqual(self.push.leases, [])
         self._assert_parked(fixtures.PARK_PUSH_FAILED)
 
+    def test_a_replay_a_finish_announced_is_reset(self) -> None:
+        # The mark is written past a finish's notice and audit event, so it
+        # stands only where a push had landed. The remote being back on the
+        # anchor is that publication rolled back -- reissuing the push would
+        # overwrite it and announce the same rebase a second time.
+        self._assert_announcement_parks(self.recovered)
+
+    def test_a_mark_naming_another_head_is_reset_too(self) -> None:
+        # A checkpoint something took apart says the route got that far and
+        # nothing more; read as an absence it costs the same second notice.
+        self._assert_announcement_parks(self.anchor)
+
+    def _assert_announcement_parks(self, announced: str) -> None:
+        self.announce_a_finish(announced)
+
+        recovered = self.recover()
+
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self.assertEqual(self._remote_head(), self.anchor)
+        self._assert_parked(fixtures.PARK_PUSH_FAILED)
+
     def _remote_head(self) -> str:
         return fixtures.head_sha(self.remote, fixtures.BRANCH_REF)
 

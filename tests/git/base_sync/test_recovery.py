@@ -108,6 +108,7 @@ _OWED_ROUND = ("review_round", 2)
 # no id to ask for the candidate by.
 _ANCHOR_KEY = "pending_auto_base_rebase_push_sha"
 _REPLAY_KEY = "pending_auto_base_rebase_rewrite_sha"
+_ANNOUNCED_KEY = "pending_auto_base_rebase_announced_sha"
 
 _OWED = MappingProxyType({
     _APPROVED_SHA: _ABANDONED_SHA,
@@ -115,6 +116,7 @@ _OWED = MappingProxyType({
     _SPENDS: [list(_OWED_ROUND)],
     _ANCHOR_KEY: fixtures.PRE_REBASE_SHA,
     _REPLAY_KEY: _ABANDONED_SHA,
+    _ANNOUNCED_KEY: _ABANDONED_SHA,
 })
 
 _PARK_MESSAGE = "the push did not land"
@@ -175,6 +177,10 @@ class RolledBackDebtTest(unittest.TestCase):
         # standing once the reset that would have settled it did not run.
         self.assertEqual(pinned[_ANCHOR_KEY], fixtures.PRE_REBASE_SHA)
         self.assertEqual(pinned[_REPLAY_KEY], _ABANDONED_SHA)
+        # The checkpoint a finish left goes with them: dropped over a reset
+        # that did not run, the next tick reads a publication that already
+        # went out as one nothing has announced.
+        self.assertEqual(pinned[_ANNOUNCED_KEY], _ABANDONED_SHA)
 
     def test_a_landed_reset_drops_it(self) -> None:
         # What says the refusal above is about the reset rather than about the
@@ -194,6 +200,7 @@ class RolledBackDebtTest(unittest.TestCase):
         self.assertNotIn(_SPENDS, pinned)
         self.assertIsNone(pinned[_ANCHOR_KEY])
         self.assertIsNone(pinned[_REPLAY_KEY])
+        self.assertIsNone(pinned[_ANNOUNCED_KEY])
 
     @contextlib.contextmanager
     def _reset_refusing(self, returncode: int):

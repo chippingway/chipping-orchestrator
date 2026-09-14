@@ -7,8 +7,9 @@ was already published, the comparison is unclassifiable, the remote moved out
 of band, the worktree is dirty, the reissued push failed, the pinned comment
 claims an exemption or a transfer nobody can read whole, the attempt's own
 record is in pieces, no permit licenses the replay to publish at all, the
-remote was rolled back off a replay the record says it carried, the route
-behind a push that did land cannot be finished, the attempt was made for a
+remote was rolled back off a replay the record says it carried, a finish
+announced a publication the remote no longer has, the route behind a push
+that did land cannot be finished, the attempt was made for a
 publication this issue no longer records, the branch was put back on the
 anchor with the attempt's own records still standing, or the issue was
 relabelled off the refresh-driven set with the same. Each one
@@ -38,7 +39,10 @@ the attempt.
 The count of answers here is what the subject costs rather than a module that
 outgrew itself: it IS the closed set one recovery resolves into, and a member
 moved out of it is one a route could reach without this owner accounting for
-it.
+it. So is the count of times the same two commits are named -- every park in
+the set tells an operator which head the branch is standing on and which one
+it is going back to, and an answer that left either out would be one nobody
+could act on.
 """
 from __future__ import annotations
 
@@ -56,6 +60,15 @@ from orchestrator.git.base_sync.state import (
     log,
 )
 from orchestrator.workflow.state import WorkflowLabel
+
+# How much of an object id a human reads in a park message: enough to name the
+# commit in a thread, and short enough to stay readable in a sentence.
+_SHORT_SHA = 8
+
+
+def _short(sha: str) -> str:
+    """One commit as an operator reads it in a park message or a log line."""
+    return (sha or "")[:_SHORT_SHA]
 
 
 def _already_published_recovery_notice(
@@ -156,7 +169,7 @@ def _park_diverged_recovery(
     """Restore the anchor instead of overwriting an out-of-band PR update."""
     spec = context.spec
     local_short = recovery_snapshot.local_head[:8]
-    pre_rebase_short = context.pending_pre_rebase_sha[:8]
+    pre_rebase_short = _short(context.pending_pre_rebase_sha)
     persistence._reset_clear_and_park(
         context,
         context.pending_pre_rebase_sha,
@@ -184,7 +197,7 @@ def _park_dirty_recovery(
 ) -> bool:
     """Reset and clean a recovered rebase that carries worktree changes."""
     local_short = recovery_snapshot.local_head[:8]
-    pre_rebase_short = context.pending_pre_rebase_sha[:8]
+    pre_rebase_short = _short(context.pending_pre_rebase_sha)
     persistence._reset_clear_and_park(
         context,
         context.pending_pre_rebase_sha,
@@ -211,7 +224,7 @@ def _park_failed_recovery_push(
 ) -> bool:
     """Restore the anchor after a recovered force-push fails."""
     local_short = recovery_snapshot.local_head[:8]
-    pre_rebase_short = context.pending_pre_rebase_sha[:8]
+    pre_rebase_short = _short(context.pending_pre_rebase_sha)
     persistence._reset_clear_and_park(
         context,
         context.pending_pre_rebase_sha,
@@ -254,7 +267,7 @@ def _park_unfinished_recovery(
     this route, the remote is read again, and whatever it turns out to be is
     classified from scratch.
     """
-    local_short = recovery_snapshot.head[:8]
+    local_short = _short(recovery_snapshot.head)
     log.warning(
         "issue=#%d auto-rebase recovery: PR #%d carries %s and this tick "
         "cannot finish the route behind it (%s); leaving HEAD and the "
@@ -305,8 +318,8 @@ def _park_unvouched_recovery(
     cannot vouch for is the only account there is of how the exemption came to
     name what it names, and the rollback drops only what it can read whole.
     """
-    local_short = recovery_snapshot.head[:8]
-    pre_rebase_short = context.pending_pre_rebase_sha[:8]
+    local_short = _short(recovery_snapshot.head)
+    pre_rebase_short = _short(context.pending_pre_rebase_sha)
     log.warning(
         "issue=#%d auto-rebase recovery: the pinned comment claims a transfer "
         "for the commit this issue exempts and this build cannot read it back "
@@ -355,8 +368,8 @@ def _park_rolled_back_recovery(
     is dropped with it, and the issue parks for a human to say which of the
     two heads the branch is supposed to be on.
     """
-    local_short = recovery_snapshot.head[:8]
-    remote_short = (recovery_snapshot.remote_head or "")[:8]
+    local_short = _short(recovery_snapshot.head)
+    remote_short = _short(recovery_snapshot.remote_head)
     log.warning(
         "issue=#%d auto-rebase recovery: the pinned comment records %s as "
         "published and PR #%d stands on %s; treating the branch as rolled "
@@ -402,8 +415,8 @@ def _park_unrecorded_recovery(
     record itself is left where the reset's own rule leaves every damaged
     group: for a human to repair, not for this tick to guess at.
     """
-    local_short = recovery_snapshot.head[:8]
-    pre_rebase_short = context.pending_pre_rebase_sha[:8]
+    local_short = _short(recovery_snapshot.head)
+    pre_rebase_short = _short(context.pending_pre_rebase_sha)
     log.warning(
         "issue=#%d auto-rebase recovery: the record of what this attempt "
         "produced does not vouch for the checkout; resetting %s onto the "
@@ -449,8 +462,8 @@ def _park_refused_permit_recovery(
     claim about a push that will never happen is dropped, and the exemption
     stays exactly where the adjudication put it.
     """
-    local_short = recovery_snapshot.head[:8]
-    pre_rebase_short = context.pending_pre_rebase_sha[:8]
+    local_short = _short(recovery_snapshot.head)
+    pre_rebase_short = _short(context.pending_pre_rebase_sha)
     log.warning(
         "issue=#%d auto-rebase recovery: no permit licenses %s to publish and "
         "there is nothing else this road may publish it on; resetting onto "
@@ -506,8 +519,8 @@ def _park_unproven_replay_recovery(
     rebase this branch is still owed is one the next tick makes for itself
     once a human has said the checkout is where they want it.
     """
-    local_short = recovery_snapshot.head[:8]
-    pre_rebase_short = context.pending_pre_rebase_sha[:8]
+    local_short = _short(recovery_snapshot.head)
+    pre_rebase_short = _short(context.pending_pre_rebase_sha)
     log.warning(
         "issue=#%d auto-rebase recovery: the attempt died before recording "
         "the replay it made and nothing on this issue can vouch for %s; "
@@ -692,7 +705,7 @@ def _park_undone_recovery(
     here can say why the branch went back, and guessing would either rebase
     over an operator mid-repair or leave a record nobody reconciles.
     """
-    unmoved = recovery_snapshot.head[:8]
+    unmoved = _short(recovery_snapshot.head)
     log.warning(
         "issue=#%d auto-rebase recovery: HEAD is back on the anchor %s and "
         "the comment still carries what the attempt did past it; finishing "
@@ -714,5 +727,61 @@ def _park_undone_recovery(
             "with anything once it is where you want it."
         ),
         reason=_REASON_AUTO_BASE_REBASE_FAILED,
+    )
+    return True
+
+
+def _park_announced_recovery(
+    context: _AutoRebaseRecoveryContext,
+    recovery_snapshot: _AutoRebaseRecoverySnapshot,
+) -> bool:
+    """Restore the anchor when a finish announced what the remote has lost.
+
+    The announcement mark is written between a finish's notice and its
+    relabel, so a comment carrying one says the push had already landed, the
+    pull request had already been told, and the audit stream had already
+    recorded it. The remote is not standing on the checkout now, so whatever
+    was announced is not what the pull request has: somebody rolled it back,
+    or the checkpoint itself is one something took apart.
+
+    Either way this is the one road a retry may not take. Force-pushing here
+    overwrites the rollback under a lease the anchor satisfies, and the finish
+    behind it announces a second time -- a second notice on the pull request
+    and a second `base_rebased` on the stream for one publication that
+    happened once, with nothing left able to say which of the two describes
+    the head the branch ended on.
+
+    So the branch goes back onto the anchor, which is the head the pull
+    request carries wherever this refusal is reachable, and the issue parks.
+    Read as an absence instead, the mark is exactly the record whose whole
+    purpose is to stop the second announcement.
+    """
+    local_short = _short(recovery_snapshot.head)
+    remote_short = _short(recovery_snapshot.remote_head)
+    log.warning(
+        "issue=#%d auto-rebase recovery: a finish on this attempt already "
+        "announced a publication and PR #%d is standing on %s rather than on "
+        "%s; resetting onto the anchor rather than pushing and announcing a "
+        "second time",
+        context.issue.number, context.pr_number, remote_short, local_short,
+    )
+    persistence._reset_clear_and_park(
+        context,
+        context.pending_pre_rebase_sha,
+        message=(
+            f"{config.HITL_MENTIONS} crash recovery for PR "
+            f"#{context.pr_number}: this issue's pinned comment records that "
+            "a finish had already announced this rebase -- the notice went "
+            "onto the pull request and the audit event was filed -- and the "
+            f"pull request is standing on `{remote_short}` rather than on the "
+            f"`{local_short}` on this branch. The publication was rolled back "
+            "out of band, or the checkpoint itself was damaged. Reissuing the "
+            "push would overwrite that rollback and announce the same rebase "
+            "twice, so nothing was pushed and HEAD has been reset to the "
+            "pre-rebase SHA. Investigate the remote branch and the "
+            "`pending_auto_base_rebase_announced_sha` field, then reply on "
+            "this issue with anything to retry."
+        ),
+        reason=_REASON_AUTO_BASE_REBASE_PUSH_FAILED,
     )
     return True

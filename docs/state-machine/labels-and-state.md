@@ -1249,9 +1249,10 @@ The keys that matter for the state machine fall into a few groups:
   value on entry means a previous tick rebased and died
   before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
   head, or park. The no-op is for an attempt that pinned the anchor and got no further: a checkout back on it with a
-  replay recorded, a permission unspent, or a finish's mark standing is a rebase something UNDID, and it is finished
-  as that rollback rather than cleared and rebased again. It parks — as `auto_base_rebase_push_failed` where the push
-  or the remote is what refused, and as
+  replay recorded, a permission unspent, or a finish's mark standing — any mark, since no finish announces the anchor
+  — is a rebase something UNDID, and it is finished as that rollback rather than cleared and rebased again. It parks
+  — as `auto_base_rebase_push_failed` where the push, the remote, or a publication a finish announced and the remote
+  no longer has is what refused, and as
   `auto_base_rebase_failed` where the pinned comment is: a record nobody can vouch for, a record that disowns the
   checkout, a permit that declines, a replay in flight nothing can prove, terms naming a publication this issue no
   longer records, or a relabel off the refresh-driven set over an attempt that left a replay or an unspent
@@ -1300,17 +1301,22 @@ The keys that matter for the state machine fall into a few groups:
   go through the same clear — so no road can leave a member behind. That clear is held to the reset LANDING wherever
   one is made: a reset that failed abandoned nothing, and the comment is then the only account of where the checkout
   may be standing, so nothing is dropped and the next tick still has an anchor to come back with.
-  **The record and the readings that decide a checkout are both live; the announcement mark is not yet read.** Every
-  write and the clear are on the running roads: the terms and the anchor go down before `git rebase`, the replay goes
-  down before the dirty check, both finishes mark what they announced, and every ending drops the group. The
-  three-valued read is what the recovery classifies an unpublished checkout on — absent falls back to the divergence
-  counts, in flight is proved by what the contribution is rather than by an id — or, past the permit's own grant, by
-  the permission that grant persisted, which is cross-bound to the anchor, the terms, and the accepted pair before it
-  is called outstanding — and damaged and disowning both park. And
-  the terms are what say the attempt was made for the publication this tick holds, asked before any road that posts a
-  notice or files an event. The presence test on the MARK is the one reading still consulted by no road, so a crash
-  between an announcement and its relabel still costs the stream a second `base_rebased` and the pull request a
-  second notice; it belongs to the road that finishes a rewrite the pull request already carries.
+  **The whole record is live: every write, the clear, and every reading of it.** The terms and the anchor go down
+  before `git rebase`, the replay goes down before the dirty check, both finishes mark what they announced, and every
+  ending drops the group. The three-valued read is what the recovery classifies an unpublished checkout on — absent
+  falls back to the divergence counts, in flight is proved by what the contribution is rather than by an id — or, past
+  the permit's own grant, by the permission that grant persisted, which is cross-bound to the anchor, the terms, and
+  the accepted pair before it is called outstanding — and damaged and disowning both park. The terms are what say the
+  attempt was made for the publication this tick holds, asked before any road that posts a notice or files an event.
+  And the MARK is read by presence, on both roads that would act without one. A road about to PUSH refuses it
+  outright: the mark is written past a finish's notice and audit event, so it stands only where a publication landed,
+  and this road is reached over a remote that is not standing on the checkout — whatever was announced is gone, and a
+  retry would overwrite that rollback and announce the same rebase a second time. A road about to call an attempt
+  UNSTARTED refuses it for the mirror reason: no finish ever announces the anchor, so a mark equal to it is a
+  checkpoint something took apart rather than an absence. What no road reads yet is which head the mark names on the
+  far side — the finish that has already announced this very commit — and that belongs to the road that finishes a
+  rewrite the pull request already carries, so a crash between an announcement and its relabel over a remote that
+  KEPT the publication still costs the stream a second `base_rebased` and the pull request a second notice.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since

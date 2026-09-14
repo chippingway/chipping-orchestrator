@@ -376,9 +376,12 @@ def _unstarted_attempt(
     Three things say it did leave something. A record of the replay it
     produced, whether whole or in pieces, is an attempt that reached the write
     after `git rebase` -- and a reset that put the branch back before its own
-    park write leaves exactly that. A mark saying a finish had already
-    announced a head says the same from the far end of the route, since no
-    finish ever announces the anchor. A permission this build reads as
+    park write leaves exactly that. A mark that a finish announced ANYTHING
+    says the same from the far end of the route, and it is asked by presence
+    rather than against the head in hand: no finish ever announces the anchor,
+    so a mark naming it is a checkpoint something took apart rather than an
+    absence, and read as one it would hand the branch to a fresh rebase over a
+    publication that has already gone out. A permission this build reads as
     outstanding, or one it cannot vouch for at all, is a grant that was never
     spent on a commit the branch no longer has.
 
@@ -397,7 +400,7 @@ def _unstarted_attempt(
     """
     if context.pending_rewrite.left_a_replay:
         return False
-    if attempts._foreign_mark(context.state, recovery_snapshot.head):
+    if attempts._carries_an_announcement(context.state):
         return False
     carried = transfers._carried_by(context, recovery_snapshot.head)
     return carried not in _UNSPENT_TRANSFERS
@@ -475,7 +478,7 @@ def _refused_before_the_retry(
 ) -> bool | None:
     """The park this checkout owes before any push, or None where it owes one.
 
-    Four refusals, in the order the evidence for them costs nothing to read.
+    Five refusals, in the order the evidence for them costs nothing to read.
 
     The first is not about the commit at all: whether the attempt was made for
     the publication this tick holds. It is asked of the RECORD rather than of
@@ -483,6 +486,16 @@ def _refused_before_the_retry(
     no verdict never had one, and it still reaches a finalize that posts a
     notice to this tick's pull request, files an audit event under this tick's
     stage, and drops the anchor.
+
+    The second is the announcement mark, asked by PRESENCE and asked of every
+    road here. It is written between a finish's notice and its relabel, so it
+    stands only where a push had already landed and the pull request had
+    already been told -- and this whole road is reached over a remote that is
+    not standing on the checkout. Whichever head the mark names, then, the
+    publication it describes is one the remote has lost: a rollback, or a
+    checkpoint something took apart. A retry would overwrite the rollback
+    under a lease the anchor satisfies and announce the same rebase a second
+    time, which is the one outcome the mark exists to prevent.
 
     Then the three about the commit. A remote the record says already carried
     this replay has been rolled back by somebody, and the anchor a retry would
@@ -497,6 +510,22 @@ def _refused_before_the_retry(
     """
     if _made_for_another_publication(context):
         return outcomes._park_foreign_publication_recovery(context, completed)
+    if attempts._carries_an_announcement(context.state):
+        return outcomes._park_announced_recovery(context, completed)
+    return _refused_by_the_records(context, completed, carried)
+
+
+def _refused_by_the_records(
+    context: _AutoRebaseRecoveryContext,
+    completed: _AutoRebaseRecoverySnapshot,
+    carried: transfers._Handoff,
+) -> bool | None:
+    """The three refusals about the commit itself, or None where none holds.
+
+    Split from the two above them only so each function answers a countable
+    number of ways; the order across both is one order and is the property
+    that matters.
+    """
     if transfers._rolled_back_publication(context, completed.head, carried):
         return outcomes._park_rolled_back_recovery(context, completed)
     if carried == transfers._Handoff.UNVOUCHED:

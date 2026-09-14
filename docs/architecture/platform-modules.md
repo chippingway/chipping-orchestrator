@@ -351,10 +351,13 @@ orchestrator/
                         in flight, or damaged -- held to the shape every other recorded commit is and reached
                         through a call-time import of the late domain's own formats, the presence read the
                         checkpoint gets, and the whole-record clear every step that ends an attempt goes through.
-                        The writes, the clear, and the three-valued read are on the running roads -- the recovery
-                        classifies an unpublished checkout on that read and on the terms beside it. The presence
-                        read the announcement checkpoint gets is consulted by no caller yet, and waits for the
-                        road that finishes a rewrite the pull request already carries
+                        The writes, the clear, and every read of them are on the running roads. The recovery
+                        classifies an unpublished checkout on the three-valued read and on the terms beside it,
+                        and it refuses the presence of the checkpoint on both roads that would act without one --
+                        a push, since the mark stands only where a publication landed and this road is reached
+                        over a remote that has lost it, and the unstarted shortcut, since no finish announces the
+                        anchor. Which head the mark names is read by no caller yet, and waits for the road that
+                        finishes a rewrite the pull request already carries
       publication.py    the post-rebase checks, the size gate the rebase passes before it publishes -- reached
                         through a call-time import, since it sits in the workflow layer above this one, and named
                         against the head this owner read, so a checkout something moved between that read and the
@@ -411,7 +414,8 @@ orchestrator/
                         under an attempt that left something a clear would strand, the last of which is taken
                         once rather than on every poll under the wrong label. Beside them the park a branch put
                         back on its anchor with the attempt's records still standing earns, whose reset moves
-                        nothing and is taken for the bookkeeping it carries out
+                        nothing and is taken for the bookkeeping it carries out, and the one a finish's
+                        announcement earns over a remote that has lost the publication it describes
       persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the

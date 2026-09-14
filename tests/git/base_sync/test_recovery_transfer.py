@@ -44,6 +44,7 @@ UNFINISHED = "_park_unfinished_recovery"
 # Every terminal an unpublished checkout can select, on the owner it lives on.
 _ANSWERS = MappingProxyType({
     "_park_foreign_publication_recovery": outcomes,
+    "_park_announced_recovery": outcomes,
     "_park_rolled_back_recovery": outcomes,
     "_park_unvouched_recovery": outcomes,
     "_park_unrecorded_recovery": outcomes,
@@ -126,6 +127,22 @@ class UnpublishedRouteTest(seed.TransferCase):
         ))
 
         self._assert_selects("_park_foreign_publication_recovery")
+
+    def test_an_announced_publication_the_remote_lost(self) -> None:
+        # The mark stands only past a finish's notice and audit event, so it
+        # says a push had landed. This road is reached over a remote that is
+        # not standing on the checkout, so whatever was announced is gone --
+        # and a retry would overwrite the rollback and announce it twice.
+        for described, announced in (
+            ("naming this replay", seed.REPLAYED_SHA),
+            ("naming some other head", seed.FOREIGN_SHA),
+            ("naming the anchor no finish announces", seed.ACCEPTED_SHA),
+        ):
+            with self.subTest(described):
+                self._fresh()
+                attempts._announces(self.context, announced)
+
+                self._assert_selects("_park_announced_recovery")
 
     def test_a_settled_transfer_reads_as_a_rollback(self) -> None:
         # The write that settled says the pull request HAD this commit, so a
@@ -260,7 +277,8 @@ class UnmovedHeadTest(seed.TransferCase):
             ("a replay the attempt recorded", self._recorded_replay),
             ("a record something took apart", self._damaged_record),
             ("a permission nobody spent", self._unspent_permission),
-            ("a mark a finish left", self._foreign_announcement),
+            ("a mark naming another head", self._foreign_announcement),
+            ("a mark naming the anchor itself", self._anchor_announcement),
         ):
             with self.subTest(described):
                 self._fresh(pending_rewrite=seed.ABSENT)
@@ -279,6 +297,12 @@ class UnmovedHeadTest(seed.TransferCase):
 
     def _foreign_announcement(self) -> None:
         attempts._announces(self.context, seed.REPLAYED_SHA)
+
+    def _anchor_announcement(self) -> None:
+        # No finish announces the anchor, so a mark naming it is a checkpoint
+        # something took apart -- and read against the head in hand it would
+        # answer as no announcement at all.
+        attempts._announces(self.context, seed.ACCEPTED_SHA)
 
     def _answers(self, *, shortcut: bool) -> bool:
         """Route the unmoved head and pin which of the two roads it takes."""

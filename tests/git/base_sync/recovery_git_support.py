@@ -90,6 +90,8 @@ KEY_PENDING_REWRITE_PR = "pending_auto_base_rebase_rewrite_pr"
 
 KEY_PENDING_REWRITE_STAGE = "pending_auto_base_rebase_rewrite_stage"
 
+KEY_PENDING_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
+
 # The record as one group, because the window a case seeds by dropping it is
 # the one where the attempt reached none of it.
 _REWRITE_RECORD_KEYS = (
@@ -387,6 +389,17 @@ class RecoveryGitFixtureMixin:
         it still standing on the comment.
         """
         run_git("reset", "--hard", self.anchor, cwd=self.work)
+
+    def announce_a_finish(self, announced: str) -> None:
+        """Leave the checkpoint a finish writes past its notice and event.
+
+        Written between the two and the relabel, so a comment carrying one
+        says the push had landed and the pull request had already been told.
+        """
+        issue = self.gh._issues[ISSUE]
+        state = self.gh.read_pinned_state(issue)
+        state.set(KEY_PENDING_ANNOUNCED_SHA, announced)
+        self.gh.write_pinned_state(issue, state)
 
     def forget_the_rewrite_record(self) -> None:
         """Drop the whole record of the attempt, terms and replay together.
