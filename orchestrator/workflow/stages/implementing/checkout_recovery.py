@@ -40,7 +40,7 @@ from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
+    exemption_reading as _exemption_reading,
     formats as _formats,
     overrides as _overrides,
     payloads as _payloads,
@@ -139,4 +139,4 @@ def _the_parked_candidate(state: PinnedState) -> str:
     authorized = _overrides.read_publication_override(state)
     if authorized is not None:
         return authorized.publication.candidate_sha
-    return _exemption.read_exemption(state) or ""
+    return _exemption_reading.read_exemption(state) or ""

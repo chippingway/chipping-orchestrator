@@ -134,8 +134,10 @@ from orchestrator.github import labels as _labels
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
+    exemption_reading as _exemption_reading,
     formats as _formats,
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -325,7 +327,7 @@ def _carried_over(gate: _records._Gate, candidate_sha: str) -> str:
     rewrite = gate.rewrite or _outstanding_rewrite(gate.state, candidate_sha)
     if rewrite is None or rewrite.to_sha != candidate_sha:
         return ""
-    identity = _exemption.read_semantic_identity(gate.state)
+    identity = _exemption_reading.read_semantic_identity(gate.state)
     if identity is None or identity.exempt_sha != rewrite.from_sha:
         return ""
     permit = _permit(gate, rewrite, identity)
@@ -345,7 +347,7 @@ def _carried_over(gate: _records._Gate, candidate_sha: str) -> str:
 
 def _outstanding_rewrite(
     state: PinnedState, candidate_sha: str,
-) -> _rewrites.LateRewrite | None:
+) -> _rewrite_values.LateRewrite | None:
     """The rewrite a standing permission still licenses for this commit.
 
     What a tick with no evidence of its own is answered from. A permission is
@@ -360,10 +362,10 @@ def _outstanding_rewrite(
     Each of those leaves the candidate to the ordinary cumulative gate, which
     is the answer a rewrite nobody can revalidate has to get.
     """
-    authorization = _rewrites.read_rewrite_authorization(state)
+    authorization = _rewrite_reading.read_rewrite_authorization(state)
     if authorization is None or authorization.rewrite.to_sha != candidate_sha:
         return None
-    if authorization.phase != _rewrites.LateRewritePhase.AUTHORIZED:
+    if authorization.phase != _rewrite_values.LateRewritePhase.AUTHORIZED:
         return None
     return authorization.rewrite
 
@@ -412,13 +414,13 @@ def _licensed_by_a_permit(state: PinnedState) -> bool:
     refuses on the re-ask, the ordinary cumulative gate measures the rewrite
     like any other candidate.
     """
-    return _rewrites.outstanding_permission(state)
+    return _rewrite_reading.outstanding_permission(state)
 
 
 def _permit(
     gate: _records._Gate,
-    rewrite: _rewrites.LateRewrite,
-    identity: _exemption.LateSemanticIdentity,
+    rewrite: _rewrite_values.LateRewrite,
+    identity: _exemption_reading.LateSemanticIdentity,
 ) -> _Permit:
     """Everything a transfer is granted on, asked in the order it costs.
 
@@ -462,7 +464,7 @@ def _permit(
 
 
 def _unauthorized_exemption(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the exemption this would move licenses nothing, or "".
 
@@ -500,7 +502,7 @@ def _unauthorized_exemption(
 
 
 def _unreadable_authorization(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why a claim already standing here forbids replacing it, or "".
 
@@ -520,9 +522,9 @@ def _unreadable_authorization(
     commit nothing exempts and is not evidence for anything this issue still
     holds.
     """
-    if not _rewrites.claims_the_exemption(gate.state):
+    if not _rewrite_reading.claims_the_exemption(gate.state):
         return ""
-    if _rewrites.read_rewrite_authorization(gate.state) is None:
+    if _rewrite_reading.read_rewrite_authorization(gate.state) is None:
         return _UNREADABLE_AUTHORIZATION
     return ""
 
@@ -553,9 +555,9 @@ def _disagreeing_authorization(gate: _records._Gate, fingerprint: str) -> str:
     A group that cannot be read whole is somebody else's refusal -- it comes
     first, and reaching here means the record proved out in every other field.
     """
-    if not _rewrites.claims_the_exemption(gate.state):
+    if not _rewrite_reading.claims_the_exemption(gate.state):
         return ""
-    authorization = _rewrites.read_rewrite_authorization(gate.state)
+    authorization = _rewrite_reading.read_rewrite_authorization(gate.state)
     if authorization is None or authorization.fingerprint == fingerprint:
         return ""
     return _DISAGREEING_AUTHORIZATION.format(
@@ -564,7 +566,7 @@ def _disagreeing_authorization(gate: _records._Gate, fingerprint: str) -> str:
 
 
 def _unusable_evidence(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why this evidence names no rewrite at all, or "".
 
@@ -582,9 +584,9 @@ def _unusable_evidence(
     is not one, so a permit granted over either would rest on evidence no
     later reader could check.
     """
-    if rewrite.kind not in _rewrites.LateRewriteKind:
+    if rewrite.kind not in _rewrite_values.LateRewriteKind:
         return _UNKNOWN_KIND.format(kind=rewrite.kind)
-    if not _rewrites.entered_from(rewrite.kind, rewrite.source_stage):
+    if not _rewrite_values.entered_from(rewrite.kind, rewrite.source_stage):
         return _FOREIGN_STAGE.format(
             kind=rewrite.kind, stage=rewrite.source_stage,
         )
@@ -604,7 +606,7 @@ def _unusable_evidence(
 
 
 def _disagreeing_publication(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the rewrite is not against the publication this call froze, or "".
 
@@ -643,7 +645,7 @@ def _disagreeing_publication(
 
 
 def _standing_where_the_permit_left_it(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> bool:
     """Whether the remote is a head this permit accounts for.
 
@@ -674,7 +676,7 @@ def _standing_where_the_permit_left_it(
 
 
 def _unproven_checkout(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the checkout is not provably the rewritten commit, or "".
 
@@ -698,7 +700,7 @@ def _unproven_checkout(
 
 
 def _unproven_lease(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the head this push is leased against is not one to lease on, or "".
 
@@ -730,7 +732,7 @@ def _unproven_lease(
 
 
 def _unconfirmed_owner(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why this issue is not the one the rewrite was made on, or "".
 
@@ -793,7 +795,7 @@ def _moved_issue(fetched: Issue, source_stage: WorkflowLabel | None) -> str:
 
 
 def _unproven_base(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the base the rewrite was read over is not the branch's, or "".
 
@@ -858,8 +860,8 @@ def _unproven_base(
 
 def _equal_contributions(
     gate: _records._Gate,
-    rewrite: _rewrites.LateRewrite,
-    identity: _exemption.LateSemanticIdentity,
+    rewrite: _rewrite_values.LateRewrite,
+    identity: _exemption_reading.LateSemanticIdentity,
 ) -> _Permit:
     """Whether both ends of the rewrite are one contribution, as a permit.
 
@@ -888,8 +890,8 @@ def _equal_contributions(
 
 def _accepted_contribution(
     gate: _records._Gate,
-    rewrite: _rewrites.LateRewrite,
-    identity: _exemption.LateSemanticIdentity,
+    rewrite: _rewrite_values.LateRewrite,
+    identity: _exemption_reading.LateSemanticIdentity,
 ) -> _Permit:
     """What the adjudication accepted, as the digest a transfer is held to.
 
@@ -925,8 +927,8 @@ def _accepted_contribution(
 
 def _unclaimed_contribution(
     gate: _records._Gate,
-    rewrite: _rewrites.LateRewrite,
-    identity: _exemption.LateSemanticIdentity,
+    rewrite: _rewrite_values.LateRewrite,
+    identity: _exemption_reading.LateSemanticIdentity,
     accepted: _Permit,
 ) -> str:
     """Why the pair the caller says it rewrote is not the accepted one, or "".
@@ -975,7 +977,7 @@ def _fingerprinted(
 
 def _authorized(
     gate: _records._Gate,
-    rewrite: _rewrites.LateRewrite,
+    rewrite: _rewrite_values.LateRewrite,
     fingerprint: str,
     recorded: str,
 ) -> bool:
@@ -1070,7 +1072,7 @@ def _persisted(gate: _records._Gate, before: dict) -> bool:
             "issue=#%d could not record the transfer it granted onto %s; "
             "leaving the exemption where the adjudication put it and "
             "measuring the rewrite as a fresh candidate",
-            gate.issue.number, gate.state.get(_exemption.LATE_EXEMPT_SHA),
+            gate.issue.number, gate.state.get(_exemption_reading.LATE_EXEMPT_SHA),
             exc_info=True,
         )
         gate.state.data.clear()
@@ -1104,10 +1106,10 @@ def _abandoned_authorization(gate: _records._Gate, restored: str) -> bool:
     Answers whether it changed anything, so the caller writes the pinned
     comment exactly when there is something in it to make durable.
     """
-    authorization = _rewrites.read_rewrite_authorization(gate.state)
+    authorization = _rewrite_reading.read_rewrite_authorization(gate.state)
     if authorization is None or not _put_back(authorization.rewrite, restored):
         return False
-    if authorization.phase != _rewrites.LateRewritePhase.AUTHORIZED:
+    if authorization.phase != _rewrite_values.LateRewritePhase.AUTHORIZED:
         return False
     _rewrites.clear_rewrite_authorization(gate.state)
     log.info(
@@ -1118,7 +1120,7 @@ def _abandoned_authorization(gate: _records._Gate, restored: str) -> bool:
     return True
 
 
-def _put_back(rewrite: _rewrites.LateRewrite, restored: str) -> bool:
+def _put_back(rewrite: _rewrite_values.LateRewrite, restored: str) -> bool:
     """Whether this reset landed where the rewrite found the branch.
 
     Two ends of the record answer it, because which of them the branch was

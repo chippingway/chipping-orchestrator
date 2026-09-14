@@ -20,7 +20,7 @@ import unittest
 from types import MappingProxyType
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split import rewrites as _rewrites
+from orchestrator.workflow.late_split import rewrite_values as _rewrite_values
 from orchestrator.workflow.stages.conflicts import (
     evidence as _evidence,
     models as _models,
@@ -83,7 +83,7 @@ class ReplayProvenanceTest(unittest.TestCase):
     def test_the_publication_scopes_the_claim(self) -> None:
         rewritten = self._rewritten()
 
-        self.assertEqual(rewritten.kind, _rewrites.LateRewriteKind.CONFLICT_REBASE)
+        self.assertEqual(rewritten.kind, _rewrite_values.LateRewriteKind.CONFLICT_REBASE)
         self.assertEqual(rewritten.pr_number, CONFLICT_PR)
         self.assertEqual(
             rewritten.source_stage, WorkflowLabel.RESOLVING_CONFLICT,

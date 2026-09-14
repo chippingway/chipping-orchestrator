@@ -72,10 +72,10 @@ from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
+    exemption_reading as _exemption_reading,
     formats as _formats,
     payloads as _payloads,
-    rewrites as _rewrites,
+    rewrite_values as _rewrite_values,
 )
 from orchestrator.workflow.stages.conflicts import (
     models as _models,
@@ -136,7 +136,7 @@ def _rewritten(
     replayed: _Replayed,
     rebased: str,
     pr_number,
-) -> _rewrites.LateRewrite | None:
+) -> _rewrite_values.LateRewrite | None:
     """The evidence a replayed branch hands the gate, or None where it has none.
 
     Both pairs, the publication the rewrite was made against, and the head the
@@ -169,8 +169,8 @@ def _rewritten(
     base_sha = _publication_probes._fork_point(ctx.spec, worktree, rebased)
     if not base_sha:
         return None
-    return _rewrites.LateRewrite(
-        kind=_rewrites.LateRewriteKind.CONFLICT_REBASE,
+    return _rewrite_values.LateRewrite(
+        kind=_rewrite_values.LateRewriteKind.CONFLICT_REBASE,
         from_sha=replayed.head,
         from_base_sha=replayed.base_sha,
         to_sha=rebased,
@@ -229,7 +229,7 @@ def _records_the_replay(
     number = _payloads.as_identity(pr_number)
     if not (number and replayed.head and replayed.base_sha):
         return
-    if not _exemption.is_exempt(ctx.state, replayed.head):
+    if not _exemption_reading.is_exempt(ctx.state, replayed.head):
         return
     ctx.state.set(_state._REPLAY_FROM_SHA, replayed.head)
     ctx.state.set(_state._REPLAY_FROM_BASE_SHA, replayed.base_sha)
@@ -281,7 +281,7 @@ def _recovered(
     lease: str,
     recovered: str,
     pr_number,
-) -> _rewrites.LateRewrite | None:
+) -> _rewrite_values.LateRewrite | None:
     """The replay a recovery is finishing, from the record that replay left.
 
     A tick that finds a commit ahead of the pull request has no reading of its

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.late_split import rewrites as _rewrites
+from orchestrator.workflow.late_split import rewrite_values as _rewrite_values
 from orchestrator.workflow.stages.implementing import (
     late_records as _records,
     late_rewrite as _rewrite,
@@ -55,7 +55,7 @@ class RewriteEvidenceTest(unittest.TestCase):
 
         self.assertEqual(rewritten.pr_number, PR_NUMBER)
         self.assertEqual(rewritten.source_stage, SOURCE_STAGE)
-        self.assertEqual(rewritten.kind, _rewrites.LateRewriteKind.SQUASH)
+        self.assertEqual(rewritten.kind, _rewrite_values.LateRewriteKind.SQUASH)
 
     def test_an_unmoved_publication_names_them_alike(self) -> None:
         # The ordinary tick, where the tip the pull request is on IS the head
@@ -66,7 +66,7 @@ class RewriteEvidenceTest(unittest.TestCase):
         self.assertEqual(rewritten.from_sha, COLLAPSED_SHA)
         self.assertEqual(rewritten.lease, COLLAPSED_SHA)
 
-    def _rewritten(self, standing: str) -> _rewrites.LateRewrite:
+    def _rewritten(self, standing: str) -> _rewrite_values.LateRewrite:
         """The evidence a squash hands in for a publication standing here."""
         return _rewrite._rewritten(
             _records._PublicationEntry(

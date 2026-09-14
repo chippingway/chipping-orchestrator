@@ -17,6 +17,7 @@ from orchestrator.git.measurement.models import FINGERPRINT_FORMAT
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
+    exemption_reading as _exemption_reading,
     keys as _late_keys,
     state as _late_state,
 )
@@ -39,17 +40,17 @@ DESCENDANT_SHA = "d" * SHA_LENGTH
 # against, which is why the field is read at its exact length.
 _HALF_A_DIGEST = DIGEST_LENGTH // 2
 
-_BASE_KEY = _exemption.LATE_EXEMPT_BASE_SHA
-_CANDIDATE_KEY = _exemption.LATE_EXEMPT_CANDIDATE_SHA
-_FINGERPRINT_KEY = _exemption.LATE_EXEMPT_FINGERPRINT
-_FORMAT_KEY = _exemption.LATE_EXEMPT_FINGERPRINT_FORMAT
+_BASE_KEY = _exemption_reading.LATE_EXEMPT_BASE_SHA
+_CANDIDATE_KEY = _exemption_reading.LATE_EXEMPT_CANDIDATE_SHA
+_FINGERPRINT_KEY = _exemption_reading.LATE_EXEMPT_FINGERPRINT
+_FORMAT_KEY = _exemption_reading.LATE_EXEMPT_FINGERPRINT_FORMAT
 
 # What the exempt commit carries, as the group it is written and dropped as.
 _IDENTITY_KEYS = (_BASE_KEY, _CANDIDATE_KEY, _FINGERPRINT_KEY, _FORMAT_KEY)
 
 # Every key one accepted candidate leaves behind: the write that clears a
 # generation may take none of them, which is what the whole record is for.
-_SURVIVING_KEYS = (_exemption.LATE_EXEMPT_SHA, *_IDENTITY_KEYS)
+_SURVIVING_KEYS = (_exemption_reading.LATE_EXEMPT_SHA, *_IDENTITY_KEYS)
 
 # Every pinned comment that carries an exemption and no identity anything may
 # act on. A value of None is the field being absent outright, which covers
@@ -104,14 +105,14 @@ class RecordedExemptionTest(unittest.TestCase):
 
         _exemption.record_exemption(state, CANDIDATE_SHA)
 
-        self.assertEqual(_exemption.read_exemption(state), CANDIDATE_SHA)
-        self.assertTrue(_exemption.is_exempt(state, CANDIDATE_SHA))
+        self.assertEqual(_exemption_reading.read_exemption(state), CANDIDATE_SHA)
+        self.assertTrue(_exemption_reading.is_exempt(state, CANDIDATE_SHA))
 
     def test_an_absent_field_exempts_nothing(self) -> None:
         state = _exemption_support.empty_state()
 
-        self.assertIsNone(_exemption.read_exemption(state))
-        self.assertFalse(_exemption.is_exempt(state, CANDIDATE_SHA))
+        self.assertIsNone(_exemption_reading.read_exemption(state))
+        self.assertFalse(_exemption_reading.is_exempt(state, CANDIDATE_SHA))
 
     def test_a_value_that_is_not_a_commit_is_refused(self) -> None:
         for written in _NOT_A_COMMIT:
@@ -130,12 +131,12 @@ class RecordedExemptionTest(unittest.TestCase):
         for written in _NOT_A_COMMIT:
             with self.subTest(written=written):
                 state = PinnedState(
-                    data={_exemption.LATE_EXEMPT_SHA: written},
+                    data={_exemption_reading.LATE_EXEMPT_SHA: written},
                 )
 
-                self.assertIsNone(_exemption.read_exemption(state))
+                self.assertIsNone(_exemption_reading.read_exemption(state))
                 self.assertFalse(
-                    _exemption.is_exempt(state, CANDIDATE_SHA),
+                    _exemption_reading.is_exempt(state, CANDIDATE_SHA),
                 )
 
     def test_a_moved_exemption_drops_the_identity(self) -> None:
@@ -148,7 +149,7 @@ class RecordedExemptionTest(unittest.TestCase):
 
         _exemption.record_exemption(state, DESCENDANT_SHA)
 
-        self.assertEqual(_exemption.read_exemption(state), DESCENDANT_SHA)
+        self.assertEqual(_exemption_reading.read_exemption(state), DESCENDANT_SHA)
         for key in _IDENTITY_KEYS:
             with self.subTest(key=key):
                 self.assertNotIn(key, state.data)
@@ -162,7 +163,7 @@ class RecordedExemptionTest(unittest.TestCase):
 
         _exemption.record_exemption(state, CANDIDATE_SHA)
 
-        carried = _exemption.read_semantic_identity(state)
+        carried = _exemption_reading.read_semantic_identity(state)
         self.assertEqual(carried.fingerprint, _exemption_support.CONTRIBUTION_DIGEST)
         self.assertEqual(carried.base_sha, BASE_SHA)
 
@@ -185,14 +186,14 @@ class ExemptionScopeTest(unittest.TestCase):
         # candidate is work nobody adjudicated, and it is measured as such.
         state = _exemption_support.exempted_state()
 
-        self.assertFalse(_exemption.is_exempt(state, BASE_SHA))
+        self.assertFalse(_exemption_reading.is_exempt(state, BASE_SHA))
 
     def test_an_unnamable_candidate_is_not_exempt(self) -> None:
         state = _exemption_support.exempted_state()
 
         for asked in _NOT_A_COMMIT:
             with self.subTest(asked=asked):
-                self.assertFalse(_exemption.is_exempt(state, asked))
+                self.assertFalse(_exemption_reading.is_exempt(state, asked))
 
     def test_it_outlives_its_own_generation(self) -> None:
         # Both halves are written precisely so the generation CAN be cleared:
@@ -205,8 +206,8 @@ class ExemptionScopeTest(unittest.TestCase):
 
         _late_state.clear_late_generation(state)
 
-        self.assertEqual(_exemption.read_exemption(state), CANDIDATE_SHA)
-        carried = _exemption.read_semantic_identity(state)
+        self.assertEqual(_exemption_reading.read_exemption(state), CANDIDATE_SHA)
+        carried = _exemption_reading.read_semantic_identity(state)
         self.assertEqual(carried.base_sha, BASE_SHA)
         for key in _SURVIVING_KEYS:
             with self.subTest(key=key):
@@ -223,7 +224,7 @@ class SemanticIdentityTest(unittest.TestCase):
     """
 
     def test_the_accepted_contribution_round_trips(self) -> None:
-        carried = _exemption.read_semantic_identity(_exemption_support.identified_state())
+        carried = _exemption_reading.read_semantic_identity(_exemption_support.identified_state())
 
         self.assertEqual(carried.exempt_sha, CANDIDATE_SHA)
         self.assertEqual(carried.candidate_sha, CANDIDATE_SHA)
@@ -243,7 +244,7 @@ class SemanticIdentityTest(unittest.TestCase):
                 with self.assertRaises(InvalidLateValue):
                     _exemption.record_semantic_identity(state, **written)
 
-                self.assertIsNone(_exemption.read_semantic_identity(state))
+                self.assertIsNone(_exemption_reading.read_semantic_identity(state))
 
     def test_another_commits_identity_is_refused(self) -> None:
         # It would describe a change this issue never adjudicated, under the
@@ -258,26 +259,26 @@ class SemanticIdentityTest(unittest.TestCase):
                 fingerprint=_exemption_support.CONTRIBUTION_DIGEST,
             )
 
-        self.assertIsNone(_exemption.read_semantic_identity(state))
+        self.assertIsNone(_exemption_reading.read_semantic_identity(state))
 
     def test_a_damaged_record_transfers_nothing(self) -> None:
         for described, damage in _UNUSABLE_IDENTITIES.items():
             with self.subTest(record=described):
                 state = _exemption_support.damaged_state(damage)
 
-                self.assertIsNone(_exemption.read_semantic_identity(state))
+                self.assertIsNone(_exemption_reading.read_semantic_identity(state))
                 # The exact commit is exempt on its own field: a damaged
                 # identity costs a later tick the transfer, never the decision
                 # a human already made.
-                self.assertTrue(_exemption.is_exempt(state, CANDIDATE_SHA))
+                self.assertTrue(_exemption_reading.is_exempt(state, CANDIDATE_SHA))
 
     def test_a_legacy_comment_transfers_nothing(self) -> None:
         # The whole of what an older binary wrote, and what every issue that
         # earned a verdict before this group existed still carries.
         state = _exemption_support.exempted_state()
 
-        self.assertIsNone(_exemption.read_semantic_identity(state))
-        self.assertTrue(_exemption.is_exempt(state, CANDIDATE_SHA))
+        self.assertIsNone(_exemption_reading.read_semantic_identity(state))
+        self.assertTrue(_exemption_reading.is_exempt(state, CANDIDATE_SHA))
 
     def test_an_identity_exempts_no_descendant(self) -> None:
         # The identity says which CHANGE was accepted and may not widen which
@@ -286,9 +287,9 @@ class SemanticIdentityTest(unittest.TestCase):
         # it is whatever the record remembers beside it.
         state = _exemption_support.identified_state()
 
-        self.assertFalse(_exemption.is_exempt(state, DESCENDANT_SHA))
+        self.assertFalse(_exemption_reading.is_exempt(state, DESCENDANT_SHA))
         self.assertEqual(
-            _exemption.read_semantic_identity(state).candidate_sha,
+            _exemption_reading.read_semantic_identity(state).candidate_sha,
             CANDIDATE_SHA,
         )
 
@@ -310,16 +311,16 @@ class ClaimedExemptionTest(unittest.TestCase):
     def test_a_comment_with_no_verdict_claims_none(
         self,
     ) -> None:
-        self.assertFalse(_exemption.unreadable_exemption(_exemption_support.empty_state()))
+        self.assertFalse(_exemption_reading.unreadable_exemption(_exemption_support.empty_state()))
 
     def test_a_whole_record_shows_its_claim(self) -> None:
-        self.assertFalse(_exemption.unreadable_exemption(_exemption_support.identified_state()))
+        self.assertFalse(_exemption_reading.unreadable_exemption(_exemption_support.identified_state()))
 
     def test_a_legacy_comment_is_complete(self) -> None:
         # The exempt commit and nothing beside it, which is the whole of what
         # an older binary wrote. It costs a later tick the transfer rather
         # than the verdict, so it may not read as damage.
-        self.assertFalse(_exemption.unreadable_exemption(_exemption_support.exempted_state()))
+        self.assertFalse(_exemption_reading.unreadable_exemption(_exemption_support.exempted_state()))
 
     def test_an_exemption_that_is_not_a_commit(
         self,
@@ -327,9 +328,9 @@ class ClaimedExemptionTest(unittest.TestCase):
         for written in _NOT_A_COMMIT:
             with self.subTest(written=written):
                 state = _exemption_support.exempted_state()
-                state.data[_exemption.LATE_EXEMPT_SHA] = written
+                state.data[_exemption_reading.LATE_EXEMPT_SHA] = written
 
-                self.assertTrue(_exemption.unreadable_exemption(state))
+                self.assertTrue(_exemption_reading.unreadable_exemption(state))
 
     def test_an_unreadable_identity_still_claims(
         self,
@@ -339,5 +340,5 @@ class ClaimedExemptionTest(unittest.TestCase):
         for described, damage in _UNUSABLE_IDENTITIES.items():
             with self.subTest(record=described):
                 self.assertTrue(
-                    _exemption.unreadable_exemption(_exemption_support.damaged_state(damage)),
+                    _exemption_reading.unreadable_exemption(_exemption_support.damaged_state(damage)),
                 )

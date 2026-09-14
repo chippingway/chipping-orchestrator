@@ -62,7 +62,11 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from orchestrator.workflow.late_split import rewrites as _rewrites
+from orchestrator.workflow.late_split import (
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
+    rewrites as _rewrites,
+)
 from orchestrator.workflow.stages.implementing import (
     late_publication as _publication_gate,
     late_records as _records,
@@ -91,8 +95,8 @@ class _Rotation:
     """
 
     staged: bool = False
-    rewrite: _rewrites.LateRewrite | None = None
-    proof: _rewrites.LateRewriteProof | None = None
+    rewrite: _rewrite_values.LateRewrite | None = None
+    proof: _rewrite_values.LateRewriteProof | None = None
 
     @property
     def is_reportable(self) -> bool:
@@ -141,10 +145,10 @@ def _rotates_the_exemption(
     receipt's own write: the move and the account of what the remote holds
     land together or not at all.
     """
-    authorization = _rewrites.read_rewrite_authorization(gate.state)
+    authorization = _rewrite_reading.read_rewrite_authorization(gate.state)
     if authorization is None:
         return _NOTHING
-    if authorization.phase != _rewrites.LateRewritePhase.AUTHORIZED:
+    if authorization.phase != _rewrite_values.LateRewritePhase.AUTHORIZED:
         return _NOTHING
     rewrite = authorization.rewrite
     if rewrite.to_sha != published.revision:
@@ -155,7 +159,7 @@ def _rotates_the_exemption(
 
 
 def _unvouched(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> _Rotation:
     """Leave a permission this tick's permit did not vouch for standing.
 
@@ -214,7 +218,7 @@ def _carried(
 
 def _proved_by(
     published: _publication_gate._PublishedCandidate,
-) -> _rewrites.LateRewriteProof:
+) -> _rewrite_values.LateRewriteProof:
     """Which reading proved this publication is the one the permit licensed.
 
     The head the entry FROZE is the whole of the answer, and it is a reading
@@ -228,12 +232,12 @@ def _proved_by(
     looks identical whichever of them happened.
     """
     if published.standing == published.revision:
-        return _rewrites.LateRewriteProof.ALREADY_PUBLISHED
-    return _rewrites.LateRewriteProof.PUSHED
+        return _rewrite_values.LateRewriteProof.ALREADY_PUBLISHED
+    return _rewrite_values.LateRewriteProof.PUSHED
 
 
 def _abandoned(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite, published: str,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite, published: str,
 ) -> _Rotation:
     """Drop a permission the commit this push published has gone past.
 

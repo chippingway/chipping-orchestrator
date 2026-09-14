@@ -26,20 +26,22 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models, settings as config
-from orchestrator.github.client import GitHubClient
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.late_split import (
+    ancestry as _ancestry,
     endings as _endings,
     formats as _formats,
     identity as _identity,
     lineage as _lineage,
     payloads as _payloads,
     phases as _late_phases,
-    rewrites as _rewrites,
     validation as _late_validation,
 )
 from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.rewrite_values import (
+    LateRewrite,
+)
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -122,7 +124,7 @@ class _Spends:
 _SPENDS_NOTHING = _Spends()
 
 
-def _spend(state: PinnedState, spends: _Spends) -> None:
+def _spend(state: _pinned_state.PinnedState, spends: _Spends) -> None:
     """Close the route bookkeeping a caller said its hold owed.
 
     Spelled beside the record rather than at either site that applies it, so
@@ -176,10 +178,10 @@ class _Gate:
     while the record, the park, and the label all belong to the issue.
     """
 
-    gh: GitHubClient
+    gh: _client.GitHubClient
     spec: _config_models.RepoSpec
     issue: Issue
-    state: PinnedState
+    state: _pinned_state.PinnedState
     worktree: Path
     # Whether a developer ran on this tick. Nothing in the checkout can be a
     # run's output where none did, which is what makes a head that moved off
@@ -215,7 +217,7 @@ class _Gate:
     # anything later has of how an exemption came to license a commit no
     # human ever saw. It is the caller's because everything in it is gone
     # from the checkout and the remote by the time this owner could ask.
-    rewrite: _rewrites.LateRewrite | None = None
+    rewrite: LateRewrite | None = None
     # Whether a rewrite permit is the ONLY thing that may let this candidate
     # publish. Off for every ordinary caller, and on only for the dormant
     # vouched-replay crash recovery, which reaches this gate holding a
@@ -290,7 +292,7 @@ class _Entered:
     # adjudicated may be recognized in a commit that did not exist when they
     # ruled on it, and it is handed in rather than read because a rewrite
     # destroys its own before-state.
-    rewrite: _rewrites.LateRewrite | None = None
+    rewrite: LateRewrite | None = None
     # Whether the permit is the whole of what may license this publication.
     #
     # Off is the ordinary answer and the one every publishing seam gives: a
@@ -393,10 +395,10 @@ _REFUSED = _GateVerdict(held=True, refused=True)
 
 
 def _gate(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
-    state: PinnedState,
+    state: _pinned_state.PinnedState,
     worktree: Path,
 ) -> _Gate:
     """The subject one gate call is about, from what its caller was handed.
@@ -520,7 +522,7 @@ def _entered(gate: _Gate, generation: LateGeneration) -> LateGeneration:
 
 
 def _lineage_of(
-    gate: _Gate, recorded: LateGeneration, ancestry: _lineage.LateAncestry,
+    gate: _Gate, recorded: LateGeneration, ancestry: _ancestry.LateAncestry,
 ) -> tuple:
     """The root and the depth this generation is minted at.
 

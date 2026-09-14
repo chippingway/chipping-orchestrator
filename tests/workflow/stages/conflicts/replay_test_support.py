@@ -24,6 +24,8 @@ from types import MappingProxyType
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
+    exemption_reading as _exemption_reading,
+    rewrite_values as _rewrite_values,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.conflicts import state as _state
@@ -84,9 +86,9 @@ BEHIND_BASE = "2\n"
 UNTRANSFERABLE_EXEMPTIONS = MappingProxyType({
     "one recorded before the identity existed": (),
     "one a hand edit took the digest from": (
-        _exemption.LATE_EXEMPT_FINGERPRINT,
+        _exemption_reading.LATE_EXEMPT_FINGERPRINT,
     ),
-    "one a hand edit took the base from": (_exemption.LATE_EXEMPT_BASE_SHA,),
+    "one a hand edit took the base from": (_exemption_reading.LATE_EXEMPT_BASE_SHA,),
 })
 
 
@@ -94,8 +96,8 @@ UNTRANSFERABLE_EXEMPTIONS = MappingProxyType({
 # publication it was made against, and the head its push is leased to. The
 # recovery has no evidence of its own, so this record is the whole of what a
 # tick finding the replayed commit unpushed may be answered from.
-GRANTED_REPLAY = _rewrites.LateRewrite(
-    kind=_rewrites.LateRewriteKind.CONFLICT_REBASE,
+GRANTED_REPLAY = _rewrite_values.LateRewrite(
+    kind=_rewrite_values.LateRewriteKind.CONFLICT_REBASE,
     from_sha=ADJUDICATED_HEAD,
     from_base_sha=FORK_POINT_SHA,
     to_sha=REPLAYED_HEAD,

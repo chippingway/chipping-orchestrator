@@ -65,7 +65,7 @@ import logging
 
 from orchestrator.git.measurement import fingerprint as _fingerprint
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
+    exemption_reading as _exemption_reading,
     overrides as _overrides,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -112,7 +112,7 @@ def _publishes_on_an_exemption(
     disagrees, and what that costs is the measurement the gate would have
     taken anyway.
     """
-    if not _exemption.is_exempt(gate.state, candidate_sha):
+    if not _exemption_reading.is_exempt(gate.state, candidate_sha):
         return False
     if not _overrides.is_authorized(gate.state, candidate_sha):
         return False
@@ -170,7 +170,7 @@ def _unauthorized_exemption(
     False for every candidate no exemption names, which is the ordinary one.
     Nothing here is a claim about a commit this issue never adjudicated.
     """
-    if not _exemption.is_exempt(gate.state, candidate_sha):
+    if not _exemption_reading.is_exempt(gate.state, candidate_sha):
         return False
     return not _publishes_on_an_exemption(gate, candidate_sha)
 
@@ -214,7 +214,7 @@ def _already_on_its_pull_request(
     """
     if gate.entry is None:
         return ""
-    if not _exemption.is_exempt(gate.state, candidate_sha):
+    if not _exemption_reading.is_exempt(gate.state, candidate_sha):
         return ""
     standing = (
         gate.entry.is_frozen and gate.entry.published_sha == candidate_sha
@@ -283,7 +283,7 @@ def _unauthorized_debt(gate: _records._Gate, candidate_sha: str) -> bool:
         )
     if _parks._unreadable_basis(gate.state):
         return not _publishes_on_an_exemption(gate, candidate_sha)
-    if _exemption.is_exempt(gate.state, candidate_sha):
+    if _exemption_reading.is_exempt(gate.state, candidate_sha):
         return not _publishes_on_an_exemption(gate, candidate_sha)
     # Presence and truth asked together, because the answer is the gap between
     # them. `read_exemption` is fail-closed, so a truncated or hand-edited
@@ -292,6 +292,6 @@ def _unauthorized_debt(gate: _records._Gate, candidate_sha: str) -> bool:
     # is. An issue that never entered an adjudication carries no field; one
     # whose field cannot be read carries the claim that an adjudication
     # happened and no way to say which commit it was about.
-    if not gate.state.carries(_exemption.LATE_EXEMPT_SHA):
+    if not gate.state.carries(_exemption_reading.LATE_EXEMPT_SHA):
         return False
-    return _exemption.read_exemption(gate.state) is None
+    return _exemption_reading.read_exemption(gate.state) is None

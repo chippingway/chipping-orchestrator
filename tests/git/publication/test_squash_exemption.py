@@ -26,7 +26,10 @@ import unittest
 
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
-    rewrites as _rewrites,
+    exemption_reading as _exemption_reading,
+    rewrite_fields as _rewrite_fields,
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
 )
 from tests.git.publication import squash_git_support as squash_support
 from tests.git.publication.squash_exemption_support import (
@@ -96,10 +99,10 @@ class SquashedExemptionRealGitTest(
             self._squashes(gate)
 
         granted = writes.nth(GRANT_WRITE)
-        self.assertEqual(granted[_exemption.LATE_EXEMPT_SHA], accepted)
+        self.assertEqual(granted[_exemption_reading.LATE_EXEMPT_SHA], accepted)
         self.assertEqual(
-            granted[_rewrites.LATE_REWRITE_PHASE],
-            str(_rewrites.LateRewritePhase.AUTHORIZED),
+            granted[_rewrite_fields.LATE_REWRITE_PHASE],
+            str(_rewrite_values.LateRewritePhase.AUTHORIZED),
         )
 
     def test_the_receipt_carries_the_exemption_over(self) -> None:
@@ -113,11 +116,11 @@ class SquashedExemptionRealGitTest(
         squashed = self._head_sha()
         self._assert_exempts(gate, squashed)
         durable = gate.gh.read_pinned_state(gate.issue)
-        identity = _exemption.read_semantic_identity(durable)
+        identity = _exemption_reading.read_semantic_identity(durable)
         self.assertEqual(identity.candidate_sha, squashed)
-        authorized = _rewrites.read_rewrite_authorization(durable)
+        authorized = _rewrite_reading.read_rewrite_authorization(durable)
         self.assertEqual(
-            authorized.phase, _rewrites.LateRewritePhase.PUBLISHED,
+            authorized.phase, _rewrite_values.LateRewritePhase.PUBLISHED,
         )
         self.assertEqual(
             self._pinned(gate)[KEY_PUBLISHED_SHA], squashed,
@@ -141,8 +144,8 @@ class SquashedExemptionRealGitTest(
         self._assert_exempts(gate, accepted)
         pinned = self._pinned(gate)
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_PHASE],
-            str(_rewrites.LateRewritePhase.AUTHORIZED),
+            pinned[_rewrite_fields.LATE_REWRITE_PHASE],
+            str(_rewrite_values.LateRewritePhase.AUTHORIZED),
         )
         self.assertNotIn(KEY_PUBLISHED_SHA, pinned)
 
@@ -152,14 +155,14 @@ class SquashedExemptionRealGitTest(
 
         self._squashes(gate)
 
-        authorized = _rewrites.read_rewrite_authorization(
+        authorized = _rewrite_reading.read_rewrite_authorization(
             gate.gh.read_pinned_state(gate.issue),
         )
         self.assertEqual(authorized.rewrite.from_sha, accepted)
         self.assertEqual(authorized.rewrite.to_sha, self._head_sha())
         self.assertEqual(authorized.rewrite.lease, accepted)
         self.assertEqual(
-            authorized.rewrite.kind, _rewrites.LateRewriteKind.SQUASH,
+            authorized.rewrite.kind, _rewrite_values.LateRewriteKind.SQUASH,
         )
 
     def test_the_grant_owes_the_push(self) -> None:
@@ -178,8 +181,8 @@ class SquashedExemptionRealGitTest(
         self.assertEqual(granted[KEY_APPROVED_SHA], self._head_sha())
         self.assertEqual(granted[KEY_APPROVED_LEASE], accepted)
         self.assertEqual(
-            granted[_rewrites.LATE_REWRITE_PHASE],
-            str(_rewrites.LateRewritePhase.AUTHORIZED),
+            granted[_rewrite_fields.LATE_REWRITE_PHASE],
+            str(_rewrite_values.LateRewritePhase.AUTHORIZED),
         )
 
     def test_a_refused_push_drops_the_permission(self) -> None:
@@ -195,8 +198,8 @@ class SquashedExemptionRealGitTest(
         self.assertEqual(self._head_sha(), accepted)
         pinned = self._pinned(gate)
         self._assert_exempts(gate, accepted)
-        self.assertNotIn(_rewrites.LATE_REWRITE_PHASE, pinned)
-        identity = _exemption.read_semantic_identity(
+        self.assertNotIn(_rewrite_fields.LATE_REWRITE_PHASE, pinned)
+        identity = _exemption_reading.read_semantic_identity(
             gate.gh.read_pinned_state(gate.issue),
         )
         self.assertEqual(identity.candidate_sha, accepted)
@@ -266,7 +269,7 @@ class UntransferredSquashRealGitTest(
             (gate.issue.number, LABEL_DECOMPOSING), gate.gh.label_history,
         )
         self._assert_exempts(gate, accepted)
-        self.assertNotIn(_rewrites.LATE_REWRITE_PHASE, self._pinned(gate))
+        self.assertNotIn(_rewrite_fields.LATE_REWRITE_PHASE, self._pinned(gate))
 
     def test_unadjudicated_work_is_still_measured(self) -> None:
         # The exemption names one commit and only it. An issue that never
@@ -328,8 +331,8 @@ class InterruptedSquashRealGitTest(
         squash_run.push_mock.assert_not_called()
         self.assertEqual(self._head_sha(), accepted)
         self._assert_exempts(gate, accepted)
-        self.assertNotIn(_rewrites.LATE_REWRITE_PHASE, self._pinned(gate))
-        identity = _exemption.read_semantic_identity(
+        self.assertNotIn(_rewrite_fields.LATE_REWRITE_PHASE, self._pinned(gate))
+        identity = _exemption_reading.read_semantic_identity(
             gate.gh.read_pinned_state(gate.issue),
         )
         self.assertEqual(identity.candidate_sha, accepted)
@@ -371,4 +374,4 @@ class LostGrantRealGitTest(
         # The move the refused write staged is put back, so what the comment
         # exempts is still the commit the adjudication accepted.
         self._assert_exempts(gate, accepted)
-        self.assertNotIn(_rewrites.LATE_REWRITE_PHASE, pinned)
+        self.assertNotIn(_rewrite_fields.LATE_REWRITE_PHASE, pinned)

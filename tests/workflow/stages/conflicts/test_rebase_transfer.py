@@ -38,8 +38,9 @@ from unittest.mock import patch
 from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
-    rewrites as _rewrites,
+    exemption_reading as _exemption_reading,
+    rewrite_fields as _rewrite_fields,
+    rewrite_values as _rewrite_values,
 )
 from tests.support.fakes import FakePR, FakePRRef
 from tests.workflow.observation_support import ObservedCloseCase
@@ -194,14 +195,14 @@ class _ConflictReplayCase(ObservedCloseCase, _ResolvingConflictMixin):
         """The exemption is on the replayed commit, and the push carried it."""
         replay.mocks[COUNT_ADDED_LINES].assert_not_called()
         pinned = replay.pinned
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.REPLAYED_HEAD)
+        self.assertEqual(pinned[_exemption_reading.LATE_EXEMPT_SHA], _support.REPLAYED_HEAD)
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_PHASE],
-            _rewrites.LateRewritePhase.PUBLISHED,
+            pinned[_rewrite_fields.LATE_REWRITE_PHASE],
+            _rewrite_values.LateRewritePhase.PUBLISHED,
         )
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_KIND],
-            _rewrites.LateRewriteKind.CONFLICT_REBASE,
+            pinned[_rewrite_fields.LATE_REWRITE_KIND],
+            _rewrite_values.LateRewriteKind.CONFLICT_REBASE,
         )
         pushed = replay.pushes.call_args.kwargs
         self.assertEqual(pushed[REVISION], _support.REPLAYED_HEAD)
@@ -214,8 +215,8 @@ class _ConflictReplayCase(ObservedCloseCase, _ResolvingConflictMixin):
         """Nothing was carried, and the ordinary ceiling took the issue."""
         replay.mocks[COUNT_ADDED_LINES].assert_called_once()
         pinned = replay.pinned
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.ADJUDICATED_HEAD)
-        self.assertNotIn(_rewrites.LATE_REWRITE_KIND, pinned)
+        self.assertEqual(pinned[_exemption_reading.LATE_EXEMPT_SHA], _support.ADJUDICATED_HEAD)
+        self.assertNotIn(_rewrite_fields.LATE_REWRITE_KIND, pinned)
         replay.pushes.assert_not_called()
         self.assertIn(
             (_support.CONFLICT_ISSUE, LABEL_DECOMPOSING), replay.github.label_history,
@@ -225,7 +226,7 @@ class _ConflictReplayCase(ObservedCloseCase, _ResolvingConflictMixin):
         """Nothing reached the remote, and the exemption never moved."""
         replay.pushes.assert_not_called()
         pinned = replay.pinned
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.ADJUDICATED_HEAD)
+        self.assertEqual(pinned[_exemption_reading.LATE_EXEMPT_SHA], _support.ADJUDICATED_HEAD)
         self.assertTrue(pinned[AWAITING_HUMAN])
 
 
@@ -262,18 +263,18 @@ class ConflictRebaseTransferTest(_ConflictReplayCase, unittest.TestCase):
         pinned = self._replayed().pinned
 
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_FROM_SHA], _support.ADJUDICATED_HEAD,
+            pinned[_rewrite_fields.LATE_REWRITE_FROM_SHA], _support.ADJUDICATED_HEAD,
         )
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_FROM_BASE_SHA],
+            pinned[_rewrite_fields.LATE_REWRITE_FROM_BASE_SHA],
             _support.REPLAY_FORK_POINTS[_support.ADJUDICATED_HEAD],
         )
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_TO_BASE_SHA],
+            pinned[_rewrite_fields.LATE_REWRITE_TO_BASE_SHA],
             _support.REPLAY_FORK_POINTS[_support.REPLAYED_HEAD],
         )
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_LEASE], _support.ADJUDICATED_HEAD,
+            pinned[_rewrite_fields.LATE_REWRITE_LEASE], _support.ADJUDICATED_HEAD,
         )
 
 

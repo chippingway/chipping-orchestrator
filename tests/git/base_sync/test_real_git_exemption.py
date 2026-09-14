@@ -22,8 +22,9 @@ from unittest.mock import MagicMock, patch
 from orchestrator.git import branch_transport
 from orchestrator.git.base_sync import pre_pr
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
-    rewrites as _rewrites,
+    exemption_reading as _exemption_reading,
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
 )
 from tests.git.base_sync.exemption_git_support import (
     BASE_EDIT,
@@ -97,18 +98,18 @@ class EquivalentRebaseRealGitTest(_AdjudicatedRebaseCase, unittest.TestCase):
 
         self.assertNotEqual(replayed, self.accepted)
         durable = self._gh.read_pinned_state(self._gh._issues[ISSUE])
-        self.assertTrue(_exemption.is_exempt(durable, replayed))
-        identity = _exemption.read_semantic_identity(durable)
+        self.assertTrue(_exemption_reading.is_exempt(durable, replayed))
+        identity = _exemption_reading.read_semantic_identity(durable)
         self.assertEqual(identity.candidate_sha, replayed)
         self.assertEqual(identity.base_sha, self._merge_base())
 
     def test_the_authorization_names_the_rebase(self) -> None:
-        authorized = _rewrites.read_rewrite_authorization(
+        authorized = _rewrite_reading.read_rewrite_authorization(
             self._gh.read_pinned_state(self._gh._issues[ISSUE]),
         )
 
         self.assertEqual(
-            authorized.rewrite.kind, _rewrites.LateRewriteKind.AUTO_CLEAN_REBASE,
+            authorized.rewrite.kind, _rewrite_values.LateRewriteKind.AUTO_CLEAN_REBASE,
         )
         self.assertEqual(authorized.rewrite.from_sha, self.accepted)
         self.assertEqual(authorized.rewrite.to_sha, self._wt_head())
@@ -116,7 +117,7 @@ class EquivalentRebaseRealGitTest(_AdjudicatedRebaseCase, unittest.TestCase):
         # and it is a fact of its own beside the commit that was replaced.
         self.assertEqual(authorized.rewrite.lease, self.accepted)
         self.assertEqual(
-            authorized.phase, _rewrites.LateRewritePhase.PUBLISHED,
+            authorized.phase, _rewrite_values.LateRewritePhase.PUBLISHED,
         )
 
     def test_nothing_is_measured_or_adjudicated(self) -> None:
@@ -186,8 +187,8 @@ class MeasuredRebaseRealGitTest(_AdjudicatedRebaseCase, unittest.TestCase):
     def _assert_verdict_put(self, accepted: str) -> None:
         """The exemption is on the commit a human ruled on, and alone."""
         durable = self._gh.read_pinned_state(self._gh._issues[ISSUE])
-        self.assertTrue(_exemption.is_exempt(durable, accepted))
-        self.assertFalse(_rewrites.carries_rewrite_authorization(durable))
+        self.assertTrue(_exemption_reading.is_exempt(durable, accepted))
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(durable))
         self.assertEqual(events_of(self, EVENT_TRANSFER), [])
 
 

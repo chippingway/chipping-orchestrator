@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
+from orchestrator.workflow.late_split import ancestry as _ancestry, lineage as _lineage, state as _late_state
 from orchestrator.workflow.late_split.models import LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import late_sweep as _late_sweep, umbrella as _umbrella
@@ -178,7 +178,7 @@ class OwnerSeed:
         if not self.ancestor_ref:
             return
         recorded = github.read_pinned_state(parent)
-        _lineage.write_late_ancestry(recorded, _lineage.LateAncestry(
+        _lineage.write_late_ancestry(recorded, _ancestry.LateAncestry(
             root_issue=ANCESTOR_NUMBER,
             lineage_depth=LINEAGE_DEPTH,
             parent_issue=ANCESTOR_NUMBER,
@@ -207,7 +207,7 @@ class OwnerSeed:
             closed=self.child_closed,
             body="\n\n".join((
                 "the slice this child owns",
-                _lineage.child_marker(
+                _ancestry.child_marker(
                     issue=PARENT_NUMBER,
                     cycle=CYCLE_ID,
                     generation=GENERATION_NUMBER,
@@ -219,7 +219,7 @@ class OwnerSeed:
         if not self.child_ancestry:
             return
         recorded = github.read_pinned_state(child)
-        _lineage.write_late_ancestry(recorded, _lineage.LateAncestry(
+        _lineage.write_late_ancestry(recorded, _ancestry.LateAncestry(
             root_issue=ROOT_ISSUE,
             lineage_depth=LINEAGE_DEPTH + 1,
             parent_issue=PARENT_NUMBER,
@@ -385,7 +385,7 @@ def seed_unrecorded_child(github: FakeGitHubClient) -> None:
         label=LABEL_BLOCKED,
         body="\n\n".join((
             "the slice nobody recorded",
-            _lineage.child_marker(
+            _ancestry.child_marker(
                 issue=PARENT_NUMBER,
                 cycle=CYCLE_ID,
                 generation=GENERATION_NUMBER,

@@ -10,12 +10,21 @@ from orchestrator.git.measurement.models import FINGERPRINT_FORMAT
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
+    exemption_reading as _exemption_reading,
     keys as _late_keys,
     overrides as _overrides,
+    rewrite_fields as _rewrite_fields,
+    rewrite_reading as _rewrite_reading,
     rewrites as _rewrites,
     state as _late_state,
 )
 from orchestrator.workflow.late_split.formats import InvalidLateValue
+from orchestrator.workflow.late_split.rewrite_values import (
+    LateRewrite,
+    LateRewriteKind,
+    LateRewritePhase,
+    LateRewriteProof,
+)
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.late_split.generation_test_support import (
     BASE_SHA,
@@ -52,20 +61,20 @@ AUTHORIZED_ADDITIONS = 9123
 AUTHORIZED_THRESHOLD = 4000
 AUTHORIZING_COMMENT_ID = 5150
 
-_KIND = _rewrites.LATE_REWRITE_KIND
-_PHASE = _rewrites.LATE_REWRITE_PHASE
-_FROM = _rewrites.LATE_REWRITE_FROM_SHA
-_FROM_BASE = _rewrites.LATE_REWRITE_FROM_BASE_SHA
-_TO = _rewrites.LATE_REWRITE_TO_SHA
-_TO_BASE = _rewrites.LATE_REWRITE_TO_BASE_SHA
-_FINGERPRINT = _rewrites.LATE_REWRITE_FINGERPRINT
-_FORMAT = _rewrites.LATE_REWRITE_FINGERPRINT_FORMAT
-_PR_NUMBER = _rewrites.LATE_REWRITE_PR_NUMBER
-_STAGE = _rewrites.LATE_REWRITE_SOURCE_STAGE
-_LEASE = _rewrites.LATE_REWRITE_LEASE
+_KIND = _rewrite_fields.LATE_REWRITE_KIND
+_PHASE = _rewrite_fields.LATE_REWRITE_PHASE
+_FROM = _rewrite_fields.LATE_REWRITE_FROM_SHA
+_FROM_BASE = _rewrite_fields.LATE_REWRITE_FROM_BASE_SHA
+_TO = _rewrite_fields.LATE_REWRITE_TO_SHA
+_TO_BASE = _rewrite_fields.LATE_REWRITE_TO_BASE_SHA
+_FINGERPRINT = _rewrite_fields.LATE_REWRITE_FINGERPRINT
+_FORMAT = _rewrite_fields.LATE_REWRITE_FINGERPRINT_FORMAT
+_PR_NUMBER = _rewrite_fields.LATE_REWRITE_PR_NUMBER
+_STAGE = _rewrite_fields.LATE_REWRITE_SOURCE_STAGE
+_LEASE = _rewrite_fields.LATE_REWRITE_LEASE
 # Deliberately outside the group below: the note is about the record a settled
 # transfer owes the sinks rather than about the permission it was granted on.
-_PROOF = _rewrites.LATE_REWRITE_PROOF
+_PROOF = _rewrite_fields.LATE_REWRITE_PROOF
 
 _AUTHORIZATION_KEYS = (
     _KIND, _PHASE, _FROM, _FROM_BASE, _TO, _TO_BASE,
@@ -93,7 +102,7 @@ _UNUSABLE_RECORDS = MappingProxyType({
     "no lease": {_LEASE: None},
     "a kind this build does not authorize": {_KIND: "amend"},
     "a kind the recorded stage does not make": {
-        _KIND: str(_rewrites.LateRewriteKind.CONFLICT_REBASE),
+        _KIND: str(LateRewriteKind.CONFLICT_REBASE),
     },
     "a stage that makes the other kind": {
         _STAGE: str(WorkflowLabel.RESOLVING_CONFLICT),
@@ -113,7 +122,7 @@ _UNUSABLE_RECORDS = MappingProxyType({
 _REFUSED_WRITES = MappingProxyType({
     "a kind this build does not authorize": {"kind": "amend"},
     "a kind this stage does not make": {
-        "kind": _rewrites.LateRewriteKind.CONFLICT_REBASE,
+        "kind": LateRewriteKind.CONFLICT_REBASE,
     },
     "a stage that makes the other kind": {
         "source_stage": WorkflowLabel.RESOLVING_CONFLICT,
@@ -130,13 +139,13 @@ _REFUSED_WRITES = MappingProxyType({
 
 # Which reading a settlement was proved by, which the record now carries until
 # the report it owes has been made.
-_SETTLING_PROOF = _rewrites.LateRewriteProof.PUSHED
+_SETTLING_PROOF = LateRewriteProof.PUSHED
 
 
-def granted_rewrite(**overrides) -> _rewrites.LateRewrite:
+def granted_rewrite(**overrides) -> LateRewrite:
     """The squash a permit is granted over, with any term replaced."""
-    return _rewrites.LateRewrite(**{
-        "kind": _rewrites.LateRewriteKind.SQUASH,
+    return LateRewrite(**{
+        "kind": LateRewriteKind.SQUASH,
         "from_sha": CANDIDATE_SHA,
         "from_base_sha": MERGE_BASE_SHA,
         "to_sha": REWRITTEN_SHA,
@@ -195,7 +204,7 @@ class RecordedAuthorizationTest(unittest.TestCase):
     """What one granted transfer round trips as, and what it refuses to."""
 
     def test_the_granted_transfer_round_trips(self) -> None:
-        authorization = _rewrites.read_rewrite_authorization(
+        authorization = _rewrite_reading.read_rewrite_authorization(
             authorized_state(),
         )
 
@@ -203,14 +212,14 @@ class RecordedAuthorizationTest(unittest.TestCase):
         self.assertEqual(authorization.fingerprint, CONTRIBUTION_DIGEST)
         self.assertEqual(authorization.fingerprint_format, FINGERPRINT_FORMAT)
         self.assertEqual(
-            authorization.phase, _rewrites.LateRewritePhase.AUTHORIZED,
+            authorization.phase, LateRewritePhase.AUTHORIZED,
         )
 
     def test_no_group_authorizes_nothing(self) -> None:
         state = PinnedState(data={})
 
-        self.assertFalse(_rewrites.carries_rewrite_authorization(state))
-        self.assertIsNone(_rewrites.read_rewrite_authorization(state))
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(state))
+        self.assertIsNone(_rewrite_reading.read_rewrite_authorization(state))
 
     def test_another_commits_authorization_refuses(self) -> None:
         # The accepted end has to BE the commit the exemption names, because
@@ -225,7 +234,7 @@ class RecordedAuthorizationTest(unittest.TestCase):
                 state, granted_rewrite(), CONTRIBUTION_DIGEST,
             )
 
-        self.assertFalse(_rewrites.carries_rewrite_authorization(state))
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(state))
 
     def test_unrecordable_terms_are_refused(self) -> None:
         for described, overrides in _REFUSED_WRITES.items():
@@ -240,7 +249,7 @@ class RecordedAuthorizationTest(unittest.TestCase):
                     )
 
                 self.assertFalse(
-                    _rewrites.carries_rewrite_authorization(state),
+                    _rewrite_reading.carries_rewrite_authorization(state),
                 )
 
     def test_a_truncated_digest_is_refused(self) -> None:
@@ -260,7 +269,7 @@ class RecordedAuthorizationTest(unittest.TestCase):
 
         _late_state.clear_late_generation(state)
 
-        self.assertIsNotNone(_rewrites.read_rewrite_authorization(state))
+        self.assertIsNotNone(_rewrite_reading.read_rewrite_authorization(state))
         for key in _AUTHORIZATION_KEYS:
             with self.subTest(key=key):
                 self.assertNotIn(key, _late_keys.LATE_STATE_KEYS)
@@ -270,9 +279,9 @@ class RecordedAuthorizationTest(unittest.TestCase):
 
         _rewrites.clear_rewrite_authorization(state)
 
-        self.assertFalse(_rewrites.carries_rewrite_authorization(state))
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(state))
         self.assertEqual(
-            _exemption.read_exemption(state), CANDIDATE_SHA,
+            _exemption_reading.read_exemption(state), CANDIDATE_SHA,
         )
 
 
@@ -289,14 +298,14 @@ class SpentAuthorizationTest(unittest.TestCase):
         spent = _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
 
         self.assertEqual(spent, granted_rewrite())
-        self.assertEqual(_exemption.read_exemption(state), REWRITTEN_SHA)
-        identity = _exemption.read_semantic_identity(state)
+        self.assertEqual(_exemption_reading.read_exemption(state), REWRITTEN_SHA)
+        identity = _exemption_reading.read_semantic_identity(state)
         self.assertEqual(identity.base_sha, MERGE_BASE_SHA)
         self.assertEqual(identity.candidate_sha, REWRITTEN_SHA)
         self.assertEqual(identity.fingerprint, CONTRIBUTION_DIGEST)
-        authorization = _rewrites.read_rewrite_authorization(state)
+        authorization = _rewrite_reading.read_rewrite_authorization(state)
         self.assertEqual(
-            authorization.phase, _rewrites.LateRewritePhase.PUBLISHED,
+            authorization.phase, LateRewritePhase.PUBLISHED,
         )
         self.assertEqual(authorization.rewrite, granted_rewrite())
 
@@ -330,7 +339,7 @@ class SpentAuthorizationTest(unittest.TestCase):
 
         _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
 
-        self.assertFalse(_rewrites.outstanding_permission(state))
+        self.assertFalse(_rewrite_reading.outstanding_permission(state))
 
     def test_it_refuses_a_record_it_cannot_vouch_for(self) -> None:
         # Every way a permission fails to be one this build granted: nothing
@@ -369,14 +378,14 @@ class SettlementProofTest(unittest.TestCase):
         state = self._settled()
 
         self.assertEqual(
-            _rewrites.unreported_transfer(state), _SETTLING_PROOF,
+            _rewrite_reading.unreported_transfer(state), _SETTLING_PROOF,
         )
-        self.assertFalse(_rewrites.stranded_transfer_proof(state))
+        self.assertFalse(_rewrite_reading.stranded_transfer_proof(state))
 
         _rewrites.forget_transfer_proof(state)
 
-        self.assertIsNone(_rewrites.unreported_transfer(state))
-        self.assertFalse(_rewrites.stranded_transfer_proof(state))
+        self.assertIsNone(_rewrite_reading.unreported_transfer(state))
+        self.assertFalse(_rewrite_reading.stranded_transfer_proof(state))
 
     def test_an_unreportable_proof_is_damage(self) -> None:
         # Presence is what tells these apart from a comment that owes
@@ -388,7 +397,7 @@ class SettlementProofTest(unittest.TestCase):
                 {_PROOF: "not-a-reading"},
             ),
             "a phase the settlement never reached": self._damaged_proof(
-                {_PHASE: str(_rewrites.LateRewritePhase.AUTHORIZED)},
+                {_PHASE: str(LateRewritePhase.AUTHORIZED)},
             ),
             "a permission short of a member": self._damaged_proof(
                 {_LEASE: None},
@@ -396,8 +405,8 @@ class SettlementProofTest(unittest.TestCase):
         }
         for described, state in stranded.items():
             with self.subTest(standing=described):
-                self.assertIsNone(_rewrites.unreported_transfer(state))
-                self.assertTrue(_rewrites.stranded_transfer_proof(state))
+                self.assertIsNone(_rewrite_reading.unreported_transfer(state))
+                self.assertTrue(_rewrite_reading.stranded_transfer_proof(state))
 
     def test_a_grant_drops_the_proof_it_replaces(self) -> None:
         # A grant replaces the whole group, so the proof beside it describes
@@ -414,8 +423,8 @@ class SettlementProofTest(unittest.TestCase):
             CONTRIBUTION_DIGEST,
         )
 
-        self.assertFalse(_rewrites.stranded_transfer_proof(state))
-        self.assertIsNone(_rewrites.unreported_transfer(state))
+        self.assertFalse(_rewrite_reading.stranded_transfer_proof(state))
+        self.assertIsNone(_rewrite_reading.unreported_transfer(state))
 
     def test_a_rollback_drops_the_proof_beside_it(self) -> None:
         # The proof describes the transfer being dropped, so kept it would
@@ -426,7 +435,7 @@ class SettlementProofTest(unittest.TestCase):
         _rewrites.clear_rewrite_authorization(state)
 
         self.assertNotIn(_PROOF, state.data)
-        self.assertFalse(_rewrites.stranded_transfer_proof(state))
+        self.assertFalse(_rewrite_reading.stranded_transfer_proof(state))
 
     def _settled(self) -> PinnedState:
         """The comment one settled transfer leaves, through its own write."""
@@ -460,7 +469,7 @@ class DamagedAuthorizationTest(unittest.TestCase):
                 state = damaged_state(damage)
 
                 self.assertIsNone(
-                    _rewrites.read_rewrite_authorization(state),
+                    _rewrite_reading.read_rewrite_authorization(state),
                 )
 
     def test_a_null_member_is_still_a_claim(self) -> None:
@@ -470,9 +479,9 @@ class DamagedAuthorizationTest(unittest.TestCase):
         # damaged group would answer "no group at all" and be overwritten.
         state = PinnedState(data={_TO: None})
 
-        self.assertTrue(_rewrites.carries_rewrite_authorization(state))
-        self.assertTrue(_rewrites.claims_the_exemption(state))
-        self.assertIsNone(_rewrites.read_rewrite_authorization(state))
+        self.assertTrue(_rewrite_reading.carries_rewrite_authorization(state))
+        self.assertTrue(_rewrite_reading.claims_the_exemption(state))
+        self.assertIsNone(_rewrite_reading.read_rewrite_authorization(state))
 
     def test_a_damaged_record_is_still_a_claim(self) -> None:
         for described, damage in _UNUSABLE_RECORDS.items():
@@ -480,7 +489,7 @@ class DamagedAuthorizationTest(unittest.TestCase):
                 state = damaged_state(damage)
 
                 self.assertTrue(
-                    _rewrites.carries_rewrite_authorization(state),
+                    _rewrite_reading.carries_rewrite_authorization(state),
                 )
 
     def test_a_moved_exemption_stops_the_record(self) -> None:
@@ -491,4 +500,4 @@ class DamagedAuthorizationTest(unittest.TestCase):
 
         _exemption.record_exemption(state, BASE_SHA)
 
-        self.assertIsNone(_rewrites.read_rewrite_authorization(state))
+        self.assertIsNone(_rewrite_reading.read_rewrite_authorization(state))

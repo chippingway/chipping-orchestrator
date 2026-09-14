@@ -72,6 +72,12 @@ _ENGINE_OWNERS = (
 # telemetry reaches the analytics recorders, both of which import the `state`
 # owner's vocabulary back, so each has to load on its own.
 _LATE_SPLIT_OWNERS = (
+    "exemption_reading",
+    "ancestry",
+    "rewrite_values",
+    "rewrite_fields",
+    "rewrite_reading",
+
     "phases",
     "generation_reading",
     "collapses",

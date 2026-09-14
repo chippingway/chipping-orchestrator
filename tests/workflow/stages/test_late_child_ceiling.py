@@ -23,7 +23,7 @@ import unittest
 from types import MappingProxyType
 
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
+    exemption_reading as _exemption_reading,
     overrides as _overrides,
 )
 from tests.workflow.fixtures import (
@@ -41,7 +41,7 @@ from tests.workflow.stages.implementing import late_gate_test_support as _gate
 # The whole bypass, as a child's pinned comment would have to carry it: the
 # adjudication's exact-SHA claim, and the terms an operator authorized it on.
 _BYPASS_KEYS = (
-    _exemption.LATE_EXEMPT_SHA,
+    _exemption_reading.LATE_EXEMPT_SHA,
     _overrides.LATE_OVERRIDE_CANDIDATE_SHA,
     _overrides.LATE_OVERRIDE_BASE_SHA,
     _overrides.LATE_OVERRIDE_FINGERPRINT,

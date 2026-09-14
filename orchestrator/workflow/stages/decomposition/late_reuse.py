@@ -127,7 +127,7 @@ from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, refs as _snapshot_refs
 from orchestrator.github import client as _client, comments as _comments, pinned_state as _pinned_state
 from orchestrator.workflow.engine import guards as _guards
-from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
+from orchestrator.workflow.late_split import ancestry as _ancestry, lineage as _lineage, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 
 log = logging.getLogger("orchestrator.workflow")
@@ -317,7 +317,7 @@ def _refuses_unrecorded(
     made it -- and what stops the question being asked again, since a lineage
     with no snapshot on it returns above at once.
     """
-    claimed = _lineage.child_lineage(getattr(issue, "body", None))
+    claimed = _ancestry.child_lineage(getattr(issue, "body", None))
     if claimed is None:
         return False
     verdict, vouched = _unrecorded_verdict(gh, spec, issue, claimed)
@@ -346,8 +346,8 @@ def _unrecorded_verdict(
     gh: _client.GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
-    claimed: _lineage.LateAncestry,
-) -> tuple[_Reuse, _lineage.LateAncestry | None]:
+    claimed: _ancestry.LateAncestry,
+) -> tuple[_Reuse, _ancestry.LateAncestry | None]:
     """What an issue whose BODY claims a lineage may do, and on whose word.
 
     The receipt first, and on its own terms: it is a comment of ours, so it is
@@ -418,7 +418,7 @@ def _unvouched_verdict(recorded: LateGeneration) -> _Reuse:
 
 def _unrecorded_park(
     verdict: _Reuse,
-    vouched: _lineage.LateAncestry | None,
+    vouched: _ancestry.LateAncestry | None,
     owner: int,
 ) -> tuple[str, str]:
     """What this child is told, and what the park is filed under.
@@ -449,7 +449,7 @@ def _parked(
     gh: _client.GitHubClient,
     issue: Issue,
     state: _pinned_state.PinnedState,
-    ancestry: _lineage.LateAncestry,
+    ancestry: _ancestry.LateAncestry,
     park: tuple[str, str],
 ) -> bool:
     """Record what is left of the lineage, park the issue, and say why.
@@ -474,7 +474,7 @@ def _verdict(
     gh: _client.GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
-    ancestry: _lineage.LateAncestry,
+    ancestry: _ancestry.LateAncestry,
 ) -> _Reuse:
     """What this child may do with the snapshot it names, decided once.
 
@@ -517,7 +517,7 @@ def _verdict(
 
 
 def _asked_verdict(
-    spec: _config_models.RepoSpec, ancestry: _lineage.LateAncestry,
+    spec: _config_models.RepoSpec, ancestry: _ancestry.LateAncestry,
 ) -> _Reuse:
     """What the remote says about the ref one whole pointer names.
 
@@ -542,7 +542,7 @@ def _asked_verdict(
 
 
 def _receipt_verdict(
-    gh: _client.GitHubClient, issue: Issue, ancestry: _lineage.LateAncestry,
+    gh: _client.GitHubClient, issue: Issue, ancestry: _ancestry.LateAncestry,
 ) -> _Reuse | None:
     """What this child's own thread says about its snapshot, if anything.
 
@@ -563,7 +563,7 @@ def _receipt_verdict(
     a ref pushed again at the same commit -- so it holds the dispatch instead
     of falling through to them.
     """
-    marker = _lineage.release_marker(
+    marker = _ancestry.release_marker(
         owner=ancestry.parent_issue,
         cycle=ancestry.cycle_id,
         generation=ancestry.generation,
@@ -583,7 +583,7 @@ def _receipt_verdict(
 
 
 def _mirrored(
-    spec: _config_models.RepoSpec, ancestry: _lineage.LateAncestry,
+    spec: _config_models.RepoSpec, ancestry: _ancestry.LateAncestry,
 ) -> bool:
     """Whether this host still holds this child's own candidate, asked locally.
 

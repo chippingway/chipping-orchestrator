@@ -15,7 +15,7 @@ import unittest
 from dataclasses import replace
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
+from orchestrator.workflow.late_split import ancestry as _ancestry, lineage as _lineage, state as _late_state
 from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -80,7 +80,7 @@ class NestedLineageTest(LateSplitCase, unittest.TestCase):
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(self.github.created_child_issues, [])
 
-    def _split_once(self) -> _lineage.LateAncestry:
+    def _split_once(self) -> _ancestry.LateAncestry:
         """Split the issue under test, then become the child it created."""
         self._transact(children=_ONE_SLICE)
         child = first_child(self.github)
@@ -90,7 +90,7 @@ class NestedLineageTest(LateSplitCase, unittest.TestCase):
         self._become(child.number, ancestry)
         return ancestry
 
-    def _become(self, number: int, ancestry: _lineage.LateAncestry) -> None:
+    def _become(self, number: int, ancestry: _ancestry.LateAncestry) -> None:
         """Re-open this case on the child, under a generation from its seed.
 
         Exactly what a descendant's own size gate does: the lineage the
@@ -126,7 +126,7 @@ class ContradictedLineageTest(LateSplitCase, unittest.TestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.ancestry = _lineage.LateAncestry(
+        self.ancestry = _ancestry.LateAncestry(
             root_issue=ROOT_ISSUE,
             lineage_depth=MAX_LINEAGE_DEPTH - 1,
             parent_issue=ROOT_ISSUE,
