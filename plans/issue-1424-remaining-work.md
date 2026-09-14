@@ -60,22 +60,32 @@ resolved, and the global ceiling override is removed. The two new owners pass al
 Full validation with the default ceiling: 6216 passed, 49 skipped, 29862 subtests passed; collected test
 identities remain unchanged.
 
-The [branch acceptance audit](issue-1424-acceptance-audit.md) records implementation commit `0918fbaf`,
-108 paths / 129 pairs, zero stale or unmapped pairs, and each remaining owner's disposition. Compared with
-integrated `main` at `3d22380d`, this branch removes three pairs across two paths and adds none.
-Both implementation work packages are complete.
-Eight excluded children remained open at the audit status snapshot; the final merged-parent audit and
-GitHub checklist publication remain dependent on their completion and integration.
+The [branch acceptance audit](issue-1424-acceptance-audit.md) records implementation commit `fac15168`,
+107 paths / 129 pairs, zero stale or unmapped pairs, and each remaining owner's disposition. Compared with
+current `main` at `277100dd`, this branch removes three pairs across two paths and adds none.
+Both implementation work packages are complete. All ten tracked children are merged and included in the rebase;
+final parent closeout still requires this branch to merge and the resulting commit to be audited.
 
 Completion review restored the explicit `_is_adjudicable` predicate and separated recorded/frozen-candidate
 proofs into `late_evidence`. Admission retains its live-generation decision, owed-effect recovery, budget
 gate, and PR hold order. This removes the inlining used by the first coordinator split to fit its new owner.
 All 19 original coordinator function bodies are preserved apart from owner references across the six owners.
 
-Integrated the completed #1736 extraction from `main` at `3d22380d` in commit `0918fbaf`. Its removal is credited
-to the child separately. Ruff, configured WPS, and full validation pass: 6216 passed, 49 skipped, 29924 subtests
-passed, with all 6265 test identities unchanged. Eight open children still own nine exemption removals; final
-integration and the parent audit remain outstanding.
+On 2026-09-11, integrated the completed #1736 extraction from `main` at `3d22380d` in commit `0918fbaf`.
+Its removal is credited to the child separately. Ruff, configured WPS, and full validation pass: 6216 passed,
+49 skipped, 29924 subtests
+passed, with all 6265 test identities unchanged. At that point eight open children still owned nine exemption
+removals, with their integration and the parent audit outstanding.
+
+On 2026-09-14, rebased the twelve implementation and audit commits onto current `main` at `277100dd`, preserving
+the merged children and newer publication-safety behavior. Resolved five additional oversized imports introduced
+on main and updated the plan-transition race test to use its constants' defining owner. Current-main and rebased
+validation both report 6431 passed and 49 skipped, with all 6480 collected identities unchanged. Current main has
+132 exemption pairs; this branch has 129, all live. Nine newer main exemptions explain why the earlier projected
+120-pair end state is now 129. The audit includes WPS215 and links all ten merged child PRs.
+
+The completed rebase and subsequent import integration are audited at `fac15168`. The preserved pre-rebase
+tip is `d1c5df0a`, also retained locally as `backup/reduce-flake8-exclusions-before-rebase-20260914`.
 
 ## Scope and dependencies
 
