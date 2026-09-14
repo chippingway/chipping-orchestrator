@@ -536,8 +536,9 @@ workflow/                   marker package for state, engine, and stage owners
                             returning the way the pre-implementation routes do
       manifest.py           the fenced-block envelope rules both modes are held to, the JSON decode, and the parse entry
                             point the stage routes on
-      validation.py         what a `split` payload must satisfy: the child cap, each child's shape, and the acyclicity
-                            of the graph they declare
+      child_validation.py   child text and dependency shapes; dependency indices must be real integers naming another
+                            child in this manifest, and every malformed field is refused before graph traversal
+      validation.py         bounded nonempty child envelopes, umbrella flags, and graph acyclicity after child validation
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
                             dispositions after it: the unparsed park, the `single` finalize, and the `split` hand-off
       split.py              the crash-safe order a `split` manifest becomes child issues in, and the summary / label /
@@ -675,37 +676,10 @@ workflow/                   marker package for state, engine, and stage owners
                             `retry_cap` keeps its delivery and reconciliation phases on the budget's own audit
                             stream. This owner reads state and notice owners directly and never calls back into
                             park decisions
-      late_notice.py        the sentence a park owes the issue until it is actually on the thread: the durable
-                            `{reason, message}` beside the flag, matched against the park it explains, the thread
-                            read that discharges one a failed write left claiming the opposite of what GitHub holds,
-                            and the pinned budget a notice too long to write down is refused past -- the reserve
-                            beside what the record ALREADY costs rather than a flat ceiling, since a record an older
-                            binary left, or one written before the payload escaped the wrapper's own terminator, can
-                            sit outside that ceiling on its own and a sentence refused for it is a human never told.
-                            A sentence
-                            explaining a RECORDED outcome names that record rather than copying it: a marker where
-                            the explanation goes, bounded by this orchestrator's wording rather than an agent's, put
-                            back on the way to the thread on the first post and on every redelivery alike -- since
-                            an explanation an outcome could be recorded with would otherwise be one its own
-                            obligation could not be written beside. What goes back in is the WHOLE of it, blocked off
-                            by whichever of markdown's two fence characters the quote leaves cheap; the one no fence
-                            answers -- a long LINE of each, since only a line that is a run and nothing else can
-                            close one -- is blocked off in PIECES instead, so the long lines land in blocks of their
-                            own and every HTML-comment opener between them stays inside a block where it is shown
-                            rather than obeyed; every fence width from the shortest up to the widest line is tried by
-                            doubling and the smallest rendering wins. What ends a line is markdown's answer rather
-                            than this owner's -- a newline, a carriage return, or the pair -- so the quote is split
-                            on all three and rejoined by the terminators it arrived with, and a fence line written
-                            with a carriage return is one, rather than three characters the block it rides in could
-                            be closed at. Past what pieces hold, the quote goes in
-                            unblocked with its openers escaped a backslash apiece, and past what that holds it is cut
-                            and said to be cut -- unreachable for anything recorded here, and there because a comment
-                            GitHub refuses is rebuilt identically on every poll
-                            The thread read that finds a delivered one
-                            names the pinned comment by ID rather than by the marker in a body, since a sentence
-                            quoting that marker reads as the pinned comment to the body test -- and rewriting the
-                            marker out of the sentence instead would grow it per occurrence, past what GitHub
-                            accepts
+      late_notice_fences.py safe Markdown fencing for a whole recorded explanation; candidate fence caps preserve line
+                            endings, split hostile closing runs into blocks, and select the shortest complete rendering
+      late_notice.py        durable park notices, explanation insertion, comment-size fallbacks, and authenticated receipt
+                            reads; the notice must still match the standing park, and a failed read leaves it owed
       late_owner.py         the fresh tri-state read EVERY completed run passes before anything acts on what it
                             left: the latch consulted ahead of GitHub, since a close a poll saw while this worker
                             held the issue is the one reading a request cannot give back, the standing claim it is
@@ -1030,12 +1004,9 @@ workflow/                   marker package for state, engine, and stage owners
                             overtake, and since the retirement that hands the issue to `workflow:umbrella`
                             outlives neither the children still to be released nor the branch still to be
                             deleted
-      late_budget.py        the addition budget one proposed child declares: the manifest field the prompt asks
-                            under and the parser, the record, and the child issue all read back, and the one rule
-                            for what a declared budget IS -- a whole number of at least one line, so a bool, a
-                            float, a numeric string, and zero each read back as no budget at all. What an absent
-                            one earns stays the caller's: a fresh reply is refused, a record writes none, and a
-                            child issue states none
+      late_budget.py        the declared addition-budget field and positive whole-line reader, plus fresh-reply bounds;
+                            each proposed child needs a count strictly below the frozen ceiling, while legacy records
+                            can still omit a budget
       late_prompt.py        the late-only prompt: the committed candidate, the frozen diff, the measurement, the
                             lineage, and the three outcomes with the bounds they are judged against and the two
                             field names they are answered under, read off the owners that read the reply -- the
@@ -1045,16 +1016,9 @@ workflow/                   marker package for state, engine, and stage owners
                             under this generation's own ceiling -- the figure its own JSON template shows scaled
                             to that ceiling, since a template is copied verbatim and a standing one would be a
                             child the reply contract refuses wherever the ceiling is narrower than it
-      late_reply.py         the late reply's own fence, its three structured decisions, and the envelope and split rules
-                            it borrows from the initial mode -- plus the two rules that are this owner's alone and
-                            are asked of a fresh reply and of nothing recorded: the explanation a `single` owes for
-                            why no safe split is available, without which the verdict a human has to act on carries
-                            none of what it turns on, and the per-child addition budget, required and bounded
-                            against the ceiling this candidate was measured at. Neither is asked of a record: the
-                            borrowed validator also reads back manifests written before any budget existed, and a
-                            `single` recorded before the explanation was kept still answers, with a stand-in. The
-                            number itself travels past this owner, since the record keeps it and the child issue
-                            created from the slice states it
+      late_reply.py         the late reply envelope and its three structured decisions; fresh split replies use the
+                            shared child validator and budget bounds, and a single decision must explain why no safe
+                            split exists before it can be presented for a human decision
       late_content.py       WHICH content the two late-local fingerprints are taken over -- the title and body, and
                             the trusted-thread run the ratcheting watermark covers -- what a comparison against a
                             recorded baseline says moved, and the floor a comment has to clear to be a REPLY rather
@@ -1074,11 +1038,11 @@ workflow/                   marker package for state, engine, and stage owners
                             recognized through `engine/messages` rather than re-read here, and neither is kept out
                             of the digest the owner above takes -- a counted command edited after the fact is
                             exactly what that digest exists to catch
-      late_guidance.py      what that comparison earns: the baseline a first tick takes, the park an edit wins over
-                            every concurrent answer, the certificate a bare continue writes, the question a real
-                            answer reopens, the continue that answers none, and the routing of the `single` park to
-                            the owner that ends it -- routed rather than answered, since what ends that one is a
-                            decision to publish past the size gate rather than a reading of what the humans said
+      late_guidance.py      initial content baselines, drift parks, and routing of trusted guidance or bare continues
+                            over the same frozen candidate
+      late_answers.py       parked-answer dispatch, reverted edits, certification, question reopening, and reply consumption;
+                            every consumed reading rebaselines and persists its watermark, while a bare continue cannot
+                            answer a decomposer question
       late_revision.py      the developer run guidance buys -- the locked session resumed under `agent_role=developer`
                             and `stage=decomposing`, with a latched close asked on BOTH sides of it, since a resume
                             is the same step a spawn is and the run takes hours -- and the followup it is resumed

@@ -1,29 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The addition budget one proposed child declares, wherever it is met.
+"""Declared child addition budgets and the bounds required by fresh replies.
 
-Four owners meet that number and each meets it in a different world: the
-prompt asks for it, the reply contract judges what an agent just said, the
-pinned record keeps what a crashed tick reads back, and the child issue tells
-the developer implementing the slice what it was sized at. So the field and
-the rule for reading one are here, in the module all four already name --
-because a key spelled twice would let a prompt ask for one name while the
-parser reads another, and a rule spelled twice would let a record hold a
-budget the body that renders it refuses.
-
-What counts as a declared budget is a whole number of at least one line, and
-nothing that merely converts to one: a bool, a float, and a numeric string are
-each a value nothing estimated, and zero and below say a slice of an oversized
-candidate adds nothing. Every one of them reads back as no budget at all, so a
-hand edit cannot put prose where a child issue states a size.
-
-What an absent budget earns is the CALLER's, deliberately, because the answer
-differs by who is asking. A fresh reply is refused over one, since a missing
-number is a protocol failure and a reply is the last place a proposal can be
-sent back before it becomes issues. A record writes none, so nothing this
-binary invented reaches the comment humans read. And a child body says nothing
-about a size nobody declared -- which is what a manifest recorded before this
-domain kept budgets reads back as, and those still create children.
+The scalar reader accepts only a positive whole-line count. A fresh split
+reply requires one for every child and checks it strictly below the frozen
+threshold; older recorded children can still carry no declared budget.
 """
 from __future__ import annotations
 
@@ -54,3 +35,37 @@ def declared_budget(child: Any) -> int | None:
     if not _formats.whole_number(estimated) or estimated < MIN_ESTIMATE:
         return None
     return estimated
+
+_NO_ESTIMATE = (
+    f"child {{0}} needs an `{ESTIMATE}` of at least one whole line"
+)
+
+_ESTIMATE_PAST_CEILING = (
+    f"child {{0}} declares an `{ESTIMATE}` of {{1}}, which is not "
+    "below the {2}-line ceiling this split has to get under"
+)
+
+
+def _estimates_error(
+    children: tuple, threshold: int | None,
+) -> str | None:
+    """Return the first child whose declared addition budget is not one.
+
+    What a budget IS is the shared owner's, since the record this reply
+    becomes and the child issue it creates both read one back. What an absent
+    one costs is this owner's alone: a fresh reply that declared no size for a
+    slice is refused, because a proposal nobody sized can still be re-asked
+    for the price of the run that is already over.
+
+    A number at or past the ceiling is refused beside it, because a child that
+    big is this same adjudication again with an issue number in front of it.
+    """
+    for child_index, child in enumerate(children):
+        estimated = declared_budget(child)
+        if estimated is None:
+            return _NO_ESTIMATE.format(child_index)
+        if threshold is not None and estimated >= threshold:
+            return _ESTIMATE_PAST_CEILING.format(
+                child_index, estimated, threshold,
+            )
+    return None

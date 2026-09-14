@@ -9,10 +9,8 @@ per-file-ignores =
     orchestrator/workflow/engine/dispatch.py:WPS201,WPS202
     orchestrator/workflow/engine/terminals.py:WPS202
     orchestrator/workflow/stages/decomposition/late_authorize.py:WPS202
-    orchestrator/workflow/stages/decomposition/late_guidance.py:WPS202
     orchestrator/workflow/stages/decomposition/late_hold.py:WPS202,WPS204
     orchestrator/workflow/stages/decomposition/late_models.py:WPS202
-    orchestrator/workflow/stages/decomposition/late_notice.py:WPS202
     orchestrator/workflow/stages/decomposition/late_owner.py:WPS202
     orchestrator/workflow/stages/decomposition/late_children.py:WPS202
     orchestrator/workflow/stages/decomposition/late_cancellation.py:WPS202
@@ -23,8 +21,6 @@ per-file-ignores =
     orchestrator/workflow/stages/decomposition/late_session.py:WPS202
     orchestrator/workflow/stages/decomposition/split.py:WPS202
     orchestrator/workflow/stages/decomposition/umbrella.py:WPS202
-    orchestrator/workflow/stages/decomposition/validation.py:WPS202
-    orchestrator/workflow/stages/decomposition/late_reply.py:WPS202
     orchestrator/workflow/stages/implementing/disposition.py:WPS202
     orchestrator/workflow/stages/implementing/late_command.py:WPS202
     orchestrator/workflow/stages/implementing/late_consent.py:WPS202

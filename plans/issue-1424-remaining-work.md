@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 32 paths and 36 pairs (36 production, 0
-test), all matching isolated diagnostics. Ninety-three pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 28 paths and 32 pairs (32 production, 0
+test), all matching isolated diagnostics. Ninety-seven pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201, WPS202, and WPS204. The files must stay until that set is empty and
 validation passes.
@@ -121,12 +121,20 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 39 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate conflict recovery refusals, replay persistence, and park notices;
+- `e181a6cd`: separate conflict recovery refusals, replay persistence, and park notices;
   move replay values to the existing conflict-model owner. Three production WPS202 pairs removed. The original
   owners retain divergence publication, exact-pair evidence, and conflict-round settlement. All 79 function/method
   bodies and 73 whole definitions match after resolving owner imports. The focused run passes 254 tests; the final
   test-alias correction passes all 10 affected real-Git cases.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 36 remaining production
+  pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate child-manifest validation, safe explanation fencing, and late-park
+  answers; move fresh-reply estimate bounds to the existing child-budget owner. Four production WPS202 pairs
+  removed. The original owners retain manifest envelopes and cycles, structured replies, notice obligations,
+  and content-drift routing. All 51 function/method bodies and 49 whole definitions match after resolving owner
+  imports. The focused run passes 1,110 tests.
+  Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 32 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes
