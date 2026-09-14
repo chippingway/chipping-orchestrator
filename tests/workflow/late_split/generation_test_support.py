@@ -21,8 +21,15 @@ from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import events as _events, state as _late_state
 from orchestrator.workflow.late_split.identity import RESOURCE_FINGERPRINT_LENGTH
-from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.obligations import (
+    LateObligations,
+    LateResource,
+    LateResourceKind,
+    LateResourceState,
+)
 from orchestrator.workflow.late_split.phases import LatePhase
+from orchestrator.workflow.late_split.publication import PublicationContext
 from orchestrator.workflow.state import WorkflowLabel
 
 REPO = "chippingway/orchestrator"
@@ -65,12 +72,10 @@ PUBLISHED_SHA = "e" * SHA_LENGTH
 # The whole of what a generation entered on an existing pull request carries,
 # described once: the round trip writes it, the record projects it onto the
 # closed pair, and the key tells it apart from an initial publication.
-ENTERED_ON_PUBLICATION = MappingProxyType({
-    "post_publication": True,
-    "source_stage": SOURCE_STAGE,
-    "published_pr_number": PUBLISHED_PR_NUMBER,
-    "published_sha": PUBLISHED_SHA,
-})
+PUBLICATION_CONTEXT = PublicationContext.enter(
+    stage=SOURCE_STAGE, pr_number=PUBLISHED_PR_NUMBER, published_sha=PUBLISHED_SHA,
+)
+ENTERED_ON_PUBLICATION = MappingProxyType({"publication": PUBLICATION_CONTEXT})
 # The pair a transfer moved a verdict OFF. The pair it moved onto is the
 # generation's own frozen pair, which is why only these two travel on the
 # event.
@@ -174,8 +179,7 @@ def full_generation() -> LateGeneration:
         measurement_miss_count=MEASUREMENT_MISS_COUNT,
         measurement_failure=MEASUREMENT_FAILURE,
         **ENTERED_ON_PUBLICATION,
-        resources=(SNAPSHOT,),
-        consumers=(21, 22),
+        obligations=LateObligations(resources=(SNAPSHOT,), consumers=(21, 22)),
         owner_check_pending=True,
         cancelled=True,
         cancelled_at=CANCELLED_AT,

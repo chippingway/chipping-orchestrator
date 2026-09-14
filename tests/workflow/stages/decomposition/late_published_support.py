@@ -10,6 +10,7 @@ publication group, and the pull request it names.
 from __future__ import annotations
 
 from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.publication import PublicationContext
 from tests.support.fakes import (
     FakeGitHubClient,
     FakePR,
@@ -29,11 +30,14 @@ def published_generation(
     *, stage: str = PUBLISHED_SOURCE_STAGE, **overrides,
 ) -> LateGeneration:
     """The same oversized generation, entered on a pull request that exists."""
-    return late_generation(**overrides).with_publication(
-        stage=stage,
-        pr_number=PUBLISHED_PR_NUMBER,
-        published_sha=PUBLISHED_HEAD_SHA,
-    )
+    return late_generation(**{
+        **overrides,
+        "publication": PublicationContext.enter(
+            stage=stage,
+            pr_number=PUBLISHED_PR_NUMBER,
+            published_sha=PUBLISHED_HEAD_SHA,
+        ),
+    })
 
 
 def seed_published_pr(

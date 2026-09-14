@@ -4,11 +4,8 @@
 from __future__ import annotations
 
 from orchestrator.workflow.late_split import events as _events
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateResource,
-    LateVerdict,
-)
+from orchestrator.workflow.late_split.models import LateFailure, LateVerdict
+from orchestrator.workflow.late_split.obligations import LateResource
 from orchestrator.workflow.late_split.rewrite_values import LateRewriteKind, LateRewriteProof
 from tests.workflow.late_split.generation_test_support import (
     CHILD_COUNT,

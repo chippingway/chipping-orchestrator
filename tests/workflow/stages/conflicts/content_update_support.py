@@ -22,6 +22,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
+from orchestrator.workflow.late_split.publication import PublicationContext
 from tests.workflow.other_labels import LABEL_RESOLVING_CONFLICT
 from tests.workflow.repo_values import (
     MEASURED_BASE_SHA,
@@ -59,10 +60,11 @@ def recorded_generation(**overrides) -> dict:
             "threshold": GATE_CEILING,
             "phase": LatePhase.MEASURING,
             **overrides,
-        }).with_publication(
-            stage=LABEL_RESOLVING_CONFLICT,
-            pr_number=CONFLICT_PR,
-            published_sha=CONFLICT_PR_HEAD_SHA,
-        ),
+            "publication": PublicationContext.enter(
+                stage=LABEL_RESOLVING_CONFLICT,
+                pr_number=CONFLICT_PR,
+                published_sha=CONFLICT_PR_HEAD_SHA,
+            ),
+        }),
     )
     return recorded.data

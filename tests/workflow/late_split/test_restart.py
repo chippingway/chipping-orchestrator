@@ -7,10 +7,8 @@ import dataclasses
 import unittest
 
 from orchestrator.workflow.late_split import formats as _formats, restart as _restart
-from orchestrator.workflow.late_split.models import (
-    LateGeneration,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from tests.workflow.late_split import generation_test_support as _support
 
 _IMPLEMENTING = "workflow:implementing"
@@ -27,8 +25,12 @@ _UNRECONCILED = (
 
 def _owing(recorded_state) -> LateGeneration:
     """A cancelled generation whose one obligation is in `recorded_state`."""
-    return _support.full_generation().with_resource(
-        dataclasses.replace(_support.SNAPSHOT, resource_state=recorded_state),
+    generation = _support.full_generation()
+    return dataclasses.replace(
+        generation,
+        obligations=generation.obligations.with_resource(
+            dataclasses.replace(_support.SNAPSHOT, resource_state=recorded_state),
+        ),
     )
 
 
@@ -177,7 +179,11 @@ class RetireRestartTest(unittest.TestCase):
         # What it could not type it also cannot see the state of.
         for held in ("opaque_resources", "opaque_consumers"):
             with self.subTest(ledger=held):
-                opaque = dataclasses.replace(_settled(), **{held: "[1]"})
+                settled = _settled()
+                opaque = dataclasses.replace(
+                    settled,
+                    obligations=dataclasses.replace(settled.obligations, **{held: "[1]"}),
+                )
                 self.assertFalse(_restart.obligations_settled(opaque))
                 with self.assertRaises(_REFUSED):
                     _restart.retire_restart(opaque)

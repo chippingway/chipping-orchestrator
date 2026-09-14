@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import late_hold_text as _late_hold_text
 from orchestrator.workflow.state import WorkflowLabel

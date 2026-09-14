@@ -331,7 +331,7 @@ def _routed_notice(generation: LateGeneration) -> str:
     whole, so a half-damaged one describes the hold it can actually vouch for
     instead of naming a pull request the record cannot show.
     """
-    if not generation.has_publication_context:
+    if not generation.publication.is_complete:
         return _ROUTED_NOTICE.format(
             additions=generation.additions,
             threshold=generation.threshold,
@@ -342,7 +342,7 @@ def _routed_notice(generation: LateGeneration) -> str:
         additions=generation.additions,
         threshold=generation.threshold,
         candidate=generation.candidate_sha,
-        pull_request=generation.published_pr_number,
-        published=generation.published_sha,
+        pull_request=generation.publication.published_pr_number,
+        published=generation.publication.published_sha,
         label=WorkflowLabel.DECOMPOSING,
     )

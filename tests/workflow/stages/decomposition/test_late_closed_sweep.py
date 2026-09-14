@@ -17,7 +17,12 @@ from unittest.mock import MagicMock
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.workflow.late_split import restart as _restart, state as _late_state
-from orchestrator.workflow.late_split.models import LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.obligations import (
+    LateObligations,
+    LateResource,
+    LateResourceKind,
+    LateResourceState,
+)
 from orchestrator.workflow.late_split.phases import LatePhase
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import late_cleanup_support as _support
@@ -80,14 +85,14 @@ def _seed_nested_generation(seeded) -> None:
     _late_state.write_late_generation(child_state, late_generation(
         threshold=None,
         additions=None,
-        resources=(),
         current_issue=_support.CHILD_NUMBER,
         generation=GENERATION_NUMBER + 1,
-    ).with_consumers((_GRANDCHILD_NUMBER,)).with_resource(LateResource(
-        kind=LateResourceKind.SNAPSHOT_REF,
-        target=_NESTED_REF,
-        resource_state=LateResourceState.RETAINED,
-    )))
+        obligations=LateObligations().with_consumers((_GRANDCHILD_NUMBER,)).with_resource(LateResource(
+            kind=LateResourceKind.SNAPSHOT_REF,
+            target=_NESTED_REF,
+            resource_state=LateResourceState.RETAINED,
+        )),
+    ))
     seeded.github.seed_state(_support.CHILD_NUMBER, **child_state.data)
 
 

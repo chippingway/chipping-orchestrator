@@ -11,8 +11,8 @@ from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
 from orchestrator.github import comments as _github_comments
 from orchestrator.workflow.late_split import (
     ancestry as _ancestry,
-    generation_reading as _generation_reading,
     identity as _identity,
+    models as _late_models,
 )
 from orchestrator.workflow.stages.decomposition import (
     late_budget as _budget,
@@ -187,7 +187,7 @@ def _child_body(
             remote=context.spec.remote_name,
             root=generation.root_issue,
             depth=_identity.child_lineage_depth(generation.lineage_depth),
-            bound=_generation_reading.MAX_LINEAGE_DEPTH,
+            bound=_late_models.MAX_LINEAGE_DEPTH,
             cycle=generation.cycle_id,
             generation=generation.generation,
         ),

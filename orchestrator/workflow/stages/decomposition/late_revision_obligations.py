@@ -37,7 +37,7 @@ would have used.
 """
 from __future__ import annotations
 
-from orchestrator.workflow.late_split.models import LateResourceKind
+from orchestrator.workflow.late_split.obligations import LateResourceKind
 from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     late_revision_reconciliation as _late_reconciliation,
@@ -104,9 +104,9 @@ def _owes_a_snapshot(generation) -> bool:
     exactly that obligation, and the one reading it must not take is the one
     that lets the candidate under it be replaced.
     """
-    if generation.has_opaque_ledger:
+    if generation.obligations.is_opaque:
         return True
     return any(
         entry.kind == LateResourceKind.SNAPSHOT_REF
-        for entry in generation.resources
+        for entry in generation.obligations.resources
     )

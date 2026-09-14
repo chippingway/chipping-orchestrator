@@ -51,8 +51,7 @@ from types import MappingProxyType
 from typing import Any
 
 from orchestrator.workflow.late_split import events as _events, formats as _formats, restart as _restart
-from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
-from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH, LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -70,8 +69,6 @@ _IDENTITY_FLOORS = MappingProxyType({
 # Spelled once because three families are read by it and the shape check
 # below reads it too.
 _FROZEN_PAIR = ("candidate_sha", "base_sha")
-
-_SHA_FIELDS = (*_FROZEN_PAIR, "plan_pr_head", "published_sha")
 
 # What a family's own record is read without. A measurement and the verdict
 # answering it are the two an analysis joins on: which commits were frozen,
@@ -99,16 +96,6 @@ _FAMILY_CONTEXT = MappingProxyType({
 # publication group only reaches a payload under the marker that claims it --
 # so a record that needs the group needs the marker with it.
 _PUBLISHED_FAMILIES = frozenset((_events.LateEventFamily.TRANSFER,))
-
-_COUNT_FIELDS = (
-    "threshold",
-    "additions",
-    "plan_pr_number",
-    "published_pr_number",
-    "comment_watermark_id",
-    "restart_cycle_id",
-    "restart_predecessor",
-)
 
 
 def check_record(event: _events.LateEvent, generation: LateGeneration) -> None:
@@ -144,9 +131,9 @@ def _check_family_context(family: Any, generation: LateGeneration) -> None:
         given = getattr(generation, name)
         _require(given is not None and given != "", name, given)
     if family in _PUBLISHED_FAMILIES:
-        marked = generation.post_publication
+        marked = generation.publication.post_publication
         _require(
-            bool(marked) and generation.has_publication_context,
+            bool(marked) and generation.publication.is_complete,
             "post_publication",
             marked,
         )
@@ -178,7 +165,7 @@ def _check_shape(generation: LateGeneration) -> None:
     _require(
         phase is None or isinstance(phase, LatePhase), "phase", phase,
     )
-    stage = generation.source_stage
+    stage = generation.publication.source_stage
     _require(
         stage is None or isinstance(stage, WorkflowLabel),
         "source_stage",
@@ -190,10 +177,10 @@ def _check_shape(generation: LateGeneration) -> None:
         "restart_target",
         target,
     )
-    marked = generation.post_publication
+    marked = generation.publication.post_publication
     _require(
         isinstance(marked, bool)
-        and (not marked or generation.has_publication_context),
+        and (not marked or generation.publication.is_complete),
         "post_publication",
         marked,
     )
@@ -201,12 +188,25 @@ def _check_shape(generation: LateGeneration) -> None:
 
 def _check_fields(generation: LateGeneration) -> None:
     """Require the commits to be commits and the counts to be counts."""
-    for sha_field in _SHA_FIELDS:
-        given = getattr(generation, sha_field)
-        _require(_formats.optional_commit_id(given), sha_field, given)
-    for count_field in _COUNT_FIELDS:
-        counted = getattr(generation, count_field)
-        _require(_formats.optional_count(counted), count_field, counted)
+    commits = {
+        "candidate_sha": generation.candidate_sha,
+        "base_sha": generation.base_sha,
+        "plan_pr_head": generation.plan_pr_head,
+        "published_sha": generation.publication.published_sha,
+    }
+    for name, given in commits.items():
+        _require(_formats.optional_commit_id(given), name, given)
+    counts = {
+        "threshold": generation.threshold,
+        "additions": generation.additions,
+        "plan_pr_number": generation.plan_pr_number,
+        "published_pr_number": generation.publication.published_pr_number,
+        "comment_watermark_id": generation.comment_watermark_id,
+        "restart_cycle_id": generation.restart_cycle_id,
+        "restart_predecessor": generation.restart_predecessor,
+    }
+    for name, given in counts.items():
+        _require(_formats.optional_count(given), name, given)
 
 
 def _require(allowed: bool, name: str, given: Any) -> None:

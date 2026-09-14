@@ -144,13 +144,21 @@ class RoundTripTest(unittest.TestCase):
         self.assertEqual(written["late_phase"], "snapshotting")
         self.assertEqual(written[_MEASUREMENT_FAILURE_KEY], "diff_unreadable")
         self.assertEqual(written["late_cancelled_phase"], "splitting")
-        self.assertEqual(
-            written[_RESOURCES_KEY],
-            [{
+        component_fields = {
+            _RESOURCES_KEY: [{
                 _KIND_KEY: "snapshot_ref",
                 "target": _support.SNAPSHOT_REF,
                 "state": "retained",
             }],
+            "late_consumers": [21, 22],
+            _POST_PUBLICATION_KEY: True,
+            _SOURCE_STAGE_KEY: "in_review",
+            _PUBLISHED_PR_KEY: _support.PUBLISHED_PR_NUMBER,
+            _PUBLISHED_SHA_KEY: _support.PUBLISHED_SHA,
+        }
+        self.assertEqual(
+            {key: written[key] for key in component_fields},
+            component_fields,
         )
 
     def test_a_cleared_field_leaves_no_stale_value(self) -> None:
@@ -287,13 +295,13 @@ class PublicationProvenanceTest(unittest.TestCase):
 
     def test_the_whole_context_survives_a_round_trip(self) -> None:
         read_back = _support.read_state(_written(_support.full_generation()))
-        self.assertTrue(read_back.post_publication)
-        self.assertIs(read_back.source_stage, WorkflowLabel.IN_REVIEW)
+        self.assertTrue(read_back.publication.post_publication)
+        self.assertIs(read_back.publication.source_stage, WorkflowLabel.IN_REVIEW)
         self.assertEqual(
-            read_back.published_pr_number, _support.PUBLISHED_PR_NUMBER,
+            read_back.publication.published_pr_number, _support.PUBLISHED_PR_NUMBER,
         )
-        self.assertEqual(read_back.published_sha, _support.PUBLISHED_SHA)
-        self.assertTrue(read_back.has_publication_context)
+        self.assertEqual(read_back.publication.published_sha, _support.PUBLISHED_SHA)
+        self.assertTrue(read_back.publication.is_complete)
 
     def test_a_pre_publication_entry_adds_no_key(self) -> None:
         # One state, one spelling: a generation entered before the work was
@@ -304,8 +312,8 @@ class PublicationProvenanceTest(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertNotIn(key, state.data)
         read_back = _support.read_state(state)
-        self.assertFalse(read_back.post_publication)
-        self.assertFalse(read_back.has_publication_context)
+        self.assertFalse(read_back.publication.post_publication)
+        self.assertFalse(read_back.publication.is_complete)
 
     def test_the_marker_alone_is_not_a_publication(self) -> None:
         # Each field beside the flag is read fail-closed, so a hand edit can
@@ -319,8 +327,8 @@ class PublicationProvenanceTest(unittest.TestCase):
 
                 read_back = _support.read_state(damaged)
 
-                self.assertTrue(read_back.post_publication)
-                self.assertFalse(read_back.has_publication_context)
+                self.assertTrue(read_back.publication.post_publication)
+                self.assertFalse(read_back.publication.is_complete)
 
     def test_a_damaged_identity_writes_what_it_owes(self) -> None:
         # The provenance is correlated by the identity beside it, so a record
@@ -346,7 +354,7 @@ class LegacyCompatibilityTest(unittest.TestCase):
         read_back = _support.read_state(state)
         self.assertEqual(read_back, LateGeneration())
         self.assertFalse(read_back.is_present)
-        self.assertFalse(read_back.post_publication)
+        self.assertFalse(read_back.publication.post_publication)
 
     def test_writing_an_absent_generation_is_a_no_op(self) -> None:
         # The whole compatibility claim: a handler that reads and writes late

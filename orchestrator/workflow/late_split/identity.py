@@ -40,8 +40,8 @@ import hashlib
 from collections.abc import Iterable
 
 from orchestrator.workflow.late_split import formats as _formats
-from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
-from orchestrator.workflow.late_split.models import LateResource
+from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.late_split.obligations import LateResource
 
 # How much of the digest a telemetry record carries. Long enough that two
 # resources of one generation cannot collide in practice, short enough to stay

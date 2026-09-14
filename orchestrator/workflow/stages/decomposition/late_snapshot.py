@@ -50,7 +50,8 @@ from types import MappingProxyType
 
 from orchestrator.git.snapshots import namespace as _namespace, refs as _snapshot_refs
 from orchestrator.workflow.late_split import events as _events, formats as _formats, telemetry as _telemetry
-from orchestrator.workflow.late_split.models import LateFailure, LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.models import LateFailure
+from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
@@ -170,11 +171,13 @@ def _recorded(
     that quietly disappears is a ref nobody reclaims.
     """
     try:
-        updated = context.generation.with_resource(LateResource(
-            kind=LateResourceKind.SNAPSHOT_REF,
-            target=ref,
-            resource_state=resource_state,
-        ))
+        updated = replace(
+            context.generation, obligations=context.generation.obligations.with_resource(LateResource(
+                kind=LateResourceKind.SNAPSHOT_REF,
+                target=ref,
+                resource_state=resource_state,
+            )),
+        )
     except _formats.InvalidLateValue:
         log.error(
             "issue=#%d cannot record the snapshot obligation: %s",

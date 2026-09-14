@@ -265,12 +265,13 @@ workflow/                   marker package for state, engine, and stage owners
                             carries is bounded by the rule that guards it, and the one refusal every owner raises
                             over any of them
     phases.py               durable phase vocabulary and the in-flight, settled-split, and pre-transaction boundaries
-    generation_reading.py   read-only generation predicates: presence, measured size, bounded lineage, opaque ledgers,
-                            settled children, and complete post-publication provenance; the lineage cap is a fixed
-                            safety invariant, and unreadable depth cannot unlock another split
-    models.py               verdict, failure, and resource vocabularies, resource records, and the frozen generation
-                            with immutable updates; updates retain cancellation provenance, refuse opaque-ledger
-                            rewrites, and prevent rewinding an in-flight transaction
+    models.py               verdict and failure vocabularies, and the frozen generation's measurement, bounded
+                            lineage, ordered child register, and lifecycle; immutable updates preserve cancellation
+                            provenance and prevent rewinding an in-flight transaction
+    obligations.py          resource kinds, states, and entries, with frozen resource and consumer ledgers; keyed
+                            updates are idempotent, and opaque ledgers refuse updates that a write would discard
+    publication.py          frozen publication context with validated entry and a fail-closed completeness predicate;
+                            the marker, source stage, pull request number, and head are one reconciliation claim
     identity.py             the monotonic cycle and generation identities, the child depth the bound still allows,
                             the two local content fingerprints a scope edit and a trusted answer are told apart by,
                             and the bounded name-free print one ledger entry is reported under

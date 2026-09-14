@@ -173,7 +173,7 @@ def _refused_split(
     """
     if not context.generation.may_split:
         return _AT_BOUND_PARK
-    if context.generation.has_opaque_ledger:
+    if context.generation.obligations.is_opaque:
         return _OPAQUE_LEDGER_PARK
     contradicted = _lineage.contradicted_lineage(
         context.state, context.generation,

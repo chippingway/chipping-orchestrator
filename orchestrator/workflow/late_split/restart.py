@@ -43,10 +43,8 @@ from enum import StrEnum
 from typing import Any
 
 from orchestrator.workflow.late_split import formats as _formats, identity as _identity
-from orchestrator.workflow.late_split.models import (
-    LateGeneration,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from orchestrator.workflow.state import WorkflowLabel
 
 
@@ -78,11 +76,11 @@ def obligations_settled(generation: LateGeneration) -> bool:
     obligation of its own, and a snapshot still being retained is a resource
     entry that has not reconciled.
     """
-    if generation.has_opaque_ledger:
+    if generation.obligations.is_opaque:
         return False
     return all(
         entry.resource_state is LateResourceState.RECONCILED
-        for entry in generation.resources
+        for entry in generation.obligations.resources
     )
 
 

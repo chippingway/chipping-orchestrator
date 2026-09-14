@@ -85,13 +85,12 @@ from typing import Any
 
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.late_split import formats as _formats
-from orchestrator.workflow.late_split.models import (
+from orchestrator.workflow.late_split.models import LateFailure, LateVerdict
+from orchestrator.workflow.late_split.obligations import (
     MAX_RESOURCE_TARGET,
-    LateFailure,
     LateResource,
     LateResourceKind,
     LateResourceState,
-    LateVerdict,
 )
 from orchestrator.workflow.late_split.rewrite_values import LateRewriteKind, LateRewriteProof
 

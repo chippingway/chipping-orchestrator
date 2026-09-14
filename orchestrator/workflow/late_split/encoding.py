@@ -38,16 +38,17 @@ from orchestrator.workflow.late_split import (
     ledger_encoding as _ledger_encoding,
 )
 from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.publication import PublicationContext
 
 
 def written_fields(generation: LateGeneration) -> dict[str, Any]:
     """Return the pinned fields this generation records, unset ones out."""
-    ledgers = _ledger_encoding.ledger_fields(generation)
+    ledgers = _ledger_encoding.ledger_fields(generation.obligations)
     if not generation.is_present:
         return ledgers
     fields = {
         **_evidence_fields(generation),
-        **_publication_fields(generation),
+        **_publication_fields(generation.publication),
         **ledgers,
         _keys.SPLIT_CHILDREN: list(generation.split_children) or None,
         _keys.LINKS_ANNOUNCED: generation.links_announced or None,
@@ -116,7 +117,7 @@ def _evidence_fields(generation: LateGeneration) -> dict[str, Any]:
     }
 
 
-def _publication_fields(generation: LateGeneration) -> dict[str, Any]:
+def _publication_fields(publication: PublicationContext) -> dict[str, Any]:
     """Return how this generation was entered, absent context dropped.
 
     A generation entered before anything was published records none of it, so
@@ -126,8 +127,8 @@ def _publication_fields(generation: LateGeneration) -> dict[str, Any]:
     than two spellings a later reader would have to tell apart.
     """
     return {
-        _keys.POST_PUBLICATION: generation.post_publication or None,
-        _keys.SOURCE_STAGE: _wire(generation.source_stage),
-        _keys.PUBLISHED_PR_NUMBER: generation.published_pr_number,
-        _keys.PUBLISHED_SHA: generation.published_sha or None,
+        _keys.POST_PUBLICATION: publication.post_publication or None,
+        _keys.SOURCE_STAGE: _wire(publication.source_stage),
+        _keys.PUBLISHED_PR_NUMBER: publication.published_pr_number,
+        _keys.PUBLISHED_SHA: publication.published_sha or None,
     }

@@ -10,11 +10,8 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.workflow.late_split.models import (
-    LateGeneration,
-    LateResource,
-    LateResourceKind,
-)
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind
 from orchestrator.workflow.stages.decomposition import (
     late_branch_reclamation as _late_branch_reclamation,
     late_cleanup_proof as _late_cleanup_proof,
@@ -89,7 +86,7 @@ def _asked_snapshots(
         return _late_cleanup_reading._held_snapshots(generation)
     return tuple(
         entry.target
-        for entry in generation.resources
+        for entry in generation.obligations.resources
         if entry.kind == _late_cleanup_reading._SNAPSHOT
         and entry.resource_state in _late_snapshot_reclamation._ORDERED
         and _late_snapshot_reclamation._already_gone(walk, generation, entry.target)
@@ -175,7 +172,7 @@ def _settled_entries(
     that is not, and the entry is the only thing that carries both.
     """
     recorded = {
-        (entry.kind, entry.target): entry for entry in generation.resources
+        (entry.kind, entry.target): entry for entry in generation.obligations.resources
     }
     return tuple(recorded[owed] for owed in asked if owed in recorded)
 
@@ -193,7 +190,7 @@ def _moved_entries(
     """
     was = {
         (entry.kind, entry.target): entry.resource_state
-        for entry in before.resources
+        for entry in before.obligations.resources
     }
     return tuple(
         entry for entry in entries

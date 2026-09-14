@@ -17,7 +17,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.git.snapshots.refs import SnapshotOutcome
-from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import late_cleanup_support as _support

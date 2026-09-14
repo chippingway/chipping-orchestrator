@@ -150,7 +150,10 @@ class SnapshotIdentityTest(LateSplitCase, unittest.TestCase):
         # A ledger this binary cannot read is written back verbatim, so an
         # update merged into the typed view would vanish at the next write --
         # taking the ref nobody would then reclaim with it.
-        opaque = replace(self.generation, opaque_resources=OPAQUE_LEDGER)
+        opaque = replace(
+            self.generation,
+            obligations=replace(self.generation.obligations, opaque_resources=OPAQUE_LEDGER),
+        )
 
         outcome = self._transact(generation=opaque)
 

@@ -15,8 +15,8 @@ from unittest.mock import Mock, patch
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.skills import catalog
 from orchestrator.workflow.engine import stage_targets as _stage_targets, tick as _tick
-from orchestrator.workflow.late_split import phases as _late_phases, state as _late_state
-from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split import obligations as _obligations, phases as _late_phases, state as _late_state
+from orchestrator.workflow.late_split.models import LateGeneration
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.engine.dispatch_scheduler_test_support import (
     REPO_SLUG,
@@ -223,11 +223,12 @@ def _owner_holding_a_ref() -> FakeGitHubClient:
         current_issue=OWNER_NUMBER,
         candidate_sha=CANDIDATE_SHA,
         phase=_late_phases.LatePhase.SNAPSHOTTING,
-    ).with_resource(LateResource(
-        kind=LateResourceKind.SNAPSHOT_REF,
-        target=OWNER_REF,
-        resource_state=LateResourceState.RETAINED,
-    )))
+        obligations=_obligations.LateObligations().with_resource(_obligations.LateResource(
+            kind=_obligations.LateResourceKind.SNAPSHOT_REF,
+            target=OWNER_REF,
+            resource_state=_obligations.LateResourceState.RETAINED,
+        )),
+    ))
     # The flag the split writes before its first child, which is what says
     # this parent has no implementation of its own to go back to.
     github.seed_state(OWNER_NUMBER, umbrella=True, **state.data)

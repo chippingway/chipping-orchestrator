@@ -6,8 +6,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.late_split.events import LateVerdictCategory
-from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
-from orchestrator.workflow.late_split.models import LateVerdict
+from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH, LateVerdict
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import FakeLabel
 from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support

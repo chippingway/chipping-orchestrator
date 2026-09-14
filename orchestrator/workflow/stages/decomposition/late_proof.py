@@ -92,7 +92,7 @@ def _reconciled_head(
             context.issue.number, number, head,
         )
         context.already_published = True
-    elif head != context.generation.published_sha:
+    elif head != context.generation.publication.published_sha:
         return _moved_publication(context, number, head)
     return True
 
@@ -130,8 +130,8 @@ def _this_settlements_own_push(context: _LateContext) -> str:
         _late_approval_reading._approved_commit(context.state),
         _late_publication_state._publication_from(
             context.state,
-            context.generation.published_sha,
-            context.generation.published_pr_number,
+            context.generation.publication.published_sha,
+            context.generation.publication.published_pr_number,
         ),
     )
     return candidate if candidate and candidate in vouched else ""
@@ -141,7 +141,7 @@ def _moved_publication(
     context: _LateContext, number: int, head: str,
 ) -> bool:
     """Refuse a verdict whose pull request somebody else has moved."""
-    frozen = context.generation.published_sha
+    frozen = context.generation.publication.published_sha
     log.error(
         "issue=#%d was adjudicated against PR #%d standing at %s and it "
         "stands at %s now; refusing to publish against a publication "

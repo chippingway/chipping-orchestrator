@@ -18,16 +18,11 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
     events as _events,
+    obligations as _obligations,
     state as _late_state,
     telemetry as _telemetry,
 )
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateGeneration,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateFailure, LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup_reading as _late_cleanup_reading,
     late_cleanup_state as _late_cleanup_state,
@@ -46,7 +41,7 @@ log = logging.getLogger("orchestrator.workflow")
 _FAILURES = MappingProxyType({
     _late_cleanup_state._BRANCH: LateFailure.BRANCH_CLEANUP_FAILED,
     _late_cleanup_reading._SNAPSHOT: LateFailure.SNAPSHOT_DELETE_FAILED,
-    LateResourceKind.PLAN_PR: LateFailure.PR_RECONCILE_FAILED,
+    _obligations.LateResourceKind.PLAN_PR: LateFailure.PR_RECONCILE_FAILED,
 })
 
 
@@ -169,7 +164,7 @@ def _owes_nothing_uncorrelated(
     and say so where an operator reads it. The write that damaged the identity
     kept the ledger on purpose; closing over it would finish the job.
     """
-    if not generation.resources and not generation.has_opaque_ledger:
+    if not generation.obligations.resources and not generation.obligations.is_opaque:
         return True
 
     log.error(
@@ -207,7 +202,7 @@ def _report(
     for moved in settled.moved:
         _emit_cleanup(gh, settled.generation, moved, stage)
     for entry in settled.entries:
-        if entry.resource_state != LateResourceState.RECONCILED:
+        if entry.resource_state != _obligations.LateResourceState.RECONCILED:
             log.warning(
                 "issue=#%d still owes the remote %s %r (%s); it is retried "
                 "on every visit until it is reclaimed",
@@ -221,11 +216,11 @@ def _report(
 def _emit_cleanup(
     gh: GitHubClient,
     generation: LateGeneration,
-    entry: LateResource,
+    entry: _obligations.LateResource,
     stage: str | None,
 ) -> None:
     """Report what happened to one external resource, on both sinks."""
-    if entry.resource_state == LateResourceState.FAILED:
+    if entry.resource_state == _obligations.LateResourceState.FAILED:
         _telemetry.emit_late_event(
             gh,
             _events.LateEvent(

@@ -8,11 +8,8 @@ from dataclasses import replace
 from unittest.mock import Mock, patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split import obligations as _obligations, state as _late_state
+from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_restart_effects as _late_restart_effects,
     late_restart_state as _late_restart_state,
@@ -66,9 +63,9 @@ _DAMAGED_ROOTS = (
 # Every state an obligation can be left in that is not `reconciled`, each of
 # which is still owed to the remote.
 _STILL_OWED = (
-    LateResourceState.PENDING,
-    LateResourceState.RETAINED,
-    LateResourceState.FAILED,
+    _obligations.LateResourceState.PENDING,
+    _obligations.LateResourceState.RETAINED,
+    _obligations.LateResourceState.FAILED,
 )
 
 

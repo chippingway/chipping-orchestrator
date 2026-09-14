@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
 from orchestrator.workflow.late_split import events as _events, formats as _formats, records as _records
 from orchestrator.workflow.late_split.models import LateGeneration, LateVerdict
@@ -184,8 +185,9 @@ class PublicationRecordTest(unittest.TestCase):
         # A filter compares it against the envelope's own `stage`, which every
         # emitter on these sinks records as the bare tag under the label.
         entered = {
-            **_support.ENTERED_ON_PUBLICATION,
-            _SOURCE_STAGE: WorkflowLabel.FIXING,
+            _PUBLICATION: replace(
+                _support.PUBLICATION_CONTEXT, source_stage=WorkflowLabel.FIXING,
+            ),
         }
         self.assertEqual(
             _payload(_MEASUREMENT, **entered)[_SOURCE_STAGE], "fixing",
@@ -195,7 +197,7 @@ class PublicationRecordTest(unittest.TestCase):
         # A record that reports an initial publication may not also carry a
         # publication's context, however a hand-edited comment got it there.
         unmarked = {
-            **_support.ENTERED_ON_PUBLICATION, "post_publication": False,
+            _PUBLICATION: replace(_support.PUBLICATION_CONTEXT, post_publication=False),
         }
         for named, fields in (("nothing", {}), ("context", unmarked)):
             with self.subTest(carrying=named):
@@ -211,7 +213,9 @@ class PublicationRecordTest(unittest.TestCase):
         # would reach both sinks as a publication with no publication in it.
         for field, damaged in _UNNAMEABLE:
             with self.subTest(field=field, damaged=damaged):
-                entered = {**_support.ENTERED_ON_PUBLICATION, field: damaged}
+                entered = {
+                    _PUBLICATION: replace(_support.PUBLICATION_CONTEXT, **{field: damaged}),
+                }
                 with self.assertRaises(_REFUSED):
                     _payload(_MEASUREMENT, **entered)
 
@@ -345,7 +349,9 @@ class TransferRecordTest(unittest.TestCase):
             with self.subTest(**fields), self.assertRaises(_REFUSED):
                 _records.build_late_payload(
                     _event_support.transfer_event(),
-                    _support.transferred_generation(**fields),
+                    _support.transferred_generation(
+                        publication=replace(_support.PUBLICATION_CONTEXT, **fields),
+                    ),
                 )
 
     def test_it_is_still_held_to_the_commits(self) -> None:

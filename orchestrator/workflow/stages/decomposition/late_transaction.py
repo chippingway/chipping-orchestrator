@@ -157,7 +157,7 @@ def _parked_undone(
     """Park the pass whose supersession came undone before the retirement."""
     _late_supersession_state._parked_publication(
         context,
-        context.generation.published_pr_number,
+        context.generation.publication.published_pr_number,
         undone,
         _UNDONE_SUPERSESSION_PARK,
     )

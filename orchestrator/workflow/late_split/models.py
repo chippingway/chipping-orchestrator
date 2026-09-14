@@ -1,35 +1,33 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Frozen late-generation records, resource values, and immutable updates.
+"""Frozen late-generation identity, measurement, and lifecycle state.
 
-Verdict, failure, and resource vocabularies preserve their pinned JSON wire
-values. The phase owner defines transaction boundaries, and the reading
-base owns the predicates over the frozen evidence. Updates return a new
-record, refuse opaque-ledger rewrites, and preserve the first cancellation
-stamp and the boundary at which that cancellation was observed.
+Verdict and failure vocabularies preserve their pinned JSON wire values.
+Publication context and external obligations are frozen component records
+with their own validation and updates. The generation owns the ordered child
+register and transaction boundaries, including the first cancellation stamp
+and the phase at which that cancellation was observed. The state reader and
+encoders map these records onto the flat pinned-state contract.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.late_split import (
     formats as _formats,
-    generation_reading as _generation_reading,
     phases as _late_phases,
 )
-from orchestrator.workflow.state import WorkflowLabel
-from orchestrator.workflow.transitions import publishes_onto_a_pull_request
+from orchestrator.workflow.late_split.obligations import LateObligations
+from orchestrator.workflow.late_split.publication import PublicationContext
 
-# How long a resource target may be. It is never recorded -- only digested
-# into an identifier -- but a ref, a branch, or an issue number that does not
-# fit here is not one.
-MAX_RESOURCE_TARGET = 512
-
-# What a caller is told when it tries to update a ledger the write would not
-# carry its update into. Spelled once because both transforms refuse alike.
-_OPAQUE_LEDGER = "{0} cannot be updated while the ledger is opaque"
+# How deep automatic splitting may go. The root issue of a lineage is depth 0,
+# so a generation may only split while its own depth is strictly below this:
+# the deepest child a split can create sits exactly at the bound and must
+# resolve as one change or ask a human. It is a safety invariant, not a knob,
+# which is why no configuration reads it.
+MAX_LINEAGE_DEPTH = 3
 
 
 class LateVerdict(StrEnum):
@@ -60,58 +58,8 @@ class LateFailure(StrEnum):
     RESTART_FAILED = "restart_failed"
 
 
-class LateResourceKind(StrEnum):
-    """What kind of external thing a ledger entry holds the generation to."""
-
-    SNAPSHOT_REF = "snapshot_ref"
-    BRANCH = "branch"
-    PLAN_PR = "plan_pr"
-    CHILD = "child"
-
-
-class LateResourceState(StrEnum):
-    """How far one recorded external obligation has been reconciled.
-
-    `RETAINED` is not a failure: a snapshot whose direct consumers are still
-    live is deliberately kept, and saying so is what keeps a retained ref
-    apart from one whose deletion was refused.
-
-    `RECLAIMING` is the decision, written before the delete that carries it
-    out, so a tick that died between the delete landing and the record of it
-    has something durable to come back to. It is not a pass on the proof: the
-    consumers are read again on every visit that would delete, and one that
-    came back keeps the ref with the entry left here. What the state buys is
-    the retry of a delete that may already have happened -- a ref the remote
-    no longer has is finished without re-proving anything, since what is left
-    is the record and the receipts rather than the deletion. Every state but
-    `RECONCILED` is still owed, so a record left here holds a terminal exactly
-    as `RETAINED` does.
-    """
-
-    PENDING = "pending"
-    RETAINED = "retained"
-    RECLAIMING = "reclaiming"
-    RECONCILED = "reconciled"
-    FAILED = "failed"
-
-
 @dataclass(frozen=True)
-class LateResource:
-    """One external resource this generation owes the remote.
-
-    `target` is the resource's own identifier -- a ref, a branch, a pull
-    request number, an issue number -- and is recorded so a reconciliation
-    acts on the exact thing the generation created rather than on whatever
-    currently looks like it.
-    """
-
-    kind: LateResourceKind
-    target: str
-    resource_state: LateResourceState = LateResourceState.PENDING
-
-
-@dataclass(frozen=True)
-class LateGeneration(_generation_reading._GenerationReading):
+class LateGeneration:
     """One late generation's whole durable record.
 
     An issue that never entered the late gate reads back as this record's
@@ -119,12 +67,12 @@ class LateGeneration(_generation_reading._GenerationReading):
     so a legacy pinned comment needs no migration and writing an absent
     generation back adds no key to it.
 
-    The two `opaque_*` fields are the ledgers this binary could not fully
-    type, kept verbatim rather than reduced to what it understood. An
+    The obligations record's two `opaque_*` fields are the ledgers this binary
+    could not fully type, kept verbatim rather than reduced to what it understood. An
     obligation dropped on read would be an obligation dropped on the next
     write, and a snapshot whose consumer ledger was silently emptied reads as
     one nobody is waiting on -- so what cannot be typed is carried through
-    untouched and `has_opaque_ledger` says so out loud.
+    untouched and `obligations.is_opaque` says so out loud.
 
     `split_children` and `links_announced` are the split transaction's own
     receipts, and they live on the generation rather than beside the stage's
@@ -178,12 +126,12 @@ class LateGeneration(_generation_reading._GenerationReading):
     settlement pins its push to. A hold reads the head it marks and never
     writes that one.
 
-    `post_publication`, and the `source_stage`, `published_pr_number`, and
-    `published_sha` beside it, are the only context saying a generation was
+    The publication record's `post_publication`, `source_stage`,
+    `published_pr_number`, and `published_sha` say a generation was
     entered on work the remote already has. A record carrying none of them was
     entered before publication, so a pinned comment written without the group
     answers the question without having been touched.
-    `has_publication_context` is what a caller asks rather than the flag: the
+    `publication.is_complete` is what a caller asks about the context: the
     three fields are read as fail-closed as every other, a marker standing
     alone would claim a pull request nothing could name, and the stage is
     asked what it is rather than merely whether it is there -- only the five
@@ -210,16 +158,10 @@ class LateGeneration(_generation_reading._GenerationReading):
     plan_pr_number: int | None = None
     plan_pr_head: str = ""
     plan_pr_body: str | None = None
-    post_publication: bool = False
-    source_stage: WorkflowLabel | None = None
-    published_pr_number: int | None = None
-    published_sha: str = ""
-    resources: tuple[LateResource, ...] = ()
-    consumers: tuple[int, ...] = ()
+    publication: PublicationContext = field(default_factory=PublicationContext)
+    obligations: LateObligations = field(default_factory=LateObligations)
     split_children: tuple[int, ...] = ()
     links_announced: bool = False
-    opaque_resources: str | None = None
-    opaque_consumers: str | None = None
     owner_check_pending: bool = False
     cancelled: bool = False
     cancelled_at: str | None = None
@@ -229,52 +171,60 @@ class LateGeneration(_generation_reading._GenerationReading):
     restart_cycle_id: int | None = None
     restart_predecessor: int | None = None
 
-    def with_resource(self, resource: LateResource) -> LateGeneration:
-        """Return this record with one external obligation recorded.
+    @property
+    def is_present(self) -> bool:
+        """Whether a late cycle was ever recorded on this issue."""
+        return self.cycle_id > 0
 
-        Keyed on kind and target, so a reconciliation that repeats after a
-        crash updates the entry it already wrote instead of appending a second
-        one -- the ledger stays as bounded as the resources actually created.
+    @property
+    def is_oversized(self) -> bool:
+        """Whether the measurement is strictly past the threshold it named.
 
-        Refused while the resource ledger is opaque. What gets written back
-        then is the verbatim copy, so the update would be returned here and
-        lost at the next write -- and merging into a ledger this binary could
-        not read is exactly the rewrite the verbatim copy exists to prevent. A
-        caller that reaches this has a ledger a human has to settle first.
+        Strictly: a candidate exactly at the configured value is accepted, so
+        the trigger cannot move by one line when the threshold is retuned. An
+        unmeasured generation is not oversized -- a missing measurement is a
+        typed failure to reconcile, never a small candidate.
         """
-        if self.opaque_resources is not None:
-            raise _formats.InvalidLateValue(_OPAQUE_LEDGER.format("resources"))
-        kept = tuple(
-            entry for entry in self.resources
-            if (entry.kind, entry.target) != (resource.kind, resource.target)
-        )
-        return replace(self, resources=(*kept, resource))
+        if self.threshold is None or self.additions is None:
+            return False
+        return self.additions > self.threshold
 
-    def with_consumers(self, numbers: tuple[int, ...]) -> LateGeneration:
-        """Return this record with direct snapshot consumers recorded.
+    @property
+    def may_split(self) -> bool:
+        """Whether this generation is allowed to create another one.
 
-        Deduplicated and ordered, because the ledger is what a reclamation
-        sweep walks: a child recorded twice would be asked about twice, and
-        the order it was created in is not what decides anything.
-
-        Only a positive whole number is an issue: converting anything else
-        would put a consumer nobody can ask about into the one ledger that
-        decides whether a snapshot may be reclaimed -- `True` is not issue 1,
-        2.5 is not issue 2, and "7" is a string somebody hand-edited.
-
-        Refused while the consumer ledger is opaque, for the reason
-        `with_resource` is: the verbatim copy is what a write puts back, so an
-        update accepted here would disappear at the next one.
+        Read fail-closed, so every depth that is not a real one below the
+        bound refuses the split rather than unlocking a generation the cap
+        exists to forbid: a depth at or past the bound, a negative one, one
+        that is not a whole number at all, and an unknown one -- which is what
+        a damaged or missing field on a recorded cycle reads back as -- all
+        answer False.
         """
-        if self.opaque_consumers is not None:
-            raise _formats.InvalidLateValue(_OPAQUE_LEDGER.format("consumers"))
-        for number in numbers:
-            if not _formats.whole_number(number) or number <= 0:
-                raise _formats.InvalidLateValue(
-                    f"consumer is not an issue ({type(number).__name__})",
-                )
-        merged = set(self.consumers) | set(numbers)
-        return replace(self, consumers=tuple(sorted(merged)))
+        if not _formats.whole_number(self.lineage_depth):
+            return False
+        return 0 <= self.lineage_depth < MAX_LINEAGE_DEPTH
+
+    @property
+    def split_has_settled(self) -> bool:
+        """Whether this record's candidate has been made into children.
+
+        Two readings of one fact, because either can be the only one there.
+        The register is what the transaction writes down as it creates them
+        and what the retirement keeps -- it is what says which child owns
+        which slice of the manifest -- while the phase is what answers in the
+        window before the first of those writes lands, which is the window
+        `IN_FLIGHT_PHASES` exists for.
+
+        What it buys the readers behind it is the difference between a
+        candidate nobody counted and one nobody needs to. A settled split
+        drops the measurement, because a record still answering "oversized"
+        pins `workflow:decomposing` and would put the umbrella label back on
+        every tick, and keeps the publication group, because the umbrella
+        re-asks it in front of every child it releases and every branch it
+        deletes. A group with no number beside it is otherwise exactly the
+        shape of a tick that died between the freeze and the diff.
+        """
+        return bool(self.split_children) or self.phase in _late_phases._PAST_THE_SNAPSHOT
 
     def with_split_children(self, numbers: tuple[int, ...]) -> LateGeneration:
         """Return this record with the ordered child register replaced.
@@ -291,60 +241,6 @@ class LateGeneration(_generation_reading._GenerationReading):
                     f"child is not an issue ({type(number).__name__})",
                 )
         return replace(self, split_children=tuple(numbers))
-
-    def with_publication(
-        self, *, stage: str, pr_number: int, published_sha: str,
-    ) -> LateGeneration:
-        """Return this record entered on work a publication already carried.
-
-        All three are proved here rather than left to the write, for the
-        reason the exemption is proved where it is recorded: the pinned write
-        drops what it cannot type, so a stage that is not a workflow state, a
-        pull request that is not an identity, or a head that is not a whole
-        object id would each leave the marker standing over a context nothing
-        could reconcile -- and the reader on the far side would report a
-        post-publication entry with no publication in it. A caller that cannot
-        name all three has an entry this domain must not record as one.
-
-        The stage is taken through the label vocabulary rather than kept as
-        whatever was passed, for the reason a restart target is: what it names
-        is the state a settled adjudication puts the issue back into, and a
-        string nobody looked up would reach a later tick wearing this domain's
-        word that the workflow has such a state.
-
-        Being a state is not enough, and the same predicate the entry is
-        frozen under is what says which: the five that push onto a pull
-        request the remote already carries. `ready`, `blocked`, and `umbrella`
-        each have an edge to the adjudication for reasons of their own and no
-        pull request behind any of them, and `implementing`'s own push is the
-        one that OPENS the pull request. Recorded from one of those, the group
-        would send a later reconciliation to measure and push a candidate no
-        post-publication stage ever committed.
-        """
-        if stage not in WorkflowLabel or not publishes_onto_a_pull_request(
-            WorkflowLabel(stage),
-        ):
-            raise _formats.InvalidLateValue(
-                "source stage is not one a publication is entered from "
-                f"({type(stage).__name__})",
-            )
-        if not _formats.whole_number(pr_number) or pr_number <= 0:
-            raise _formats.InvalidLateValue(
-                "published PR is not an identity "
-                f"({type(pr_number).__name__})",
-            )
-        if not _formats.is_hex_of(published_sha, _formats.COMMIT_LENGTHS):
-            raise _formats.InvalidLateValue(
-                "published head is not a commit "
-                f"({type(published_sha).__name__})",
-            )
-        return replace(
-            self,
-            post_publication=True,
-            source_stage=WorkflowLabel(stage),
-            published_pr_number=pr_number,
-            published_sha=published_sha,
-        )
 
     def at_phase(self, phase: _late_phases.LatePhase) -> LateGeneration:
         """Return this record standing at one reconciliation boundary.

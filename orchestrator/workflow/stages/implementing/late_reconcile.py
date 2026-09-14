@@ -211,14 +211,14 @@ def _answers_the_frozen_pair(
     on. And there is nothing to measure without a checkout, which is its own
     refusal rather than a reason to let the stage carry on.
     """
-    if recorded.source_stage != label:
+    if recorded.publication.source_stage != label:
         return _stranded_reading(gate, recorded, label)
     if not gate.worktree.exists():
         return _absent_checkout(gate, recorded)
     log.info(
         "issue=#%d records a frozen pair for pull request #%d with no count "
         "on it; measuring it before the stage runs",
-        gate.issue.number, recorded.published_pr_number,
+        gate.issue.number, recorded.publication.published_pr_number,
     )
     return _settles_the_frozen_pair(gate, recorded)
 
@@ -308,12 +308,12 @@ def _unpublished_reconciliation(
     _late_park_notices._parked(
         gate, _records._reportable(gate, recorded),
         _UNPUBLISHED_RECONCILIATION.format(
-            number=recorded.published_pr_number,
+            number=recorded.publication.published_pr_number,
         ),
         _UNPUBLISHED_PARK.format(
             mentions=config.HITL_MENTIONS,
             candidate=recorded.candidate_sha,
-            number=recorded.published_pr_number,
+            number=recorded.publication.published_pr_number,
         ),
     )
     gate.gh.write_pinned_state(gate.issue, gate.state)
@@ -371,20 +371,20 @@ def _stranded_reading(
         log.warning(
             "issue=#%d still carries a frozen pair entered on %s while it is "
             "on %s; holding the tick without a second notice",
-            gate.issue.number, recorded.source_stage, label,
+            gate.issue.number, recorded.publication.source_stage, label,
         )
         return True
     log.error(
         "issue=#%d records an unmeasured candidate entered on %s and is on "
         "%s now; refusing to run that stage over a reading nothing settled",
-        gate.issue.number, recorded.source_stage, label,
+        gate.issue.number, recorded.publication.source_stage, label,
     )
     _late_park_notices._parked(
         gate, _records._reportable(gate, recorded), _STRANDED_READING,
         _STRANDED_READING_PARK.format(
             mentions=config.HITL_MENTIONS,
             candidate=recorded.candidate_sha,
-            frozen=recorded.source_stage,
+            frozen=recorded.publication.source_stage,
             label=label or "no workflow state",
         ),
     )
@@ -428,7 +428,7 @@ def _absent_checkout(
         _ABSENT_CHECKOUT_PARK.format(
             mentions=config.HITL_MENTIONS,
             candidate=recorded.candidate_sha,
-            number=recorded.published_pr_number,
+            number=recorded.publication.published_pr_number,
         ),
     )
     gate.gh.write_pinned_state(gate.issue, gate.state)

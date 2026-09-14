@@ -26,18 +26,18 @@ import json
 from typing import Any
 
 from orchestrator.workflow.late_split import keys as _keys, ledgers as _ledgers
-from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.obligations import LateObligations
 
 
-def ledger_fields(generation: LateGeneration) -> dict[str, Any]:
+def ledger_fields(obligations: LateObligations) -> dict[str, Any]:
     """Return what the two external ledgers are written back as, unset out."""
     owed = {
         _keys.RESOURCES: _ledger_written(
-            generation.opaque_resources,
-            _resource_payloads(generation.resources),
+            obligations.opaque_resources,
+            _resource_payloads(obligations.resources),
         ),
         _keys.CONSUMERS: _ledger_written(
-            generation.opaque_consumers, list(generation.consumers),
+            obligations.opaque_consumers, list(obligations.consumers),
         ),
     }
     return {key: ledger for key, ledger in owed.items() if ledger is not None}

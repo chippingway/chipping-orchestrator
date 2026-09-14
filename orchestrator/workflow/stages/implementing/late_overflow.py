@@ -678,7 +678,7 @@ def _moved_publication(
     disagreement this exists to catch. A record with no marker at all is one
     nothing was frozen for, which is every pre-publication generation.
     """
-    if not recorded.post_publication:
+    if not recorded.publication.post_publication:
         return False
     disagreement = _publication_disagreement(recorded, entry)
     if not disagreement:
@@ -706,20 +706,20 @@ def _publication_disagreement(
     repointed at, and a stage a relabel moved are three different things to
     reconcile.
     """
-    if not recorded.has_publication_context:
+    if not recorded.publication.is_complete:
         return _DAMAGED_PUBLICATION
-    if recorded.published_pr_number != entry.pr_number:
+    if recorded.publication.published_pr_number != entry.pr_number:
         return _PR_CHANGED.format(
-            frozen=recorded.published_pr_number, read=entry.pr_number,
+            frozen=recorded.publication.published_pr_number, read=entry.pr_number,
         )
-    if recorded.source_stage != entry.stage:
+    if recorded.publication.source_stage != entry.stage:
         return _STAGE_CHANGED.format(
-            frozen=recorded.source_stage, read=entry.stage,
+            frozen=recorded.publication.source_stage, read=entry.stage,
         )
-    if recorded.published_sha != entry.published_sha:
+    if recorded.publication.published_sha != entry.published_sha:
         return _HEAD_CHANGED.format(
             number=entry.pr_number,
-            frozen=recorded.published_sha,
+            frozen=recorded.publication.published_sha,
             read=entry.published_sha,
         )
     return ""

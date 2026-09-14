@@ -72,7 +72,7 @@ def _awaits_its_count(recorded: LateGeneration) -> bool:
     `workflow:umbrella` now, and the refusal for a pair read off its own stage
     holds every tick in front of the handler that would release the children.
     """
-    if not recorded.has_publication_context or recorded.cancelled:
+    if not recorded.publication.is_complete or recorded.cancelled:
         return False
     if recorded.split_has_settled:
         return False
@@ -119,19 +119,19 @@ _FROZEN_EVIDENCE = _MINTED_EVIDENCE + (
     (_late_keys.ADDITIONS, lambda recorded: recorded.additions is not None),
     (
         _late_keys.POST_PUBLICATION,
-        lambda recorded: recorded.post_publication,
+        lambda recorded: recorded.publication.post_publication,
     ),
     (
         _late_keys.SOURCE_STAGE,
-        lambda recorded: recorded.source_stage is not None,
+        lambda recorded: recorded.publication.source_stage is not None,
     ),
     (
         _late_keys.PUBLISHED_PR_NUMBER,
-        lambda recorded: bool(recorded.published_pr_number),
+        lambda recorded: bool(recorded.publication.published_pr_number),
     ),
     (
         _late_keys.PUBLISHED_SHA,
-        lambda recorded: bool(recorded.published_sha),
+        lambda recorded: bool(recorded.publication.published_sha),
     ),
 )
 
@@ -313,7 +313,7 @@ def _claims_a_publication(state: PinnedState) -> bool:
     recorded = _late_state.read_late_generation(state)
     if recorded.cancelled:
         return False
-    return not recorded.has_publication_context
+    return not recorded.publication.is_complete
 
 
 def _claims_an_approval(state: PinnedState) -> bool:

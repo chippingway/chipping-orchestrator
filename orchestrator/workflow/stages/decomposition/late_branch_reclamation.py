@@ -12,10 +12,8 @@ import logging
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import cleanup as _worktree_cleanup, naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.late_split.models import (
-    LateGeneration,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup_state as _late_cleanup_state,
 )

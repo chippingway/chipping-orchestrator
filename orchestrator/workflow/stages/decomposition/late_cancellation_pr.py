@@ -18,6 +18,7 @@ from orchestrator.github import (
 )
 from orchestrator.workflow.late_split import (
     models as _late_models,
+    obligations as _obligations,
 )
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation_reading as _late_cancellation_reading,
@@ -150,7 +151,7 @@ def _reached(
     issue: Issue,
     generation: _late_models.LateGeneration,
     number: int,
-) -> tuple[_late_models.LateGeneration, _late_models.LateResourceState]:
+) -> tuple[_late_models.LateGeneration, _obligations.LateResourceState]:
     """Release the hold, close the pull request, and say where that left it.
 
     The record travels back with the answer because the release is entitled to
@@ -164,10 +165,10 @@ def _reached(
     """
     release = _late_hold_release._release_hold(gh, issue, generation)
     if release.failed:
-        return release.generation, _late_models.LateResourceState.FAILED
+        return release.generation, _obligations.LateResourceState.FAILED
     if not _closed_over_notice(gh, issue, release.generation, number):
-        return release.generation, _late_models.LateResourceState.FAILED
-    return release.generation, _late_models.LateResourceState.RECONCILED
+        return release.generation, _obligations.LateResourceState.FAILED
+    return release.generation, _obligations.LateResourceState.RECONCILED
 
 
 def _closed_over_notice(
@@ -232,7 +233,7 @@ def _reported(
     _late_cleanup._emit_cleanup(
         gh, generation, entry, stage_name(gh.workflow_label(issue)),
     )
-    if entry.resource_state != _late_models.LateResourceState.RECONCILED:
+    if entry.resource_state != _obligations.LateResourceState.RECONCILED:
         log.warning(
             "issue=#%d could not close the PR its cancelled cycle held "
             "(%s); it is retried on every visit until it is",

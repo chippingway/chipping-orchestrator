@@ -87,7 +87,7 @@ def _release_consumers(
         generation=generation.generation,
     )
     told = True
-    for consumer in generation.consumers:
+    for consumer in generation.obligations.consumers:
         generation = _late_cleanup_state._observed_close(walk, generation)
         if generation.cancelled:
             break

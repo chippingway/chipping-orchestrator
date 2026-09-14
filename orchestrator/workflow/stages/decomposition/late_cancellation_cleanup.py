@@ -20,6 +20,7 @@ from orchestrator.github import (
 )
 from orchestrator.workflow.late_split import (
     models as _late_models,
+    obligations as _obligations,
 )
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation_pr as _late_cancellation_pr,
@@ -34,7 +35,7 @@ from orchestrator.workflow.stages.decomposition.models import _ChildScan
 log = logging.getLogger("orchestrator.workflow")
 
 
-_BRANCH = _late_models.LateResourceKind.BRANCH
+_BRANCH = _obligations.LateResourceKind.BRANCH
 
 
 def _reconciled(
@@ -102,8 +103,8 @@ def _children_discharged(
     discharged = generation
     for target in pending:
         discharged = _late_cleanup_state._recorded(
-            discharged, _late_models.LateResourceKind.CHILD, target,
-            _late_models.LateResourceState.RECONCILED,
+            discharged, _obligations.LateResourceKind.CHILD, target,
+            _obligations.LateResourceState.RECONCILED,
         )
     _late_cancellation_state._persisted(gh, issue, state, discharged)
     return discharged
@@ -117,9 +118,9 @@ def _pending_children(
         return ()
     return tuple(
         entry.target
-        for entry in generation.resources
-        if entry.kind == _late_models.LateResourceKind.CHILD
-        and entry.resource_state != _late_models.LateResourceState.RECONCILED
+        for entry in generation.obligations.resources
+        if entry.kind == _obligations.LateResourceKind.CHILD
+        and entry.resource_state != _obligations.LateResourceState.RECONCILED
     )
 
 
@@ -189,7 +190,7 @@ def _superseded_branch(
         "owed rather than retiring over it", issue.number, branch,
     )
     owed = _late_cleanup_state._recorded(
-        generation, _BRANCH, branch, _late_models.LateResourceState.PENDING,
+        generation, _BRANCH, branch, _obligations.LateResourceState.PENDING,
     )
     _late_cancellation_state._persisted(gh, issue, state, owed)
     return owed
@@ -197,7 +198,7 @@ def _superseded_branch(
 
 def _names_a_branch(generation: _late_models.LateGeneration) -> bool:
     """Whether this record already holds the superseded branch, any state."""
-    return any(entry.kind == _BRANCH for entry in generation.resources)
+    return any(entry.kind == _BRANCH for entry in generation.obligations.resources)
 
 
 def _proof_scan(

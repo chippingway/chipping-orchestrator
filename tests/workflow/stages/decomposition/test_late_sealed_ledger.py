@@ -27,7 +27,12 @@ import unittest
 from dataclasses import replace
 
 from orchestrator.workflow.late_split import phases as _late_phases, state as _late_state
-from orchestrator.workflow.late_split.models import LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.obligations import (
+    LateObligations,
+    LateResource,
+    LateResourceKind,
+    LateResourceState,
+)
 from orchestrator.workflow.stages.decomposition import (
     late_child_records as _late_child_records,
     late_models as _late_models,
@@ -278,16 +283,13 @@ class SecondCycleAfterASealedOneTest(_SweptOwnerCase, unittest.TestCase):
             self.generation.cancel(_CANCELLED_AT),
             cycle_id=_NEXT_CYCLE,
             phase=_late_phases.LatePhase.SPLITTING,
-            resources=(),
-            consumers=(),
+            obligations=LateObligations().with_consumers((consumer,)).with_resource(LateResource(
+                kind=LateResourceKind.SNAPSHOT_REF,
+                target=_NEXT_REF,
+                resource_state=LateResourceState.RETAINED,
+            )),
             split_children=(),
-        ).with_consumers(
-            (consumer,),
-        ).with_split_children((consumer,)).with_resource(LateResource(
-            kind=LateResourceKind.SNAPSHOT_REF,
-            target=_NEXT_REF,
-            resource_state=LateResourceState.RETAINED,
-        )))
+        ).with_split_children((consumer,)))
         self.github.seed_state(self.issue.number, **state.data)
 
 

@@ -42,6 +42,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
+from orchestrator.workflow.late_split.publication import PublicationContext
 from orchestrator.workflow.state import WorkflowLabel
 
 
@@ -69,12 +70,6 @@ def read_late_generation(state: PinnedState) -> LateGeneration:
     damaged. The write leaves it unknown too, so nothing normalizes the gap
     away on the next pass.
     """
-    resources, opaque_resources = _ledgers.read_resources(
-        state.get(_keys.RESOURCES),
-    )
-    consumers, opaque_consumers = _ledgers.read_consumers(
-        state.get(_keys.CONSUMERS),
-    )
     return LateGeneration(
         cycle_id=_payloads.as_identity(state.get(_keys.CYCLE_ID)) or 0,
         generation=_payloads.as_count(state.get(_keys.GENERATION)) or 0,
@@ -113,22 +108,23 @@ def read_late_generation(state: PinnedState) -> LateGeneration:
             state.get(_keys.PLAN_PR_HEAD), _formats.COMMIT_LENGTHS,
         ) or "",
         plan_pr_body=_payloads.as_text(state.get(_keys.PLAN_PR_BODY)),
-        post_publication=_payloads.as_flag(state.get(_keys.POST_PUBLICATION)),
-        source_stage=_payloads.as_member(
-            WorkflowLabel, state.get(_keys.SOURCE_STAGE),
+        publication=PublicationContext(
+            post_publication=_payloads.as_flag(state.get(_keys.POST_PUBLICATION)),
+            source_stage=_payloads.as_member(
+                WorkflowLabel, state.get(_keys.SOURCE_STAGE),
+            ),
+            published_pr_number=_payloads.as_identity(
+                state.get(_keys.PUBLISHED_PR_NUMBER),
+            ),
+            published_sha=_payloads.as_hex(
+                state.get(_keys.PUBLISHED_SHA), _formats.COMMIT_LENGTHS,
+            ) or "",
         ),
-        published_pr_number=_payloads.as_identity(
-            state.get(_keys.PUBLISHED_PR_NUMBER),
+        obligations=_ledgers.read_obligations(
+            state.get(_keys.RESOURCES), state.get(_keys.CONSUMERS),
         ),
-        published_sha=_payloads.as_hex(
-            state.get(_keys.PUBLISHED_SHA), _formats.COMMIT_LENGTHS,
-        ) or "",
-        resources=resources,
-        consumers=consumers,
         split_children=_ledgers.read_register(state.get(_keys.SPLIT_CHILDREN)),
         links_announced=_payloads.as_flag(state.get(_keys.LINKS_ANNOUNCED)),
-        opaque_resources=opaque_resources,
-        opaque_consumers=opaque_consumers,
         owner_check_pending=_payloads.as_flag(
             state.get(_keys.OWNER_CHECK_PENDING),
         ),

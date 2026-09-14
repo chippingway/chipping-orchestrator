@@ -22,9 +22,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
-from orchestrator.workflow.late_split.models import (
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup as _late_cleanup,
     parents as _parents,

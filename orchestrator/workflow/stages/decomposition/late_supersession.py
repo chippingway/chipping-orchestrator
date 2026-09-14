@@ -10,10 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.workflow.late_split.models import (
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.obligations import LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_hold_release as _late_hold_release,
     late_publication as _late_publication,
@@ -77,7 +74,7 @@ def _superseded(
     cycle marked. A record with neither has no pull request to close, and the
     absence is the answer: its candidate has never been on one.
     """
-    if context.generation.has_publication_context:
+    if context.generation.publication.is_complete:
         return _superseded_publication(context, plan, snapshot_ref)
     number = context.generation.plan_pr_number
     if number is None:
@@ -161,7 +158,7 @@ def _superseded_publication(
     What that reading licenses, and what it may not be spent on, is the owner
     below.
     """
-    number = context.generation.published_pr_number
+    number = context.generation.publication.published_pr_number
     if number is None:
         return True
     if not _released_hold(context):

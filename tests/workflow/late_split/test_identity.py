@@ -6,8 +6,8 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.late_split import identity as _identity
-from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
-from orchestrator.workflow.late_split.models import LateResource, LateResourceKind
+from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind
 from tests.workflow.late_split import generation_test_support as _support
 
 

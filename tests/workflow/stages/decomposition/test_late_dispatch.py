@@ -231,7 +231,7 @@ class HalfPublishedAdjudicationTest(unittest.TestCase):
         pinned = self._pinned(half)
         self.assertEqual(pinned[KEYS.candidate_sha], entered.candidate_sha)
         self.assertEqual(
-            pinned[KEYS.published_pr_number], entered.published_pr_number,
+            pinned[KEYS.published_pr_number], entered.publication.published_pr_number,
         )
 
     def test_a_whole_group_is_adjudicated_as_before(self) -> None:

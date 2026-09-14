@@ -214,13 +214,13 @@ def _publication_of(generation: LateGeneration) -> dict[str, Any]:
     so the stage here is a workflow state and is written as the bare tag the
     envelope's own `stage` is, which is what lets a filter compare them.
     """
-    if not generation.post_publication:
+    if not generation.publication.post_publication:
         return {_PUBLICATION: str(LatePublication.PRE)}
     return {
         _PUBLICATION: str(LatePublication.POST),
-        "source_stage": _workflow_state.stage_name(generation.source_stage),
-        "published_pr_number": generation.published_pr_number,
-        "published_sha": generation.published_sha,
+        "source_stage": _workflow_state.stage_name(generation.publication.source_stage),
+        "published_pr_number": generation.publication.published_pr_number,
+        "published_sha": generation.publication.published_sha,
     }
 
 

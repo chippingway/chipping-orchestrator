@@ -13,11 +13,8 @@ from github.Issue import Issue
 
 from orchestrator.git.snapshots import namespace as _namespace
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.late_split.models import (
-    LateGeneration,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.obligations import LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup_state as _late_cleanup_state,
 )
@@ -48,7 +45,7 @@ def _owed_branches(generation: LateGeneration) -> tuple[str, ...]:
     """
     return tuple(
         entry.target
-        for entry in generation.resources
+        for entry in generation.obligations.resources
         if entry.kind == _late_cleanup_state._BRANCH
         and entry.resource_state != LateResourceState.RECONCILED
     )
@@ -58,7 +55,7 @@ def _held_snapshots(generation: LateGeneration) -> tuple[str, ...]:
     """The snapshot refs this generation still holds the remote to."""
     return tuple(
         entry.target
-        for entry in generation.resources
+        for entry in generation.obligations.resources
         if entry.kind == _SNAPSHOT
         and entry.resource_state != LateResourceState.RECONCILED
     )
@@ -107,7 +104,7 @@ def _consumer_scan(
     """
     consumer_issues: dict[int, Issue] = {}
     consumer_labels: dict[int, str | None] = {}
-    for consumer in generation.consumers:
+    for consumer in generation.obligations.consumers:
         number = int(consumer)
         consumer_issue = _consumer_issue(gh, issue, number)
         if consumer_issue is None:
@@ -115,7 +112,7 @@ def _consumer_scan(
         consumer_issues[number] = consumer_issue
         consumer_labels[number] = gh.workflow_label(consumer_issue)
     return _ChildScan(
-        list(generation.consumers), consumer_issues, consumer_labels,
+        list(generation.obligations.consumers), consumer_issues, consumer_labels,
     )
 
 
@@ -136,7 +133,7 @@ def _consumer_issue(
 def _unwritable(generation: LateGeneration) -> bool:
     """Whether the RESOURCE ledger is one this binary may not update at all.
 
-    Distinct from `has_opaque_ledger`, which folds in the consumer ledger
+    Distinct from `LateObligations.is_opaque`, which folds in the consumer ledger
     beside it. The two are preserved and written independently, and they stop
     different things: an entry this binary cannot type on the RESOURCE ledger
     means no reclamation can be recorded, while one on the consumer ledger
@@ -144,7 +141,7 @@ def _unwritable(generation: LateGeneration) -> bool:
     superseded branch on the remote because somebody hand-edited a list of
     issue numbers.
     """
-    return generation.opaque_resources is not None
+    return generation.obligations.opaque_resources is not None
 
 
 def _blocking(generation: LateGeneration) -> tuple[str, ...]:

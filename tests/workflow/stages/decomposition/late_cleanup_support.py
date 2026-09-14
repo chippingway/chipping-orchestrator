@@ -15,7 +15,12 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from orchestrator.workflow.late_split import ancestry as _ancestry, lineage as _lineage, state as _late_state
-from orchestrator.workflow.late_split.models import LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.obligations import (
+    LateObligations,
+    LateResource,
+    LateResourceKind,
+    LateResourceState,
+)
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import late_sweep as _late_sweep, umbrella as _umbrella
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
@@ -282,33 +287,39 @@ def split_umbrella(
         github.seed_state(PARENT_NUMBER, umbrella=True)
         return SeededUmbrella(github=github, parent=parent)
     settled = late_generation(
-        threshold=None, additions=None, resources=(), phase=seed.phase,
-    ).with_consumers(
-        (CHILD_NUMBER,) if seed.child else (),
+        threshold=None, additions=None, phase=seed.phase,
+        obligations=LateObligations().with_consumers(
+            (CHILD_NUMBER,) if seed.child else (),
+        ),
     )
     if seed.child:
         # What the split writes for a child in ONE step: the consumer, the
         # positional register, and the obligation entry. A fixture recording
         # fewer of the three describes no record production can produce.
-        settled = settled.with_split_children((CHILD_NUMBER,)).with_resource(
-            LateResource(
+        settled = replace(
+            settled.with_split_children((CHILD_NUMBER,)),
+            obligations=settled.obligations.with_resource(LateResource(
                 kind=LateResourceKind.CHILD,
                 target=str(CHILD_NUMBER),
                 resource_state=LateResourceState.PENDING,
-            ),
+            )),
         )
     if owed is not None:
-        settled = settled.with_resource(LateResource(
-            kind=LateResourceKind.BRANCH,
-            target=branch,
-            resource_state=owed,
-        ))
+        settled = replace(
+            settled, obligations=settled.obligations.with_resource(LateResource(
+                kind=LateResourceKind.BRANCH,
+                target=branch,
+                resource_state=owed,
+            )),
+        )
     if snapshot is not None:
-        settled = settled.with_resource(LateResource(
-            kind=LateResourceKind.SNAPSHOT_REF,
-            target=SNAPSHOT_REF,
-            resource_state=snapshot,
-        ))
+        settled = replace(
+            settled, obligations=settled.obligations.with_resource(LateResource(
+                kind=LateResourceKind.SNAPSHOT_REF,
+                target=SNAPSHOT_REF,
+                resource_state=snapshot,
+            )),
+        )
     if seed.announced or seed.phase in _PAST_ANNOUNCEMENT:
         settled = replace(settled, links_announced=True)
     if seed.cancelled:
