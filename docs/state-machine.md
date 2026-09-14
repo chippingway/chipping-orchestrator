@@ -112,8 +112,10 @@ accepted the refresh hands the gate the same rewrite evidence a squash does, so 
 already ruled on carries the exemption — and the operator authorization that made it a bypass — over instead of being
 adjudicated again. A transfer of an exemption nothing authorizes is refused, since moving one would hand the
 rewritten commit a permission the accepted one never had. The `question` and `discussion` labels
-— and the parks and in-flight discussion records that outlive them — skip both paths. The failure modes, their durable
-`park_reason` tokens, and the refresh-owned retry are in
+— and the parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto
+rebase's anchor, of the records and parks that freeze a branch only the late size-gate claims keep the refresh away,
+so its recovery answers the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens,
+and the refresh-owned retry are in
 [`state-machine/labels-and-state.md#base-refresh`](state-machine/labels-and-state.md#base-refresh).
 
 ### Pollable issues and finalization
@@ -307,17 +309,18 @@ that moved off the frozen one each park rather than push. A pair frozen and neve
 handler on the next tick, by the dispatcher, on the stage the record names — and one whose checkout is not on this
 host stops the tick instead of letting the stage run over a candidate nobody read. An auto-rebase anchor still
 standing — a failed base fetch or a pull request that would not read returns before its recovery runs — holds the
-handler back the same way, unless a hard-skip or a late claim the reconciliation answers — a frozen pair, an approved
-push — keeps the refresh away, since that is not released by the refresh — and it is asked again once the
-reconciliation has run, so a claim it spends leaves the anchor holding the tick. Every other record and park the
-refresh freezes on holds: a stage's handler takes its park down on a reply and runs on into the agent it was holding
-back, and a timeout, a reading nobody could take, or a collapse mid-rewrite is likewise ended by a handler the hold
-keeps back. So beside an anchor none of them keeps the refresh away, and the refresh answers the anchor under them
-with the recovery alone, no reply spent, leaving each for its owner. On a label the
-refresh does not drive, read-only stages included, the dispatcher answers the anchor itself on the refresh's
-ineligible road — a clear, or the stranded park — and holds the handler until the record ends. On one it drives, a
-checkout whose HEAD names a commit nothing can read stays held until the refresh has reset and parked it, and one
-that is not on disk is restored, so the next refresh walks it.
+handler back the same way, on every label and on the live adjudication's own road too, unless a hard-skip stands. On
+a label the refresh does not drive — read-only stages and a generation still under adjudication included — nothing
+is waited on: the dispatcher answers the anchor itself on the refresh's ineligible road, a clear or the stranded
+park, and holds the handler until the record ends. On one it drives, a late claim the reconciliation answers — a
+frozen pair, an approved push — releases the hold, since it keeps the refresh away and nothing but the reconciliation
+ends it, and the hold is asked again once the reconciliation has run, so a claim it spends leaves the anchor holding
+the tick. Every other record and park the refresh freezes on holds: a stage's handler takes its park down on a reply
+and runs on into the agent it was holding back, and a timeout, a reading nobody could take, or a collapse mid-rewrite
+is likewise ended by a handler the hold keeps back. So beside an anchor none of them keeps the refresh away, and the
+refresh answers the anchor under them with the recovery alone, no reply spent, leaving each for its owner. A checkout
+whose HEAD names a commit nothing can read stays held until the refresh has reset and parked it, and one that is not
+on disk is restored, so the next refresh walks it.
 Both roads that reconciliation takes end in a push, so an issue that is closed and a pull request that has merged or
 been closed are each handed back to the stage terminal ahead of it, with the generation, the receipt and the debt left
 exactly as they stand. Work that

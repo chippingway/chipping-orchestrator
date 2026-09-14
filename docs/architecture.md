@@ -354,9 +354,10 @@ off the thread, and stepping aside for work that has ENDED — a closed issue, a
 merged or been closed, which the issue's own flag cannot show — so a terminal arc can still finish
 ([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-agent-run-limit-hold-every-dispatch-ahead-of-every-handler))
 — an auto-rebase anchor no recovery has ended, since the base refresh answers one ahead of every handler only on a
-tick that reaches it: the handler is held while the anchor stands, under a stage's own park too, and asked again once
-the late reconciliation has run; a label the refresh does not drive is answered on its ineligible road by the
-dispatcher itself, and a missing checkout on one it drives is restored for the refresh to walk
+tick that reaches it: the handler is held while the anchor stands, under a stage's own park and on the live
+adjudication's road too, and asked again once the late reconciliation has run; a label the refresh does not drive is
+answered on its ineligible road by the dispatcher itself, and a missing checkout on one it drives is restored for the
+refresh to walk
 ([`state-machine/labels-and-state.md`][pinned-state])
 — and, last, an unlabeled issue that already carries a pinned comment, which is one this orchestrator has met
 before: the pickup handler behind it *greets* an issue and mints its pinned comment, so a second greeting writes a
