@@ -7,9 +7,7 @@ from orchestrator.workflow.late_split import (
     formats as _formats,
     phases as _late_phases,
 )
-from orchestrator.workflow.state import (
-    publishes_onto_a_pull_request,
-)
+from orchestrator.workflow.transitions import publishes_onto_a_pull_request
 
 # How deep automatic splitting may go. The root issue of a lineage is depth 0,
 # so a generation may only split while its own depth is strictly below this:

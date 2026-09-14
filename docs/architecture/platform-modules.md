@@ -18,9 +18,10 @@ last is held by the loader itself rather than by a check.
   `scheduler/`, and `skills/` sit above it and below `workflow/`; `runtime/` and the two launch forms compose the
   lot. `tests/repository/test_layering.py` reads that direction twice, because deferring an import weakens where it
   lands but not whether it belongs.
-- **At module scope, one exception.** The only name a lower layer may bind above itself is `workflow/state.py`, for
-  the label vocabulary it is typed by, and only `github/` and `git/` may bind it — matched on the module boundary in
-  the same check, so a sibling of the state owner cannot inherit the exemption by wearing the same prefix.
+- **At module scope, the workflow vocabulary.** Only `github/` and `git/` may bind the exact workflow owners
+  `state.py`, `label_reading.py`, `transitions.py`, and `transition_guard.py`. They read and write the label vocabulary
+  through those owners, which load no engine or stages. The check matches module boundaries, so a sibling cannot
+  inherit this permission by wearing the same prefix.
 - **Over every scope, declared per module.** A base sync runs in the git layer but reports to the
   issue it was started for: `base_sync/conflicts.py`, `base_sync/recovery_notices.py`, and `base_sync/publication.py`
   reach `workflow/engine/comments.py`; `persistence` reaches `workflow/engine/guards.py` and

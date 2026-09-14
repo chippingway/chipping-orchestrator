@@ -24,13 +24,10 @@ from github.Label import Label
 from orchestrator.config import settings as config
 from orchestrator.github import events, labels
 from orchestrator.github.comments import carries_own_marker
-from orchestrator.workflow.state import (
-    WorkflowLabel,
-    coerce_workflow_label,
-    guard_transition,
-    label_for_name,
-    replaced_label_names,
-    stage_name,
+from orchestrator.workflow import (
+    label_reading as _label_reading,
+    state as _workflow_state,
+    transition_guard as _transition_guard,
 )
 
 log = logging.getLogger("orchestrator.github")
@@ -62,15 +59,15 @@ _RECORDED_EVENTS_CAP = 500
 # until the humans decide the pull request. Nothing else revisits a closed
 # issue, and the branch and worktree the plan lives on have nothing else that
 # would reap them.
-CLOSED_SWEEP_LABELS: tuple[WorkflowLabel, ...] = (
-    WorkflowLabel.IMPLEMENTING,
-    WorkflowLabel.DOCUMENTING,
-    WorkflowLabel.VALIDATING,
-    WorkflowLabel.IN_REVIEW,
-    WorkflowLabel.FIXING,
-    WorkflowLabel.RESOLVING_CONFLICT,
-    WorkflowLabel.QUESTION,
-    WorkflowLabel.DISCUSSION,
+CLOSED_SWEEP_LABELS: tuple[_workflow_state.WorkflowLabel, ...] = (
+    _workflow_state.WorkflowLabel.IMPLEMENTING,
+    _workflow_state.WorkflowLabel.DOCUMENTING,
+    _workflow_state.WorkflowLabel.VALIDATING,
+    _workflow_state.WorkflowLabel.IN_REVIEW,
+    _workflow_state.WorkflowLabel.FIXING,
+    _workflow_state.WorkflowLabel.RESOLVING_CONFLICT,
+    _workflow_state.WorkflowLabel.QUESTION,
+    _workflow_state.WorkflowLabel.DISCUSSION,
 )
 
 # The two states an issue that owns a preserved candidate can be closed on,
@@ -89,9 +86,9 @@ CLOSED_SWEEP_LABELS: tuple[WorkflowLabel, ...] = (
 # refetched on, too -- there a close decides which handler runs, and the wrong
 # answer spawns the decomposer or activates children on an issue somebody has
 # ended.
-CLEANUP_SWEEP_LABELS: tuple[WorkflowLabel, ...] = (
-    WorkflowLabel.DECOMPOSING,
-    WorkflowLabel.UMBRELLA,
+CLEANUP_SWEEP_LABELS: tuple[_workflow_state.WorkflowLabel, ...] = (
+    _workflow_state.WorkflowLabel.DECOMPOSING,
+    _workflow_state.WorkflowLabel.UMBRELLA,
 )
 
 # The two an interrupted ending can be LEFT on, which is a different question
@@ -110,16 +107,16 @@ CLEANUP_SWEEP_LABELS: tuple[WorkflowLabel, ...] = (
 # closed issue on them per sweep, on the `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS`
 # cadence that exists to bound precisely this, and what it buys is an ending
 # no restart can lose.
-CLEANUP_RECOVERY_LABELS: tuple[WorkflowLabel, ...] = (
-    WorkflowLabel.READY,
-    WorkflowLabel.BLOCKED,
+CLEANUP_RECOVERY_LABELS: tuple[_workflow_state.WorkflowLabel, ...] = (
+    _workflow_state.WorkflowLabel.READY,
+    _workflow_state.WorkflowLabel.BLOCKED,
 )
 
 # Every label a CLOSED issue reaches the cleanup pass under. The dispatcher
 # routes on this rather than on either half: what the pass does is read one
 # record and settle whatever late cycle it finds, which is the same question
 # wherever the label came from.
-CLEANUP_ROUTE_LABELS: tuple[WorkflowLabel, ...] = (
+CLEANUP_ROUTE_LABELS: tuple[_workflow_state.WorkflowLabel, ...] = (
     CLEANUP_SWEEP_LABELS + CLEANUP_RECOVERY_LABELS
 )
 
@@ -185,10 +182,10 @@ def set_workflow_label(
     of what the guard is for.
     """
     new_workflow_label = (
-        coerce_workflow_label(new_label) if new_label else None
+        _label_reading.coerce_workflow_label(new_label) if new_label else None
     )
     if new_workflow_label is not None and guarded:
-        guard_transition(
+        _transition_guard.guard_transition(
             client.workflow_label(issue),
             new_workflow_label,
             config.WORKFLOW_TRANSITION_GUARD,
@@ -197,7 +194,7 @@ def set_workflow_label(
     # namespaced one belongs to the repository, not to the orchestrator, so it
     # survives -- see `replaced_label_names`.
     label_names = [issue_label.name for issue_label in issue.labels]
-    replaced = replaced_label_names(label_names)
+    replaced = _label_reading.replaced_label_names(label_names)
     kept_labels = [name for name in label_names if name not in replaced]
     if new_workflow_label is not None:
         kept_labels.append(new_workflow_label)
@@ -206,7 +203,7 @@ def set_workflow_label(
         # The event and the analytics row name the state by its bare tag: the
         # namespace is a GitHub label spelling, and every reader downstream of
         # here keys on the tag under it.
-        client._emit_stage_enter(issue, stage_name(new_workflow_label))
+        client._emit_stage_enter(issue, _workflow_state.stage_name(new_workflow_label))
 
 
 # The event kind GitHub records when a label is put ON an issue. A removal is
@@ -248,7 +245,7 @@ def _workflow_label_applied(issue_event: Any, bot_login: str) -> str | None:
     if actor != bot_login:
         return None
     named = getattr(getattr(issue_event, "label", None), "name", None)
-    return label_for_name(named) if named else None
+    return _label_reading.label_for_name(named) if named else None
 
 
 class GitHubIssueMixin:
@@ -339,7 +336,7 @@ class GitHubIssueMixin:
     ) -> Issue:
         """Create a child with validated workflow labels and a parent link."""
         validated_labels = [
-            coerce_workflow_label(label_name)
+            _label_reading.coerce_workflow_label(label_name)
             for label_name in labels
         ]
         parent_body = (body or "").rstrip()

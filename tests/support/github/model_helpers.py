@@ -9,7 +9,7 @@ from orchestrator.github.issues import (
     CLEANUP_ROUTE_LABELS,
     CLOSED_SWEEP_LABELS,
 )
-from orchestrator.workflow.state import label_for_name
+from orchestrator.workflow.label_reading import label_for_name
 
 _CLOSED_SWEEP_LABELS = frozenset(CLOSED_SWEEP_LABELS + CLEANUP_ROUTE_LABELS)
 

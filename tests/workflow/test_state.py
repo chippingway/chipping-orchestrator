@@ -11,13 +11,9 @@ import unittest
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github import labels as _labels
 from orchestrator.workflow.engine import dispatch as _dispatch
-from orchestrator.workflow.state import (
-    _DETOUR_TO_RESOLVING,
-    ALLOWED_TRANSITIONS,
-    ControlLabel,
-    WorkflowLabel,
-    coerce_workflow_label,
-)
+from orchestrator.workflow.label_reading import coerce_workflow_label
+from orchestrator.workflow.state import ControlLabel, WorkflowLabel
+from orchestrator.workflow.transitions import _DETOUR_TO_RESOLVING, ALLOWED_TRANSITIONS
 from tests.support.fakes import FakeGitHubClient, make_issue
 
 _VALIDATING_LABEL = "workflow:validating"

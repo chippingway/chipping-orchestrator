@@ -11,13 +11,10 @@ from orchestrator.github import events as _events
 from orchestrator.github.comments import carries_own_marker
 from orchestrator.github.pinned_state import PINNED_STATE_MARKER, PinnedState
 from orchestrator.observability.analytics.recording import events as _recording_events
-from orchestrator.workflow.state import (
-    WorkflowLabel,
-    coerce_workflow_label,
-    guard_transition,
-    issue_workflow_label,
-    replaced_label_names,
-    stage_name,
+from orchestrator.workflow import (
+    label_reading as _label_reading,
+    state as _workflow_state,
+    transition_guard as _transition_guard,
 )
 from tests.support.github.model_helpers import _has_closed_sweep_label
 from tests.support.github.models import (
@@ -34,9 +31,9 @@ _STATE_CLOSED = "closed"
 def _workflow_label(
     owner_or_issue,
     issue: FakeIssue | None = None,
-) -> WorkflowLabel | None:
+) -> _workflow_state.WorkflowLabel | None:
     target_issue = issue or owner_or_issue
-    return issue_workflow_label(label.name for label in target_issue.labels)
+    return _label_reading.issue_workflow_label(label.name for label in target_issue.labels)
 
 
 def _set_workflow_label(
@@ -46,14 +43,14 @@ def _set_workflow_label(
     *,
     guarded: bool = True,
 ) -> None:
-    resolved_label = coerce_workflow_label(new_label) if new_label else None
+    resolved_label = _label_reading.coerce_workflow_label(new_label) if new_label else None
     if resolved_label is not None and guarded:
-        guard_transition(
+        _transition_guard.guard_transition(
             client.workflow_label(issue),
             resolved_label,
             config.WORKFLOW_TRANSITION_GUARD,
         )
-    replaced = replaced_label_names(label.name for label in issue.labels)
+    replaced = _label_reading.replaced_label_names(label.name for label in issue.labels)
     retained = [
         label for label in issue.labels if label.name not in replaced
     ]
@@ -66,12 +63,12 @@ def _set_workflow_label(
         client.emit_event(
             "stage_enter",
             issue_number=issue.number,
-            stage=stage_name(resolved_label),
+            stage=_workflow_state.stage_name(resolved_label),
         )
         _recording_events.record_stage_enter(
             repo=client._repo_slug,
             issue=issue.number,
-            stage=stage_name(resolved_label),
+            stage=_workflow_state.stage_name(resolved_label),
         )
 
 
@@ -136,7 +133,7 @@ class _IssueService:
         parent_number: int,
         labels: list[str],
     ) -> FakeIssue:
-        validated = [coerce_workflow_label(label) for label in labels]
+        validated = [_label_reading.coerce_workflow_label(label) for label in labels]
         trimmed_body = (body or "").rstrip()
         full_body = f"{trimmed_body}\n\nParent: #{parent_number}"
         child = FakeIssue(
@@ -171,7 +168,7 @@ class _WorkflowStateService:
 
     def last_workflow_label_applied(
         self, issue: FakeIssue,
-    ) -> WorkflowLabel | None:
+    ) -> _workflow_state.WorkflowLabel | None:
         """The workflow label most recently applied to this issue.
 
         The double's ORDERED history is the timeline the real client walks:
@@ -200,8 +197,8 @@ class _WorkflowStateService:
         orchestrator's is recorded, which is exactly what the real client's
         actor filter walks past.
         """
-        resolved_label = coerce_workflow_label(new_label)
-        replaced = replaced_label_names(label.name for label in issue.labels)
+        resolved_label = _label_reading.coerce_workflow_label(new_label)
+        replaced = _label_reading.replaced_label_names(label.name for label in issue.labels)
         issue.labels = [
             label for label in issue.labels if label.name not in replaced
         ]

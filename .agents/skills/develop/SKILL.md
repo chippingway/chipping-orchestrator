@@ -73,12 +73,13 @@ Before committing, run each of these and fix what they report:
 
 ## Workflow owners and stage modules
 
-Every package initializer is a marker, so callers name defining modules directly. Labels and transition guards
-live on `workflow/state.py`, the per-repo tick on `workflow/engine/tick.py`, and resolved process settings on
-`config/settings.py`. Get the boundaries right:
+Every package initializer is a marker, so callers name defining modules directly. Labels live on
+`workflow/state.py`, label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions.py`, and
+write guards on `workflow/transition_guard.py`. The per-repo tick lives on `workflow/engine/tick.py` and resolved
+process settings on `config/settings.py`. Get the boundaries right:
 
 - Initializers bind no engine, stage, model, service, or settings owner. The GitHub and git layers can therefore
-  import `workflow/state.py` without loading the engine back into their own initialization. Clean-process tests in
+  import the label, reading, graph, and guard owners without loading the engine into their own initialization. Tests in
   `tests/workflow/test_imports.py` check that direction, and `tests/repository/test_package_exports.py` checks every
   initializer's source and namespace.
 - Settings reloads and patches target `orchestrator.config.settings`, the same module object all callers retain.
@@ -93,7 +94,7 @@ live on `workflow/state.py`, the per-repo tick on `workflow/engine/tick.py`, and
 - Stage-private helpers stay in the stage package that owns them. Shared helpers are read from their defining
   owner; copying or re-exporting one creates a second patch target that can drift from the running call.
 - Each owner declares its own `log = logging.getLogger("orchestrator.workflow")` with the channel spelled
-  literally (`workflow/state.py` owns `orchestrator.state_machine`). Operator filters select on those names,
+  literally (`workflow/transition_guard.py` owns `orchestrator.state_machine`). Operator filters select on those names,
   so never derive one from `__name__`; `tests/workflow/test_imports.py` walks the package and checks it.
 - Preserve the public contract verbatim across a refactor: workflow labels, pinned-state JSON keys,
   comment marker text, watermark fields, event-emission shape. Live issues already carry these — a

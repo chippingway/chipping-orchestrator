@@ -16,12 +16,8 @@ from github.Issue import Issue
 from github.Label import Label
 
 from orchestrator.github.aliases import StaticMethodAlias
-from orchestrator.workflow.state import (
-    ControlLabel,
-    WorkflowLabel,
-    issue_workflow_label,
-    legacy_label_name,
-)
+from orchestrator.workflow.label_reading import issue_workflow_label
+from orchestrator.workflow.state import ControlLabel, WorkflowLabel, legacy_label_name
 
 log = logging.getLogger("orchestrator.github")
 

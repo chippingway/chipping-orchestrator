@@ -28,10 +28,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_cancellation_terminal as _late_cancellation_terminal,
     late_close_observation as _late_close_observation,
 )
-from orchestrator.workflow.state import (
-    WorkflowLabel,
-    is_allowed_transition,
-)
+from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.transition_guard import is_allowed_transition
 
 log = logging.getLogger("orchestrator.workflow")
 

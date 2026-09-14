@@ -38,7 +38,8 @@ from orchestrator.git.worktrees.models import Retention, RetentionReason
 from orchestrator.github import issues as github_issues
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.state import WorkflowLabel, label_for_name
+from orchestrator.workflow.label_reading import label_for_name
+from orchestrator.workflow.state import WorkflowLabel
 
 # The channel is named for the worktree-lifecycle domain rather than for this
 # module's path: operators filter the rendered `orchestrator.worktree_lifecycle`

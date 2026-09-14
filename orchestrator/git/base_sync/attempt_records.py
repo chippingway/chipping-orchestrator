@@ -17,10 +17,8 @@ from orchestrator.git.base_sync.state import (
     _PENDING_REWRITE_STAGE,
 )
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.state import (
-    WorkflowLabel,
-    publishes_onto_a_pull_request,
-)
+from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.transitions import publishes_onto_a_pull_request
 
 # Every key one attempt's record of its own replay goes down as, so a reader
 # can tell a comment carrying none of them from one a hand edit or a

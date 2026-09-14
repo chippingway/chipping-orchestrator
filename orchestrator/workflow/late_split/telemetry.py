@@ -48,7 +48,7 @@ from typing import Any
 
 from orchestrator.github.client import GitHubClient
 from orchestrator.observability.analytics.recording import events as _recording_events
-from orchestrator.workflow import state as _workflow_state
+from orchestrator.workflow import label_reading as _label_reading, state as _workflow_state
 from orchestrator.workflow.late_split import (
     events as _events,
     formats as _formats,
@@ -156,7 +156,7 @@ def _stage_tag(stage: str | None) -> str | None:
     """
     if stage is None:
         return None
-    resolved = _workflow_state.label_for_name(stage)
+    resolved = _label_reading.label_for_name(stage)
     if resolved is None:
         raise _formats.InvalidLateValue(
             f"stage is not a workflow state ({type(stage).__name__})",

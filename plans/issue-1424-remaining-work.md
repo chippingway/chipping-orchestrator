@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 6 paths and 8 pairs (8 production, 0
-test), all matching isolated diagnostics. One hundred twenty-one pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 5 paths and 7 pairs (7 production, 0
+test), all matching isolated diagnostics. One hundred twenty-two pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201 and WPS202. The files must stay until that set is empty and
 validation passes.
@@ -197,12 +197,21 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 11 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate gate permission readings, durable collapse state, squash proofs,
+- `97cc4651`: separate gate permission readings, durable collapse state, squash proofs,
   verdict retirement, and unmeasured publication debt. Three production WPS202 pairs removed. The Git-side
   squash and recovery callers retain deferred imports of the defining workflow owners. Of 149 compared
   function/method bodies and 119 whole definitions, nine differences are the inspected deferred owner lookups;
   all other bodies match. All 835 focused tests pass.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All eight remaining production
+  pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate canonical and legacy label readings, the declared transition graph,
+  and the label-write guard from the label vocabulary. One production WPS202 pair removed. Every label value,
+  graph edge, guard message, and operator log channel is preserved. Of 222 compared function/method bodies
+  and 129 whole definitions, all production bodies match; four test differences update defining-owner and
+  layering assertions. The corrected focused run passes 574 tests; its remaining documentation line is fixed.
+  The development skill validates, and all 336 workflow owners match the corrected architecture inventory.
+  Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All seven remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes

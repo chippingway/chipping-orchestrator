@@ -23,7 +23,7 @@ from orchestrator.config import settings as config
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow import state as _workflow_state
+from orchestrator.workflow import transitions as _transitions
 from orchestrator.workflow.late_split import (
     payloads as _payloads,
     state as _late_state,
@@ -272,7 +272,7 @@ def _publishes_the_debt(
     moment the commit reaches the pull request, and a park nobody clears is an
     issue waiting on a human for a failure that has already healed.
     """
-    if not _workflow_state.publishes_onto_a_pull_request(label):
+    if not _transitions.publishes_onto_a_pull_request(label):
         return _moved_stage_debt(gate, label)
     approved = _parks._approved_commit(gate.state)
     unpayable = _unpayable_debt(gate, approved)

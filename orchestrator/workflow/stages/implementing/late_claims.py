@@ -35,7 +35,7 @@ import logging
 
 from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow import state as _workflow_state
+from orchestrator.workflow import transitions as _transitions
 from orchestrator.workflow.late_split import keys as _late_keys, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
@@ -208,7 +208,7 @@ def _unreadable_record(
     """
     if label == WorkflowLabel.DECOMPOSING:
         return _DAMAGED_PUBLICATION if _claims_a_publication(state) else ""
-    if not _workflow_state.publishes_onto_a_pull_request(label):
+    if not _transitions.publishes_onto_a_pull_request(label):
         return ""
     for claims, refusal in _CLAIMS:
         if claims(state):

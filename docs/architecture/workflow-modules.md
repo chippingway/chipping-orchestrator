@@ -1,6 +1,6 @@
 # Workflow modules
 
-This page maps `orchestrator/workflow/`: the state owner, the `engine/` owners one tick is
+This page maps `orchestrator/workflow/`: the state and transition owners, the `engine/` owners one tick is
 composed of, the `late_split/` domain the late size gate is defined by, and the stage subpackages the label dispatch
 routes into. It is split out of
 [`../architecture.md#top-level-layout`](../architecture.md#top-level-layout), which keeps the top-level map and the
@@ -16,9 +16,10 @@ to write is in [`../workflow.md`](../workflow.md).
 Each rule below names the check that holds it. The last is a convention the tree keeps rather than one a test can
 see, and is called out as such.
 
-- **Callers name the state and tick owners directly.** Labels and transition guards are defined in
-  `workflow/state.py`; the per-repo entry point is `workflow.engine.tick.tick`. The package initializer binds no
-  API and imports no owner. `github/` and `git/` can therefore import the state vocabulary without loading the
+- **Callers name the state and tick owners directly.** `workflow/state.py` defines the label vocabulary,
+  `label_reading.py` resolves its spellings, `transitions.py` declares the graph, and `transition_guard.py` guards
+  writes. The per-repo entry point is `workflow.engine.tick.tick`. The package initializer binds no API and imports
+  no owner. `github/` and `git/` can therefore import the state vocabulary without loading the
   engine or pointing back into their own initialization. `tests/workflow/test_imports.py` probes the import paths
   in a clean interpreter, and `tests/repository/test_layering.py` holds the direction under them.
 - **The stage handlers are resolved at call time.** `engine/dispatch.py` pairs each label with the module its handler
@@ -29,9 +30,9 @@ see, and is called out as such.
   late size gate's own refusal is resolved the same way and for the same reason — it lives on a stage owner, so the
   dispatcher imports it when it routes.
 - **Two operator log channels, spelled literally.** The engine, `late_split/`, and stage owners report on
-  `orchestrator.workflow`, and `workflow/state.py` on `orchestrator.state_machine`. A module moved between packages
-  does not take its channel with it — `tests/workflow/test_imports.py` walks the package and checks every owner that
-  declares a logger.
+  `orchestrator.workflow`, and `workflow/transition_guard.py` on `orchestrator.state_machine`. A module moved
+  between packages does not take its channel with it — `tests/workflow/test_imports.py` walks the package and
+  checks every owner that declares a logger.
 - **Nothing sits flat beside the package.** The retired spellings — `orchestrator.state_machine`,
   `orchestrator.workflow_drift`, `orchestrator.workflow_messages`, and the export and dependency manifests — resolve
   to nothing (`tests/workflow/test_imports.py`), and the repo-wide naming rule in
@@ -51,14 +52,14 @@ unlabeled entry, which `engine/pickup.py` answers rather than a stage package.
 
 ```
 workflow/                   marker package for state, engine, and stage owners
-  state.py                  the `WorkflowLabel` / `ControlLabel` vocabularies, strict label coercion, the declared
-                            transition graph and the guard over it -- including the one edge OUT of a terminal,
-                            `done` to `rejected`, which the umbrella cancelled between its label write and its
-                            close is corrected over -- the two predicates that read the graph's own stage sets
-                            back, one for the states a candidate the remote already carries may be published from
-                            and one for the states the per-tick base refresh drives, which is what the rewrite
-                            record holds a kind and its stage to together -- and the `workflow:` namespace
-                            boundary
+  state.py                  the exact `WorkflowLabel` / `ControlLabel` strings and the `workflow:` namespace boundary;
+                            stage tags and legacy spellings retain the vocabulary used by live issues and event sinks
+  label_reading.py           canonical and legacy label lookup, canonical-first issue state, strict coercion, and the
+                            exact set of labels a workflow write replaces without removing unrelated bare labels
+  transitions.py            the forward spine and declared interrupt sources, including cancelled `done` to `rejected`;
+                            publication and base-refresh eligibility read the same stage sets used by those edges
+  transition_guard.py       the same-label allowance and off/warn/enforce write guard, with strict rejection details and
+                            the literal `orchestrator.state_machine` channel operators filter on
   engine/                   what every stage is driven by
     agent_diagnostics.py    what a park comment and a WARNING say about a run that left no usable message: the
                             agent's stderr under two budgets -- 1KB for the human who came to the issue, 400
@@ -611,13 +612,29 @@ workflow/                   marker package for state, engine, and stage owners
                             replacement is taken; an open pull request whose restoration failed keeps the handoff held
       late_hold.py          preserve the chosen pull request's identity, head, and body before applying its hold;
                             refuse unrecorded or displaced descriptions and report moved heads without restamping them
-      late_verdict_retirement.py
-                            retire the generation inside the observation window; a close before or inside its write
-                            leaves a durable cancelled cycle for cleanup, including reinstatement after retirement
-      late_verdict_debt.py  keep unmeasured candidate, lease, basis, and route spends together; stage debt for a transfer's
-                            coordinated write or persist it before publication, and drop superseded approvals
-      late_verdict.py       approve accepted or authorized work, route oversized work with its unpublished notice,
-                            retire answered parks, and coordinate generation retirement with route and publication debt
+      late_verdict.py       what one finished reply decides: the lineage-bound refusal recorded as the categorized
+                            question it actually is, the record written and persisted before anything is posted,
+                            and the announcement a recorded question is reconciled by -- made past the owner
+                            guard rather than beside the record, and suppressed where a park already stands. All
+                            three sentences a read reply hands the issue back under are worded here -- the
+                            unusable reply, the outcome too large to record, and the question itself -- since the
+                            reason is a shared value this mode's park owner is read against and the sentence is
+                            the failing step's own to say. Too large is asked of the COMMENT alone -- how an
+                            explanation will render is never grounds to refuse the verdict carrying it, since that
+                            park is superseded and the refusal would buy a second run and leave a `single` short of
+                            the durable park a human's decision is owed on
+      late_outcome.py       what every completion leaves on the record: the write that closes one by carrying the
+                            owner read it now owes -- under `owner_check` unless a split transaction was
+                            interrupted, whose boundary the record itself refuses to let any pre-split write
+                            rewind, since the phase is all that says a loop was in flight when nothing is
+                            recorded yet -- the answer a crashed tick reads back rather than paying an agent for
+                            a second time, the session a timeout or a contaminated worktree pins before the issue
+                            is handed back, the one record every ending hands its caller -- a decided one
+                            travelling on the adjudication itself rather than on a re-read of the comment it was
+                            written to -- and the three emissions each written straight after the state they
+                            describe: a verdict, a typed late failure -- carrying the step and the line behind it
+                            where the reading was a re-measurement, so a reading that did not happen reads alike
+                            wherever it was taken -- and the cancellation an owner read earns
       late_parks.py         the decisions that take, stage, retire, or answer a late park: a pre-run park stages
                             its claim, persists it through `late_park_state`, and releases its notice through
                             `late_park_delivery`; a post-run park is staged with its result and released only
@@ -1529,30 +1546,13 @@ workflow/                   marker package for state, engine, and stage owners
       late_evidence.py      what a recovery proves before it acts: the checkout, both recorded objects, a
                             head that is still the candidate, and a head that is still the commit an approval
                             owes a publication for -- proved ahead of every spawn
-      late_verdict.py       what a measured candidate earns -- the push and the head an approval on the published
-                            side is pinned to, which outlives the generation that froze it for as long as the push
-                            is still owed, the `workflow:decomposing` hold and the
-                            notice it owes the thread on the side of publication the record was entered on, the
-                            approval a publication naming another commit supersedes, the same debt recorded for a
-                            candidate that skipped the reading -- an exemption's, a supersession the switch let
-                            past -- since no generation was frozen for one and the push it licenses would
-                            otherwise leave the branch on the remote with nothing on the issue naming it, that
-                            debt also offered STAGED rather than written, for the one owner that has a record of
-                            its own to make durable in the same breath -- a permission that licenses a rewritten
-                            commit and a debt naming the push it is owed may not be split across two writes, since
-                            a process dying between them comes back to a one-commit branch nothing says a push is
-                            outstanding for -- and
-                            the retirement each is durable behind, that write held inside the observations
-                            owner's retirement window with the latch asked ahead of it and the window's own
-                            answer behind it, where a close is answered by putting the cycle back cancelled; both
-                            verdicts are also where a measurement park is retired, since an answer is what it was
-                            waiting for and a tick that only re-read the pair has not given it one, and the measured
-                            one is where the step a notice named is dropped -- every failure-prone step is behind
-                            that line, and the record it clears from is the one an oversized candidate is
-                            adjudicated from. The authorization park is retired on the unmeasured verdict alone
-                            and past every refusal on it, since that is the only road publishing a commit an
-                            override already covers: what that park waits for is a PERSON, so a close or a
-                            supersession above the line has to leave the operator waiting exactly as it found them
+      late_verdict_retirement.py
+                            retire the generation inside the observation window; a close before or inside its write
+                            leaves a durable cancelled cycle for cleanup, including reinstatement after retirement
+      late_verdict_debt.py  keep unmeasured candidate, lease, basis, and route spends together; stage debt for a transfer's
+                            coordinated write or persist it before publication, and drop superseded approvals
+      late_verdict.py       approve accepted or authorized work, route oversized work with its unpublished notice,
+                            retire answered parks, and coordinate generation retirement with route and publication debt
       late_parks.py         the approval group -- the commit a publication is owed, the head it is pinned to, and
                             the bounded basis saying which owner granted it, so a later reader tells this gate's
                             own count from a debt an operator's gesture is behind rather than inferring it from

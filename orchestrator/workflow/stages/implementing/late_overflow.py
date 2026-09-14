@@ -80,10 +80,8 @@ from orchestrator.workflow.stages.implementing import (
     late_records as _records,
     state as _state,
 )
-from orchestrator.workflow.state import (
-    WorkflowLabel,
-    publishes_onto_a_pull_request,
-)
+from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.transitions import publishes_onto_a_pull_request
 
 log = logging.getLogger("orchestrator.workflow")
 

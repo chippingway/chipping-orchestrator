@@ -36,9 +36,9 @@ stage — `decomposition` (the `decomposing` / `ready` / `blocked` / `umbrella` 
 `validating`, `in_review`, `fixing`, `conflicts`, `question`, and `discussion` — which own entry checks, session
 execution, drift handling, persistence, and terminal routing. Nothing answers for a stage beside those owners, so each
 handler is reached on the one module that holds it, the dispatcher and the same-tick pickup start that module
-directly, and a patch meant to intercept a handler has to land on it. `orchestrator.workflow` publishes six names and
-nothing else — `WorkflowLabel`, `ControlLabel`, `guard_transition`, `is_allowed_transition`, `IllegalTransition`, and
-`tick`.
+directly, and a patch meant to intercept a handler has to land on it. The `orchestrator.workflow` initializer is a
+marker. Callers read labels from `state.py`, write guards from `transition_guard.py`, and the per-repo tick from
+`engine/tick.py`.
 
 Everything a stage borrows is named the same way. A cross-stage call names the owner it borrows from rather than a
 facade; the worktree, HEAD, fetch, push, and PR-title helpers live on owners under `orchestrator/git/`; and the

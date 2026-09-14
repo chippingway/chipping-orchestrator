@@ -12,7 +12,7 @@ import unittest
 from importlib.util import find_spec
 
 from orchestrator import workflow as _workflow
-from orchestrator.workflow import engine as _engine, state as _state
+from orchestrator.workflow import engine as _engine, state as _state, transition_guard as _transition_guard
 
 _TICK = "tick"
 
@@ -113,6 +113,9 @@ _MODULES = (
         for owner in _LATE_SPLIT_OWNERS
     ),
     "orchestrator.workflow.state",
+    "orchestrator.workflow.label_reading",
+    "orchestrator.workflow.transitions",
+    "orchestrator.workflow.transition_guard",
 )
 
 # What importing the package must leave out of `sys.modules`: the dispatcher,
@@ -129,11 +132,14 @@ _DEFERRED_MODULES = (
     "orchestrator.workflow.stages",
 )
 
-# The `state` owner is what the GitHub and git layers below the engine are typed
-# by, so an import of it has to cost no more than the initializer it runs.
+# The vocabulary, label readings, transition graph, and guard are read by the
+# GitHub and git layers, so each must import without any engine or subsystem.
 _LAZY_IMPORTS = (
     "orchestrator.workflow",
     "orchestrator.workflow.state",
+    "orchestrator.workflow.label_reading",
+    "orchestrator.workflow.transitions",
+    "orchestrator.workflow.transition_guard",
 )
 
 _LAZINESS_PROBE = (
@@ -168,11 +174,13 @@ _PUBLIC_SURFACE = (
     _TICK,
 )
 
-# Labels and guards belong to the state owner; the tick belongs to the engine.
-_STATE_NAMES = tuple(name for name in _PUBLIC_SURFACE if name != _TICK)
+# The vocabularies and transition guard retain one defining owner each.
+_STATE_NAMES = ("ControlLabel", "WorkflowLabel")
+
+_GUARD_NAMES = ("IllegalTransition", "guard_transition", "is_allowed_transition")
 
 # The two operator-facing log channels this package reports on. Every engine and
-# stage owner spells the first literally, and the `state` owner the second.
+# stage owner spells the first literally, and the transition guard the second.
 _WORKFLOW_CHANNEL = "orchestrator.workflow"
 
 _STATE_CHANNEL = "orchestrator.state_machine"
@@ -234,9 +242,10 @@ class PublicSurfaceTest(unittest.TestCase):
         for name in _PUBLIC_SURFACE:
             with self.subTest(name=name):
                 self.assertNotIn(name, _workflow.__dict__)
-        for name in _STATE_NAMES:
-            with self.subTest(name=name):
-                self.assertEqual(getattr(_state, name).__module__, _state.__name__)
+        for owner, names in ((_state, _STATE_NAMES), (_transition_guard, _GUARD_NAMES)):
+            for name in names:
+                with self.subTest(owner=owner.__name__, name=name):
+                    self.assertEqual(getattr(owner, name).__module__, owner.__name__)
 
     def test_tick_is_defined_on_the_engine_owner(self) -> None:
         engine_tick = importlib.import_module(_TICK_OWNER)
@@ -267,7 +276,7 @@ class LoggerChannelTest(unittest.TestCase):
         for module in self._modules_declaring_a_logger():
             with self.subTest(module=module.__name__):
                 expected = (
-                    _STATE_CHANNEL if module is _state else _WORKFLOW_CHANNEL
+                    _STATE_CHANNEL if module is _transition_guard else _WORKFLOW_CHANNEL
                 )
                 self.assertEqual(module.log.name, expected)
 
