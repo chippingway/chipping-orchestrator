@@ -383,7 +383,8 @@ orchestrator/
                         settled permissions name the rewritten pair and outstanding ones name the accepted pair
       transfer_publication.py
                         whole debt and receipt proofs for recovered publication and rollback; an unreadable approval
-                        or a receipt for another head or PR cannot prove this attempt settled
+                        or a receipt for another head or PR cannot prove this attempt settled, and a leased no-op's
+                        receipt, leased against the commit itself, accounts only for a settled transfer on that PR
       transfers.py      classify the exact attempt's missing, unrecorded, outstanding, settled, or unvouched handoff,
                         and require a published rotation to agree with the issue's current exemption. Its outstanding
                         transfer reading passes over settled history when deciding whether an attempt can be cleared
@@ -401,6 +402,19 @@ orchestrator/
       recovery_push.py  the shared dirty-guarded retry, bound to the exact verified checkout. Ordinary recovery uses
                         the measured gate; a replay carrying a verdict may require a transfer permit before and inside
                         the gate, then verify that the verdict rotated before finalizing the push
+      landed_recovery.py
+                        the dormant route for a head the pull request already carries: a foreign publication, a
+                        foreign mark, a landing nothing of the attempt's vouches for, a tree not provably clean under
+                        a verdict, and an unaccounted transfer park without a reset; past them a lost settlement
+                        record is reported once, and an announced route is only written, an outstanding permission
+                        is settled, and anything else takes the ordinary finish
+      landed_settlement.py
+                        the permitted, leased no-op that receipts an outstanding permission over a landed rewrite and
+                        reads the rotation back; every unsettled outcome parks with HEAD and the anchor kept
+      terminal_handoff.py
+                        the dormant end of an attempt whose PR merged or closed: the attempt and its debt dropped, a
+                        shipped rewrite's permission settled with its receipt, any other dropped on the rollback's
+                        rule, in one write
       replay_recovery.py
                         the record-based coordinator the refresh enters through `recovery`. Label and unmoved
                         cleanup precede comparison, a published head precedes retry checks, and proven replay evidence
@@ -434,7 +448,8 @@ orchestrator/
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the
                         approved commit -- and the recovery finalization that orders notice delivery, the
-                        durable announcement checkpoint, routing, and the final state write
+                        durable announcement checkpoint, routing, and the final state write, beside the write that
+                        finishes an announced route without announcing it again
       recovery_notices.py
                         format and deliver the successful recovery notices and audit event before the announcement
                         checkpoint; a failed comment is reported while the recovered publication can still be recorded

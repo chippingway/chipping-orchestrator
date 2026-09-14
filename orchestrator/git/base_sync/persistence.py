@@ -248,6 +248,35 @@ def _route_recovered_rebase(
     return False
 
 
+def _write_the_finished_route(
+    context: _AutoRebaseRecoveryContext, local_head: str,
+) -> bool:
+    """Make durable a finish an earlier tick announced and never wrote.
+
+    The one finish that announces nothing. The notice and the `base_rebased`
+    event go out before the mark does, so a mark naming this head says both
+    are already out, and saying them again would put a second of each on the
+    pull request and the stream for one publication.
+
+    What is left is the write every finish makes -- the whole attempt cleared,
+    the round reset, and a human's retry spent, since an announced attempt can
+    have been parked and re-entered on a reply -- and the route, held to the
+    base lag exactly as the ordinary finish is. A relabel that already landed
+    is not made again: writing a label an issue already wears is a transition
+    the graph does not describe and a second `stage_enter` on the stream.
+    """
+    log.info(
+        "issue=#%d auto-rebase recovery: an earlier tick announced %s and died "
+        "before its own write; finishing the route without announcing it again",
+        context.issue.number, local_head[:8],
+    )
+    _prepare_recovered_rebase_state(context)
+    if context.behind == 0 and context.label == WorkflowLabel.VALIDATING:
+        context.gh.write_pinned_state(context.issue, context.state)
+        return True
+    return _route_recovered_rebase(context, local_head, "crash_recovery_announced")
+
+
 def _finalize_recovered_rebase(
     context: _AutoRebaseRecoveryContext,
     *,

@@ -86,6 +86,8 @@ _LATE_SQUASH_PROOF = f"{PACKAGE}.workflow.stages.implementing.late_squash_proof"
 
 _LATE_TRANSFER = f"{PACKAGE}.workflow.stages.implementing.late_transfer"
 
+_LATE_TELEMETRY = f"{PACKAGE}.workflow.stages.implementing.late_transfer_telemetry"
+
 # The exemption a verdict left and the record that authorizes it to move: the
 # two halves of the evidence a base sync assembles for the rewrite it is about
 # to publish.
@@ -124,11 +126,26 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # The record one attempt leaves of its own replay reaches the late domain for
 # one thing only: the shape a recorded commit is held to. Spelled twice, a
 # comment would come to accept what every other reader in the tree refuses.
+#
+# Past a landing the same seams are reached once more: the gate entry a leased
+# no-op is made through, the record a settlement never got to report, and --
+# for a pull request that is over -- the receipt, the debt, the rotation, and
+# the rollback's drop that end an attempt's whole handoff in one write.
 _CALL_TIME_HOPS = MappingProxyType({
     f"{_BASE_SYNC}.attempt_records": (
         f"{PACKAGE}.workflow.late_split.formats",
     ),
     f"{_BASE_SYNC}.conflicts": (_COMMENTS,),
+    f"{_BASE_SYNC}.landed_recovery": (_LATE_RECORDS, _LATE_TELEMETRY),
+    f"{_BASE_SYNC}.landed_settlement": (_LATE_ENTRY,),
+    f"{_BASE_SYNC}.terminal_handoff": (
+        f"{PACKAGE}.workflow.stages.implementing.late_approval_state",
+        f"{PACKAGE}.workflow.stages.implementing.late_publication_state",
+        _LATE_RECORDS,
+        f"{PACKAGE}.workflow.stages.implementing.late_rotation",
+        _LATE_TRANSFER,
+        _LATE_TELEMETRY,
+    ),
     f"{_BASE_SYNC}.persistence": (
         f"{PACKAGE}.workflow.engine.guards",
         f"{PACKAGE}.workflow.stages.implementing.late_approval_reading",

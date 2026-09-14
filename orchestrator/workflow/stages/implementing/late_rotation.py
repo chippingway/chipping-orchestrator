@@ -216,6 +216,48 @@ def _carried(
     return _Rotation(staged=True, rewrite=rewrite, proof=proof)
 
 
+def _settles_a_merged_transfer(
+    gate: _late_gate_models._Gate, published: str, lease: str, pr_number: int,
+) -> _Rotation:
+    """Spend a permission whose rewrite a pull request shipped when it closed.
+
+    The one window a TERMINAL pull request can end a transfer in the middle
+    of: the push the permission licensed went out, the write receipting it
+    never landed, and somebody merged or closed the pull request over the
+    commit it put there. Read as a push that never happened, the verdict stays
+    on the object the rewrite replaced while the one that shipped is covered
+    by nothing, and no account of the move reaches either sink.
+
+    The head the pull request ended on is the proof, the same one a leased
+    no-op buys on an open pull request. No permit is re-asked over it, because
+    a permit licenses a push about to be made and this one is behind us; what
+    stands in its place is the record's own binding, asked in full. The
+    permission has to read back whole and still be outstanding, and the
+    rewrite it names has to be the commit that shipped, pushed from the head
+    this attempt was leased against, onto the pull request that closed.
+
+    Nothing where any of that fails, which is the ordinary terminal pull
+    request: the caller drops the permission on the rollback's own rule.
+    """
+    authorization = _rewrite_reading.read_rewrite_authorization(gate.state)
+    if authorization is None:
+        return _NOTHING
+    if authorization.phase != _rewrite_values.LateRewritePhase.AUTHORIZED:
+        return _NOTHING
+    rewrite = authorization.rewrite
+    if (rewrite.to_sha, rewrite.lease, rewrite.pr_number) != (published, lease, pr_number):
+        return _NOTHING
+    log.info(
+        "issue=#%d closed pull request #%d shipped %s, which this issue's "
+        "outstanding permission was granted for; settling the transfer its own "
+        "receipt never got to",
+        gate.issue.number, pr_number, published,
+    )
+    return _carried(gate, _publication_gate._PublishedCandidate(
+        held=False, revision=published, standing=published,
+    ))
+
+
 def _proved_by(
     published: _publication_gate._PublishedCandidate,
 ) -> _rewrite_values.LateRewriteProof:

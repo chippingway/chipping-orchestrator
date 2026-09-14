@@ -40,6 +40,7 @@ from dataclasses import replace
 
 from orchestrator.workflow.late_split import (
     events as _events,
+    rewrite_reading as _rewrite_reading,
     rewrite_values as _rewrite_values,
     rewrites as _rewrites,
     state as _late_state,
@@ -97,6 +98,36 @@ def _reports_the_transfer(
         stage=rewrite.source_stage,
     )
     _forgets_the_reported_proof(gate, rewrite)
+
+
+def _reports_a_settled_transfer(gate: _late_gate_models._Gate) -> bool:
+    """Make the record a settled transfer is still owed, where it owes one.
+
+    The window the proof on the comment exists for: the settlement is durable,
+    the record behind it never reached the sinks, and which reading proved the
+    push is the one fact nothing later could re-derive. The record is made from
+    what the comment carries and the proof is dropped behind it, through the
+    same two steps a settlement's own tail takes -- so a tick that finds the
+    proof gone has nothing left to say, which is what stops every later poll
+    reporting the same move again.
+
+    Answers whether it reported anything. Silent where nothing is owed, a
+    proof this build cannot read included: that one is damage, and the roads
+    that ask park on it rather than reaching here.
+    """
+    proof = _rewrite_reading.unreported_transfer(gate.state)
+    if proof is None:
+        return False
+    rewrite = _rewrite_reading.read_rewrite_authorization(gate.state).rewrite
+    log.info(
+        "issue=#%d settled the transfer onto %s and never reported it; making "
+        "the record that settlement owed",
+        gate.issue.number, rewrite.to_sha,
+    )
+    _reports_the_transfer(
+        gate, _rotation._Rotation(staged=True, rewrite=rewrite, proof=proof),
+    )
+    return True
 
 
 def _forgets_the_reported_proof(

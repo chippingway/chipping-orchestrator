@@ -188,12 +188,40 @@ class AccountedPublicationTest(seed.TransferCase):
         )
 
     def test_a_settled_transfer_is_accounted_for(self) -> None:
-        """The rotation and the receipt landed in one statement."""
-        seed.settled(self.state)
+        """The rotation and the receipt landed in one statement.
 
-        self.assertEqual(
-            _unaccounted(self.context, _transfer_values._Handoff.SETTLED), "",
+        A leased no-op receipts the head it found the pull request standing on,
+        so its receipt is leased against the commit itself. The permission the
+        settlement spent is what dates that one to this attempt, so it accounts
+        for the settlement on its own pull request and for nothing else -- on
+        its own it is the shape a rewind leaves too.
+        """
+        unreceipted = _transfer_publication._UNRECEIPTED.format(
+            published=seed.REPLAYED_SHA,
+            anchor=fixtures.PRE_REBASE_SHA,
+            publication=fixtures.PR_NUMBER,
         )
+        # The pull request a no-op's receipt names, or None for the receipt the
+        # push itself left.
+        for described, carried, no_op_onto, expected in (
+            ("the push's own receipt", _transfer_values._Handoff.SETTLED, None, ""),
+            ("a no-op's receipt", _transfer_values._Handoff.SETTLED, fixtures.PR_NUMBER, ""),
+            (
+                "a no-op's receipt with no settlement behind it",
+                _transfer_values._Handoff.UNRECORDED, fixtures.PR_NUMBER, unreceipted,
+            ),
+            (
+                "a no-op's receipt onto another publication",
+                _transfer_values._Handoff.SETTLED, seed.OTHER_PR_NUMBER, unreceipted,
+            ),
+        ):
+            with self.subTest(described):
+                self._fresh()
+                seed.settled(self.state)
+                if no_op_onto is not None:
+                    seed.receipted(self.state, superseded=seed.REPLAYED_SHA, pull_request=no_op_onto)
+
+                self.assertEqual(_unaccounted(self.context, carried), expected)
 
     def test_an_unlicensed_rewrite_is_too(self) -> None:
         """The ordinary cumulative gate published it and receipted it."""
