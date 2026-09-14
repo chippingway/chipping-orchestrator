@@ -8,9 +8,6 @@ per-file-ignores =
     orchestrator/workflow/state.py:WPS202
     orchestrator/workflow/engine/dispatch.py:WPS201,WPS202
     orchestrator/workflow/engine/terminals.py:WPS202
-    orchestrator/workflow/stages/conflicts/divergence.py:WPS202
-    orchestrator/workflow/stages/conflicts/evidence.py:WPS202
-    orchestrator/workflow/stages/conflicts/transitions.py:WPS202
     orchestrator/workflow/stages/decomposition/late_authorize.py:WPS202
     orchestrator/workflow/stages/decomposition/late_guidance.py:WPS202
     orchestrator/workflow/stages/decomposition/late_hold.py:WPS202,WPS204

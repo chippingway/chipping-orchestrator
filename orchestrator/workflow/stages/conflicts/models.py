@@ -82,3 +82,40 @@ class _ConflictResumeRun:
     worktree: Path
     dev_result: AgentResult
     paused: bool
+
+
+@dataclass(frozen=True)
+class _Replayed:
+    """What the reading taken before a rebase says it is about to replace.
+
+    The commit the branch is standing on and the fork point that commit's
+    contribution is read over, together because they are one reading and
+    because a rebase destroys both: the head is off the branch once the replay
+    lands, and the fork point it was read over is not derivable from the
+    object that replaced it.
+
+    Empty for a caller that could not take the reading, which is what a
+    checkout whose head or whose merge base nothing could name leaves. The
+    builder below turns that into no evidence rather than into a claim with a
+    hole in it.
+    """
+
+    head: str = ""
+    base_sha: str = ""
+
+
+@dataclass(frozen=True)
+class _RecordedReplay:
+    """What the pinned comment says one replay replaced, and what it produced.
+
+    Read whole or not at all, like every other record in this domain: a group
+    short of a member, or carrying a value no writer here would have written,
+    describes a replay nothing can check and is answered as no record. What it
+    costs to refuse one is the transfer, which the ordinary cumulative gate
+    then measures for -- never a park.
+    """
+
+    from_sha: str = ""
+    from_base_sha: str = ""
+    to_sha: str = ""
+    pr_number: int = 0

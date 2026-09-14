@@ -27,9 +27,10 @@ from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.workflow.stages.conflicts import (
     evidence as _evidence,
     models as _models,
+    parks as _conflict_parks,
     publication as _publication,
+    replay_records as _replay_records,
     state as _state,
-    transitions as _transitions,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -52,7 +53,7 @@ def _fetch_pr_branch(
         "issue=#%d branch fetch failed in resolving_conflict: %s",
         ctx.issue.number, (fetch_branch.stderr or "").strip(),
     )
-    _transitions._park_conflict(
+    _conflict_parks._park_conflict(
         ctx,
         f"{config.HITL_MENTIONS} `git fetch {spec.remote_name} {branch}` "
         "failed during conflict resolution; see orchestrator logs.",
@@ -81,7 +82,7 @@ def _fetch_base_ref(ctx: _models._ConflictContext, wt: Path) -> bool:
         "issue=#%d base fetch failed in resolving_conflict: %s",
         ctx.issue.number, (fetch_base.stderr or "").strip(),
     )
-    _transitions._park_conflict(
+    _conflict_parks._park_conflict(
         ctx,
         f"{config.HITL_MENTIONS} "
         f"`git fetch {spec.remote_name} {spec.base_branch}` "
@@ -135,10 +136,10 @@ def _rebase_and_dispose(
     spec = ctx.spec
     before_sha = _verification_probes._head_sha(wt)
     if not before_sha:
-        _transitions._park_unreadable_head(ctx)
+        _conflict_parks._park_unreadable_head(ctx)
         return
     replayed = _evidence._replayed(spec, wt, before_sha)
-    _evidence._records_the_replay(ctx, replayed, pr_number)
+    _replay_records._records_the_replay(ctx, replayed, pr_number)
     succeeded, conflicted_files = _base_sync_pre_pr._rebase_base_into_worktree(
         spec, wt,
     )
@@ -162,7 +163,7 @@ def _rebase_and_dispose(
         return
 
     if not conflicted_files:
-        _transitions._park_conflict(
+        _conflict_parks._park_conflict(
             ctx,
             f"{config.HITL_MENTIONS} "
             f"`git rebase {spec.remote_name}/{spec.base_branch}` "

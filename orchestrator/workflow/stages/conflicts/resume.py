@@ -49,6 +49,7 @@ from orchestrator.workflow.stages.conflicts import (
     guards as _conflict_guards,
     models as _models,
     outcomes as _outcomes,
+    parks as _conflict_parks,
     state as _state,
     transitions as _transitions,
 )
@@ -95,7 +96,7 @@ def _resume_on_user_content_change(
     wt = _conflict_guards._ensure_conflict_worktree(ctx)
     before_sha = _verification_probes._head_sha(wt)
     if not before_sha:
-        _transitions._park_unreadable_head(ctx)
+        _conflict_parks._park_unreadable_head(ctx)
         return
     ctx.state.set("user_content_hash", new_hash)
     _comments._post_pr_comment(
