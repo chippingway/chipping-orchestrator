@@ -31,10 +31,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     parents as _parents,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateContext,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.stages.decomposition.models import _SplitPlan
 from orchestrator.workflow.state import WorkflowLabel
 

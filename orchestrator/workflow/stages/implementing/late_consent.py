@@ -25,7 +25,7 @@ from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_command as _command,
     late_consent_state as _consent_state,
-    late_records as _records,
+    late_gate_models as _late_gate_models,
     state as _state,
 )
 
@@ -75,7 +75,7 @@ _PARK_NOTICE = (
 
 
 def _authorizes_the_park(
-    gate: _records._Gate, generation: LateGeneration,
+    gate: _late_gate_models._Gate, generation: LateGeneration,
 ) -> bool:
     """Whether a human has told this oversized candidate to publish as it is.
 
@@ -99,7 +99,7 @@ def _authorizes_the_park(
 
 
 def _parked_for_authorization(
-    gate: _records._Gate, generation: LateGeneration,
+    gate: _late_gate_models._Gate, generation: LateGeneration,
 ) -> bool:
     """Hold an adjudicated candidate nobody has authorized, and say so once.
 
@@ -174,7 +174,7 @@ def _parked_for_authorization(
     return True
 
 
-def _decided_by(gate: _records._Gate, candidate_sha: str) -> str:
+def _decided_by(gate: _late_gate_models._Gate, candidate_sha: str) -> str:
     """What every notice here asks for, on the side of publication it is on.
 
     Both halves say the command and spell it out ready to copy; they differ
@@ -198,7 +198,7 @@ def _decided_by(gate: _records._Gate, candidate_sha: str) -> str:
 
 
 def _recorded_authorization(
-    gate: _records._Gate, generation: LateGeneration, answer: _command._Answer,
+    gate: _late_gate_models._Gate, generation: LateGeneration, answer: _command._Answer,
 ) -> bool:
     """Record what an operator authorized, take the park off, consume the reply.
 
@@ -259,7 +259,7 @@ def _recorded_authorization(
 
 
 def _refused(
-    gate: _records._Gate, generation: LateGeneration, answer: _command._Answer,
+    gate: _late_gate_models._Gate, generation: LateGeneration, answer: _command._Answer,
 ) -> bool:
     """Say why this command changed nothing, and leave the park standing.
 

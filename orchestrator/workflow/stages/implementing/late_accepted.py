@@ -19,10 +19,10 @@ from pathlib import Path
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
     late_publication as _publication_gate,
     late_push as _push,
-    late_records as _records,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -32,7 +32,7 @@ log = logging.getLogger("orchestrator.workflow")
 _HEAD = "HEAD"
 
 
-def _publishes_approved(gate: _records._Gate, branch: str) -> bool:
+def _publishes_approved(gate: _late_gate_models._Gate, branch: str) -> bool:
     """Push a commit an authorized settlement accepted onto the publication it names.
 
     No measurement, because there is nothing left to measure: a human read

@@ -22,6 +22,9 @@ _PARENT = "orchestrator.workflow.stages"
 _HANDLER_OWNER = "handler"
 
 _OWNERS = (
+    "late_gate_models",
+    "late_identity_reading",
+
     "candidate_recovery",
     "late_consent_state",
     "park_watermarks",

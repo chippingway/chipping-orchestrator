@@ -48,7 +48,7 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
-    late_records as _late_records,
+    late_gate_models as _late_gate_models,
     resume as _dev_resume,
 )
 from orchestrator.workflow.stages.validating import dev_fix as _dev_fix, models as _models, state as _state
@@ -196,7 +196,7 @@ def _finish_requested_fix(
         # the exit where this caller never reaches the line below: a hold
         # relabels to the adjudication, and an authorized settlement publishes the
         # accepted commit itself, so nothing behind here counts it.
-        spends=_late_records._Spends(fields=(
+        spends=_late_gate_models._Spends(fields=(
             (_state._REVIEW_ROUND, context.decision.run.round_n + 1),
             ("pending_fix_reviewer_comment_id", None),
         )),

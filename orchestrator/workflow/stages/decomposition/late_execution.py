@@ -14,12 +14,10 @@ from pathlib import Path
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import settings as config
-from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import guards as _guards, issue_usage as _issue_usage, usage as _usage
 from orchestrator.workflow.late_split.models import (
     LateFailure,
-    LateGeneration,
 )
 from orchestrator.workflow.stages.decomposition import (
     late_attempt as _late_attempt,
@@ -31,12 +29,9 @@ from orchestrator.workflow.stages.decomposition import (
     late_session as _late_session,
     late_verdict as _late_verdict,
 )
-from orchestrator.workflow.stages.decomposition.late_evidence import _MISSING_WORKTREE_PARK
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateAdjudicationRun,
-    _LateContext,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_evidence import _MISSING_WORKTREE_PARK, _candidate_mutation
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudicationRun, _LateDisposition
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -56,24 +51,6 @@ _HOLD_DISPLACED_PARK = (
 
 
 _TIMEOUT_PARK = "late decomposer timed out after {seconds}s"
-
-
-_MOVED_HEAD_PARK = (
-    "the late decomposer was read-only, but the candidate worktree is no "
-    "longer on the frozen commit {frozen}. Its verdict is not being used. "
-    "Put the worktree back on that commit before resuming -- the recorded "
-    "SHA is the evidence every later step acts on, and whatever HEAD points "
-    "at now is not it."
-)
-
-
-_DIRTY_TREE_PARK = (
-    "the late decomposer was read-only, but it left changes in the candidate "
-    "worktree (or the tree could not be read). Its verdict is not being "
-    "used. Clean the worktree back to the frozen commit {frozen} before "
-    "resuming, so the candidate a later step publishes is the one that was "
-    "measured."
-)
 
 
 def _run_and_decide(context: _LateContext) -> _LateAdjudicationRun:
@@ -206,26 +183,4 @@ def _declined_run(
         )
     if _guards._ignore_if_interrupted(context.issue, agent_result):
         return _late_outcome._finished(context, _LateDisposition.DEFERRED)
-    return None
-
-
-def _candidate_mutation(
-    generation: LateGeneration, worktree: Path,
-) -> str | None:
-    """The park a worktree the read-only agent changed earns, or None.
-
-    Both halves are proved rather than assumed. HEAD has to still BE the
-    frozen commit -- not merely to contain it -- because a commit made on top
-    of the candidate is what a later publication would push, and an unreadable
-    HEAD proves nothing and reads the same way. The tree is asked through the
-    status form for the same reason: a caller whose next step ends in a push
-    has to prove the tree is clean, and a read that established nothing is not
-    that proof.
-    """
-    head = _verification_probes._head_sha(worktree)
-    if head != generation.candidate_sha:
-        return _MOVED_HEAD_PARK.format(frozen=generation.candidate_sha)
-    tree = _worktree_status._worktree_status(worktree)
-    if not tree.readable or tree.paths:
-        return _DIRTY_TREE_PARK.format(frozen=generation.candidate_sha)
     return None

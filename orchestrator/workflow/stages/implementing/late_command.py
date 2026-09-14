@@ -59,7 +59,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_authorship as _authorship,
-    late_records as _records,
+    late_gate_models as _late_gate_models,
     state as _state,
 )
 
@@ -116,7 +116,7 @@ class _Answer:
     comment_id: int
     watermark: int
 
-    def read_through(self, gate: _records._Gate, said: int) -> int:
+    def read_through(self, gate: _late_gate_models._Gate, said: int) -> int:
         """How far a tick that answered this reply may say the thread is read.
 
         Up from what this reading reached, over OUR OWN comments and no
@@ -425,7 +425,7 @@ def _names(reply) -> str:
     return _payloads.as_hex(written, _formats.COMMIT_LENGTHS) or ""
 
 
-def _already_said(gate: _records._Gate, marker: str) -> bool:
+def _already_said(gate: _late_gate_models._Gate, marker: str) -> bool:
     """Whether this thread already carries OUR sentence under this receipt.
 
     Both halves of the receipt are asked -- the scoped marker and the author

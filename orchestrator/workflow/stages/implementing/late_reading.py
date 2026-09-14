@@ -29,14 +29,14 @@ from orchestrator.workflow.late_split import events as _events
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_freeze as _freeze,
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
-    late_records as _records,
     late_verdict as _verdict_owner,
 )
 
 
 def _reconciled_measurement(
-    gate: _records._Gate, recorded: LateGeneration,
+    gate: _late_gate_models._Gate, recorded: LateGeneration,
 ) -> bool:
     """Act on a measurement this issue already took, or park on what is left.
 
@@ -72,7 +72,7 @@ def _reconciled_measurement(
 
 
 def _freshly_measured(
-    gate: _records._Gate, recorded: LateGeneration, candidate_sha: str,
+    gate: _late_gate_models._Gate, recorded: LateGeneration, candidate_sha: str,
 ) -> bool:
     """Freeze the pair, count between it, and act on what came back."""
     frozen = _freeze._frozen_pair(gate, recorded, candidate_sha)

@@ -18,6 +18,7 @@ from orchestrator.workflow.stages.conflicts import (
     models as _conflict_models,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_records as _late_records,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -123,8 +124,8 @@ class _RealReplayCase(ObservedCloseCase, ReplayRepositoryMixin):
             PR_NUMBER,
         )
 
-    def _entered(self, gate, candidate: str) -> _late_records._Entered:
-        return _late_records._Entered(
+    def _entered(self, gate, candidate: str) -> _late_gate_models._Entered:
+        return _late_gate_models._Entered(
             head=self.replay.accepted,
             reconciling=True,
             candidate=candidate,

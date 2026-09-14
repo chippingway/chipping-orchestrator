@@ -29,6 +29,7 @@ from orchestrator.workflow.late_split import (
     state as _late_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
     late_push as _push,
     late_records as _records,
@@ -135,7 +136,7 @@ def _owes_a_published_push(
     )
 
 
-def _unpayable_debt(gate: _records._Gate, approved: str) -> str:
+def _unpayable_debt(gate: _late_gate_models._Gate, approved: str) -> str:
     """Why this approval cannot be paid from here, or "" where it can.
 
     An approval is a claim about ONE commit, so the only checkout it can be
@@ -190,7 +191,7 @@ _MOVED_STAGE_DEBT_PARK = (
 
 
 def _moved_stage_debt(
-    gate: _records._Gate, label: WorkflowLabel | None,
+    gate: _late_gate_models._Gate, label: WorkflowLabel | None,
 ) -> bool:
     """Stop a tick whose debt belongs to a stage the label has left.
 
@@ -235,7 +236,7 @@ def _moved_stage_debt(
 
 
 def _publishes_the_debt(
-    gate: _records._Gate, label: WorkflowLabel | None,
+    gate: _late_gate_models._Gate, label: WorkflowLabel | None,
 ) -> bool:
     """Pay an approval the tick that took it never got to, before the stage.
 
@@ -287,7 +288,7 @@ def _publishes_the_debt(
         _naming._resolve_branch_name(
             gate.state, gate.spec, gate.issue.number,
         ),
-        _records._Entered(
+        _late_gate_models._Entered(
             reconciling=True,
             # The approval IS the reading this call is answering, so the
             # switch has nothing left to say about the commit it names.
@@ -317,7 +318,7 @@ def _publishes_the_debt(
     return True
 
 
-def _owed_by_the_route(state: PinnedState) -> _records._Spends:
+def _owed_by_the_route(state: PinnedState) -> _late_gate_models._Spends:
     """What the tick that approved this commit still owes, plus its park.
 
     The route bookkeeping comes off the record, where the write that granted
@@ -346,15 +347,15 @@ def _owed_by_the_route(state: PinnedState) -> _records._Spends:
     """
     owed = _late_state.read_late_spends(state)
     if not state.get(_AWAITING_HUMAN):
-        return _records._Spends(fields=owed)
-    return _records._Spends(fields=(
+        return _late_gate_models._Spends(fields=owed)
+    return _late_gate_models._Spends(fields=(
         *owed,
         (_AWAITING_HUMAN, False),
         (_state._PARK_REASON, None),
     ))
 
 
-def _unreachable_debt(gate: _records._Gate, unpayable: str) -> bool:
+def _unreachable_debt(gate: _late_gate_models._Gate, unpayable: str) -> bool:
     """Stop a tick whose approved commit this checkout cannot publish.
 
     Announced ONCE. The condition is not one this process can repair -- the
@@ -385,7 +386,7 @@ def _unreachable_debt(gate: _records._Gate, unpayable: str) -> bool:
     return True
 
 
-def _unpublished_debt(gate: _records._Gate) -> bool:
+def _unpublished_debt(gate: _late_gate_models._Gate) -> bool:
     """Park a debt this tick was allowed to pay and could not, once.
 
     The approval and its lease are left exactly as they are, which is what

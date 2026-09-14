@@ -88,9 +88,7 @@ from orchestrator.workflow.stages.decomposition import (
     manifest as _manifest,
     validation as _validation,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateAdjudication,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudication
 
 _LATE_BLOCK = "orchestrator-late-manifest"
 

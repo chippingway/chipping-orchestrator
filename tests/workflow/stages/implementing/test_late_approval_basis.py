@@ -18,10 +18,10 @@ from pathlib import Path
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
     late_publication as _publication,
     late_push as _push,
-    late_records as _records,
     late_verdict as _verdict,
     state as _state,
 )
@@ -65,12 +65,12 @@ def _approved(
     return state
 
 
-def _gate(state: PinnedState) -> _records._Gate:
+def _gate(state: PinnedState) -> _late_gate_models._Gate:
     """The one candidate a debt is about to be recorded for."""
     github = FakeGitHubClient()
     issue = make_issue(_ISSUE_NUMBER, label=LABEL_IMPLEMENTING)
     github.add_issue(issue)
-    return _records._Gate(
+    return _late_gate_models._Gate(
         gh=github,
         spec=_TEST_SPEC,
         issue=issue,

@@ -18,9 +18,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import ancestry as _ancestry, lineage as _lineage, state as _late_state
 from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
 from orchestrator.workflow.late_split.models import LateGeneration
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import LABEL_DECOMPOSING
 from tests.workflow.stages.decomposition.late_test_support import (

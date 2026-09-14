@@ -33,6 +33,7 @@ from orchestrator.workflow.stages.conflicts import (
 )
 from orchestrator.workflow.stages.implementing import (
     checkout_parks as _checkout_parks,
+    late_gate_models as _late_gate_models,
     late_push as _late_push,
     late_records as _late_records,
     parks as _dev_parks,
@@ -171,7 +172,7 @@ def _finalize_conflict_resolution(
     published = _late_push._publishes(
         _late_records._gate(ctx.gh, ctx.spec, ctx.issue, ctx.state, wt),
         branch,
-        _late_records._Entered(
+        _late_gate_models._Entered(
             head=force_with_lease or "",
             # The commit the resolution left, so a checkout something moved
             # between that read and the gate's own is refused rather than

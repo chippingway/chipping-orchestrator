@@ -85,6 +85,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_freeze as _freeze,
+    late_gate_models as _late_gate_models,
     late_overflow as _overflow,
     late_parks as _parks,
     late_push as _push,
@@ -137,7 +138,7 @@ class _Collapsed:
     base_sha: str = ""
 
 
-def _switched_off(gate: _records._Gate) -> bool:
+def _switched_off(gate: _late_gate_models._Gate) -> bool:
     """Whether the switch keeps this squash out of the gate entirely.
 
     A squash is NEW work by the switch's own definition: the commit it
@@ -164,8 +165,8 @@ def _switched_off(gate: _records._Gate) -> bool:
 
 
 def _entered_rewrite(
-    gate: _records._Gate, expected: str, candidate: str = "",
-) -> _records._PublicationEntry:
+    gate: _late_gate_models._Gate, expected: str, candidate: str = "",
+) -> _late_gate_models._PublicationEntry:
     """The publication a squash may rewrite, or the reason it may not.
 
     Asked before the reset that destroys the branch locally, so a pull request
@@ -195,13 +196,13 @@ def _entered_rewrite(
     the one the caller beside this has not got.
     """
     if _switched_off(gate):
-        return _records._PublicationEntry(published_sha=expected)
+        return _late_gate_models._PublicationEntry(published_sha=expected)
     return _proved_publication(gate, expected, candidate)
 
 
 def _proved_publication(
-    gate: _records._Gate, expected: str, candidate: str = "",
-) -> _records._PublicationEntry:
+    gate: _late_gate_models._Gate, expected: str, candidate: str = "",
+) -> _late_gate_models._PublicationEntry:
     """The same reading, taken whatever the switch says.
 
     The entry above may be skipped because a push follows it: a remote
@@ -219,7 +220,7 @@ def _proved_publication(
     """
     entry = _overflow._frozen_entry(
         gate,
-        _records._Entered(
+        _late_gate_models._Entered(
             head=expected, candidate=candidate, reconciling=True,
         ),
     )
@@ -233,9 +234,9 @@ def _proved_publication(
 
 
 def _publishes_rewrite(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     branch: str,
-    entry: _records._PublicationEntry,
+    entry: _late_gate_models._PublicationEntry,
     squashed: str,
     collapsed: _Collapsed,
 ) -> _push._PushedCandidate:
@@ -280,7 +281,7 @@ def _publishes_rewrite(
         return _push._PushedCandidate(held=True)
     return _push._publishes(
         gate, branch,
-        _records._Entered(
+        _late_gate_models._Entered(
             head=entry.published_sha,
             reconciling=True,
             # The commit the squash made, so the gate measures and publishes
@@ -294,7 +295,7 @@ def _publishes_rewrite(
 
 
 def _rewritten(
-    entry: _records._PublicationEntry,
+    entry: _late_gate_models._PublicationEntry,
     squashed: str,
     collapsed: _Collapsed,
 ) -> _rewrite_values.LateRewrite:
@@ -332,7 +333,7 @@ def _rewritten(
     )
 
 
-def _rewrite_stands(gate: _records._Gate, squashed: str) -> bool:
+def _rewrite_stands(gate: _late_gate_models._Gate, squashed: str) -> bool:
     """Whether a HELD squash must be left on the branch it rewrote.
 
     A hold is not one state. Three of its shapes leave the squashed commit
@@ -405,7 +406,7 @@ def _named_by(state, squashed: str) -> bool:
     return bool(squashed) and squashed in named
 
 
-def _standing_on_the_squash(gate: _records._Gate, squashed: str) -> bool:
+def _standing_on_the_squash(gate: _late_gate_models._Gate, squashed: str) -> bool:
     """Whether the checkout is still the commit the squash just made.
 
     Proved rather than read: a revision this host cannot peel is not a head
@@ -425,7 +426,7 @@ def _standing_on_the_squash(gate: _records._Gate, squashed: str) -> bool:
     )
 
 
-def _refuses_the_squash(gate: _records._Gate, refusal: str) -> bool:
+def _refuses_the_squash(gate: _late_gate_models._Gate, refusal: str) -> bool:
     """Park a squash whose checkout is not the commit it was handed, and stop.
 
     Reported and parked the way every other reading this gate could not take
@@ -451,7 +452,7 @@ def _refuses_the_squash(gate: _records._Gate, refusal: str) -> bool:
     return False
 
 
-def _forgets_the_rollback(gate: _records._Gate, restored: str) -> None:
+def _forgets_the_rollback(gate: _late_gate_models._Gate, restored: str) -> None:
     """Drop a debt the rollback above just threw the commit away for.
 
     The gate approves the squashed commit before it is pushed and records it
@@ -496,7 +497,7 @@ def _forgets_the_rollback(gate: _records._Gate, restored: str) -> None:
 
 
 def _records_the_collapse(
-    gate: _records._Gate, head: str, base_sha: str, count: int,
+    gate: _late_gate_models._Gate, head: str, base_sha: str, count: int,
 ) -> str:
     """Say what this squash is about to collapse, durably, before it does.
 
@@ -603,10 +604,10 @@ def _collapse_of(
 
 
 def _resumed_entry(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     recorded: _collapses.LateCollapse,
     squashed: str,
-) -> _records._PublicationEntry:
+) -> _late_gate_models._PublicationEntry:
     """The publication an interrupted squash's own push is still owed.
 
     The same entry a fresh squash freezes, taken over the head the RECORD
@@ -637,7 +638,7 @@ def _resumed_entry(
 
 
 def _leased_head(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     recorded: _collapses.LateCollapse,
     squashed: str,
 ) -> str:

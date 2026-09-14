@@ -99,10 +99,10 @@ from orchestrator.workflow.stages.decomposition import (
     late_unsplit as _late_unsplit,
     late_verdict as _late_verdict,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import (
     _GuardedSplit,
     _LateAdjudicationRun,
-    _LateContext,
     _LateDisposition,
 )
 from orchestrator.workflow.stages.implementing import late_parks as _gate_parks

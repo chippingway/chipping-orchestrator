@@ -18,9 +18,7 @@ from orchestrator.workflow.engine import (
     run_ledger_values as _run_ledger_values,
     run_limit_values as _run_limit_values,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.fixtures import KEY_AWAITING_HUMAN, KEY_PARK_REASON
 from tests.workflow.stages.decomposition.late_run_support import adjudicate
 from tests.workflow.stages.decomposition.late_settlement_support import (

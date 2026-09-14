@@ -4,9 +4,7 @@
 from __future__ import annotations
 
 from orchestrator.workflow.late_split.models import LateVerdict
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition import (
     late_content_replies as _content_replies,
     late_content_support as _support,

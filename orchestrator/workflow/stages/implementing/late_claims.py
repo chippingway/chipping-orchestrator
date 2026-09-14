@@ -39,6 +39,7 @@ from orchestrator.workflow import state as _workflow_state
 from orchestrator.workflow.late_split import keys as _late_keys, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
     late_records as _records,
     state as _state,
@@ -344,7 +345,7 @@ _CLAIMS = (
 )
 
 
-def _parks_the_damage(gate: _records._Gate, refusal: str) -> bool:
+def _parks_the_damage(gate: _late_gate_models._Gate, refusal: str) -> bool:
     """Stop a tick whose record claims a reading it cannot produce.
 
     Announced ONCE. Nothing this process can repair is behind it, so a fresh

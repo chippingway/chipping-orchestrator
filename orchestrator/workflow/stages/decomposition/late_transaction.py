@@ -121,6 +121,7 @@ from orchestrator.workflow.engine import comments as _comments, usage as _usage
 from orchestrator.workflow.late_split import (
     formats as _formats,
     payloads as _payloads,
+    phases as _late_phases,
 )
 from orchestrator.workflow.late_split.models import (
     LateFailure,
@@ -129,7 +130,6 @@ from orchestrator.workflow.late_split.models import (
     LateResourceKind,
     LateResourceState,
 )
-from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_hold as _late_hold,
     late_outcome as _late_outcome,
@@ -140,11 +140,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_retirement as _late_retirement,
     late_split_preparation as _late_split_preparation,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateAdjudicationRun,
-    _LateContext,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudicationRun, _LateDisposition
 from orchestrator.workflow.stages.decomposition.models import _SplitPlan
 
 log = logging.getLogger("orchestrator.workflow")
@@ -429,7 +426,7 @@ def _announced(
     context.state.set(_DECOMPOSED_AT, _usage._now_iso())
     context.generation = replace(
         context.generation,
-        phase=LatePhase.SUPERSEDING,
+        phase=_late_phases.LatePhase.SUPERSEDING,
         links_announced=True,
     )
     _late_park_state._persist(context)

@@ -27,9 +27,7 @@ from orchestrator.workflow.engine import (
     run_limit_values as _run_limit_values,
 )
 from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     KEY_AWAITING_HUMAN,

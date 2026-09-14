@@ -24,11 +24,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_parks as _late_parks,
     late_snapshot as _late_snapshot,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateAdjudicationRun,
-    _LateContext,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudicationRun, _LateDisposition
 from orchestrator.workflow.stages.decomposition.models import _SplitPlan
 
 _OPAQUE_LEDGER_PARK = (

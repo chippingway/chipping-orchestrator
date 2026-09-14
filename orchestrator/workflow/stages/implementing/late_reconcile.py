@@ -32,6 +32,7 @@ from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_claims as _claims,
     late_debt as _debt,
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
     late_push as _push,
     late_records as _records,
@@ -196,7 +197,7 @@ def _reconciles_published_work(
 
 
 def _answers_the_frozen_pair(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     recorded: LateGeneration,
     label: WorkflowLabel | None,
 ) -> bool:
@@ -222,7 +223,7 @@ def _answers_the_frozen_pair(
 
 
 def _settles_the_frozen_pair(
-    gate: _records._Gate, recorded: LateGeneration,
+    gate: _late_gate_models._Gate, recorded: LateGeneration,
 ) -> bool:
     """Take the reading the crash interrupted, and spend what it earns.
 
@@ -258,7 +259,7 @@ def _settles_the_frozen_pair(
     where the pairs come FROM -- the record, since no run behind this tick
     could re-derive them.
     """
-    owed = _records._Spends(fields=_late_state.read_late_spends(gate.state))
+    owed = _late_gate_models._Spends(fields=_late_state.read_late_spends(gate.state))
     published = _push._publishes(
         gate,
         _naming._resolve_branch_name(
@@ -272,7 +273,7 @@ def _settles_the_frozen_pair(
         # the adjudication having closed none of it, and the stage the
         # settlement hands back to reruns a developer over feedback that was
         # already answered.
-        _records._Entered(
+        _late_gate_models._Entered(
             # The reading this call is answering is the one the pinned record
             # names, which is what the switch has nothing left to say about:
             # publishing the head here would publish the very commit whose
@@ -293,7 +294,7 @@ def _settles_the_frozen_pair(
 
 
 def _unpublished_reconciliation(
-    gate: _records._Gate, recorded: LateGeneration,
+    gate: _late_gate_models._Gate, recorded: LateGeneration,
 ) -> bool:
     """Stop a tick whose reading was settled and whose push was not.
 
@@ -347,7 +348,7 @@ def _holds_absent_checkout(
 
 
 def _stranded_reading(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     recorded: LateGeneration,
     label: WorkflowLabel | None,
 ) -> bool:
@@ -391,7 +392,7 @@ def _stranded_reading(
 
 
 def _absent_checkout(
-    gate: _records._Gate, recorded: LateGeneration,
+    gate: _late_gate_models._Gate, recorded: LateGeneration,
 ) -> bool:
     """Stop a tick whose frozen pair has no checkout to be measured in.
 

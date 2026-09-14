@@ -9,9 +9,7 @@ from types import MappingProxyType
 
 from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
 from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import make_issue
 from tests.workflow.fixtures import LABEL_DONE
 from tests.workflow.stages.decomposition import late_transaction_support as _support

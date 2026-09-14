@@ -14,12 +14,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_settlement as _late_settlement,
     late_transaction as _late_transaction,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateAdjudicationRun,
-    _LateContext,
-    _LateDisposition,
-    _OwnerState,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _OwnerState
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudicationRun, _LateDisposition
 
 
 def _guarded(

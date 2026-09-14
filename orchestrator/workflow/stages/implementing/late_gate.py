@@ -154,6 +154,7 @@ from orchestrator.workflow.stages.implementing import (
     late_transfer as _transfer,
     late_verdict as _verdict_owner,
 )
+from orchestrator.workflow.stages.implementing.late_gate_models import _HELD, _REFUSED, _Gate, _GateVerdict
 from orchestrator.workflow.stages.implementing.models import _AgentWork, _RecoveredWork
 
 log = logging.getLogger("orchestrator.workflow")
@@ -193,7 +194,7 @@ def _holds_committed_work(
     issue: Issue,
     state: PinnedState,
     work: _AgentWork,
-) -> _records._GateVerdict:
+) -> _GateVerdict:
     """Whether the size gate keeps this committed candidate unpublished.
 
     `held` is the whole of what this tick did with the candidate: it is either
@@ -212,7 +213,7 @@ def _holds_committed_work(
     write rather than another reading of the same diff.
     """
     recovering = isinstance(work, _RecoveredWork)
-    return _holds_candidate(_records._Gate(
+    return _holds_candidate(_Gate(
         gh=gh, spec=spec, issue=issue, state=state, worktree=work.worktree,
         reconciling=recovering,
         # Every recovery here answers a reading this gate itself recorded --
@@ -228,7 +229,7 @@ def _holds_committed_work(
     ))
 
 
-def _holds_candidate(gate: _records._Gate) -> _records._GateVerdict:
+def _holds_candidate(gate: _Gate) -> _GateVerdict:
     """The size question one committed candidate answers, whatever asked it.
 
     The order of the questions rather than the seam that reaches them, which
@@ -254,7 +255,7 @@ def _holds_candidate(gate: _records._Gate) -> _records._GateVerdict:
     ordinary tick and holds before anything is measured, pushed or written.
     """
     if _delivery._holds_a_damaged_receipt(gate):
-        return _records._HELD
+        return _HELD
     recorded = _records._entered(
         gate, _late_state.read_late_generation(gate.state),
     )
@@ -264,13 +265,13 @@ def _holds_candidate(gate: _records._Gate) -> _records._GateVerdict:
     if not candidate.is_frozen:
         return _unnameable(gate, recorded, candidate)
     if _moved_off_the_caller(gate, recorded, candidate.sha):
-        return _records._HELD
+        return _HELD
     return _decided(gate, recorded, candidate.sha)
 
 
 def _decided(
-    gate: _records._Gate, recorded: LateGeneration, candidate_sha: str,
-) -> _records._GateVerdict:
+    gate: _Gate, recorded: LateGeneration, candidate_sha: str,
+) -> _GateVerdict:
     """What one proved candidate earns, once the checkout is its caller's.
 
     The two answers past the proof, in the order the record decides them: a
@@ -341,7 +342,7 @@ def _decided(
     """
     delivered = _delivery._delivered_before_the_relabel(gate, candidate_sha)
     if _delivery._holds_an_unprovable_receipt(gate, candidate_sha, delivered):
-        return _records._HELD
+        return _HELD
     if gate.permit_only:
         return _permitted_only(gate, recorded, candidate_sha, delivered)
     decided = _needs_no_measuring(gate, recorded, candidate_sha, delivered)
@@ -352,7 +353,7 @@ def _decided(
             gate.issue.number, candidate_sha, permitted,
         )
         return _verdict_owner._unmeasured_verdict(
-            gate, recorded, _records._GateVerdict(
+            gate, recorded, _GateVerdict(
                 held=True,
                 candidate_sha=candidate_sha,
                 permitted_sha="" if decided else candidate_sha,
@@ -372,11 +373,11 @@ def _decided(
 
 
 def _permitted_only(
-    gate: _records._Gate,
+    gate: _Gate,
     recorded: LateGeneration,
     candidate_sha: str,
     delivered,
-) -> _records._GateVerdict:
+) -> _GateVerdict:
     """What a candidate may publish on where a permit is the only licence.
 
     One question and no fallbacks. The caller is finishing a publication
@@ -408,13 +409,13 @@ def _permitted_only(
             "commit an interrupted push is already leased for",
             gate.issue.number, candidate_sha,
         )
-        return _records._REFUSED
+        return _REFUSED
     log.info(
         "issue=#%d candidate %s %s; publishing it on that permit alone",
         gate.issue.number, candidate_sha, permitted,
     )
     return _verdict_owner._unmeasured_verdict(
-        gate, recorded, _records._GateVerdict(
+        gate, recorded, _GateVerdict(
             held=True,
             candidate_sha=candidate_sha,
             permitted_sha=candidate_sha,
@@ -426,7 +427,7 @@ def _permitted_only(
 
 def _held_or_published(
     candidate_sha: str, held: bool,
-) -> _records._GateVerdict:
+) -> _GateVerdict:
     """One reading's answer as the verdict its caller publishes or holds by.
 
     The SHA travels with the go-ahead because the caller's next step is a
@@ -434,8 +435,8 @@ def _held_or_published(
     points at when it runs.
     """
     if held:
-        return _records._HELD
-    return _records._GateVerdict(held=False, candidate_sha=candidate_sha)
+        return _HELD
+    return _GateVerdict(held=False, candidate_sha=candidate_sha)
 
 
 def _admitted_by(decided: str) -> str:
@@ -457,7 +458,7 @@ def _admitted_by(decided: str) -> str:
 
 
 def _approved_on_a_reading(
-    gate: _records._Gate, candidate_sha: str,
+    gate: _Gate, candidate_sha: str,
 ) -> bool:
     """Whether this commit's debt rests on a decision this gate already made.
 
@@ -499,7 +500,7 @@ def _approved_on_a_reading(
 
 
 def _moved_off_the_caller(
-    gate: _records._Gate, recorded: LateGeneration, candidate_sha: str,
+    gate: _Gate, recorded: LateGeneration, candidate_sha: str,
 ) -> bool:
     """Refuse a checkout that is not the commit its caller named.
 
@@ -547,10 +548,10 @@ def _moved_off_the_caller(
 
 
 def _unnameable(
-    gate: _records._Gate,
+    gate: _Gate,
     recorded: LateGeneration,
     candidate: _measurement.FrozenCommit,
-) -> _records._GateVerdict:
+) -> _GateVerdict:
     """Park a candidate nobody could freeze, under the id it did name.
 
     A reading can fail with an id in hand, and the commonest one does: a
@@ -575,11 +576,11 @@ def _unnameable(
     if named.candidate_sha and named.candidate_sha != recorded.candidate_sha:
         _parks._persisted(gate, named)
     _parks._unmeasured(gate, named, candidate.failure, candidate.detail)
-    return _records._HELD
+    return _HELD
 
 
 def _already_decided(
-    gate: _records._Gate,
+    gate: _Gate,
     candidate_sha: str,
     delivered: _delivery._Delivered,
 ) -> str:
@@ -659,7 +660,7 @@ def _already_decided(
 
 
 def _needs_no_measuring(
-    gate: _records._Gate,
+    gate: _Gate,
     recorded: LateGeneration,
     candidate_sha: str,
     delivered: _delivery._Delivered,

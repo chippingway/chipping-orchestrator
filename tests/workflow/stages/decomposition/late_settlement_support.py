@@ -35,15 +35,11 @@ from orchestrator.workflow.late_split import models as _late_models, state as _l
 from orchestrator.workflow.stages.decomposition import (
     late_hold as _late_hold,
     late_owner as _late_owner,
+    late_result_models as _late_result_models,
     late_session as _late_session,
     late_settlement as _late_settlement,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateAdjudication,
-    _LateAdjudicationRun,
-    _LateContext,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.fixtures import _TEST_SPEC
 from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
@@ -278,11 +274,11 @@ def settle_single(github, issue, **run_fields):
         state=state,
         generation=generation,
     )
-    decided = _LateAdjudicationRun(
-        disposition=_LateDisposition.DECIDED,
+    decided = _late_result_models._LateAdjudicationRun(
+        disposition=_late_result_models._LateDisposition.DECIDED,
         generation=generation,
         run=_late_session._read_late_run(state),
-        adjudication=_LateAdjudication(
+        adjudication=_late_result_models._LateAdjudication(
             verdict=_late_models.LateVerdict.SINGLE,
         ),
     )

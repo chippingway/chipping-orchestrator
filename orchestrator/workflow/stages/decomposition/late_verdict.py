@@ -48,10 +48,10 @@ from orchestrator.workflow.stages.decomposition import (
     late_reply as _late_reply,
     late_session as _late_session,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import (
     _LateAdjudication,
     _LateAdjudicationRun,
-    _LateContext,
     _LateDisposition,
 )
 

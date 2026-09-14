@@ -21,6 +21,8 @@ from orchestrator.git.measurement.models import (
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
+    late_identity_reading as _late_identity_reading,
     late_parks as _parks,
     late_records as _records,
 )
@@ -59,7 +61,7 @@ _DAMAGED_RECORD_PARK = (
 )
 
 def _candidate_commit(
-    gate: _records._Gate, recorded: LateGeneration,
+    gate: _late_gate_models._Gate, recorded: LateGeneration,
 ) -> FrozenCommit | None:
     """The commit this tick decides about, or None when the gate is off for it.
 
@@ -121,7 +123,7 @@ def _candidate_commit(
 
 
 def _outside_the_gate(
-    gate: _records._Gate, recorded: LateGeneration,
+    gate: _late_gate_models._Gate, recorded: LateGeneration,
 ) -> bool:
     """Whether the switch keeps this candidate out of the gate entirely.
 
@@ -143,7 +145,7 @@ def _outside_the_gate(
 
 
 def _reconciled_candidate(
-    gate: _records._Gate, recorded: LateGeneration, head: FrozenCommit,
+    gate: _late_gate_models._Gate, recorded: LateGeneration, head: FrozenCommit,
 ) -> FrozenCommit:
     """What a record whose candidate is not the current head is reconciled as.
 
@@ -221,7 +223,7 @@ def _reconciled_candidate(
 
 
 def _frozen_pair(
-    gate: _records._Gate, recorded: LateGeneration, candidate_sha: str,
+    gate: _late_gate_models._Gate, recorded: LateGeneration, candidate_sha: str,
 ) -> LateGeneration | None:
     """Persist the exact pair a count is taken over, or park without one.
 
@@ -275,7 +277,7 @@ def _frozen_pair(
 
 
 def _refrozen_base(
-    gate: _records._Gate, recorded: LateGeneration,
+    gate: _late_gate_models._Gate, recorded: LateGeneration,
 ) -> LateGeneration | None:
     """Prove the recorded pair may be reused here, or say why it may not.
 
@@ -324,7 +326,7 @@ def _refrozen_base(
 
 
 def _reached_base(
-    gate: _records._Gate, recorded: LateGeneration,
+    gate: _late_gate_models._Gate, recorded: LateGeneration,
 ) -> LateGeneration:
     """The record a base this host holds leaves, with any miss it owed dropped.
 
@@ -342,7 +344,7 @@ def _reached_base(
 
 
 def _unusable_record(
-    gate: _records._Gate, recorded: LateGeneration, fields: tuple,
+    gate: _late_gate_models._Gate, recorded: LateGeneration, fields: tuple,
 ) -> str | None:
     """Why a recorded measurement may not be acted on, or None if it may.
 
@@ -369,10 +371,10 @@ def _unusable_record(
     for field, missing in fields:
         if missing(recorded):
             return _MISSING_FIELD.format(field=field)
-    return _records._unusable_identity(gate, recorded)
+    return _late_identity_reading._unusable_identity(gate, recorded)
 
 
-def _damaged_record(gate: _records._Gate, recorded: LateGeneration) -> bool:
+def _damaged_record(gate: _late_gate_models._Gate, recorded: LateGeneration) -> bool:
     """Park a recorded pair whose metadata cannot be acted on, or pass it.
 
     Asked on BOTH roads into a recorded pair, because the fields it checks are
@@ -393,7 +395,7 @@ def _damaged_record(gate: _records._Gate, recorded: LateGeneration) -> bool:
 
 
 def _damaged_unfrozen_record(
-    gate: _records._Gate, recorded: LateGeneration,
+    gate: _late_gate_models._Gate, recorded: LateGeneration,
 ) -> bool:
     """Park a record with no base this issue may not mint over, or pass it.
 
@@ -420,7 +422,7 @@ def _damaged_unfrozen_record(
 
 
 def _parks_the_damage(
-    gate: _records._Gate, recorded: LateGeneration, damaged: str | None,
+    gate: _late_gate_models._Gate, recorded: LateGeneration, damaged: str | None,
 ) -> bool:
     """Hand back a record that may not be acted on, under the reason it fails.
 

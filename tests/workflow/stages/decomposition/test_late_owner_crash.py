@@ -25,9 +25,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.late_split.phases import LatePhase
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition import late_settlement_support as _support
 from tests.workflow.stages.decomposition.late_content_replies import reply
 from tests.workflow.stages.decomposition.late_content_support import PARK_REVISION_DIRTY

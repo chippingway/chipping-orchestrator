@@ -21,9 +21,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.workflow.late_split.phases import LatePhase
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition import late_transaction_support as _support
 from tests.workflow.stages.decomposition.late_close_race_support import (
     closes_when_children_exist,

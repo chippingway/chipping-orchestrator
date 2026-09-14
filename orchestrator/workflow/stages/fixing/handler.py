@@ -47,6 +47,7 @@ from orchestrator.workflow.stages.fixing import (
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_push as _late_push,
     late_reconcile as _late_reconcile,
     late_records as _late_records,
@@ -198,7 +199,7 @@ def _publish_stranded_fix(
         # head somebody landed between that proof and this push becomes the
         # lease and is force-overwritten by work proved against the head it
         # used to be on.
-        _late_records._Entered(spends=spends, head=stranded),
+        _late_gate_models._Entered(spends=spends, head=stranded),
     )
     if published.held:
         return _models._StrandedPublication(held=True)
@@ -241,7 +242,7 @@ def _bounce_without_feedback(
         gh.write_pinned_state(issue, state)
         return
     if stranded.pushed:
-        _late_records._spend(state, owed)
+        _late_gate_models._spend(state, owed)
     else:
         # Nothing was published, so no round was landed -- but the bookmarks
         # this bounce read are consumed either way, and a later

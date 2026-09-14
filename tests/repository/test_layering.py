@@ -76,6 +76,8 @@ _LATE_PUSH = f"{PACKAGE}.workflow.stages.implementing.late_push"
 
 _LATE_RECORDS = f"{PACKAGE}.workflow.stages.implementing.late_records"
 
+_LATE_ENTRY = f"{PACKAGE}.workflow.stages.implementing.late_gate_models._Entered"
+
 _LATE_REWRITE = f"{PACKAGE}.workflow.stages.implementing.late_rewrite"
 
 _LATE_TRANSFER = f"{PACKAGE}.workflow.stages.implementing.late_transfer"
@@ -129,7 +131,10 @@ _CALL_TIME_HOPS = MappingProxyType({
         _LATE_RECORDS,
         _LATE_TRANSFER,
     ),
-    f"{_BASE_SYNC}.publication": (_COMMENTS, _LATE_PUSH, _LATE_RECORDS),
+    f"{_BASE_SYNC}.publication": (
+        _COMMENTS, _LATE_PUSH, _LATE_RECORDS, _LATE_ENTRY,
+    ),
+    f"{_BASE_SYNC}.recovery": (_LATE_ENTRY,),
     f"{_BASE_SYNC}.recovery_notices": (_COMMENTS,),
     f"{_BASE_SYNC}.transfers": (
         _EXEMPTION,

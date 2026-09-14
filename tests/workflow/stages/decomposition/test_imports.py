@@ -22,6 +22,9 @@ _PARENT = "orchestrator.workflow.stages"
 _BLOCKED = "blocked"
 
 _OWNERS = (
+    "late_content_models",
+    "late_result_models",
+
     "child_validation",
     "late_answers",
     "late_notice_fences",

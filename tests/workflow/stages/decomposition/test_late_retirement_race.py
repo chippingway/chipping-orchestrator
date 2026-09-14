@@ -27,9 +27,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
     umbrella as _umbrella,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.fixtures import _TEST_SPEC
 from tests.workflow.observation_support import ObservedCloseCase, receipt_for
 from tests.workflow.stages.decomposition.late_run_support import LateCase

@@ -25,10 +25,10 @@ from orchestrator.workflow.stages.decomposition import (
     late_hold as _late_hold,
     late_transaction as _late_transaction,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import (
     _GuardedSplit,
     _LateAdjudicationRun,
-    _LateContext,
     _LateDisposition,
     _LateRun,
 )

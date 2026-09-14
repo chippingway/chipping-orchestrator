@@ -10,9 +10,7 @@ from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.workflow.stages.decomposition import (
     late_snapshot as _late_snapshot,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition.late_seam_support import (
     SnapshotSeed,
 )

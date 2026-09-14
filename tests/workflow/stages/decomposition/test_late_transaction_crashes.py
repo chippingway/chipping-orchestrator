@@ -19,9 +19,7 @@ import unittest
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.git.snapshots.refs import SnapshotOutcome
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.stages.decomposition.late_crash_support import (
     killed_after,

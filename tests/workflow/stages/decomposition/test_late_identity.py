@@ -19,9 +19,7 @@ from orchestrator.git.measurement.models import FINGERPRINT_FORMAT
 from orchestrator.workflow.stages.decomposition import (
     late_handback as _late_handback,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition import late_test_support as _support
 from tests.workflow.stages.decomposition.late_settlement_support import (
     UNFINGERPRINTED,

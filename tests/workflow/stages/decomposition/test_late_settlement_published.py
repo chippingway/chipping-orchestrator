@@ -16,9 +16,7 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import LazyPullRequest
 from tests.workflow.fixtures import LABEL_DECOMPOSING
 from tests.workflow.stages.decomposition import late_test_support as _late_support

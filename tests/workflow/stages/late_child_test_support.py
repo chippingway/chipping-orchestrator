@@ -33,6 +33,7 @@ from orchestrator.git.measurement import additions as _additions
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.stages.decomposition import (
     late_models as _late_models,
+    late_result_models as _late_result_models,
     late_transaction as _late_transaction,
 )
 from tests.support import fakes as _fakes
@@ -64,11 +65,11 @@ def _split_off_a_child(github, parent):
     cut from, the child issue, and the one write that attributes it.
     """
     generation = _late.late_generation()
-    decided = _late_models._LateAdjudicationRun(
-        disposition=_late_models._LateDisposition.DECIDED,
+    decided = _late_result_models._LateAdjudicationRun(
+        disposition=_late_result_models._LateDisposition.DECIDED,
         generation=generation,
-        run=_late_models._LateRun(),
-        guarded_split=_late_models._GuardedSplit(
+        run=_late_result_models._LateRun(),
+        guarded_split=_late_result_models._GuardedSplit(
             generation=generation, children=(_SLICE,),
         ),
     )

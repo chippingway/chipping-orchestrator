@@ -31,9 +31,7 @@ the fact is allowed to hide.
 from __future__ import annotations
 
 from orchestrator.workflow.engine import messages as _messages
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateAuthorization,
-)
+from orchestrator.workflow.stages.decomposition.late_content_models import _LateAuthorization
 
 
 def _authorization(fresh: list) -> _LateAuthorization | None:

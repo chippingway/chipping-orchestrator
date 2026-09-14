@@ -75,6 +75,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
     late_records as _records,
     state as _state,
@@ -202,8 +203,8 @@ _MOVED_PUBLICATION_PARK = (
 
 
 def _frozen_entry(
-    gate: _records._Gate, entered: _records._Entered,
-) -> _records._PublicationEntry:
+    gate: _late_gate_models._Gate, entered: _late_gate_models._Entered,
+) -> _late_gate_models._PublicationEntry:
     """The publication this call is entered on, or the reason there is none.
 
     Read in the order the refusals matter in, so a park names the first thing
@@ -241,13 +242,13 @@ def _frozen_entry(
     closed on the same fact.
     """
     if not _worktree_status._worktree_status(gate.worktree).is_clean:
-        return _records._PublicationEntry(refusal=_UNPROVABLE_TREE)
+        return _late_gate_models._PublicationEntry(refusal=_UNPROVABLE_TREE)
     stage = entered.stage or gate.gh.workflow_label(gate.issue)
     if not publishes_onto_a_pull_request(stage):
-        return _records._PublicationEntry(refusal=_NO_SOURCE_STAGE)
+        return _late_gate_models._PublicationEntry(refusal=_NO_SOURCE_STAGE)
     number = _payloads.as_identity(gate.state.get(_state._PR_NUMBER))
     if not number:
-        return _records._PublicationEntry(refusal=_NO_PULL_REQUEST)
+        return _late_gate_models._PublicationEntry(refusal=_NO_PULL_REQUEST)
     return _entered_on(
         gate, stage, number, entered,
         _this_issues_own(gate, entered, number),
@@ -255,7 +256,7 @@ def _frozen_entry(
 
 
 def _this_issues_own(
-    gate: _records._Gate, entered: _records._Entered, number: int,
+    gate: _late_gate_models._Gate, entered: _late_gate_models._Entered, number: int,
 ) -> frozenset:
     """The commits a publication standing here would be this issue's own push.
 
@@ -315,12 +316,12 @@ def _this_issues_own(
 
 
 def _entered_on(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     stage: WorkflowLabel,
     number: int,
-    entered: _records._Entered,
+    entered: _late_gate_models._Entered,
     landed: frozenset,
-) -> _records._PublicationEntry:
+) -> _late_gate_models._PublicationEntry:
     """Freeze the pull request this call is entered on, or say why not.
 
     The state is asked whoever named the head, because what makes a cumulative
@@ -352,13 +353,13 @@ def _entered_on(
     if reading.refusal:
         return reading.refusal
     if reading.state != _OPEN:
-        return _records._PublicationEntry(
+        return _late_gate_models._PublicationEntry(
             refusal=_CLOSED_PULL_REQUEST.format(
                 number=number, state=reading.state,
             ),
         )
     if not gate.gh.is_own_repository(reading.head_repo):
-        return _records._PublicationEntry(
+        return _late_gate_models._PublicationEntry(
             refusal=_FOREIGN_REPOSITORY.format(
                 number=number,
                 read=reading.head_repo,
@@ -405,15 +406,15 @@ class _PublicationReading:
     # readings of one pull request describe the same publication however
     # PyGithub spells the object.
     pull_request: object | None = field(default=None, compare=False)
-    refusal: _records._PublicationEntry | None = None
+    refusal: _late_gate_models._PublicationEntry | None = None
 
     def standing_head(
         self,
         number: int,
         stage: WorkflowLabel,
-        entered: _records._Entered,
+        entered: _late_gate_models._Entered,
         landed: frozenset,
-    ) -> _records._PublicationEntry:
+    ) -> _late_gate_models._PublicationEntry:
         """The head this call freezes, or why the two readings name none.
 
         The BRANCH comes first, because it is what makes every answer below
@@ -452,7 +453,7 @@ class _PublicationReading:
         left to send.
         """
         if entered.branch and self.head_branch != entered.branch:
-            return _records._PublicationEntry(
+            return _late_gate_models._PublicationEntry(
                 refusal=_DISAGREEING_BRANCH.format(
                     number=number, read=self.head_branch,
                     expected=entered.branch,
@@ -460,19 +461,19 @@ class _PublicationReading:
             )
         observed = _payloads.as_hex(self.head, _formats.COMMIT_LENGTHS)
         if not observed:
-            return _records._PublicationEntry(
+            return _late_gate_models._PublicationEntry(
                 refusal=_UNREADABLE_HEAD.format(number=number),
             )
         named = _payloads.as_hex(entered.head, _formats.COMMIT_LENGTHS)
         if entered.head and not named:
-            return _records._PublicationEntry(refusal=_UNNAMEABLE_HEAD)
+            return _late_gate_models._PublicationEntry(refusal=_UNNAMEABLE_HEAD)
         if named and named != observed and observed not in landed:
-            return _records._PublicationEntry(
+            return _late_gate_models._PublicationEntry(
                 refusal=_DISAGREEING_HEAD.format(
                     expected=named, number=number, read=observed,
                 ),
             )
-        return _records._PublicationEntry(
+        return _late_gate_models._PublicationEntry(
             stage=stage, pr_number=number, published_sha=observed,
         )
 
@@ -577,7 +578,7 @@ class _PublicationReading:
                 number, exc_info=True,
             )
         return cls(
-            refusal=_records._PublicationEntry(
+            refusal=_late_gate_models._PublicationEntry(
                 refusal=_UNREADABLE_PULL_REQUEST.format(number=number),
             ),
         )
@@ -613,9 +614,9 @@ class _PublicationReading:
 
 
 def _refused_entry(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     recorded: LateGeneration,
-    entry: _records._PublicationEntry,
+    entry: _late_gate_models._PublicationEntry,
 ) -> bool:
     """Park a call that could not be entered, and publish nothing.
 
@@ -649,9 +650,9 @@ def _refused_entry(
 
 
 def _moved_publication(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     recorded: LateGeneration,
-    entry: _records._PublicationEntry,
+    entry: _late_gate_models._PublicationEntry,
 ) -> bool:
     """Refuse a live record whose publication is not the one it was frozen on.
 
@@ -696,7 +697,7 @@ def _moved_publication(
 
 
 def _publication_disagreement(
-    recorded: LateGeneration, entry: _records._PublicationEntry,
+    recorded: LateGeneration, entry: _late_gate_models._PublicationEntry,
 ) -> str:
     """How the frozen publication differs from the one read now, or "".
 

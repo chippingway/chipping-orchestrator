@@ -20,9 +20,7 @@ from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_owner as _late_owner,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.fixtures import STAGE_DECOMPOSING
 from tests.workflow.stages.decomposition import late_settlement_support as _support
 from tests.workflow.stages.decomposition.late_settlement_support import GuardedLateCase, _ClosedDuringRun

@@ -92,6 +92,7 @@ from orchestrator.workflow.late_split import (
     state as _late_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_overflow as _overflow,
     late_parks as _parks,
     late_records as _records,
@@ -220,7 +221,7 @@ class _Delivered:
 
 
 def _delivered_before_the_relabel(
-    gate: _records._Gate, candidate_sha: str,
+    gate: _late_gate_models._Gate, candidate_sha: str,
 ) -> _Delivered:
     """The pull request already standing on this commit, or why none is.
 
@@ -295,7 +296,7 @@ def _delivered_before_the_relabel(
 
 
 def _proved_against(
-    gate: _records._Gate, number: int, candidate_sha: str,
+    gate: _late_gate_models._Gate, number: int, candidate_sha: str,
 ) -> _Delivered:
     """Hold one numbered pull request to what the push behind it would do.
 
@@ -331,7 +332,7 @@ def _proved_against(
 
 
 def _standing_where_the_push_lands(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     reading: _overflow._PublicationReading,
     number: int,
     candidate_sha: str,
@@ -365,7 +366,7 @@ def _standing_where_the_push_lands(
 
 
 def _receipt_answers_alone(
-    gate: _records._Gate, delivered: _Delivered, candidate_sha: str,
+    gate: _late_gate_models._Gate, delivered: _Delivered, candidate_sha: str,
 ) -> bool:
     """Whether a local receipt may vouch for this commit with nothing beside it.
 
@@ -411,7 +412,7 @@ def _receipt_answers_alone(
     )
 
 
-def _holds_a_damaged_receipt(gate: _records._Gate) -> bool:
+def _holds_a_damaged_receipt(gate: _late_gate_models._Gate) -> bool:
     """Park a record whose publication receipt group cannot be read whole.
 
     Asked at the gate's DOOR rather than beside the candidate question,
@@ -461,7 +462,7 @@ def _holds_a_damaged_receipt(gate: _records._Gate) -> bool:
 
 
 def _holds_an_unprovable_receipt(
-    gate: _records._Gate, candidate_sha: str, delivered: _Delivered,
+    gate: _late_gate_models._Gate, candidate_sha: str, delivered: _Delivered,
 ) -> bool:
     """Park a candidate whose own receipt names a publication nothing can show.
 

@@ -46,6 +46,7 @@ from orchestrator.workflow.stages.conflicts import (
     transitions as _transitions,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_push as _late_push,
     late_records as _late_records,
 )
@@ -158,7 +159,7 @@ def _publish_clean_rebase(
     published = _late_push._publishes(
         _late_records._gate(ctx.gh, spec, ctx.issue, ctx.state, wt),
         _naming._resolve_branch_name(ctx.state, spec, ctx.issue.number),
-        _late_records._Entered(
+        _late_gate_models._Entered(
             head=before_sha or "", reconciling=True,
             # The head the rebase left, so a commit landing between that read
             # and the gate's own is refused rather than published in its

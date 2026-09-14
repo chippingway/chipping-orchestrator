@@ -10,9 +10,7 @@ from orchestrator.github.pinned_state import (
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition import late_notice_payloads as _notice_payloads
 from tests.workflow.stages.decomposition.late_content_support import (
     RefusedComment,

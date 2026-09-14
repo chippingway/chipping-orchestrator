@@ -100,12 +100,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_prompt as _prompt,
     validation as _split_validation,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _DECOMPOSER_ROLE,
-    _LateAdjudication,
-    _LateContext,
-    _LateRun,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _DECOMPOSER_ROLE, _LateAdjudication, _LateRun
 
 log = logging.getLogger("orchestrator.workflow")
 

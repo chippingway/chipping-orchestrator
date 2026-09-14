@@ -121,10 +121,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_parks as _late_parks,
     late_session as _late_session,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateAdjudicationRun,
-    _LateContext,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudicationRun
 
 log = logging.getLogger("orchestrator.workflow")
 

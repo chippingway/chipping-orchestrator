@@ -23,9 +23,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.stages.implementing import (
     late_accepted as _late_accepted,
     late_push as _late_push,

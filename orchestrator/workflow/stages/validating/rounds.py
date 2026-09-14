@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
-    late_records as _late_records,
+    late_gate_models as _late_gate_models,
 )
 from orchestrator.workflow.stages.validating import state as _state
 
@@ -38,15 +38,15 @@ def _next_review_round(state: PinnedState) -> int:
     return int(state.get(_state._REVIEW_ROUND) or 0) + 1
 
 
-def _spends_next_round(state: PinnedState) -> _late_records._Spends:
+def _spends_next_round(state: PinnedState) -> _late_gate_models._Spends:
     """The round this route lands on, frozen for the gate to close."""
-    return _late_records._Spends(fields=(
+    return _late_gate_models._Spends(fields=(
         (_state._REVIEW_ROUND, _next_review_round(state)),
     ))
 
 
 def _bump_review_round(
-    state: PinnedState, owed: _late_records._Spends,
+    state: PinnedState, owed: _late_gate_models._Spends,
 ) -> None:
     """Count the round a fix that reached the pull request has spent.
 
@@ -54,4 +54,4 @@ def _bump_review_round(
     already wrote it beside its receipt is agreed with rather than counted
     past.
     """
-    _late_records._spend(state, owed)
+    _late_gate_models._spend(state, owed)

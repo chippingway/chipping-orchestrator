@@ -55,6 +55,7 @@ from orchestrator.workflow.stages.documenting import (
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_push as _late_push,
     late_records as _late_records,
 )
@@ -146,7 +147,7 @@ def _push_docs_and_advance(
     published = _late_push._publishes(
         _late_records._gate(ctx.gh, ctx.spec, ctx.issue, ctx.state, wt),
         ctx.branch,
-        _late_records._Entered(
+        _late_gate_models._Entered(
             # The commit this pass made, so the gate measures and pushes THAT
             # rather than whatever the checkout became between the two reads
             # -- which the stamp below would then record as documented.
@@ -157,7 +158,7 @@ def _push_docs_and_advance(
             # force-push drops it -- the last push before a human is asked to
             # merge, so what it would drop is what that human would not see.
             head=entered_head,
-            spends=_late_records._Spends(fields=(
+            spends=_late_gate_models._Spends(fields=(
                 (_state._SETTLED_DOCS_SHA, after_sha),
             )),
         ),

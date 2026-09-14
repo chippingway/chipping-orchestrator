@@ -25,6 +25,7 @@ from orchestrator.workflow.stages.conflicts import (
     transitions as _transitions,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_push as _late_push,
     late_records as _late_records,
 )
@@ -221,7 +222,7 @@ def _push_recovered_commits(
     published = _late_push._publishes(
         _late_records._gate(ctx.gh, ctx.spec, ctx.issue, ctx.state, wt),
         sync.branch,
-        _late_records._Entered(
+        _late_gate_models._Entered(
             head=lease, reconciling=True,
             # The round this push would complete, handed to the gate for the
             # exit where this caller never reaches the tail: a hold relabels
@@ -310,7 +311,7 @@ def _recovered_round(still_behind: int, recovered_sha: str):
     its base, which is the no-op flip that resolves nothing.
     """
     if still_behind:
-        return _late_records._SPENDS_NOTHING
+        return _late_gate_models._SPENDS_NOTHING
     return _transitions._settles_the_held_round(_RECOVERED_PUSH, recovered_sha)
 
 

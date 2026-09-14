@@ -74,7 +74,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_command as _command,
-    late_records as _records,
+    late_gate_models as _late_gate_models,
     state as _state,
 )
 
@@ -255,7 +255,7 @@ def _described(failure, detail: str) -> str:
 
 
 def _parked(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     generation: _late_models.LateGeneration,
     failure,
     message: str,
@@ -292,7 +292,7 @@ def _parked(
 
 
 def _unmeasured(
-    gate: _records._Gate, generation: _late_models.LateGeneration, failure,
+    gate: _late_gate_models._Gate, generation: _late_models.LateGeneration, failure,
     detail: str = "",
 ) -> bool:
     """Park a candidate nobody could measure, loudly and with its reason.
@@ -332,7 +332,7 @@ def _unmeasured(
 
 
 def _announces(
-    gate: _records._Gate, generation: _late_models.LateGeneration, failure,
+    gate: _late_gate_models._Gate, generation: _late_models.LateGeneration, failure,
     detail: str = "",
 ) -> bool:
     """Say this refusal to the thread, and park the issue under it.
@@ -357,7 +357,7 @@ def _announces(
 
 
 def _repeats_a_notice(
-    gate: _records._Gate, generation: _late_models.LateGeneration, failure,
+    gate: _late_gate_models._Gate, generation: _late_models.LateGeneration, failure,
 ) -> bool:
     """Whether the thread has already been told THIS about THIS pair.
 
@@ -375,7 +375,7 @@ def _repeats_a_notice(
 
 
 def _held_quietly(
-    gate: _records._Gate, generation: _late_models.LateGeneration, failure,
+    gate: _late_gate_models._Gate, generation: _late_models.LateGeneration, failure,
     detail: str = "",
 ) -> bool:
     """Report a refusal a human has already been sent, and tell them nothing.
@@ -412,7 +412,7 @@ def _held_quietly(
 
 
 def _records_the_notice(
-    gate: _records._Gate, generation: _late_models.LateGeneration, failure,
+    gate: _late_gate_models._Gate, generation: _late_models.LateGeneration, failure,
 ) -> None:
     """Write the member a notice is about to name, before it is said.
 
@@ -439,7 +439,7 @@ def _records_the_notice(
 
 
 def _lost_reading(
-    gate: _records._Gate, generation: _late_models.LateGeneration, failure,
+    gate: _late_gate_models._Gate, generation: _late_models.LateGeneration, failure,
     detail: str = "",
 ) -> bool:
     """Count one reading the transport lost, and end the tick either way.
@@ -522,7 +522,7 @@ def _lost_reading(
 
 
 def _stands_over(
-    gate: _records._Gate, generation: _late_models.LateGeneration,
+    gate: _late_gate_models._Gate, generation: _late_models.LateGeneration,
 ) -> bool:
     """Whether a human is still waiting on a notice about THIS pair.
 
@@ -1356,7 +1356,7 @@ def _record_publication(
 
 
 def _persisted(
-    gate: _records._Gate, generation: _late_models.LateGeneration,
+    gate: _late_gate_models._Gate, generation: _late_models.LateGeneration,
 ) -> None:
     """Write the generation this step reached, and the state around it.
 
@@ -1412,7 +1412,7 @@ def _unbound_park(
 
 
 def _emit(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     generation: _late_models.LateGeneration,
     event: _events.LateEvent,
 ) -> None:
