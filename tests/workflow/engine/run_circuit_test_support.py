@@ -13,9 +13,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.agents.models import AgentResult
-from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     run_charge_state as _run_charge_state,

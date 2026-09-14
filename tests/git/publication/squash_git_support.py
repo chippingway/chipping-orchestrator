@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 from unittest import mock
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git import branch_transport
 from orchestrator.git.publication import rewrite as _rewrite, squash
 from tests.git.publication.squash_gate_support import (

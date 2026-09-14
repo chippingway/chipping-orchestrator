@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from orchestrator import config
 from orchestrator.agents.models import AgentResult
-from orchestrator.config import settings as config
 from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     prompt_context as _prompt_context,

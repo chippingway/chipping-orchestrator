@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.fixtures import _iso_hours_ago
 from tests.workflow.stages.decomposition import late_retry_cap_support as _support

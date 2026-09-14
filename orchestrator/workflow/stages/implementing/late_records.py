@@ -14,7 +14,8 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.late_split import (
     endings as _endings,

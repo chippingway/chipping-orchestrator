@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from github import GithubException
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issue_polling import SWEEP_LOOKUPS
 

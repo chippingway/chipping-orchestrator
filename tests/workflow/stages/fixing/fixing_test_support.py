@@ -9,7 +9,7 @@ import datetime as datetime_module
 import pathlib
 from unittest import mock
 
-from orchestrator.config import settings as _config
+from orchestrator import config as _config
 from orchestrator.git.worktrees import paths as _git_worktree_paths
 from orchestrator.workflow.stages.fixing import (
     bookmarks as _bookmarks,

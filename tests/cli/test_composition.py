@@ -8,8 +8,8 @@ import signal
 import unittest
 from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.agents import processes as _agent_processes
-from orchestrator.config import settings as config
 from orchestrator.runtime import loop, shutdown
 from tests.cli.composition_test_support import composed_run
 from tests.runtime import polling_test_support as _support

@@ -1,3 +1,12 @@
 [flake8]
-# WPS uses its default rules and limits, without exclusions.
-# See docs/configuration/operations.md.
+# Deliberate package APIs retain exact-path metadata and initializer waivers.
+# Structural rules use WPS defaults. See docs/configuration/operations.md.
+per-file-ignores =
+    orchestrator/__init__.py:WPS412,WPS410
+    orchestrator/config/__init__.py:WPS412,WPS410
+    orchestrator/agents/__init__.py:WPS412,WPS410
+    orchestrator/github/__init__.py:WPS412,WPS410
+    orchestrator/scheduler/__init__.py:WPS412,WPS410
+    orchestrator/workflow/__init__.py:WPS412,WPS410
+    orchestrator/observability/usage/__init__.py:WPS412,WPS410
+    orchestrator/observability/analytics/recording/__init__.py:WPS412,WPS410

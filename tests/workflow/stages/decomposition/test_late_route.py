@@ -13,7 +13,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     late_coordinator as _late_coordinator,

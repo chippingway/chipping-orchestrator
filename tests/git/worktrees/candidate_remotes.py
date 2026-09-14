@@ -11,7 +11,7 @@ from tests.git.auth_session_test_support import _SESSIONS
 from tests.git.worktrees import candidate_refs as _candidate_refs
 from tests.git.worktrees.artifact_git import BASE_BRANCH
 from tests.git.worktrees.artifact_test_support import _ArtifactWorld
-from tests.workflow.stages.question.question_real_git_test_support import (
+from tests.support.git import (
     _run_git,
 )
 

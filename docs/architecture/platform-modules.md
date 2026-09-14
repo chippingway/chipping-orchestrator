@@ -48,8 +48,8 @@ last is held by the loader itself rather than by a check.
   whether a resumed squash may publish or roll back. Each import waits for the call that needs it. The same check
   declares them per module: an undeclared hop fails wherever it is written, and one of these fails if it is bound
   at module scope after all — where it would be a cycle, since the workflow imports the Git owners back.
-- **Package boundaries.** Every package has a marker initializer. Callers import defining modules, so naming a
-  package costs no owner behind it. `config/settings.py` binds each resolved setting as a module attribute and is
+- **Package boundaries.** Most initializers are markers; declared publishers retain explicit `__all__` surfaces.
+  Other operations are reached on their defining modules. `config/__init__.py` binds each resolved setting and is
   the reload and patch target. Package import checks and `tests/config/test_surface.py` hold those boundaries;
   `tests/repository/test_package_exports.py` checks every initializer's source and namespace.
 - **No second site.** No domain here sits behind a facade. Where a package replaced flat modules — `git/` and four of
@@ -105,12 +105,11 @@ last is held by the loader itself rather than by a check.
 
 ## The map
 
-Every package initializer is a marker. The entries below name the defining owners callers import directly.
+The entries below name defining owners and the deliberate public package surfaces over them.
 
 ```
 orchestrator/
-  __init__.py           a package marker that loads no owner
-  version.py            the distribution version, imported directly
+  __init__.py           the distribution version, published as `__version__`, without loading runtime owners
   cli.py                the `chipping-orchestrator` console script: the polling process's composition point
   __main__.py           the `python -m orchestrator` launch form over `cli.main`, and what `run.sh` starts
   runtime/              the polling process's own owners
@@ -167,15 +166,15 @@ orchestrator/
                         file and no claim
     self_update.py      the git probes behind the self-restart guard
     shutdown.py         the signal handler, the bounded-drain watchdog, and the forced exit it ends at
-  config/               configuration owners, imported directly
-    settings.py         resolved settings bound as module attributes, their diagnostic funnel, and default repo specs
+  config/               publishes resolved settings and `RepoSpec`, with parsing owned by its leaves
+    __init__.py         reloadable settings bindings, their diagnostic funnel, and the default repo-spec accessor
     environment.py      the env-value parsers and the `_SettingsResolver` that reads and validates every knob
     _dotenv.py          the non-secret `.env` loader
     credentials.py      process / token-file credential resolution and the secret redactor the verify output, the
                         agent stderr diagnostics, and the trajectory writer mask with
     models.py           the `RepoSpec` / `RepoEnvEntry` repository-config types
     repositories.py     `REPOS` entry parsing, validation, and default-spec construction
-  github/               marker package; callers name `client.GitHubClient` and `pinned_state.PinnedState`
+  github/               publishes `GitHubClient` and `PinnedState` from their defining owners
     client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records, and canonical
                         repository identity; ownership checks use GitHub's repository name case-insensitively and
                         reject a head with no repository
@@ -246,7 +245,7 @@ orchestrator/
     pull_requests.py    PR creation, comments, body edits, labels, SHA-pinned merge, and remote-branch deletion;
                         the mutation mixin includes the read and retirement owners in the client's inheritance chain
     reviews.py          current-head review aggregation: approval verdicts and unread-feedback watermarks
-  agents/               marker package; callers name the model, runner, and process owners
+  agents/               publishes the run/result models, runner entry point, and process shutdown hook
     models.py           the agent result, run-option, and subprocess-result models
     environment.py      credential filtering and the injected git identity
     session_ids.py      the backend-agnostic session-id walk: a UUID-shaped value at a known key, anywhere in
@@ -269,7 +268,7 @@ orchestrator/
     backends/
       codex.py          Codex command construction, scratch output, and execution
       claude.py         Claude command construction and execution
-  scheduler/            marker package; callers name `service.IssueScheduler` and `models.SubmissionRequest`
+  scheduler/            publishes `IssueScheduler` and `SubmissionRequest` from their defining owners
     models.py           the typed submission, the historical `submit` binding, and field normalization
     service.py          the concrete scheduler: the caps, the tracked claims, the family mutex, dispatch, and
                         shutdown, plus the reversible maintenance barrier -- both admission paths closed, the
@@ -806,6 +805,7 @@ off a facade:
   `standing` calls `resume` for the ancestry read and reaches the gate through that same hop; `squash` calls
   `planning`, `resume`, `rewrite`, and `standing`.
 - `verification/` — `output` calls `models`, `process` calls `output` and `status`, and `runner` calls `process`.
+  `status` shares the NUL framing and submodule arguments defined on `probes` so both path reads agree.
   Both subprocess owners reach the agent package for what a spawned child costs rather than keeping a second copy:
   `process` takes the bounded drain from `agents/process_groups.py`, and `runner` takes that same drain, the
   registry the shutdown sweep reads from `agents/processes.py`, and the stripped child environment a verify shell

@@ -28,7 +28,8 @@ from dataclasses import replace as _replace
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.client import GitHubClient

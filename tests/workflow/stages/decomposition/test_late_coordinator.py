@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import retry_ledger as _retry_ledger
 from orchestrator.workflow.late_split import models as _late_models, phases as _late_phases
 from orchestrator.workflow.stages.decomposition import (

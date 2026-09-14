@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import (
     run_limit as _run_limit,
     run_limit_state as _run_limit_state,

@@ -8,7 +8,7 @@ announced publications cannot be pushed and announced a second time.
 """
 from __future__ import annotations
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.base_sync import persistence, recovery_notices as _recovery_notices
 from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoveryContext,

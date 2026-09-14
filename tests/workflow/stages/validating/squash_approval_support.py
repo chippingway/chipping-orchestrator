@@ -18,7 +18,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.publication import models as _publication
 from orchestrator.git.publication.models import _SquashOutcome
 from orchestrator.workflow.late_split import (

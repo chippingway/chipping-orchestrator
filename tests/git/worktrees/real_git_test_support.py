@@ -20,7 +20,7 @@ import threading
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
 from orchestrator.git import branch_transport, locks
 from orchestrator.git.worktrees import creation, paths
 from tests.git.concurrency_test_support import _start_and_join
@@ -117,7 +117,7 @@ class _RealGitWorktreeRepo:
         self._tmpdir = Path(tempfile.mkdtemp(prefix="orch-ensure-real-"))
         self._remote = self._tmpdir / "remote.git"
         self._work = self._tmpdir / "work"
-        self.spec = _config_models.RepoSpec(
+        self.spec = config.RepoSpec(
             slug="acme/widget",
             target_root=self._work,
             base_branch=BASE_BRANCH,
@@ -321,7 +321,7 @@ class _MergedPlanRepo(_RealGitWorktreeRepo):
 class _EnsureRecorder:
     """Run `_ensure_worktree` per worker and keep each thread's outcome."""
 
-    def __init__(self, spec: _config_models.RepoSpec) -> None:
+    def __init__(self, spec: config.RepoSpec) -> None:
         self.outcomes: list[tuple[int, Path | None, BaseException | None]] = []
         self._spec = spec
         self._lock = threading.Lock()

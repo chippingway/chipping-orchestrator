@@ -12,8 +12,9 @@ infrastructure under it.
 The workflow vocabulary is the one domain a lower layer may read, and only
 GitHub and git may do so. Its label, reading, graph, and guard owners are
 named exactly so a sibling cannot inherit that permission by sharing a
-prefix. Each imports without the engine or stages, and the workflow package
-initializer is a marker that loads no owner behind it.
+prefix. Each imports without the engine or stages. The workflow initializer
+re-exports labels and guards, and its tick shim imports the engine inside the
+call so those lower layers can finish initializing first.
 
 The direction is read twice, because deferring an import weakens where it
 lands but not whether it should be there. At module scope -- a class body

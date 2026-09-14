@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from tests.support.fakes import FakePR, FakePRRef
 from tests.workflow.fixtures import (
     _agent,

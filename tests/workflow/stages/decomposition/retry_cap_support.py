@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from types import MappingProxyType
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import retry_values as _retry_values
 from orchestrator.workflow.stages.decomposition.models import (
     _DecomposerSession,

@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
 from orchestrator.git import branch_transport
 from orchestrator.git.base_sync import refresh
 from tests.git.base_sync.gate_reads_support import _gate_base_reads
@@ -174,7 +174,7 @@ class _FixtureBuilder:
 
     def _configure_runtime(self) -> None:
         fixture = self._fixture
-        fixture._spec = _config_models.RepoSpec(
+        fixture._spec = config.RepoSpec(
             slug=REPO_SLUG,
             target_root=fixture._work,
             base_branch=BASE_BRANCH,

@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.worktrees import decomposition, paths
 

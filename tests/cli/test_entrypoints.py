@@ -42,7 +42,7 @@ def _launch_forms() -> tuple[_LaunchForm, ...]:
 
 
 def _run_help(command: list[str]) -> subprocess.CompletedProcess:
-    # `orchestrator.config.settings` resolves `.env` at import, so pin the documented
+    # `orchestrator.config` resolves `.env` at import, so pin the documented
     # opt-out to keep the subprocess independent of the operator's file.
     return subprocess.run(
         [*command, _HELP_FLAG],

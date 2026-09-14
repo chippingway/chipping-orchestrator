@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.conflicts import models as _models, state as _state

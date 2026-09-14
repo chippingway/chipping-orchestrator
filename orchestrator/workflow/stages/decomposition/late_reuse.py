@@ -12,7 +12,8 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.late_split import ancestry as _ancestry, lineage as _lineage

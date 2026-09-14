@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Distribution identity and its directly imported version metadata."""
+"""Distribution identity and the root package's published version."""
 from __future__ import annotations
 
 import subprocess
@@ -10,7 +10,7 @@ import unittest
 from importlib import import_module
 from pathlib import Path
 
-from orchestrator.version import VERSION as imported_version
+from orchestrator import __version__ as imported_version
 
 _ORCHESTRATOR_PACKAGE = import_module("orchestrator")
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -30,29 +30,28 @@ class DistributionMetadataTest(unittest.TestCase):
 
 
 class PackageMetadataTest(unittest.TestCase):
-    """The package is a marker and version metadata imports no runtime owners."""
+    """`__version__` is the whole published surface, `__all__` names just it.
 
-    def test_root_package_declares_no_version_surface(self) -> None:
-        self.assertNotIn("__version__", _ORCHESTRATOR_PACKAGE.__dict__)
-        self.assertNotIn("__all__", _ORCHESTRATOR_PACKAGE.__dict__)
+    Everything a caller runs lives under a subpackage they import directly, so
+    a name added here would be a second site for an owner to answer on -- and
+    would put that owner's graph behind the `import orchestrator` every launch
+    form already pays for.
+    """
 
-    def test_version_import_loads_no_subsystem(self) -> None:
-        command = (
-            "import sys; from orchestrator.version import VERSION; "
-            "print(VERSION); "
-            "print(' '.join(sorted(name for name in sys.modules "
-            "if name.startswith('orchestrator'))))"
-        )
+    def test_version_import_surface(self) -> None:
+        self.assertEqual(_ORCHESTRATOR_PACKAGE.__version__, imported_version)
+        self.assertIn("__version__", _ORCHESTRATOR_PACKAGE.__dir__())
+
+    def test_wildcard_import_exposes_only_the_version(self) -> None:
+        command = "from orchestrator import *; print(__version__)"
         completed = subprocess.run(
             [sys.executable, "-c", command],
             check=True,
             capture_output=True,
             text=True,
         )
-        self.assertEqual(
-            completed.stdout.splitlines(),
-            [imported_version, "orchestrator orchestrator.version"],
-        )
+        self.assertEqual(completed.stdout.strip(), imported_version)
+        self.assertEqual(_ORCHESTRATOR_PACKAGE.__all__, ("__version__",))
 
 
 if __name__ == "__main__":

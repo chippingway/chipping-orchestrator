@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github.labels import PAUSED_LABEL
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.fixtures import (

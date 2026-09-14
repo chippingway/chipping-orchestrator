@@ -13,6 +13,7 @@ from itertools import islice
 from pathlib import Path
 
 from orchestrator.git import commands as _commands
+from orchestrator.git.verification import probes as _probes
 
 # What the two working-tree reads have to say for themselves, because the
 # worktree's own `.git/config` is agent-writable and answers otherwise:
@@ -20,11 +21,6 @@ from orchestrator.git import commands as _commands
 # for defaults, and `diff.ignoreSubmodules=all` hides a moved gitlink from a
 # diff that does.
 _UNTRACKED_ALL = "--untracked-files=all"
-
-# Status records are NUL-delimited and include dirty submodule worktrees.
-_NUL_DELIMITED = "-z"
-_NUL_SEPARATOR = "\0"
-_IGNORE_SUBMODULES_NONE = "--ignore-submodules=none"
 
 # What has `status` report the paths its ignore rules hide, how each of those
 # is spelled in the report, and the untracked mode they are asked for beside.
@@ -150,8 +146,8 @@ def _worktree_status(worktree: Path) -> _WorktreeStatus:
     status_result = _commands._git_hardened(
         _commands._work_tree_arg(worktree),
         _NO_OPTIONAL_LOCKS,
-        "status", "--porcelain", _NUL_DELIMITED,
-        _UNTRACKED_ALL, _IGNORE_SUBMODULES_NONE,
+        "status", "--porcelain", _probes._NUL_DELIMITED,
+        _UNTRACKED_ALL, _probes._IGNORE_SUBMODULES_NONE,
         cwd=worktree,
     )
     if status_result.returncode != 0:
@@ -216,8 +212,8 @@ def _ignored_paths(worktree: Path) -> tuple[str, ...] | None:
     listed = _commands._git_hardened(
         _commands._work_tree_arg(worktree),
         _NO_OPTIONAL_LOCKS,
-        "status", "--porcelain", _NUL_DELIMITED,
-        _IGNORED_ENTRIES, _UNTRACKED_NORMAL, _IGNORE_SUBMODULES_NONE,
+        "status", "--porcelain", _probes._NUL_DELIMITED,
+        _IGNORED_ENTRIES, _UNTRACKED_NORMAL, _probes._IGNORE_SUBMODULES_NONE,
         cwd=worktree,
     )
     if listed.returncode != 0:
@@ -225,7 +221,7 @@ def _ignored_paths(worktree: Path) -> tuple[str, ...] | None:
     return tuple(islice(
         (
             record[len(_IGNORED_STATUS):]
-            for record in (listed.stdout or "").split(_NUL_SEPARATOR)
+            for record in (listed.stdout or "").split(_probes._NUL_SEPARATOR)
             if record.startswith(_IGNORED_STATUS)
         ),
         _IGNORED_LIMIT,
@@ -252,7 +248,7 @@ def _reported_paths(status_stdout: str) -> list[str]:
     """
     paths: list[str] = []
     renamed_from = False
-    for record in status_stdout.split(_NUL_SEPARATOR):
+    for record in status_stdout.split(_probes._NUL_SEPARATOR):
         if renamed_from:
             renamed_from = False
             paths.append(record)
@@ -284,7 +280,7 @@ def _suppressed_index_paths(worktree: Path) -> tuple[str, ...] | None:
     """
     listed = _commands._git_hardened(
         _commands._work_tree_arg(worktree),
-        "ls-files", "-v", _NUL_DELIMITED, "--full-name",
+        "ls-files", "-v", _probes._NUL_DELIMITED, "--full-name",
         cwd=worktree,
     )
     if listed.returncode != 0:
@@ -293,7 +289,7 @@ def _suppressed_index_paths(worktree: Path) -> tuple[str, ...] | None:
     # `--full-name` with `-z` leaves the path unquoted -- so the first space is
     # the separator whatever the path itself contains.
     suppressed = []
-    for record in (listed.stdout or "").split(_NUL_SEPARATOR):
+    for record in (listed.stdout or "").split(_probes._NUL_SEPARATOR):
         tag, _, path = record.partition(" ")
         if len(tag) == 1 and path and (
             tag == _SKIP_WORKTREE_TAG or tag.islower()

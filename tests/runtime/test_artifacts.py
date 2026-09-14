@@ -13,7 +13,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.worktrees import discovery, maintenance
 from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceReason
 from orchestrator.runtime import artifacts, exclusion

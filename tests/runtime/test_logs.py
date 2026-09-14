@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.runtime import logs
 
 _LOG_DIR_ATTR = "LOG_DIR"

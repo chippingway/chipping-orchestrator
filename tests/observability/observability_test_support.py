@@ -8,6 +8,7 @@ import sys
 from functools import cache
 from importlib import import_module
 from pathlib import Path
+from types import MappingProxyType
 
 _ROOT = "orchestrator.observability"
 _ANALYTICS = f"{_ROOT}.analytics"
@@ -28,6 +29,32 @@ _PACKAGES = (
     f"{_ROOT}.usage",
 )
 
+# The packages whose initializer publishes a public surface instead of staying
+# a marker. A caller reaches the usage parsers, and the recorders a producer
+# appends with, through their package, so each re-exports them under an
+# `__all__` and an importer of one owner pays for the rest; every other
+# initializer here still binds nothing.
+_PUBLISHING_PACKAGES = frozenset((
+    f"{_ANALYTICS}.recording",
+    f"{_ROOT}.usage",
+))
+
+# What a publishing package pays for beyond its own owners: the siblings it
+# composes. Recording is configured by the analytics `config` owner, writes its
+# lines through the shared `sink` owner, meters a finished run through the
+# `usage` parsers, and hands that run's second record to the `trajectories`
+# writers, so naming it buys those four chains as well -- and nothing else,
+# which is what keeps the query, sync, and page graphs out of the one analytics
+# path the orchestrator process runs.
+_COMPOSED_PACKAGES = MappingProxyType({
+    f"{_ANALYTICS}.recording": (
+        f"{_ANALYTICS}.config",
+        f"{_ANALYTICS}.sink",
+        f"{_ANALYTICS}.trajectories",
+        f"{_ROOT}.usage",
+    ),
+})
+
 _PACKAGE_ROOT = Path(import_module(_ROOT).__file__).parent
 
 _IMPORT_ROOT = _PACKAGE_ROOT.parent.parent
@@ -46,6 +73,13 @@ def _under(module: str, roots: tuple[str, ...]) -> bool:
     )
 
 
+def _payable_import(package: str, imported: str) -> bool:
+    """Whether a publishing package's import is one it pays for.
+
+    Its own owners are, and so are the siblings declared above -- everything
+    else is a chain an importer of the package did not ask for.
+    """
+    return _under(imported, (package,) + _COMPOSED_PACKAGES.get(package, ()))
 
 
 def _dotted_name(path: Path) -> str:

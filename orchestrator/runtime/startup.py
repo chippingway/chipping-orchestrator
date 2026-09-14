@@ -23,7 +23,8 @@ import argparse
 import logging
 from dataclasses import dataclass
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.scheduler.service import IssueScheduler
 

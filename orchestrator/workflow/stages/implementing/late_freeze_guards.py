@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,

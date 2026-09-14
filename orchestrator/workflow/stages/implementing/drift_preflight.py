@@ -20,7 +20,8 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,

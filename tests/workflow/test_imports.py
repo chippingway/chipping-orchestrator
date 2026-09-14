@@ -10,6 +10,7 @@ import subprocess
 import sys
 import unittest
 from importlib.util import find_spec
+from unittest.mock import patch
 
 from orchestrator import workflow as _workflow
 from orchestrator.workflow import state as _state, transition_guard as _transition_guard
@@ -242,18 +243,26 @@ class CleanProcessImportTest(unittest.TestCase):
 
 
 class PublicSurfaceTest(unittest.TestCase):
-    """State, guard, and engine names are defined on their respective owners."""
+    """The public labels, guards, and lazy tick retain their defining owners."""
 
     def test_names_belong_to_their_defining_modules(self) -> None:
+        self.assertEqual(
+            _workflow.__all__, tuple(sorted((*_STATE_NAMES, *_GUARD_NAMES, _TICK))),
+        )
         for owner, names in ((_state, _STATE_NAMES), (_transition_guard, _GUARD_NAMES)):
             for name in names:
                 with self.subTest(owner=owner.__name__, name=name):
+                    self.assertIs(getattr(_workflow, name), getattr(owner, name))
                     self.assertEqual(getattr(owner, name).__module__, owner.__name__)
 
-    def test_tick_is_defined_on_the_engine_owner(self) -> None:
+    def test_tick_drives_the_engine_owner(self) -> None:
         engine_tick = importlib.import_module(_TICK_OWNER)
-        self.assertEqual(engine_tick.tick.__module__, _TICK_OWNER)
-        self.assertEqual(engine_tick.tick.__name__, _TICK)
+        self.assertIsNot(_workflow.tick, engine_tick.tick)
+        with patch.object(engine_tick, _TICK) as driven:
+            _workflow.tick("gh", "spec", scheduler="scheduler")
+            driven.assert_called_once_with(
+                "gh", "spec", global_semaphore=None, scheduler="scheduler",
+            )
 
 
 class LoggerChannelTest(unittest.TestCase):

@@ -18,10 +18,10 @@ see, and is called out as such.
 
 - **Callers name the state and tick owners directly.** `workflow/state.py` defines the label vocabulary,
   `label_reading.py` resolves its spellings, `transitions.py` declares the graph, and `transition_guard.py` guards
-  writes. The per-repo entry point is `workflow.engine.tick.tick`. The package initializer binds no API and imports
-  no owner. `github/` and `git/` can therefore import the state vocabulary without loading the
-  engine or pointing back into their own initialization. `tests/workflow/test_imports.py` probes the import paths
-  in a clean interpreter, and `tests/repository/test_layering.py` holds the direction under them.
+  writes. The public `workflow.tick` shim resolves `workflow.engine.tick.tick` inside the call. The initializer
+  re-exports labels and guards but imports no engine or stage, so `github/` and `git/` can import the vocabulary
+  without loading the engine or pointing back into their own initialization. `tests/workflow/test_imports.py` probes
+  the import paths in a clean interpreter, and `tests/repository/test_layering.py` holds the direction under them.
 - **The stage handlers are resolved at call time.** `engine/stage_targets.py` pairs each label with the module
   its handler lives on and imports it when it dispatches, as `engine/pickup.py` does for the stage it starts
   an issue on: the stage tree imports `engine/`, so a module-scope bind would point that edge back at itself.
@@ -51,7 +51,7 @@ four — `run.py` for `workflow:decomposing`, `blocked.py` for both `workflow:re
 unlabeled entry, which `engine/pickup.py` answers rather than a stage package.
 
 ```
-workflow/                   marker package for state, engine, and stage owners
+workflow/                   publishes labels, transition guards, and the lazy per-repo tick entry point
   state.py                  the exact `WorkflowLabel` / `ControlLabel` strings and the `workflow:` namespace boundary;
                             stage tags and legacy spellings retain the vocabulary used by live issues and event sinks
   label_reading.py           canonical and legacy label lookup, canonical-first issue state, strict coercion, and the

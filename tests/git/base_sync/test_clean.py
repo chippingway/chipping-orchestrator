@@ -7,7 +7,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.measurement import additions as _measurement
 from orchestrator.git.measurement.models import AdditionMeasurement
 from orchestrator.workflow.engine import issue_processing as _issue_processing

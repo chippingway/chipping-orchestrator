@@ -17,6 +17,9 @@ from orchestrator.git.worktrees import paths
 
 log = logging.getLogger("orchestrator.worktree_lifecycle")
 
+# Creation and anchoring must agree on whether a restoration ref exists.
+_VERIFY_REF = ("rev-parse", "--verify", "--quiet")
+
 
 def _fetch_for_restore(
     spec: _config_models.RepoSpec, issue_number: int, branch: str,
@@ -200,7 +203,7 @@ def _base_anchor(
 def _resolved_commit(spec: _config_models.RepoSpec, revision: str) -> str:
     """The SHA a revision names in the parent clone, or '' when it names none."""
     resolved = commands._git_hardened(
-        "rev-parse", "--verify", "--quiet", revision, cwd=spec.target_root,
+        *_VERIFY_REF, revision, cwd=spec.target_root,
     )
     if resolved.returncode != 0:
         return ""

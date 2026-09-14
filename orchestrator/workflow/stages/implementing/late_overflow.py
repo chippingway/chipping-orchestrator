@@ -65,7 +65,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.late_split import (

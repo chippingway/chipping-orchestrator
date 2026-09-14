@@ -23,7 +23,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git import commands
 from orchestrator.git.publication import models, planning
 from orchestrator.git.verification import probes as verification_probes

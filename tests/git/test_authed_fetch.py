@@ -9,7 +9,7 @@ import unittest
 from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import credentials as _config_credentials
+from orchestrator import config
 from orchestrator.git import branch_transport
 from tests.git.concurrency_test_support import (
     PROBE_DELAY_SECONDS,
@@ -57,7 +57,7 @@ class AuthedFetchHardeningTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
         ):
             branch_transport._authed_fetch(
                 _spec(),
@@ -79,7 +79,7 @@ class AuthedFetchHardeningTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
         ):
             fetch = branch_transport._authed_fetch(
                 _spec(),
@@ -102,7 +102,7 @@ class AuthedFetchHardeningTest(unittest.TestCase):
                 _temp_git_repo_with_local_config([(HTTP_PROXY_KEY, "http://evil.example:8080")]),
             )
             stack.enter_context(
-                patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+                patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
             )
             log_capture.records = stack.enter_context(
                 self.assertLogs(branch_transport.log, level="ERROR"),
@@ -124,7 +124,7 @@ class AuthedFetchHardeningTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, subprocess_run),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=""),
+            patch.object(config, TOKEN_RESOLVER, return_value=""),
         ):
             fetch = branch_transport._authed_fetch(
                 _spec(),
@@ -149,7 +149,7 @@ class AuthedFetchHardeningTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, token_resolver),
+            patch.object(config, TOKEN_RESOLVER, token_resolver),
         ):
             fetch = branch_transport._authed_fetch(
                 _spec(REPOSITORY_SLUG),
@@ -182,7 +182,7 @@ class AuthedFetchHardeningTest(unittest.TestCase):
         with ExitStack() as stack:
             stack.enter_context(patch(SUBPROCESS_RUN, subprocess_run))
             stack.enter_context(
-                patch.object(_config_credentials, TOKEN_RESOLVER, return_value=""),
+                patch.object(config, TOKEN_RESOLVER, return_value=""),
             )
             log_capture.records = stack.enter_context(
                 self.assertLogs(branch_transport.log, level="ERROR"),
@@ -219,7 +219,7 @@ class AuthedFetchSerializationTest(unittest.TestCase):
         # A non-empty token keeps `_authed_fetch` from short-circuiting
         # before it reaches the lock.
         with (
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
             patch(SUBPROCESS_RUN, side_effect=probe.subprocess_run),
         ):
             threads = [

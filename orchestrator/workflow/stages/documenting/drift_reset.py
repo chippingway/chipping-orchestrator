@@ -24,7 +24,7 @@ from __future__ import annotations
 import logging
 from contextlib import suppress
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git import branch_transport as _branch_transport, commands as _git_commands
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.stages.documenting import models as _models, parks as _parks

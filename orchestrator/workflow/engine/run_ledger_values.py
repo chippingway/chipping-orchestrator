@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import run_ledger_models as _run_ledger_models
 

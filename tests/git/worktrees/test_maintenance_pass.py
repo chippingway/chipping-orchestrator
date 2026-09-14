@@ -37,7 +37,7 @@ from tests.git.worktrees.eligibility_test_support import (
     ISSUE_NUMBER,
     _terminal_issue,
 )
-from tests.workflow.stages.question.question_real_git_test_support import (
+from tests.support.git import (
     _run_git,
 )
 

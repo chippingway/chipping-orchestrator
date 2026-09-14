@@ -22,10 +22,6 @@ from orchestrator.git.worktrees import anchoring as _anchoring, naming as _namin
 # every owner in this package reports where their filters already point.
 log = logging.getLogger("orchestrator.worktree_lifecycle")
 
-# The ref-existence probe every path here gates on, spelled once: three of
-# them ask it, and a typo in any one would read as "that ref is gone".
-_VERIFY_REF = ("rev-parse", "--verify", "--quiet")
-
 _WORKTREE_ADD = ("worktree", "add")
 
 _WORKTREE_REMOVE_FORCE = ("worktree", "remove", "--force")
@@ -73,7 +69,7 @@ def _ensure_worktree(
         branch_transport._authed_target_fetch(spec, spec.base_branch)
 
         have_branch = commands._git(
-            *_VERIFY_REF, branch, cwd=spec.target_root,
+            *_anchoring._VERIFY_REF, branch, cwd=spec.target_root,
         ).returncode == 0
         if have_branch:
             worktree_result = commands._git(
@@ -169,7 +165,7 @@ def _ensure_pr_worktree(
         fetched = _anchoring._fetch_for_restore(spec, issue_number, branch)
 
         have_local = commands._git(
-            *_VERIFY_REF, branch, cwd=spec.target_root,
+            *_anchoring._VERIFY_REF, branch, cwd=spec.target_root,
         ).returncode == 0
         if have_local:
             worktree_result = commands._git(
@@ -227,7 +223,7 @@ def _pr_branch_start_point(
     """
     pr_ref = f"{spec.remote_name}/{branch}"
     have_remote = fetched and commands._git(
-        *_VERIFY_REF, f"refs/remotes/{pr_ref}", cwd=spec.target_root,
+        *_anchoring._VERIFY_REF, f"refs/remotes/{pr_ref}", cwd=spec.target_root,
     ).returncode == 0
     if have_remote:
         return pr_ref

@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github import events as _events
 
 _TS_KEY = "ts"

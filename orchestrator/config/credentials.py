@@ -65,11 +65,11 @@ def redact_environment_secrets(text: str) -> str:
 
 def redact_configured_github_token(text: str) -> str:
     """Redact the PAT even when it came from a token file, not the env."""
-    # The resolved token is read off `orchestrator.config.settings` at call time, not
+    # The resolved token is read off `orchestrator.config` at call time, not
     # bound at import: this leaf is imported while that module is still
     # building its namespace, and the setting stays an independently
     # patchable module attribute that a settings reload rebinds.
-    from orchestrator.config import settings as config
+    from orchestrator import config
 
     token = config.GITHUB_TOKEN
     if token and len(token) >= _REDACT_MIN_VALUE_LEN:

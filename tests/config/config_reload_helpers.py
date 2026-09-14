@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from types import MappingProxyType, ModuleType
 from unittest.mock import patch
 
-_CONFIG_MODULE = "orchestrator.config.settings"
+_CONFIG_MODULE = "orchestrator.config"
 _MISSING = object()
 _BASE_ENV = MappingProxyType(
     {
@@ -30,7 +30,7 @@ class _ConfigSnapshot:
 
 def _clear_config(package: ModuleType) -> None:
     sys.modules.pop(_CONFIG_MODULE, None)
-    package.__dict__.pop("settings", None)
+    package.__dict__.pop("config", None)
 
 
 def _restore_config(package: ModuleType, snapshot: _ConfigSnapshot) -> None:
@@ -38,15 +38,15 @@ def _restore_config(package: ModuleType, snapshot: _ConfigSnapshot) -> None:
     if snapshot.module is not None:
         sys.modules[_CONFIG_MODULE] = snapshot.module
     if snapshot.package_attribute is not _MISSING:
-        package.__dict__["settings"] = snapshot.package_attribute
+        package.__dict__["config"] = snapshot.package_attribute
 
 
 def load_config(environment: dict[str, str] | None = None) -> ModuleType:
     """Import configuration against an isolated environment and import cache."""
-    package = importlib.import_module("orchestrator.config")
+    package = importlib.import_module("orchestrator")
     snapshot = _ConfigSnapshot(
         sys.modules.get(_CONFIG_MODULE),
-        package.__dict__.get("settings", _MISSING),
+        package.__dict__.get("config", _MISSING),
     )
     full_environment = dict(_BASE_ENV)
     if environment:

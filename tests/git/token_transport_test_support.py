@@ -10,7 +10,7 @@ from pathlib import Path
 from orchestrator.config import models as _config_models
 
 SUBPROCESS_RUN = "subprocess.run"
-TOKEN_RESOLVER = "resolve_github_token"
+TOKEN_RESOLVER = "_resolve_github_token"
 MAIN_BRANCH = "main"
 TEMP_ROOT = Path("/tmp")
 WORKTREE = Path("/tmp/orchestrator-test-worktree")

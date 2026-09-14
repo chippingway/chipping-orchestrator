@@ -25,8 +25,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from orchestrator import cli
-from orchestrator.config import settings as config
+from orchestrator import cli, config
 from orchestrator.runtime import logs, shutdown, startup, state as _runtime_state
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import tick as _engine_tick

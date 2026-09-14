@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from orchestrator.config import settings as config
+from orchestrator import config
 
 log = logging.getLogger("orchestrator.github")
 

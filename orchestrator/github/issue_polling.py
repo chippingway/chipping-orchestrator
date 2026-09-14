@@ -23,7 +23,7 @@ from datetime import datetime
 
 from github.Issue import Issue
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github.issues import (
     _ISSUE_STATE_CLOSED,
     _ISSUE_STATE_OPEN,

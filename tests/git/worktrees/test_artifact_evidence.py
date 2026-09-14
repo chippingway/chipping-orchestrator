@@ -33,7 +33,7 @@ from tests.git.worktrees.candidate_host_test_support import (
     _foreign_checkout,
 )
 from tests.git.worktrees.eligibility_test_support import ISSUE_NUMBER
-from tests.workflow.stages.question.question_real_git_test_support import (
+from tests.support.git import (
     _run_git,
 )
 

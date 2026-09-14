@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.stages.decomposition import (
     handoff as _handoff,
     late_relabel as _late_relabel,

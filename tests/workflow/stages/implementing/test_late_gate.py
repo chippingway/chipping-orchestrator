@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.stages.implementing import (
     late_approval_reading as _late_approval_reading,

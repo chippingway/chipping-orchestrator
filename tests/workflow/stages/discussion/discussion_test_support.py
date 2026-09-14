@@ -25,7 +25,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.stages.discussion import handler as _discussion
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
 from tests.workflow.fixtures import (

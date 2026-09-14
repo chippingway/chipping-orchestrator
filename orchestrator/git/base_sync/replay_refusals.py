@@ -74,9 +74,9 @@ def _refused_by_the_records(
 ) -> bool | None:
     """The three refusals about the commit itself, or None where none holds.
 
-    Split from the two above them only so each function answers a countable
-    number of ways; the order across both is one order and is the property
-    that matters.
+    Publication identity and announcement checks precede these checks in
+    `_refused_before_the_retry`. A rolled-back publication then takes
+    precedence over missing transfer permission or an unclaimed checkout.
     """
     if _transfer_publication._rolled_back_publication(context, completed.head, carried):
         return _replay_checkout_parks._park_rolled_back_recovery(context, completed)

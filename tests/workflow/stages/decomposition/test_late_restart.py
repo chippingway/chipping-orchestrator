@@ -7,7 +7,7 @@ import unittest
 from dataclasses import replace
 from unittest.mock import Mock, patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.late_split import obligations as _obligations, state as _late_state
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (

@@ -22,7 +22,7 @@ import contextlib
 import os
 from unittest.mock import patch
 
-from orchestrator.config import credentials as _config_credentials
+from orchestrator import config
 from orchestrator.git import credentials
 
 
@@ -51,7 +51,7 @@ class _LocalAuthSession:
         self._urls[slug] = auth_url
         try:
             with patch.object(
-                _config_credentials, "resolve_github_token", return_value="token",
+                config, "_resolve_github_token", return_value="token",
             ), patch.object(
                 credentials, "_git_auth_session", self,
             ):

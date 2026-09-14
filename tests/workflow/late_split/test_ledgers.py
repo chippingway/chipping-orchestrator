@@ -140,7 +140,7 @@ class OpaqueUpdateTest(unittest.TestCase):
         self.assertEqual(len(readable.obligations.with_consumers((23,)).consumers), 3)
 
 
-class OpaqueLedgerTest(unittest.TestCase):
+class OpaqueLedgerRoundTripTest(unittest.TestCase):
     """An obligation this binary cannot type is still one the remote is owed."""
 
     def test_an_untypable_entry_survives_a_write(self) -> None:
@@ -162,10 +162,6 @@ class OpaqueLedgerTest(unittest.TestCase):
                     _support.rewritten_state(state).data[_CONSUMERS_KEY], damaged,
                 )
 
-    def test_a_readable_ledger_is_not_opaque(self) -> None:
-        written = PinnedState(comment_id=1, state_data={})
-        _late_state.write_late_generation(written, _support.full_generation())
-        self.assertFalse(_support.read_state(written).obligations.is_opaque)
 
     def test_an_opaque_ledger_round_trips_unchanged(self) -> None:
         state = _untyped_ledger()

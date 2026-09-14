@@ -26,8 +26,8 @@ import logging
 import time
 from collections.abc import Iterator
 
+from orchestrator import config
 from orchestrator.agents import processes as _agent_processes
-from orchestrator.config import settings as config
 from orchestrator.runtime import artifacts, self_update, ticks
 from orchestrator.runtime.startup import PollingOptions, RepoClients
 from orchestrator.runtime.state import RuntimeState

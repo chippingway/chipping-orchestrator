@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import pickup as _pickup
 from tests.workflow.engine import event_emission_test_support as support
 

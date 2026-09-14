@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import (

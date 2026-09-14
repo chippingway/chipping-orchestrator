@@ -7,8 +7,9 @@ import contextlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.decomposition import run as _decomposing
 from orchestrator.workflow.stages.implementing import handler as _implementing, resume as _implementing_resume

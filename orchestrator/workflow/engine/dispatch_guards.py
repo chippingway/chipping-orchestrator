@@ -173,13 +173,11 @@ def _record_stops_the_tick(
     label: str | None,
     state,
 ) -> bool:
-    """The three the read answers once a live cycle has been established.
+    """Decide whether a live cycle permits dispatch on the issue's label.
 
-    Split from the questions above it because those decide whether there is a
-    cycle to ask about at all: a cancelled or reclaimed record stops the tick
-    whatever the label says, and only past them does the label mean what it
-    reads. Each owner below is imported at call time for the reason the ones
-    above are -- the stage tree imports this module back.
+    The caller first handles cancelled or reclaimed records, which stop the
+    tick regardless of its label. Stage owners are imported at call time
+    because the stage tree imports this module back.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):

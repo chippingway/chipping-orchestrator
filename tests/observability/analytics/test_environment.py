@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as orchestrator_config
+from orchestrator import config as orchestrator_config
 from orchestrator.observability.analytics import environment as analytics_environment
 
 # The spellings that turn a knob off, in the casings and padding an operator

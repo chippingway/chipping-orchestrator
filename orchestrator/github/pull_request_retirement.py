@@ -15,7 +15,7 @@ log = logging.getLogger("orchestrator.github")
 
 
 class GitHubPullRequestRetirement:
-    """An idempotent supersession notice and the pull-request close it must precede."""
+    """GitHubClient operations for retiring a superseded pull request."""
 
     def supersede_pr(
         self,

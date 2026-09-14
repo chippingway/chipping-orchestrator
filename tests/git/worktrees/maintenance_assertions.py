@@ -18,7 +18,7 @@ from tests.git.worktrees import maintenance_guard_support as _guard_support
 
 
 class _MaintenanceAssertions:
-    """Maintenance outcomes and the artifacts left on the local host and remote."""
+    """Assertions shared by maintenance cases using a real git host."""
 
     @property
     def only_branch(self) -> tuple[str, ...]:
