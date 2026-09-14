@@ -22,7 +22,12 @@ from dataclasses import replace
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.git.base_sync import transfers
+from orchestrator.git.base_sync import (
+    transfer_evidence as _transfer_evidence,
+    transfer_publication as _transfer_publication,
+    transfer_values as _transfer_values,
+    transfers,
+)
 from orchestrator.git.measurement.models import (
     FrozenCommit,
     MeasurementFailure,
@@ -61,7 +66,7 @@ UNDATABLE_RECEIPTS = MappingProxyType({
 
 def _unaccounted(context, carried) -> str:
     """Why finishing over this comment would strand a verdict, or ""."""
-    return transfers._unaccounted_publication(
+    return _transfer_publication._unaccounted_publication(
         context, seed.REPLAYED_SHA, carried,
     )
 
@@ -121,8 +126,8 @@ class ReconstructedTest(seed.TransferCase):
 
     def test_only_an_unrecorded_rewrite_is_built(self) -> None:
         """A group already standing is never replaced by a fresh claim."""
-        for carried in transfers._Handoff:
-            if carried == transfers._Handoff.UNRECORDED:
+        for carried in _transfer_values._Handoff:
+            if carried == _transfer_values._Handoff.UNRECORDED:
                 continue
             with self.subTest(carried):
                 self.assertIsNone(self._rebuilt(carried))
@@ -146,9 +151,9 @@ class ReconstructedTest(seed.TransferCase):
         with patch(FREEZE_BASE, return_value=UNFROZEN_BASE):
             self.assertIsNone(self._rebuilt())
 
-    def _rebuilt(self, carried=transfers._Handoff.UNRECORDED):
+    def _rebuilt(self, carried=_transfer_values._Handoff.UNRECORDED):
         """What this comment offers the permit for the head in hand."""
-        return transfers._reconstructed(
+        return _transfer_evidence._reconstructed(
             self.context, seed.REPLAYED_SHA, carried,
         )
 
@@ -162,7 +167,7 @@ class PublisherEvidenceTest(unittest.TestCase):
         seed.adjudicated(context.state)
 
         with patch(FREEZE_BASE, return_value=FROZEN_BASE):
-            rewrite = transfers._rewritten_by_the_rebase(
+            rewrite = _transfer_evidence._rewritten_by_the_rebase(
                 context, seed.ACCEPTED_SHA, seed.REPLAYED_SHA,
             )
 
@@ -180,7 +185,7 @@ class AccountedPublicationTest(seed.TransferCase):
         context = seed.context()
 
         self.assertEqual(
-            _unaccounted(context, transfers._Handoff.NOTHING), "",
+            _unaccounted(context, _transfer_values._Handoff.NOTHING), "",
         )
 
     def test_a_settled_transfer_is_accounted_for(self) -> None:
@@ -188,7 +193,7 @@ class AccountedPublicationTest(seed.TransferCase):
         seed.settled(self.state)
 
         self.assertEqual(
-            _unaccounted(self.context, transfers._Handoff.SETTLED), "",
+            _unaccounted(self.context, _transfer_values._Handoff.SETTLED), "",
         )
 
     def test_an_unlicensed_rewrite_is_too(self) -> None:
@@ -196,22 +201,22 @@ class AccountedPublicationTest(seed.TransferCase):
         seed.receipted(self.state)
 
         self.assertEqual(
-            _unaccounted(self.context, transfers._Handoff.UNRECORDED), "",
+            _unaccounted(self.context, _transfer_values._Handoff.UNRECORDED), "",
         )
 
     def test_an_unreadable_record_is_refused(self) -> None:
         """It is the only account of how the exemption came to name this."""
         self.assertEqual(
-            _unaccounted(self.context, transfers._Handoff.UNVOUCHED),
-            transfers._UNREADABLE_CLAIM,
+            _unaccounted(self.context, _transfer_values._Handoff.UNVOUCHED),
+            _transfer_publication._UNREADABLE_CLAIM,
         )
 
     def test_a_standing_transfer_names_its_window(self) -> None:
         """An operator reconciling the comment is told where it stopped."""
         self.assertEqual(
-            _unaccounted(self.context, transfers._Handoff.OUTSTANDING),
-            transfers._UNSETTLED_CLAIM.format(
-                handoff=transfers._Handoff.OUTSTANDING,
+            _unaccounted(self.context, _transfer_values._Handoff.OUTSTANDING),
+            _transfer_publication._UNSETTLED_CLAIM.format(
+                handoff=_transfer_values._Handoff.OUTSTANDING,
             ),
         )
 
@@ -223,7 +228,7 @@ class AccountedPublicationTest(seed.TransferCase):
         it to the attempt in hand, and the pull request is what a replacement
         opened over the same ref cannot supply.
         """
-        unreceipted = transfers._UNRECEIPTED.format(
+        unreceipted = _transfer_publication._UNRECEIPTED.format(
             published=seed.REPLAYED_SHA,
             anchor=fixtures.PRE_REBASE_SHA,
             publication=fixtures.PR_NUMBER,
@@ -235,7 +240,7 @@ class AccountedPublicationTest(seed.TransferCase):
                     seed.receipted(self.state, **recorded)
 
                 self.assertEqual(
-                    _unaccounted(self.context, transfers._Handoff.UNRECORDED),
+                    _unaccounted(self.context, _transfer_values._Handoff.UNRECORDED),
                     unreceipted,
                 )
 
@@ -251,8 +256,8 @@ class AccountedPublicationTest(seed.TransferCase):
         seed.owes(self.state, seed.REPLAYED_SHA, seed.ACCEPTED_SHA)
 
         self.assertEqual(
-            _unaccounted(self.context, transfers._Handoff.SETTLED),
-            transfers._UNPAID.format(owed=seed.REPLAYED_SHA),
+            _unaccounted(self.context, _transfer_values._Handoff.SETTLED),
+            _transfer_publication._UNPAID.format(owed=seed.REPLAYED_SHA),
         )
 
         self._fresh()
@@ -260,8 +265,8 @@ class AccountedPublicationTest(seed.TransferCase):
         seed.owes(self.state, "not-a-commit", seed.ACCEPTED_SHA)
 
         self.assertEqual(
-            _unaccounted(self.context, transfers._Handoff.SETTLED),
-            transfers._DAMAGED_DEBT,
+            _unaccounted(self.context, _transfer_values._Handoff.SETTLED),
+            _transfer_publication._DAMAGED_DEBT,
         )
 
 
@@ -270,13 +275,13 @@ class RolledBackPublicationTest(seed.TransferCase):
 
     def test_a_settled_transfer_landed(self) -> None:
         """The write that moved the exemption says the push had landed."""
-        self.assertTrue(self._rolled_back(transfers._Handoff.SETTLED))
+        self.assertTrue(self._rolled_back(_transfer_values._Handoff.SETTLED))
 
     def test_a_whole_receipt_says_the_same(self) -> None:
         """The head they rolled back to is the head a retry would lease to."""
         seed.receipted(self.state)
 
-        self.assertTrue(self._rolled_back(transfers._Handoff.UNRECORDED))
+        self.assertTrue(self._rolled_back(_transfer_values._Handoff.UNRECORDED))
 
     def test_a_push_never_made_claims_none(self) -> None:
         """The ordinary interrupted rebase records none, so none is read.
@@ -284,23 +289,23 @@ class RolledBackPublicationTest(seed.TransferCase):
         A receipt this build cannot read is the same answer rather than a
         landing: it names no commit, so it vouches for no publication either.
         """
-        self.assertFalse(self._rolled_back(transfers._Handoff.UNRECORDED))
+        self.assertFalse(self._rolled_back(_transfer_values._Handoff.UNRECORDED))
 
         seed.receipted(self.state, published="not-a-commit")
 
-        self.assertFalse(self._rolled_back(transfers._Handoff.UNRECORDED))
+        self.assertFalse(self._rolled_back(_transfer_values._Handoff.UNRECORDED))
 
     def test_an_unnamed_head_claims_none(self) -> None:
         """An empty head matches no receipt rather than every one."""
         seed.receipted(self.state, published="")
 
         self.assertFalse(
-            self._rolled_back(transfers._Handoff.UNRECORDED, head=""),
+            self._rolled_back(_transfer_values._Handoff.UNRECORDED, head=""),
         )
 
     def _rolled_back(self, carried, head: str = seed.REPLAYED_SHA) -> bool:
         """Whether this replay is one somebody undid."""
-        return transfers._rolled_back_publication(self.context, head, carried)
+        return _transfer_publication._rolled_back_publication(self.context, head, carried)
 
 
 class RotatedOntoTest(seed.TransferCase):

@@ -16,6 +16,8 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.implementing import (
     late_parks as _parks,
     late_transfer as _transfer,
+    late_transfer_evidence as _late_transfer_evidence,
+    late_transfer_reading as _late_transfer_reading,
     state as _state,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -47,7 +49,7 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
 
         self.assertEqual(carried, _transfer._CARRIED_OVER)
         self.assertEqual(
-            _transfer._outstanding_rewrite(self.state, _transfer_payloads.REWRITTEN_SHA),
+            _late_transfer_reading._outstanding_rewrite(self.state, _transfer_payloads.REWRITTEN_SHA),
             _support.rewrite(),
         )
 
@@ -59,7 +61,7 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
             _parks._approved_commit(self.state), _transfer_payloads.REWRITTEN_SHA,
         )
         self.assertTrue(
-            _transfer._licensed_by_a_permit(self.state),
+            _late_transfer_reading._licensed_by_a_permit(self.state),
         )
         self.assertFalse(self._bypasses())
 
@@ -86,7 +88,7 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
                 })
 
                 self.assertTrue(
-                    _transfer._licensed_by_a_permit(self.state),
+                    _late_transfer_reading._licensed_by_a_permit(self.state),
                 )
                 self.assertFalse(self._bypasses())
 
@@ -101,7 +103,7 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
             _rewrite_fields.LATE_REWRITE_TO_SHA: _transfer_payloads.FOREIGN_SHA,
         })
 
-        self.assertTrue(_transfer._licensed_by_a_permit(self.state))
+        self.assertTrue(_late_transfer_reading._licensed_by_a_permit(self.state))
         self.assertFalse(self._bypasses())
 
     def test_a_spent_permission_bypasses_again(self) -> None:
@@ -115,7 +117,7 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
             _parks.LateApprovalBasis.READING,
         )
 
-        self.assertFalse(_transfer._licensed_by_a_permit(self.state))
+        self.assertFalse(_late_transfer_reading._licensed_by_a_permit(self.state))
         self.assertTrue(self._bypasses(_transfer_payloads.STRANGER_SHA))
 
     def test_a_permission_for_another_commit_defers(self) -> None:
@@ -126,7 +128,7 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
         # the permit invisible and the approval would look like any other.
         self.state.data[_rewrite_fields.LATE_REWRITE_TO_SHA] = _transfer_payloads.FOREIGN_SHA
 
-        self.assertTrue(_transfer._licensed_by_a_permit(self.state))
+        self.assertTrue(_late_transfer_reading._licensed_by_a_permit(self.state))
         self.assertFalse(self._bypasses())
         self.assertEqual(self._re_asked(), "")
 
@@ -240,7 +242,7 @@ class LostReceiptRecoveryTest(_transfer_case._RecoveryCase, unittest.TestCase):
         _support.spent(self.state)
 
         self.assertFalse(
-            _transfer._standing_where_the_permit_left_it(
+            _late_transfer_evidence._standing_where_the_permit_left_it(
                 self.landed, _support.rewrite(),
             ),
         )

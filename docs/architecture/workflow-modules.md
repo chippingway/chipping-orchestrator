@@ -1324,68 +1324,20 @@ workflow/                   marker package for state, engine, and stage owners
       late_rewrite.py       enter and publish a squash, with the switch governing measurement and every push retaining
                             its terminal barrier; hand the actual pre-squash pair to transfer, name a resumed candidate,
                             and drop abandoned approval, transfer permission, and collapse claim after proved rollback
-      late_transfer.py      whether a rewrite may carry an adjudication's exemption onto the object it produced,
-                            rather than have the same change measured past the same ceiling and adjudicated a
-                            second time with a pull request already open over the work. A permit is granted only
-                            over a whole semantic record whose exempt commit IS the one the rewrite came from,
-                            evidence naming a bounded kind from a stage that really makes that kind -- the two are
-                            one claim, so a `conflict_rebase` offered from `validating` types in both halves while
-                            describing a rewrite that stage does not make -- and every end of both contributions,
-                            an operator authorization standing behind the exemption it would move, proved through
-                            the owner the GATE proves one through, since moving an exemption nothing authorizes
-                            would hand the rewritten commit a permission the accepted one never had,
-                            no authorization this build cannot read already standing for that exemption -- a grant
-                            REPLACES that group rather than adding to it, so an unreadable claim about the exempt
-                            commit is evidence a transfer may not overwrite to repair -- the publication this call
-                            itself froze (same pull request, same stage, a remote still standing on the lease) and
-                            the one the issue still records, a provably clean checkout standing on the rewritten
-                            commit, a leased head that peels to a commit this host holds -- the one end nothing
-                            else here reads as an object, since the lease may name a different commit from the
-                            accepted one -- an issue re-read past the close latch and found UNCHANGED -- open,
-                            carrying no `paused` or `backlog`, and still on the stage the rewrite recorded, since
-                            the entry read that stage off the issue the tick opened with and a relabel during the
-                            rewrite is invisible to every other reading -- a rewritten base the base branch really
-                            carries, frozen from what the REMOTE says that branch is at and held to reachability
-                            rather than to equality, since the branch advances on its own while a base carrying
-                            work no remote has is one only this host ever saw -- and canonical fingerprints that
-                            agree.
-                            The accepted one is taken over the pair the RECORD names rather than the pair the
-                            caller claims, so a hand-edited `late_exempt_base_sha` is the record failing to prove
-                            itself instead of a field nothing ever reads, and the caller's own claim about what it
-                            replaced is held to that same digest -- by digest rather than by spelling, since the
-                            frozen base and the fork point a squash collapses onto or a rebase replays onto
-                            disagree as object ids the moment the base branch advances. A digest a standing
-                            permission already recorded is held to that same reading, since carried forward
-                            unchecked it would be rewritten by whatever this tick happened to take -- a repair of
-                            evidence nobody checked, made under the authority of the transfer being decided.
-                            Granted, ONE durable write records the authorization and the debt the push is still
-                            owed -- both before the push, because a comment that explains a one-commit branch and
-                            does not say a push is outstanding is one the next squash reads as nothing to squash.
-                            The exemption itself does not move here: the rotation belongs to `late_rotation`, on
-                            the write that receipts a landed push, so a verdict is never left on a commit no
-                            remote carries. A write GitHub REFUSES is handled here rather than allowed out: the
-                            staged payload is put back exactly as it was found and the permit is refused, so the
-                            tick falls through to the ordinary gate instead of ending in an exception that would
-                            carry past every rollback its caller has. Refused, nothing moves and the ordinary
-                            cumulative size gate measures the rewrite like any other candidate. The drop a
-                            rolled-back force-push needs lives here too, so the rollback takes back exactly the
-                            permission the rewrite was granted and leaves the exemption, which never moved, alone
-                            -- keyed on the head the record itself names as the one that rewrite found, since a
-                            squash is reset onto the commit it collapsed and a rebase onto the anchor it leased.
-                            And the tick AFTER a crash between the grant and its push is answered from the same
-                            record: the recovery has no plan behind it, so both pairs, the publication, and the
-                            lease come off the standing permission and every question is asked again over them --
-                            which is why the gate's approved bypass defers here rather than answering on the
-                            object id, since a hand-edited permission, a repointed pull request, or a relabelled
-                            issue would each otherwise push an oversized rewrite nothing revalidated. That
-                            deferral is asked of the PHASE rather than of the commit the record names -- the
-                            permission and the debt go down in one write for one commit, so an approval beside an
-                            outstanding permission is either the one it licensed or a comment disagreeing with
-                            itself, and a hand-edited target would otherwise make the permit invisible. An
-                            outstanding permission is also what makes a lost receipt recoverable: a remote already
-                            standing on the rewritten commit is this permit's own push having landed, admitted as
-                            such rather than read as a moved remote, which would remeasure a squash the pull
-                            request already carries
+      late_transfer_reading.py
+                            pending permissions and operator authorization; a damaged claim cannot be overwritten
+                            as a grant, and an existing grant must agree with this reading's fingerprint
+      late_transfer_evidence.py
+                            bounded rewrite kind, stage, endpoint, and publication evidence; frozen and recorded PRs
+                            agree with the lease, with a rewritten remote tip admitted only by its pending permission
+      late_transfer_checkout.py
+                            fresh clean-checkout, lease-object, unchanged-owner, and remote-backed base proofs;
+                            an observed close, control label, relabel, or unprovable base refuses the transfer
+      late_transfer_contribution.py
+                            immutable permit results and fingerprints of accepted, claimed, and rewritten pairs;
+                            the recorded adjudication reproduces locally and every claimed contribution agrees
+      late_transfer.py      ask evidence and live-proof questions in order, then grant and persist the permission with
+                            its publication debt; restore failed writes and abandon a permission after proved rollback
       late_rotation.py      what the receipt of that landed push does with the permission behind it, staged into the
                             push tail's own write so the exemption, the identity it carries, the phase that spends
                             the permission, the account of what the remote holds, and the bookkeeping the landing

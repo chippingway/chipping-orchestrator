@@ -148,6 +148,12 @@ _CALL_TIME_HOPS = MappingProxyType({
         _REWRITES,
         _REWRITE_VALUES,
     ),
+    f"{_BASE_SYNC}.transfer_values": (_REWRITE_VALUES,),
+    f"{_BASE_SYNC}.transfer_evidence": (_EXEMPTION, _REWRITE_VALUES),
+    f"{_BASE_SYNC}.transfer_attempts": (_EXEMPTION,),
+    f"{_BASE_SYNC}.transfer_publication": (
+        f"{PACKAGE}.workflow.stages.implementing.late_parks",
+    ),
     f"{_PUBLICATION}.rewrite": (_LATE_REWRITE, _LATE_COLLAPSE, _LATE_SQUASH_PROOF),
     f"{_PUBLICATION}.resume": (_LATE_COLLAPSE, _LATE_SQUASH_PROOF),
     f"{_PUBLICATION}.squash": (_LATE_COLLAPSE,),

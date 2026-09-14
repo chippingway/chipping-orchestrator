@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 3 paths and 4 pairs (4 production, 0
-test), all matching isolated diagnostics. One hundred twenty-five pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 1 path and 1 pair (1 production, 0
+test), all matching isolated diagnostics. One hundred twenty-eight pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201 and WPS202. The files must stay until that set is empty and
 validation passes.
@@ -214,7 +214,7 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All seven remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate terminal readings, context, and effects; separate dispatch targets,
+- `4b50adc8`: separate terminal readings, context, and effects; separate dispatch targets,
   polling values and classification, admission guards, observation scopes, partitioning, processing, and workers.
   Three production pairs removed. Scheduler claims and stage imports retain their existing scopes and order.
   Of 740 compared function/method bodies and 318 whole definitions, all production bodies match; 24 test
@@ -222,6 +222,14 @@ Implemented batches:
   The corrected concurrency/repository run passes 93 tests, and all 20 retry tests pass. Both architecture maps
   match their defining owners. Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped.
   All four remaining production pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate base-sync transfer values, rewrite evidence, attempt matching, and
+  publication accounting; separate implementing transfer readings, evidence, fresh checkout proofs, and
+  contribution fingerprints. Three production pairs removed. One implementing park exclusion remains.
+  All 142 compared function/method bodies and 81 whole definitions match after resolving owner imports.
+  All 946 focused tests pass, and both architecture maps match their defining owners. Ruff, configured WPS,
+  and the full suite pass with 6,429 passed and 49 skipped. The one remaining production pair matches the
+  isolated diagnostic, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes
 are historical evidence, not completion of the current zero-exclusion target.
