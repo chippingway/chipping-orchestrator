@@ -4,7 +4,7 @@
 
 Every pass here runs against a real `IssueScheduler` -- the caps and the
 in-flight bookkeeping are half of what a pass is asserted on -- with the engine
-behind `workflow.tick` and the analytics prune standing in for their owners.
+behind `workflow.engine.tick.tick` and the analytics prune standing in for their owners.
 The prune is intercepted on every path, not only where a test asserts on it,
 so a pass never rewrites the operator's sink.
 """
@@ -16,10 +16,10 @@ from dataclasses import dataclass
 from importlib import import_module
 from unittest import mock
 
-from orchestrator import workflow
 from orchestrator.runtime import ticks
 from orchestrator.runtime.state import RuntimeState
 from orchestrator.scheduler.service import IssueScheduler
+from orchestrator.workflow.engine import tick as _engine_tick
 from tests.runtime import polling_test_support as _support
 from tests.workflow.git_owners import seam_patch
 
@@ -43,7 +43,7 @@ class DispatchContext:
     def run(self, tick_effect) -> None:
         with (
             mock.patch.object(
-                workflow,
+                _engine_tick,
                 _support.TICK_ATTR,
                 side_effect=tick_effect,
             ),
@@ -55,7 +55,7 @@ class DispatchContext:
         """Run one pass and hand back its completion drain and its prune."""
         with (
             mock.patch.object(
-                workflow,
+                _engine_tick,
                 _support.TICK_ATTR,
                 side_effect=tick_effect,
             ),

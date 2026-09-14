@@ -247,7 +247,7 @@ foundation layer for the Postgres aggregation step.
 - `agent_exit` — `_run_agent_tracked` (in `workflow/engine/usage.py`); one record per tracked agent invocation; agent
   context + parsed token / model / cost details (see below).
 - `repo_skill_catalog` — `orchestrator.skills.catalog._emit_repo_skill_catalog`, driven once per tick per spec by the
-  tick owner (in `workflow/engine/tick.py`, entered through `workflow.tick`); repo-level (not issue-scoped, so
+  tick owner (`workflow.engine.tick.tick`); repo-level (not issue-scoped, so
   `issue` is
   the sentinel `0`); carries `base_branch`, `remote_name`, `skills_available` (deduped `SKILL.md` skill names on the
   base ref), and optional `skill_paths` (name → source paths) — see below.
@@ -277,14 +277,14 @@ is not valid JSON) are preserved verbatim so the prune step never silently drops
 **Append/prune serialization.** Append and prune share one process-local `threading.Lock`, minted on
 `observability/analytics/sink.py` — one mint per process, so every reference to `append_record` takes the object the
 prune takes — so a concurrent `append_record` cannot land between the prune's read and its `os.replace`. Under the
-scheduler-driven dispatch, `workflow.tick` returns as soon as it has submitted per-issue callables, so scheduler
-workers may still be running — and calling `append_record` — when `runtime.ticks.run_tick` invokes
+scheduler-driven dispatch, `workflow.engine.tick.tick` returns as soon as it has submitted per-issue callables,
+so scheduler workers may still be running — and calling `append_record` — when `runtime.ticks.run_tick` invokes
 `prune_with_retention_logging()`. Without the lock, an append that opened the old inode after the prune's read but
 before the replace would be silently lost. The lock is held only around the filesystem ops; JSON serialization happens
 outside the critical section.
 
 **Retention cadence.** `runtime.ticks.run_tick` calls `retention.prune_with_retention_logging()` exactly once per
-polling iteration after `workflow.tick` returns for every configured repo, regardless of how many repos are
+polling iteration after `workflow.engine.tick.tick` returns for every configured repo, regardless of how many repos are
 configured — the sink is process-wide, not per-repo. It names the owner inside the call, so the tick's own import never
 pays for the prune graph. Right before the prune, `run_tick` calls `scheduler.reap()` exactly once per polling pass so
 worker failure-completion records drain before the next iteration. `_dispatch_via_scheduler` deliberately does NOT

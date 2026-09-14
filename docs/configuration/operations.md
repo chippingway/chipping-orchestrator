@@ -65,24 +65,16 @@ limits retain their defaults.
 The agent, GitHub, and scheduler packages have marker initializers. Callers import their models and services
 from the defining modules, and their former initializer exclusions have been removed.
 
-The workflow package adds another: `orchestrator/workflow/__init__.py` (`WPS412`, `WPS410`) is the package API. It
-re-exports five names from the `state` owner beside it — the `WorkflowLabel` / `ControlLabel` vocabularies, the
-`guard_transition` write guard and the `is_allowed_transition` predicate under it, and the `IllegalTransition` an
-illegal write raises — and defines the per-repo `tick` entry point, publishing all six through an explicit `__all__`
-(`WPS410`). `tick` resolves `workflow/engine/tick.py` inside the call rather than binding it at module scope: the
-GitHub and git layers import `workflow/state.py` beside this initializer for the label vocabulary they are typed by,
-and a submodule import runs the initializer first, so an engine import here would route them back into the modules
-they are still initializing. `WPS412` is waived for that import-time logic.
+Workflow labels and transition guards are imported from `workflow.state`, and the tick entry point from
+`workflow.engine.tick`. The workflow initializer is a marker, so importing the vocabulary cannot load the engine.
 
 The usage parsers and analytics recorders also have marker initializers. Parser calls name `metrics`, `skills`, or
 `trajectory`; event producers name `recording.events`, and tracked agent exits name `recording.agent_exit`.
 
-The root scope fronts no owner at all: `orchestrator/__init__.py` (`WPS412`, `WPS410`) is the whole of the
-root package. It declares the distribution version and the explicit `__all__` naming it and binds nothing else, so
-`import orchestrator` costs that module and no owner behind it. Both names are module-level metadata (`WPS410`) and
-both assignments read as logic in an initializer (`WPS412`), so each rule is waived there.
+The root initializer is also a marker. Distribution metadata is imported directly from `orchestrator.version`,
+which loads no runtime subsystem.
 
-Those three are the remaining publishing set. Every other initializer imports nothing at all, so naming one of
+Only config remains in the publishing set. Every other initializer imports nothing at all, so naming one of
 those packages loads no owner behind it and the submodules that show up on it are what other modules' imports planted.
 `tests/repository/test_package_exports.py` reads each initializer's source for that half — an eager sibling import is
 invisible in the namespace, which holds the same submodule either way — and compares the packages carrying an

@@ -71,7 +71,9 @@ sweep's dedup marker, and the closed-issue sweep's query — and a namespaced la
 same issue. What a PAT without `Issues: Read and write` leaves behind, and which bare tags a relabel deliberately does
 not delete, are in [`state-machine/labels-and-state.md`][legacy-labels].
 
-## Per-tick flow (`workflow.tick`)
+<a id="per-tick-flow-workflowtick"></a>
+
+## Per-tick flow (`workflow.engine.tick.tick`)
 
 One repo's pass runs the base refresh, the community-contribution PR sweep, and the repo skill-catalog emission, then
 dispatches each pollable issue by workflow label. **Family-aware labels** (`workflow:decomposing`,
@@ -81,7 +83,7 @@ fold into one bucket per repo that drains sequentially; every other label fans o
 worker mints its own `GitHubClient` and re-fetches the issue. The cap exemptions, the `duplicate_active` gate, and
 what each step reads and writes are in [`state-machine/labels-and-state.md`][per-tick]; the multi-repo dispatch and
 scheduler lifecycle around them are in
-[`architecture.md#per-tick-flow-workflowtick`](architecture.md#per-tick-flow-workflowtick).
+[`architecture.md#per-tick-flow-workflowengineticktick`](architecture.md#per-tick-flow-workflowengineticktick).
 
 One park is answered by the dispatcher rather than by a stage. An issue standing on `agent_run_limit` has spent every
 agent run it is allowed, and every stage below reads `awaiting_human` as the park it was written against —
@@ -367,7 +369,7 @@ the shared awaiting-human park — is in [`state-machine/lifecycle.md`](state-ma
 
 [typed-states]: state-machine/labels-and-state.md#typed-states-and-the-transition-guard
 [legacy-labels]: state-machine/labels-and-state.md#legacy-labels-and-the-migration-off-them
-[per-tick]: state-machine/labels-and-state.md#per-tick-flow-workflowtick
+[per-tick]: state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick
 [pollable]: state-machine/labels-and-state.md#pollable-issues-and-finalization
 [pickup]: state-machine/delivery-stages.md#_handle_pickup-no-label--workflowdecomposing-or-workflowimplementing
 [drift]: state-machine/delivery-stages.md#user-content-drift-detection

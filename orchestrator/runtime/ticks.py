@@ -13,12 +13,12 @@ from __future__ import annotations
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from orchestrator import workflow
 from orchestrator.config import RepoSpec
 from orchestrator.github.client import GitHubClient
 from orchestrator.runtime.startup import RepoClients
 from orchestrator.runtime.state import RuntimeState
 from orchestrator.scheduler.service import IssueScheduler
+from orchestrator.workflow.engine import tick as _engine_tick
 
 log = logging.getLogger("orchestrator")
 
@@ -40,7 +40,7 @@ def tick_one_repo(
         return
     log.info("tick: repo=%s", spec.slug)
     try:
-        workflow.tick(
+        _engine_tick.tick(
             github_client,
             spec,
             scheduler=scheduler,

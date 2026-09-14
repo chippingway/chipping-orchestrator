@@ -3,7 +3,7 @@
 """One composed `cli.main` run with only its process-wide seams intercepted.
 
 What is stood in for is what a test process cannot afford to run for real: the
-GitHub clients, the workflow engine behind `workflow.tick`, the analytics
+GitHub clients, the workflow engine behind `workflow.engine.tick.tick`, the analytics
 prune, the logging configuration, and the signal registration. Everything the
 composition itself decides -- the order the owners run in, the state they
 share, the live scheduler every tick is handed, and the exit code the run ends
@@ -25,16 +25,17 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from orchestrator import cli, config, workflow
+from orchestrator import cli, config
 from orchestrator.runtime import logs, shutdown, startup
 from orchestrator.runtime.state import RuntimeState
 from orchestrator.scheduler.service import IssueScheduler
+from orchestrator.workflow.engine import tick as _engine_tick
 from tests.runtime import (
     polling_scheduler_probes as _probes,
     polling_signal_probes as _signal_probes,
     polling_test_support as _support,
+    tick_test_support as _tick_support,
 )
-from tests.runtime.tick_test_support import patched_prune
 
 _DEFAULT_SPECS_ATTR = "default_repo_specs"
 _GITHUB_CLIENT_ATTR = "GitHubClient"
@@ -139,9 +140,9 @@ def composed_run(slugs: list[str]):
         _recorded_startup(intercepted, run)
         intercepted.enter_context(patch.object(cli, _STATE_ATTR, run.states))
         intercepted.enter_context(patch.object(
-            workflow, _support.TICK_ATTR, side_effect=run.recorder,
+            _engine_tick, _support.TICK_ATTR, side_effect=run.recorder,
         ))
-        intercepted.enter_context(patched_prune())
+        intercepted.enter_context(_tick_support.patched_prune())
         # The run installs no handler of its own and arms no watchdog: both
         # outlive the test that started them, and what the composition owes
         # here is the call, which is asserted on the interception itself.

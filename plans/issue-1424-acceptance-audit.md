@@ -4,8 +4,8 @@
 
 The current user request requires **zero exclusions in `.flake8`**. The retention decisions in the historical
 audit below do not close that goal. The continuation began at `660a0bb6` with 129 pairs across 107 paths; the
-current working implementation removes 36 pairs and leaves 93 pairs across 76 paths. Its remaining
-66 production pairs and 27 test pairs all match isolated diagnostics, with no stale or unmapped pair.
+current working implementation removes 40 pairs and leaves 89 pairs across 74 paths. Its remaining
+62 production pairs and 27 test pairs all match isolated diagnostics, with no stale or unmapped pair.
 
 The detailed batch record and outstanding scope are in `issue-1424-remaining-work.md`. All remaining pairs,
 including the package initializer rules, still require implementation. Both notes remain until every exclusion

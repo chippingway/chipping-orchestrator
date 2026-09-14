@@ -73,8 +73,8 @@ The rules under the map hold for the whole tree, the packages on those pages inc
 
 ```
 orchestrator/
-  __init__.py           the package version and the `__all__` naming it, bound
-                        here so `import orchestrator` costs no owner behind it
+  __init__.py           a package marker that loads no owner
+  version.py            the distribution version, imported directly
   cli.py                `chipping-orchestrator` console-script entry point and
                         the polling process's composition point
   __main__.py           `python -m orchestrator` launch form over `cli.main`;
@@ -139,7 +139,7 @@ orchestrator/
 ```
 
 Five rules hold for the tree as a whole, each with a check under `tests/repository/` that finds its subjects on disk so
-a module added anywhere is covered the day it lands. The root is the three files above plus the ten packages under
+a module added anywhere is covered the day it lands. The root is the four files above plus the ten packages under
 them, held to that exact inventory: a module parked beside them would be importable next to the package that owns the
 responsibility, and both would answer. No module wears one of the retired domain families as a prefix. Every family is
 forbidden in the private spelling its compatibility leaves carried (`_dashboard_read_core.py`), and the families whose
@@ -167,7 +167,7 @@ namespace beside it, or fronts nothing and imports nothing at all — the submod
 modules' imports planted there, not what its initializer loaded, so naming the package costs no owner behind it. That
 second half is read from the initializer's source, because the namespace cannot tell an eager sibling import from
 somebody else's; what an initializer imports from outside the package for its own use is a helper rather than a
-surface, and is held to neither. The three that still publish are listed under
+surface, and is held to neither. The config initializer is the remaining publisher, described under
 [`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration), where each
 is also a scoped lint waiver.
 
@@ -291,9 +291,12 @@ self-exit and be restarted with new code.
 
 The coding agent runs as a **transient child subprocess**, not a daemon — spawned per tick when work is needed.
 
-## Per-tick flow (`workflow.tick`)
+<a id="per-tick-flow-workflowtick"></a>
 
-Each tick the polling loop fans `workflow.tick(gh, spec, scheduler=...)` out across **every configured repo** via
+## Per-tick flow (`workflow.engine.tick.tick`)
+
+Each tick the polling loop fans `workflow.engine.tick.tick(gh, spec, scheduler=...)` out across
+**every configured repo** via
 `runtime.ticks.run_tick`: single-repo deployments stay in-thread, multi-repo deployments use a `ThreadPoolExecutor`
 sized to the repo count. A single long-lived `IssueScheduler` (global cap `MAX_PARALLEL_ISSUES_GLOBAL`, per-repo cap
 `MAX_PARALLEL_ISSUES_PER_REPO`) is shared across all `tick` calls, so those caps bound the whole deployment rather
@@ -316,7 +319,7 @@ The orchestrator process is stateless; the label and the pinned JSON are the ent
 For the full per-tick sequence — eligible-issue enumeration, the cap exemption a no-agent bucket earns, what the base
 refresh rebases and pushes, the read-only skip the `question` and `discussion` labels take, the per-tick
 external-merge sweeps, and the complete pinned-state JSON schema — see
-[`state-machine/labels-and-state.md#per-tick-flow-workflowtick`](state-machine/labels-and-state.md#per-tick-flow-workflowtick).
+[`state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick`](state-machine/labels-and-state.md#per-tick-flow-workflowengineticktick).
 
 ## Stage handlers
 
@@ -702,9 +705,10 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
 
 - **`cli.main` polling loop** — long-lived Python process. Trigger: manual start (or wrapper). Cadence: every
   `POLL_INTERVAL`s.
-- **`workflow.tick(gh, spec)`** — function call. Trigger: each loop iteration. Cadence: once per tick per configured
-  `RepoSpec`; multi-repo fans out across a `ThreadPoolExecutor`, single-repo stays in-thread.
-- **`_refresh_base_and_worktrees(gh, spec)`** — function call. Trigger: start of each `workflow.tick`. Cadence: once
+- **`workflow.engine.tick.tick(gh, spec)`** — function call. Trigger: each loop iteration. Cadence: once per tick per
+  configured `RepoSpec`; multi-repo fans out across a `ThreadPoolExecutor`, single-repo stays in-thread.
+- **`_refresh_base_and_worktrees(gh, spec)`** — function call. Trigger: start of each `workflow.engine.tick.tick`.
+  Cadence: once
   per tick per repo: one `git fetch <spec.remote_name> <spec.base_branch>`, then per-worktree dispatch — a pre-PR
   worktree rebases locally, and a PR-having one behind base is rebased and pushed in the refresh itself.
 - **`_handle_*` per issue** — function call. Trigger: the issue's workflow label. Cadence: once per tick per pollable
@@ -755,8 +759,8 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │       1. self-restart check (origin/<ORCHESTRATOR_BASE_BRANCH>       │
    │          moved & touches orchestrator/?)                             │
    │       2. run_tick(state, clients, scheduler):                        │
-   │            N == 1 → in-thread workflow.tick(gh, spec, scheduler)     │
-   │            N  > 1 → ThreadPoolExecutor fans workflow.tick across     │
+   │            N == 1 → in-thread engine_tick.tick(gh, spec, scheduler)  │
+   │            N  > 1 → ThreadPoolExecutor fans engine_tick.tick across  │
    │                     one worker thread per repo                       │
    │       3. scheduler.reap()  (drain completions; surface failures)     │
    │       4. retention.prune_with_retention_logging()                    │
@@ -766,7 +770,7 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │               hard-exits within SHUTDOWN_GRACE_SECONDS on overrun    │
    │                    │                                                 │
    │                    ▼                                                 │
-   │   workflow.tick(gh, spec, scheduler) →                               │
+   │   engine_tick.tick(gh, spec, scheduler) →                            │
    │     _refresh_base_and_worktrees(gh, spec, scheduler): skip           │
    │       worktrees whose handler is still in flight in scheduler        │
    │     classify each pollable issue and submit to scheduler:            │

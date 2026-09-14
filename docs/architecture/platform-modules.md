@@ -105,7 +105,8 @@ import an owner directly.
 
 ```
 orchestrator/
-  __init__.py           the distribution version and the `__all__` naming it, and nothing else
+  __init__.py           a package marker that loads no owner
+  version.py            the distribution version, imported directly
   cli.py                the `chipping-orchestrator` console script: the polling process's composition point
   __main__.py           the `python -m orchestrator` launch form over `cli.main`, and what `run.sh` starts
   runtime/              the polling process's own owners

@@ -31,12 +31,10 @@ from tests.repository.layout_test_support import (
     package_directories,
 )
 
-# The remaining package surfaces: version, resolved settings, and workflow.
-# Other initializers bind no owner.
+# Only the resolved settings still bind a package surface.
+# Every other initializer binds no owner.
 _PUBLISHERS = frozenset((
-    PACKAGE,
     f"{PACKAGE}.config",
-    f"{PACKAGE}.workflow",
 ))
 
 # A marker initializer that loads a sibling for everyone who names the package.
