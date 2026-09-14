@@ -21,7 +21,9 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.stages.implementing import late_parks as _parks
+from orchestrator.workflow.stages.implementing import (
+    late_publication_state as _late_publication_state,
+)
 from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA, SHA_LENGTH
 
 _KEY_PUBLISHED_SHA = "implementing_published_sha"
@@ -77,7 +79,7 @@ class OwnPushCarveOutTest(unittest.TestCase):
 
     def _vouched(self, recorded, *, pull_request: int) -> str:
         """What the reader makes of a receipt group naming `recorded`."""
-        return _parks._publication_from(
+        return _late_publication_state._publication_from(
             PinnedState(data={
                 _KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
                 _KEY_PUBLISHED_LEASE: _MOVED_HEAD,

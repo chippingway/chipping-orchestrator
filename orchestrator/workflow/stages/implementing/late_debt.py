@@ -29,8 +29,10 @@ from orchestrator.workflow.late_split import (
     state as _late_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
+    late_measurement_state as _late_measurement_state,
+    late_park_notices as _late_park_notices,
     late_push as _push,
     late_records as _records,
     state as _state,
@@ -132,7 +134,7 @@ def _owes_a_published_push(
     if label is None or label == WorkflowLabel.DECOMPOSING:
         return False
     return bool(
-        _parks._approved_commit(state) and _parks._approved_lease(state),
+        _late_approval_reading._approved_commit(state) and _late_approval_reading._approved_lease(state),
     )
 
 
@@ -218,9 +220,9 @@ def _moved_stage_debt(
         "publishes onto none; refusing to publish or to run its stage",
         gate.issue.number, label,
     )
-    if gate.state.get(_state._PARK_REASON) == _parks.PARK_MEASUREMENT_FAILED:
+    if gate.state.get(_state._PARK_REASON) == _late_measurement_state.PARK_MEASUREMENT_FAILED:
         return True
-    _parks._parked(
+    _late_park_notices._parked(
         gate, _records._reportable(gate, _late_state.read_late_generation(
             gate.state,
         )),
@@ -228,7 +230,7 @@ def _moved_stage_debt(
         _MOVED_STAGE_DEBT_PARK.format(
             mentions=config.HITL_MENTIONS,
             label=label,
-            candidate=_parks._approved_commit(gate.state),
+            candidate=_late_approval_reading._approved_commit(gate.state),
         ),
     )
     gate.gh.write_pinned_state(gate.issue, gate.state)
@@ -274,7 +276,7 @@ def _publishes_the_debt(
     """
     if not _transitions.publishes_onto_a_pull_request(label):
         return _moved_stage_debt(gate, label)
-    approved = _parks._approved_commit(gate.state)
+    approved = _late_approval_reading._approved_commit(gate.state)
     unpayable = _unpayable_debt(gate, approved)
     if unpayable:
         return _unreachable_debt(gate, unpayable)
@@ -297,7 +299,7 @@ def _publishes_the_debt(
             # froze the pull request's head was retired by the write that
             # approved the commit, so re-reading it would answer with wherever
             # that pull request has moved to since.
-            head=_parks._approved_lease(gate.state),
+            head=_late_approval_reading._approved_lease(gate.state),
             # The commit the approval is FOR, which is the only one this push
             # may publish: the debt was granted about it, the receipt will
             # name it, and a checkout something moved past the proof above is
@@ -364,21 +366,21 @@ def _unreachable_debt(gate: _late_gate_models._Gate, unpayable: str) -> bool:
     answer any faster. A park already standing for the same reading is left
     exactly as it is.
     """
-    if gate.state.get(_state._PARK_REASON) == _parks.PARK_MEASUREMENT_FAILED:
+    if gate.state.get(_state._PARK_REASON) == _late_measurement_state.PARK_MEASUREMENT_FAILED:
         log.warning(
             "issue=#%d still owes a push it cannot make (%s); holding the "
             "tick without a second notice",
             gate.issue.number, unpayable,
         )
         return True
-    _parks._parked(
+    _late_park_notices._parked(
         gate, _records._reportable(gate, _late_state.read_late_generation(
             gate.state,
         )),
         unpayable,
         _UNREACHABLE_DEBT_PARK.format(
             mentions=config.HITL_MENTIONS,
-            candidate=_parks._approved_commit(gate.state),
+            candidate=_late_approval_reading._approved_commit(gate.state),
             refusal=unpayable,
         ),
     )
@@ -416,7 +418,7 @@ def _unpublished_debt(gate: _late_gate_models._Gate) -> bool:
             _payloads.as_identity(gate.state.get(_state._PR_NUMBER)),
         )
         return False
-    _parks._parked(
+    _late_park_notices._parked(
         gate, _records._reportable(gate, _late_state.read_late_generation(
             gate.state,
         )),
@@ -425,7 +427,7 @@ def _unpublished_debt(gate: _late_gate_models._Gate) -> bool:
         ),
         _UNPUBLISHED_DEBT_PARK.format(
             mentions=config.HITL_MENTIONS,
-            candidate=_parks._approved_commit(gate.state),
+            candidate=_late_approval_reading._approved_commit(gate.state),
         ),
     )
     # The reason the stage recoveries know how to retry, rather than the

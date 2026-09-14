@@ -24,7 +24,11 @@ from orchestrator.workflow.late_split import (
     rewrite_values as _rewrite_values,
     rewrites as _rewrites,
 )
-from orchestrator.workflow.stages.implementing import late_parks as _parks
+from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
+    late_publication_state as _late_publication_state,
+)
 from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync import base_sync_helpers as fixtures
 from tests.support.authorization import _authorize
@@ -110,8 +114,8 @@ def context(**terms):
 
 def owes(state, commit: str, lease: str) -> None:
     """Put a debt on the comment the way the gate's own grant would."""
-    _parks._approve(
-        state, commit, lease, _parks.LateApprovalBasis.UNMEASURED,
+    _late_approval_state._approve(
+        state, commit, lease, _late_approval_reading.LateApprovalBasis.UNMEASURED,
     )
 
 
@@ -146,9 +150,9 @@ def granted(state, rewrite=GRANTED, *, digest: str = DIGEST):
     without the other would be seeding a comment no grant ever produced.
     """
     _rewrites.record_rewrite_authorization(state, rewrite, digest)
-    _parks._approve(
+    _late_approval_state._approve(
         state, rewrite.to_sha, rewrite.lease,
-        _parks.LateApprovalBasis.UNMEASURED,
+        _late_approval_reading.LateApprovalBasis.UNMEASURED,
     )
 
 
@@ -165,10 +169,10 @@ def settled(state, rewrite=GRANTED):
     spent = _rewrites.record_rewrite_publication(
         state, _rewrite_values.LateRewriteProof.PUSHED,
     )
-    _parks._record_publication(
+    _late_publication_state._record_publication(
         state, spent.to_sha, spent.lease, fixtures.PR_NUMBER,
     )
-    _parks._forget_approval(state)
+    _late_approval_state._forget_approval(state)
     return spent
 
 
@@ -180,7 +184,7 @@ def receipted(
     pull_request: int = fixtures.PR_NUMBER,
 ):
     """Record the commit a push put on the remote, and what it replaced."""
-    _parks._record_publication(state, published, superseded, pull_request)
+    _late_publication_state._record_publication(state, published, superseded, pull_request)
 
 
 class TransferCase(unittest.TestCase):

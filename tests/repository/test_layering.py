@@ -130,7 +130,8 @@ _CALL_TIME_HOPS = MappingProxyType({
     f"{_BASE_SYNC}.conflicts": (_COMMENTS,),
     f"{_BASE_SYNC}.persistence": (
         f"{PACKAGE}.workflow.engine.guards",
-        f"{PACKAGE}.workflow.stages.implementing.late_parks",
+        f"{PACKAGE}.workflow.stages.implementing.late_approval_reading",
+        f"{PACKAGE}.workflow.stages.implementing.late_approval_state",
         _LATE_RECORDS,
         _LATE_TRANSFER,
     ),
@@ -152,7 +153,8 @@ _CALL_TIME_HOPS = MappingProxyType({
     f"{_BASE_SYNC}.transfer_evidence": (_EXEMPTION, _REWRITE_VALUES),
     f"{_BASE_SYNC}.transfer_attempts": (_EXEMPTION,),
     f"{_BASE_SYNC}.transfer_publication": (
-        f"{PACKAGE}.workflow.stages.implementing.late_parks",
+        f"{PACKAGE}.workflow.stages.implementing.late_approval_reading",
+        f"{PACKAGE}.workflow.stages.implementing.late_publication_state",
     ),
     f"{_PUBLICATION}.rewrite": (_LATE_REWRITE, _LATE_COLLAPSE, _LATE_SQUASH_PROOF),
     f"{_PUBLICATION}.resume": (_LATE_COLLAPSE, _LATE_SQUASH_PROOF),

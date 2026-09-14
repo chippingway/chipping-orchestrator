@@ -26,7 +26,8 @@ from orchestrator.workflow.stages.implementing import (
     checkout_recovery as _checkout_recovery,
     late_command as _late_command,
     late_evidence as _late_evidence,
-    late_parks as _late_parks,
+    late_measurement_state as _late_measurement_state,
+    late_park_retirement as _late_park_retirement,
     late_recovery as _recovery,
     state as _state,
 )
@@ -232,7 +233,7 @@ class MeasurementParkRecoveryTest(_RoutingCase, unittest.TestCase):
     def setUp(self) -> None:
         super().setUp()
         self._seed(**{
-            _state._PARK_REASON: _late_parks.PARK_MEASUREMENT_FAILED,
+            _state._PARK_REASON: _late_measurement_state.PARK_MEASUREMENT_FAILED,
         })
 
     def test_a_bare_continue_re_measures(self) -> None:
@@ -425,20 +426,20 @@ class UnpublishableCheckoutHoldTest(_RoutingCase, unittest.TestCase):
 # lost base counting a quiet retry, which must leave an operator who has not
 # replied exactly where it found them.
 _RETIREMENTS = (
-    (_late_parks._retire_spent_park, _late_parks.PARK_MEASUREMENT_FAILED, False),
+    (_late_park_retirement._retire_spent_park, _late_measurement_state.PARK_MEASUREMENT_FAILED, False),
     (
-        _late_parks._retire_spent_park,
+        _late_park_retirement._retire_spent_park,
         _late_command.PARK_UNAUTHORIZED_EXEMPTION,
         True,
     ),
     (
-        _late_parks._retire_authorized_park,
+        _late_park_retirement._retire_authorized_park,
         _late_command.PARK_UNAUTHORIZED_EXEMPTION,
         False,
     ),
     (
-        _late_parks._retire_authorized_park,
-        _late_parks.PARK_MEASUREMENT_FAILED,
+        _late_park_retirement._retire_authorized_park,
+        _late_measurement_state.PARK_MEASUREMENT_FAILED,
         True,
     ),
 )

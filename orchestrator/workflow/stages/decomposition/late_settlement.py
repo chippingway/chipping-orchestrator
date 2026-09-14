@@ -105,7 +105,10 @@ from orchestrator.workflow.stages.decomposition.late_result_models import (
     _LateAdjudicationRun,
     _LateDisposition,
 )
-from orchestrator.workflow.stages.implementing import late_parks as _gate_parks
+from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -329,13 +332,13 @@ def _recorded_debt(context: _LateContext) -> None:
     gate's own count earned on an issue that happens to carry an exemption.
     """
     if context.already_published:
-        _gate_parks._forget_approval(context.state)
+        _late_approval_state._forget_approval(context.state)
         return
-    _gate_parks._approve(
+    _late_approval_state._approve(
         context.state,
         context.generation.candidate_sha,
         _settled_lease(context),
-        _gate_parks.LateApprovalBasis.ADJUDICATION,
+        _late_approval_reading.LateApprovalBasis.ADJUDICATION,
     )
 
 

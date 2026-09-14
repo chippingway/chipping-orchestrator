@@ -5,6 +5,7 @@
 The candidate, frozen lease, permission basis, and route spends stay
 together. Staging lets a transfer write that debt with its own permission;
 the ordinary verdict persists it before the push that owes its receipt.
+Routing spends the caller's owed fields before the issue changes labels.
 """
 from __future__ import annotations
 
@@ -14,8 +15,9 @@ from orchestrator.workflow.late_split import (
     state as _late_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -58,7 +60,7 @@ def _supersedes_approval(gate: _late_gate_models._Gate, candidate_sha: str) -> N
     publication that parks instead comes back to a record that still says
     which commit the issue is waiting on.
     """
-    approved = _parks._approved_commit(gate.state)
+    approved = _late_approval_reading._approved_commit(gate.state)
     if not approved or approved == candidate_sha:
         return
     log.info(
@@ -68,7 +70,7 @@ def _supersedes_approval(gate: _late_gate_models._Gate, candidate_sha: str) -> N
         gate.issue.number, candidate_sha or "a candidate it did not name",
         approved,
     )
-    _parks._forget_approval(gate.state)
+    _late_approval_state._forget_approval(gate.state)
 
 
 def _owed_by_an_unmeasured_push(
@@ -155,7 +157,7 @@ def _stages_unmeasured_debt(
     the remote already carries -- each a record this workflow made for itself
     and re-derives on the next tick.
     """
-    if _parks._approved_commit(gate.state) == candidate_sha:
+    if _late_approval_reading._approved_commit(gate.state) == candidate_sha:
         return False
     if not lease or lease == candidate_sha:
         return False
@@ -164,9 +166,25 @@ def _stages_unmeasured_debt(
         "standing at %s; recording the debt before the push that pays it",
         gate.issue.number, candidate_sha, lease,
     )
-    admitted = _parks.LateApprovalBasis.UNMEASURED
-    if basis in tuple(_parks.LateApprovalBasis):
-        admitted = _parks.LateApprovalBasis(basis)
-    _parks._approve(gate.state, candidate_sha, lease, admitted)
+    admitted = _late_approval_reading.LateApprovalBasis.UNMEASURED
+    if basis in tuple(_late_approval_reading.LateApprovalBasis):
+        admitted = _late_approval_reading.LateApprovalBasis(basis)
+    _late_approval_state._approve(gate.state, candidate_sha, lease, admitted)
     _late_state.write_late_spends(gate.state, gate.spends.fields)
     return True
+
+
+def _spent(gate: _late_gate_models._Gate) -> None:
+    """Close the route bookkeeping this hold's caller will never get to.
+
+    Written here rather than by the caller because of what comes next: the
+    relabel below hands the issue to the adjudication, and a caller that
+    counted afterwards would lose the count to any crash in that window --
+    with nothing going back for it, since an authorized settlement publishes the
+    accepted commit and the resumed stage finds nothing left to push.
+
+    Only the ROUTED hold spends. A reading nobody could take also stops the
+    tick with a generation on the pinned comment, and that one is a park: the
+    developer's work is still pending and its round is not spent.
+    """
+    _late_gate_models._spend(gate.state, gate.spends)

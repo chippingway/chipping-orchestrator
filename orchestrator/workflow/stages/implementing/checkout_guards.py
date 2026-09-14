@@ -45,7 +45,7 @@ from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import (
-    late_parks as _late_parks,
+    late_approval_state as _late_approval_state,
     models as _models,
     state as _state,
 )
@@ -224,7 +224,7 @@ def _moved_off_the_candidate(
     # receipt or an exemption reaches here with nothing yet recorded. Written
     # as the commit alone, the tick that comes back to this park would have to
     # infer whose decision the push it is about to make rests on.
-    _late_parks._owes_a_publication(state, approved.candidate_sha)
+    _late_approval_state._owes_a_publication(state, approved.candidate_sha)
     return True
 
 

@@ -32,7 +32,8 @@ from orchestrator.workflow.stages.discussion.state import (
     _PLAN_SHA as _DISCUSSION_PLAN_SHA,
 )
 from orchestrator.workflow.stages.implementing import (
-    late_parks as _late_parks,
+    late_approval_state as _late_approval_state,
+    late_park_state as _late_park_state,
     state as _state,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -134,7 +135,7 @@ def _spend_records_the_label_ends(state: _pinned_state.PinnedState) -> None:
     state.set(_state._HANDOFF_ANCHOR_SHA, None)
     state.set(_state._HELD_PUBLICATION, None)
     state.set(_state._HELD_PARK, None)
-    _late_parks._spends_a_held_reading(state)
+    _late_park_state._spends_a_held_reading(state)
 
 
 def _reset_implementing_counters(state: _pinned_state.PinnedState) -> None:
@@ -168,4 +169,4 @@ def _reset_implementing_counters(state: _pinned_state.PinnedState) -> None:
     # the relabel because past the relabel the issue belongs to another stage,
     # and a record left behind would freeze this branch out of the base
     # refresh with nothing in implementing ever coming back to drop it.
-    _late_parks._forget_approval(state)
+    _late_approval_state._forget_approval(state)

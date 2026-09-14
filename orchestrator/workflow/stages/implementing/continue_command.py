@@ -58,7 +58,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.implementing import (
     disposition as _disposition,
-    late_parks as _late_parks,
+    late_measurement_reply as _late_measurement_reply,
     models as _models,
     resume as _resume,
     retry_cap as _retry_cap,
@@ -190,7 +190,7 @@ def _parked_continue_decision(
     # it is a continue on a park needing real guidance: refused, and consumed
     # past the refusal, so the operator's retry is gone and the reading they
     # asked for is one nothing will ever take.
-    if not comments or _late_parks._reserved_for_the_measurement_park(
+    if not comments or _late_measurement_reply._reserved_for_the_measurement_park(
         comments, state,
     ):
         return None

@@ -39,7 +39,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_freeze as _freeze,
-    late_parks as _parks,
+    late_park_notices as _late_park_notices,
     late_records as _records,
     state as _state,
 )
@@ -129,7 +129,7 @@ def _holds_missing_candidate(
     """
     gate = _records._gate(gh, spec, issue, state, worktree)
     recorded = _late_state.read_late_generation(state)
-    return _parks._parked(
+    return _late_park_notices._parked(
         gate,
         _records._reportable(gate, recorded),
         _measurement_models.MeasurementFailure.CANDIDATE_ABSENT,
@@ -191,7 +191,7 @@ def _holds_moved_candidate(
         issue.number, recorded.candidate_sha, head.sha or head.failure,
     )
     gate = _records._gate(gh, spec, issue, state, worktree)
-    return _parks._parked(
+    return _late_park_notices._parked(
         gate, _records._reportable(gate, recorded),
         _measurement_models.MeasurementFailure.CANDIDATE_UNREADABLE,
         _moved_head_park(recorded),
@@ -250,7 +250,7 @@ def _holds_absent_candidate(
         issue.number, recorded.candidate_sha,
     )
     gate = _records._gate(gh, spec, issue, state, worktree)
-    return _parks._parked(
+    return _late_park_notices._parked(
         gate, _records._reportable(gate, recorded), proved.failure,
         _missing_candidate_park(recorded),
     )

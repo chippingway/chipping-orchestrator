@@ -39,8 +39,10 @@ from orchestrator.workflow import transitions as _transitions
 from orchestrator.workflow.late_split import keys as _late_keys, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
+    late_measurement_state as _late_measurement_state,
+    late_park_notices as _late_park_notices,
     late_records as _records,
     state as _state,
 )
@@ -329,7 +331,7 @@ def _claims_an_approval(state: PinnedState) -> bool:
     if not claimed:
         return False
     return not (
-        _parks._approved_commit(state) and _parks._approved_lease(state)
+        _late_approval_reading._approved_commit(state) and _late_approval_reading._approved_lease(state)
     )
 
 
@@ -352,7 +354,7 @@ def _parks_the_damage(gate: _late_gate_models._Gate, refusal: str) -> bool:
     notice every poll would be a mention nobody can answer any faster; a park
     already standing for the same reading is left exactly as it is.
     """
-    if gate.state.get(_state._PARK_REASON) == _parks.PARK_MEASUREMENT_FAILED:
+    if gate.state.get(_state._PARK_REASON) == _late_measurement_state.PARK_MEASUREMENT_FAILED:
         log.warning(
             "issue=#%d still carries a record nothing can read (%s); holding "
             "the tick without a second notice",
@@ -364,7 +366,7 @@ def _parks_the_damage(gate: _late_gate_models._Gate, refusal: str) -> bool:
         "refusing to run its stage over a claim nothing can check",
         gate.issue.number, refusal,
     )
-    _parks._parked(
+    _late_park_notices._parked(
         gate, _records._reportable(gate, _late_state.read_late_generation(
             gate.state,
         )),

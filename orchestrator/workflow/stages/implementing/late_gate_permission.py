@@ -11,9 +11,10 @@ from __future__ import annotations
 from orchestrator.config import settings as config
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_authority as _authority,
     late_delivery as _delivery,
-    late_parks as _parks,
+    late_publication_state as _late_publication_state,
     late_transfer_reading as _late_transfer_reading,
 )
 from orchestrator.workflow.stages.implementing.late_gate_models import _Gate
@@ -41,8 +42,8 @@ def _admitted_by(decided: str) -> str:
     and a proof taken a second time is a second chance to fail.
     """
     if decided != _ADJUDICATED:
-        return str(_parks.LateApprovalBasis.UNMEASURED)
-    return str(_parks.LateApprovalBasis.ADJUDICATION)
+        return str(_late_approval_reading.LateApprovalBasis.UNMEASURED)
+    return str(_late_approval_reading.LateApprovalBasis.ADJUDICATION)
 
 
 def _approved_on_a_reading(
@@ -80,7 +81,7 @@ def _approved_on_a_reading(
     that one is this gate's own answer brought back by a crash, and no human
     was ever owed a decision about it.
     """
-    if _parks._approved_commit(gate.state) != candidate_sha:
+    if _late_approval_reading._approved_commit(gate.state) != candidate_sha:
         return False
     if _authority._unauthorized_debt(gate, candidate_sha):
         return False
@@ -161,7 +162,7 @@ def _already_decided(
         return standing
     if _approved_on_a_reading(gate, candidate_sha):
         return _APPROVED
-    if _parks._published_commit(gate.state) != candidate_sha:
+    if _late_publication_state._published_commit(gate.state) != candidate_sha:
         return ""
     vouched = _delivery._receipt_answers_alone(gate, delivered, candidate_sha)
     return _PUBLISHED if vouched else ""

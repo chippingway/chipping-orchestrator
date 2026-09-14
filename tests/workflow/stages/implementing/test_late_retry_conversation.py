@@ -10,7 +10,8 @@ from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FrozenCommit, MeasurementFailure
 from orchestrator.workflow.stages.implementing import (
     continue_command as _continue_command,
-    late_parks as _late_parks,
+    late_measurement_reply as _late_measurement_reply,
+    late_measurement_state as _late_measurement_state,
 )
 from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
@@ -511,7 +512,7 @@ class LateGateContinueRaceTest(support._ParkedRetryCase, unittest.TestCase):
         # classifier's. Answered there, the operator is asked for guidance
         # they have no reason to write, and the watermark moves past both
         # their command and the sentence asking.
-        mocks = self._races(_late_parks, _retry_payloads._ANSWERS_THE_PARK)
+        mocks = self._races(_late_measurement_reply, _retry_payloads._ANSWERS_THE_PARK)
 
         self._assert_deferred(mocks)
 
@@ -539,7 +540,7 @@ class LateGateContinueRaceTest(support._ParkedRetryCase, unittest.TestCase):
         """Run one tick with the retry landing the instant `step` returns."""
         self._seed(**{
             support.AWAITING_HUMAN: True,
-            support.PARK_REASON: _late_parks.PARK_MEASUREMENT_FAILED,
+            support.PARK_REASON: _late_measurement_state.PARK_MEASUREMENT_FAILED,
             support.LAST_ACTION_COMMENT_ID: support.PRIOR_ACTION_COMMENT_ID,
             **support.recorded_generation(),
         })

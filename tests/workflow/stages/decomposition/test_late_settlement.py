@@ -26,7 +26,7 @@ from orchestrator.workflow.late_split import exemption_reading as _exemption_rea
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.stages.implementing import (
-    late_parks as _gate_parks,
+    late_approval_reading as _late_approval_reading,
 )
 from tests.workflow.fixtures import LABEL_DECOMPOSING, LABEL_IMPLEMENTING
 from tests.workflow.stages.decomposition import late_settlement_support as _support, late_test_support as _stage_support
@@ -94,7 +94,7 @@ class SingleReconciliationTest(GuardedLateCase, unittest.TestCase):
 
         self.assertEqual(
             self._pinned().get(_stage_support.KEYS.approved_basis),
-            str(_gate_parks.LateApprovalBasis.ADJUDICATION),
+            str(_late_approval_reading.LateApprovalBasis.ADJUDICATION),
         )
 
     def test_the_generation_it_settles_is_retired(self) -> None:

@@ -19,13 +19,17 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_approval_state as _late_approval_state,
     late_authority as _authority,
     late_consent as _consent,
-    late_gate_models as _late_gate_models,
-    late_parks as _parks,
+    late_measurement_state as _late_measurement_state,
+    late_park_retirement as _late_park_retirement,
+    late_park_state as _late_park_state,
     late_verdict_debt as _late_verdict_debt,
     late_verdict_retirement as _late_verdict_retirement,
 )
+from orchestrator.workflow.stages.implementing.late_approval_reading import LateApprovalBasis
+from orchestrator.workflow.stages.implementing.late_gate_models import _HELD, _Gate, _GateVerdict
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -55,7 +59,7 @@ _ROUTED_ON_PUBLICATION_NOTICE = (
     "ships as one change or becomes child issues."
 )
 
-def _settled(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
+def _settled(gate: _Gate, generation: LateGeneration) -> bool:
     """What a measured candidate earns: adjudication, or the ordinary push.
 
     Strictly past the ceiling, which is the record's own comparison: a
@@ -98,10 +102,10 @@ def _settled(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
     refusing anything, is a sentence the announce-once guard would read as
     still standing on a thread whose park this very verdict retired.
     """
-    _parks._retire_spent_park(gate.state)
-    settled = _parks._measured(generation)
+    _late_park_retirement._retire_spent_park(gate.state)
+    settled = _late_measurement_state._measured(generation)
     if not settled.is_oversized:
-        _parks._retire_authorized_park(gate.state)
+        _late_park_retirement._retire_authorized_park(gate.state)
         return _accepted(gate, settled)
     if not _authority._unauthorized_exemption(gate, settled.candidate_sha):
         return _routed(gate, settled)
@@ -110,7 +114,7 @@ def _settled(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
     return _authorized(gate, settled)
 
 
-def _accepted(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
+def _accepted(gate: _Gate, generation: LateGeneration) -> bool:
     """Retire the generation a small candidate never needed, and publish.
 
     The debt it leaves is recorded as this gate's own READING, which is what
@@ -156,16 +160,16 @@ def _accepted(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool
         gate.issue.number, generation.candidate_sha, generation.additions,
         generation.threshold,
     )
-    _parks._approve(
+    _late_approval_state._approve(
         gate.state,
         generation.candidate_sha,
         _late_verdict_debt._frozen_lease(gate),
-        _parks.LateApprovalBasis.READING,
+        LateApprovalBasis.READING,
     )
     return _late_verdict_retirement._retired(gate, generation, _late_state.read_late_spends(gate.state))
 
 
-def _authorized(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
+def _authorized(gate: _Gate, generation: LateGeneration) -> bool:
     """Retire the generation an operator authorized past the ceiling, and publish.
 
     The same close-safe retirement a small candidate earns, on the one road
@@ -193,16 +197,16 @@ def _authorized(gate: _late_gate_models._Gate, generation: LateGeneration) -> bo
         gate.issue.number, generation.candidate_sha, generation.additions,
         generation.threshold, generation.cycle_id,
     )
-    _parks._approve(
+    _late_approval_state._approve(
         gate.state,
         generation.candidate_sha,
         _late_verdict_debt._frozen_lease(gate),
-        _parks.LateApprovalBasis.AUTHORIZATION,
+        LateApprovalBasis.AUTHORIZATION,
     )
     return _late_verdict_retirement._retired(gate, generation, _late_state.read_late_spends(gate.state))
 
 
-def _routed(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
+def _routed(gate: _Gate, generation: LateGeneration) -> bool:
     """Hand an oversized candidate to the adjudication, publishing nothing.
 
     The measurement is made durable first, because the label is what makes
@@ -228,10 +232,10 @@ def _routed(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
     # standing, an approval this candidate was committed on top of would hold
     # the branch out of the base refresh for the whole adjudication and park
     # every later tick on a host that no longer has that commit.
-    _parks._forget_approval(gate.state)
-    _parks._retire_superseded_park(gate.state)
-    _spent(gate)
-    _parks._persisted(gate, generation)
+    _late_approval_state._forget_approval(gate.state)
+    _late_park_retirement._retire_superseded_park(gate.state)
+    _late_verdict_debt._spent(gate)
+    _late_park_state._persisted(gate, generation)
     _comments._post_issue_comment(
         gate.gh, gate.issue, gate.state, _routed_notice(generation),
     )
@@ -241,10 +245,10 @@ def _routed(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
 
 
 def _unmeasured_verdict(
-    gate: _late_gate_models._Gate,
+    gate: _Gate,
     recorded: LateGeneration,
-    admitted: _late_gate_models._GateVerdict = _late_gate_models._HELD,
-) -> _late_gate_models._GateVerdict:
+    admitted: _GateVerdict = _HELD,
+) -> _GateVerdict:
     """Publish a candidate this gate did not measure -- unless a close beat it.
 
     The three ways past the measurement, and they share the step that is easy
@@ -307,31 +311,15 @@ def _unmeasured_verdict(
     and a seam that looked either up again could push over a tip that moved
     since or open a second pull request where this one closed since.
     """
-    _parks._retire_spent_park(gate.state)
+    _late_park_retirement._retire_spent_park(gate.state)
     _late_verdict_debt._supersedes_approval(gate, admitted.candidate_sha)
     if _late_verdict_retirement._superseded(gate, recorded):
-        return _late_gate_models._HELD
-    _parks._retire_authorized_park(gate.state)
+        return _HELD
+    _late_park_retirement._retire_authorized_park(gate.state)
     _late_verdict_debt._owed_by_an_unmeasured_push(
         gate, admitted.candidate_sha, _late_verdict_debt._frozen_lease(gate), admitted.basis,
     )
     return replace(admitted, held=False)
-
-
-def _spent(gate: _late_gate_models._Gate) -> None:
-    """Close the route bookkeeping this hold's caller will never get to.
-
-    Written here rather than by the caller because of what comes next: the
-    relabel below hands the issue to the adjudication, and a caller that
-    counted afterwards would lose the count to any crash in that window --
-    with nothing going back for it, since an authorized settlement publishes the
-    accepted commit and the resumed stage finds nothing left to push.
-
-    Only the ROUTED hold spends. A reading nobody could take also stops the
-    tick with a generation on the pinned comment, and that one is a park: the
-    developer's work is still pending and its round is not spent.
-    """
-    _late_gate_models._spend(gate.state, gate.spends)
 
 
 def _routed_notice(generation: LateGeneration) -> str:

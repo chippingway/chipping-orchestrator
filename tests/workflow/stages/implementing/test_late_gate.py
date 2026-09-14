@@ -20,7 +20,9 @@ from unittest.mock import patch
 
 from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FrozenCommit
-from orchestrator.workflow.stages.implementing import late_parks as _parks
+from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+)
 from tests.support.fakes import FakePR, FakePRRef
 from tests.workflow import fixtures as _fixtures
 from tests.workflow.stages.implementing import late_gate_test_support as support
@@ -293,7 +295,7 @@ class MovedCheckoutDebtTest(support._GateCase, unittest.TestCase):
         self.assertEqual(pinned[_KEY_APPROVED_SHA], _fixtures.MEASURED_CANDIDATE_SHA)
         self.assertEqual(
             pinned[_KEY_APPROVED_BASIS],
-            str(_parks.LateApprovalBasis.UNMEASURED),
+            str(_late_approval_reading.LateApprovalBasis.UNMEASURED),
         )
 
     def test_a_legacy_debt_is_not_upgraded(self) -> None:
@@ -531,7 +533,7 @@ class LateGateSwitchTest(support._GateCase, unittest.TestCase):
         self.assertEqual(pinned[_KEY_APPROVED_SHA], _fixtures.MEASURED_CANDIDATE_SHA)
         self.assertEqual(
             pinned[_KEY_APPROVED_BASIS],
-            str(_parks.LateApprovalBasis.UNMEASURED),
+            str(_late_approval_reading.LateApprovalBasis.UNMEASURED),
         )
 
     def test_a_restart_publishes_it_without_measuring(self) -> None:

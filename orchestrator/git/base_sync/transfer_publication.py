@@ -73,11 +73,11 @@ def _outstanding_or_unvouched(state: PinnedState, rewrite) -> _transfer_values._
     """
     # Lazy for the reason every upward reach in this package is: the debt
     # sits in the workflow layer above it.
-    from orchestrator.workflow.stages.implementing import late_parks
-    if late_parks._unreadable_approval(state):
+    from orchestrator.workflow.stages.implementing import late_approval_reading as _late_approval_reading
+    if _late_approval_reading._unreadable_approval(state):
         return _transfer_values._Handoff.UNVOUCHED
-    owed = late_parks._approved_commit(state) == rewrite.to_sha
-    if owed and late_parks._approved_lease(state) == rewrite.lease:
+    owed = _late_approval_reading._approved_commit(state) == rewrite.to_sha
+    if owed and _late_approval_reading._approved_lease(state) == rewrite.lease:
         return _transfer_values._Handoff.OUTSTANDING
     return _transfer_values._Handoff.UNVOUCHED
 
@@ -148,10 +148,10 @@ def _unsettled_debt(state: PinnedState) -> str:
     """
     # Lazy for the reason every upward reach in this package is: the debt
     # sits in the workflow layer above it.
-    from orchestrator.workflow.stages.implementing import late_parks
-    if late_parks._unreadable_approval(state):
+    from orchestrator.workflow.stages.implementing import late_approval_reading as _late_approval_reading
+    if _late_approval_reading._unreadable_approval(state):
         return _DAMAGED_DEBT
-    owed = late_parks._approved_commit(state)
+    owed = _late_approval_reading._approved_commit(state)
     return _UNPAID.format(owed=owed) if owed else ""
 
 
@@ -194,7 +194,7 @@ def _receipted_publication(context: _AutoRebaseRecoveryContext) -> str:
     """
     # Lazy for the reason every upward reach in this package is: the receipt
     # sits in the workflow layer above it.
-    from orchestrator.workflow.stages.implementing import late_parks
-    return late_parks._publication_from(
+    from orchestrator.workflow.stages.implementing import late_publication_state as _late_publication_state
+    return _late_publication_state._publication_from(
         context.state, context.pending_pre_rebase_sha, context.pr_number,
     )

@@ -14,7 +14,7 @@ from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_identity_reading as _late_identity_reading,
-    late_parks as _parks,
+    late_park_notices as _late_park_notices,
     late_records as _records,
 )
 
@@ -145,7 +145,7 @@ def _parks_the_damage(
         "(%s); parking rather than reading it as an answer",
         gate.issue.number, recorded.candidate_sha, damaged,
     )
-    return _parks._parked(
+    return _late_park_notices._parked(
         gate, _records._reportable(gate, recorded), damaged,
         _DAMAGED_RECORD_PARK.format(
             mentions=config.HITL_MENTIONS,

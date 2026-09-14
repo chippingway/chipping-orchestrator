@@ -16,20 +16,21 @@ from orchestrator.workflow.late_split import (
     state as _late_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
     late_collapse_state as _late_collapse_state,
     late_freeze as _freeze,
-    late_gate_models as _late_gate_models,
     late_overflow as _overflow,
-    late_parks as _parks,
     late_push as _push,
     late_squash_proof as _late_squash_proof,
     late_transfer as _transfer,
 )
+from orchestrator.workflow.stages.implementing.late_gate_models import _Entered, _Gate, _PublicationEntry
 
 log = logging.getLogger("orchestrator.workflow")
 
 
-def _switched_off(gate: _late_gate_models._Gate) -> bool:
+def _switched_off(gate: _Gate) -> bool:
     """Whether the switch keeps this squash out of the gate entirely.
 
     A squash is NEW work by the switch's own definition: the commit it
@@ -56,8 +57,8 @@ def _switched_off(gate: _late_gate_models._Gate) -> bool:
 
 
 def _entered_rewrite(
-    gate: _late_gate_models._Gate, expected: str, candidate: str = "",
-) -> _late_gate_models._PublicationEntry:
+    gate: _Gate, expected: str, candidate: str = "",
+) -> _PublicationEntry:
     """The publication a squash may rewrite, or the reason it may not.
 
     Asked before the reset that destroys the branch locally, so a pull request
@@ -87,13 +88,13 @@ def _entered_rewrite(
     the one the caller beside this has not got.
     """
     if _switched_off(gate):
-        return _late_gate_models._PublicationEntry(published_sha=expected)
+        return _PublicationEntry(published_sha=expected)
     return _proved_publication(gate, expected, candidate)
 
 
 def _proved_publication(
-    gate: _late_gate_models._Gate, expected: str, candidate: str = "",
-) -> _late_gate_models._PublicationEntry:
+    gate: _Gate, expected: str, candidate: str = "",
+) -> _PublicationEntry:
     """The same reading, taken whatever the switch says.
 
     The entry above may be skipped because a push follows it: a remote
@@ -111,7 +112,7 @@ def _proved_publication(
     """
     entry = _overflow._frozen_entry(
         gate,
-        _late_gate_models._Entered(
+        _Entered(
             head=expected, candidate=candidate, reconciling=True,
         ),
     )
@@ -125,9 +126,9 @@ def _proved_publication(
 
 
 def _publishes_rewrite(
-    gate: _late_gate_models._Gate,
+    gate: _Gate,
     branch: str,
-    entry: _late_gate_models._PublicationEntry,
+    entry: _PublicationEntry,
     squashed: str,
     collapsed: _late_collapse_state._Collapsed,
 ) -> _push._PushedCandidate:
@@ -172,7 +173,7 @@ def _publishes_rewrite(
         return _push._PushedCandidate(held=True)
     return _push._publishes(
         gate, branch,
-        _late_gate_models._Entered(
+        _Entered(
             head=entry.published_sha,
             reconciling=True,
             # The commit the squash made, so the gate measures and publishes
@@ -186,7 +187,7 @@ def _publishes_rewrite(
 
 
 def _rewritten(
-    entry: _late_gate_models._PublicationEntry,
+    entry: _PublicationEntry,
     squashed: str,
     collapsed: _late_collapse_state._Collapsed,
 ) -> _rewrite_values.LateRewrite:
@@ -224,7 +225,7 @@ def _rewritten(
     )
 
 
-def _forgets_the_rollback(gate: _late_gate_models._Gate, restored: str) -> None:
+def _forgets_the_rollback(gate: _Gate, restored: str) -> None:
     """Drop a debt the rollback above just threw the commit away for.
 
     The gate approves the squashed commit before it is pushed and records it
@@ -256,9 +257,9 @@ def _forgets_the_rollback(gate: _late_gate_models._Gate, restored: str) -> None:
     pre-squash head, and a process that died before that write would come back
     to exactly the debt this exists to prevent.
     """
-    owed = _parks._approved_commit(gate.state) != restored
+    owed = _late_approval_reading._approved_commit(gate.state) != restored
     if owed:
-        _parks._forget_approval(gate.state)
+        _late_approval_state._forget_approval(gate.state)
     carried_back = _transfer._abandoned_authorization(gate, restored)
     collapsed = _late_collapse_state._claims_a_collapse(gate.state)
     if collapsed:
@@ -269,10 +270,10 @@ def _forgets_the_rollback(gate: _late_gate_models._Gate, restored: str) -> None:
 
 
 def _resumed_entry(
-    gate: _late_gate_models._Gate,
+    gate: _Gate,
     recorded: _collapses.LateCollapse,
     squashed: str,
-) -> _late_gate_models._PublicationEntry:
+) -> _PublicationEntry:
     """The publication an interrupted squash's own push is still owed.
 
     The same entry a fresh squash freezes, taken over the head the RECORD

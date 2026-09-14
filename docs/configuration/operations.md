@@ -56,8 +56,8 @@ against the matrix that proves them.
 
 Ruff rules live in [`../../pyproject.toml`](../../pyproject.toml) under `[tool.ruff.lint]`; WPS is selected inline so
 Flake8 does not duplicate Ruff's checks; dev tools are declared in `[dependency-groups]`. The only on-disk Flake8
-config is [`../../.flake8`](../../.flake8), which scopes complexity diagnostics to exact paths while their
-owners are split. WPS complexity limits retain their defaults.
+config is [`../../.flake8`](../../.flake8). WPS uses its default rules and complexity limits with no exclusions
+or inline suppressions.
 
 Every package initializer is a marker. Callers import models, services, parsers, recorders, and metadata from
 their defining modules. `tests/repository/test_package_exports.py` checks that no initializer declares an
@@ -68,13 +68,11 @@ Resolved process values live in `orchestrator.config.settings`. Importing or rel
 `environment` resolver and binds fresh values, while callers retain the same module object for attribute reads
 and patches. Repository types live in `config.models`, and token resolution in `config.credentials`.
 
-The remaining exclusions are temporary exact-path complexity entries. Refactors separate responsibilities and
-move callers, mocks, and ownership documentation together. A split must satisfy the default limits in every
-resulting module; it cannot add an exclusion, an inline suppression, or a raised complexity limit.
-
-Each entry names only the rules its exact path still reports. `flake8 --isolated --select=WPS orchestrator tests`
-checks the remaining set without configuration: every diagnostic must match a configured pair, and every
-configured pair must match a diagnostic. Delete an entry when its owner meets the limits.
+Refactors separate responsibilities and move callers, mocks, and ownership documentation together. Every resulting
+module must satisfy the default limits; a refactor cannot add an exclusion, an inline suppression, or a raised
+complexity limit. Both `flake8 orchestrator tests --select=WPS` and
+`flake8 --isolated --select=WPS orchestrator tests` must pass without diagnostics. The isolated run verifies the
+same result without loading repository configuration.
 
 The rule set is Ruff's own. `[tool.ruff.lint]` in [`../../pyproject.toml`](../../pyproject.toml) declares no `select`,
 so what `ruff check orchestrator tests` enforces is whatever the `ruff` resolved in [`../../uv.lock`](../../uv.lock)

@@ -24,8 +24,9 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.implementing import (
+    late_approval_state as _late_approval_state,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
+    late_park_notices as _late_park_notices,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -164,11 +165,11 @@ def _marked(gate: _late_gate_models._Gate, generation: LateGeneration) -> None:
         phase=LatePhase.CANCELLING,
         owner_check_pending=False,
     )
-    _parks._forget_approval(gate.state)
+    _late_approval_state._forget_approval(gate.state)
     _late_state.write_late_generation(gate.state, cancelled)
     _endings.clear_retired_cycle(gate.state)
     gate.gh.write_pinned_state(gate.issue, gate.state)
-    _parks._emit(
+    _late_park_notices._emit(
         gate, cancelled,
         _events.LateEvent(family=_events.LateEventFamily.CANCELLATION),
     )

@@ -23,14 +23,15 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
     checkout_parks as _checkout_parks,
+    late_approval_reading as _late_approval_reading,
     late_evidence as _late_evidence,
     late_gate as _late_gate,
-    late_parks as _late_parks,
-    models as _models,
+    late_park_state as _late_park_state,
     publication as _publication,
     session_read as _session_read,
     state as _state,
 )
+from orchestrator.workflow.stages.implementing.models import _AgentWork, _ApprovedWork, _RecoveredWork
 
 
 def _publish_committed_work(
@@ -38,7 +39,7 @@ def _publish_committed_work(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
-    work: _models._AgentWork,
+    work: _AgentWork,
 ) -> None:
     """Publish a worktree that carries a new commit.
 
@@ -96,7 +97,7 @@ def _publish_committed_work(
         return
     _publication._on_commits(
         gh, spec, issue, state,
-        _models._ApprovedWork(
+        _ApprovedWork(
             work.agent_result, work.worktree, verdict.candidate_sha,
             verdict.delivered_pr,
         ),
@@ -180,7 +181,7 @@ def _holds_approved_commit(
     push is named against it. Nothing is spawned, because the run that
     produced this commit finished before the crash.
     """
-    if not _late_parks._approved_commit(state):
+    if not _late_approval_reading._approved_commit(state):
         return False
     if _late_evidence._holds_unpublished_commit(gh, issue, state, worktree):
         return True
@@ -221,8 +222,8 @@ def _dispose_approved_commit(
         stderr="",
     )
     _publish_committed_work(
-        gh, spec, issue, state, _models._RecoveredWork(
-            agent_result, worktree, _late_parks._approved_commit(state),
+        gh, spec, issue, state, _RecoveredWork(
+            agent_result, worktree, _late_approval_reading._approved_commit(state),
         ),
     )
 
@@ -263,7 +264,7 @@ def _holds_unreconciled_candidate(
     """
     if state.get(_state._AWAITING_HUMAN):
         return False
-    if not _late_parks._recorded_candidate(state):
+    if not _late_park_state._recorded_candidate(state):
         return False
     wt = _worktree_paths._worktree_path(spec, issue.number)
     if not wt.exists():
@@ -333,7 +334,7 @@ def _dispose_recorded_candidate(
         stderr="",
     )
     _publish_committed_work(
-        gh, spec, issue, state, _models._RecoveredWork(
-            agent_result, worktree, _late_parks._recorded_candidate(state),
+        gh, spec, issue, state, _RecoveredWork(
+            agent_result, worktree, _late_park_state._recorded_candidate(state),
         ),
     )

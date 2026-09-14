@@ -27,6 +27,7 @@ from pathlib import Path
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.implementing import (
+    late_park_notices as _late_park_notices,
     late_parks as _parks,
     late_records as _records,
     state as _implementing_state,
@@ -77,7 +78,7 @@ class MeasurementNoticeTest(unittest.TestCase):
         # sends somebody to the wrong thing, which is worse than the bare
         # term it replaced.
         described = {
-            failure: _parks._described(failure, "")
+            failure: _late_park_notices._described(failure, "")
             for failure in MeasurementFailure
         }
 
@@ -85,7 +86,7 @@ class MeasurementNoticeTest(unittest.TestCase):
         self.assertEqual(len(set(described.values())), len(MeasurementFailure))
 
     def test_an_unreachable_base_names_what_to_check(self) -> None:
-        described = _parks._described(MeasurementFailure.BASE_UNREADABLE, "")
+        described = _late_park_notices._described(MeasurementFailure.BASE_UNREADABLE, "")
 
         for term in _UNREACHABLE_BASE_TERMS:
             with self.subTest(term=term):
@@ -96,13 +97,13 @@ class MeasurementNoticeTest(unittest.TestCase):
         # so by the time this is read the process that saw that line is gone.
         # It is carried beside the explanation where there is one and stands
         # alone where the vocabulary has outgrown the table.
-        described = _parks._described(MeasurementFailure.BASE_ABSENT, _SAID)
+        described = _late_park_notices._described(MeasurementFailure.BASE_ABSENT, _SAID)
 
         self.assertIn(_SAID, described)
         self.assertIn("fetch", described)
         self.assertEqual(
-            _parks._described(_UNCOVERED_STEP, _SAID).strip(),
-            _parks._REPORTED_DETAIL.format(detail=_SAID),
+            _late_park_notices._described(_UNCOVERED_STEP, _SAID).strip(),
+            _late_park_notices._REPORTED_DETAIL.format(detail=_SAID),
         )
 
 

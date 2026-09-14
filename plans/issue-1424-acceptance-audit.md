@@ -4,12 +4,11 @@
 
 The current user request requires **zero exclusions in `.flake8`**. The retention decisions in the historical
 audit below do not close that goal. The continuation began at `660a0bb6` with 129 pairs across 107 paths; the
-current working implementation removes 128 pairs and leaves 1 pair across 1 path. Its remaining
-1 production pair and zero test pairs all match isolated diagnostics, with no stale or unmapped pair.
+current working implementation removes all 129 pairs and leaves zero exclusions. Ruff, configured WPS, isolated
+WPS, whitespace checks, and the full suite pass with 6,429 passed and 49 skipped.
 
-The detailed batch record and outstanding scope are in `issue-1424-remaining-work.md`. All remaining pairs,
-which now consist entirely of complexity rules, still require implementation. Both notes remain until every exclusion
-has been removed and the repository-wide lint, test, and whitespace checks pass.
+The detailed batch record is in `issue-1424-remaining-work.md`. No pair remains, every required check passes,
+and both completed notes may be removed as requested.
 
 ## Historical branch audit
 

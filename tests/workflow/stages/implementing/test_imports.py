@@ -22,6 +22,16 @@ _PARENT = "orchestrator.workflow.stages"
 _HANDLER_OWNER = "handler"
 
 _OWNERS = (
+    "late_approval_reading",
+    "late_approval_state",
+    "late_publication_state",
+    "late_receipt_damage",
+    "late_measurement_state",
+    "late_park_retirement",
+    "late_park_state",
+    "late_park_notices",
+    "late_measurement_reply",
+
     "late_transfer_reading",
     "late_transfer_evidence",
     "late_transfer_checkout",

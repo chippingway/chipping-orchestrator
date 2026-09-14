@@ -14,7 +14,8 @@ from orchestrator.workflow.late_split import (
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
-    late_parks as _parks,
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
     late_transfer as _transfer,
     late_transfer_evidence as _late_transfer_evidence,
     late_transfer_reading as _late_transfer_reading,
@@ -58,7 +59,7 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
         # for. Not this one: what licensed it was a permit, so the bypass
         # waits on the permit answering again.
         self.assertEqual(
-            _parks._approved_commit(self.state), _transfer_payloads.REWRITTEN_SHA,
+            _late_approval_reading._approved_commit(self.state), _transfer_payloads.REWRITTEN_SHA,
         )
         self.assertTrue(
             _late_transfer_reading._licensed_by_a_permit(self.state),
@@ -112,9 +113,9 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
         # back through a measurement, which is the re-decision the bypass
         # exists to prevent.
         _support.spent(self.state)
-        _parks._approve(
+        _late_approval_state._approve(
             self.state, _transfer_payloads.STRANGER_SHA, _transfer_payloads.LEASED_SHA,
-            _parks.LateApprovalBasis.READING,
+            _late_approval_reading.LateApprovalBasis.READING,
         )
 
         self.assertFalse(_late_transfer_reading._licensed_by_a_permit(self.state))

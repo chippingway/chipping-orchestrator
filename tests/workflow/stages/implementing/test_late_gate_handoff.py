@@ -20,7 +20,7 @@ from unittest.mock import patch
 from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FrozenCommit, MeasurementFailure
 from orchestrator.workflow.stages.implementing import (
-    late_parks as _parks,
+    late_approval_reading as _late_approval_reading,
 )
 from tests.support.fakes import FakePRRef
 from tests.workflow.fixtures import (
@@ -119,7 +119,7 @@ class UnpublishedCommitTest(support._GateCase, unittest.TestCase):
 
         self.assertEqual(
             recorded.pinned[_KEY_APPROVED_BASIS],
-            str(_parks.LateApprovalBasis.READING),
+            str(_late_approval_reading.LateApprovalBasis.READING),
         )
 
     def test_the_publication_spends_it(self) -> None:

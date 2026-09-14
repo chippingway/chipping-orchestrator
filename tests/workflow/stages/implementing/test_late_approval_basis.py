@@ -18,8 +18,9 @@ from pathlib import Path
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
     late_publication as _publication,
     late_push as _push,
     late_verdict_debt as _late_verdict_debt,
@@ -53,7 +54,7 @@ _LANDED = _publication._PublishedCandidate(
 
 
 def _approved(
-    basis: _parks.LateApprovalBasis, *, lease: str = _LEASE_SHA,
+    basis: _late_approval_reading.LateApprovalBasis, *, lease: str = _LEASE_SHA,
 ) -> PinnedState:
     """A pinned comment carrying one approval granted on that basis.
 
@@ -61,7 +62,7 @@ def _approved(
     approval is -- whose push takes its own reading of the remote.
     """
     state = PinnedState(data={})
-    _parks._approve(state, MEASURED_CANDIDATE_SHA, lease, basis)
+    _late_approval_state._approve(state, MEASURED_CANDIDATE_SHA, lease, basis)
     return state
 
 
@@ -87,34 +88,34 @@ class ApprovalBasisRecordTest(unittest.TestCase):
         # approval whose lease was dropped force-pushes over whatever the pull
         # request has become, and one whose basis was dropped is a debt a
         # later tick has to guess the provenance of.
-        state = _approved(_parks.LateApprovalBasis.ADJUDICATION)
+        state = _approved(_late_approval_reading.LateApprovalBasis.ADJUDICATION)
 
         self.assertEqual(
             state.get(_state._APPROVED_SHA), MEASURED_CANDIDATE_SHA,
         )
         self.assertEqual(state.get(_state._APPROVED_LEASE), _LEASE_SHA)
         self.assertEqual(
-            _parks._approved_basis(state),
-            str(_parks.LateApprovalBasis.ADJUDICATION),
+            _late_approval_reading._approved_basis(state),
+            str(_late_approval_reading.LateApprovalBasis.ADJUDICATION),
         )
 
     def test_every_basis_round_trips(self) -> None:
         # The wire value is what the pinned comment carries, so each member
         # has to read back as itself rather than as the enum's repr.
-        for basis in _parks.LateApprovalBasis:
+        for basis in _late_approval_reading.LateApprovalBasis:
             with self.subTest(basis=str(basis)):
                 self.assertEqual(
-                    _parks._approved_basis(_approved(basis)), str(basis),
+                    _late_approval_reading._approved_basis(_approved(basis)), str(basis),
                 )
 
     def test_a_value_from_nowhere_is_no_basis(self) -> None:
         # Read fail-closed like every other late field: a spelling this build
         # does not carry is a basis nothing checked, and what a reader owes
         # such a record is the answer it can still defend.
-        state = _approved(_parks.LateApprovalBasis.AUTHORIZATION)
+        state = _approved(_late_approval_reading.LateApprovalBasis.AUTHORIZATION)
         state.set(_state._APPROVED_BASIS, _NOT_A_BASIS)
 
-        self.assertEqual(_parks._approved_basis(state), "")
+        self.assertEqual(_late_approval_reading._approved_basis(state), "")
 
     def test_an_older_binarys_approval_says_nothing(self) -> None:
         # The compatibility answer, and the honest one: a comment written
@@ -122,15 +123,15 @@ class ApprovalBasisRecordTest(unittest.TestCase):
         # grounds, so the reader falls back rather than guessing.
         state = PinnedState(data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA})
 
-        self.assertEqual(_parks._approved_basis(state), "")
+        self.assertEqual(_late_approval_reading._approved_basis(state), "")
 
     def test_the_drop_takes_the_basis_with_it(self) -> None:
         # The basis describes one approval and outlives none: left behind, it
         # would stand beside whatever debt this issue records next and claim
         # grounds nobody granted that one.
-        state = _approved(_parks.LateApprovalBasis.AUTHORIZATION)
+        state = _approved(_late_approval_reading.LateApprovalBasis.AUTHORIZATION)
 
-        _parks._forget_approval(state)
+        _late_approval_state._forget_approval(state)
 
         self.assertIsNone(state.get(_state._APPROVED_SHA))
         self.assertIsNone(state.get(_state._APPROVED_BASIS))
@@ -156,39 +157,39 @@ class ApprovalBasisRecordTest(unittest.TestCase):
             ),
         ):
             with self.subTest(described):
-                state = _approved(_parks.LateApprovalBasis.READING)
+                state = _approved(_late_approval_reading.LateApprovalBasis.READING)
                 state.set(key, written)
 
-                self.assertTrue(_parks._unreadable_approval(state))
+                self.assertTrue(_late_approval_reading._unreadable_approval(state))
 
         # And every shape a sound comment arrives in. The paid one is a group
         # of nulls, since the write that ends a debt blanks these fields
         # rather than removing them, and the legacy one carries the commit
         # alone, which is complete for what it says.
-        paid = _approved(_parks.LateApprovalBasis.AUTHORIZATION)
-        _parks._forget_approval(paid)
+        paid = _approved(_late_approval_reading.LateApprovalBasis.AUTHORIZATION)
+        _late_approval_state._forget_approval(paid)
 
         for described, state in (
             ("one a settlement paid", paid),
-            ("a whole group", _approved(_parks.LateApprovalBasis.READING)),
+            ("a whole group", _approved(_late_approval_reading.LateApprovalBasis.READING)),
             ("a pre-publication approval", _approved(
-                _parks.LateApprovalBasis.READING, lease="",
+                _late_approval_reading.LateApprovalBasis.READING, lease="",
             )),
             ("an older binary's approval", PinnedState(
                 data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA},
             )),
         ):
             with self.subTest(described):
-                self.assertFalse(_parks._unreadable_approval(state))
+                self.assertFalse(_late_approval_reading._unreadable_approval(state))
 
     def test_an_operators_gesture_names_two(self) -> None:
         # The group readers ask about rather than either member, since what
         # they decide is whether a debt has to be revalidated. The gate's own
         # two are outside it: nobody's permission was involved, so the tick
         # after a crash owes nobody a question before it pushes.
-        self.assertEqual(_parks.AUTHORIZED_BASES, frozenset((
-            _parks.LateApprovalBasis.ADJUDICATION,
-            _parks.LateApprovalBasis.AUTHORIZATION,
+        self.assertEqual(_late_approval_reading.AUTHORIZED_BASES, frozenset((
+            _late_approval_reading.LateApprovalBasis.ADJUDICATION,
+            _late_approval_reading.LateApprovalBasis.AUTHORIZATION,
         )))
 
 
@@ -200,10 +201,10 @@ class StandingBasisTest(unittest.TestCase):
         # what it rests on is whatever granted it. Re-decided instead, an
         # operator's bypass would be replaced by ordinary debt at exactly the
         # write a crash behind it makes spendable.
-        for basis in _parks.LateApprovalBasis:
+        for basis in _late_approval_reading.LateApprovalBasis:
             with self.subTest(basis=str(basis)):
                 self.assertEqual(
-                    _parks._standing_basis(_approved(basis)), basis,
+                    _late_approval_state._standing_basis(_approved(basis)), basis,
                 )
 
     def test_a_record_that_never_said_says_nothing(self) -> None:
@@ -211,10 +212,10 @@ class StandingBasisTest(unittest.TestCase):
         # grounds. Answered `unmeasured` instead, an unknown would be promoted
         # to a decision nobody made and the reader would stop falling back to
         # the exemption, which is the only evidence such a record ever had.
-        state = _approved(_parks.LateApprovalBasis.READING)
+        state = _approved(_late_approval_reading.LateApprovalBasis.READING)
         state.set(_state._APPROVED_BASIS, None)
 
-        self.assertIsNone(_parks._standing_basis(state))
+        self.assertIsNone(_late_approval_state._standing_basis(state))
 
     def test_a_damaged_one_is_carried_verbatim(self) -> None:
         # The opposite record, and the one a carry-forward may not launder: a
@@ -222,12 +223,12 @@ class StandingBasisTest(unittest.TestCase):
         # cannot name, which the readers fail closed on. Put back as an
         # absence, one re-record would turn it into the legacy shape above and
         # the tick after that would spend the debt without asking anybody.
-        state = _approved(_parks.LateApprovalBasis.READING)
+        state = _approved(_late_approval_reading.LateApprovalBasis.READING)
         state.set(_state._APPROVED_BASIS, _NOT_A_BASIS)
 
-        self.assertEqual(_parks._standing_basis(state), _NOT_A_BASIS)
+        self.assertEqual(_late_approval_state._standing_basis(state), _NOT_A_BASIS)
 
-        _parks._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
+        _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
         self.assertEqual(state.get(_state._APPROVED_BASIS), _NOT_A_BASIS)
 
@@ -241,22 +242,22 @@ class StandingBasisTest(unittest.TestCase):
             ("a value of another type", 7),
         ):
             with self.subTest(basis=described):
-                state = _approved(_parks.LateApprovalBasis.READING)
+                state = _approved(_late_approval_reading.LateApprovalBasis.READING)
                 state.set(_state._APPROVED_BASIS, written)
 
-                self.assertTrue(_parks._unreadable_basis(state))
+                self.assertTrue(_late_approval_reading._unreadable_basis(state))
 
     def test_nothing_else_is_damage(self) -> None:
         # Both shapes an absence arrives in -- a comment that never carried
         # the field, and one carrying it as JSON null, which is an older
         # binary's value or a hand edit -- and every value this build writes.
-        unwritten = _approved(_parks.LateApprovalBasis.READING)
+        unwritten = _approved(_late_approval_reading.LateApprovalBasis.READING)
         unwritten.set(_state._APPROVED_BASIS, None)
-        defensible = [_approved(basis) for basis in _parks.LateApprovalBasis]
+        defensible = [_approved(basis) for basis in _late_approval_reading.LateApprovalBasis]
 
         for state in (PinnedState(data={}), unwritten, *defensible):
             with self.subTest(basis=state.get(_state._APPROVED_BASIS)):
-                self.assertFalse(_parks._unreadable_basis(state))
+                self.assertFalse(_late_approval_reading._unreadable_basis(state))
 
 
 class SeamMintedDebtTest(unittest.TestCase):
@@ -270,13 +271,13 @@ class SeamMintedDebtTest(unittest.TestCase):
     """
 
     def test_it_carries_what_already_stands(self) -> None:
-        for basis in _parks.LateApprovalBasis:
+        for basis in _late_approval_reading.LateApprovalBasis:
             with self.subTest(basis=str(basis)):
                 state = _approved(basis)
 
-                _parks._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
+                _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
-                self.assertEqual(_parks._approved_basis(state), str(basis))
+                self.assertEqual(_late_approval_reading._approved_basis(state), str(basis))
 
     def test_an_unknown_one_stays_unknown(self) -> None:
         # The legacy shape: an older build recorded the commit alone. Upgraded
@@ -284,9 +285,9 @@ class SeamMintedDebtTest(unittest.TestCase):
         # this workflow owns -- a bypass nobody would ever revalidate.
         state = PinnedState(data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA})
 
-        _parks._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
+        _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
-        self.assertEqual(_parks._approved_basis(state), "")
+        self.assertEqual(_late_approval_reading._approved_basis(state), "")
         self.assertIsNone(state.get(_state._APPROVED_BASIS))
 
     def test_a_minted_one_reads_the_exemption_claim(self) -> None:
@@ -301,11 +302,11 @@ class SeamMintedDebtTest(unittest.TestCase):
             with self.subTest(exemption=described):
                 state = PinnedState(data={_KEY_EXEMPT_SHA: exempt})
 
-                _parks._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
+                _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
                 self.assertEqual(
-                    _parks._approved_basis(state),
-                    str(_parks.LateApprovalBasis.ADJUDICATION),
+                    _late_approval_reading._approved_basis(state),
+                    str(_late_approval_reading.LateApprovalBasis.ADJUDICATION),
                 )
 
     def test_an_issue_with_no_exemption_is_unmeasured(self) -> None:
@@ -315,11 +316,11 @@ class SeamMintedDebtTest(unittest.TestCase):
         # this workflow made for itself and re-derives on the next tick.
         state = PinnedState(data={})
 
-        _parks._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
+        _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
         self.assertEqual(
-            _parks._approved_basis(state),
-            str(_parks.LateApprovalBasis.UNMEASURED),
+            _late_approval_reading._approved_basis(state),
+            str(_late_approval_reading.LateApprovalBasis.UNMEASURED),
         )
 
 
@@ -341,15 +342,15 @@ class UnmeasuredDebtBasisTest(unittest.TestCase):
 
         self.assertTrue(staged)
         self.assertEqual(
-            _parks._approved_basis(gate.state),
-            str(_parks.LateApprovalBasis.UNMEASURED),
+            _late_approval_reading._approved_basis(gate.state),
+            str(_late_approval_reading.LateApprovalBasis.UNMEASURED),
         )
 
     def test_a_debt_already_standing_is_left(self) -> None:
         # The approval already names this commit, so there is nothing to
         # record -- and rewriting the basis here would relabel a debt an
         # operator's gesture is behind as one this workflow granted itself.
-        gate = _gate(_approved(_parks.LateApprovalBasis.ADJUDICATION))
+        gate = _gate(_approved(_late_approval_reading.LateApprovalBasis.ADJUDICATION))
 
         staged = _late_verdict_debt._stages_unmeasured_debt(
             gate, MEASURED_CANDIDATE_SHA, _LEASE_SHA,
@@ -357,8 +358,8 @@ class UnmeasuredDebtBasisTest(unittest.TestCase):
 
         self.assertFalse(staged)
         self.assertEqual(
-            _parks._approved_basis(gate.state),
-            str(_parks.LateApprovalBasis.ADJUDICATION),
+            _late_approval_reading._approved_basis(gate.state),
+            str(_late_approval_reading.LateApprovalBasis.ADJUDICATION),
         )
 
 
@@ -377,14 +378,14 @@ class PaidPublicationBasisTest(unittest.TestCase):
         # operator's gesture was behind -- and a record damaged in the window
         # behind this write would then be spent as ordinary debt by the tick
         # that comes back to it.
-        for basis in _parks.AUTHORIZED_BASES:
+        for basis in _late_approval_reading.AUTHORIZED_BASES:
             with self.subTest(basis=str(basis)):
                 gate = _gate(_approved(basis))
 
                 _push._publication_paid(gate, _LANDED, unproven=True)
 
                 self.assertEqual(
-                    _parks._approved_basis(gate.state), str(basis),
+                    _late_approval_reading._approved_basis(gate.state), str(basis),
                 )
                 self.assertEqual(
                     gate.state.get(_state._APPROVED_SHA), MEASURED_CANDIDATE_SHA,
@@ -393,7 +394,7 @@ class PaidPublicationBasisTest(unittest.TestCase):
     def test_a_proven_landing_leaves_no_debt(self) -> None:
         # The other exit: nothing is owed, so the whole group goes -- a basis
         # left behind would stand beside whatever this issue records next.
-        gate = _gate(_approved(_parks.LateApprovalBasis.ADJUDICATION))
+        gate = _gate(_approved(_late_approval_reading.LateApprovalBasis.ADJUDICATION))
 
         _push._publication_paid(gate, _LANDED, unproven=False)
 

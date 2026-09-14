@@ -21,8 +21,9 @@ from orchestrator.workflow.late_split import (
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
 )
 from tests.workflow.stages.implementing import late_transfer_payloads as _transfer_payloads
 
@@ -93,8 +94,8 @@ def granted(state, **overrides) -> _rewrite_values.LateRewrite:
     """
     permitted = rewrite(**overrides)
     _rewrites.record_rewrite_authorization(state, permitted, _transfer_payloads.ACCEPTED_DIGEST)
-    _parks._approve(
+    _late_approval_state._approve(
         state, permitted.to_sha, permitted.lease,
-        _parks.LateApprovalBasis.UNMEASURED,
+        _late_approval_reading.LateApprovalBasis.UNMEASURED,
     )
     return permitted

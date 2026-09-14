@@ -36,15 +36,23 @@ from orchestrator.workflow.late_split import (
     state as _late_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_freeze as _freeze,
     late_gate as _gate,
-    late_gate_models as _late_gate_models,
     late_overflow as _overflow,
-    late_parks as _parks,
+    late_park_notices as _late_park_notices,
+    late_publication_state as _late_publication_state,
     late_records as _records,
     late_verdict_debt as _late_verdict_debt,
-    state as _state,
 )
+from orchestrator.workflow.stages.implementing.late_gate_models import (
+    _Entered,
+    _Gate,
+    _GateVerdict,
+    _PublicationEntry,
+    _RecordedPublication,
+)
+from orchestrator.workflow.stages.implementing.state import _PR_NUMBER
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -145,7 +153,7 @@ _REFUSED = _PublishedCandidate(held=True, refused=True)
 
 
 def _holds_published_work(
-    plain: _late_gate_models._Gate, entered: _late_gate_models._Entered,
+    plain: _Gate, entered: _Entered,
 ) -> _PublishedCandidate:
     """Whether the size gate keeps this candidate off an open pull request.
 
@@ -205,9 +213,9 @@ def _holds_published_work(
 
 
 def _unentered(
-    gate: _late_gate_models._Gate,
-    verdict: _late_gate_models._GateVerdict,
-    entered: _late_gate_models._Entered,
+    gate: _Gate,
+    verdict: _GateVerdict,
+    entered: _Entered,
 ) -> _PublishedCandidate:
     """The answer for a candidate the switch kept out of the gate.
 
@@ -263,11 +271,11 @@ def _unentered(
         # the RECORD names. Unproven here and proved before it licenses
         # anything: what it buys is a receipt the next recovery can hold to a
         # number rather than one it would have to search a branch for.
-        pull_request=_parks._recorded_pull_request(gate.state),
+        pull_request=_late_publication_state._recorded_pull_request(gate.state),
     )
 
 
-def _publication_ended(gate: _late_gate_models._Gate) -> bool:
+def _publication_ended(gate: _Gate) -> bool:
     """Whether this publication ended while the tick was working up to it.
 
     Two endings, read together because they are asked at one point for one
@@ -312,8 +320,8 @@ def _publication_ended(gate: _late_gate_models._Gate) -> bool:
     late by a latch read before it, and this one costs nothing, so the cheap
     answer is the one that gets the final word.
     """
-    number = _late_gate_models._RecordedPublication.named_by(
-        gate.state.get(_state._PR_NUMBER),
+    number = _RecordedPublication.named_by(
+        gate.state.get(_PR_NUMBER),
     ).number
     if not number:
         log.warning(
@@ -343,7 +351,7 @@ def _publication_ended(gate: _late_gate_models._Gate) -> bool:
     return True
 
 
-def _checkout_head(gate: _late_gate_models._Gate) -> str:
+def _checkout_head(gate: _Gate) -> str:
     """The commit this checkout is standing on, or "" if it cannot say.
 
     Proved rather than read, for the reason every other commit in this domain
@@ -362,9 +370,9 @@ def _checkout_head(gate: _late_gate_models._Gate) -> str:
 
 
 def _measured(
-    gate: _late_gate_models._Gate,
-    verdict: _late_gate_models._GateVerdict,
-    entry: _late_gate_models._PublicationEntry,
+    gate: _Gate,
+    verdict: _GateVerdict,
+    entry: _PublicationEntry,
 ) -> _PublishedCandidate:
     """The answer for a candidate this call proved, measured, and let through.
 
@@ -391,7 +399,7 @@ def _measured(
     if verdict.held:
         return _REFUSED if verdict.refused else _HELD
     standing = entry.published_sha
-    if _parks._approved_commit(gate.state) != verdict.candidate_sha:
+    if _late_approval_reading._approved_commit(gate.state) != verdict.candidate_sha:
         return _PublishedCandidate(
             held=False,
             revision=verdict.candidate_sha,
@@ -400,7 +408,7 @@ def _measured(
             permitted_sha=verdict.permitted_sha,
             pull_request=entry.pr_number,
         )
-    lease = _parks._approved_lease(gate.state)
+    lease = _late_approval_reading._approved_lease(gate.state)
     if not lease and standing != verdict.candidate_sha:
         return _unpinnable(gate, verdict.candidate_sha)
     return _PublishedCandidate(
@@ -414,7 +422,7 @@ def _measured(
 
 
 def _unpinnable(
-    gate: _late_gate_models._Gate, candidate_sha: str,
+    gate: _Gate, candidate_sha: str,
 ) -> _PublishedCandidate:
     """Refuse an approved commit whose lease the record cannot show.
 
@@ -432,7 +440,7 @@ def _unpinnable(
         gate.issue.number, candidate_sha,
     )
     recorded = _late_state.read_late_generation(gate.state)
-    _parks._parked(
+    _late_park_notices._parked(
         gate, _records._reportable(gate, recorded), _UNPINNABLE_APPROVAL,
         _UNPINNABLE_APPROVAL_PARK.format(
             mentions=config.HITL_MENTIONS, candidate=candidate_sha,

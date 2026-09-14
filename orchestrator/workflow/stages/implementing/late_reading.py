@@ -30,6 +30,7 @@ from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_freeze as _freeze,
     late_gate_models as _late_gate_models,
+    late_park_notices as _late_park_notices,
     late_parks as _parks,
     late_verdict as _verdict_owner,
 )
@@ -86,7 +87,7 @@ def _freshly_measured(
             gate, frozen, counted.failure, counted.detail,
         )
     measured = replace(frozen, additions=counted.additions)
-    _parks._emit(
+    _late_park_notices._emit(
         gate, measured,
         _events.LateEvent(family=_events.LateEventFamily.MEASUREMENT),
     )

@@ -19,9 +19,9 @@ from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_command as _command,
     late_consent as _consent,
-    late_parks as _parks,
     late_verdict as _verdict_owner,
     state as _state,
 )
@@ -126,7 +126,7 @@ class GateDoorTest(support._ConsentCase, unittest.TestCase):
         self.assertFalse(decided.verdict.held)
         self.assertFalse(decided.measured)
         self.assertEqual(
-            decided.verdict.basis, str(_parks.LateApprovalBasis.ADJUDICATION),
+            decided.verdict.basis, str(_late_approval_reading.LateApprovalBasis.ADJUDICATION),
         )
 
 

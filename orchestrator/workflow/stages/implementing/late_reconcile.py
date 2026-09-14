@@ -27,18 +27,19 @@ from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split import models as _late_models, state as _late_state
 from orchestrator.workflow.stages.implementing import (
     late_claims as _claims,
     late_debt as _debt,
-    late_gate_models as _late_gate_models,
-    late_parks as _parks,
+    late_park_notices as _late_park_notices,
+    late_park_retirement as _late_park_retirement,
     late_push as _push,
     late_records as _records,
     late_terminal as _terminal,
     state as _state,
 )
+from orchestrator.workflow.stages.implementing.late_gate_models import _Entered, _Gate, _Spends
+from orchestrator.workflow.stages.implementing.late_measurement_state import PARK_MEASUREMENT_FAILED
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -174,7 +175,7 @@ def _reconciles_published_work(
     if not damage and not owed and not _claims._awaits_its_count(
         recorded,
     ):
-        if _parks._retire_settled_park(state, recorded):
+        if _late_park_retirement._retire_settled_park(state, recorded):
             log.info(
                 "issue=#%d carried a measurement park over a split that has "
                 "already become children; clearing it and letting the "
@@ -197,8 +198,8 @@ def _reconciles_published_work(
 
 
 def _answers_the_frozen_pair(
-    gate: _late_gate_models._Gate,
-    recorded: LateGeneration,
+    gate: _Gate,
+    recorded: _late_models.LateGeneration,
     label: WorkflowLabel | None,
 ) -> bool:
     """Take the reading a pair frozen and never counted is owed, or refuse it.
@@ -223,7 +224,7 @@ def _answers_the_frozen_pair(
 
 
 def _settles_the_frozen_pair(
-    gate: _late_gate_models._Gate, recorded: LateGeneration,
+    gate: _Gate, recorded: _late_models.LateGeneration,
 ) -> bool:
     """Take the reading the crash interrupted, and spend what it earns.
 
@@ -259,7 +260,7 @@ def _settles_the_frozen_pair(
     where the pairs come FROM -- the record, since no run behind this tick
     could re-derive them.
     """
-    owed = _late_gate_models._Spends(fields=_late_state.read_late_spends(gate.state))
+    owed = _Spends(fields=_late_state.read_late_spends(gate.state))
     published = _push._publishes(
         gate,
         _naming._resolve_branch_name(
@@ -273,7 +274,7 @@ def _settles_the_frozen_pair(
         # the adjudication having closed none of it, and the stage the
         # settlement hands back to reruns a developer over feedback that was
         # already answered.
-        _late_gate_models._Entered(
+        _Entered(
             # The reading this call is answering is the one the pinned record
             # names, which is what the switch has nothing left to say about:
             # publishing the head here would publish the very commit whose
@@ -294,7 +295,7 @@ def _settles_the_frozen_pair(
 
 
 def _unpublished_reconciliation(
-    gate: _late_gate_models._Gate, recorded: LateGeneration,
+    gate: _Gate, recorded: _late_models.LateGeneration,
 ) -> bool:
     """Stop a tick whose reading was settled and whose push was not.
 
@@ -304,7 +305,7 @@ def _unpublished_reconciliation(
     may not happen meanwhile is the stage, which would work from a pull
     request the candidate never joined.
     """
-    _parks._parked(
+    _late_park_notices._parked(
         gate, _records._reportable(gate, recorded),
         _UNPUBLISHED_RECONCILIATION.format(
             number=recorded.published_pr_number,
@@ -348,8 +349,8 @@ def _holds_absent_checkout(
 
 
 def _stranded_reading(
-    gate: _late_gate_models._Gate,
-    recorded: LateGeneration,
+    gate: _Gate,
+    recorded: _late_models.LateGeneration,
     label: WorkflowLabel | None,
 ) -> bool:
     """Stop a tick whose frozen pair belongs to a stage the issue has left.
@@ -366,7 +367,7 @@ def _stranded_reading(
     the record should be dropped. So the refusal owes a human, and owes them
     one notice rather than one per poll.
     """
-    if gate.state.get(_state._PARK_REASON) == _parks.PARK_MEASUREMENT_FAILED:
+    if gate.state.get(_state._PARK_REASON) == PARK_MEASUREMENT_FAILED:
         log.warning(
             "issue=#%d still carries a frozen pair entered on %s while it is "
             "on %s; holding the tick without a second notice",
@@ -378,7 +379,7 @@ def _stranded_reading(
         "%s now; refusing to run that stage over a reading nothing settled",
         gate.issue.number, recorded.source_stage, label,
     )
-    _parks._parked(
+    _late_park_notices._parked(
         gate, _records._reportable(gate, recorded), _STRANDED_READING,
         _STRANDED_READING_PARK.format(
             mentions=config.HITL_MENTIONS,
@@ -392,7 +393,7 @@ def _stranded_reading(
 
 
 def _absent_checkout(
-    gate: _late_gate_models._Gate, recorded: LateGeneration,
+    gate: _Gate, recorded: _late_models.LateGeneration,
 ) -> bool:
     """Stop a tick whose frozen pair has no checkout to be measured in.
 
@@ -410,7 +411,7 @@ def _absent_checkout(
     checkout is back the ordinary reading resumes: the measurement park is
     retired by the freeze that re-reads the pair it names.
     """
-    if gate.state.get(_state._PARK_REASON) == _parks.PARK_MEASUREMENT_FAILED:
+    if gate.state.get(_state._PARK_REASON) == PARK_MEASUREMENT_FAILED:
         log.warning(
             "issue=#%d still has no checkout at %s for the pair it froze; "
             "holding the tick without a second notice",
@@ -422,7 +423,7 @@ def _absent_checkout(
         "measure it in; refusing to run the stage over an unread candidate",
         gate.issue.number, gate.worktree,
     )
-    _parks._parked(
+    _late_park_notices._parked(
         gate, _records._reportable(gate, recorded), _ABSENT_CHECKOUT,
         _ABSENT_CHECKOUT_PARK.format(
             mentions=config.HITL_MENTIONS,
