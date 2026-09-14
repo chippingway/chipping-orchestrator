@@ -8,7 +8,6 @@ per-file-ignores =
     orchestrator/workflow/state.py:WPS202
     orchestrator/workflow/engine/dispatch.py:WPS201,WPS202
     orchestrator/workflow/engine/terminals.py:WPS202
-    orchestrator/workflow/stages/decomposition/late_authorize.py:WPS202
     orchestrator/workflow/stages/decomposition/late_hold.py:WPS202,WPS204
     orchestrator/workflow/stages/decomposition/late_owner.py:WPS202
     orchestrator/workflow/stages/decomposition/late_children.py:WPS202
@@ -16,13 +15,7 @@ per-file-ignores =
     orchestrator/workflow/stages/decomposition/late_restart.py:WPS202
     orchestrator/workflow/stages/decomposition/late_cleanup.py:WPS201,WPS202
     orchestrator/workflow/stages/decomposition/late_transaction.py:WPS202
-    orchestrator/workflow/stages/decomposition/late_reuse.py:WPS202
-    orchestrator/workflow/stages/decomposition/late_session.py:WPS202
-    orchestrator/workflow/stages/decomposition/split.py:WPS202
-    orchestrator/workflow/stages/decomposition/umbrella.py:WPS202
-    orchestrator/workflow/stages/implementing/late_command.py:WPS202
     orchestrator/workflow/stages/implementing/late_gate.py:WPS202
-    orchestrator/workflow/stages/implementing/late_freeze.py:WPS202
     orchestrator/workflow/stages/implementing/late_parks.py:WPS202
     orchestrator/workflow/stages/implementing/late_rewrite.py:WPS202
     orchestrator/workflow/stages/implementing/late_transfer.py:WPS202

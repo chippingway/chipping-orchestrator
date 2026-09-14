@@ -1,66 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A parent whose whole intent is covered by its children.
+"""Poll umbrella children and guard completion against outstanding late-split work.
 
-`umbrella` polls exactly like `blocked` -- same rejected / manually-closed
-parks, same dep-graph activation walk -- and differs only in what "every child
-resolved" earns. There is no implementation pass to re-enter, so the parent
-resolves to `done` and closes instead of flipping to `ready`.
-
-That missing implementation pass is also why the drift check matters more here
-than anywhere else: no later stage will ever look at this issue's body again,
-so a body edited while children ran would otherwise be closed against the
-manifest it no longer describes.
-
-It is also the last boundary at which anything the issue still owes a remote
-can be settled, and the first at which the snapshot half CAN be. A parent that
-became an umbrella through a late split owes two things -- the branch its
-superseded candidate was committed on, and the immutable ref that candidate was
-preserved under -- and nothing else ever brings a tick back to either, because
-an umbrella polls its children and nothing else. So the all-resolved branch
-reconciles what is owed before it closes anything: the branch unconditionally,
-and the snapshot under the rule that owns it, since every recorded direct
-consumer being terminal is exactly what all-resolved has just made true. The
-child scan is handed over rather than re-taken, so proving that costs no
-request of its own. A remote that refuses holds the parent open, because an
-umbrella closed over an unreclaimed ref is an obligation nobody would ever
-settle, while one still open is a retry every tick.
-
-A parent that became an umbrella through a split entered PAST publication owes
-one more thing, and it is a question rather than an obligation: the pull
-request that split closed has to still be closed. Everything this handler does
-for such a parent is licensed by that supersession -- the children it releases
-are taking over the work that change carried, and the branch its terminal
-reclaims is the one that change points at -- and the transaction that proved
-it is several ticks gone. So the record's own publication group, which the
-retirement keeps for exactly this, is asked again -- immediately in front of
-each act it licenses, never once for the handler. The activation walk asks
-before every relabel it makes; the reclamation asks before the delete; the
-settlement the terminal waits on asks before anything is SAID; and the
-completion asks once more immediately in front of the retirement write, which
-is the boundary itself.
-
-The last two are one question at two moments, and both are needed. It is the
-answer no ledger carries -- a reclamation that finished owes nothing, so an
-entry-driven terminal would fire over a change reopened afterwards, and the
-write behind it drops the very group that could have said so. And the sentence
-between them is a request of its own, so a reopen can land inside it: refusing
-there costs a sentence already gone out, which is why THAT umbrella's sentence
-is gated on the thread as well as on the stamp the retirement write puts down.
-Only that one. Nothing refuses the others past their sentence, so none of them
-pays for a comment listing or carries a receipt nothing would read -- and the
-receipt names the cycle and generation, since an operator restarting a
-rejected cycle keeps the thread and one scoped to the issue alone would
-silence the sentence the cycle after it owes.
-
-All-resolved is not the only reading that makes it true, which is why the same
-settlement runs on the way OUT. A child rejected and a child closed by hand
-both park this parent for a human, and both closed the child -- which is what
-the reclamation rule reads. A park that returned before settling would leave
-an owner sitting on a reclaimable ref for as long as the human took, and
-nothing sweeps an open umbrella. So the parked path settles from the same
-fresh scan that parked it, decides no terminal, and leaves the park exactly as
-it was.
+Child activation, cleanup settlement, and terminal publication each honor
+observed owner closure. A close racing retirement restores the live cycle
+so its cancellation still has the evidence it needs.
 """
 from __future__ import annotations
 
@@ -69,17 +13,13 @@ import logging
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models, settings as config
-from orchestrator.github import comments as _github_comments
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    comments as _comments,
     guards as _guards,
-    issue_usage as _issue_usage,
     retiring_cycles as _retiring_cycles,
     usage as _usage,
 )
-from orchestrator.workflow.late_split import endings as _endings, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     activation as _activation,
@@ -89,22 +29,11 @@ from orchestrator.workflow.stages.decomposition import (
     models as _models,
     parents as _parents,
     state as _state,
+    umbrella_terminal as _umbrella_terminal,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
-
-# Stamped into the sentence a resolved umbrella says, so a terminal refused
-# after that sentence went out does not say it again on the next poll. Scoped
-# to the exact cycle and generation, because the thread outlives both: an
-# operator who takes a settled cancellation's terminal off starts a fresh
-# cycle on the same issue, and a receipt naming only the issue would silence
-# the sentence that cycle owes its humans. An HTML comment, so it is
-# invisible in the rendered thread.
-_RESOLVED_MARKER = (
-    "<!--orchestrator-umbrella-resolved:issue={issue}"
-    ":cycle={cycle}:generation={generation}-->"
-)
 
 
 def _handle_empty_umbrella(
@@ -162,7 +91,7 @@ def _complete_umbrella(
     the cycle was still live is one the ending can still be entered from.
     """
     if state.get(_state._UMBRELLA_RESOLVED_AT) is None:
-        _resolution_said(gh, issue, state)
+        _umbrella_terminal._resolution_said(gh, issue, state)
     if _late_cancellation._latched_close_ends(gh, spec, issue, state):
         return
     state.set(_state._AWAITING_HUMAN, False)
@@ -172,13 +101,13 @@ def _complete_umbrella(
         return
     if _publication_holds_the_terminal(gh, issue, state):
         return
-    live = _retired_cycle(state)
+    live = _umbrella_terminal._retired_cycle(state)
     retiring = _retiring_cycles.retiring(spec.slug, issue.number, live.cycle_id)
     with retiring.held():
         gh.write_pinned_state(issue, state)
     if _reinstated(gh, issue, state, live, retiring):
         return
-    _finished_umbrella(gh, issue)
+    _umbrella_terminal._finished_umbrella(gh, issue)
 
 
 def _publication_holds_the_terminal(
@@ -253,126 +182,6 @@ def _reinstated(
     )
     _late_cancellation._marked(gh, issue, state, live)
     return True
-
-
-def _retired_cycle(state: PinnedState) -> LateGeneration:
-    """Drop the identity of a cycle that finished, keeping what it recorded.
-
-    The two ledgers are the only thing carried across, exactly as the
-    authorized settlement's own retirement carries them: an obligation does
-    not stop being owed because the identity written beside it was cleared,
-    and the receipts naming the children this split made are what a restart
-    reads. What goes is the cycle a close would have ended -- which is the
-    whole point of doing it HERE, one write before the terminal label: past
-    this there is no live cycle under `done` for anything to have to find.
-
-    The generation it dropped travels back, because the write that makes it
-    durable is a request and the barrier behind that request needs something
-    to put back.
-    """
-    live = _late_state.read_late_generation(state)
-    _late_state.write_late_generation(state, LateGeneration(
-        resources=live.resources,
-        consumers=live.consumers,
-        opaque_resources=live.opaque_resources,
-        opaque_consumers=live.opaque_consumers,
-    ))
-    if live.is_present:
-        _endings.record_retired_cycle(state, live.cycle_id)
-    return live
-
-
-def _resolution_said(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
-) -> None:
-    """Say once that every child resolved, with what the issue cost.
-
-    Gated on the stamp, which is what a resumed terminal has instead of
-    memory: a pass that died between this comment and the write that records
-    it says it again, and one that died after that write does not. That is
-    every umbrella there has ever been, and it stays exactly that.
-
-    A post-publication split's is gated on the THREAD as well, and only that
-    one. What the second gate covers is a window only that road has: the
-    barrier immediately in front of the retirement write can refuse a terminal
-    whose sentence has already gone out, and an umbrella held on a reopened
-    pull request would otherwise repeat itself on every poll for as long as a
-    human took to settle it. Nothing refuses the others there, so none of them
-    pays for a comment listing or carries a receipt nothing would read.
-
-    Walked whole rather than from a watermark, for the reason the split's own
-    announcement is: this post moves every watermark the mode keeps past
-    itself, so a bounded scan would start above the very comment it looks for.
-    """
-    generation = _late_state.read_late_generation(state)
-    if not generation.has_publication_context:
-        _comments._post_issue_comment(
-            gh, issue, state, _resolution_body(state),
-        )
-        return
-    marker = _resolved_marker(issue, generation)
-    if _resolution_on_thread(gh, issue, marker):
-        return
-    _comments._post_issue_comment(
-        gh, issue, state, f"{_resolution_body(state)}\n\n{marker}",
-    )
-
-
-def _resolution_body(state: PinnedState) -> str:
-    """The sentence a resolved umbrella owes its thread, and what it cost."""
-    close_body = ":white_check_mark: all children resolved; closing umbrella issue."
-    verdict = _issue_usage._format_issue_usage_verdict(state)
-    if not verdict:
-        return close_body
-    return f"{close_body}\n\n{verdict}"
-
-
-def _resolved_marker(issue: Issue, generation: LateGeneration) -> str:
-    """The receipt this cycle's resolution sentence carries."""
-    return _RESOLVED_MARKER.format(
-        issue=issue.number,
-        cycle=generation.cycle_id,
-        generation=generation.generation,
-    )
-
-
-def _resolution_on_thread(
-    gh: GitHubClient, issue: Issue, marker: str,
-) -> bool:
-    """Whether THIS cycle has already said its children all resolved.
-
-    Ours, because an HTML comment is invisible in the rendered thread and
-    anybody could otherwise post the marker that silences the one sentence
-    saying this issue is finished.
-    """
-    return _github_comments.carries_own_marker(
-        gh.comments_after(issue, None),
-        marker,
-        bot_login=getattr(gh, "_bot_login", None),
-    )
-
-
-def _finished_umbrella(gh: GitHubClient, issue: Issue) -> None:
-    """Hand a resolved umbrella its terminal label and close it.
-
-    Both are asked of a record that already says the terminal is due, so
-    either can be repeated: a pass that died before the label leaves an owner
-    the sweep and the umbrella poll both finish from here, and one that died
-    before the close leaves an open `done` issue a human can see.
-    """
-    gh.set_workflow_label(issue, WorkflowLabel.DONE)
-    _closed_umbrella(issue)
-
-
-def _closed_umbrella(issue: Issue) -> None:
-    """Close the issue an umbrella's terminal has just resolved."""
-    try:
-        issue.edit(state="closed")
-    except Exception:
-        log.exception(
-            "issue=#%s could not close umbrella after children done",
-            issue.number,
-        )
 
 
 def _completed_or_cancelled(

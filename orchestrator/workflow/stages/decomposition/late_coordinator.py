@@ -119,7 +119,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_guidance as _late_guidance,
     late_outcome as _late_outcome,
     late_parks as _late_parks,
-    late_session as _late_session,
+    late_run_reading as _late_run_reading,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudicationRun
@@ -157,7 +157,7 @@ def _adjudicate_late_generation(
     if settled.disposition is not None:
         return _late_outcome._finished(context, settled.disposition)
     retired = retired and not settled.persisted
-    recorded = _late_session._read_late_run(state)
+    recorded = _late_run_reading._read_late_run(state)
     if recorded.answers(context.generation):
         log.info(
             "issue=#%d late generation %d already decided as %s; not "

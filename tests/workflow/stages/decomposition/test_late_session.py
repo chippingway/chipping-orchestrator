@@ -13,6 +13,7 @@ from orchestrator.workflow.late_split.events import LateVerdictCategory
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
     late_result_models as _late_result_models,
+    late_run_reading as _late_run_reading,
     late_session as _session,
 )
 from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
@@ -143,7 +144,7 @@ class LateRunRecordTest(unittest.TestCase):
             ),
         )
 
-        self.assertEqual(_session._read_late_run(state), _completed_run())
+        self.assertEqual(_late_run_reading._read_late_run(state), _completed_run())
 
 
 class LateResultRecordTest(unittest.TestCase):
@@ -243,8 +244,8 @@ class LateResultRecordTest(unittest.TestCase):
             verdict=LateVerdict.SPLIT, children=SPLIT_CHILDREN,
         ))
 
-        recovered = _session._recovered_adjudication(
-            _session._read_late_run(state),
+        recovered = _late_run_reading._recovered_adjudication(
+            _late_run_reading._read_late_run(state),
         )
 
         self.assertEqual(recovered.verdict, LateVerdict.SPLIT)
@@ -269,7 +270,7 @@ class LateResultRecordTest(unittest.TestCase):
         )
         for name, recorded, expected in cases:
             with self.subTest(case=name):
-                run = _session._read_late_run(PinnedState(data={
+                run = _late_run_reading._read_late_run(PinnedState(data={
                     _support.KEYS.run_cycle_id: _support.CYCLE_ID,
                     _support.KEYS.source_sha: _support.CANDIDATE_SHA,
                     _support.KEYS.run_generation: _support.GENERATION_NUMBER,
@@ -279,7 +280,7 @@ class LateResultRecordTest(unittest.TestCase):
 
                 self.assertTrue(run.answers(_support.late_generation()))
                 self.assertEqual(
-                    _session._recovered_adjudication(
+                    _late_run_reading._recovered_adjudication(
                         run,
                     ).split_blocker_explanation,
                     expected,
@@ -372,7 +373,7 @@ class LateSessionLockTest(unittest.TestCase):
     """Which backend a later run lands on, and what it falls back to."""
 
     def test_an_unlocked_issue_uses_the_config(self) -> None:
-        run = _session._read_late_run(PinnedState())
+        run = _late_run_reading._read_late_run(PinnedState())
 
         self.assertEqual(run.spec, config.DECOMPOSE_AGENT_SPEC)
         self.assertEqual(run.backend, config.DECOMPOSE_AGENT)
@@ -383,14 +384,14 @@ class LateSessionLockTest(unittest.TestCase):
         state = PinnedState(data={_support.KEYS.agent: _support.LATE_SPEC})
 
         with patch.object(config, "DECOMPOSE_AGENT_SPEC", BACKEND_CODEX):
-            run = _session._read_late_run(state)
+            run = _late_run_reading._read_late_run(state)
 
         self.assertEqual(run.spec, _support.LATE_SPEC)
         self.assertEqual(run.backend, _support.LATE_BACKEND)
         self.assertEqual(run.extra_args, _support.LATE_ARGS)
 
     def test_a_legacy_bare_backend_round_trips(self) -> None:
-        run = _session._read_late_run(
+        run = _late_run_reading._read_late_run(
             PinnedState(data={_support.KEYS.agent: BACKEND_CODEX}),
         )
 
@@ -440,7 +441,7 @@ class LateRunAnswersTest(unittest.TestCase):
         )
         for name, recorded in cases:
             with self.subTest(case=name):
-                run = _session._read_late_run(PinnedState(data={
+                run = _late_run_reading._read_late_run(PinnedState(data={
                     _support.KEYS.run_cycle_id: _support.CYCLE_ID,
                     _support.KEYS.source_sha: _support.CANDIDATE_SHA,
                     _support.KEYS.run_generation: _support.GENERATION_NUMBER,
@@ -456,7 +457,7 @@ class LateRunAnswersTest(unittest.TestCase):
         # already been adjudicated round again, for a run free to decide
         # something else entirely.
         unsized = recorded_child(estimated=None)
-        run = _session._read_late_run(PinnedState(data={
+        run = _late_run_reading._read_late_run(PinnedState(data={
             _support.KEYS.run_cycle_id: _support.CYCLE_ID,
             _support.KEYS.source_sha: _support.CANDIDATE_SHA,
             _support.KEYS.run_generation: _support.GENERATION_NUMBER,
@@ -470,7 +471,7 @@ class LateRunAnswersTest(unittest.TestCase):
     def test_a_budgeted_split_reads_back_whole(self) -> None:
         # The manifest the transaction creates children from, so the budget
         # each child issue states has to survive the record it is read out of.
-        run = _session._read_late_run(PinnedState(data={
+        run = _late_run_reading._read_late_run(PinnedState(data={
             _support.KEYS.run_cycle_id: _support.CYCLE_ID,
             _support.KEYS.source_sha: _support.CANDIDATE_SHA,
             _support.KEYS.run_generation: _support.GENERATION_NUMBER,

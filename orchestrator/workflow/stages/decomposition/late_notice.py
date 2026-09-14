@@ -15,6 +15,8 @@ from orchestrator.github.comments import authored_by_us
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from orchestrator.workflow.stages.decomposition import (
     late_notice_fences as _notice_fences,
+    late_result_payloads as _late_result_payloads,
+    late_run_reading as _late_run_reading,
     late_session as _late_session,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _StagedPark
@@ -186,8 +188,8 @@ def _filled(context: _LateContext, owed: _StagedPark) -> str:
         return owed.message
     if RECORDED_EXPLANATION not in owed.message:
         return owed.message
-    recorded = _late_session._recovered_adjudication(
-        _late_session._read_late_run(context.state),
+    recorded = _late_run_reading._recovered_adjudication(
+        _late_run_reading._read_late_run(context.state),
     )
     return owed.message.replace(
         RECORDED_EXPLANATION,
@@ -285,7 +287,7 @@ def _owe_notice(context: _LateContext, staged: _StagedPark) -> None:
         ),
         MAX_PINNED_BODY,
     )
-    if not _late_session._fits_the_comment({**record, PARK_NOTICE: owed}, ceiling):
+    if not _late_result_payloads._fits_the_comment({**record, PARK_NOTICE: owed}, ceiling):
         log.error(
             "issue=#%d the notice for park %s does not fit the pinned "
             "comment; it will be posted once and never retried",

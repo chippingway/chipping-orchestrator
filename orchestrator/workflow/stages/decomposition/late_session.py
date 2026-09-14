@@ -1,83 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The late run one issue is locked to: read back, recorded, and spawned.
+"""Persist late-run spawn, session, and result records, and invoke the adjudicator.
 
-The same lock every other role carries, for the same reason: a resume has to
-land on the CLI that issued the session id, so the whole configured spec is
-pinned at the first spawn -- before that spawn can fail -- and read back on
-every later tick whatever `DECOMPOSE_AGENT` currently says. `DECOMPOSE_AGENT`
-is the fallback for the first-ever late run on an issue and nothing after it,
-which is what makes a mid-flight config flip safe while a generation is under
-adjudication.
-
-The pin is a separate pair from the initial decomposer's. An issue can carry
-both -- it was decomposed once and its implementation later measured oversized
--- and they are different conversations against different bodies of context,
-so `late_agent` / `late_session_id` never share the `decomposer_agent` /
-`decomposer_session_id` keys the initial mode locked.
-
-Beside them this owner records what the late-agent boundary calls its durable
-facts: the role the run was recorded under, the cycle and generation it
-belongs to, the exact source commit it was spawned against, and -- once it
-finishes -- the result it completed with. Those three identities are what make
-a recorded result believable: an answer is this candidate's only when it names
-this cycle, this generation, AND this commit. The cycle is required because
-the counter beside it is not unique without one -- a restart mints a fresh
-cycle and puts the generation back where it started -- and these run fields
-survive a late-generation clear, which is exactly the window a repeated
-counter would be read in. A fresh spawn drops the previous result first, so a
-tick that crashes mid-run cannot read the last attempt's verdict back as this
-one's.
-
-What is recorded of the result is the whole of what the verdict decided: a
-`single` with the explanation of what stopped a split, a `question` with its
-category and the sentence it asked, and a `split` with the ordered child
-manifest that IS its decision -- every slice of it carrying the addition
-budget it was proposed under, since the child issue created from that slice
-states the size it was sized at. That is what lets a crashed tick recover an
-answer rather than pay for a second run that may not decide the same way. The
-part deliberately not kept is the agent's rationale for accepting the change,
-which is prose and belongs on the issue thread rather than in the state every
-stage shares.
-
-The explanation is the one of those a record may be missing and still be an
-answer. A fresh reply that omits it never reaches here -- the reply contract
-refuses one -- but results written before this domain kept an explanation are
-on live issues, and that absence reads back as the stand-in the carrier beside
-it spells rather than as an incomplete result, because what re-running the
-adjudicator would recover is prose, at the price of a second run free to
-decide something else entirely.
-
-Both ends of that are bounded rather than trusted. What a recorded outcome is
-measured against is the whole comment the write would produce -- the preserved
-held-PR body and every other stage's keys included, since a result small on
-its own can still be the one that pushes the comment past what GitHub accepts
--- and an outcome past that budget is refused whole, because shortening it
-would record a question nobody asked, a reason nobody wrote, or children
-nobody proposed. On the way back, a recorded manifest is read through the same
-split rules the reply was held to, so a shape this binary would not have
-written is read as no manifest at all rather than as half a split to create.
-Those rules are the shared ones and ask for no budget: a manifest on a live
-issue was recorded before this domain kept one, and requiring it here would
-read every one of them as no split and send an adjudicated candidate round
-again.
-
-One late run in three resumes. A human answering the categorized question the
-adjudicator asked is answering an agent that ASKED it, so that run continues
-the pinned session rather than opening a conversation which would have to be
-told what it had asked before it could be told the answer -- which is what the
-pin was written for. Every other late run is fresh: a first adjudication has
-no conversation to continue, and a candidate the developer revised is a
-different question, so a session opened against the commit it replaced would
-hand the agent a transcript about work nobody is adjudicating. Both halves of
-that are proved rather than assumed -- the caller says it is carrying an
-answer, and the record says its session really ran against THIS cycle,
-generation, and commit.
+A new spawn clears the previous result and publication override. Results
+are written only after the whole pinned payload fits the comment ceiling,
+and the preflight reserves room for the longest supported session id.
 """
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
 from pathlib import Path
 
 from orchestrator.agents.models import AgentResult
@@ -89,19 +20,16 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.late_split import (
-    events as _events,
-    formats as _formats,
     models as _late_models,
     overrides as _overrides,
-    payloads as _payloads,
 )
 from orchestrator.workflow.stages.decomposition import (
-    late_budget as _budget,
     late_prompt as _prompt,
-    validation as _split_validation,
+    late_result_payloads as _late_result_payloads,
+    late_run_reading as _late_run_reading,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
-from orchestrator.workflow.stages.decomposition.late_result_models import _DECOMPOSER_ROLE, _LateAdjudication, _LateRun
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudication, _LateRun
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -113,25 +41,13 @@ _DECOMPOSING_STAGE = "decomposing"
 
 _RETRY_COUNT = "retry_count"
 
-_LATE_AGENT_ROLE = "late_agent_role"
-_LATE_AGENT = "late_agent"
-_LATE_SESSION_ID = "late_session_id"
-_LATE_RUN_CYCLE_ID = "late_run_cycle_id"
-_LATE_SOURCE_SHA = "late_source_sha"
-_LATE_RUN_GENERATION = "late_run_generation"
-_LATE_RESULT_VERDICT = "late_result_verdict"
-_LATE_RESULT_CATEGORY = "late_result_category"
-_LATE_RESULT_QUESTION = "late_result_question"
-_LATE_RESULT_SPLIT_BLOCKER = "late_result_split_blocker"
-_LATE_RESULT_CHILDREN = "late_result_children"
-
 # What a completed run recorded, and therefore what a fresh one has to drop.
 _RESULT_KEYS = (
-    _LATE_RESULT_VERDICT,
-    _LATE_RESULT_CATEGORY,
-    _LATE_RESULT_QUESTION,
-    _LATE_RESULT_SPLIT_BLOCKER,
-    _LATE_RESULT_CHILDREN,
+    _late_run_reading._LATE_RESULT_VERDICT,
+    _late_run_reading._LATE_RESULT_CATEGORY,
+    _late_run_reading._LATE_RESULT_QUESTION,
+    _late_run_reading._LATE_RESULT_SPLIT_BLOCKER,
+    _late_run_reading._LATE_RESULT_CHILDREN,
 )
 
 # What a recorded outcome is measured against: not its own size, but what the
@@ -196,80 +112,6 @@ MAX_NOTICE_COMMENT = MAX_RECORDED_BODY + MAX_NOTICE_BODY
 MAX_SESSION_ID = 256
 
 
-def _read_late_run(state: _pinned_state.PinnedState) -> _LateRun:
-    """Return the late run this issue is locked to, defaults where unset.
-
-    Every field is read through the late domain's own defensive readers: a
-    hand-edited or older value that cannot be typed reads back absent, so a
-    damaged `late_result_verdict` leaves the run looking unanswered -- which
-    costs one more adjudication -- rather than publishing on a verdict nobody
-    recorded.
-    """
-    spec, backend, extra_args = _locked_spec(state)
-    return _LateRun(
-        role=_payloads.as_text(
-            state.get(_LATE_AGENT_ROLE),
-        ) or _DECOMPOSER_ROLE,
-        session_id=_payloads.as_text(state.get(_LATE_SESSION_ID)),
-        cycle_id=_payloads.as_identity(state.get(_LATE_RUN_CYCLE_ID)) or 0,
-        source_sha=_payloads.as_hex(
-            state.get(_LATE_SOURCE_SHA), _formats.COMMIT_LENGTHS,
-        ) or "",
-        generation=_payloads.as_count(state.get(_LATE_RUN_GENERATION)) or 0,
-        verdict=_payloads.as_member(
-            _late_models.LateVerdict, state.get(_LATE_RESULT_VERDICT),
-        ),
-        category=_payloads.as_member(
-            _events.LateVerdictCategory, state.get(_LATE_RESULT_CATEGORY),
-        ),
-        question=_payloads.as_text(state.get(_LATE_RESULT_QUESTION)) or "",
-        split_blocker=_payloads.as_text(
-            state.get(_LATE_RESULT_SPLIT_BLOCKER),
-        ) or "",
-        children=_recorded_children(state),
-        spec=spec,
-        backend=backend,
-        extra_args=extra_args,
-    )
-
-
-def _recorded_children(state: _pinned_state.PinnedState) -> tuple[dict, ...]:
-    """Return the recorded child manifest, or nothing if it is not one.
-
-    Held to the same rules the reply was: the child cap, the shape of each
-    child, and the acyclicity of the graph they declare. A manifest a hand
-    edit or an older binary left in a shape this validator refuses is not one
-    children may be created from, and reading it back as empty is what sends
-    the adjudicator round again instead of creating half of a split.
-    """
-    recorded = state.get(_LATE_RESULT_CHILDREN)
-    if not isinstance(recorded, list) or not recorded:
-        return ()
-    if _split_validation._split_manifest_error({"children": recorded}):
-        return ()
-    return tuple(recorded)
-
-
-def _locked_spec(
-    state: _pinned_state.PinnedState,
-) -> tuple[str, str, tuple[str, ...]]:
-    """Return the agent spec a late run is locked to, or the configured one.
-
-    A legacy bare-backend value (`"codex"` / `"claude"`) re-parses to
-    `(backend, ())` and round-trips cleanly, the way every other role's pin
-    does.
-    """
-    stored = _payloads.as_text(state.get(_LATE_AGENT))
-    if stored:
-        backend, extra_args = config._parse_agent_spec(_LATE_AGENT, stored)
-        return stored, backend, extra_args
-    return (
-        config.DECOMPOSE_AGENT_SPEC,
-        config.DECOMPOSE_AGENT,
-        config.DECOMPOSE_AGENT_ARGS,
-    )
-
-
 def _record_late_spawn(
     state: _pinned_state.PinnedState, run: _LateRun,
 ) -> None:
@@ -295,15 +137,15 @@ def _record_late_spawn(
     recorded here is the one replacing it, so the operator's authorization to
     publish that answer goes with it.
     """
-    state.set(_LATE_AGENT_ROLE, run.role)
-    state.set(_LATE_AGENT, run.spec)
-    state.set(_LATE_RUN_CYCLE_ID, run.cycle_id)
-    state.set(_LATE_SOURCE_SHA, run.source_sha)
-    state.set(_LATE_RUN_GENERATION, run.generation)
+    state.set(_late_run_reading._LATE_AGENT_ROLE, run.role)
+    state.set(_late_run_reading._LATE_AGENT, run.spec)
+    state.set(_late_run_reading._LATE_RUN_CYCLE_ID, run.cycle_id)
+    state.set(_late_run_reading._LATE_SOURCE_SHA, run.source_sha)
+    state.set(_late_run_reading._LATE_RUN_GENERATION, run.generation)
     if run.session_id:
-        state.set(_LATE_SESSION_ID, run.session_id)
+        state.set(_late_run_reading._LATE_SESSION_ID, run.session_id)
     else:
-        state.data.pop(_LATE_SESSION_ID, None)
+        state.data.pop(_late_run_reading._LATE_SESSION_ID, None)
     _drop_late_result(state)
 
 
@@ -352,7 +194,7 @@ def _record_late_session(
             "not pinning it", len(session_id),
         )
         return
-    state.set(_LATE_SESSION_ID, session_id)
+    state.set(_late_run_reading._LATE_SESSION_ID, session_id)
 
 
 def _record_late_result(
@@ -384,127 +226,12 @@ def _record_late_result(
     sentence is written into the headroom this budget leaves under GitHub's
     limit, afterwards.
     """
-    recorded = _result_payload(adjudication)
-    if not _fits_the_comment({**state.data, **recorded}, MAX_RECORDED_BODY):
+    recorded = _late_result_payloads._result_payload(adjudication)
+    if not _late_result_payloads._fits_the_comment({**state.data, **recorded}, MAX_RECORDED_BODY):
         return False
     for key, written in recorded.items():
         state.set(key, written)
     return True
-
-
-def _fits_the_comment(state_data: dict, ceiling: int) -> bool:
-    """Whether a pinned comment holding exactly this would fit its ceiling.
-
-    The prospective body is rendered by the owner that writes it, so what is
-    measured is the write rather than an estimate of it. The ceiling is the
-    caller's, because what has to fit AFTER a write differs by which write it
-    is: a hold still owes the comment the record that starts the run, while a
-    completed outcome owes it only what other stages add later.
-    """
-    return len(
-        _pinned_state.pinned_state_body(state_data),
-    ) <= ceiling
-
-
-def _result_payload(adjudication: _LateAdjudication) -> dict:
-    """The pinned fields one completed adjudication is written as.
-
-    The children are rewritten from the fields a child issue is created out of
-    rather than copied, so nothing an agent put beside them travels into the
-    pinned comment a human reads and every other stage shares. The declared
-    budget is one of them: the child issue states the size its slice was
-    proposed at, so a manifest recorded without it would leave a tick that
-    crashed between the verdict and the transaction creating children that say
-    nothing about their own size -- and the only way back to the number would
-    be a second adjudication free to propose a different split entirely.
-
-    The explanation goes only where the reply gave one, and so does the
-    budget. What an absent field means is settled on the way back, so writing
-    a stand-in here would put this binary's own number in the comment as
-    though an agent had estimated it, and spend the comment budget saying
-    nothing.
-    """
-    recorded = {_LATE_RESULT_VERDICT: str(adjudication.verdict)}
-    if adjudication.category is not None:
-        recorded[_LATE_RESULT_CATEGORY] = str(adjudication.category)
-    if adjudication.question:
-        recorded[_LATE_RESULT_QUESTION] = adjudication.question
-    if adjudication.split_blocker:
-        recorded[_LATE_RESULT_SPLIT_BLOCKER] = adjudication.split_blocker
-    if adjudication.children:
-        recorded[_LATE_RESULT_CHILDREN] = [
-            _recorded_child(child) for child in adjudication.children
-        ]
-    return recorded
-
-
-def _recorded_child(child: dict) -> dict:
-    """The fields one proposed child is kept as, and nothing beside them."""
-    kept = {
-        "title": child.get("title"),
-        "body": child.get("body"),
-        "depends_on": list(child.get("depends_on") or []),
-    }
-    estimated = _budget.declared_budget(child)
-    if estimated is not None:
-        kept[_budget.ESTIMATE] = estimated
-    return kept
-
-
-def _recovered_adjudication(run: _LateRun) -> _LateAdjudication:
-    """Rebuild the adjudication a recorded outcome stands for.
-
-    Everything a caller acts on comes back: the verdict, the category, the
-    question to announce, the explanation a `single` gave for not splitting,
-    and the manifest to create children from. Only the agent's rationale for
-    accepting the change does not, because that prose is the part of a reply
-    the pinned comment deliberately never kept.
-
-    A record with no explanation is rebuilt with none, and the carrier answers
-    for the absence: what the record holds is what an agent wrote, and a
-    rebuilt outcome that manufactured a sentence would be indistinguishable
-    from one that had it all along.
-    """
-    return _LateAdjudication(
-        verdict=run.verdict,
-        category=run.category,
-        question=run.question,
-        split_blocker=run.split_blocker,
-        children=run.children,
-    )
-
-
-def _spawn_record_for(
-    state: _pinned_state.PinnedState,
-    generation: _late_models.LateGeneration,
-    *,
-    resuming: bool = False,
-) -> _LateRun:
-    """The record a run over this generation would be started under.
-
-    One definition, because two callers have to agree on it exactly: the hold
-    measures whether the comment could still hold this beside a preserved
-    pull-request body, and the spawn writes it. A locked spec is an operator's
-    command line and is not bounded by anything here, so measuring anything
-    other than the real one would be measuring the wrong write.
-
-    `resuming` is the caller saying this run carries a human's answer to the
-    question the pinned session asked. It is not enough on its own: the record
-    also has to say that session really ran against THIS cycle, generation,
-    and commit, because a session pinned before a revision replaced the
-    candidate holds a conversation about work nobody is adjudicating. A run
-    that fails either test opens a fresh conversation, and the session id goes
-    with the record it belonged to.
-    """
-    recorded = _read_late_run(state)
-    continues = resuming and recorded.ran_against(generation)
-    return replace(
-        recorded,
-        cycle_id=generation.cycle_id,
-        source_sha=generation.candidate_sha,
-        generation=generation.generation,
-        session_id=recorded.session_id if continues else None,
-    )
 
 
 def _holdable(
@@ -524,9 +251,9 @@ def _holdable(
     errs toward refusing.
     """
     written = _pinned_state.PinnedState(data=dict(state_data))
-    _record_late_spawn(written, _spawn_record_for(written, generation))
-    written.set(_LATE_SESSION_ID, "s" * MAX_SESSION_ID)
-    return _fits_the_comment(written.data, MAX_RECORDED_BODY)
+    _record_late_spawn(written, _late_run_reading._spawn_record_for(written, generation))
+    written.set(_late_run_reading._LATE_SESSION_ID, "s" * MAX_SESSION_ID)
+    return _late_result_payloads._fits_the_comment(written.data, MAX_RECORDED_BODY)
 
 
 def _spawn_late_adjudicator(

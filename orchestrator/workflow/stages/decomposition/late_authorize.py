@@ -1,101 +1,16 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The one decision that publishes an oversized candidate a human has read.
+"""Consume trusted oversized-candidate decisions and record their publication terms.
 
-The other side of the park beside this. `late_unsplit` is what the workflow
-does when an adjudicator answers that an oversized change stays one change --
-it stops, because the ceiling exists so unreviewed bulk does not reach a pull
-request and an agent proposing to publish past it is the thing being guarded
-against. This owner is what ENDS that stop: an operator who has read the
-change saying, in a comment on the issue, that it publishes as it stands.
-
-It is a dedicated command and not a reply, and every term of that follows from
-what it licenses. A generic `/orchestrator continue` says "the step you
-described failed for a reason nobody has to answer, do it again", which is not
-a decision about a change anybody read -- so it is refused here rather than
-absorbed. Ordinary prose is guidance: it says the work itself has to change,
-which resumes the developer and re-measures whatever comes back, and reading
-it as consent would publish a candidate on the strength of somebody agreeing
-that something was hard. And the command names the exact commit, because a
-bare "yes" would authorize whatever the worktree ends on next.
-
-Only the WHOLE comment is the command. A line of it under a paragraph is a
-paragraph that mentions it -- guidance, carried to the developer with
-everything else the human wrote -- and that split is what makes the two
-answers unambiguous rather than a matter of which the reader saw first.
-
-Who may say it is the allowlist every other workflow-driving comment on a
-public thread goes through, applied where the thread is read: an outsider's
-comment is not in the reading this owner is handed, so nothing they post can
-be an authorization, become guidance, or move a watermark. WHEN they may say
-it is bounded the same way every reply is: a comment written before the park's
-own notice is not an answer to it, since the human had not been told anything
-yet, so a command posted ahead of the question it answers goes stale rather
-than authorizing the candidate it happened to name.
-
-What a command that IS all of those things earns is a proof and then a record.
-The proof is the contribution recomputed here, between the frozen pair, in the
-developer's own worktree -- not read off anything stored, because a digest a
-caller handed in proves only that a caller had one. The record is the
-`late_split/overrides` group, which is durable evidence and publishes nothing:
-it names the candidate, the base it was read over, that recomputed digest and
-the scheme it was taken under, the measurement that made the candidate
-oversized, and the comment the authorization was made in.
-
-That record and the park coming down and the reply being consumed are ONE
-write, and they have to be. A park cleared without the record would send the
-candidate straight back into the adjudication a human just answered; a record
-without the consumed watermark would let the same comment authorize a second
-candidate later; and either half landing alone is a state a crash could leave.
-Past that write the tick carries on to the answer it already had, which is
-where the publication is decided -- `late_settlement` asks this owner whether
-an authorization still covers the candidate in hand, and settles the recorded
-`single` where it does.
-
-Everything that cannot be proved is answered on the thread and consumed --
-once, under a receipt scoped to the reading it answers, because the sentence
-and the write that consumes it are two operations and a tick can die between
-them. Where those answers differ is what they leave standing. A command naming
-another commit leaves the park exactly where it is: the same decision is owed,
-and the notice explaining it is still the last word above the refusal. One
-arriving over an adjudication the record can no longer show retires it, and
-has to -- there is nothing to be owed until something adjudicates the
-candidate again, and `awaiting_human` is the flag that suppresses the
-announcement a categorized question earns, so a park left standing over that
-run would cost a human the one sentence nothing else will ever say.
-
-A contribution this host could not fingerprint is not answered at all --
-nothing about it is the human's doing, the next tick takes the same reading
-again, and consuming their command would lose an authorization they would have
-to make twice.
-
-The publication asks for that fingerprint AGAIN, and every term of the record
-with it. The settlement can be reached by a later poll, on a later process,
-and on a host that never held the content between the frozen pair -- so what
-licenses it is the objects agreeing with the record rather than the record
-agreeing with itself, which is the one thing a hand edit and a half-written
-crash can both arrange.
-
-What none of those terms can say is WHICH answer was authorized. They describe
-a candidate, and a candidate can be adjudicated more than once: a certificate
-over edited requirements throws the recorded verdict away and buys a fresh
-one, and a revision advances the generation and buys another, both against
-requirements a human has since changed. Every term here would still match, so
-the record is bound to that answer by being DROPPED with it: `late_session`
-drops it where a result is thrown away and again where the run replacing that
-result is recorded, which is the statement of the rule no road gets around,
-and `late_revision_reconciliation` drops it where a re-freeze mints a fresh
-question. An authorization outliving the answer it was given for is the one
-shape it may not take: it would license the next adjudication's `single` on a
-permission nobody granted it.
+The command must name the parked candidate and answer its recorded single
+verdict. Refusals retain their comment marker and consume only the reading
+that supplied the decision.
 """
 from __future__ import annotations
 
 import logging
 
 from orchestrator.config import settings as config
-from orchestrator.git.measurement import fingerprint as _fingerprint
-from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.comments import carries_own_marker
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.late_split import (
@@ -105,12 +20,13 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
+    late_authorization_proof as _late_authorization_proof,
     late_content as _late_content,
     late_content_models as _late_content_models,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_revision as _late_revision,
-    late_session as _late_session,
+    late_run_reading as _late_run_reading,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
@@ -229,7 +145,7 @@ def _authorized(
             ),
             still_waiting=False,
         )
-    contribution = _proved_contribution(context)
+    contribution = _late_authorization_proof._proved_contribution(context)
     if contribution is None:
         return _late_content_models._LateContentSettlement()
     log.info(
@@ -287,117 +203,9 @@ def _answered_by_the_record(context: _LateContext, generation) -> bool:
     ignored, because the human is owed the reason -- and because the park has
     to come down with that answer, which is what the refusal below does.
     """
-    recorded = _late_session._read_late_run(context.state)
+    recorded = _late_run_reading._read_late_run(context.state)
     return recorded.verdict == LateVerdict.SINGLE and recorded.answers(
         generation,
-    )
-
-
-def _proved_contribution(context: _LateContext):
-    """Recompute what the frozen pair contributes, or None if it cannot.
-
-    Taken here rather than carried, and taken over the pinned pair rather than
-    over whatever the checkout stands on. The worktree is writable for the
-    whole of an adjudication and for the whole of the wait after it, so its
-    head says nothing about what a human read; the frozen base and the frozen
-    candidate are what the notice named and what the decision was made about.
-
-    A reading this host cannot take leaves the park standing and the command
-    unconsumed. Nothing about that is the operator's doing -- a store that
-    cannot hand back the content between two commits it holds is repaired by
-    an operator, not by a comment -- so the next tick takes the same reading
-    again rather than asking a human to authorize the same change twice.
-    """
-    generation = context.generation
-    contribution = _fingerprint._fingerprint_contribution(
-        _worktree_paths._worktree_path(context.spec, context.issue.number),
-        generation.base_sha,
-        generation.candidate_sha,
-    )
-    if contribution.is_fingerprinted:
-        return contribution
-    log.warning(
-        "issue=#%d cannot fingerprint what candidate %s contributes (%s); "
-        "leaving the authorization unread and the candidate parked",
-        context.issue.number,
-        generation.candidate_sha,
-        contribution.failure,
-    )
-    return None
-
-
-def _publishes_unsplit(context: _LateContext) -> bool:
-    """Whether an operator's authorization still covers THIS candidate.
-
-    Asked by the settlement, of the record rather than of the thread: what a
-    tick acts on is the durable evidence, so a process that died between the
-    write and the publication finishes from what the write left.
-
-    Every frozen term is compared, not the commit alone. The commit says which
-    object was read; the base says what that object was read as CONTRIBUTING,
-    and the two counts say the reading a human was shown when they decided. A
-    generation that has moved under any of them is a different question from
-    the one that was answered.
-
-    Then the contribution is fingerprinted AGAIN and held to the digest the
-    record carries, and that is the whole point of recording one. The terms
-    above are the pinned comment agreeing with itself, which a hand edit, an
-    older binary, and a record half-written by a crash can all arrange; the
-    digest is the only term answered by the objects rather than by the record,
-    so it is the only one that says the change about to publish is the change
-    a human read. It is re-taken here rather than trusted from the tick that
-    wrote it because the two are not the same tick: the publication can be
-    reached by a later poll, on a later process, and on a host that never held
-    the content between the pair.
-
-    A reading this host cannot take is refused on the same footing as one that
-    disagrees. Both leave the candidate where it stands with the authorization
-    still on the record, and what that costs is a poll: the next tick takes
-    the reading again, and a store somebody repairs publishes what they
-    authorized without asking them to authorize it twice.
-
-    WHICH answer was authorized is deliberately not asked here, because no
-    term of the record could answer it: the same candidate can be adjudicated
-    again, and every field would still match. What holds that line is the
-    record being dropped with the answer it covers -- wherever a result is
-    thrown away and wherever a re-freeze mints a fresh question -- so a record
-    still readable here is one whose answer nothing has replaced.
-    """
-    override = _overrides.read_publication_override(context.state)
-    if override is None:
-        return False
-    publication = override.publication
-    if not _names_this_candidate(publication, context.generation):
-        return False
-    contribution = _proved_contribution(context)
-    if contribution is None:
-        return False
-    if contribution.digest == publication.fingerprint:
-        return True
-    log.warning(
-        "issue=#%d has an authorization for candidate %s whose contribution "
-        "no longer fingerprints to the digest it was recorded on; leaving the "
-        "candidate unpublished",
-        context.issue.number,
-        context.generation.candidate_sha,
-    )
-    return False
-
-
-def _names_this_candidate(publication, generation) -> bool:
-    """Whether the record's frozen terms are the ones on the record now.
-
-    The cheap half of the question, asked first so a record about another
-    candidate costs no reading at all. What it establishes is only that the
-    two agree about which pair, how much, and against which ceiling -- the
-    digest beside it is what establishes that the pair still contributes what
-    a human was shown.
-    """
-    return (
-        publication.candidate_sha == generation.candidate_sha
-        and publication.base_sha == generation.base_sha
-        and publication.additions == generation.additions
-        and publication.threshold == generation.threshold
     )
 
 
