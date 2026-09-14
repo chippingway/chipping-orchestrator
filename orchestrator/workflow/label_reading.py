@@ -3,8 +3,9 @@
 """Resolve canonical and legacy workflow labels and enforce strict label inputs.
 
 Canonical labels take precedence when both spellings appear. A relabel
-removes only this workflow's current state, and the historical value keyword
-keeps its argument validation while sharing the same strict parser.
+removes only this workflow's current state. The ``label_name`` and ``value``
+keywords share a strict parser; missing, duplicate, or unknown arguments
+raise ``TypeError`` before label validation.
 """
 from __future__ import annotations
 
@@ -112,11 +113,11 @@ def coerce_workflow_label(
     label_name: str | WorkflowLabel | object = _MISSING_LABEL,
     **legacy_fields: Any,
 ) -> WorkflowLabel:
-    """Coerce a workflow label while accepting the historical ``value=``.
+    """Coerce a workflow label supplied as ``label_name`` or ``value=``.
 
-    ``label_name`` is the descriptive keyword for new callers. The adapter
-    keeps existing keyword calls working and rejects duplicate or unknown
-    arguments with ``TypeError`` before delegating to the typed label parser.
+    Exactly one label argument is required. Missing, duplicate, or unknown
+    arguments raise ``TypeError`` before the typed label parser checks the
+    supplied value.
     """
     legacy_label = legacy_fields.pop("value", _MISSING_LABEL)
     if legacy_fields:

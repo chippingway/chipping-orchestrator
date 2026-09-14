@@ -6,7 +6,7 @@ The scheduler's responsibilities are split across four layers that only this
 module composes: read-only state inspection plus temporary claims, atomic slot
 admission and release, the reversible barrier that closes both admission paths
 and waits the admitted work out, and worker dispatch with completion draining.
-Callers reach the composed ``IssueScheduler`` through the package API.
+Callers import the composed ``IssueScheduler`` directly from this module.
 
 What a refused submission MEANT is not one of them. A submission this
 scheduler declines costs its caller a turn, and the caller decides what that
