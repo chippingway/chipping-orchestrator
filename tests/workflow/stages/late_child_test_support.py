@@ -39,6 +39,7 @@ from tests.support import fakes as _fakes
 from tests.workflow import fixtures as _fixtures
 from tests.workflow.stages import slice_checkout as _slice
 from tests.workflow.stages.decomposition import (
+    late_reply_support as _reply_support,
     late_seam_support as _seams,
     late_test_support as _late,
 )
@@ -49,7 +50,7 @@ MAX_ADDED_LINES = "MAX_ADDED_LINES"
 # The one slice the split below proposes. A single child, because what these
 # cases ask is what ANY child carries rather than how a manifest is walked --
 # which the split transaction's own tests own.
-_SLICE = _late.proposed_slice(
+_SLICE = _reply_support.proposed_slice(
     "the slice this child owns", "implement it end to end", _late.FIRST_ESTIMATE,
 )
 

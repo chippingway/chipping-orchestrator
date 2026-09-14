@@ -22,7 +22,12 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.workflow.engine import run_grant_request as _run_grant_request, run_ledger as _run_ledger
 from tests.support.fakes import FakeGitHubClient
-from tests.workflow.engine import lifetime_journeys as journeys, lifetime_test_support as support
+from tests.workflow.engine import (
+    lifetime_comments as _lifetime_comments,
+    lifetime_journeys as journeys,
+    lifetime_models as _lifetime_models,
+    lifetime_test_support as support,
+)
 from tests.workflow.fixtures import LABEL_VALIDATING, _PatchedWorkflowMixin
 
 # What a human buys the issue when the walk has stopped it, and how many ticks
@@ -46,8 +51,8 @@ class LifetimeJourneyTest(unittest.TestCase, _PatchedWorkflowMixin):
             with self.subTest(journey=journey.name):
                 walked = self._walked(journey)
 
-                self.assertEqual(walked.total, support.ALLOWANCE)
-                self.assertEqual(walked.spent, support.ALLOWANCE)
+                self.assertEqual(walked.total, _lifetime_models.ALLOWANCE)
+                self.assertEqual(walked.spent, _lifetime_models.ALLOWANCE)
 
     def test_every_journey_parks_and_says_so_once(self) -> None:
         # The park is durable and the sentence under it is said once per park
@@ -60,7 +65,7 @@ class LifetimeJourneyTest(unittest.TestCase, _PatchedWorkflowMixin):
                 self.assertTrue(walked.parked)
                 self.assertEqual(len(walked.notices), 1)
                 self.assertIn(
-                    f"({support.ALLOWANCE}/{support.ALLOWANCE} runs)",
+                    f"({_lifetime_models.ALLOWANCE}/{_lifetime_models.ALLOWANCE} runs)",
                     walked.notices[0],
                 )
 
@@ -70,14 +75,14 @@ class LifetimeJourneyTest(unittest.TestCase, _PatchedWorkflowMixin):
         # the walk under it stops at the number an operator actually
         # configured rather than at one a fixture wrote onto the issue.
         journey = journeys.ROTATED_SESSIONS
-        with patch.object(config, _RUNS_PER_ISSUE, support.ALLOWANCE):
+        with patch.object(config, _RUNS_PER_ISSUE, _lifetime_models.ALLOWANCE):
             walked = support.walk(
                 self,
                 journey,
                 seeded_on=support.seeded(journey, allowance=None),
             )
 
-        self.assertEqual(walked.total, support.ALLOWANCE)
+        self.assertEqual(walked.total, _lifetime_models.ALLOWANCE)
         self.assertTrue(walked.parked)
         self.assertNotIn(_run_ledger.AGENT_RUN_ALLOWANCE, walked.pinned)
 
@@ -96,7 +101,7 @@ class LifetimeJourneyTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
 
         self.assertEqual(resumed.total, 0)
-        self.assertEqual(resumed.spent, support.ALLOWANCE)
+        self.assertEqual(resumed.spent, _lifetime_models.ALLOWANCE)
 
     def test_an_extension_buys_exactly_what_it_asks(self) -> None:
         # What the command widens is what the issue may still spend, so the
@@ -104,20 +109,20 @@ class LifetimeJourneyTest(unittest.TestCase, _PatchedWorkflowMixin):
         # park again -- the runs already spent are not returned by it.
         journey = journeys.ROTATED_SESSIONS
         walked = self._walked(journey)
-        support.said(walked.issue, _ADD_RUNS)
+        _lifetime_comments.said(walked.issue, _ADD_RUNS)
 
         bought = support.walk(
             self,
             journey,
-            _GRANTED_RUNS + support.REFUSED_TICKS,
+            _GRANTED_RUNS + _lifetime_models.REFUSED_TICKS,
             seeded_on=(walked.github, walked.issue),
         )
 
         self.assertEqual(bought.total, _GRANTED_RUNS)
-        self.assertEqual(bought.spent, support.ALLOWANCE + _GRANTED_RUNS)
+        self.assertEqual(bought.spent, _lifetime_models.ALLOWANCE + _GRANTED_RUNS)
         self.assertEqual(
             bought.pinned.get(_run_ledger.AGENT_RUN_ALLOWANCE),
-            support.ALLOWANCE + _GRANTED_RUNS,
+            _lifetime_models.ALLOWANCE + _GRANTED_RUNS,
         )
         self.assertTrue(bought.parked)
 
@@ -128,7 +133,7 @@ class LifetimeJourneyTest(unittest.TestCase, _PatchedWorkflowMixin):
         journey = journeys.ROTATED_SESSIONS
         walked = self._walked(journey)
         past_the_bound = _run_grant_request.MAX_RUNS_PER_COMMAND + 1
-        support.said(
+        _lifetime_comments.said(
             walked.issue, f"/orchestrator add-agent-runs {past_the_bound}",
         )
 
@@ -137,10 +142,10 @@ class LifetimeJourneyTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
 
         self.assertEqual(refused.total, 0)
-        self.assertEqual(refused.spent, support.ALLOWANCE)
+        self.assertEqual(refused.spent, _lifetime_models.ALLOWANCE)
         self.assertTrue(refused.parked)
 
-    def _walked(self, journey) -> support.Walk:
+    def _walked(self, journey) -> _lifetime_models.Walk:
         """One journey walked until its allowance stops it, and past that."""
         return support.walk(self, journey)
 
@@ -180,7 +185,7 @@ class ResetRoundTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(walked.spent, 0)
         self.assertEqual(
             walked.pinned.get(_run_ledger.AGENT_RUN_ALLOWANCE),
-            support.ALLOWANCE,
+            _lifetime_models.ALLOWANCE,
         )
 
 

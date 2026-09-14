@@ -27,13 +27,8 @@ from tests.support.fakes import (
     FakeUser,
 )
 from tests.workflow.fixtures import _iso_hours_ago
-from tests.workflow.stages.decomposition.late_content_support import (
-    HUMAN,
-    OUTSIDER,
-    PARK_NOTICE_ID,
-    LateContentCase,
-    RefusedComment,
-)
+from tests.workflow.stages.decomposition.late_content_replies import HUMAN, PARK_NOTICE_ID
+from tests.workflow.stages.decomposition.late_content_support import OUTSIDER, LateContentCase, RefusedComment
 from tests.workflow.stages.decomposition.late_run_support import agent_reply
 from tests.workflow.stages.decomposition.late_test_support import (
     KEY_PLAN_PATH,

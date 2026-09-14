@@ -36,39 +36,26 @@ from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
     FakeIssue,
-    FakeUser,
     make_issue,
 )
 from tests.workflow.fixtures import LABEL_DECOMPOSING
-from tests.workflow.stages.decomposition import late_test_support as _support
+from tests.workflow.stages.decomposition import late_content_replies as _content_replies, late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     adjudicate,
     agent_reply,
 )
 
-HUMAN = "geserdugarov"
 OUTSIDER = "passer-by"
 
 ISSUE_TITLE = "make the importer resumable"
 ISSUE_BODY = "the importer has to survive a restart mid-batch"
 EDITED_TITLE = "make the importer resumable AND idempotent"
 EDITED_BODY = "the importer has to survive a restart and never double-write"
-
-GUIDANCE_BODY = "the migration is a separate change; take it out of this one"
 OTHER_GUIDANCE = "and leave the CLI flags alone"
 BARE_CONTINUE = "/orchestrator continue"
 CONTINUE_WITH_GUIDANCE = f"{BARE_CONTINUE}\n\nalso drop the retry loop"
-AUTHORIZE_COMMAND = "/orchestrator authorize-oversized"
-
-GUIDANCE_ID = 11
 CONTINUE_ID = 12
 SECOND_ID = 13
-
-# The id a park's own notice took. A park that announced itself ratcheted the
-# shared consumed watermark past it, so a seeded park carries that too -- it is
-# what makes a REPLY tell itself apart from conversation the issue was already
-# carrying when the park fired, and what `reply` lands above.
-PARK_NOTICE_ID = 100
 
 REVISED_SHA = "d" * _support.SHA_LENGTH
 REVISED_BASE_SHA = "e" * _support.SHA_LENGTH
@@ -98,57 +85,6 @@ EVENT_AGENT_SPAWN = "agent_spawn"
 ROLE_DEVELOPER = "developer"
 
 STAGE_DECOMPOSING = "decomposing"
-
-
-def human_comment(
-    comment_id: int,
-    body: str,
-    *,
-    login: str = HUMAN,
-    user_type: str = "User",
-) -> FakeComment:
-    """One comment on the issue thread, authored by whoever is named."""
-    return FakeComment(
-        id=comment_id, body=body, user=FakeUser(login, user_type),
-    )
-
-
-def authorization(named: str = _support.CANDIDATE_SHA) -> str:
-    """The whole comment that authorizes one candidate to publish unsplit.
-
-    Built against a commit rather than fixed, because half of what these tests
-    are about is which commit was named: the parked candidate, one it has been
-    replaced by, and an argument that is no commit at all all arrive as the
-    same command.
-    """
-    return f"{AUTHORIZE_COMMAND} {named}"
-
-
-def guidance_comment(comment_id: int = GUIDANCE_ID) -> FakeComment:
-    """The trusted comment that says the work itself has to change."""
-    return human_comment(comment_id, GUIDANCE_BODY)
-
-
-def reply(issue: FakeIssue, body: str = GUIDANCE_BODY) -> FakeComment:
-    """Append one trusted human reply after everything already on the thread.
-
-    What a real reply to a park is: written once the human has read the notice,
-    and therefore carrying an id above it. That means above everything the
-    thread carries AND above `PARK_NOTICE_ID`, since a seeded park records the
-    id its notice took rather than the comment itself. A test that seeds a
-    comment by a fixed id is describing conversation the issue was already
-    carrying when the park fired; this is the answer to what the workflow just
-    said.
-    """
-    posted = human_comment(
-        1 + max([
-            PARK_NOTICE_ID,
-            *(issue_comment.id for issue_comment in issue.comments),
-        ]),
-        body,
-    )
-    issue.comments.append(posted)
-    return posted
 
 
 class RefusedComment:
@@ -263,13 +199,13 @@ ASKED_STATE = MappingProxyType({
     **RECORDED_QUESTION,
     _support.KEYS.awaiting: True,
     _support.KEYS.park_reason: PARK_QUESTION,
-    KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
+    KEY_LAST_ACTION_COMMENT_ID: _content_replies.PARK_NOTICE_ID,
 })
 
 DRIFT_PARKED = MappingProxyType({
     _support.KEYS.awaiting: True,
     _support.KEYS.park_reason: PARK_CONTENT_DRIFT,
-    KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
+    KEY_LAST_ACTION_COMMENT_ID: _content_replies.PARK_NOTICE_ID,
 })
 
 # An adjudication that answered `single` and the park it earned: the state
@@ -279,13 +215,13 @@ SINGLE_PARKED = MappingProxyType({
     **RECORDED_SINGLE,
     _support.KEYS.awaiting: True,
     _support.KEYS.park_reason: PARK_SINGLE_DECISION,
-    KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
+    KEY_LAST_ACTION_COMMENT_ID: _content_replies.PARK_NOTICE_ID,
 })
 
 REVISION_PARKED = MappingProxyType({
     _support.KEYS.awaiting: True,
     _support.KEYS.park_reason: PARK_REVISION_DIRTY,
-    KEY_LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
+    KEY_LAST_ACTION_COMMENT_ID: _content_replies.PARK_NOTICE_ID,
 })
 
 

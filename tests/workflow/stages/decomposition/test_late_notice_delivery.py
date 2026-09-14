@@ -20,11 +20,8 @@ from orchestrator.workflow.stages.decomposition.late_session import (
     MAX_RECORDED_BODY,
 )
 from tests.workflow.stages.decomposition import late_settlement_support as _support
-from tests.workflow.stages.decomposition.late_content_support import (
-    PARK_REVISION_UNANSWERED,
-    RefusedComment,
-    reply,
-)
+from tests.workflow.stages.decomposition.late_content_replies import reply
+from tests.workflow.stages.decomposition.late_content_support import PARK_REVISION_UNANSWERED, RefusedComment
 from tests.workflow.stages.decomposition.late_revision_support import (
     DEV_PIN,
     UNCHANGED,

@@ -47,6 +47,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 from tests.workflow.stages.decomposition.late_content_support import (
     RefusedComment,
 )
+from tests.workflow.stages.decomposition.late_reply_support import late_block
 from tests.workflow.stages.decomposition.late_run_support import agent_reply
 from tests.workflow.stages.decomposition.late_settlement_support import (
     ERROR,
@@ -56,13 +57,7 @@ from tests.workflow.stages.decomposition.late_settlement_support import (
     WORKFLOW_LOG,
     GuardedLateCase,
 )
-from tests.workflow.stages.decomposition.late_test_support import (
-    CANDIDATE_SHA,
-    KEYS,
-    generation_state,
-    late_block,
-    late_generation,
-)
+from tests.workflow.stages.decomposition.late_test_support import CANDIDATE_SHA, KEYS, generation_state, late_generation
 
 # What separates the lines of a quote, and so what makes a run of fence
 # characters a LINE that could close a block rather than a run inside one.

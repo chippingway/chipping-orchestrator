@@ -81,11 +81,6 @@ per-file-ignores =
     tests/git/worktrees/test_artifact_evidence.py:WPS202,WPS214
     tests/git/worktrees/test_local_inventory.py:WPS202
     tests/git/worktrees/test_maintenance_pass.py:WPS202
-    tests/workflow/engine/lifetime_test_support.py:WPS202
-    tests/workflow/engine/test_run_budget.py:WPS202
-    tests/workflow/engine/test_run_limit.py:WPS202
-    tests/workflow/engine/test_run_grant.py:WPS202
-    tests/workflow/patch_models.py:WPS202
     tests/workflow/stages/implementing/test_late_transfer.py:WPS202
     tests/workflow/stages/implementing/late_transfer_test_support.py:WPS202
     tests/workflow/stages/implementing/late_consent_test_support.py:WPS201,WPS202,WPS214
@@ -95,6 +90,4 @@ per-file-ignores =
     tests/workflow/stages/implementing/test_late_gate_retry.py:WPS202
     tests/workflow/stages/implementing/test_late_receipt.py:WPS202
     tests/workflow/stages/decomposition/test_late_unsplit_notice.py:WPS202,WPS204
-    tests/workflow/stages/decomposition/late_content_support.py:WPS202
-    tests/workflow/stages/decomposition/late_test_support.py:WPS202
     tests/workflow/stages/decomposition/test_late_authorize.py:WPS201,WPS202,WPS204

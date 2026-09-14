@@ -34,7 +34,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 )
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.fixtures import _TEST_SPEC
-from tests.workflow.stages.decomposition import late_test_support as _support
+from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_seam_support import (
     SnapshotSeed,
     snapshot_seams,
@@ -45,8 +45,8 @@ from tests.workflow.stages.decomposition.late_seam_support import (
 # slice declares the budget the reply contract requires of it, since that is
 # the manifest the transaction is handed on every road that reaches it.
 CHILDREN = (
-    _support.proposed_slice("A", "the first slice", _support.FIRST_ESTIMATE),
-    _support.proposed_slice("B", "the second slice", _support.SECOND_ESTIMATE, depends_on=(0,)),
+    _reply_support.proposed_slice("A", "the first slice", _support.FIRST_ESTIMATE),
+    _reply_support.proposed_slice("B", "the second slice", _support.SECOND_ESTIMATE, depends_on=(0,)),
 )
 
 # What the slice at the bottom of the chain below says it will add.
@@ -57,11 +57,11 @@ THIRD_ESTIMATE = 300
 # that one. A single level cannot show a graph recorded for a child that is
 # neither the root nor a leaf of it.
 MULTI_LEVEL_CHILDREN = (
-    _support.proposed_slice("A", "the dormant prerequisite", _support.FIRST_ESTIMATE),
-    _support.proposed_slice(
+    _reply_support.proposed_slice("A", "the dormant prerequisite", _support.FIRST_ESTIMATE),
+    _reply_support.proposed_slice(
         "B", "the slice that consumes it", _support.SECOND_ESTIMATE, depends_on=(0,),
     ),
-    _support.proposed_slice(
+    _reply_support.proposed_slice(
         "C", "the slice that activates the pair", THIRD_ESTIMATE,
         depends_on=(1,),
     ),

@@ -15,7 +15,10 @@ import unittest
 from orchestrator.workflow.stages.decomposition import (
     late_content_replies as _replies,
 )
-from tests.workflow.stages.decomposition import late_content_support as _support
+from tests.workflow.stages.decomposition import (
+    late_content_replies as _content_replies,
+    late_content_support as _support,
+)
 from tests.workflow.stages.decomposition.late_test_support import CANDIDATE_SHA
 
 EMPTY_BODY = "   \n "
@@ -36,16 +39,16 @@ class GuidanceClassificationTest(unittest.TestCase):
         # whole comment then, and a body with nothing in it says nothing a
         # developer could revise against.
         for body, classified in (
-            (_support.GUIDANCE_BODY, True),
+            (_content_replies.GUIDANCE_BODY, True),
             (_support.BARE_CONTINUE, False),
-            (_support.authorization(), False),
+            (_content_replies.authorization(), False),
             (_support.CONTINUE_WITH_GUIDANCE, True),
-            (f"{_support.authorization()}\n\nbut drop the retry loop", True),
+            (f"{_content_replies.authorization()}\n\nbut drop the retry loop", True),
             (EMPTY_BODY, False),
         ):
             with self.subTest(body=body):
                 self.assertEqual(
-                    _replies._is_guidance(_support.human_comment(_support.GUIDANCE_ID, body)),
+                    _replies._is_guidance(_content_replies.human_comment(_content_replies.GUIDANCE_ID, body)),
                     classified,
                 )
 
@@ -58,8 +61,8 @@ class AuthorizationReadingTest(unittest.TestCase):
         # twice meant the second: a corrected commit below a mistyped one is
         # the request, not the line it corrects.
         read = _replies._authorization([
-            _support.human_comment(_support.GUIDANCE_ID, _support.authorization(CANDIDATE_SHA)),
-            _support.human_comment(_support.SECOND_ID, _support.authorization(_support.REVISED_SHA)),
+            _content_replies.human_comment(_content_replies.GUIDANCE_ID, _content_replies.authorization(CANDIDATE_SHA)),
+            _content_replies.human_comment(_support.SECOND_ID, _content_replies.authorization(_support.REVISED_SHA)),
         ])
 
         self.assertEqual(read.candidate_sha, _support.REVISED_SHA)
@@ -72,7 +75,7 @@ class AuthorizationReadingTest(unittest.TestCase):
         for named in (MALFORMED_SHA, ""):
             with self.subTest(named=named):
                 read = _replies._authorization([
-                    _support.human_comment(_support.CONTINUE_ID, _support.authorization(named).strip()),
+                    _content_replies.human_comment(_support.CONTINUE_ID, _content_replies.authorization(named).strip()),
                 ])
 
                 self.assertEqual(read.candidate_sha, named)
@@ -85,10 +88,10 @@ class AuthorizationReadingTest(unittest.TestCase):
         # rather than recorded against a comment that cannot be named.
         for fresh in (
             [],
-            [_support.human_comment(_support.GUIDANCE_ID, _support.GUIDANCE_BODY)],
-            [_support.human_comment(_support.CONTINUE_ID, _support.BARE_CONTINUE)],
-            [_support.human_comment(_support.SECOND_ID, f"please run {_support.authorization()} now")],
-            [_support.human_comment(UNNAMEABLE_ID, _support.authorization())],
+            [_content_replies.human_comment(_content_replies.GUIDANCE_ID, _content_replies.GUIDANCE_BODY)],
+            [_content_replies.human_comment(_support.CONTINUE_ID, _support.BARE_CONTINUE)],
+            [_content_replies.human_comment(_support.SECOND_ID, f"please run {_content_replies.authorization()} now")],
+            [_content_replies.human_comment(UNNAMEABLE_ID, _content_replies.authorization())],
         ):
             with self.subTest(fresh=[quoted.id for quoted in fresh]):
                 self.assertIsNone(_replies._authorization(fresh))

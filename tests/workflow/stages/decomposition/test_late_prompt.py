@@ -18,7 +18,7 @@ from orchestrator.workflow.stages.decomposition.late_reply import _SPLIT_BLOCKER
 from orchestrator.workflow.stages.decomposition.validation import _MAX_CHILDREN
 from tests.support.fakes import make_issue
 from tests.workflow.fixtures import _TEST_SPEC
-from tests.workflow.stages.decomposition import late_test_support as _support
+from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 
 # The budget the JSON template shows, read back out of the composed prompt so
 # what a case checks is the figure an agent would copy.
@@ -118,7 +118,7 @@ class LatePromptContractTest(unittest.TestCase):
     def test_it_names_the_fence_and_decisions(self) -> None:
         composed = _prompt_for()
 
-        self.assertIn(_support.LATE_FENCE, composed)
+        self.assertIn(_reply_support.LATE_FENCE, composed)
         for decision in ('"single"', '"split"', '"question"'):
             with self.subTest(decision=decision):
                 self.assertIn(decision, composed)
@@ -165,13 +165,13 @@ class LatePromptContractTest(unittest.TestCase):
         self.assertIn(f'`"{_SPLIT_BLOCKER}"`', _prompt_for())
 
         adjudication, _refusal = _late_reply._parse_late_reply(
-            _support.late_block(json.dumps({
+            _reply_support.late_block(json.dumps({
                 "decision": "single", _SPLIT_BLOCKER: _support.SPLIT_BLOCKER,
             })),
             _support.THRESHOLD,
         )
         unexplained, refused = _late_reply._parse_late_reply(
-            _support.late_block(json.dumps({"decision": "single"})), _support.THRESHOLD,
+            _reply_support.late_block(json.dumps({"decision": "single"})), _support.THRESHOLD,
         )
 
         self.assertEqual(
@@ -259,7 +259,7 @@ class LateSplitPlanTest(unittest.TestCase):
             _support.SPLIT_REPLY, _support.THRESHOLD,
         )
         oversized, refused = _late_reply._parse_late_reply(
-            _support.split_reply_of(_support.THRESHOLD), _support.THRESHOLD,
+            _reply_support.split_reply_of(_support.THRESHOLD), _support.THRESHOLD,
         )
 
         self.assertIsNone(refusal)
@@ -280,7 +280,7 @@ class LateSplitPlanTest(unittest.TestCase):
                 )
 
                 proposed, refusal = _late_reply._parse_late_reply(
-                    _support.split_reply_of(shown), ceiling,
+                    _reply_support.split_reply_of(shown), ceiling,
                 )
 
                 self.assertIsNone(refusal)

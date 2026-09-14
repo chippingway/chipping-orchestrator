@@ -24,7 +24,6 @@ from orchestrator.git.measurement.models import (
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
-from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
 from tests.support.fakes import (
     FakeGitHubClient,
     FakeIssue,
@@ -33,6 +32,7 @@ from tests.support.fakes import (
 )
 from tests.workflow import value_helpers as _value_helpers
 from tests.workflow.fixtures import LABEL_DECOMPOSING
+from tests.workflow.stages.decomposition import late_reply_support as _reply_support
 
 SHA_LENGTH = 40
 # What a whole fingerprint is: a SHA-256 digest, which is the exact length the
@@ -105,8 +105,6 @@ LATE_ARGS = ("--effort", "high")
 ROLE_DECOMPOSER = "decomposer"
 
 HOLD_MARKER_PREFIX = "<!--orchestrator-late-hold"
-
-LATE_FENCE = "orchestrator-late-manifest"
 
 EVENT_LATE_VERDICT = "late_verdict"
 EVENT_LATE_FAILURE = "late_failure"
@@ -190,17 +188,12 @@ IDENTITY_KEYS = (
 )
 
 
-def late_block(payload: str) -> str:
-    """Wrap a payload in the fence a late reply is read out of."""
-    return f"```{LATE_FENCE}\n{payload}\n```"
-
-
 # What a `single` says stopped a split, as the reply carries it and the
 # pinned comment keeps it. One sentence spelled once, so the parser, the
 # record, and the recovery over them are all read against the same words.
 SPLIT_BLOCKER = "the generated client cannot land without its schema"
 
-SINGLE_REPLY = late_block(
+SINGLE_REPLY = _reply_support.late_block(
     '{"decision": "single", "rationale": "one coherent change",'
     f' "split_blocker": "{SPLIT_BLOCKER}",'
     ' "category": "generated_artifacts"}'
@@ -213,49 +206,18 @@ FIRST_ESTIMATE = 400
 SECOND_ESTIMATE = 600
 
 
-def proposed_slice(
-    title: str,
-    body: str,
-    estimated: object = None,
-    depends_on: tuple = (),
-) -> dict:
-    """One child as a split proposes it: scope, dependencies, and a budget.
-
-    The one builder every late-mode fixture proposes a child through, so a
-    case declaring a budget nothing estimated -- a string, a bool, a zero --
-    hands the parser the shape an agent would really have sent. `None` is the
-    slice that declared no budget at all: what the reply contract refuses, and
-    what a manifest recorded before this domain kept budgets reads back as.
-    """
-    proposed = {"title": title, "body": body, "depends_on": list(depends_on)}
-    if estimated is not None:
-        proposed[ESTIMATE] = estimated
-    return proposed
-
-
-def split_reply_of(*declared: object) -> str:
-    """A split reply whose children declare exactly these budgets."""
-    return late_block(json.dumps({
-        "decision": "split",
-        "children": [
-            proposed_slice(f"A{index}", "a", budget)
-            for index, budget in enumerate(declared)
-        ],
-    }))
-
-
-SPLIT_REPLY = late_block(json.dumps({
+SPLIT_REPLY = _reply_support.late_block(json.dumps({
     "decision": "split",
     "rationale": "two slices",
     "children": [
-        proposed_slice("A", "a", FIRST_ESTIMATE),
-        proposed_slice("B", "b", SECOND_ESTIMATE, depends_on=(0,)),
+        _reply_support.proposed_slice("A", "a", FIRST_ESTIMATE),
+        _reply_support.proposed_slice("B", "b", SECOND_ESTIMATE, depends_on=(0,)),
     ],
 }))
 
 QUESTION_ASKED = "which half of this is in scope?"
 
-QUESTION_REPLY = late_block(
+QUESTION_REPLY = _reply_support.late_block(
     '{"decision": "question", "category": "scope_ambiguous",'
     f' "question": "{QUESTION_ASKED}"}}'
 )

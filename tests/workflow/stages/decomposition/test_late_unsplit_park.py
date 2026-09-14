@@ -25,7 +25,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from tests.workflow.fixtures import LABEL_DECOMPOSING
-from tests.workflow.stages.decomposition import late_test_support as _support
+from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_content_support import (
     RefusedComment,
 )
@@ -112,7 +112,7 @@ _READS_OWED_A_WRITE = 2
 
 def _single_run(category: str):
     """One finished run whose `single` lands under the named category."""
-    return agent_reply(_support.late_block(
+    return agent_reply(_reply_support.late_block(
         '{"decision": "single", "rationale": "one coherent change",'
         f' "split_blocker": "{_support.SPLIT_BLOCKER}", "category": "{category}"}}'
     ))

@@ -27,6 +27,7 @@ from orchestrator.workflow.engine import (
 )
 from tests.workflow.engine import (
     run_budget_test_support as budget,
+    run_grant_case as _grant_case,
     run_grant_test_support as grant,
     run_limit_seeds as _limit_seeds,
     run_limit_test_support as support,
@@ -34,117 +35,8 @@ from tests.workflow.engine import (
 
 _ALLOWLIST = "ALLOWED_ISSUE_AUTHORS"
 
-# What somebody writes while the tick is answering the command above it. Not a
-# command itself: what it stands for is any word a stage below is still owed.
-_RACING_WORDS = "hold off on this until Friday please"
 
-# What the read that builds a budget record answers with when it cannot.
-_LABEL_FAILURE = "label read refused"
-
-
-def _asking(body: str = grant.VALID):
-    """One comment carrying a request, buyable unless the caller says else."""
-    return grant.command(body)
-
-
-class _RacingPost:
-    """The orchestrator's own post, with somebody else's comment landing first.
-
-    Stands in for the one window where this owner can be overtaken: the batch
-    has been read, the receipt is not written yet, and the comment that
-    arrives in between is one no read here has seen.
-    """
-
-    def __init__(self, gh) -> None:
-        self._posting = gh.comment
-
-    def __call__(self, issue, body):
-        issue.comments.append(grant.command(
-            _RACING_WORDS, comment_id=grant.RACING_COMMENT_ID,
-        ))
-        return self._posting(issue, body)
-
-
-class _FlakyLabel:
-    """The label read that answers once and fails after.
-
-    A grant reads the label twice: the park's own audit phase asks ahead of
-    the write that persists the grant, and the budget record asks on the far
-    side of it. Only the second read is past the point of no return, so only
-    a failure there can strand a tick that has already changed the issue.
-    """
-
-    def __init__(self, gh) -> None:
-        self._reading = gh.workflow_label
-        self._reads = 0
-
-    def __call__(self, issue):
-        self._reads += 1
-        if self._reads > 1:
-            raise RuntimeError(_LABEL_FAILURE)
-        return self._reading(issue)
-
-
-class _ParkCase(unittest.TestCase):
-    """One issue standing on a spent ledger, and what a thread says to it."""
-
-    def _lift(self, *comments, state=None):
-        self._thread(*comments)
-        self.state = grant.spent_state() if state is None else state
-        return _run_grant._lifts_the_park(self.gh, self.issue, self.state)
-
-    def _thread(self, *comments) -> None:
-        client, issue = support.issue_and_client(*comments)
-        self.gh = client
-        self.issue = issue
-
-    def _lost_the_write(self, *comments) -> None:
-        """One tick that wrote its receipt to the thread and nothing else.
-
-        The window every receipt here is idempotent across: the post landed,
-        the write that would have consumed the command did not, and the next
-        tick reads the same request off the same thread.
-        """
-        self._thread(*comments)
-        with (
-            patch.object(
-                self.gh, "write_pinned_state", side_effect=RuntimeError("502"),
-            ),
-            self.assertRaises(RuntimeError),
-        ):
-            _run_grant._lifts_the_park(
-                self.gh, self.issue, grant.spent_state(),
-            )
-
-    def _replayed(self):
-        """The next tick, reading pinned state the lost write never moved."""
-        self.state = grant.spent_state()
-        return _run_grant._lifts_the_park(self.gh, self.issue, self.state)
-
-    def _lift_racing(self, *comments):
-        """One tick answering a command while the thread grows under it.
-
-        The only window in which it can: the batch is read once, and the
-        receipt is written after that read.
-        """
-        self._thread(*comments)
-        self.state = grant.spent_state()
-        with patch.object(
-            self.gh, "comment", side_effect=_RacingPost(self.gh),
-        ):
-            return _run_grant._lifts_the_park(
-                self.gh, self.issue, self.state,
-            )
-
-    def _recorded(self) -> dict:
-        return self.gh.pinned_data(support.ISSUE_NUMBER)
-
-    def _assert_ledger_untouched(self) -> None:
-        self.assertNotIn(support.ALLOWANCE_FIELD, self.state.data)
-        self.assertEqual(self.state.get(support.USED_FIELD), _limit_seeds.ALLOWANCE)
-
-
-class GrantTest(_ParkCase):
+class GrantTest(_grant_case._ParkCase):
     """What a valid command buys, and what it leaves alone."""
 
     def test_a_valid_command_buys_exactly_used_plus_n(self) -> None:
@@ -203,7 +95,7 @@ class GrantTest(_ParkCase):
         self._assert_ledger_untouched()
 
 
-class GrantRecordTest(_ParkCase):
+class GrantRecordTest(_grant_case._ParkCase):
     """What the budget stream is told when a human buys past a ceiling.
 
     The record is tied to the write that widens the allowance, which is what
@@ -212,7 +104,7 @@ class GrantRecordTest(_ParkCase):
     """
 
     def test_a_grant_records_the_ceiling_it_bought(self) -> None:
-        self._lift(_asking())
+        self._lift(_grant_case._asking())
 
         recorded = budget.audited(self.gh)[0]
         self.assertEqual(recorded[budget.PHASE], budget.EXTENDED)
@@ -226,7 +118,7 @@ class GrantRecordTest(_ParkCase):
     def test_a_replayed_command_records_one_grant(self) -> None:
         # The tick whose write was lost bought nothing durable, so the
         # extension the next tick makes is the only one there is to report.
-        self._lost_the_write(_asking())
+        self._lost_the_write(_grant_case._asking())
 
         self._replayed()
 
@@ -239,11 +131,11 @@ class GrantRecordTest(_ParkCase):
         # already down and the tick is on its way to the stage its label
         # names. A read that fails there must cost the field it was for, never
         # the grant, the tick, or the transition both sinks are owed.
-        self._thread(_asking())
+        self._thread(_grant_case._asking())
         self.state = grant.spent_state()
         with (
             patch.object(
-                self.gh, "workflow_label", side_effect=_FlakyLabel(self.gh),
+                self.gh, "workflow_label", side_effect=_grant_case._FlakyLabel(self.gh),
             ),
             self.assertLogs(_run_budget.log, level="ERROR"),
         ):
@@ -262,12 +154,12 @@ class GrantRecordTest(_ParkCase):
     def test_a_request_buying_nothing_records_nothing(self) -> None:
         # A refusal moved neither count, so there is no transition for the
         # budget stream to carry -- the receipt it earned is the whole answer.
-        self._lift(_asking("/orchestrator add-agent-runs three"))
+        self._lift(_grant_case._asking("/orchestrator add-agent-runs three"))
 
         self.assertEqual(budget.audited(self.gh), [])
 
 
-class RefusalTest(_ParkCase):
+class RefusalTest(_grant_case._ParkCase):
     """What every other request earns, and how often it earns it."""
 
     def test_an_unbuyable_request_changes_nothing(self) -> None:
@@ -332,7 +224,7 @@ class RefusalTest(_ParkCase):
         self.assertEqual(len(self.gh.posted_comments), 1)
 
 
-class UnansweredRequestTest(_ParkCase):
+class UnansweredRequestTest(_grant_case._ParkCase):
     """The threads this owner buys nothing from and says nothing to."""
 
     def test_an_untrusted_command_buys_nothing(self) -> None:
@@ -392,7 +284,7 @@ class UnansweredRequestTest(_ParkCase):
         self._assert_ledger_untouched()
 
 
-class ConcurrentCommentTest(_ParkCase):
+class ConcurrentCommentTest(_grant_case._ParkCase):
     """What a tick may mark answered is what it read, and nothing after it."""
 
     def test_a_racing_comment_stays_unread(self) -> None:

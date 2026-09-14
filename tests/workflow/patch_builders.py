@@ -7,16 +7,10 @@ from unittest.mock import MagicMock
 
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification.models import VerifyResult
-from tests.workflow import patch_models as _support
+from tests.workflow import patch_models as _support, patch_publication as _patch_publication
 from tests.workflow.patch_measurement import _measurement_mocks
-from tests.workflow.patch_models import (
-    _AnchorAnswers,
-    _ForkPoints,
-    _HeadReadings,
-    _RemoteTipAnswers,
-    _TreeReadings,
-    _WorkflowRunContext,
-)
+from tests.workflow.patch_models import _WorkflowRunContext
+from tests.workflow.patch_readings import _AnchorAnswers, _ForkPoints, _HeadReadings, _RemoteTipAnswers, _TreeReadings
 from tests.workflow.repo_values import _FAKE_WT
 
 
@@ -87,7 +81,7 @@ def _publication_mocks(context: _WorkflowRunContext) -> dict[str, object]:
         # callable is taken as the push itself, which is what a tick pushing
         # twice needs: the second push is leased against the head the first
         # left, so the pull request has to move under it.
-        "_push_branch": _support._published_branch(context.push_branch),
+        "_push_branch": _patch_publication._published_branch(context.push_branch),
         "_head_sha": MagicMock(side_effect=_HeadReadings(context)),
         "_head_on_branch": MagicMock(
             return_value=bool(context.head_on_branch),
@@ -123,7 +117,7 @@ def _validation_mocks(context: _WorkflowRunContext) -> dict[str, object]:
     if verify_result is None:
         verify_result = VerifyResult(status="ok")
     return {
-        "_squash_and_force_push": _support._squashed(context.squash_result),
+        "_squash_and_force_push": _patch_publication._squashed(context.squash_result),
         "_run_verify_commands": MagicMock(return_value=verify_result),
         "_rebase_in_progress": MagicMock(
             return_value=bool(context.rebase_in_progress),
@@ -136,7 +130,7 @@ def _conflict_mocks(context: _WorkflowRunContext) -> dict[str, object]:
     if fetch_result is None:
         fetch_result = MagicMock(returncode=0, stdout="", stderr="")
     return {
-        "_authed_fetch": _support._fetched(fetch_result),
+        "_authed_fetch": _patch_publication._fetched(fetch_result),
         # Where the checkout stands against the remote tip it was compared
         # with, as ONE reading: the counts, the head they were taken against
         # -- which is what the push they license is pinned to -- and whether

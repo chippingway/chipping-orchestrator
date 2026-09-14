@@ -16,7 +16,7 @@ from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
-from tests.workflow.stages.decomposition import late_test_support as _support
+from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     LateCase,
     adjudicate,
@@ -48,14 +48,14 @@ _TOO_LONG_TO_RECORD = "q" * _session.MAX_RECORDED_BODY
 _OVERSIZED_OUTCOMES = (
     (
         QUESTION_VERDICT,
-        _support.late_block(
+        _reply_support.late_block(
             '{"decision": "question", "category": "unsafe_split", '
             f'"question": "{_TOO_LONG_TO_RECORD}"}}'
         ),
     ),
     (
         SINGLE_VERDICT,
-        _support.late_block(
+        _reply_support.late_block(
             '{"decision": "single", '
             f'"split_blocker": "{_TOO_LONG_TO_RECORD}"}}'
         ),

@@ -29,16 +29,9 @@ from unittest.mock import MagicMock
 
 from orchestrator import config
 from tests.workflow import fixtures as _support
-from tests.workflow.engine.lifetime_test_support import (
-    ALLOWANCE,
-    BRANCH,
-    DEV_SESSION,
-    PR_NUMBER,
-    REFUSED_TICKS,
-    Journey,
-    Leg,
-    refreshed_tick,
-)
+from tests.workflow.engine.lifetime_models import ALLOWANCE, REFUSED_TICKS, Journey, Leg
+from tests.workflow.engine.lifetime_test_support import BRANCH, DEV_SESSION, PR_NUMBER
+from tests.workflow.engine.lifetime_ticks import refreshed_tick
 from tests.workflow.git_owners import seam_patch
 
 # The head a round opens on, and the commit the run leaves the checkout at.
