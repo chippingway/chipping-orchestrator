@@ -8,7 +8,7 @@ import unittest
 from functools import partial
 from unittest.mock import MagicMock, patch
 
-from orchestrator.workflow.engine import dispatch, tick
+from orchestrator.workflow.engine import issue_processing as _issue_processing, tick
 from tests.workflow.engine import tick_parallel_test_support as support, tick_probe_test_support as probes
 from tests.workflow.git_owners import seam_patch
 
@@ -32,7 +32,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
         probe = probes._ConcurrencyProbe()
 
         with seam_patch(support.REFRESH_BASE), \
-             patch.object(dispatch, support.PROCESS_ISSUE, side_effect=probe):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=probe):
             tick.tick(gh, support._spec(parallel_limit=1))
 
         self.assertEqual(probe.max_in_flight, 1)
@@ -50,7 +50,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
             partial(probe.release_after, 2),
             probe.cleanup,
         ), seam_patch(support.REFRESH_BASE), patch.object(
-            dispatch,
+            _issue_processing,
             support.PROCESS_ISSUE,
             side_effect=probe,
         ):
@@ -70,7 +70,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
         recorder = probes._BarrierProcessRecorder(3)
 
         with seam_patch(support.REFRESH_BASE), \
-             patch.object(dispatch, support.PROCESS_ISSUE, side_effect=recorder):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=recorder):
             tick.tick(gh, support._spec(parallel_limit=3))
 
         self.assertEqual(sorted(recorder.records), [1, 2, 3])
@@ -84,7 +84,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
         recorder = probes._IssueProcessRecorder(failing_issue=2)
 
         with seam_patch(support.REFRESH_BASE), \
-             patch.object(dispatch, support.PROCESS_ISSUE, side_effect=recorder):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=recorder):
             tick.tick(gh, support._spec(parallel_limit=3))
 
         self.assertEqual(sorted(recorder.processed), [1, 3])
@@ -100,7 +100,7 @@ class TickPerRepoParallelLimitTest(unittest.TestCase):
         recorder = probes._RefreshOrderRecorder(refresh)
 
         with seam_patch(support.REFRESH_BASE, refresh), \
-             patch.object(dispatch, support.PROCESS_ISSUE, side_effect=recorder):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=recorder):
             tick.tick(gh, support._spec(parallel_limit=2))
 
         refresh.assert_called_once_with(

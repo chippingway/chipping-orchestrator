@@ -23,7 +23,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import dispatch
+from orchestrator.workflow.engine import dispatch, dispatch_workers as _dispatch_workers
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
@@ -165,7 +165,7 @@ class WorkerRefetchCloseTest(_RefetchedCloseCase, unittest.TestCase):
 
     def _ran(self) -> None:
         """Run the task a fan-out submit hands the scheduler."""
-        dispatch._refetch_and_process(self.github, _SPEC, _OWNER_NUMBER)
+        _dispatch_workers._refetch_and_process(self.github, _SPEC, _OWNER_NUMBER)
 
 
 def _owner_with_a_live_cycle() -> FakeGitHubClient:

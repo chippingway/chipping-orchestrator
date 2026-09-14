@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.workflow.engine import dispatch, tick
+from orchestrator.workflow.engine import issue_processing as _issue_processing, tick
 from tests.workflow.engine import tick_parallel_test_support as support
 from tests.workflow.git_owners import seam_patch
 
@@ -23,7 +23,7 @@ class TickInvokesBaseRefreshTest(unittest.TestCase):
         refresh = MagicMock()
         process = MagicMock()
         with seam_patch(support.REFRESH_BASE, refresh), \
-             patch.object(dispatch, support.PROCESS_ISSUE, process):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, process):
             tick.tick(gh, support._TEST_SPEC)
         refresh.assert_called_once_with(gh, support._TEST_SPEC, scheduler=None)
         process.assert_called_once()
@@ -34,6 +34,6 @@ class TickInvokesBaseRefreshTest(unittest.TestCase):
         refresh = MagicMock(side_effect=RuntimeError("fetch boom"))
         process = MagicMock()
         with seam_patch(support.REFRESH_BASE, refresh), \
-             patch.object(dispatch, support.PROCESS_ISSUE, process):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, process):
             tick.tick(gh, support._TEST_SPEC)
         process.assert_called_once()

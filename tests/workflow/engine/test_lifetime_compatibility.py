@@ -15,7 +15,7 @@ import unittest
 from dataclasses import replace
 
 from orchestrator.workflow.engine import (
-    dispatch as _dispatch,
+    issue_processing as _issue_processing,
     run_ledger_values as _run_ledger_values,
     run_limit_values as _run_limit_values,
 )
@@ -150,7 +150,7 @@ class TerminalReceiptTest(unittest.TestCase, _PatchedWorkflowMixin):
     def _drain(self, walked: _lifetime_models.Walk) -> None:
         """One more tick, on the label the walk left the issue wearing."""
         self._run(
-            lambda: _dispatch._route_issue_to_handler(
+            lambda: _issue_processing._route_issue_to_handler(
                 walked.github,
                 _TEST_SPEC,
                 walked.issue,

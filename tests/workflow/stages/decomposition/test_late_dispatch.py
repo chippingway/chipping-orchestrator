@@ -7,7 +7,11 @@ import importlib
 import unittest
 from unittest.mock import Mock, patch
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import (
+    dispatch_guards as _dispatch_guards,
+    issue_processing as _issue_processing,
+    stage_targets as _stage_targets,
+)
 from orchestrator.workflow.stages.decomposition import (
     late_reuse as _late_reuse,
 )
@@ -27,7 +31,7 @@ from tests.workflow.stages.decomposition.late_test_support import KEYS
 # What the dispatcher would hand a relabelled issue to. `ready` is the label a
 # human reaches for to wave a candidate through, and its handler lives on the
 # `blocked` owner -- so this is the module a coerced dispatch lands on.
-READY_OWNER, READY_HANDLER = _dispatch._STAGE_HANDLER_TARGETS[
+READY_OWNER, READY_HANDLER = _stage_targets._STAGE_HANDLER_TARGETS[
     WorkflowLabel.READY
 ]
 
@@ -131,7 +135,7 @@ class DispatchRefusalTest(unittest.TestCase):
         label = github.workflow_label(issue)
         owner = importlib.import_module(READY_OWNER)
         with patch.object(owner, READY_HANDLER, dispatched):
-            _dispatch._route_issue_to_handler(github, _TEST_SPEC, issue, label)
+            _issue_processing._route_issue_to_handler(github, _TEST_SPEC, issue, label)
         return dispatched
 
 
@@ -183,7 +187,7 @@ class AdjudicatedLabelTest(unittest.TestCase):
         """Ask the guards, holding the reuse question the read ends in."""
         asked = Mock(return_value=False)
         with patch.object(_late_reuse, REFUSES_REUSE, asked):
-            held = _dispatch._pinned_state_refuses(
+            held = _dispatch_guards._pinned_state_refuses(
                 github, _TEST_SPEC, issue, WorkflowLabel.DECOMPOSING,
             )
         return held, asked
@@ -252,6 +256,6 @@ class HalfPublishedAdjudicationTest(unittest.TestCase):
 
     def _refuses(self, seeded) -> bool:
         """Whether the dispatcher's own read stops this adjudication."""
-        return _dispatch._pinned_state_refuses(
+        return _dispatch_guards._pinned_state_refuses(
             seeded[0], _TEST_SPEC, seeded[1], WorkflowLabel.DECOMPOSING,
         )

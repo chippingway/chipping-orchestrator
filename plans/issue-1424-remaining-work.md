@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 5 paths and 7 pairs (7 production, 0
-test), all matching isolated diagnostics. One hundred twenty-two pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 3 paths and 4 pairs (4 production, 0
+test), all matching isolated diagnostics. One hundred twenty-five pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201 and WPS202. The files must stay until that set is empty and
 validation passes.
@@ -205,7 +205,7 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All eight remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate canonical and legacy label readings, the declared transition graph,
+- `1ec629a5`: separate canonical and legacy label readings, the declared transition graph,
   and the label-write guard from the label vocabulary. One production WPS202 pair removed. Every label value,
   graph edge, guard message, and operator log channel is preserved. Of 222 compared function/method bodies
   and 129 whole definitions, all production bodies match; four test differences update defining-owner and
@@ -213,6 +213,15 @@ Implemented batches:
   The development skill validates, and all 336 workflow owners match the corrected architecture inventory.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All seven remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate terminal readings, context, and effects; separate dispatch targets,
+  polling values and classification, admission guards, observation scopes, partitioning, processing, and workers.
+  Three production pairs removed. Scheduler claims and stage imports retain their existing scopes and order.
+  Of 740 compared function/method bodies and 318 whole definitions, all production bodies match; 24 test
+  differences move patch targets or direct calls, including a fixture alias exposed by the first full run.
+  The corrected concurrency/repository run passes 93 tests, and all 20 retry tests pass. Both architecture maps
+  match their defining owners. Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped.
+  All four remaining production pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes
 are historical evidence, not completion of the current zero-exclusion target.

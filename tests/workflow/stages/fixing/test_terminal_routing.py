@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from tests.workflow.stages.fixing import (
     fixing_routing_test_support as support,
 )
@@ -73,7 +73,7 @@ class FixingTerminalRoutingTest(unittest.TestCase, _PatchedWorkflowMixin):
         issue = make_issue(MISSING_PR_ISSUE, label=LABEL_FIXING)
         gh.add_issue(issue)
 
-        _dispatch._process_issue(gh, _TEST_SPEC, issue)
+        _issue_processing._process_issue(gh, _TEST_SPEC, issue)
 
         self.assertEqual(len(gh.posted_comments), 1)
         issue_number, body = gh.posted_comments[0]
@@ -93,7 +93,7 @@ class FixingTerminalRoutingTest(unittest.TestCase, _PatchedWorkflowMixin):
         gh.add_issue(issue)
         gh.seed_state(IDEMPOTENT_PARK_ISSUE, awaiting_human=True)
 
-        _dispatch._process_issue(gh, _TEST_SPEC, issue)
+        _issue_processing._process_issue(gh, _TEST_SPEC, issue)
 
         self.assertEqual(gh.posted_comments, [])
         self.assertEqual(gh.write_state_calls, 0)
@@ -109,7 +109,7 @@ class FixingTerminalRoutingTest(unittest.TestCase, _PatchedWorkflowMixin):
         issue.closed = True
         gh.add_issue(issue)
 
-        _dispatch._process_issue(gh, _TEST_SPEC, issue)
+        _issue_processing._process_issue(gh, _TEST_SPEC, issue)
 
         self.assertEqual(gh.posted_comments, [])
         self.assertEqual(gh.write_state_calls, 0)
@@ -137,7 +137,7 @@ class FixingTerminalRoutingTest(unittest.TestCase, _PatchedWorkflowMixin):
         gh.seed_state(MERGED_ISSUE, pr_number=pr.number, branch=_issue_branch(MERGED_ISSUE))
 
         mocks = self._run(
-            lambda: _dispatch._process_issue(gh, _TEST_SPEC, issue),
+            lambda: _issue_processing._process_issue(gh, _TEST_SPEC, issue),
             run_agent=_agent(),
         )
 
@@ -171,7 +171,7 @@ class FixingTerminalRoutingTest(unittest.TestCase, _PatchedWorkflowMixin):
         gh.seed_state(UNMERGED_ISSUE, pr_number=pr.number, branch=_issue_branch(UNMERGED_ISSUE))
 
         mocks = self._run(
-            lambda: _dispatch._process_issue(gh, _TEST_SPEC, issue),
+            lambda: _issue_processing._process_issue(gh, _TEST_SPEC, issue),
             run_agent=_agent(),
         )
 
@@ -234,7 +234,7 @@ class FixingTerminalRoutingTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
 
         self._run(
-            lambda: _dispatch._process_issue(gh, _TEST_SPEC, issue),
+            lambda: _issue_processing._process_issue(gh, _TEST_SPEC, issue),
             run_agent=_agent(),
         )
 

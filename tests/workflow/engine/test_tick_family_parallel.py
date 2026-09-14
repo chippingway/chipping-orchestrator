@@ -7,7 +7,7 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import dispatch, tick
+from orchestrator.workflow.engine import issue_processing as _issue_processing, tick
 from tests.workflow.engine import (
     tick_family_test_support as family_support,
     tick_parallel_test_support as support,
@@ -48,7 +48,7 @@ class TickFamilySchedulingTest(unittest.TestCase):
         # other, and the fanout worker is free to run alongside whichever
         # family handler currently holds the lock.
         with seam_patch(support.REFRESH_BASE), \
-             patch.object(dispatch, support.PROCESS_ISSUE, side_effect=probe):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=probe):
             tick.tick(gh, support._spec(parallel_limit=5))
 
         # Four family-aware issues observed; the family lock kept them
@@ -82,7 +82,7 @@ class TickFamilySchedulingTest(unittest.TestCase):
         recorder = probes._BarrierProcessRecorder(3, record_thread=True)
 
         with seam_patch(support.REFRESH_BASE), \
-             patch.object(dispatch, support.PROCESS_ISSUE, side_effect=recorder):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=recorder):
             tick.tick(gh, support._spec(parallel_limit=3))
 
         recorder.assert_worker_records(self, caller_thread)
@@ -111,7 +111,7 @@ class TickFamilySchedulingTest(unittest.TestCase):
                 family_support._flaky_workflow_label,
             ),
             seam_patch(support.REFRESH_BASE),
-            patch.object(dispatch, support.PROCESS_ISSUE, side_effect=recorder),
+            patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=recorder),
         ):
             tick.tick(gh, support._spec(parallel_limit=3))
 
@@ -159,7 +159,7 @@ class TickFamilySchedulingTest(unittest.TestCase):
             ),
             seam_patch(support.REFRESH_BASE),
             patch.object(
-                dispatch,
+                _issue_processing,
                 support.PROCESS_ISSUE,
                 side_effect=probe.process,
             ),
@@ -212,7 +212,7 @@ class TickFamilySchedulingTest(unittest.TestCase):
             probe.release_after_fanout,
             probe.cleanup,
         ), seam_patch(support.REFRESH_BASE), patch.object(
-            dispatch,
+            _issue_processing,
             support.PROCESS_ISSUE,
             side_effect=probe.process,
         ):
@@ -257,7 +257,7 @@ class TickFamilySchedulingTest(unittest.TestCase):
         with (
             seam_patch(support.REFRESH_BASE),
             patch.object(
-                dispatch,
+                _issue_processing,
                 support.PROCESS_ISSUE,
                 side_effect=family_support._simulate_family_child_state,
             ),

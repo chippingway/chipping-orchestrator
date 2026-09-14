@@ -36,7 +36,7 @@ RELABELLED_FANOUT_ISSUE_NUMBER = 50
 class UmbrellaCapExemptionTest(_SchedulerWorkflowTest):
     """A family bucket is cap-exempt when every issue in it this tick
     runs a no-agent / no-worktree handler -- i.e. every label is in
-    ``dispatch._CAP_EXEMPT_FAMILY_LABELS`` (``blocked`` or ``umbrella``,
+    ``poll_models._CAP_EXEMPT_FAMILY_LABELS`` (``blocked`` or ``umbrella``,
     both pure label / dep-graph walks). Such a bucket is submitted
     ``cap_exempt=True`` so a cheap-polling parent cannot be starved by
     ordinary implementation work when the parallel caps are saturated --

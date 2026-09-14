@@ -20,7 +20,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import terminals as _terminals
+from orchestrator.workflow.engine import terminal_reading as _terminal_reading
 from tests.support.fakes import FakePRRef
 from tests.workflow.fixtures import (
     LABEL_DONE,
@@ -83,10 +83,10 @@ class PlanTransitionRaceTest(support._HandoffTickMixin, unittest.TestCase):
     def _raced(self, github, issue):
         """Run one tick, rewinding and merging the plan PR as it is read."""
         with patch.object(
-            _terminals,
+            _terminal_reading,
             _PULL_REQUEST_FACTS,
             _RacesPastTheStep(
-                _terminals._pull_request_facts,
+                _terminal_reading._pull_request_facts,
                 lambda: _settled_onto_the_plan(github),
             ),
         ):

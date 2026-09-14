@@ -37,7 +37,10 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.workflow.engine import terminals as _terminals
+from orchestrator.workflow.engine import (
+    terminal_context as _terminal_context,
+    terminal_effects as _terminal_effects,
+)
 from orchestrator.workflow.stages.discussion import models as _models, state as _state
 
 log = logging.getLogger("orchestrator.workflow")
@@ -90,7 +93,7 @@ def _finalize_by_pr_state(run: _models._DiscussionRun, plan_pr) -> None:
     An open one names neither, and falls through changing nothing -- which is
     what every caller here wants of it, since the design is still being read.
     """
-    context = _terminals._ReviewTerminalContext(
+    context = _terminal_context._ReviewTerminalContext(
         gh=run.gh,
         spec=run.spec,
         issue=run.issue,
@@ -100,10 +103,10 @@ def _finalize_by_pr_state(run: _models._DiscussionRun, plan_pr) -> None:
     )
     pr_status = run.gh.pr_state(plan_pr)
     if pr_status == _MERGED_PR_STATE:
-        _terminals._finalize_merged_pr(
+        _terminal_effects._finalize_merged_pr(
             context,
             close_error=_MERGE_CLOSE_ERROR,
             close_if_open_only=True,
         )
     elif pr_status == _CLOSED_PR_STATE:
-        _terminals._finalize_rejected_pr(context)
+        _terminal_effects._finalize_rejected_pr(context)

@@ -8,7 +8,7 @@ import unittest
 from functools import partial
 from unittest.mock import MagicMock, patch
 
-from orchestrator.workflow.engine import dispatch, tick
+from orchestrator.workflow.engine import issue_processing as _issue_processing, tick
 from tests.workflow.engine import tick_parallel_test_support as support, tick_probe_test_support as probes
 from tests.workflow.git_owners import seam_patch
 
@@ -21,7 +21,7 @@ class TickGlobalSchedulingTest(unittest.TestCase):
         gh = support.FakeGitHubClient()
         process = MagicMock()
         with seam_patch(support.REFRESH_BASE), \
-             patch.object(dispatch, support.PROCESS_ISSUE, process):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, process):
             tick.tick(gh, support._spec(parallel_limit=4))
         process.assert_not_called()
 
@@ -40,7 +40,7 @@ class TickGlobalSchedulingTest(unittest.TestCase):
             partial(probe.release_after, 2),
             probe.cleanup,
         ), seam_patch(support.REFRESH_BASE), patch.object(
-            dispatch,
+            _issue_processing,
             support.PROCESS_ISSUE,
             side_effect=probe,
         ):
@@ -66,7 +66,7 @@ class TickGlobalSchedulingTest(unittest.TestCase):
         probe = probes._ConcurrencyProbe(delay=support._SERIAL_PROBE_DELAY_SECONDS)
 
         with seam_patch(support.REFRESH_BASE), \
-             patch.object(dispatch, support.PROCESS_ISSUE, side_effect=probe):
+             patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=probe):
             tick.tick(
                 gh,
                 support._spec(parallel_limit=5),
@@ -95,7 +95,7 @@ class TickGlobalSchedulingTest(unittest.TestCase):
             ),
             seam_patch(support.REFRESH_BASE),
             patch.object(
-                dispatch,
+                _issue_processing,
                 support.PROCESS_ISSUE,
                 side_effect=scenario.process_issue,
             ),
@@ -117,7 +117,7 @@ class TickGlobalSchedulingTest(unittest.TestCase):
         ))
         with patch.object(gh, "_for_worker_thread", clone), \
              seam_patch(support.REFRESH_BASE), \
-             patch.object(dispatch, support.PROCESS_ISSUE):
+             patch.object(_issue_processing, support.PROCESS_ISSUE):
             tick.tick(gh, support._spec(parallel_limit=1))
         clone.assert_not_called()
 
@@ -142,7 +142,7 @@ class TickGlobalSchedulingTest(unittest.TestCase):
                 partial(support._poll_then_raise, gh),
             ),
             seam_patch(support.REFRESH_BASE),
-            patch.object(dispatch, support.PROCESS_ISSUE, side_effect=recorder),
+            patch.object(_issue_processing, support.PROCESS_ISSUE, side_effect=recorder),
             self.assertRaises(RuntimeError),
         ):
             tick.tick(gh, support._spec(parallel_limit=1))

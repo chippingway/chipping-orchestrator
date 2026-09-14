@@ -60,7 +60,10 @@ from orchestrator.github.issues import (
     _ISSUE_STATE_OPEN,
     _STATE_ATTR,
 )
-from orchestrator.workflow.engine import terminals as _terminals
+from orchestrator.workflow.engine import (
+    terminal_context as _terminal_context,
+    terminal_effects as _terminal_effects,
+)
 from orchestrator.workflow.stages.discussion import (
     models as _models,
     plan_terminal as _plan_terminal,
@@ -226,8 +229,8 @@ def _reject_closed_discussion(run: _models._DiscussionRun) -> None:
     history of a pull request the issue arrived carrying, and neither is
     something a closed issue alone justifies deleting.
     """
-    _terminals._finalize_closed_issue_with_open_pr(
-        _terminals._ReviewTerminalContext(
+    _terminal_effects._finalize_closed_issue_with_open_pr(
+        _terminal_context._ReviewTerminalContext(
             gh=run.gh,
             spec=run.spec,
             issue=run.issue,

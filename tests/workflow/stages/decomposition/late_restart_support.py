@@ -20,7 +20,10 @@ from types import MappingProxyType
 from unittest.mock import Mock, patch
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
+    stage_targets as _stage_targets,
+)
 from orchestrator.workflow.late_split import endings as _endings, phases as _late_phases, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
@@ -294,8 +297,8 @@ class RestartCase:
         """
         label = self.github.workflow_label(self.issue)
         dispatched = Mock()
-        with patch.object(_dispatch, _CALL_HANDLER, dispatched):
-            _dispatch._route_issue_to_handler(
+        with patch.object(_stage_targets, _CALL_HANDLER, dispatched):
+            _issue_processing._route_issue_to_handler(
                 self.github, _TEST_SPEC, self.issue, label,
             )
         return dispatched

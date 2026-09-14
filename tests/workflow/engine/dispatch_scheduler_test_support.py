@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from orchestrator.config import models as _config_models
 from orchestrator.scheduler.service import IssueScheduler
-from orchestrator.workflow.engine import dispatch, tick as _tick
+from orchestrator.workflow.engine import issue_processing as _issue_processing, tick as _tick
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
 from tests.workflow.engine.dispatch_scheduler_workers import (
     _IssueProcessor,
@@ -37,7 +37,7 @@ RELABELLED_FANOUT_ISSUE_NUMBER = 50
 
 def _patch_process_issue(*args, **kwargs):
     """Intercept the per-issue dispatch on the owner the tick calls."""
-    return patch.object(dispatch, PROCESS_ISSUE, *args, **kwargs)
+    return patch.object(_issue_processing, PROCESS_ISSUE, *args, **kwargs)
 
 
 class _SchedulerWorkflowTest(unittest.TestCase):

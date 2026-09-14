@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.skills import catalog
-from orchestrator.workflow.engine import tick as _engine_tick
+from orchestrator.workflow.engine import issue_processing as _issue_processing, tick as _engine_tick
 from tests.skills.skills_test_support import (
     _capture_analytics_records,
     _catalog_identity,
@@ -358,7 +358,6 @@ class TickEmitsRepoSkillCatalogTest(unittest.TestCase):
         # The tick names this owner, so patching it here is what intercepts
         # the pass -- and what proves the spec it is handed is the one being
         # polled, which is all the catalog needs to read the right base ref.
-        from orchestrator.workflow.engine import dispatch
         from tests.support.fakes import FakeGitHubClient, make_issue
         from tests.workflow.fixtures import _TEST_SPEC
         from tests.workflow.git_owners import seam_patch
@@ -367,7 +366,7 @@ class TickEmitsRepoSkillCatalogTest(unittest.TestCase):
         gh.add_issue(make_issue(1, label="workflow:implementing"))
         emit = MagicMock()
         with seam_patch(_REFRESH_BASE), \
-                patch.object(dispatch, "_process_issue"), \
+                patch.object(_issue_processing, "_process_issue"), \
                 patch.object(catalog, "_emit_repo_skill_catalog", emit):
             _engine_tick.tick(gh, _TEST_SPEC)
         emit.assert_called_once_with(_TEST_SPEC)

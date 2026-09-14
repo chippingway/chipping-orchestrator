@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.skills import catalog
-from orchestrator.workflow.engine import dispatch, tick
+from orchestrator.workflow.engine import stage_targets as _stage_targets, tick
 from orchestrator.workflow.late_split import phases as _late_phases, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -46,7 +46,7 @@ _REFRESH_BASE = "_refresh_base_and_worktrees"
 
 # The handler an OPEN issue on this label reaches, which is the one a stale
 # reading would send a closed owner to.
-_UMBRELLA_TARGET = dispatch._STAGE_HANDLER_TARGETS[LABEL_UMBRELLA]
+_UMBRELLA_TARGET = _stage_targets._STAGE_HANDLER_TARGETS[LABEL_UMBRELLA]
 
 
 def _intercepted(target: tuple[str, str], reached: Mock):

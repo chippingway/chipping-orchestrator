@@ -8,7 +8,11 @@ import unittest
 
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github import labels as _labels
-from orchestrator.workflow.engine import dispatch as _dispatch, pickup as _pickup
+from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
+    pickup as _pickup,
+    poll_models as _poll_models,
+)
 from orchestrator.workflow.stages.fixing import handler as _fixing
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.stages.in_review import handler as _in_review
@@ -64,7 +68,7 @@ class FixingLabelDefinitionTest(unittest.TestCase, _PatchedWorkflowMixin):
         # worktree, so the label must stay out of `_FAMILY_AWARE_LABELS` --
         # otherwise the parallel tick path would route it through the
         # single-threaded family bucket and defeat fan-out concurrency.
-        self.assertNotIn(LABEL_FIXING, _dispatch._FAMILY_AWARE_LABELS)
+        self.assertNotIn(LABEL_FIXING, _poll_models._FAMILY_AWARE_LABELS)
 
     def test_fixing_label_is_in_pr_refresh_detour_set(self) -> None:
         # Behind-base PR-having worktrees need to be routed through
@@ -86,7 +90,7 @@ class FixingLabelDefinitionTest(unittest.TestCase, _PatchedWorkflowMixin):
             patch.object(_implementing, "_handle_implementing") as impl,
             patch.object(_in_review, "_handle_in_review") as in_review,
         ):
-            _dispatch._process_issue(
+            _issue_processing._process_issue(
                 scenario.github,
                 _TEST_SPEC,
                 scenario.issue,

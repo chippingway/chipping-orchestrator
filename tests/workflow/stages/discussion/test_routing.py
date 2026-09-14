@@ -14,7 +14,11 @@ from orchestrator.github.labels import (
     WORKFLOW_LABEL_SPECS,
     WORKFLOW_LABELS,
 )
-from orchestrator.workflow.engine import dispatch as _dispatch, pickup as _pickup
+from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
+    pickup as _pickup,
+    poll_models as _poll_models,
+)
 from orchestrator.workflow.stages.discussion import handler as _discussion
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_DISCUSSION
@@ -42,7 +46,7 @@ class DiscussionLabelRoutingTest(unittest.TestCase):
         # so the label must stay out of `_FAMILY_AWARE_LABELS` -- routing it
         # through the single-threaded family bucket would serialize every
         # repo's fan-out work behind one long-running agent conversation.
-        self.assertNotIn(LABEL_DISCUSSION, _dispatch._FAMILY_AWARE_LABELS)
+        self.assertNotIn(LABEL_DISCUSSION, _poll_models._FAMILY_AWARE_LABELS)
 
     def test_dispatcher_routes_discussion_to_handler(self) -> None:
         gh = FakeGitHubClient()
@@ -53,7 +57,7 @@ class DiscussionLabelRoutingTest(unittest.TestCase):
             patch.object(_discussion, "_handle_discussion") as discussion_handler,
             patch.object(_pickup, "_handle_pickup") as pickup,
         ):
-            _dispatch._process_issue(gh, _TEST_SPEC, issue)
+            _issue_processing._process_issue(gh, _TEST_SPEC, issue)
             discussion_handler.assert_called_once_with(gh, _TEST_SPEC, issue)
             pickup.assert_not_called()
 

@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
 from orchestrator.observability.analytics import settings as analytics_settings
-from orchestrator.workflow.engine import dispatch, pickup
+from orchestrator.workflow.engine import issue_processing as _issue_processing, pickup
 from orchestrator.workflow.stages.implementing import handler as implementing
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
 from tests.workflow.fixtures import (
@@ -71,13 +71,13 @@ def _process_hard_skipped_issue(skip_label: str) -> tuple[MagicMock, list[dict]]
             "_handle_implementing",
             handler_mock,
         ):
-            dispatch._process_issue(gh, _TEST_SPEC, issue)
+            _issue_processing._process_issue(gh, _TEST_SPEC, issue)
         return handler_mock, _analytics_records(path)
 
 
 def _process_error(gh: FakeGitHubClient, issue) -> RuntimeError:
     try:
-        dispatch._process_issue(gh, _TEST_SPEC, issue)
+        _issue_processing._process_issue(gh, _TEST_SPEC, issue)
     except RuntimeError as error:
         return error
     raise AssertionError("the stage handler did not propagate its error")
@@ -108,7 +108,7 @@ class StageEvaluationAnalyticsTest(unittest.TestCase):
             gh.add_issue(issue)
             with patch.object(analytics_settings, _ANALYTICS_PATH_ATTR, path), \
                  patch.object(implementing, "_handle_implementing"):
-                dispatch._process_issue(gh, _TEST_SPEC, issue)
+                _issue_processing._process_issue(gh, _TEST_SPEC, issue)
             record = _stage_evaluations(path, _SUCCESS_ISSUE)[0]
         self.assertEqual(record["repo"], TEST_REPO_SLUG)
         self.assertEqual(record[_STAGE_KEY], _IMPLEMENTING_STAGE)
@@ -132,7 +132,7 @@ class StageEvaluationAnalyticsTest(unittest.TestCase):
             gh.add_issue(issue)
             with patch.object(analytics_settings, _ANALYTICS_PATH_ATTR, path), \
                  patch.object(pickup, "_handle_pickup"):
-                dispatch._process_issue(gh, _TEST_SPEC, issue)
+                _issue_processing._process_issue(gh, _TEST_SPEC, issue)
             record = _stage_evaluations(path, _UNLABELED_ISSUE)[0]
         self.assertNotIn(_STAGE_KEY, record)
         self.assertEqual(record["result"], "ok")
@@ -189,7 +189,7 @@ class StageEvaluationAnalyticsTest(unittest.TestCase):
             gh.add_issue(issue)
             with patch.object(analytics_settings, _ANALYTICS_PATH_ATTR, None), \
                  patch.object(implementing, "_handle_implementing"):
-                dispatch._process_issue(gh, _TEST_SPEC, issue)
+                _issue_processing._process_issue(gh, _TEST_SPEC, issue)
             self.assertFalse(sentinel.exists())
             self.assertEqual(list(Path(td).iterdir()), [])
 

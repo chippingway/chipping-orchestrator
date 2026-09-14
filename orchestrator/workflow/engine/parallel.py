@@ -39,8 +39,11 @@ from typing import Any
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import (
-    dispatch as _dispatch,
+    dispatch_partition as _dispatch_partition,
+    dispatch_workers as _dispatch_workers,
     observations as _observations,
+    poll_models as _poll_models,
+    scheduled_dispatch as _scheduled_dispatch,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -65,12 +68,12 @@ def _drain_family_bucket(
     """
     for issue_number in family_numbers:
         try:
-            _dispatch._refetch_and_process(
+            _dispatch_workers._refetch_and_process(
                 gh, spec, issue_number, semaphore_cm=semaphore_cm,
             )
         except Exception:
             log.exception(
-                _dispatch._PROCESSING_FAILED_LOG,
+                _scheduled_dispatch._PROCESSING_FAILED_LOG,
                 spec.slug, issue_number,
             )
 
@@ -79,7 +82,7 @@ def _drain_family_bucket(
 class _ParallelTickPlan:
     gh: GitHubClient
     spec: _config_models.RepoSpec
-    partition: _dispatch._PollablePartition
+    partition: _poll_models._PollablePartition
     semaphore_cm: contextlib.AbstractContextManager
 
     @property
@@ -110,11 +113,11 @@ class _ParallelTickPlan:
                     # turn a cleanup pass into the stage handler its label
                     # names -- and, for a cleanup, the observation held until
                     # the pass has actually run it.
-                    _dispatch._fanout_task(
+                    _dispatch_workers._fanout_task(
                         self.gh,
                         self.spec,
                         issue_number,
-                        reading=_dispatch._PollReading(
+                        reading=_poll_models._PollReading(
                             cleanup_only=(
                                 issue_number
                                 in self.partition.cleanup_numbers
@@ -150,7 +153,7 @@ def _drain_parallel_futures(
                 )
             else:
                 log.exception(
-                    _dispatch._PROCESSING_FAILED_LOG, spec.slug, tag,
+                    _scheduled_dispatch._PROCESSING_FAILED_LOG, spec.slug, tag,
                 )
 
 
@@ -183,7 +186,7 @@ def _run_parallel_tick(
     plan = _ParallelTickPlan(
         gh,
         spec,
-        _dispatch._partition_pollable_issues(
+        _dispatch_partition._partition_pollable_issues(
             gh, spec, _observations.observed_closes(spec.slug),
         ),
         semaphore_cm,

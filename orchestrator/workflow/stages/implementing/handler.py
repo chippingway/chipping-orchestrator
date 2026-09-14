@@ -40,6 +40,7 @@ from orchestrator.workflow.engine import (
     drift as _engine_drift,
     guards as _guards,
     retry_budget as _retry_budget,
+    terminal_reading as _terminal_reading,
     terminals as _terminals,
     usage as _usage,
 )
@@ -152,7 +153,7 @@ def _recorded_pr_holds_the_tick(
     """
     if _recorded_pr_is_the_plan(state, None):
         return False
-    linked = _terminals._linked_pull_request(
+    linked = _terminal_reading._linked_pull_request(
         gh, issue, state, "telling a plan from work that has ended",
     )
     if linked.unreadable:

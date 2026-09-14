@@ -35,7 +35,13 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git.worktrees import paths as _worktree_paths
-from orchestrator.workflow.engine import dispatch, observations
+from orchestrator.workflow.engine import (
+    dispatch_closure as _dispatch_closure,
+    issue_processing as _issue_processing,
+    observations,
+    poll_models as _poll_models,
+    scheduled_dispatch as _scheduled_dispatch,
+)
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
 )
@@ -114,12 +120,12 @@ class _PublishingCase(ObservedCloseCase, _PatchedWorkflowMixin):
         is nothing to end -- which is what this issue's record says.
         """
         self.issue.closed = True
-        dispatch._recorded_at_poll(self.github, _TEST_SPEC, self.issue)
+        _dispatch_closure._recorded_at_poll(self.github, _TEST_SPEC, self.issue)
 
     def _refused_submit(self) -> None:
         """What the poll does when the scheduler turns its submit away."""
         self.issue.closed = True
-        dispatch._refused_submit(
+        _dispatch_closure._refused_submit(
             self.github, _TEST_SPEC, _ISSUE, cleanup_only=False, closed=True,
         )
 
@@ -173,7 +179,7 @@ class PolledCloseDuringPublicationTest(_PublishingCase, unittest.TestCase):
             _worktree_paths, _WORKTREE_PATH, return_value=_TEMP_ROOT,
         ):
             return self._run(
-                lambda: dispatch._process_issue(
+                lambda: _issue_processing._process_issue(
                     self.github, _TEST_SPEC, self.issue,
                 ),
                 run_agent=_agent(
@@ -216,11 +222,11 @@ class ClaimedBeforeTheWorkerTest(_PublishingCase, unittest.TestCase):
     def _admitted(self):
         """Submit this issue the way the poll does, and hold the task back."""
         scheduler = _AdmitsTheSubmit()
-        dispatch._submit_scheduler_fanout_issues(
+        _scheduled_dispatch._submit_scheduler_fanout_issues(
             self.github,
             _TEST_SPEC,
             scheduler,
-            dispatch._PollablePartition(
+            _poll_models._PollablePartition(
                 family_numbers=[],
                 family_labels=[],
                 fanout_numbers=[_ISSUE],

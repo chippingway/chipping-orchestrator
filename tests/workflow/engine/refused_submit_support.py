@@ -12,7 +12,11 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from orchestrator.workflow.engine import dispatch, observations
+from orchestrator.workflow.engine import (
+    dispatch_partition as _dispatch_partition,
+    observations,
+    scheduled_dispatch as _scheduled_dispatch,
+)
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
@@ -97,11 +101,11 @@ class Scheduler:
 
 def offered(github: FakeGitHubClient, scheduler) -> None:
     """Offer this tick's fan-out issues to one scheduler double."""
-    dispatch._submit_scheduler_fanout_issues(
+    _scheduled_dispatch._submit_scheduler_fanout_issues(
         github,
         SPEC,
         scheduler,
-        dispatch._partition_pollable_issues(github, SPEC),
+        _dispatch_partition._partition_pollable_issues(github, SPEC),
         1,
     )
 

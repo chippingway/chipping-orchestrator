@@ -29,7 +29,10 @@ from orchestrator.git.measurement.models import (
 from orchestrator.git.verification.status import _WorktreeStatus as _WorktreeStatus
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
+    stage_targets as _stage_targets,
+)
 from orchestrator.workflow.late_split import phases as _late_phases, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
 from tests.workflow import fixtures
@@ -317,14 +320,14 @@ class _SizeGateFixtureMixin(support._FixingFixtureMixin, _SizeGateAssertionsMixi
         is whether it was reached at all.
         """
         run_options.setdefault("run_agent", support._agent())
-        owner_name, named = _dispatch._STAGE_HANDLER_TARGETS[support.FIXING]
+        owner_name, named = _stage_targets._STAGE_HANDLER_TARGETS[support.FIXING]
         with support.patch.object(
             importlib.import_module(owner_name), named,
         ) as dispatched, support.patch.object(
             _worktree_paths, WORKTREE_PATH, return_value=support.TEMP_ROOT,
         ):
             mocks = self._run(
-                lambda: _dispatch._route_issue_to_handler(
+                lambda: _issue_processing._route_issue_to_handler(
                     scenario.github, fixtures._TEST_SPEC, scenario.issue,
                     scenario.github.workflow_label(scenario.issue),
                 ),

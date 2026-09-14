@@ -1,74 +1,18 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""How an issue stops being worked.
+"""Route merged, rejected, and human-closed work through its terminal effects.
 
-Three conditions end one: the linked PR merged (`done`), the linked PR closed
-without merging (`rejected`), and a human closed the issue while its PR is
-still open (`rejected` too -- a human stop signal outranks whatever the stage
-was about to do). What the three share is the tail, not the condition that
-reaches them: each stamps its terminal timestamp, flips to a terminal label,
-posts the cumulative usage receipt, and writes pinned state once. That shared
-tail is why they sit together -- an arc added beside them inherits the order
-rather than reinventing it.
-
-Three entry points reach the arcs, and they differ only in who fetched the PR.
-`_drain_review_pr_terminals` serves the stages already holding one --
-`in_review`, `fixing`, `resolving_conflict` -- and tries all three arcs against
-the PR the caller passes; `pr=None` is a deliberate no-op so `fixing` can hand
-over its own fetch failure unchanged.
-
-`_pr_terminal_stops_the_tick` serves the stages that hold no PR at handler
-entry -- `implementing`, `documenting`, `validating` -- and decides BOTH
-pull-request endings off one fetch of its own. One rather than a helper each,
-because two fetches are two moments: a merge landing between them answers open
-to the first and merged to the second, which a closed-without-merge arc is
-right to ignore, and the stage behind it runs anyway over work that has landed.
-`_finalize_if_pr_merged` keeps the single-ending form for the umbrella /
-blocked child aggregation, which may not be held on a child whose remote
-blinked.
-
-A fetch that FAILS leaves both of those falling through: nothing about a failed
-read says which ending, if any, it was hiding, and answered as one every issue
-whose remote blinked would stop advancing. `_finalize_if_issue_closed` behind
-them is the one that defers the whole tick on its own failed read, so a
-transient failure cannot label a merged-PR issue `rejected`. Every entry point
-returns True to mean "this tick is over".
-
-The `discussion` stage composes the arcs itself rather than taking an entry
-point here, because its third one differs: a closed issue whose plan PR is
-still open KEEPS its label -- that label is what the closed-issue sweep finds
-it by, and the plan the humans are reading is what decides.
-`workflow/stages/discussion/plan_terminal.py` reaches `_finalize_merged_pr` and
-`_finalize_rejected_pr` directly for that reason, and
-`workflow/stages/discussion/terminal.py` reaches
-`_finalize_closed_issue_with_open_pr` for a close with no pull request to poll
-at all -- which is the same shape that arc already serves here, a close whose
-linked PR is not the thing being decided. It records as fully as
-the other two -- the stamp, the `rejected` label, the receipt, one write -- and
-differs only in what it has nothing to say about: no event, since there is no
-pull request for the payload to name, and no branch cleanup.
-
-Branch cleanup is deliberately outside the shared tail. It runs on the two arcs
-where the PR itself is gone and the branch is dead weight, and is withheld on
-the open-PR arc so an operator can still reopen or salvage what the closed
-issue left behind. That arc emits no `pr_closed_without_merge` for the same
-reason -- the PR has not closed yet -- while the closed-issue entry point does
-emit one once it confirms the linked PR is closed as well.
-
-The receipt's position in the tail is a contract, not a preference: it is
-posted BEFORE the write so its comment id rides the same persisted state and a
-later drift or watermark tick reads it as orchestrator-authored.
+Fresh pull-request readings determine which ending applies. An unreadable
+publication is left for a later tick, and merged work keeps priority over
+a closed issue's rejection path.
 """
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from typing import Any
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import naming as _naming, terminal as _worktree_terminal
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     _ISSUE_STATE_CLOSED,
@@ -76,113 +20,14 @@ from orchestrator.github.issues import (
     _STATE_ATTR,
 )
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import issue_usage as _issue_usage, usage as _usage
-from orchestrator.workflow.state import WorkflowLabel, stage_name
+from orchestrator.workflow.engine import (
+    terminal_context as _terminal_context,
+    terminal_effects as _terminal_effects,
+    terminal_reading as _terminal_reading,
+)
+from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
-
-# The pinned field every terminal here reads the linked pull request by.
-_PR_NUMBER = "pr_number"
-
-# What a pull request a human already landed reads as.
-_MERGED = "merged"
-
-# The two attributes a pull request's tip is reached through. Named because
-# every arc here reads one of them off a lazily fetched object, and a literal
-# repeated at each site is one a rename would leave behind at some of them.
-_HEAD_ATTR = "head"
-_HEAD_SHA_ATTR = "sha"
-
-
-@dataclass(frozen=True)
-class _LinkedPullRequest:
-    """The pull request an issue records, fetched once and read once.
-
-    One object rather than a fetch per question, because the two terminal
-    states a pull request can be in are two readings of ONE fact. Asked with a
-    fetch each, a merge landing between them answers `open` to the first and
-    `merged` to the second -- which a closed-without-merge arc is right to
-    ignore -- and the stage behind both carries on over a pull request that is
-    finished, spawning a reviewer or measuring a candidate onto work that has
-    landed.
-
-    Three shapes, and each is a different answer for a caller. `pr` set is a
-    reading any terminal may act on. `unreadable` is a request that did not
-    come back, which says nothing about either state. Neither set is an issue
-    that records no pull request at all.
-
-    The HEAD travels with the state for the same reason the two states do. A
-    caller that has to tell what a pull request IS before deciding what to do
-    about it -- the `implementing` stage, whose recorded number can still be
-    the `discussion` plan -- classifies on the head and finalizes on the
-    state, and taking those from two fetches is two moments: a head that moved
-    between them classifies one snapshot and ends another.
-    """
-
-    pr: Any = None
-    state: str = ""
-    head: str | None = None
-    unreadable: bool = False
-
-    @property
-    def was_read(self) -> bool:
-        """Whether there is a state here a terminal may decide on."""
-        return self.pr is not None
-
-
-def _linked_pull_request(
-    gh: GitHubClient, issue: Issue, state: PinnedState, checking: str,
-) -> _LinkedPullRequest:
-    """Read the pull request this issue records, once, guarded.
-
-    The state is read INSIDE the guard with the lookup, because a fetched pull
-    request is lazy: `get_pr` asks GitHub nothing and the request that can fail
-    is the attribute access behind it.
-
-    `checking` is what the log says the reading was for, since what a failure
-    costs differs by the caller that took it.
-    """
-    pr_number = state.get(_PR_NUMBER)
-    if pr_number is None:
-        return _LinkedPullRequest()
-    try:
-        return _pull_request_facts(gh, int(pr_number))
-    except Exception:
-        log.exception(
-            "issue=#%s could not fetch PR #%s while %s; leaving alone",
-            issue.number, pr_number, checking,
-        )
-    return _LinkedPullRequest(unreadable=True)
-
-
-def _pull_request_facts(gh: GitHubClient, number: int) -> _LinkedPullRequest:
-    """The lookup and the lazy reads behind it, as one reading."""
-    pull_request = gh.get_pr(number)
-    return _LinkedPullRequest(
-        pr=pull_request,
-        state=gh.pr_state(pull_request),
-        head=getattr(
-            getattr(pull_request, _HEAD_ATTR, None), _HEAD_SHA_ATTR, None,
-        ),
-    )
-
-
-def _terminal_context(
-    gh: GitHubClient,
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
-    pull_request: Any,
-) -> _ReviewTerminalContext:
-    """The subject a terminal finalizes, built from one proved reading."""
-    return _ReviewTerminalContext(
-        gh=gh,
-        spec=spec,
-        issue=issue,
-        state=state,
-        pr=pull_request,
-        stage=stage_name(gh.workflow_label(issue)),
-    )
 
 
 def _finalize_if_pr_merged(
@@ -205,13 +50,13 @@ def _finalize_if_pr_merged(
     here: an aggregation held on a child whose remote blinked is one that
     never completes, and the reading costs nothing to take again.
     """
-    linked = _linked_pull_request(
+    linked = _terminal_reading._linked_pull_request(
         gh, issue, state, "checking for external merge",
     )
-    if not linked.was_read or linked.state != _MERGED:
+    if not linked.was_read or linked.state != _terminal_reading._MERGED:
         return False
-    _finalize_merged_pr(
-        _terminal_context(gh, spec, issue, state, linked.pr),
+    _terminal_effects._finalize_merged_pr(
+        _terminal_context._terminal_context(gh, spec, issue, state, linked.pr),
         close_error="could not close after detecting external merge",
         close_if_open_only=True,
     )
@@ -223,7 +68,7 @@ def _pr_terminal_stops_the_tick(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
-    linked: _LinkedPullRequest | None = None,
+    linked: _terminal_reading._LinkedPullRequest | None = None,
 ) -> bool:
     """Both PR terminals off ONE reading, for a stage that carries neither.
 
@@ -261,18 +106,18 @@ def _pr_terminal_stops_the_tick(
     open, and one this host could not read.
     """
     if linked is None:
-        linked = _linked_pull_request(
+        linked = _terminal_reading._linked_pull_request(
             gh, issue, state, "checking whether it has been merged or closed",
         )
     if not linked.was_read:
         return False
     return _finalized_pr_terminal(
-        _terminal_context(gh, spec, issue, state, linked.pr), linked.state,
+        _terminal_context._terminal_context(gh, spec, issue, state, linked.pr), linked.state,
     )
 
 
 def _finalized_pr_terminal(
-    context: _ReviewTerminalContext, pr_state: str,
+    context: _terminal_context._ReviewTerminalContext, pr_state: str,
 ) -> bool:
     """Route one proved pull-request state to the terminal it earns.
 
@@ -280,129 +125,31 @@ def _finalized_pr_terminal(
     request and this stays about the two endings: `done` for a merge, and
     `rejected` for a close nobody merged.
     """
-    if pr_state == _MERGED:
-        _finalize_merged_pr(
+    if pr_state == _terminal_reading._MERGED:
+        _terminal_effects._finalize_merged_pr(
             context,
             close_error="could not close after detecting external merge",
             close_if_open_only=True,
         )
         return True
     if pr_state == _ISSUE_STATE_CLOSED:
-        _finalize_rejected_pr(context)
+        _terminal_effects._finalize_rejected_pr(context)
         return True
     return False
 
 
-@dataclass(frozen=True)
-class _ReviewTerminalContext:
-    gh: GitHubClient
-    spec: _config_models.RepoSpec
-    issue: Issue
-    state: PinnedState
-    pr: Any
-    stage: str | None
-
-    @property
-    def pr_number(self) -> int:
-        return int(self.state.get(_PR_NUMBER))
-
-    @property
-    def conflict_round(self):
-        conflict_round = self.state.get("conflict_round")
-        if self.stage == "resolving_conflict":
-            return int(conflict_round or 0)
-        return conflict_round
-
-
-def _close_terminal_issue(
-    context: _ReviewTerminalContext, error_message: str,
-) -> None:
-    try:
-        context.issue.edit(state=_ISSUE_STATE_CLOSED)
-    except Exception:
-        log.exception(
-            "issue=#%s %s", context.issue.number, error_message,
-        )
-
-
-def _cleanup_review_terminal(context: _ReviewTerminalContext) -> None:
-    _worktree_terminal._cleanup_terminal_branch(
-        context.gh,
-        context.spec,
-        context.issue.number,
-        branch=_naming._resolve_branch_name(
-            context.state, context.spec, context.issue.number,
-        ),
-    )
-
-
-def _finalize_merged_pr(
-    context: _ReviewTerminalContext,
-    *,
-    close_error: str,
-    close_if_open_only: bool = False,
-) -> None:
-    context.state.set("merged_at", _usage._now_iso())
-    context.gh.set_workflow_label(context.issue, WorkflowLabel.DONE)
-    _issue_usage._post_issue_usage_verdict(context.gh, context.issue, context.state)
-    context.gh.write_pinned_state(context.issue, context.state)
-    context.gh.emit_event(
-        "pr_merged",
-        issue_number=context.issue.number,
-        stage=context.stage,
-        pr_number=context.pr_number,
-        sha=getattr(context.pr.head, _HEAD_SHA_ATTR, None) or None,
-        merge_method="external",
-        review_round=int(context.state.get("review_round") or 0),
-        conflict_round=context.conflict_round,
-        retry_count=context.state.get("retry_count"),
-    )
-    if (
-        not close_if_open_only
-        or getattr(context.issue, _STATE_ATTR, _ISSUE_STATE_OPEN) != _ISSUE_STATE_CLOSED
-    ):
-        _close_terminal_issue(context, close_error)
-    _cleanup_review_terminal(context)
-
-
-def _finalize_rejected_pr(context: _ReviewTerminalContext) -> None:
-    context.state.set("closed_without_merge_at", _usage._now_iso())
-    context.gh.set_workflow_label(context.issue, WorkflowLabel.REJECTED)
-    _issue_usage._post_issue_usage_verdict(context.gh, context.issue, context.state)
-    context.gh.write_pinned_state(context.issue, context.state)
-    context.gh.emit_event(
-        "pr_closed_without_merge",
-        issue_number=context.issue.number,
-        stage=context.stage,
-        pr_number=context.pr_number,
-        sha=getattr(context.pr.head, _HEAD_SHA_ATTR, None) or None,
-        review_round=int(context.state.get("review_round") or 0),
-        conflict_round=context.conflict_round,
-        retry_count=context.state.get("retry_count"),
-    )
-    _close_terminal_issue(context, "could not close after reject")
-    _cleanup_review_terminal(context)
-
-
-def _finalize_closed_issue_with_open_pr(context: _ReviewTerminalContext) -> None:
-    context.state.set("closed_without_merge_at", _usage._now_iso())
-    context.gh.set_workflow_label(context.issue, WorkflowLabel.REJECTED)
-    _issue_usage._post_issue_usage_verdict(context.gh, context.issue, context.state)
-    context.gh.write_pinned_state(context.issue, context.state)
-
-
-def _drain_review_terminal(context: _ReviewTerminalContext) -> bool:
+def _drain_review_terminal(context: _terminal_context._ReviewTerminalContext) -> bool:
     if context.pr is None:
         return False
     pr_status = context.gh.pr_state(context.pr)
     if pr_status == "merged":
-        _finalize_merged_pr(context, close_error="could not close after merge")
+        _terminal_effects._finalize_merged_pr(context, close_error="could not close after merge")
         return True
     if pr_status == _ISSUE_STATE_CLOSED:
-        _finalize_rejected_pr(context)
+        _terminal_effects._finalize_rejected_pr(context)
         return True
     if getattr(context.issue, _STATE_ATTR, _ISSUE_STATE_OPEN) == _ISSUE_STATE_CLOSED:
-        _finalize_closed_issue_with_open_pr(context)
+        _terminal_effects._finalize_closed_issue_with_open_pr(context)
         return True
     return False
 
@@ -443,52 +190,8 @@ def _drain_review_pr_terminals(
     """
     spec, issue, state, pr = context_args
     return _drain_review_terminal(
-        _ReviewTerminalContext(gh, spec, issue, state, pr, stage),
+        _terminal_context._ReviewTerminalContext(gh, spec, issue, state, pr, stage),
     )
-
-
-@dataclass(frozen=True)
-class _ClosedIssuePR:
-    number: int | None
-    pr: Any = None
-    defer: bool = False
-
-
-def _closed_issue_pr(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
-) -> _ClosedIssuePR:
-    raw_number = state.get(_PR_NUMBER)
-    if raw_number is None:
-        return _ClosedIssuePR(number=None)
-    number = int(raw_number)
-    try:
-        pr = gh.get_pr(number)
-    except Exception:
-        log.exception(
-            "issue=#%s could not fetch PR #%s while finalizing a "
-            "closed issue; deferring (next tick retries the "
-            "merged-PR path)", issue.number, raw_number,
-        )
-        return _ClosedIssuePR(number=number, defer=True)
-    return _ClosedIssuePR(
-        number=number,
-        pr=pr,
-        defer=gh.pr_state(pr) == "merged",
-    )
-
-
-def _emit_closed_pr_rejection(context: _ReviewTerminalContext) -> None:
-    context.gh.emit_event(
-        "pr_closed_without_merge",
-        issue_number=context.issue.number,
-        stage=context.stage,
-        pr_number=context.pr_number,
-        sha=getattr(context.pr.head, _HEAD_SHA_ATTR, None) or None,
-        review_round=int(context.state.get("review_round") or 0),
-        conflict_round=context.state.get("conflict_round"),
-        retry_count=context.state.get("retry_count"),
-    )
-    _cleanup_review_terminal(context)
 
 
 def _finalize_if_issue_closed(
@@ -523,14 +226,14 @@ def _finalize_if_issue_closed(
     """
     if getattr(issue, _STATE_ATTR, _ISSUE_STATE_OPEN) != _ISSUE_STATE_CLOSED:
         return False
-    linked_pr = _closed_issue_pr(gh, issue, state)
+    linked_pr = _terminal_reading._closed_issue_pr(gh, issue, state)
     if linked_pr.defer:
         return True
-    context = _ReviewTerminalContext(
+    context = _terminal_context._ReviewTerminalContext(
         gh, spec, issue, state, linked_pr.pr,
         stage_name(gh.workflow_label(issue)),
     )
-    _finalize_closed_issue_with_open_pr(context)
+    _terminal_effects._finalize_closed_issue_with_open_pr(context)
     if linked_pr.pr is not None and gh.pr_state(linked_pr.pr) == _ISSUE_STATE_CLOSED:
-        _emit_closed_pr_rejection(context)
+        _terminal_effects._emit_closed_pr_rejection(context)
     return True

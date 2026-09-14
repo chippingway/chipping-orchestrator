@@ -21,7 +21,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import dispatch_closure as _dispatch_closure
 from orchestrator.workflow.late_split import endings as _endings, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
@@ -94,7 +94,7 @@ class _PollsAfterTheRetirement:
         if self._polled or asked[1].data.get(_KEY_CYCLE_ID) is not None:
             return written
         self._polled = True
-        _dispatch._kept_closed_reading(
+        _dispatch_closure._kept_closed_reading(
             self._github, _TEST_SPEC, self._number,
         )
         if self._dying:

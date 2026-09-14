@@ -22,13 +22,13 @@ see, and is called out as such.
   no owner. `github/` and `git/` can therefore import the state vocabulary without loading the
   engine or pointing back into their own initialization. `tests/workflow/test_imports.py` probes the import paths
   in a clean interpreter, and `tests/repository/test_layering.py` holds the direction under them.
-- **The stage handlers are resolved at call time.** `engine/dispatch.py` pairs each label with the module its handler
-  lives on and imports it when it dispatches, as `engine/pickup.py` does for the stage it starts an issue on: the
-  stage tree imports `engine/`, so a module-scope bind would point that edge back at itself.
-  `tests/workflow/engine/test_dispatch.py` pins that the handler is read off its owner per call rather than bound at
-  import, and `tests/workflow/stages/test_imports.py` that every labelled target lands on a stage package here. The
-  late size gate's own refusal is resolved the same way and for the same reason — it lives on a stage owner, so the
-  dispatcher imports it when it routes.
+- **The stage handlers are resolved at call time.** `engine/stage_targets.py` pairs each label with the module
+  its handler lives on and imports it when it dispatches, as `engine/pickup.py` does for the stage it starts
+  an issue on: the stage tree imports `engine/`, so a module-scope bind would point that edge back at itself.
+  `tests/workflow/engine/test_dispatch.py` pins that the handler is read off its owner per call rather than
+  bound at import, and `tests/workflow/stages/test_imports.py` that every labelled target lands on a stage
+  package here. The late size gate's own refusal is resolved the same way and for the same reason — it lives
+  on a stage owner, so the dispatcher imports it when it routes.
 - **Two operator log channels, spelled literally.** The engine, `late_split/`, and stage owners report on
   `orchestrator.workflow`, and `workflow/transition_guard.py` on `orchestrator.state_machine`. A module moved
   between packages does not take its channel with it — `tests/workflow/test_imports.py` walks the package and
@@ -96,66 +96,30 @@ workflow/                   marker package for state, engine, and stage owners
                             sentence can take back. That stage's other outcome -- docs WERE updated -- is a commit on
                             the branch and is read there instead. Each parser returns the slice above its marker, the
                             part a human is shown
-    dispatch.py             one tick's pollable issues turned into handler calls: the observation a refused
-                            fan-out submit was carrying -- latched from the poll's own closed reading and dropped
-                            again only where the RECORD positively says there is nothing to end, since the probe
-                            that asks is a request and a request can fail -- the same reading BOUND to an admitted
-                            one instead, since the worker refetches and a reopen in that window would answer
-                            differently -- the publication HOLD that postpones that drop, taken where the scheduler
-                            ADMITS the submit and given back by the task it wrapped, since a poll refused in
-                            between is refused precisely because a worker has the issue and the queue, the refetch
-                            and the label checks are all window a dropped reading would never be seen through, with
-                            one of its own taken over the handler this owner runs -- the only hold the sequential
-                            path has -- the hard-skip filter a held close
-                            observation outranks (it is not this tick's reading, so a park, a reopen, and a relabel
-                            off the swept labels each leave it standing -- an owner the enumeration never yields is
-                            added by number), the family /
-                            fanout partition and its cap exemptions, the per-worker refetch and the sequential path's
-                            own classify-and-refetch beside it (a CLOSED issue is routed by any of the four cleanup
-                            labels, while only the two an adjudication RUNS under earn the refetch an OPEN issue
-                            costs, since neither reading of one may be taken from the poll), the hold that keeps a
-                            closed reading across the pass that would spend it -- a pass can fail to spend one
-                            without failing at all -- the close latched by the ENUMERATION that read it AND
-                            written down there, so a worker already holding the issue is answered for the whole
-                            window between that reading and the submit that carries it and an accepted task that
-                            never starts still leaves a receipt on the thread, the same observation taken at the
-                            REFETCH by both paths that take one -- an issue open when it was listed and closed by
-                            the time it is read carries a reading nothing else holds -- the record-driven pair
-                            asked ahead of every handler (an authorized restart first, then the refusal a cancelled
-                            cycle earns, since a restart between its label write and its retirement wears a
-                            live-looking label over a record that still says cancelled), the unlabeled issue
-                            that already carries a pinned comment and so is one this orchestrator has already
-                            MET -- left where a human's label removal put it rather than greeted a second
-                            time, since a second pinned comment is shadowed by the first from the moment it
-                            is written while the finished workflow in that first one goes on deciding, the
-                            park re-applied behind
-                            the mark that reading was waived for, the cleanup submission
-                            wrapped in the settlement its observation is owed -- kept by a pass that failed, by one
-                            nothing ever called, and by one that RAN and left the ending owed under a label no
-                            query asks for, settled everywhere else (a swept label reaches the owner on its own
-                            cadence), and shared by all three tick paths
-                            with the refetch inside the hold --
-                            the refusal that keeps a relabelled late adjudication off every other
-                            stage's handler, the reading owed for a size-gate pair frozen and never counted --
-                            taken ahead of the handler that would otherwise run against a pull request still
-                            standing where the gate froze it, and only on the stage the record itself names --
-                            the hold an issue that has spent its whole lifetime agent-run allowance gets, taken
-                            once here rather than taught to thirteen handlers because `awaiting_human` means a
-                            different road on each of them and none of those buys back a run (it replays the
-                            sentence the park still owes, since nothing below it runs to say one, it reads the
-                            thread for the one trusted command that widens the ceiling -- which lets the tick go on
-                            to the stage its label names, since the run a human just paid for is the one the issue
-                            was stopped for -- and it is the one question here that steps aside for work that has
-                            ENDED, whose handler is a terminal that ends the issue rather than a road that spends
-                            anything on it: a closed ISSUE, which the object in hand already shows, and a recorded
-                            PULL REQUEST that has merged or been closed, which it cannot -- a merge leaves the
-                            issue open until a stage terminal reads it, and the three stages that drain both
-                            endings at handler entry are behind this hold. That second reading is a request per
-                            parked poll, fails OPEN so a remote that would not answer lifts nothing, and is read
-                            against the LABEL the tick was routed on: a settled `discussion` plan is the agreement
-                            that licensed the build, so it is carved out on `workflow:implementing` and nowhere
-                            else -- `discussion` itself drains the same pull request through its own terminal)
-                            -- and the timed dispatch
+    stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call;
+                            the unlabeled target reaches pickup through the same resolver
+    poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
+                            absent from enumeration and the blocked/umbrella family capacity exemption
+    run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;
+                            an implementing plan PR does not prove that implementation work ended
+    dispatch_guards.py      pinned-state admission, restart before cancellation, publication reconciliation, and
+                            operator controls; an already-pinned unlabeled issue is left where its labels put it
+    poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup;
+                            a failed label read reaches per-issue exception isolation through the family bucket
+    dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and preserve
+                            receipts and deferred cleanup when a worker submission is refused
+    cleanup_observation.py keep a close through cleanup exceptions and unsettled endings, including an ending owed
+                            under a label no sweep queries; settle only after the defining stage proves it complete
+    dispatch_partition.py  combine fresh poll results and still-owed closes, record closed fanout receipts before
+                            submission, and include deferred issues that enumeration did not yield
+    issue_processing.py    apply controls, select cleanup or guarded stage dispatch, hold publication through the
+                            handler, and record timed evaluation analytics on success and failure
+    dispatch_workers.py    refetch through each worker's GitHub client and optional semaphore, preserving ordinary
+                            and cleanup observation scopes across sequential, scheduler, and pool execution
+    scheduled_dispatch.py  drain the family bucket under active tracking, enforce capacity rules, and submit fanout
+                            with claims released after execution or refusal; observed closes remain cap-exempt
+    dispatch.py            drive the sequential poll's closure classification or submit its partition to the scheduler;
+                            refetched owners and still-owed closes keep the processing scope their reading earned
     observation_state.py    the process-local close, receipt, scan, retirement, publication, and deferred-settlement
                             registries behind one lock; settlement advances the owner generation and clears its latch
                             and receipt memo atomically
@@ -263,15 +227,14 @@ workflow/                   marker package for state, engine, and stage owners
     run_limit.py            persist a supplied exhaustion reading before its budget event and notice, reconcile
                             bot-authored delivery, and replay the sentence still owed; this owner grants and spends no
                             additional run
-    terminals.py            the merged, rejected, and human-closed arcs, the stamp / receipt / label / write tail they
-                            share, and the entry-time finalizers. The stages carrying no PR-state arc of their own
-                            ask for both pull-request endings off ONE guarded reading -- a merge, and a close
-                            nobody merged, which leaves the ISSUE open so the closed-issue arc behind it sees
-                            nothing while the stage measures and pushes onto a pull request that is gone or spawns
-                            over work a human rejected. One reading rather than a fetch each, because two fetches
-                            are two moments: a merge landing between them answers open to the first and merged to
-                            the second, which the close arc is right to ignore, and the stage runs anyway. A fetch
-                            that FAILED falls through, since nothing about it says which ending it was hiding
+    terminal_reading.py    one guarded linked-PR reading for both endings, retaining failed reads and deferring a
+                            merged publication to its merge path when recovering a human-closed issue
+    terminal_context.py    the issue, publication, pinned state, and stage one ending is attributed to, with its
+                            recorded PR number and conflict-round semantics
+    terminal_effects.py    terminal stamps, labels, usage verdicts, pinned writes, events, issue closure, and branch
+                            cleanup in their defined order; an open PR on a human-closed issue stays available
+    terminals.py           select merged, rejected, and human-closed endings from their fresh readings; failed reads
+                            leave the decision for a later tick, and the merged-PR path precedes closed-issue rejection
     tick.py                 one repo's polling pass and the order it drives: the base refresh, the
                             community-contribution sweep above, the skill-catalog emission, and the scheduler
                             handoff or in-tick execution behind them -- with the sequential mode of that execution

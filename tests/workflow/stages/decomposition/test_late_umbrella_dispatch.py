@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeLabel
 from tests.workflow.fixtures import (
@@ -108,7 +108,7 @@ class SettledSplitUmbrellaDispatchTest(PublishedSplitCase, unittest.TestCase):
 
     def _tick(self) -> None:
         """One poll of the umbrella, through the guards a dispatch runs."""
-        _dispatch._route_issue_to_handler(
+        _issue_processing._route_issue_to_handler(
             self.github,
             _TEST_SPEC,
             self.issue,
