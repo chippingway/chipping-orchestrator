@@ -16,7 +16,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.observability.analytics.sync import columns, rows
-from orchestrator.workflow.engine import run_budget as _run_budget
+from orchestrator.workflow.engine import run_budget as _run_budget, run_budget_fields as _run_budget_fields
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.engine import run_budget_emission_support as _emission_support, run_budget_test_support as budget
 from tests.workflow.fixtures import LABEL_IMPLEMENTING
@@ -33,12 +33,12 @@ _SINK_FAILURE = "sink refused"
 
 _LABEL_FAILURE = "label read refused"
 
-_FINGERPRINT_HEAD = _emission_support._FINGERPRINT[:_run_budget.FINGERPRINT_HEAD_LENGTH]
+_FINGERPRINT_HEAD = _emission_support._FINGERPRINT[:_run_budget_fields.FINGERPRINT_HEAD_LENGTH]
 
 
 # The charge every record below is about: the launch shape, and the count that
 # charge moved. Two charges of one shape differ only in the second half.
-_RESERVATION_ID = _run_budget._reservation_id(_emission_support._LAUNCH, _emission_support._ledger())
+_RESERVATION_ID = _run_budget_fields._reservation_id(_emission_support._LAUNCH, _emission_support._ledger())
 
 
 def _issue_and_client():

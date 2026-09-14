@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.decomposition import (
     blocked as _blocked,
     drift as _drift_reset,
@@ -189,7 +189,7 @@ class HandleReadyRoutesBackOnHashChangeTest(
             body="stable body",
         )
         gh.add_issue(issue)
-        current = _drift._compute_user_content_hash(issue, set())
+        current = _content_hash._compute_user_content_hash(issue, set())
         gh.seed_state(
             STABLE_READY_ISSUE_NUMBER,
             user_content_hash=current,

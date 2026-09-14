@@ -20,7 +20,10 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import run_ledger as _run_ledger
+from orchestrator.workflow.engine import (
+    run_ledger_models as _run_ledger_models,
+    run_ledger_values as _run_ledger_values,
+)
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
@@ -44,7 +47,7 @@ _ALLOWANCE = 8
 
 _SPENT_BEFORE = 2
 
-_STARTED = _run_ledger.RunPhase.STARTED
+_STARTED = _run_ledger_models.RunPhase.STARTED
 
 
 class _PausedDuringRun:
@@ -64,8 +67,8 @@ class ChargedLateAdjudicationTest(unittest.TestCase):
 
     def setUp(self) -> None:
         seeded = seeded_late_issue(**{
-            _run_ledger.AGENT_RUN_ALLOWANCE: _ALLOWANCE,
-            _run_ledger.AGENT_RUNS_USED: _SPENT_BEFORE,
+            _run_ledger_values.AGENT_RUN_ALLOWANCE: _ALLOWANCE,
+            _run_ledger_values.AGENT_RUNS_USED: _SPENT_BEFORE,
         })
         self.github = seeded[0]
         self.issue = seeded[1]
@@ -98,10 +101,10 @@ class ChargedLateAdjudicationTest(unittest.TestCase):
         """The issue durably paid for the process this adjudication ran."""
         pinned = self._pinned()
         self.assertEqual(
-            pinned.get(_run_ledger.AGENT_RUNS_USED), _SPENT_BEFORE + 1,
+            pinned.get(_run_ledger_values.AGENT_RUNS_USED), _SPENT_BEFORE + 1,
         )
         self.assertEqual(
-            pinned.get(_run_ledger.AGENT_RUN_RESERVATION), _STARTED,
+            pinned.get(_run_ledger_values.AGENT_RUN_RESERVATION), _STARTED,
         )
 
     def _pinned(self) -> dict:

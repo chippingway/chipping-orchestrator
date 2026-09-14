@@ -84,8 +84,8 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import settings as config
 from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
-    comments as _comments,
-    run_circuit as _run_circuit,
+    prompt_context as _prompt_context,
+    run_charge_state as _run_charge_state,
     usage as _usage,
 )
 from orchestrator.workflow.late_split import (
@@ -550,7 +550,7 @@ def _spawn_late_adjudicator(
     """
     return _usage._run_agent_tracked(
         context.gh,
-        _run_circuit.AgentRunBudget(
+        _run_charge_state.AgentRunBudget(
             issue=context.issue, state=context.state,
         ),
         agent_role=run.role,
@@ -559,7 +559,7 @@ def _spawn_late_adjudicator(
         prompt=_prompt._build_late_decompose_prompt(
             context.spec,
             context.issue,
-            _comments._recent_comments_text(context.issue),
+            _prompt_context._recent_comments_text(context.issue),
             context.generation,
             config.default_repo_specs(),
         ),

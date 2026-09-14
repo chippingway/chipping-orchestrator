@@ -26,7 +26,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming, terminal as _worktree_terminal
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.engine import usage as _usage
+from orchestrator.workflow.engine import issue_usage as _issue_usage, usage as _usage
 from orchestrator.workflow.stages.question import models as _models, outcomes as _outcomes, run as _run
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -54,7 +54,7 @@ def _finalize_closed_question(run: _models._QuestionRun) -> bool:
     run.gh.set_workflow_label(run.issue, WorkflowLabel.DONE)
     # The receipt is posted before the single state write so its comment id is
     # tracked alongside the terminal timestamp.
-    _usage._post_issue_usage_verdict(run.gh, run.issue, run.state)
+    _issue_usage._post_issue_usage_verdict(run.gh, run.issue, run.state)
     run.gh.write_pinned_state(run.issue, run.state)
     _teardown_question_worktree(run)
     return True

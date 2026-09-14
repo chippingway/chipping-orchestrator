@@ -34,7 +34,12 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import settings as config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
-from orchestrator.workflow.engine import agent_diagnostics as _agent_diagnostics, guards as _guards, usage as _usage
+from orchestrator.workflow.engine import (
+    agent_diagnostics as _agent_diagnostics,
+    guards as _guards,
+    issue_usage as _issue_usage,
+    usage as _usage,
+)
 from orchestrator.workflow.stages.question import models as _models, run as _run, state as _state
 
 log = logging.getLogger("orchestrator.workflow")
@@ -58,7 +63,7 @@ def _assess_question_outcome(
 
     run.state.set("last_question_at", _usage._now_iso())
     if not question_result.interrupted:
-        _usage._accumulate_issue_usage(run.state, question_result.usage)
+        _issue_usage._accumulate_issue_usage(run.state, question_result.usage)
 
     if question_result.timed_out:
         return _models._QuestionOutcome(_state._QUESTION_TIMEOUT, True)

@@ -10,7 +10,7 @@ from pathlib import Path
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.usage import trajectory as _trajectory
-from orchestrator.workflow.engine import run_circuit as _run_circuit
+from orchestrator.workflow.engine import run_charge_state as _run_charge_state
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow import (
     patch_runner as _runner,
@@ -88,7 +88,7 @@ _SKILL_REUSE_ISSUE_NUMBER = 202
 
 def _tracked_budget(
     gh: FakeGitHubClient, issue_number: int,
-) -> _run_circuit.AgentRunBudget:
+) -> _run_charge_state.AgentRunBudget:
     """The budget a directly driven tracked run is charged against.
 
     The issue is registered on the client because the charge the boundary
@@ -97,7 +97,7 @@ def _tracked_budget(
     """
     issue = make_issue(issue_number, label=LABEL_IMPLEMENTING)
     gh.add_issue(issue)
-    return _run_circuit.AgentRunBudget(issue=issue, state=PinnedState())
+    return _run_charge_state.AgentRunBudget(issue=issue, state=PinnedState())
 
 
 def _skill_events(gh: FakeGitHubClient) -> list[dict]:

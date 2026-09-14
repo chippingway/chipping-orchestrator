@@ -20,7 +20,10 @@ from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, prompts as _prompts
+from orchestrator.workflow.engine import (
+    conversation_prompts as _conversation_prompts,
+    prompt_context as _prompt_context,
+)
 from orchestrator.workflow.stages.question import models as _models, state as _state
 
 
@@ -100,8 +103,8 @@ def _build_first_round_question_prompt(
 ) -> str:
     """Assemble the prompt an agent with no cached context needs: the issue
     body and title plus the trusted conversation so far."""
-    return _prompts._build_question_prompt(
-        spec, issue, _comments._recent_comments_text(issue),
+    return _conversation_prompts._build_question_prompt(
+        spec, issue, _prompt_context._recent_comments_text(issue),
         config.default_repo_specs(),
     )
 
@@ -127,4 +130,4 @@ def _build_question_resume_prompt(
     """
     if question_session_id is None:
         return _build_first_round_question_prompt(spec, issue)
-    return _prompts._build_question_followup_prompt(new_comments)
+    return _conversation_prompts._build_question_followup_prompt(new_comments)

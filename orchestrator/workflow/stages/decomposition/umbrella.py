@@ -75,6 +75,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
+    issue_usage as _issue_usage,
     observations as _observations,
     usage as _usage,
 )
@@ -320,7 +321,7 @@ def _resolution_said(
 def _resolution_body(state: PinnedState) -> str:
     """The sentence a resolved umbrella owes its thread, and what it cost."""
     close_body = ":white_check_mark: all children resolved; closing umbrella issue."
-    verdict = _usage._format_issue_usage_verdict(state)
+    verdict = _issue_usage._format_issue_usage_verdict(state)
     if not verdict:
         return close_body
     return f"{close_body}\n\n{verdict}"

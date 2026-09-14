@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 from orchestrator.config import settings as config
 from orchestrator.github.labels import PAUSED_LABEL
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.documenting import handler as _documenting
 from tests.support.fakes import (
     FakeComment,
@@ -89,7 +89,7 @@ def _seed_parked_docs(gh: FakeGitHubClient, *, comments):
     gh.add_pr(pr)
     # The caller patches the allowlist before seeding so outsider comments
     # cannot create drift and wake a parked docs pass through another route.
-    seed_hash = _drift._compute_user_content_hash(issue, set())
+    seed_hash = _content_hash._compute_user_content_hash(issue, set())
     gh.seed_state(
         PARKED_DOCS_ISSUE_NUMBER,
         user_content_hash=seed_hash,
@@ -123,7 +123,7 @@ def _seed_live_pause(
     )
     github.seed_state(
         issue_number,
-        user_content_hash=_drift._compute_user_content_hash(issue, set()),
+        user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         dev_agent="codex",
         dev_session_id=DEV_SESSION_ID,
         pr_number=pr_number,

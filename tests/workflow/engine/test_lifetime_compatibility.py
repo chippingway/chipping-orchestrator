@@ -16,7 +16,7 @@ from dataclasses import replace
 
 from orchestrator.workflow.engine import (
     dispatch as _dispatch,
-    run_ledger as _run_ledger,
+    run_ledger_values as _run_ledger_values,
     run_limit as _run_limit,
 )
 from tests.workflow.engine import (
@@ -98,7 +98,7 @@ class StageCapOrderTest(unittest.TestCase, _PatchedWorkflowMixin):
 
         self.assertEqual(walked.total, 0)
         self.assertEqual(walked.spent, _lifetime_models.ALLOWANCE)
-        self.assertNotIn(_run_ledger.AGENT_RUN_RESERVATION, walked.pinned)
+        self.assertNotIn(_run_ledger_values.AGENT_RUN_RESERVATION, walked.pinned)
         self.assertEqual(walked.pinned.get(KEY_PARK_REASON), _REVIEW_CAP)
 
 
@@ -130,10 +130,10 @@ class TerminalReceiptTest(unittest.TestCase, _PatchedWorkflowMixin):
         """The counts and the park the ending was handed, still there."""
         pinned = walked.pinned
         self.assertEqual(
-            pinned.get(_run_ledger.AGENT_RUNS_USED), _lifetime_models.ALLOWANCE,
+            pinned.get(_run_ledger_values.AGENT_RUNS_USED), _lifetime_models.ALLOWANCE,
         )
         self.assertEqual(
-            pinned.get(_run_ledger.AGENT_RUN_ALLOWANCE), _lifetime_models.ALLOWANCE,
+            pinned.get(_run_ledger_values.AGENT_RUN_ALLOWANCE), _lifetime_models.ALLOWANCE,
         )
         self.assertTrue(pinned.get(KEY_AWAITING_HUMAN))
         self.assertEqual(

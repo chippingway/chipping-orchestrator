@@ -18,24 +18,28 @@ from __future__ import annotations
 from collections.abc import Callable
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import run_budget as _run_budget
+from orchestrator.workflow.engine import (
+    run_budget as _run_budget,
+    run_budget_fields as _run_budget_fields,
+    run_budget_models as _run_budget_models,
+)
 
 EVENT = _run_budget.AGENT_RUN_BUDGET_EVENT
 
-RESERVED = _run_budget.BudgetPhase.RESERVED
+RESERVED = _run_budget_models.BudgetPhase.RESERVED
 
-STARTED = _run_budget.BudgetPhase.STARTED
+STARTED = _run_budget_models.BudgetPhase.STARTED
 
-EXHAUSTED = _run_budget.BudgetPhase.EXHAUSTED
+EXHAUSTED = _run_budget_models.BudgetPhase.EXHAUSTED
 
-EXTENDED = _run_budget.BudgetPhase.EXTENDED
+EXTENDED = _run_budget_models.BudgetPhase.EXTENDED
 
-ALLOWANCE_SPENT = _run_budget.ExhaustionReason.ALLOWANCE_SPENT
+ALLOWANCE_SPENT = _run_budget_models.ExhaustionReason.ALLOWANCE_SPENT
 
-ALLOWANCE_EXCEEDED = _run_budget.ExhaustionReason.ALLOWANCE_EXCEEDED
+ALLOWANCE_EXCEEDED = _run_budget_models.ExhaustionReason.ALLOWANCE_EXCEEDED
 
 # What `remaining` says where the allowance bounds nothing at all.
-UNLIMITED = _run_budget.REMAINING_UNLIMITED
+UNLIMITED = _run_budget_fields.REMAINING_UNLIMITED
 
 # The payload's own field names, spelled here rather than in each case: they
 # are a wire contract on two sinks and a Postgres column, so a rename is a

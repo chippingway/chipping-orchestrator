@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import prompts as _prompts
+from orchestrator.workflow.engine import decomposition_prompts as _decomposition_prompts
 from orchestrator.workflow.stages.decomposition import manifest as _decompose_manifest
 from tests.support.fakes import make_issue
 from tests.workflow.fixtures import _TEST_SPEC, _manifest
@@ -228,7 +228,7 @@ class ParseManifestOptionsTest(unittest.TestCase):
         # human for a self-inflicted reason. Round-trip the example
         # through the same parser the orchestrator runs on agent
         # output to keep the prompt and parser in lockstep.
-        prompt = _prompts._build_decompose_prompt(
+        prompt = _decomposition_prompts._build_decompose_prompt(
             _TEST_SPEC,
             make_issue(1, title="example", body="some body"),
             "",
@@ -251,7 +251,7 @@ class BuildSingleDecisionCommentTest(unittest.TestCase):
     """
 
     def test_renders_rationale_files_and_notes(self) -> None:
-        comment = _prompts._build_single_decision_comment(
+        comment = _decomposition_prompts._build_single_decision_comment(
             {
                 KEY_DECISION: DECISION_SINGLE,
                 KEY_RATIONALE: "one small change",
@@ -270,7 +270,7 @@ class BuildSingleDecisionCommentTest(unittest.TestCase):
         self.assertIn("Bump the default and cover it in fakes.", comment)
 
     def test_omits_absent_optional_sections(self) -> None:
-        comment = _prompts._build_single_decision_comment(
+        comment = _decomposition_prompts._build_single_decision_comment(
             {
                 KEY_DECISION: DECISION_SINGLE,
                 KEY_RATIONALE: "trivial",
@@ -284,13 +284,15 @@ class BuildSingleDecisionCommentTest(unittest.TestCase):
     def test_missing_rationale_uses_placeholder(self) -> None:
         # `_parse_manifest` does not validate single-branch fields, so a
         # non-string / absent rationale must not crash rendering.
-        comment = _prompts._build_single_decision_comment({KEY_DECISION: DECISION_SINGLE, KEY_RATIONALE: [1, 2, 3]})
+        comment = _decomposition_prompts._build_single_decision_comment({
+            KEY_DECISION: DECISION_SINGLE, KEY_RATIONALE: [1, 2, 3],
+        })
         self.assertIn("(no rationale provided)", comment)
 
     def test_drops_malformed_files_and_notes(self) -> None:
         # Non-list files, non-string entries, and non-string notes are
         # sanitized away rather than rendered or raised on.
-        comment = _prompts._build_single_decision_comment(
+        comment = _decomposition_prompts._build_single_decision_comment(
             {
                 KEY_DECISION: DECISION_SINGLE,
                 KEY_RATIONALE: "ok",
@@ -305,7 +307,7 @@ class BuildSingleDecisionCommentTest(unittest.TestCase):
         self.assertNotIn("**Implementation notes:**", comment)
 
     def test_non_list_affected_files_omits_section(self) -> None:
-        comment = _prompts._build_single_decision_comment(
+        comment = _decomposition_prompts._build_single_decision_comment(
             {
                 KEY_DECISION: DECISION_SINGLE,
                 KEY_RATIONALE: "ok",

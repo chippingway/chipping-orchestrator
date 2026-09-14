@@ -5,9 +5,7 @@ from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import run_limit as _run_limit
-from orchestrator.workflow.engine.run_ledger import (
-    AgentRunLedger,
-)
+from orchestrator.workflow.engine.run_ledger_models import AgentRunLedger
 
 ALLOWANCE = 50
 

@@ -16,7 +16,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import settings as config
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
-from orchestrator.workflow.engine import guards as _guards, usage as _usage
+from orchestrator.workflow.engine import guards as _guards, issue_usage as _issue_usage, usage as _usage
 from orchestrator.workflow.late_split.models import (
     LateFailure,
     LateGeneration,
@@ -162,7 +162,7 @@ def _settle(
         return _late_outcome._finished(context, _LateDisposition.DEFERRED)
     context.state.set(_LAST_AGENT_ACTION_AT, _usage._now_iso())
     if not agent_result.interrupted:
-        _usage._accumulate_issue_usage(context.state, agent_result.usage)
+        _issue_usage._accumulate_issue_usage(context.state, agent_result.usage)
     declined = _declined_run(context, agent_result, worktree)
     if declined is not None:
         return _late_completion._guarded(context, declined)

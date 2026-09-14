@@ -26,7 +26,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import prompts as _prompts
+from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
 from tests.workflow.fixtures import (
     KEY_AWAITING_HUMAN,
     KEY_LAST_ACTION_COMMENT_ID,
@@ -85,7 +85,7 @@ class DiscussionResumeTest(unittest.TestCase, _DiscussionWorkflowMixin):
         )
         self.assertEqual(
             spawn_call.args[1],
-            _prompts._build_discussion_followup_prompt(
+            _conversation_prompts._build_discussion_followup_prompt(
                 [human_reply], self.plan_path(issue.number),
             ),
         )

@@ -33,8 +33,9 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
+    issue_usage as _issue_usage,
     observations as _observations,
-    run_circuit as _run_circuit,
+    run_charge_state as _run_charge_state,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -117,7 +118,7 @@ class _DevResumeContext:
         session = self.plan.session
         agent_result = _usage._run_agent_tracked(
             self.gh,
-            _run_circuit.AgentRunBudget(
+            _run_charge_state.AgentRunBudget(
                 issue=self.issue, state=self.state,
             ),
             agent_role="developer",
@@ -139,7 +140,7 @@ class _DevResumeContext:
             review_round=self.state.get("review_round", 0),
             retry_count=self.state.get(_state._RETRY_COUNT),
         )
-        _usage._accumulate_issue_usage(self.state, agent_result.usage)
+        _issue_usage._accumulate_issue_usage(self.state, agent_result.usage)
         paused = (
             self.options.pause_guard
             and _guards._paused_during_agent_run(self.gh, self.issue)

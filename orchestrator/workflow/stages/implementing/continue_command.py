@@ -53,7 +53,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
     messages as _messages,
-    prompts as _prompts,
+    prompt_notes as _prompt_notes,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -99,7 +99,7 @@ def _retry_parked_dev_session(
             branch=_naming._resolve_branch_name(state, spec, issue.number),
         )
     before_sha = _verification_probes._head_sha(wt)
-    followup = f"{_prompts._CONTINUE_RETRY_PROMPT}\n\n{_prompts._FOREGROUND_ONLY_NOTE}"
+    followup = f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     wt, agent_result, paused = _resume._resume_dev_with_text(
         gh, spec, issue, state, followup, pause_guard=True,
     )

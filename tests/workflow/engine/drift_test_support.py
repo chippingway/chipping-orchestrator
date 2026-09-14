@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from orchestrator.workflow.engine import drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support import fakes as _fakes
 from tests.workflow import fixtures as _helpers
 
@@ -116,7 +116,7 @@ def _content_change_case(
     include_bare_continue: bool = False,
 ) -> _ContentChangeContext:
     old_issue = make_issue(1, body=old_body, comments=list(comments))
-    prior_hash = drift._compute_user_content_hash(
+    prior_hash = _content_hash._compute_user_content_hash(
         old_issue,
         set(),
         include_bare_continue=include_bare_continue,
@@ -131,6 +131,6 @@ def _content_change_case(
         issue=issue,
         state=state,
         prior_hash=prior_hash,
-        current_hash=drift._compute_user_content_hash(issue, set()),
+        current_hash=_content_hash._compute_user_content_hash(issue, set()),
         before_writes=github.write_state_calls,
     )

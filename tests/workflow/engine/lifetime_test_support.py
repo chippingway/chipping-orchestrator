@@ -49,7 +49,7 @@ from unittest.mock import patch
 
 from orchestrator.config import settings as config
 from orchestrator.workflow.engine import (
-    run_ledger as _run_ledger,
+    run_ledger_values as _run_ledger_values,
 )
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.engine import (
@@ -110,9 +110,9 @@ def seeded(
     github.add_issue(issue)
     ledger = {}
     if allowance is not None:
-        ledger[_run_ledger.AGENT_RUN_ALLOWANCE] = allowance
+        ledger[_run_ledger_values.AGENT_RUN_ALLOWANCE] = allowance
     if used is not None:
-        ledger[_run_ledger.AGENT_RUNS_USED] = used
+        ledger[_run_ledger_values.AGENT_RUNS_USED] = used
     github.seed_state(ISSUE_NUMBER, **{
         **ledger,
         **journey.seed,

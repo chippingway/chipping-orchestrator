@@ -14,7 +14,10 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import run_ledger as _run_ledger, run_limit as _run_limit
+from orchestrator.workflow.engine import (
+    run_ledger_values as _run_ledger_values,
+    run_limit as _run_limit,
+)
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
@@ -38,8 +41,8 @@ class SpentLedgerLateAdjudicationTest(unittest.TestCase):
 
     def setUp(self) -> None:
         seeded = seeded_late_issue(**{
-            _run_ledger.AGENT_RUN_ALLOWANCE: _ALLOWANCE,
-            _run_ledger.AGENT_RUNS_USED: _ALLOWANCE,
+            _run_ledger_values.AGENT_RUN_ALLOWANCE: _ALLOWANCE,
+            _run_ledger_values.AGENT_RUNS_USED: _ALLOWANCE,
         })
         self.github = seeded[0]
         self.issue = seeded[1]
@@ -69,7 +72,7 @@ class SpentLedgerLateAdjudicationTest(unittest.TestCase):
         self.assertEqual(
             pinned.get(KEY_PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
         )
-        self.assertEqual(pinned.get(_run_ledger.AGENT_RUNS_USED), _ALLOWANCE)
+        self.assertEqual(pinned.get(_run_ledger_values.AGENT_RUNS_USED), _ALLOWANCE)
 
 
 if __name__ == "__main__":

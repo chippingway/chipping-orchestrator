@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import drift
+from orchestrator.workflow.engine import content_hash as _content_hash, drift
 from tests.workflow.engine import drift_test_support as support
 
 
@@ -20,16 +20,16 @@ class ComputeUserContentHashTest(unittest.TestCase):
         issue_a = support.make_issue(1, body="old body")
         issue_b = support.make_issue(1, body=support.NEW_BODY)
         self.assertNotEqual(
-            drift._compute_user_content_hash(issue_a, set()),
-            drift._compute_user_content_hash(issue_b, set()),
+            _content_hash._compute_user_content_hash(issue_a, set()),
+            _content_hash._compute_user_content_hash(issue_b, set()),
         )
 
     def test_hash_changes_when_title_changes(self) -> None:
         issue_a = support.make_issue(1, title="old", body="b")
         issue_b = support.make_issue(1, title="new", body="b")
         self.assertNotEqual(
-            drift._compute_user_content_hash(issue_a, set()),
-            drift._compute_user_content_hash(issue_b, set()),
+            _content_hash._compute_user_content_hash(issue_a, set()),
+            _content_hash._compute_user_content_hash(issue_b, set()),
         )
 
     def test_orchestrator_comments_filtered_by_id(self) -> None:
@@ -48,19 +48,19 @@ class ComputeUserContentHashTest(unittest.TestCase):
         issue_with_human = support.make_issue(1, comments=[human])
         issue_with_both = support.make_issue(1, comments=[human, bot])
         self.assertEqual(
-            drift._compute_user_content_hash(
+            _content_hash._compute_user_content_hash(
                 issue_with_human,
                 {support._BOT_COMMENT_ID},
             ),
-            drift._compute_user_content_hash(
+            _content_hash._compute_user_content_hash(
                 issue_with_both,
                 {support._BOT_COMMENT_ID},
             ),
         )
         # Without filtering the bot comment, the hash differs.
         self.assertNotEqual(
-            drift._compute_user_content_hash(issue_with_human, set()),
-            drift._compute_user_content_hash(issue_with_both, set()),
+            _content_hash._compute_user_content_hash(issue_with_human, set()),
+            _content_hash._compute_user_content_hash(issue_with_both, set()),
         )
 
     def test_state_marker_filtered_by_marker(self) -> None:
@@ -73,8 +73,8 @@ class ComputeUserContentHashTest(unittest.TestCase):
         # Pinned-state comment id is NOT in orchestrator_ids but its marker
         # body causes it to be filtered.
         self.assertEqual(
-            drift._compute_user_content_hash(issue, set()),
-            drift._compute_user_content_hash(issue_with_pinned, set()),
+            _content_hash._compute_user_content_hash(issue, set()),
+            _content_hash._compute_user_content_hash(issue_with_pinned, set()),
         )
 
     def test_bare_continue_ignored_guidance_counts(
@@ -95,14 +95,14 @@ class ComputeUserContentHashTest(unittest.TestCase):
             user=support.FakeUser(support.TRUSTED_AUTHOR),
         )
         self.assertEqual(
-            drift._compute_user_content_hash(issue, set()),
-            drift._compute_user_content_hash(
+            _content_hash._compute_user_content_hash(issue, set()),
+            _content_hash._compute_user_content_hash(
                 support.make_issue(1, comments=[bare]), set()
             ),
         )
         self.assertNotEqual(
-            drift._compute_user_content_hash(issue, set()),
-            drift._compute_user_content_hash(
+            _content_hash._compute_user_content_hash(issue, set()),
+            _content_hash._compute_user_content_hash(
                 support.make_issue(1, comments=[guided]), set()
             ),
         )
@@ -122,7 +122,7 @@ class DetectUserContentChangeTest(unittest.TestCase):
         self.assertIsNone(detected_hash)
         self.assertEqual(
             state.get(support.KEY_USER_CONTENT_HASH),
-            drift._compute_user_content_hash(issue, set()),
+            _content_hash._compute_user_content_hash(issue, set()),
         )
         # Durably written so a later edit after an early-return tick is
         # correctly classified as drift, not absorbed as the new baseline.
@@ -136,7 +136,7 @@ class DetectUserContentChangeTest(unittest.TestCase):
         gh = support.FakeGitHubClient()
         issue = support.make_issue(1)
         gh.add_issue(issue)
-        prior_hash = drift._compute_user_content_hash(issue, set())
+        prior_hash = _content_hash._compute_user_content_hash(issue, set())
         gh.seed_state(1, user_content_hash=prior_hash)
         state = gh.read_pinned_state(issue)
         before = gh.write_state_calls

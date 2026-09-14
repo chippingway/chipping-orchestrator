@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -171,7 +171,7 @@ class _ContinueDocumentingFixture(_DocumentingWorkflowMixin):
             dev_agent=DEV_AGENT,
             dev_session_id=DEV_SESSION,
             silent_park_count=1,
-            user_content_hash=_drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         _open_pr_for(
             gh, issue_number=number, pr_number=CONTINUE_PR_NUMBER,
@@ -196,7 +196,7 @@ class _ParkedDocumentingFixture(_DocumentingWorkflowMixin):
             "last_action_comment_id": PARKED_FIXTURE_WATERMARK,
             # The seeded baseline keeps first-encounter drift persistence
             # out of tests that assert an already-parked tick writes nothing.
-            "user_content_hash": _drift._compute_user_content_hash(
+            "user_content_hash": _content_hash._compute_user_content_hash(
                 issue,
                 set(),
             ),

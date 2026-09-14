@@ -40,7 +40,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    comments as _comments,
+    prompt_context as _prompt_context,
     prompts as _prompts,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -188,7 +188,7 @@ def _build_dev_spawn_prompt(
         [] if followup_has_tracked_repos else config.default_repo_specs()
     )
     preamble = _prompts._build_fresh_respawn_preamble(
-        spec, issue, _comments._recent_comments_text(issue), preamble_specs,
+        spec, issue, _prompt_context._recent_comments_text(issue), preamble_specs,
     )
     return f"{preamble}\n\n{followup_text}"
 

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 from unittest.mock import MagicMock
 
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import (
     FakeGitHubClient,
     FakePR,
@@ -243,6 +243,6 @@ class _ResolvingConflictMixin(_PatchedWorkflowMixin):
         state_data = github.pinned_data(self.issue_number)
         state_data.update(extra)
         state_data["user_content_hash"] = (
-            _drift._compute_user_content_hash(issue, set())
+            _content_hash._compute_user_content_hash(issue, set())
         )
         github.seed_state(self.issue_number, **state_data)

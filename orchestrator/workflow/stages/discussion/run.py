@@ -62,7 +62,10 @@ from orchestrator.git.worktrees import (
     naming as _naming,
     paths as _worktree_paths,
 )
-from orchestrator.workflow.engine import run_circuit as _run_circuit, usage as _usage
+from orchestrator.workflow.engine import (
+    run_charge_state as _run_charge_state,
+    usage as _usage,
+)
 from orchestrator.workflow.stages.discussion import models as _models, session as _session, state as _state
 
 log = logging.getLogger("orchestrator.workflow")
@@ -289,7 +292,7 @@ def _open_discussion_round(
     _session._consume_replies(run, round_prompt.consumed)
     discussion_result = _usage._run_agent_tracked(
         run.gh,
-        _run_circuit.AgentRunBudget(issue=run.issue, state=run.state),
+        _run_charge_state.AgentRunBudget(issue=run.issue, state=run.state),
         agent_role=_state._DECOMPOSER_ROLE,
         stage=_state._DISCUSSION_STAGE,
         backend=session.backend,

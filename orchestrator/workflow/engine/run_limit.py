@@ -74,9 +74,10 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
     run_budget as _run_budget,
-    run_ledger as _run_ledger,
+    run_budget_models as _run_budget_models,
+    run_ledger_values as _run_ledger_values,
 )
-from orchestrator.workflow.engine.run_ledger import AgentRunLedger
+from orchestrator.workflow.engine.run_ledger_models import AgentRunLedger
 from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -224,7 +225,7 @@ def _park_exhausted(
     issue: Issue,
     state: PinnedState,
     ledger: AgentRunLedger,
-    launch: _run_budget.AgentRunLaunch,
+    launch: _run_budget_models.AgentRunLaunch,
 ) -> None:
     """Stop this issue on its spent ledger, and say so once.
 
@@ -407,8 +408,8 @@ def _owed_notice(state: PinnedState) -> OwedNotice | None:
     if not isinstance(owed, dict):
         return None
     message = owed.get(_NOTICE_MESSAGE)
-    allowance = _run_ledger._counted(owed.get(_NOTICE_ALLOWANCE))
-    spent = _run_ledger._counted(owed.get(_NOTICE_SPENT))
+    allowance = _run_ledger_values._counted(owed.get(_NOTICE_ALLOWANCE))
+    spent = _run_ledger_values._counted(owed.get(_NOTICE_SPENT))
     if not isinstance(message, str) or not message:
         return None
     if allowance is None or spent is None:

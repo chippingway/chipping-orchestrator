@@ -20,7 +20,11 @@ from orchestrator.github.pinned_state import (
     pinned_state_body,
     pinned_state_from_comment,
 )
-from orchestrator.workflow.engine import run_ledger as _run_ledger
+from orchestrator.workflow.engine import (
+    run_ledger as _run_ledger,
+    run_ledger_models as _run_ledger_models,
+    run_ledger_values as _run_ledger_values,
+)
 from tests.support.fakes import FakeComment, FakeUser
 
 _CONFIGURED = 50
@@ -31,17 +35,17 @@ _BOT_LOGIN = "orchestrator"
 
 _LEGACY_RUNS = "issue_agent_runs"
 
-_ALLOWANCE = _run_ledger.AGENT_RUN_ALLOWANCE
+_ALLOWANCE = _run_ledger_values.AGENT_RUN_ALLOWANCE
 
-_USED = _run_ledger.AGENT_RUNS_USED
+_USED = _run_ledger_values.AGENT_RUNS_USED
 
-_RESERVATION = _run_ledger.AGENT_RUN_RESERVATION
+_RESERVATION = _run_ledger_values.AGENT_RUN_RESERVATION
 
-_FINGERPRINT = _run_ledger.AGENT_RUN_FINGERPRINT
+_FINGERPRINT = _run_ledger_values.AGENT_RUN_FINGERPRINT
 
-_RESERVED = _run_ledger.RunPhase.RESERVED
+_RESERVED = _run_ledger_models.RunPhase.RESERVED
 
-_STARTED = _run_ledger.RunPhase.STARTED
+_STARTED = _run_ledger_models.RunPhase.STARTED
 
 # What one issue has already spent when a case starts, and what the charge
 # under test makes of it.
@@ -336,7 +340,7 @@ class WireContractTest(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            [phase.value for phase in _run_ledger.RunPhase],
+            [phase.value for phase in _run_ledger_models.RunPhase],
             ["reserved", "started"],
         )
 

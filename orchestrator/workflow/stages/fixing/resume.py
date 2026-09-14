@@ -32,9 +32,9 @@ from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
     comments as _comments,
-    drift as _engine_drift,
+    content_hash as _content_hash,
+    conversation_prompts as _conversation_prompts,
     messages as _messages,
-    prompts as _prompts,
     usage as _usage,
 )
 from orchestrator.workflow.stages.fixing import (
@@ -146,7 +146,7 @@ def _run_fixing_resume(
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     ctx.state.set(
         "user_content_hash",
-        _engine_drift._compute_user_content_hash(
+        _content_hash._compute_user_content_hash(
             ctx.issue, _comments._orchestrator_ids(ctx.state),
         ),
     )
@@ -237,7 +237,7 @@ def _resume_fixing_and_dispatch_result(
     # (plus any new feedback that came with the command), not the command
     # text -- the whole point of the command is to not lose the review
     # feedback the parked session never addressed.
-    followup = _prompts._build_pr_comment_followup(
+    followup = _conversation_prompts._build_pr_comment_followup(
         feedback.all_items if replay_batch is None else replay_batch
     )
     run = _run_fixing_resume(ctx, followup)

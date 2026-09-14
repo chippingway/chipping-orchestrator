@@ -19,6 +19,20 @@ _TICK = "tick"
 _TICK_OWNER = f"orchestrator.workflow.engine.{_TICK}"
 
 _ENGINE_OWNERS = (
+    "prompt_context",
+    "content_hash",
+    "prompt_notes",
+    "conversation_prompts",
+    "decomposition_prompts",
+    "run_requests",
+    "run_reporting",
+    "issue_usage",
+    "run_budget_models",
+    "run_budget_fields",
+    "run_charge_state",
+    "run_ledger_models",
+    "run_ledger_values",
+
     "agent_diagnostics",
     "comments",
     "community",

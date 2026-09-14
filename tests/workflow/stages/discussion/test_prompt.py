@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import prompts as _prompts
+from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
 from tests.support.fakes import FakeComment, FakeUser, make_issue
 from tests.workflow.fixtures import _TEST_SPEC
 
@@ -113,7 +113,7 @@ _REQUIRED_CLAUSES = (
 class DiscussionPromptTest(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.prompt = _prompts._build_discussion_prompt(
+        self.prompt = _conversation_prompts._build_discussion_prompt(
             _TEST_SPEC,
             make_issue(
                 _PROMPT_ISSUE_NUMBER, title=_ISSUE_TITLE, body=_ISSUE_BODY,
@@ -150,7 +150,7 @@ class DiscussionPromptTest(unittest.TestCase):
 class DiscussionFollowupPromptTest(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.prompt = _prompts._build_discussion_followup_prompt(
+        self.prompt = _conversation_prompts._build_discussion_followup_prompt(
             [
                 FakeComment(
                     id=_REPLY_ID,

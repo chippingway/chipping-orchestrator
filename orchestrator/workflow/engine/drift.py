@@ -1,180 +1,26 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What counts as the human's requirements, and what a change to them costs.
+"""Detect requirement changes and route the workflow against the new baseline.
 
-One SHA-256 over the issue title, body, and the comments a human actually
-wrote is the whole definition. Everything the orchestrator itself put on the
-thread is filtered out first -- the pinned-state comment, the hidden marker
-every posted comment carries, the legacy ids from before that marker existed,
-third-party bots, authors outside the configured allowlist, and a whole-comment
-operator command (`/orchestrator continue`, `/orchestrator add-agent-runs N`,
-`/orchestrator authorize-oversized <commit>`)
--- because each of them would otherwise shift the hash on a tick where the
-requirements did not move and re-fire the resume or re-decompose the drift
-routes drive. The last two are the sharpest of those: the tick that reads one
-answers it and hands the SAME issue on -- to the stage below on a grant, and
-to the stage an authorized publication continues at on the other -- so a hash
-counting it would hand that stage a body nobody edited and call it changed
-requirements. The filters and the hash sit together for
-that reason: the hash is only as stable as the narrowest of them.
-
-The routes are the other half of the same decision. A drift found mid-implementation
-resumes the locked dev session with the updated title, body, and thread quoted --
-so the same routes advance `last_action_comment_id` past everything they quoted,
-or the next validating->in_review handoff replays those comments as fresh PR
-feedback and resumes the dev a second time. A drift found before any code exists
-goes back to `decomposing` instead, and clears the manifest state a half-finished
-split left behind so recovery cannot mistake the intentional reroute for a crash.
-The children that state tracked are named in the notice rather than closed: the
-orchestrator stops tracking them, and which ones still apply is the operator's call.
-"""
+The content_hash owner defines which text is human guidance. This owner persists
+the first or normalized baseline, resumes implementation with the changed text,
+and clears split claims before routing pre-implementation drift to decomposition.
+Consumed comment ids cover exactly the guidance delivered to the resumed agent."""
 from __future__ import annotations
 
-import hashlib
-
 from github.Issue import Issue
-from github.IssueComment import IssueComment
 
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.comments import is_trusted_author
-from orchestrator.github.pinned_state import PINNED_STATE_MARKER, PinnedState
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
+    content_hash as _content_hash,
     messages as _messages,
-    prompts as _prompts,
-    run_grant_request as _run_grant_request,
+    prompt_notes as _prompt_notes,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
 _USER_CONTENT_HASH = "user_content_hash"
-
-
-def _is_hidden_comment(
-    issue_comment: IssueComment, orchestrator_ids: set[int],
-) -> bool:
-    """True for comments that never count as user-authored requirements:
-    orchestrator markers, orchestrator-authored IDs, bots, and untrusted
-    authors."""
-    body = issue_comment.body or ""
-    if PINNED_STATE_MARKER in body or _comments._ORCH_COMMENT_MARKER in body:
-        return True
-    comment_id = getattr(issue_comment, "id", None)
-    if comment_id is not None and int(comment_id) in orchestrator_ids:
-        return True
-    user = getattr(issue_comment, "user", None)
-    if user is not None and getattr(user, "type", None) == "Bot":
-        return True
-    return not is_trusted_author(user)
-
-
-def _is_operator_control(issue_comment: IssueComment) -> bool:
-    """Whether this whole comment is a command rather than requirements text.
-
-    Asked in both hashing modes, unlike the bare continue below it. Each of
-    these commands postdates the legacy algorithm the flag reproduces, so a
-    thread carrying one was never hashed with it either way -- and a baseline
-    recomputed WITH it would fail to recognize itself and report an operator's
-    control as the edit it is not.
-
-    The reason they are filtered at all is the same for both, and sharpest for
-    the authorization: the tick that reads one answers it and then hands the
-    SAME issue on -- to the stage below on a grant, and to the stage an
-    authorized publication continues at on the other -- so a hash counting it
-    would meet that handler as a body edit that never happened, resuming a
-    developer where a reviewer was owed a round or over the very commit an
-    operator just authorized.
-
-    Bare is the whole test. A comment carrying a command ALONGSIDE guidance is
-    guidance: it moves the hash, and the drift road that opens is how those
-    words reach the agent that has to act on them.
-    """
-    if _run_grant_request._is_bare_command(issue_comment):
-        return True
-    return _messages._authorized_oversized_candidate(issue_comment) is not None
-
-
-def _comment_body_for_hash(
-    issue_comment: IssueComment,
-    orchestrator_ids: set[int],
-    *,
-    include_bare_continue: bool,
-) -> str | None:
-    """Return user-authored requirements text, or None for filtered content."""
-    if _is_hidden_comment(issue_comment, orchestrator_ids):
-        return None
-    body = issue_comment.body or ""
-    if _is_operator_control(issue_comment):
-        return None
-    if include_bare_continue:
-        return body
-    if _messages._is_bare_orchestrator_continue(issue_comment):
-        return None
-    return body
-
-
-def _compute_user_content_hash(
-    issue: Issue, orchestrator_ids: set[int],
-    *, include_bare_continue: bool = False,
-) -> str:
-    """SHA-256 over title + body + human-authored comments.
-
-    Used by `_detect_user_content_change` so the orchestrator can react
-    when a human edits the issue body or adds acceptance criteria after
-    the workflow has already picked it up.
-
-    `include_bare_continue` is the legacy-compat escape hatch: with it True the
-    bare `/orchestrator continue` filter (below) is skipped, reproducing the
-    pre-issue-#729 algorithm. `_detect_user_content_change` uses it to recognize
-    a baseline written by the old algorithm and absorb the one-time delta instead
-    of firing false drift. Default False (the current algorithm).
-
-    Non-human content is filtered eight ways:
-
-    * pinned-state comment by `PINNED_STATE_MARKER`;
-    * orchestrator-posted comments by `_ORCH_COMMENT_MARKER` embedded in
-      the body (id-cap-resistant -- the marker stays on the GitHub side
-      forever even after the comment's id has been evicted from
-      `orchestrator_comment_ids`);
-    * legacy orchestrator comments (posted before the marker was
-      introduced) by id from `orchestrator_comment_ids`;
-    * third-party Bot / App accounts (Dependabot, Renovate, CI bots, ...)
-      by GitHub's `user.type == "Bot"` flag. These accounts cannot be
-      filtered by the id-list or marker because we never post them, and
-      they post structurally (e.g. weekly Dependabot bumps) which would
-      otherwise re-trigger drift detection on every tick they post.
-    * untrusted authors by `is_trusted_author` when `ALLOWED_ISSUE_AUTHORS`
-      is set. This keeps an outsider's comment from shifting the hash and
-      re-triggering drift (and the re-decompose / dev-resume it drives) on
-      a public repo. With no allowlist configured everyone is trusted, so
-      the default deployment's hash is unchanged.
-    * a bare `/orchestrator continue` operator command by
-      `_is_bare_orchestrator_continue`. The command is an operator control,
-      not requirements content: counting it would shift the hash and route
-      the nudge through generic "issue body/content changed" drift handling
-      instead of the stage's intentional session-limit retry (issue #729).
-      A comment carrying the command ALONGSIDE genuine guidance is NOT bare,
-      so it still shifts the hash and drives the normal drift/resume path.
-    * the two whole-comment operator commands -- `/orchestrator add-agent-runs
-      N` and `/orchestrator authorize-oversized <commit>` -- by
-      `_is_operator_control`, which says why both are filtered and why they
-      are filtered in both hashing modes.
-
-    The orchestrator's OWN comments are dropped by marker/id (above),
-    never by login, so a PAT shared with a human reviewer's account does
-    not swallow that reviewer's real comments as bot noise. The allowlist
-    filter is a separate, opt-in login gate: an operator who enables it is
-    expected to list the reviewer login they post under.
-    """
-    parts = [issue.title or "", issue.body or ""]
-    for issue_comment in issue.get_comments():
-        comment_body = _comment_body_for_hash(
-            issue_comment,
-            orchestrator_ids,
-            include_bare_continue=include_bare_continue,
-        )
-        if comment_body is not None:
-            parts.append(comment_body)
-    return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
 
 
 def _detect_user_content_change(
@@ -203,7 +49,7 @@ def _detect_user_content_change(
     one false "issue body/content changed" route.
     """
     orchestrator_ids = _comments._orchestrator_ids(state)
-    current = _compute_user_content_hash(issue, orchestrator_ids)
+    current = _content_hash._compute_user_content_hash(issue, orchestrator_ids)
     prior = state.get(_USER_CONTENT_HASH)
     if not isinstance(prior, str):
         state.set(_USER_CONTENT_HASH, current)
@@ -211,7 +57,7 @@ def _detect_user_content_change(
         return None
     if current == prior:
         return None
-    legacy = _compute_user_content_hash(
+    legacy = _content_hash._compute_user_content_hash(
         issue, orchestrator_ids, include_bare_continue=True,
     )
     if legacy == prior:
@@ -250,7 +96,7 @@ def _build_user_content_change_prompt(
         f"Updated issue title: {title!r}\n\n"
         f"Updated issue body:\n\n{quoted}\n\n"
         f"Conversation so far:\n{convo}\n\n"
-        f"{_prompts._COMMIT_STYLE_NOTE}\n\n"
+        f"{_prompt_notes._COMMIT_STYLE_NOTE}\n\n"
         "If your existing commits already satisfy the new requirements and "
         "no further code change is needed, end your final message with "
         "EXACTLY this marker, alone on its own line:\n\n"
@@ -261,7 +107,7 @@ def _build_user_content_change_prompt(
         "clarification question or are unsure, do NOT use `ACK:`; reply "
         "with the question and the orchestrator will park awaiting a human "
         "reply (same as a regular agent question).\n\n"
-        f"{_prompts._FOREGROUND_ONLY_NOTE}"
+        f"{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     )
 
 

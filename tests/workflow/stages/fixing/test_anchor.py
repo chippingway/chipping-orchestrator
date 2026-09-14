@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import prompts as _prompts
+from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
 from tests.workflow.stages.fixing import fixing_test_support as support
 
 ADVANCED_PR_COMMENT_WATERMARK = support.ADVANCED_PR_COMMENT_WATERMARK
@@ -103,7 +103,7 @@ class ReviewerAnchorReconstructionTest(
             [feedback_item.id for feedback_item in batch],
             [BATCH_PR_CONVERSATION_ID],
         )
-        self._prompt = _prompts._build_pr_comment_followup(batch)
+        self._prompt = _conversation_prompts._build_pr_comment_followup(batch)
         self.assertIn("please fix the docstring ordering", self._prompt)
 
     def test_anchor_survives_author_allowlist(self) -> None:

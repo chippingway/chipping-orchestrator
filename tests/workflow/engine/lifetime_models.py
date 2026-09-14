@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from orchestrator.workflow.engine import (
-    run_ledger as _run_ledger,
+    run_ledger_values as _run_ledger_values,
     run_limit as _run_limit,
 )
 from tests.support.fakes import FakeGitHubClient
@@ -121,7 +121,7 @@ class Walk:
     @property
     def spent(self) -> int:
         """What the issue's own pinned comment says it has spent."""
-        return self.pinned.get(_run_ledger.AGENT_RUNS_USED)
+        return self.pinned.get(_run_ledger_values.AGENT_RUNS_USED)
 
     @property
     def pinned(self) -> dict:

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import comments, drift
+from orchestrator.workflow.engine import comments, content_hash as _content_hash
 from tests.workflow.engine import drift_test_support as support
 
 
@@ -40,10 +40,10 @@ class OrchCommentMarkerSurvivesIdCapTest(unittest.TestCase):
         # but the hash must still match because the marker identifies
         # the bot comment.
         self.assertEqual(
-            drift._compute_user_content_hash(
+            _content_hash._compute_user_content_hash(
                 issue_with_just_human, set()
             ),
-            drift._compute_user_content_hash(
+            _content_hash._compute_user_content_hash(
                 issue_with_both, set()
             ),
         )
@@ -73,10 +73,10 @@ class HashFiltersBotUsersTest(unittest.TestCase):
         issue_with_just_human = support.make_issue(1, comments=[human])
         issue_with_bot = support.make_issue(1, comments=[human, bot_comment])
         self.assertEqual(
-            drift._compute_user_content_hash(
+            _content_hash._compute_user_content_hash(
                 issue_with_just_human, set()
             ),
-            drift._compute_user_content_hash(
+            _content_hash._compute_user_content_hash(
                 issue_with_bot, set()
             ),
         )
@@ -91,8 +91,8 @@ class HashFiltersBotUsersTest(unittest.TestCase):
         empty = support.make_issue(1)
         with_human = support.make_issue(1, comments=[comment])
         self.assertNotEqual(
-            drift._compute_user_content_hash(empty, set()),
-            drift._compute_user_content_hash(with_human, set()),
+            _content_hash._compute_user_content_hash(empty, set()),
+            _content_hash._compute_user_content_hash(with_human, set()),
         )
 
 
@@ -116,10 +116,10 @@ class HashFiltersBareOperatorCommandTest(unittest.TestCase):
             for legacy in (False, True):
                 with self.subTest(command=command, legacy=legacy):
                     self.assertEqual(
-                        drift._compute_user_content_hash(
+                        _content_hash._compute_user_content_hash(
                             silent, set(), include_bare_continue=legacy,
                         ),
-                        drift._compute_user_content_hash(
+                        _content_hash._compute_user_content_hash(
                             commanded, set(), include_bare_continue=legacy,
                         ),
                     )
@@ -133,10 +133,10 @@ class HashFiltersBareOperatorCommandTest(unittest.TestCase):
                     f"{command}\n\nalso handle empty input",
                 )
                 self.assertNotEqual(
-                    drift._compute_user_content_hash(
+                    _content_hash._compute_user_content_hash(
                         support.make_issue(1), set(),
                     ),
-                    drift._compute_user_content_hash(guided, set()),
+                    _content_hash._compute_user_content_hash(guided, set()),
                 )
 
     def _issue_with(self, body: str):

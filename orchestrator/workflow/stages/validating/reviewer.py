@@ -37,11 +37,12 @@ from orchestrator.git.worktrees import creation as _worktree_creation, naming as
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    comments as _comments,
     completion_verdicts as _completion_verdicts,
     guards as _guards,
+    issue_usage as _issue_usage,
+    prompt_context as _prompt_context,
     prompts as _prompts,
-    run_circuit as _run_circuit,
+    run_charge_state as _run_charge_state,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -74,7 +75,7 @@ def _run_reviewer_round(
     )
     _, dev_backend_for_prompt, _, _ = _dev_session_read._read_dev_session(state)
     review_prompt = _prompts._build_review_prompt(
-        spec, issue, _comments._recent_comments_text(issue),
+        spec, issue, _prompt_context._recent_comments_text(issue),
         config.default_repo_specs(), dev_backend_for_prompt,
     )
     # Persist the full configured spec BEFORE the spawn so a reviewer
@@ -86,7 +87,7 @@ def _run_reviewer_round(
     # config spec is the right behavior here.
     state.set("review_agent", config.REVIEW_AGENT_SPEC)
     review = _usage._run_agent_tracked(
-        gh, _run_circuit.AgentRunBudget(issue=issue, state=state),
+        gh, _run_charge_state.AgentRunBudget(issue=issue, state=state),
         agent_role="reviewer",
         stage="validating",
         backend=config.REVIEW_AGENT,
@@ -107,7 +108,7 @@ def _run_reviewer_round(
     # fresh each round.
     if _guards._paused_during_agent_run(gh, issue):
         return None
-    _usage._accumulate_issue_usage(state, review.usage)
+    _issue_usage._accumulate_issue_usage(state, review.usage)
     if review.session_id:
         state.set("last_review_session_id", review.session_id)
     state.set("last_review_at", _usage._now_iso())

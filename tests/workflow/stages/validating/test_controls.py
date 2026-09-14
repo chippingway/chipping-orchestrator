@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.validating import dev_fix as _dev_fix, drift_outcomes as _drift_outcomes
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
@@ -525,7 +525,7 @@ class ValidatingInterruptedResumeHandlerTest(unittest.TestCase, _PatchedWorkflow
         # Seed a matching content hash so `_detect_user_content_change`
         # returns None (no drift, no first-call persist) and the handler
         # reaches the awaiting-human resume path cleanly.
-        prior_hash = _drift._compute_user_content_hash(interrupted_issue, set())
+        prior_hash = _content_hash._compute_user_content_hash(interrupted_issue, set())
         interrupted_github.seed_state(
             9,
             awaiting_human=True,

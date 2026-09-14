@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -165,7 +165,7 @@ class DecomposerRunUsageAccumulationTest(
             last_action_comment_id=PRIOR_ACTION_COMMENT_ID,
             decomposer_agent=BACKEND_CLAUDE,
             decomposer_session_id=DECOMPOSER_SESSION,
-            user_content_hash=_drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
 
         mocks = self._run_decomposing(
@@ -190,7 +190,7 @@ class DecomposerRunUsageAccumulationTest(
             # Seed the drift baseline so `_detect_user_content_change` does
             # not itself write on first encounter -- this test asserts the
             # handler writes NOTHING once the run is interrupted.
-            user_content_hash=_drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
 
         self._run_decomposing(

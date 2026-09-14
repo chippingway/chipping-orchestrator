@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments
+from orchestrator.workflow.engine import comments, prompt_context as _prompt_context
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
 from tests.workflow.engine import comment_trust_test_support as trust
 
@@ -92,7 +92,7 @@ class RecentCommentsTrustFilterTest(unittest.TestCase):
 
     def test_outsider_dropped_allowed_kept(self) -> None:
         with patch.object(config, trust.ALLOWLIST_CONFIG, (trust.ALLOWED_AUTHOR,)):
-            text = comments._recent_comments_text(trust.issue_with_comments())
+            text = _prompt_context._recent_comments_text(trust.issue_with_comments())
 
         self.assertNotIn(trust.MALICIOUS_URL, text)
         self.assertNotIn(trust.PATCH_INSTRUCTION, text)
@@ -102,7 +102,7 @@ class RecentCommentsTrustFilterTest(unittest.TestCase):
         # The filter is opt-in: with no allowlist configured the outsider's
         # comment still reaches the prompt (legacy single-user behavior).
         with patch.object(config, trust.ALLOWLIST_CONFIG, ()):
-            text = comments._recent_comments_text(trust.issue_with_comments())
+            text = _prompt_context._recent_comments_text(trust.issue_with_comments())
 
         self.assertIn(trust.MALICIOUS_URL, text)
         self.assertIn(trust.ALLOWED_MARKER, text)
@@ -126,7 +126,7 @@ class ThreadTextParagraphsTest(unittest.TestCase):
         )
 
         with patch.object(config, trust.ALLOWLIST_CONFIG, ()):
-            text = comments._recent_comments_text(issue)
+            text = _prompt_context._recent_comments_text(issue)
 
         self.assertEqual(text, "@alice: please rebase\n\n@bob: and squash")
 
@@ -147,7 +147,7 @@ class QuoteCommentLineTest(unittest.TestCase):
         for comment, label, expected in cases:
             with self.subTest(expected=expected):
                 self.assertEqual(
-                    comments._quote_comment_line(comment, label), expected,
+                    _prompt_context._quote_comment_line(comment, label), expected,
                 )
 
 

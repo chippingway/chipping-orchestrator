@@ -30,7 +30,10 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.github.labels import PAUSED_LABEL
-from orchestrator.workflow.engine import run_ledger as _run_ledger
+from orchestrator.workflow.engine import (
+    run_ledger_models as _run_ledger_models,
+    run_ledger_values as _run_ledger_values,
+)
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -45,7 +48,7 @@ RUN_AGENT = "run_agent"
 PUSH_BRANCH = "_push_branch"
 
 # The phase a charge stands in once the invocation is what happens next.
-STARTED = _run_ledger.RunPhase.STARTED
+STARTED = _run_ledger_models.RunPhase.STARTED
 
 # Wide enough that a road spawning twice still has room under it, so a case
 # about the SECOND charge is not really a case about the ceiling.
@@ -84,8 +87,8 @@ _REPLY_AGE = timedelta(hours=1)
 def ledger(**extra) -> dict:
     """The pinned agent-run ledger every road is seeded on."""
     return {
-        _run_ledger.AGENT_RUN_ALLOWANCE: ALLOWANCE,
-        _run_ledger.AGENT_RUNS_USED: SPENT_BEFORE,
+        _run_ledger_values.AGENT_RUN_ALLOWANCE: ALLOWANCE,
+        _run_ledger_values.AGENT_RUNS_USED: SPENT_BEFORE,
         **extra,
     }
 
@@ -132,12 +135,12 @@ class Driven:
     @property
     def spent(self) -> int:
         """What the issue's pinned comment durably says it has spent."""
-        return self._pinned(_run_ledger.AGENT_RUNS_USED)
+        return self._pinned(_run_ledger_values.AGENT_RUNS_USED)
 
     @property
     def reservation(self):
         """The launch the issue is durably holding a charge for, if any."""
-        return self._pinned(_run_ledger.AGENT_RUN_RESERVATION)
+        return self._pinned(_run_ledger_values.AGENT_RUN_RESERVATION)
 
     def _pinned(self, key: str):
         return self.github.pinned_data(self.number).get(key)

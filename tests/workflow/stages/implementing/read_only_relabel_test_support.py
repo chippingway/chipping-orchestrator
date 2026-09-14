@@ -23,7 +23,7 @@ from orchestrator.git.worktrees import (
     paths as _worktree_paths,
     recovery as _worktree_recovery,
 )
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import (
@@ -101,7 +101,7 @@ def _seed_relabeled_discussion(
             "discussion_agent": config.DECOMPOSE_AGENT_SPEC,
             "discussion_session_id": DISCUSSION_SESSION,
             "last_action_comment_id": RELABEL_WATERMARK,
-            "user_content_hash": _drift._compute_user_content_hash(issue, set()),
+            "user_content_hash": _content_hash._compute_user_content_hash(issue, set()),
             KEY_ROUND_BRANCH: _issue_branch(issue_number),
             KEY_ROUND_SHA: HEAD_BEFORE_ROUND,
             **extra,

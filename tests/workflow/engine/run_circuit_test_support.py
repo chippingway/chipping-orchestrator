@@ -18,8 +18,9 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    run_circuit as _run_circuit,
+    run_charge_state as _run_charge_state,
     run_limit as _run_limit,
+    run_requests as _run_requests,
     usage as _usage,
 )
 from tests.support.fakes import FakeIssue, make_issue
@@ -97,7 +98,7 @@ def fingerprint(**overrides) -> str:
         "prompt": PROMPT,
         "cwd": WORKTREE,
     }
-    return _usage._AgentRunRequest(**{**named, **overrides}).fingerprint
+    return _run_requests._AgentRunRequest(**{**named, **overrides}).fingerprint
 
 
 @dataclass
@@ -200,7 +201,7 @@ def run_launch(
         "prompt": PROMPT,
         "cwd": WORKTREE,
     }
-    budget = _run_circuit.AgentRunBudget(
+    budget = _run_charge_state.AgentRunBudget(
         issue=launch.issue, state=launch.state,
     )
     with patch.object(config, "MAX_AGENT_RUNS_PER_ISSUE", allowance), \

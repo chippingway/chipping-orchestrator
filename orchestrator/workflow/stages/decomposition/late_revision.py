@@ -51,7 +51,8 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
     messages as _messages,
-    prompts as _prompts,
+    prompt_context as _prompt_context,
+    prompt_notes as _prompt_notes,
     usage as _usage,
 )
 from orchestrator.workflow.stages.decomposition import (
@@ -275,7 +276,7 @@ def _revision_prompt(issue: Issue, guidance: tuple) -> str:
     text it remembers would revise against requirements nobody is asking for.
     """
     quoted = "\n\n".join(
-        _comments._quote_comment_line(issue_comment)
+        _prompt_context._quote_comment_line(issue_comment)
         for issue_comment in guidance
     )
     return _REVISION_PROMPT.format(
@@ -284,6 +285,6 @@ def _revision_prompt(issue: Issue, guidance: tuple) -> str:
             (issue.body or "").strip() or _NO_BODY,
         ),
         guidance=quoted or f"(see issue #{issue.number})",
-        commit_style=_prompts._COMMIT_STYLE_NOTE,
-        foreground=_prompts._FOREGROUND_ONLY_NOTE,
+        commit_style=_prompt_notes._COMMIT_STYLE_NOTE,
+        foreground=_prompt_notes._FOREGROUND_ONLY_NOTE,
     )

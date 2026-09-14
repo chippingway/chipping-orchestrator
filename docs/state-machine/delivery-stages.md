@@ -40,9 +40,9 @@ The allowlist, both routes, and the order they publish the comment, hash, label,
 The drift-sensitive handlers — `_handle_decomposing`, `_handle_ready`, `_handle_blocked`, `_handle_umbrella`,
 `_handle_implementing`, `_handle_validating`, `_handle_documenting`, `_handle_in_review`, `_handle_resolving_conflict`
 — run `_detect_user_content_change` somewhere in their flow. The hash covers the issue title, body, and every
-human-authored *issue-thread* comment body (PR-conversation comments are not in the hash). The hash, the seven
-filters below, and the routes a detected drift is handed to all live in `workflow/engine/drift.py` (the two
-bare-operator-command filters are read off the owners of those commands).
+human-authored *issue-thread* comment body (PR-conversation comments are not in the hash). The hash and eight
+filters below live in `workflow/engine/content_hash.py`; baseline handling and drift routes live in
+`workflow/engine/drift.py`. Operator-command filters read the syntax from the owners of those commands.
 
 `_handle_in_review` is the exception in ordering: it runs the four-surface fresh-feedback ID scan FIRST and routes any
 unread human comment past those watermarks to `workflow:fixing`, so the drift check that follows reacts only to
@@ -80,7 +80,8 @@ Non-human content is filtered eight ways:
   requirements text, shifts the hash, and reaches the developer as the guidance it is;
 - untrusted authors via `github.comments.is_trusted_author` when `ALLOWED_ISSUE_AUTHORS` is set (opt-in; empty
   allowlist trusts everyone), so an outsider's comment cannot shift the hash and re-trigger drift on a public repo.
-  The same trust helpers filter the conversation text fed to agent prompts: `_recent_comments_text` (implement /
+  The same trust helpers filter agent-prompt text in `workflow/engine/prompt_context.py`: `_recent_comments_text`
+  (implement /
   review / documentation / decompose / question / drift-resume) and `_thread_text` beneath it, which the `discussion`
   stage calls directly over its own thread snapshot — with one documented retention, the orchestrator's own comments
   by recorded `orchestrator_comment_ids`, since that stage's full-context prompt rebuilds a conversation the

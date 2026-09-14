@@ -38,7 +38,7 @@ from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.github.comments import filter_trusted
-from orchestrator.workflow.engine import comments as _comments, prompts as _prompts
+from orchestrator.workflow.engine import prompt_context as _prompt_context, prompts as _prompts
 from orchestrator.workflow.stages.documenting import (
     models as _models,
     parks as _parks,
@@ -142,7 +142,7 @@ def _documentation_prompt(ctx: _models._DocumentingContext) -> str:
     the `DOCS: NO_CHANGE` marker contract) shared by the resume and fresh
     docs runs."""
     return _prompts._build_documentation_prompt(
-        ctx.spec, ctx.issue, _comments._recent_comments_text(ctx.issue),
+        ctx.spec, ctx.issue, _prompt_context._recent_comments_text(ctx.issue),
         config.default_repo_specs(),
     )
 

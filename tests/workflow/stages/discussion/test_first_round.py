@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import prompts as _prompts
+from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     EVENT_AGENT_EXIT,
@@ -153,7 +153,7 @@ class DiscussionFirstRoundTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
         self.assertEqual(
             mocks[_support.RUN_AGENT].call_args.args[1],
-            _prompts._build_discussion_prompt(
+            _conversation_prompts._build_discussion_prompt(
                 _TEST_SPEC,
                 issue,
                 "",

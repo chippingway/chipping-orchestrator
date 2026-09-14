@@ -35,6 +35,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     drift as _engine_drift,
     guards as _guards,
+    prompt_context as _prompt_context,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import resume as _dev_resume
@@ -49,10 +50,10 @@ def _build_drift_resume_prompt(issue: Issue, unread_pr_conv: list) -> str:
     comments so the dev sees both surfaces before the watermark bump consumes
     them.
     """
-    comments_text = _comments._recent_comments_text(issue)
+    comments_text = _prompt_context._recent_comments_text(issue)
     if unread_pr_conv:
         pr_block = "\n\n".join(
-            _comments._quote_comment_line(comment, label=" (PR comment)")
+            _prompt_context._quote_comment_line(comment, label=" (PR comment)")
             for comment in unread_pr_conv
         )
         prefix = f"{comments_text}\n\n" if comments_text else ""

@@ -29,7 +29,10 @@ from __future__ import annotations
 import unittest
 from functools import partial
 
-from orchestrator.workflow.engine import run_ledger as _run_ledger, run_limit as _run_limit
+from orchestrator.workflow.engine import (
+    run_ledger_values as _run_ledger_values,
+    run_limit as _run_limit,
+)
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import spent_ledger_test_support as support
 from tests.workflow.fixtures import (
@@ -79,9 +82,9 @@ class SpentLedgerSpawnTest(unittest.TestCase, _PatchedWorkflowMixin):
             parked.get(KEY_PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
         )
         self.assertEqual(
-            parked.get(_run_ledger.AGENT_RUNS_USED), support.ALLOWANCE,
+            parked.get(_run_ledger_values.AGENT_RUNS_USED), support.ALLOWANCE,
         )
-        self.assertNotIn(_run_ledger.AGENT_RUN_RESERVATION, parked)
+        self.assertNotIn(_run_ledger_values.AGENT_RUN_RESERVATION, parked)
         self.assertTrue(any(
             f"{support.ALLOWANCE}/{support.ALLOWANCE} runs" in body
             for _, body in gh.posted_comments

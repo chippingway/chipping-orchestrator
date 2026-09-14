@@ -20,7 +20,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from orchestrator.github.labels import PAUSED_LABEL
-from orchestrator.workflow.engine import drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.decomposition import run as _decomposing
 from orchestrator.workflow.stages.question import handler as _question
 from orchestrator.workflow.stages.validating import handler as _validating
@@ -76,7 +76,7 @@ class DecomposerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
         gh.add_issue(issue)
         gh.seed_state(
             _DECOMPOSER_ISSUE_NUMBER,
-            user_content_hash=drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         before_writes = gh.write_state_calls
         manifest = _manifest(
@@ -127,7 +127,7 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             branch="orchestrator/chippingway__orchestrator/issue-300",
             codex_session_id="dev-sess",
             review_round=0,
-            user_content_hash=drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         before_writes = gh.write_state_calls
 
