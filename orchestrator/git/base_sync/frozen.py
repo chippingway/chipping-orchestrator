@@ -280,11 +280,22 @@ def _held_records(state: _pinned_state.PinnedState) -> tuple[str, ...]:
     another owner's -- a rebase under one is exactly what it exists to stop.
     """
     held = tuple(key for key in _FROZEN_BY_KEYS if state.get(key))
-    held += tuple(
-        key for key in _claimed_by(state) if state.get(key) is not None
-    )
+    held += _late_claims(state)
     return held + tuple(
         key for key in _LATE_COLLAPSE_KEYS if key in state.data
+    )
+
+
+def _late_claims(state: _pinned_state.PinnedState) -> tuple[str, ...]:
+    """The late keys holding this branch, which the reconciliation spends.
+
+    The one part of the list above an owner AHEAD of every stage handler
+    answers: the dispatcher's reconciliation measures a frozen pair and pays an
+    approved push before any handler is reached, so a hold that keeps the
+    handlers back still leaves these something to end them.
+    """
+    return tuple(
+        key for key in _claimed_by(state) if state.get(key) is not None
     )
 
 

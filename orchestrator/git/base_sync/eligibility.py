@@ -19,7 +19,11 @@ from __future__ import annotations
 
 from github.PullRequest import PullRequest
 
-from orchestrator.git.base_sync import attempts, recovery
+from orchestrator.git.base_sync import (
+    attempt_records as _attempt_records,
+    attempts,
+    recovery,
+)
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseDecision,
@@ -49,6 +53,7 @@ def _auto_rebase_label_is_eligible(context: _AutoRebaseContext) -> bool:
             pr_number=context.pr_number,
             label=context.label,
             pending_pre_rebase_sha=str(context.pending_pre_rebase_sha),
+            pending_rewrite=_attempt_records._pending_rewrite(context.state),
         )
     log.debug(
         "issue=#%d behind %s/%s by %d but label=%r; not auto-rebasing",
@@ -113,6 +118,26 @@ def _auto_rebase_retry_decision(
     )
 
 
+def _answers_only_the_anchor(context: _AutoRebaseContext) -> bool:
+    """Whether a park the retry decision kept still owes its anchor a recovery.
+
+    Keeping a stage's park intact is right for a rebase this refresh would
+    START. An anchor is one it already started, and the dispatcher holds every
+    stage handler while it stands -- the handler being the only thing that
+    takes a stage's park down. Refused here as well, neither would ever move.
+    So the recovery is owed and nothing past it, asked with no reply spent: a
+    finish leaves the park where the stage put it, and only a road that cannot
+    finish replaces it with a park of its own.
+
+    A park this refresh left is not one of these. Its reply IS the retry, and
+    a recovery taken without one would re-run a reset git already refused,
+    and say so again, on every tick.
+    """
+    return bool(context.pending_pre_rebase_sha) and (
+        context.state.get(_PARK_REASON) not in _AUTO_REBASE_PARK_REASONS
+    )
+
+
 def _open_auto_rebase_pr(
     context: _AutoRebaseContext,
 ) -> PullRequest | None:
@@ -166,6 +191,7 @@ def _auto_rebase_recovery_decision(
         pr_number=context.pr_number,
         label=context.label,
         pending_pre_rebase_sha=str(context.pending_pre_rebase_sha),
+        pending_rewrite=_attempt_records._pending_rewrite(context.state),
         behind=context.behind,
         unparking_consumed_max=consumed_comment_id,
     ):

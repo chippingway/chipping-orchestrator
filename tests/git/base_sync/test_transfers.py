@@ -8,9 +8,8 @@ these cases pin is the reading a later tick takes off the comment alone, and
 the fail-closed direction every record nobody can check is answered in.
 
 Nothing here publishes, parks, or routes. The classification is read by the
-dormant vouched-replay recovery alone, which decides its roads on it -- those
-decisions are pinned beside the recovery owner's own tests, and these pin only
-the reading.
+crash recovery, which decides its roads on it -- those decisions are pinned
+beside the recovery owner's own tests, and these pin only the reading.
 """
 from __future__ import annotations
 

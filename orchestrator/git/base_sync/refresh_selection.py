@@ -25,7 +25,12 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator.git.base_sync import frozen as _frozen
-from orchestrator.git.base_sync.state import log
+from orchestrator.git.base_sync.state import (
+    _AWAITING_HUMAN,
+    _PARK_REASON,
+    _PENDING_PUSH_SHA,
+    log,
+)
 from orchestrator.github import (
     client as _client,
     labels as _labels,
@@ -130,17 +135,41 @@ def _issue_skips_base_sync(
     costs a read of the checkout: an exemption on an issue some cheaper answer
     already froze never pays for it.
     """
+    if _hard_skipped(issue, issue_number) or _state_holds_the_branch(
+        issue_number, state,
+    ):
+        return True
+    if _in_a_read_only_stage(issue, issue_number, state):
+        return True
+    return _stands_on_an_unhanded_commit(
+        issue, worktree, issue_number, state,
+    )
+
+
+def _hard_skipped(issue: Issue, issue_number: int) -> bool:
+    """Whether an operator's control label keeps the refresh off this issue."""
     skip_label = _labels.hard_skip_control_label(issue)
-    if skip_label is not None:
-        log.debug(
-            "issue=#%d has %r; skipping base sync",
-            issue_number,
-            skip_label,
-        )
-        return True
-    if _state_holds_the_branch(issue_number, state):
-        return True
-    park_reason = state.get("park_reason") if state.get("awaiting_human") else None
+    if skip_label is None:
+        return False
+    log.debug(
+        "issue=#%d has %r; skipping base sync", issue_number, skip_label,
+    )
+    return True
+
+
+def _in_a_read_only_stage(
+    issue: Issue, issue_number: int, state: _pinned_state.PinnedState,
+) -> bool:
+    """Whether a conversation stage, or a park one left, holds the tree.
+
+    The park is set aside beside an auto-rebase anchor, for the reason the
+    approval leased to one is: the anchor is this refresh's own interrupted
+    work, the dispatcher holds every handler that could take the park down
+    while it stands, and a park that also froze the recovery out would leave
+    neither to move.
+    """
+    parked = state.get(_AWAITING_HUMAN) and not state.get(_PENDING_PUSH_SHA)
+    park_reason = state.get(_PARK_REASON) if parked else None
     for stage_label in _READ_ONLY_STAGE_LABELS:
         if _labels.issue_has_label(issue, stage_label):
             log.debug(
@@ -156,9 +185,7 @@ def _issue_skips_base_sync(
                 park_reason,
             )
             return True
-    return _stands_on_an_unhanded_commit(
-        issue, worktree, issue_number, state,
-    )
+    return False
 
 
 def _stands_on_an_unhanded_commit(
@@ -207,19 +234,35 @@ def _state_holds_the_branch(
     to write, and a timeout's watermark names the tip the run started at
     rather than anything it produced -- and a branch rebased under either
     leaves its recovery with nothing it can be answered from.
+
+    Beside an auto-rebase anchor only the late claims hold it. The anchor is
+    this refresh's own interrupted work, and the dispatcher keeps every stage
+    handler back while it stands -- save, on a label this refresh drives, the
+    reconciliation ahead of them,
+    which answers those claims and asks the hold again once it has run. Every
+    other record and park here is ended by a handler that hold keeps back, so
+    one that froze the recovery out as well would leave neither to move; and
+    none of them is holding a branch still against a rebase any more, since
+    the anchor says one already ran. The recovery over them pushes the replay
+    its record names or puts the branch back on the anchor and asks a human,
+    and each is left for the owner that spends it.
     """
-    held = _frozen._held_records(state)
+    anchored = bool(state.get(_PENDING_PUSH_SHA))
+    held = (
+        _frozen._late_claims(state) if anchored
+        else _frozen._held_records(state)
+    )
     if held:
         log.debug(
             "issue=#%d holds unspent read-only state (%s); skipping base sync",
             issue_number, ", ".join(held),
         )
         return True
-    if _frozen._awaits_a_commit_of_its_own(state):
+    if not anchored and _frozen._awaits_a_commit_of_its_own(state):
         log.debug(
             "issue=#%d is parked on %r, which is waiting on a commit of this "
             "branch's own; skipping base sync until it is answered",
-            issue_number, state.get("park_reason"),
+            issue_number, state.get(_PARK_REASON),
         )
         return True
     return False

@@ -3,7 +3,7 @@
 """Keep an interrupted attempt whose publication or workflow label moved.
 
 Neither a reset nor a clear can be justified against another publication.
-The dormant recovery leaves the checkout and pinned evidence intact, and
+The recovery leaves the checkout and pinned evidence intact, and
 records a stranded park once so repeated ticks do not consume human replies.
 """
 from __future__ import annotations
@@ -144,8 +144,9 @@ def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
             "permission granted for a push nobody made may still be "
             "outstanding. Nothing was reset and nothing was cleared, because "
             "this tick cannot say whether the checkout moved with the label. "
-            "Put the issue back on the stage the rebase was made under to let "
-            "the recovery finish it, or reconcile the "
+            "Put the issue back on the stage the rebase was made under and "
+            "then reply on this issue to let the recovery finish it -- the "
+            "label alone leaves this park standing -- or reconcile the "
             "`pending_auto_base_rebase_*` and `late_rewrite_*` fields on the "
             "pinned comment by hand."
         ),

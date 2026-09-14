@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Ask the publication permit over the recovery's frozen entry.
 
-The dormant replay recovery asks before publishing and repeats the same
+The replay recovery asks before publishing and repeats the same
 permit-only restriction inside the gate. Workflow owners are loaded only
 inside that call, preserving the Git layer's import boundary.
 """

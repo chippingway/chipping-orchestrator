@@ -1,19 +1,18 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A real replay of the branch, for the dormant vouched-replay route to finish.
+"""A real replay of the branch, for the crash recovery to finish.
 
 The repository ``recovery_git_support`` builds, with the interrupted rebase a
 real `git rebase` onto an advanced base -- the shape the divergence counts read
 as an out-of-band update -- and the moves a case makes to leave the branch and
-the pinned record the way a crash, a rollback, or a hand edit leaves them. No
-production selector reaches that route, so `recover` enters it directly.
+the pinned record the way a crash, a rollback, or a hand edit leaves them, and
+`recover` hands the recovery the attempt record read off the comment.
 """
 from __future__ import annotations
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
-    models,
-    replay_recovery as _replay_recovery,
+    recovery,
 )
 from tests.git.base_sync import recovery_git_support as fixtures
 
@@ -39,29 +38,27 @@ UNRELATED_FILE = "unrelated.py"
 
 
 class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
-    """A real replay of the branch, recovered on the dormant vouched route.
+    """A real replay of the branch, recovered on the record the attempt left.
 
-    `recover` hands the route the attempt record read off the comment, which
-    is the one input the running route never supplies.
+    `recover` hands the recovery the attempt record read off the comment, the
+    way the eligibility gate does.
     """
 
     replays = True
 
     def recover(self, label: str = fixtures.LABEL) -> bool:
-        """Run the vouched-replay route over the issue as it now reads."""
+        """Run the recovery over the issue as it now reads."""
         state = self.gh.read_pinned_state(self.issue)
-        return _replay_recovery._recover_vouched_replay_context(
-            models._AutoRebaseRecoveryContext(
-                gh=self.gh,
-                spec=self.spec,
-                issue=self.issue,
-                state=state,
-                worktree=self.work,
-                pr_number=fixtures.PR_NUMBER,
-                label=label,
-                pending_pre_rebase_sha=self.anchor,
-                pending_rewrite=_attempt_records._pending_rewrite(state),
-            ),
+        return recovery._recover_pending_auto_base_rebase(
+            self.gh,
+            self.spec,
+            self.issue,
+            state,
+            self.work,
+            pr_number=fixtures.PR_NUMBER,
+            label=label,
+            pending_pre_rebase_sha=self.anchor,
+            pending_rewrite=_attempt_records._pending_rewrite(state),
         )
 
     def strand_an_unrelated_head(self, *, forget_record: bool = True) -> str:

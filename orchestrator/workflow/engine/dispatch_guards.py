@@ -14,6 +14,8 @@ import logging
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
+from orchestrator.git.base_sync import recovery_holds as _recovery_holds
+from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
@@ -159,8 +161,12 @@ def _pinned_state_refuses(
         # mode settles by and the one thing it cannot re-derive, so a partial
         # one is refused here rather than read as a candidate nothing had
         # published and routed back to `implementing` with the evidence
-        # retired behind it.
-        return importlib.import_module(
+        # retired behind it. Nor past a standing auto-rebase anchor: a
+        # measured generation is left for the decomposer the handler spawns,
+        # and a replay no push published is no candidate for it to split.
+        return _anchor_holds_the_tick(
+            gh, spec, issue, label, state,
+        ) or importlib.import_module(
             _stage_targets._LATE_RECONCILE_OWNER,
         )._reconciles_published_work(gh, spec, issue, label, state)
     return _record_stops_the_tick(gh, spec, issue, label, state)
@@ -178,6 +184,21 @@ def _record_stops_the_tick(
     The caller first handles cancelled or reclaimed records, which stop the
     tick regardless of its label. Stage owners are imported at call time
     because the stage tree imports this module back.
+
+    An auto-rebase anchor still standing is asked second, ahead of the
+    reconciliation. The refresh settles an interrupted rebase before any
+    handler runs, but a failed base fetch or a pull request that would not
+    read returns before its recovery does -- and the handler about to be
+    reached would spawn an agent over a replay no push has published. Whether
+    that holds the tick is the base sync's to say; it sits below this
+    layer, so it is bound at module scope.
+
+    It is asked again BEHIND the reconciliation, because the late claim that
+    released it may be the very record the reconciliation spends. A pair the
+    size gate froze on an interrupted rebase's own head is one: settled here
+    by the leased push it earns, it leaves the pull request carrying the
+    replay and the anchor still pinned, and the handler behind would run
+    before the recovery that finalizes it.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
@@ -187,16 +208,47 @@ def _record_stops_the_tick(
             spec.slug, issue.number, label,
         )
         return True
+    if _anchor_holds_the_tick(gh, spec, issue, label, state):
+        return True
     late_reconcile = importlib.import_module(_stage_targets._LATE_RECONCILE_OWNER)
     if late_reconcile._reconciles_published_work(
         gh, spec, issue, label, state,
-    ):
+    ) or _anchor_holds_the_tick(gh, spec, issue, label, state):
         return True
     late_reuse = importlib.import_module(_stage_targets._LATE_REUSE_OWNER)
     return (
         late_reuse._refuses_reuse(gh, spec, issue, state)
         or _greeted_already(spec, issue, label, state)
     )
+
+
+def _anchor_holds_the_tick(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    label: str | None,
+    state,
+) -> bool:
+    """Whether a standing auto-rebase anchor stops this tick, answered if so.
+
+    Whether it holds, and what a held tick is owed, are the base sync's to say -- a missing checkout restored where the
+    refresh drives the label, and the refresh's own ineligible answer where it
+    does not. This is where the two meet, so every place the dispatcher asks
+    it takes the same road.
+    """
+    checkout = _worktree_paths._worktree_path(spec, issue.number)
+    if not _recovery_holds._recovery_holds_dispatch(
+        issue, label, state, checkout,
+    ):
+        return False
+    log.info(
+        "repo=%s issue=#%s carries an auto-rebase anchor no recovery has "
+        "ended; holding the %r handler so no agent runs over an "
+        "unpublished replay",
+        spec.slug, issue.number, label,
+    )
+    _recovery_holds._answers_a_held_anchor(gh, spec, issue, state, label)
+    return True
 
 
 def _greeted_already(

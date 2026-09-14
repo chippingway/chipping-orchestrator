@@ -189,10 +189,8 @@ class _Gate:
     # from the checkout and the remote by the time this owner could ask.
     rewrite: LateRewrite | None = None
     # Whether a rewrite permit is the ONLY thing that may let this candidate
-    # publish. Off for every ordinary caller, and on only for the dormant
-    # vouched-replay crash recovery, which reaches this gate holding a
-    # transfer it already knows about and which no production selector
-    # reaches yet.
+    # publish. Off for every ordinary caller, and on for the crash recovery,
+    # which reaches this gate holding a transfer it already knows about.
     permit_only: bool = False
 
     @property

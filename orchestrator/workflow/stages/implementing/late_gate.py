@@ -132,13 +132,12 @@ def _decided(
 
     A caller that may publish on the permit and on NOTHING else is answered
     one function over, and answered there ALONE rather than after the three
-    records below have had their say. That is the vouched-replay crash
-    recovery -- dormant, since no production selector reaches it yet -- and
-    every other road to publishing is the wrong answer for it: the reading it
-    would otherwise fall back to measures a commit an interrupted push is
-    already leased for, and the reasons that skip a reading say the candidate
-    may publish without saying a verdict may move onto it -- so the switch
-    being off would let the push out with no permit behind it, the route would
+    records below have had their say. That is the crash recovery, and every
+    other road to publishing is the wrong answer for it: the reading it would
+    otherwise fall back to measures a commit an interrupted push is already
+    leased for, and the reasons that skip a reading say the candidate may
+    publish without saying a verdict may move onto it -- so the switch being
+    off would let the push out with no permit behind it, the route would
     finish with the exemption still on the commit a human ruled on, and the
     permission would stand outstanding for ever.
 

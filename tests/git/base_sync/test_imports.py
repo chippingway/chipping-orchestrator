@@ -63,6 +63,7 @@ _OWNERS = (
     "orchestrator.git.base_sync.transfer_publication",
 
     "orchestrator.git.base_sync.attempt_records",
+    "orchestrator.git.base_sync.recovery_holds",
     "orchestrator.git.base_sync.recovery_notices",
     _MODELS_OWNER, _PRE_PR_OWNER, _REFRESH_OWNER, _REFRESH_SELECTION_OWNER,
     _STATE_OWNER, _PERSISTENCE_OWNER, _OUTCOMES_OWNER, _SNAPSHOT_OWNER,

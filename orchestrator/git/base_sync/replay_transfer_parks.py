@@ -4,7 +4,7 @@
 
 An unlicensed replay returns to the anchor through the guarded rollback.
 A push that already landed keeps its checkout and recovery records for
-reconciliation. These outcomes serve the dormant vouched-replay route.
+reconciliation. These outcomes serve the vouched-replay route.
 """
 from __future__ import annotations
 
