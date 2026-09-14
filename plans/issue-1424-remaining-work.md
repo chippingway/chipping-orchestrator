@@ -7,11 +7,12 @@ The user has requested removing **every exclusion from `.flake8`**, committing i
 not satisfy this broader target. In particular, all package initializer pairs must also be removed by
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
-The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107 paths and
-129 file/rule pairs. The current working implementation has 70 paths and 84 pairs (57 production, 27 test), all
-matching isolated diagnostics. Twenty-nine WPS202 pairs and sixteen initializer pairs have been removed without
-replacement exemptions or raised limits. Remaining work is the entire live set in `.flake8`, including WPS201,
-WPS202, WPS204, WPS214, and WPS215. The files must stay until that set is empty and validation passes.
+The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
+paths and 129 file/rule pairs. The current working implementation has 63 paths and 74 pairs (57 production, 17
+test), all matching isolated diagnostics. Thirty-six WPS202 pairs, three import/expression pairs, and sixteen
+initializer pairs are removed without replacement exemptions or raised limits. Remaining work is the entire
+live set in `.flake8`, including WPS201, WPS202, WPS204, WPS214, and WPS215. The files must stay until that
+set is empty and validation passes.
 
 Implemented batches:
 
@@ -57,11 +58,18 @@ Implemented batches:
   Ruff, configured WPS, and full validation pass with 6,429 passed and 49 skipped. The development skill validates,
   and the isolated audit matches all 87 remaining complexity pairs.
 
-- Current implementation: separate hardened worktree reads, tip proofs, activity evidence, and complete checkout
+- `3ee15e64`: separate hardened worktree reads, tip proofs, activity evidence, and complete checkout
   listings; checkout and branch retention proofs; maintenance guards and commit-pinned removal steps. The existing
   maintenance-result owner constructs outcomes. Three production WPS202 pairs removed. Production function bodies
   and operator log channels are preserved, and owner inventories and patch targets follow every move.
   Ruff, configured WPS, and full validation pass with 6,429 passed and 49 skipped. All 84 remaining pairs match
+  isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate squash crash/race doubles, real candidate and inventory fixtures, conflict-round
+  record readers, publication receipt setup, and authorization/notice scenarios. Recovery and carried-text cases
+  have focused test modules. Ten test pairs removed without replacements. All 89 compared definitions retain their
+  bodies, and 309 focused tests pass; the same assertions remain in their relocated owners.
+  Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 74 remaining pairs match
   isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes

@@ -29,21 +29,12 @@ from orchestrator.git.worktrees.models import (
     ProvenTip,
     RetentionReason,
 )
+from tests.git.worktrees import candidate_host_test_support as _candidate_host, eligibility_case as _eligibility_case
 from tests.git.worktrees.artifact_test_support import (
     BASE_BRANCH,
     WIDGET_SLUG,
     _legacy_branch,
     _namespaced_branch,
-    _spec,
-)
-from tests.git.worktrees.candidate_host_test_support import (
-    CLONE_NAME,
-    _branch_at,
-    _CandidateWorld,
-    _foreign_checkout,
-    _index_path,
-    _track_file,
-    _tracking_ref,
 )
 from tests.git.worktrees.eligibility_test_support import (
     ISSUE_NUMBER,
@@ -70,57 +61,7 @@ TRACKED_CONTENT = "committed work\n"
 STALE_STAMP = 1000000000
 
 
-class _CandidateTestCase(unittest.TestCase):
-    """One finished issue on a host, and the candidate it left behind."""
-
-    def setUp(self) -> None:
-        self.world = _CandidateWorld()
-        self.world.prepare(self)
-        self.clone = self.world.clone(CLONE_NAME)
-        self.spec = _spec(WIDGET_SLUG, self.clone)
-        self.world.serve(self.spec)
-        self.branch = _namespaced_branch(WIDGET_SLUG, ISSUE_NUMBER)
-        self.branches = (self.branch,)
-        self.gh = _github()
-
-    def commit(self) -> str:
-        """Put one commit on this issue's branch, published nowhere."""
-        return self.world.commit_on(self.clone, self.branch)
-
-    def checkout(self):
-        """Add this issue's worktree, on the branch its creator leaves it on."""
-        return self.world.attached_checkout(
-            self.spec, ISSUE_NUMBER, self.branch,
-        )
-
-    def shapes(self, worktree) -> tuple[dict, ...]:
-        """The three shapes a scan can report this candidate in."""
-        return (
-            {"worktree": worktree},
-            {"branches": self.branches},
-            {"worktree": worktree, "branches": self.branches},
-        )
-
-    def landed(self) -> str:
-        """Commit on the branch and move the remote's base onto it."""
-        tip = self.commit()
-        self.world.publish(self.clone, BASE_BRANCH, self.branch)
-        return tip
-
-    def classify(self, **artifacts):
-        """The verdict on this issue's candidate, in the shape given."""
-        if not artifacts:
-            artifacts = {"branches": self.branches}
-        return eligibility._classify_artifacts(
-            self.gh, _candidate(self.spec, ISSUE_NUMBER, **artifacts),
-        )
-
-    def kept(self, **artifacts) -> tuple[str, ...]:
-        """The reasons that verdict keeps the candidate for."""
-        return _reasons(self.classify(**artifacts).retentions)
-
-
-class ArtifactShapeTest(_CandidateTestCase):
+class ArtifactShapeTest(_eligibility_case._CandidateTestCase):
     """Each shape a scan reports is classified as itself.
 
     The three a candidate arrives in, and the fourth one it can have turned
@@ -172,7 +113,7 @@ class ArtifactShapeTest(_CandidateTestCase):
         # be a deletion nobody proved and nothing recorded.
         tip = self.landed()
         self.world.publish(self.clone, self.branch, self.branch)
-        _branch_at(self.clone, self.branch)
+        _candidate_host._branch_at(self.clone, self.branch)
 
         verdict = self.classify()
 
@@ -183,7 +124,7 @@ class ArtifactShapeTest(_CandidateTestCase):
         # And it owes what any tip owes: this one is ahead of base and on no
         # pull request, so the copy left on the remote keeps the candidate.
         self.world.publish(self.clone, self.branch, self.commit())
-        _branch_at(self.clone, self.branch)
+        _candidate_host._branch_at(self.clone, self.branch)
 
         self.assertEqual(
             self.kept(), (RetentionReason.UNACCOUNTED_COMMITS,),
@@ -220,7 +161,7 @@ class ArtifactShapeTest(_CandidateTestCase):
         self.assertEqual(verdict.retentions[0].subject, legacy)
 
 
-class MigratedCheckoutTest(_CandidateTestCase):
+class MigratedCheckoutTest(_eligibility_case._CandidateTestCase):
     """Both checkout layouts of one issue are read, and each on its own.
 
     A host that was running when the slug went into the path holds two trees
@@ -239,7 +180,7 @@ class MigratedCheckoutTest(_CandidateTestCase):
         """
         legacy = _legacy_branch(ISSUE_NUMBER)
         tip = self.landed()
-        _branch_at(self.clone, legacy, self.branch)
+        _candidate_host._branch_at(self.clone, legacy, self.branch)
         flat = self.world.checkout_at(
             self.spec, paths._legacy_worktree_path(ISSUE_NUMBER), legacy,
         )
@@ -274,7 +215,7 @@ class MigratedCheckoutTest(_CandidateTestCase):
         self.assertEqual(verdict.retentions[0].subject, str(worktrees[1]))
 
 
-class RemoteGateTest(_CandidateTestCase):
+class RemoteGateTest(_eligibility_case._CandidateTestCase):
     """What GitHub settles before an artifact on the host is read at all."""
 
     def test_an_unfinished_issue_is_kept(self) -> None:
@@ -330,7 +271,7 @@ class RemoteGateTest(_CandidateTestCase):
         self.assertTrue(self.classify().eligible)
 
 
-class CheckoutStateTest(_CandidateTestCase):
+class CheckoutStateTest(_eligibility_case._CandidateTestCase):
     """What the checkout itself has to be before it may be removed."""
 
     def test_what_the_checkout_carries_keeps_it(self) -> None:
@@ -340,7 +281,7 @@ class CheckoutStateTest(_CandidateTestCase):
         # to every status -- and is still an `.env` somebody left there. They
         # are charged apart for what an operator is sent to look at: `git
         # status` shows them nothing about the first.
-        _track_file(self.clone, IGNORE_FILE, f"{HIDDEN_FILE}\n")
+        _candidate_host._track_file(self.clone, IGNORE_FILE, f"{HIDDEN_FILE}\n")
         self.landed()
         worktree = self.checkout()
         (worktree / HIDDEN_FILE).write_text(HIDDEN_CONTENT)
@@ -369,7 +310,7 @@ class CheckoutStateTest(_CandidateTestCase):
         self.landed()
 
         self.assertEqual(
-            self.kept(worktree=_foreign_checkout(self.spec, ISSUE_NUMBER)),
+            self.kept(worktree=_candidate_host._foreign_checkout(self.spec, ISSUE_NUMBER)),
             (RetentionReason.FOREIGN_CHECKOUT,),
         )
 
@@ -392,11 +333,11 @@ class CheckoutStateTest(_CandidateTestCase):
         # unless it is told not to. The file is re-stamped first so there IS
         # something to refresh -- with nothing stale, a probe that writes and
         # one that does not leave the same index.
-        _track_file(self.clone, TRACKED_FILE, TRACKED_CONTENT)
+        _candidate_host._track_file(self.clone, TRACKED_FILE, TRACKED_CONTENT)
         self.landed()
         worktree = self.checkout()
         os.utime(worktree / TRACKED_FILE, (STALE_STAMP, STALE_STAMP))
-        index = _index_path(worktree)
+        index = _candidate_host._index_path(worktree)
         before = index.read_bytes()
 
         self.assertTrue(self.classify(worktree=worktree).eligible)
@@ -411,7 +352,7 @@ class CheckoutStateTest(_CandidateTestCase):
         # alone, so removing it is what would take that commit.
         self.commit()
         worktree = self.checkout()
-        _branch_at(self.clone, self.branch)
+        _candidate_host._branch_at(self.clone, self.branch)
 
         self.assertEqual(
             self.kept(worktree=worktree),
@@ -451,7 +392,7 @@ class CheckoutStateTest(_CandidateTestCase):
         )
 
 
-class BranchTipProofTest(_CandidateTestCase):
+class BranchTipProofTest(_eligibility_case._CandidateTestCase):
     """What a branch the remote's base does not carry has to prove."""
 
     def test_a_terminal_request_releases_the_tip(self) -> None:
@@ -479,8 +420,8 @@ class BranchTipProofTest(_CandidateTestCase):
         # an agent points the base mirror and the branch's own mirror at its
         # unpublished tip -- and the remote goes on saying what it holds.
         tip = self.commit()
-        _tracking_ref(self.clone, BASE_BRANCH, tip)
-        _tracking_ref(self.clone, self.branch, tip)
+        _candidate_host._tracking_ref(self.clone, BASE_BRANCH, tip)
+        _candidate_host._tracking_ref(self.clone, self.branch, tip)
 
         self.assertEqual(
             self.kept(), (RetentionReason.UNACCOUNTED_COMMITS,),
@@ -541,7 +482,7 @@ class BranchTipProofTest(_CandidateTestCase):
         self.assertEqual(verdict.proven, ())
 
 
-class UnreadableReadTest(_CandidateTestCase):
+class UnreadableReadTest(_eligibility_case._CandidateTestCase):
     """Every question about the artifacts that could not be put keeps them."""
 
     def test_a_git_read_that_never_ran_keeps_it(self) -> None:
@@ -644,7 +585,7 @@ class UnreadableReadTest(_CandidateTestCase):
             )
 
 
-class ClassifiedCandidatesTest(_CandidateTestCase):
+class ClassifiedCandidatesTest(_eligibility_case._CandidateTestCase):
     """Every candidate one repository's scan reported gets its own verdict."""
 
     def test_the_retained_come_back_with_the_rest(self) -> None:

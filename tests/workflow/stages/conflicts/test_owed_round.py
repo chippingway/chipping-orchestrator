@@ -29,13 +29,11 @@ from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FrozenCommit
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.patch_models import _agent
+from tests.workflow.stages.conflicts.round_record_support import _receipt_of, _rounds_of, _settlements_of
 from tests.workflow.stages.conflicts.test_settled_round import (
     ResolvingConflictBodyEditRoundTest,
     ResolvingConflictSettledRoundTest,
-    _receipt_of,
     _ResolvingConflictMixin,
-    _rounds_of,
-    _settlements_of,
 )
 
 CONFLICT_ISSUE = 200

@@ -20,15 +20,12 @@ import unittest
 
 from orchestrator.workflow.late_split import rewrites as _rewrites
 from tests.git.publication import squash_git_support as squash_support
+from tests.git.publication.squash_crash_doubles import REVISION
 from tests.git.publication.squash_exemption_support import (
     LABEL_DECOMPOSING,
     _AdjudicatedSquashMixin,
 )
-from tests.git.publication.squash_recovery_support import (
-    LEASE,
-    REVISION,
-    SquashRecoveryMixin,
-)
+from tests.git.publication.squash_recovery_support import LEASE, SquashRecoveryMixin
 
 
 class _AdjudicatedRecoveryMixin(

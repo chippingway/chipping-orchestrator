@@ -19,7 +19,11 @@ from __future__ import annotations
 
 import unittest
 
-from tests.git.publication import squash_git_support as squash_support, squash_recovery_support as _support
+from tests.git.publication import (
+    squash_crash_doubles as _squash_crashes,
+    squash_git_support as squash_support,
+    squash_recovery_support as _support,
+)
 from tests.git.publication.squash_gate_support import SQUASH_PR_NUMBER
 from tests.git.publication.squash_recovery_support import SquashRecoveryMixin
 
@@ -123,7 +127,7 @@ class UnpushedCollapseRealGitTest(
         self.assertTrue(squash_run.success)
         self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         pushed = squash_run.push_mock.call_args.kwargs
-        self.assertEqual(pushed[_support.REVISION], squashed)
+        self.assertEqual(pushed[_squash_crashes.REVISION], squashed)
         self.assertEqual(pushed[_support.LEASE], accepted)
         # And it is the commit already on the branch that goes out: nothing is
         # collapsed a second time, so the object measured and pushed is the
@@ -151,7 +155,7 @@ class AuthorizedCollapseRealGitTest(
         self.assertTrue(squash_run.success)
         self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         pushed = squash_run.push_mock.call_args.kwargs
-        self.assertEqual(pushed[_support.REVISION], squashed)
+        self.assertEqual(pushed[_squash_crashes.REVISION], squashed)
         self.assertEqual(pushed[_support.LEASE], accepted)
         self.assertEqual(self._head_sha(), squashed)
 
@@ -181,7 +185,7 @@ class PublishedCollapseRealGitTest(
         self.assertTrue(squash_run.success)
         self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         pushed = squash_run.push_mock.call_args.kwargs
-        self.assertEqual(pushed[_support.REVISION], squashed)
+        self.assertEqual(pushed[_squash_crashes.REVISION], squashed)
         # Leased against the commit the pull request already stands on, which
         # is what makes the republication a no-op rather than a rewrite of
         # whatever landed there while this host was down.
@@ -357,7 +361,7 @@ class SwitchedOffCollapseRealGitTest(
         self.assertTrue(squash_run.success)
         self.assertEqual(squash_run.count, _support.APPROVED_COMMITS)
         pushed = squash_run.push_mock.call_args.kwargs
-        self.assertEqual(pushed[_support.REVISION], squashed)
+        self.assertEqual(pushed[_squash_crashes.REVISION], squashed)
         self.assertEqual(pushed[_support.LEASE], accepted)
 
 
