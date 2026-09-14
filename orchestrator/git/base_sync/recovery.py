@@ -309,7 +309,13 @@ def _answers_an_ineligible_label(
     RECORDED, or a permission granted for a push that never landed, is state
     the clear cannot honour: it would drop the one field naming what the
     branch would go back to while leaving the verdict, the debt, and the
-    replay standing without it. A checkout that has MOVED off the anchor under
+    replay standing without it. A finish's announcement mark is the same
+    refusal from the far end of the route, and it is asked by PRESENCE and on
+    its own: the mark is written past a notice and an audit event, so it is
+    the only evidence a publication was already announced -- and a comment
+    carrying it and nothing else beside the anchor is exactly the partial
+    record a clear would erase, leaving the next finish free to announce the
+    same rebase a second time. A checkout that has MOVED off the anchor under
     the terms alone is the same refusal one reading over: that is the window
     between `git rebase` returning and the write that names what it produced,
     and the terms on their own cannot tell it from an attempt that never
@@ -324,6 +330,8 @@ def _answers_an_ineligible_label(
     left it, so it parks with everything else this route cannot prove.
     """
     if context.pending_rewrite.left_a_replay:
+        return outcomes._park_stranded_recovery(context)
+    if attempts._carries_an_announcement(context.state):
         return outcomes._park_stranded_recovery(context)
     if transfers._left_mid_transfer(context.state):
         return outcomes._park_stranded_recovery(context)

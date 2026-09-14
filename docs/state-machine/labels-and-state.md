@@ -2350,12 +2350,13 @@ rather than preserving.
   the permission it described, and a fresh grant drops it with the transfer it replaces, since the phase going back to
   `authorized` is what would leave it unreadable beside the new one.
 
-  Its LIFECYCLE is live and its readings are not, the same split the attempt record above has. The settlement writes
-  the proof and the reporting owner drops it behind the record it feeds, so a comment carries one only inside that
-  window — but `unreported_transfer` is consulted by nothing at all, and `stranded_transfer_proof` only by the
-  transfer classification above, which reaches it on the recovery's own road and answers *unvouched* — a park rather
-  than a report — so a process lost inside that window still leaves a settled transfer neither sink hears about. What
-  the durable proof buys today is that the fact is there to report from once a reader is taught to look.
+  Its LIFECYCLE is live and so is its presence reading; its REPORT is not. The settlement writes the proof and the
+  reporting owner drops it behind the record it feeds, so a comment carries one only inside that window.
+  `stranded_transfer_proof` is read on the recovery's own road, through the transfer classification above, and
+  `unreported_transfer` is read only inside it — as the test of whether a proof names a report still owed. What
+  neither is read for is the report itself: the classification answers a stranded proof *unvouched*, which is a park
+  rather than a record, so a process lost inside that window still leaves a settled transfer neither sink hears about.
+  What the durable proof buys today is that the fact is there to report from once a reporting road is taught to look.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,
   `late_override_fingerprint`, `late_override_fingerprint_format`, `late_override_additions`,
   `late_override_threshold`, and `late_override_comment_id` are the terms an operator authorized one oversized

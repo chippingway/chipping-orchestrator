@@ -8,9 +8,11 @@ was made against -- and what a road with nothing left to publish reads to know
 that finishing it would strand nothing: the receipt, the debt beside it, and
 the rotation that says the verdict really moved.
 
-Nothing here publishes or parks either. Only the publisher's own assembly is
-on a running road; everything else waits for the recovery that is taught to
-decide on it.
+Nothing here publishes or parks either. The publisher's assembly, the
+re-derivation, the rollback reading, and the rotation read-back are all on
+running roads -- the recovery's decisions over them are pinned beside its own
+tests -- and the accounting is the one reader still waiting, for the road that
+finishes a rewrite the pull request already carries.
 """
 from __future__ import annotations
 

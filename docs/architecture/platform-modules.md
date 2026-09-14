@@ -356,8 +356,10 @@ orchestrator/
                         and it refuses the presence of the checkpoint on both roads that would act without one --
                         a push, since the mark stands only where a publication landed and this road is reached
                         over a remote that has lost it, and the unstarted shortcut, since no finish announces the
-                        anchor. Which head the mark names is read by no caller yet, and waits for the road that
-                        finishes a rewrite the pull request already carries
+                        anchor -- and on the relabelled-issue road beside them, where a clear would erase the
+                        only evidence a finish already announced. Which head the mark names is read too, by the
+                        one question that has to tell this route's own last step from somebody else's: a
+                        `validating` label beside a mark naming the head in hand is the relabel a finish makes
       publication.py    the post-rebase checks, the size gate the rebase passes before it publishes -- reached
                         through a call-time import, since it sits in the workflow layer above this one, and named
                         against the head this owner read, so a checkout something moved between that read and the

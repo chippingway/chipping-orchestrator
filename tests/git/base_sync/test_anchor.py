@@ -45,6 +45,8 @@ PARK_FAILED = "auto_base_rebase_failed"
 
 KEY_PENDING_PUSH_SHA = "pending_auto_base_rebase_push_sha"
 
+KEY_ANNOUNCED_SHA = "pending_auto_base_rebase_announced_sha"
+
 # The anchor an attempt pinned before the issue was moved off the stage the
 # refresh drives, spelled as a commit so a checkout can be said to be on it.
 STALE_ANCHOR = "57a1ea0c" * 5
@@ -203,11 +205,33 @@ class CrashRecoveryAnchorUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCas
         self.assertTrue(pinned.get("awaiting_human"))
         self.assertEqual(pinned.get("park_reason"), PARK_FAILED)
 
-    def _relabelled_mid_attempt(self) -> None:
-        """An anchor pinned under a label the base refresh does not drive."""
+    def test_a_standalone_announcement_is_kept(self) -> None:
+        # The partial record: the checkout never left the anchor and no replay
+        # or permission is recorded, but a finish's mark stands. The mark is
+        # written past a notice and an audit event, so it is the only evidence
+        # the rebase was already announced -- cleared, the next finish is free
+        # to announce it a second time.
+        self._relabelled_mid_attempt(
+            pending_auto_base_rebase_announced_sha=AFTER_SHA,
+        )
+
+        self._stale_anchor_scenario(STALE_ANCHOR).run(self)
+
+        pinned = self.gh.pinned_data(ISSUE)
+        self.assertEqual(pinned.get(KEY_PENDING_PUSH_SHA), STALE_ANCHOR)
+        self.assertEqual(pinned.get(KEY_ANNOUNCED_SHA), AFTER_SHA)
+        self.assertTrue(pinned.get("awaiting_human"))
+        self.assertEqual(pinned.get("park_reason"), PARK_FAILED)
+
+    def _relabelled_mid_attempt(self, **leftovers) -> None:
+        """An anchor pinned under a label the base refresh does not drive.
+
+        `leftovers` are whatever else the attempt got as far as writing.
+        """
         self._seed_pr_issue(
             label=LABEL_RESOLVING_CONFLICT,
             pending_auto_base_rebase_push_sha=STALE_ANCHOR,
+            **leftovers,
         )
         self._add_pr()
 
