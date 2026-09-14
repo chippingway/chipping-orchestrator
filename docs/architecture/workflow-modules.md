@@ -1504,7 +1504,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_park_state.py    persist generations and route spends, retire a measurement park bound to another candidate,
                             and consume a held authorization's command watermark monotonically
       late_park_notices.py  operational failure descriptions, stage-attributed events, and measurement park notices;
-                            the failure is emitted before the wait is recorded
+                            the failure is emitted before the wait is recorded, and whether that park already stands
+                            is what an announce-once refusal asks before taking it again
       late_measurement_reply.py
                             trusted bare-continue batches reserved for the active measurement park; mixed feedback
                             stays with its stage and the current reason and wait must agree
