@@ -46,20 +46,15 @@ from orchestrator.workflow.stages.decomposition import umbrella as _umbrella
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeComment, FakeLabel, FakeUser
 from tests.workflow.fixtures import _TEST_SPEC
+from tests.workflow.stages.decomposition import late_race_support as _late_race, late_test_support as _late_support
 from tests.workflow.stages.decomposition.late_published_split_support import (
     STATE_CLOSED,
     PublishedSplitCase,
-)
-from tests.workflow.stages.decomposition.late_race_support import (
-    interleaved_after,
 )
 from tests.workflow.stages.decomposition.late_seam_support import (
     RecordedDelete,
     SnapshotOutcome,
     local_teardown,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    LATE_ISSUE_NUMBER,
 )
 from tests.workflow.stages.decomposition.late_transaction_support import (
     ERROR,
@@ -129,7 +124,7 @@ class ReopenedDuringCleanupTest(PublishedSplitCase, unittest.TestCase):
         self.assertEqual(self.github.deleted_remote_branches, deleted)
         self.assertEqual(self._branch_states(), [STATE_FAILED])
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.UMBRELLA,
+            label_of(self.github, _late_support.LATE_ISSUE_NUMBER), WorkflowLabel.UMBRELLA,
         )
 
     def test_the_same_retry_reclaims_it_untouched(self) -> None:
@@ -177,7 +172,7 @@ class ReopenedDuringCleanupTest(PublishedSplitCase, unittest.TestCase):
     def _retried(self, *, moved=None) -> RecordedDelete:
         """One more umbrella tick, with a human moving things or not."""
         remote = RecordedDelete(SnapshotOutcome.DELETED)
-        with remote.answering(), local_teardown(), interleaved_after(
+        with remote.answering(), local_teardown(), _late_race.interleaved_after(
             _snapshot_refs, SNAPSHOT_PROBE, moved or _nothing,
         ):
             _umbrella._handle_umbrella(
@@ -215,7 +210,7 @@ class _ResolvedUmbrellaCase(PublishedSplitCase):
         that stands between the settlement's ask and the retirement write.
         """
         remote = RecordedDelete(SnapshotOutcome.DELETED)
-        with remote.answering(), local_teardown(), interleaved_after(
+        with remote.answering(), local_teardown(), _late_race.interleaved_after(
             _umbrella, RESOLUTION_SAID, moved or _nothing,
         ):
             _umbrella._handle_umbrella(
@@ -226,7 +221,7 @@ class _ResolvedUmbrellaCase(PublishedSplitCase):
         """What this tick said on the PARENT, receipts to children aside."""
         return [
             body for number, body in self.github.posted_comments
-            if number == LATE_ISSUE_NUMBER
+            if number == _late_support.LATE_ISSUE_NUMBER
         ]
 
     def _notices(self) -> int:
@@ -254,7 +249,7 @@ class RestoredAfterCleanupTest(_ResolvedUmbrellaCase, unittest.TestCase):
         self._terminal_tick()
 
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.UMBRELLA,
+            label_of(self.github, _late_support.LATE_ISSUE_NUMBER), WorkflowLabel.UMBRELLA,
         )
         self.assertFalse(self.issue.closed)
         # And the record still names the pull request, which is the only
@@ -284,7 +279,7 @@ class RestoredAfterCleanupTest(_ResolvedUmbrellaCase, unittest.TestCase):
         self._terminal_tick()
 
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.DONE,
+            label_of(self.github, _late_support.LATE_ISSUE_NUMBER), WorkflowLabel.DONE,
         )
         self.assertTrue(self.issue.closed)
 
@@ -305,7 +300,7 @@ class ReopenedInsideTheNoticeTest(_ResolvedUmbrellaCase, unittest.TestCase):
             self._terminal_tick(moved=self.reopened)
 
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.UMBRELLA,
+            label_of(self.github, _late_support.LATE_ISSUE_NUMBER), WorkflowLabel.UMBRELLA,
         )
         self.assertFalse(self.issue.closed)
         # Nothing was written, so the next tick refuses where it costs
@@ -335,7 +330,7 @@ class ReopenedInsideTheNoticeTest(_ResolvedUmbrellaCase, unittest.TestCase):
 
         self.assertEqual(self._notices(), 1)
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.DONE,
+            label_of(self.github, _late_support.LATE_ISSUE_NUMBER), WorkflowLabel.DONE,
         )
 
     def test_the_notice_said_is_not_repeated(self) -> None:
@@ -354,7 +349,7 @@ class ReopenedInsideTheNoticeTest(_ResolvedUmbrellaCase, unittest.TestCase):
 
         self.assertEqual(self._notices(), 1)
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.DONE,
+            label_of(self.github, _late_support.LATE_ISSUE_NUMBER), WorkflowLabel.DONE,
         )
 
 
@@ -380,12 +375,12 @@ class UnpublishedTerminalTest(LateSplitCase, unittest.TestCase):
 
         said = [
             body for number, body in self.github.posted_comments
-            if number == LATE_ISSUE_NUMBER and RESOLVED_NOTICE in body
+            if number == _late_support.LATE_ISSUE_NUMBER and RESOLVED_NOTICE in body
         ]
         self.assertEqual(len(said), 1)
         self.assertNotIn(RECEIPT_PREFIX, said[0])
         self.assertEqual(
-            label_of(self.github, LATE_ISSUE_NUMBER), WorkflowLabel.DONE,
+            label_of(self.github, _late_support.LATE_ISSUE_NUMBER), WorkflowLabel.DONE,
         )
 
 

@@ -18,11 +18,8 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.git.worktrees import reclaim
-from tests.git.worktrees.artifact_test_support import BASE_BRANCH
-from tests.git.worktrees.candidate_host_test_support import (
-    _revision,
-    _symbolic_ref,
-)
+from tests.git.worktrees.artifact_git import BASE_BRANCH
+from tests.git.worktrees.candidate_refs import _revision, _symbolic_ref
 from tests.git.worktrees.maintenance_test_support import _MaintenanceTestCase
 
 LOOSE_FILE = "left-behind.txt"
