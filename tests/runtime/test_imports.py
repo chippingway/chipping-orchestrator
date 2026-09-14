@@ -23,6 +23,7 @@ _MODULES = tuple(
         "artifact_records",
         "artifacts",
         "exclusion",
+        "host_lock",
         "logs",
         "loop",
         "self_update",

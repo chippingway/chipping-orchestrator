@@ -72,7 +72,8 @@ last is held by the loader itself rather than by a check.
   `_run_agent_tracked`'s own body with the circuit asked on a line above it.
 - **Operator log channels.** Four names are spelled literally rather than derived from `__name__`, because an
   operator's level and handler selection is keyed on them: `orchestrator.git_plumbing` (`git/branch_transport.py`,
-  `git/credentials.py`, `git/ref_discovery.py`, `git/ref_transport.py`, `git/snapshots/refs.py`, and the three
+  `git/credentials.py`, `git/ref_discovery.py`, `git/ref_transport.py`, `git/snapshots/refs.py`,
+  `git/snapshots/mirrors.py`, and the three
   `git/measurement/` owners that log, which all report on the same token, `ls-remote`, fetch, push, and diff
   plumbing),
   `orchestrator.base_sync` (`git/base_sync/state.py`), `orchestrator.worktree_lifecycle` (the fifteen
@@ -145,7 +146,9 @@ orchestrator/
                         so a record it cannot build costs one line and changes no decision; the sink's own two
                         answers never reach it, being silent when it is off and reported on the analytics channel
                         when the filesystem refuses the line
-    exclusion.py        which process on this host may take the artifacts: one `flock` claim under `WORKTREES_DIR`,
+    host_lock.py        the artifact lock's descriptor operations and interruptible acquisition wait. Only
+                        contention is retried; other lock errors report that the host cannot be coordinated on
+    exclusion.py        which process on this host may take the artifacts: one `host_lock.py` claim under `WORKTREES_DIR`,
                         held shared for a polling run's whole life and exclusively for as long as any pass acts --
                         including a polling run's own pass, which hands its presence over and takes it back, so a
                         second daemon cannot be submitting while this one deletes. A pass never waits for it and a
@@ -616,10 +619,10 @@ orchestrator/
                         commit, so a re-pointed ref is refused rather than reclaimed, and taking this host's copy
                         down BEFORE the remote one, since a mirror is what a child reads as "nothing has been
                         reclaimed": one that will not go -- or that a failed read cannot tell from one already
-                        gone -- refuses the whole reclamation rather than outliving the ref it mirrors. The read a
-                        child spends on that copy is published here too, and it is an identity rather than an
-                        existence: the store is one the agents write, so the copy is resolved and compared against
-                        the commit the caller was promised
+                        gone -- refuses the whole reclamation rather than outliving the ref it mirrors
+      mirrors.py        the repository-qualified local name, its hardened presence and commit probes, and the
+                        verified mirror removal that remote reclamation requires. A child reads identity here:
+                        the store is one the agents write, so the copy must resolve to the promised commit
     verification/       what a verify run is, and the reads a checkout is judged by
       models.py         the `VerifyResult` statuses and fields, and the output budget
       output.py         the redact-then-truncate pass over captured verify output
@@ -834,9 +837,10 @@ off a facade:
   caller.
 - `snapshots/` — `namespace` is string policy and reaches nothing, which is what lets the late domain's lineage
   record consult it on every pinned read without paying for the transport; `refs` calls `ref_transport` for the
-  remote read and the lease-pinned write and delete, `branch_transport` for the fetch, and `commands` for the
-  hardened local resolution that proves what the fetch brought. The workflow decides WHEN a snapshot is taken and
-  what its absence costs; this package decides only what a snapshot ref IS and refuses everything outside it.
+  remote read and the lease-pinned write and delete, `branch_transport` for the fetch, and `mirrors` for the
+  hardened local resolution that proves what the fetch brought. `mirrors` reaches `commands`, `locks`, and
+  `worktrees.paths` for the local copy and its repository-qualified name. The workflow decides WHEN a snapshot is
+  taken and what its absence costs; this package decides only what a snapshot ref IS and refuses everything outside it.
 - `worktrees/` — the creators call `commands`, `locks`, `branch_transport`, and their `paths` / `recovery` siblings;
   `decomposition` resolves its own path helper; `terminal` composes its local teardown from `cleanup`. The read-only
   scan sits on the same owners: `inventory` calls `branch_probes`, `probes`, `attribution`, and

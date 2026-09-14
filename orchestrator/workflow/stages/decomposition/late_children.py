@@ -75,7 +75,7 @@ from dataclasses import dataclass, field, replace
 
 from github.Issue import Issue
 
-from orchestrator.git.snapshots import refs as _snapshot_refs
+from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
 from orchestrator.github import comments as _github_comments, issues as _github_issues
 from orchestrator.workflow.engine import usage as _usage
 from orchestrator.workflow.late_split import formats as _formats, identity as _identity, lineage as _lineage
@@ -803,7 +803,7 @@ def _child_body(
         _REUSE_BLOCK.format(
             parent=generation.current_issue,
             ref=snapshot_ref,
-            mirror=_snapshot_refs.local_snapshot_ref(
+            mirror=_snapshot_mirrors.local_snapshot_ref(
                 context.spec, snapshot_ref,
             ),
             sha=generation.candidate_sha,

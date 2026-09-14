@@ -11,13 +11,11 @@ per-file-ignores =
     orchestrator/workflow/__init__.py:WPS412,WPS410
     orchestrator/observability/usage/__init__.py:WPS412,WPS410
     orchestrator/observability/analytics/recording/__init__.py:WPS412,WPS410
-    orchestrator/runtime/exclusion.py:WPS202
     orchestrator/git/base_sync/attempts.py:WPS202
     orchestrator/git/base_sync/outcomes.py:WPS202,WPS204
     orchestrator/git/base_sync/persistence.py:WPS202
     orchestrator/git/base_sync/recovery.py:WPS202
     orchestrator/git/base_sync/transfers.py:WPS201,WPS202
-    orchestrator/git/snapshots/refs.py:WPS202
     orchestrator/workflow/state.py:WPS202
     orchestrator/workflow/late_split/exemption.py:WPS202
     orchestrator/workflow/late_split/models.py:WPS214
@@ -66,7 +64,6 @@ per-file-ignores =
     orchestrator/workflow/stages/implementing/late_transfer.py:WPS202
     orchestrator/workflow/stages/implementing/late_verdict.py:WPS202
     orchestrator/workflow/stages/implementing/parks.py:WPS202
-    orchestrator/observability/usage/trajectory_codex_items.py:WPS202
     orchestrator/git/verification/probes.py:WPS202
     orchestrator/git/worktrees/creation.py:WPS202
     orchestrator/git/worktrees/discovery.py:WPS202
@@ -92,7 +89,6 @@ per-file-ignores =
     tests/git/worktrees/test_artifact_eligibility.py:WPS202
     tests/git/worktrees/test_artifact_evidence.py:WPS202,WPS214
     tests/git/worktrees/test_local_inventory.py:WPS202
-    tests/runtime/test_exclusion.py:WPS202
     tests/git/worktrees/test_maintenance_pass.py:WPS202
     tests/workflow/engine/lifetime_test_support.py:WPS202
     tests/workflow/engine/run_circuit_test_support.py:WPS202

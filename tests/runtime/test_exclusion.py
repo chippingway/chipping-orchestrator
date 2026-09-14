@@ -23,18 +23,14 @@ from __future__ import annotations
 
 import fcntl
 import logging
-import tempfile
-import threading
 import time
 import unittest
-from pathlib import Path
-from typing import TextIO
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.runtime import exclusion
+from orchestrator.runtime import exclusion, host_lock
+from tests.runtime import exclusion_test_support as _support
 
-_WORKTREES_ATTR = "WORKTREES_DIR"
 _RUNTIME_LOGGER = "orchestrator"
 _DEFERRED_LOG = "deferring the whole maintenance pass"
 _UNREADABLE_LOG = "could not open the host artifact lock"
@@ -49,83 +45,11 @@ _BROKEN_LOG = "could not be worked with"
 # have waited raises `BlockingIOError`, which is the whole of the distinction
 # under test.
 _BROKEN_LOCK = OSError("flock is not supported here")
-# How long a claim that must not wait is given before the test calls it a wait
-# that never ends. Generous, because what it separates is "answered" from
-# "spinning on a holder that does not exist".
-_PROMPT_SECONDS = 1.0
-_UNENDING_WAIT = "the claim never came back"
 _RETRY_ATTR = "_PRESENCE_RETRY_SECONDS"
 _BRIEF_RETRY_SECONDS = 0.01
-# Long enough that a wait really has to wait, short enough not to slow the
-# suite: the assertion is that the wait outlasted it, not how long it took.
-_RELEASE_DELAY_SECONDS = 0.05
 
 
-class _HostRoot(unittest.TestCase):
-    """One checkout root per test, with the lock file inside it."""
-
-    def setUp(self) -> None:
-        root = tempfile.TemporaryDirectory()
-        self.addCleanup(root.cleanup)
-        self.root = Path(root.name)
-        redirected = patch.object(config, _WORKTREES_ATTR, self.root)
-        redirected.start()
-        self.addCleanup(redirected.stop)
-
-    def held_elsewhere(self, flags: int) -> TextIO:
-        """Take the host's lock through a handle of another process's kind.
-
-        A second open file description on the same file, which `flock` treats
-        as independently as it treats another process's -- so this is a live
-        claim nothing in this interpreter's own bookkeeping knows about.
-        """
-        lock_file = exclusion._created()
-        self.addCleanup(lock_file.close)
-        fcntl.flock(lock_file, flags | fcntl.LOCK_NB)
-        self.addCleanup(fcntl.flock, lock_file, fcntl.LOCK_UN)
-        return lock_file
-
-    def release_shortly(self, lock_file: TextIO) -> None:
-        """Give that claim back from another thread, once a wait is under way.
-
-        Unlocking is idempotent, so the cleanup that also unlocks this handle
-        is free to run before or after: `LOCK_UN` on a file this process no
-        longer holds is not an error.
-        """
-        threading.Timer(
-            _RELEASE_DELAY_SECONDS,
-            fcntl.flock,
-            args=(lock_file, fcntl.LOCK_UN),
-        ).start()
-
-    def taken_elsewhere(self, flags: int) -> bool:
-        """Whether another process could claim this host right now."""
-        lock_file = exclusion._created()
-        with lock_file:
-            granted = exclusion._taken(lock_file, flags)
-            if granted:
-                fcntl.flock(lock_file, fcntl.LOCK_UN)
-            return granted
-
-    def claim_answered(self, claim) -> list:
-        """Take one claim on a thread, and hand back what it answered.
-
-        On a thread because a lock this file reads as CONTENDED is waited for
-        without a deadline: a failure misread as contention would spin here
-        forever, and a test that hangs the suite reports nothing. Bounded, the
-        same regression fails instead.
-        """
-        answers: list = []
-        answering = threading.Thread(
-            target=_recorded_claim, args=(claim, answers), daemon=True,
-        )
-        answering.start()
-        answering.join(timeout=_PROMPT_SECONDS)
-        self.assertFalse(answering.is_alive(), _UNENDING_WAIT)
-        return answers
-
-
-class LivePollingProcessTest(_HostRoot):
+class LivePollingProcessTest(_support._HostRoot):
     """A live polling process anywhere on this host defers the whole pass.
 
     This is the case an in-process barrier cannot answer: the work is owned by
@@ -171,7 +95,7 @@ class LivePollingProcessTest(_HostRoot):
             self.assertFalse(self.taken_elsewhere(fcntl.LOCK_EX))
 
 
-class PollingWaitsForAPassTest(_HostRoot):
+class PollingWaitsForAPassTest(_support._HostRoot):
     """A polling run starting while a pass holds the host waits it out whole.
 
     There is no bound on this side and there must not be one: a run that gave
@@ -185,14 +109,14 @@ class PollingWaitsForAPassTest(_HostRoot):
         self.release_shortly(self.held_elsewhere(fcntl.LOCK_EX))
         asked = time.monotonic()
         with (
-            patch.object(exclusion, _RETRY_ATTR, _BRIEF_RETRY_SECONDS),
+            patch.object(host_lock, _RETRY_ATTR, _BRIEF_RETRY_SECONDS),
             self.assertLogs(_RUNTIME_LOGGER, level=logging.INFO) as logs,
             exclusion.polling_presence(),
         ):
             # It got in only after the pass gave the host back, and it is
             # holding a presence now: no pass may start beside it.
             self.assertGreaterEqual(
-                time.monotonic() - asked, _RELEASE_DELAY_SECONDS,
+                time.monotonic() - asked, _support._RELEASE_DELAY_SECONDS,
             )
             self.assertFalse(self.taken_elsewhere(fcntl.LOCK_EX))
             self.assertTrue(any(
@@ -200,7 +124,7 @@ class PollingWaitsForAPassTest(_HostRoot):
             ))
 
 
-class RecurringPassTest(_HostRoot):
+class RecurringPassTest(_support._HostRoot):
     """A polling run's own pass takes this host as exclusively as a timer does.
 
     A presence is shared, so it does not exclude the run that holds it: its
@@ -245,7 +169,7 @@ class RecurringPassTest(_HostRoot):
             self.assertFalse(self.taken_elsewhere(fcntl.LOCK_EX))
             self.assertTrue(self.taken_elsewhere(fcntl.LOCK_SH))
 
-class MaintenanceExclusivityTest(_HostRoot):
+class MaintenanceExclusivityTest(_support._HostRoot):
     """Two maintenance passes exclude each other, and a pass gives the host back."""
 
     def test_a_second_pass_is_refused_while_one_runs(self) -> None:
@@ -275,7 +199,7 @@ class MaintenanceExclusivityTest(_HostRoot):
             self.assertTrue(regained.taken)
 
 
-class BrokenLockTest(_HostRoot):
+class BrokenLockTest(_support._HostRoot):
     """A lock that does not work is not a lock somebody is holding.
 
     The two are one `OSError` apart and mean opposite things. Contention is a
@@ -289,13 +213,13 @@ class BrokenLockTest(_HostRoot):
         # The distinction itself, where it is drawn: a request that would have
         # waited raises `BlockingIOError` and is the one refusal that means a
         # holder. Anything else is raised, because there is nobody to wait for.
-        lock_file = exclusion._created()
+        lock_file = host_lock._created()
         self.addCleanup(lock_file.close)
         with (
             patch.object(fcntl, _FLOCK_ATTR, side_effect=_BROKEN_LOCK),
             self.assertRaises(OSError),
         ):
-            exclusion._taken(lock_file, fcntl.LOCK_EX)
+            host_lock._taken(lock_file, fcntl.LOCK_EX)
 
     def test_a_pass_does_not_act_on_a_broken_lock(self) -> None:
         with (
@@ -332,7 +256,7 @@ class BrokenLockTest(_HostRoot):
             self.assertEqual(self.claim_answered(host.exclusive), [False])
 
 
-class UnusableLockTest(_HostRoot):
+class UnusableLockTest(_support._HostRoot):
     """A host that cannot be coordinated on is one nothing is reclaimed on.
 
     The two callers rank the same failure differently, and both readings are
@@ -349,7 +273,7 @@ class UnusableLockTest(_HostRoot):
         # A checkout root under a regular file: the directory the lock needs
         # cannot be created, which is the shape an unwritable root has here.
         unusable = patch.object(
-            config, _WORKTREES_ATTR, blocking_file / _NESTED_ROOT,
+            config, _support._WORKTREES_ATTR, blocking_file / _NESTED_ROOT,
         )
         unusable.start()
         self.addCleanup(unusable.stop)
@@ -378,17 +302,6 @@ class UnusableLockTest(_HostRoot):
             self.assertTrue(any(
                 _UNREADABLE_LOG in message for message in logs.output
             ))
-
-
-def _recorded_claim(claim, answers: list) -> None:
-    """Take one claim on this thread and record what it answered.
-
-    A claim answers with itself and a handover with a bare grant, and the
-    question either one is being asked is the same: did this process get what
-    it asked for.
-    """
-    with claim() as answered:
-        answers.append(getattr(answered, "taken", answered))
 
 
 if __name__ == "__main__":

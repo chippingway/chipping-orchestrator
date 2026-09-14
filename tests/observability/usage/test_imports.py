@@ -42,6 +42,7 @@ _OWNERS = (
     "trajectory_claude_turns",
     "trajectory_codex",
     "trajectory_codex_items",
+    "trajectory_codex_payloads",
     "trajectory_models",
 )
 

@@ -26,7 +26,7 @@ from orchestrator.git.measurement.models import (
     MeasurementFailure,
     _BaseObject,
 )
-from orchestrator.git.snapshots import refs as _snapshot_refs
+from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, refs as _snapshot_refs
 from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.git.verification.probes import _WorktreeStatus
 from tests.workflow.git_owners import seam_patch
@@ -362,11 +362,15 @@ class RecordedDelete:
         """The refs the read-only ask was spent on."""
         return list(self._observed)
 
+    @contextlib.contextmanager
     def answering(self):
-        """Hold both remote answers about a snapshot for one walk."""
-        return patch.multiple(
-            _snapshot_refs,
-            delete_snapshot_ref=self,
-            observed_snapshot_ref=self.observe,
-            local_snapshot_present=self.mirror,
-        )
+        """Hold remote answers and local mirror evidence for one walk."""
+        with (
+            patch.multiple(
+                _snapshot_refs,
+                delete_snapshot_ref=self,
+                observed_snapshot_ref=self.observe,
+            ) as patched,
+            patch.object(_snapshot_mirrors, "local_snapshot_present", self.mirror),
+        ):
+            yield patched

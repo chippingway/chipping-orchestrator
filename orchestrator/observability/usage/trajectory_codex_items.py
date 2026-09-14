@@ -32,6 +32,9 @@ than a diagnostic. The exclusion is still named rather than silent --
 is a recorded classification there while neither its text nor any other field
 of it leaves this module.
 
+The `trajectory_codex_payloads` owner keeps the accumulated frame representation
+and its projection into ordered steps below both this normalizer and the timeline.
+
 Nothing here fabricates an outcome. A result payload is contributed only by the
 frame that actually carries one, which is what leaves a call the stream failed
 or never completed visible as an invocation with no result beneath it. Which
@@ -43,15 +46,14 @@ carries either way, so the terminal status is what ends it.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
 
 from orchestrator.observability.usage import (
     protocol,
     skills_codex,
+    trajectory_codex_payloads as _payloads,
 )
-from orchestrator.observability.usage.trajectory_models import TrajectoryStep
 
 AGENT_MESSAGE = "agent_message"
 COMMAND_EXECUTION = skills_codex.COMMAND_EXECUTION
@@ -62,11 +64,6 @@ TODO_LIST = "todo_list"
 WEB_SEARCH = "web_search"
 
 ITEM_COMPLETED = "item.completed"
-
-ASSISTANT_MESSAGE = "assistant_message"
-TOOL_CALL = "tool_call"
-TOOL_RESULT = "tool_result"
-UNSUPPORTED_ITEM = "unsupported_item"
 
 ACTION = "action"
 AGGREGATED_OUTPUT = "aggregated_output"
@@ -86,100 +83,23 @@ NAME_SEPARATOR = "."
 # of what one says about its outcome -- and saying it is what ends it.
 TERMINAL_STATUSES = frozenset(("completed", "failed"))
 
-MISSING = object()
-
-
-@dataclass
-class CodexItemPayloads:
-    """The step family one item belongs to and the payloads it carries.
-
-    `MISSING` is what separates a field a frame did not carry from one it
-    carried empty: the builder merges frame by frame and only overwrites what
-    a frame actually reported, so a completed frame that omits a field leaves
-    the started frame's value standing.
-    """
-
-    kind: str
-    name: str = ""
-    call_payload: Any = MISSING
-    result_payload: Any = MISSING
-    keeps_first_call: bool = False
-
-    def contributes_call(self, recorded_call: Any) -> bool:
-        """Whether this frame's invocation replaces the one already recorded.
-
-        An item codex republishes whole on every frame -- a plan, rewritten as
-        it is worked through -- is invoked once, by the frame that opened it,
-        so a later frame revises the outcome rather than the call. Every other
-        item is named by whichever frame filled the field last, which is how a
-        search that announces itself with an empty query is still recorded
-        under the one it ran.
-        """
-        if self.call_payload is MISSING:
-            return False
-        return not (self.keeps_first_call and recorded_call is not MISSING)
-
-    def steps(self, tool_id: str) -> tuple[TrajectoryStep, ...]:
-        """Order what this item accumulated into the steps it contributes."""
-        if self.kind == ASSISTANT_MESSAGE:
-            if self.call_payload is MISSING:
-                return ()
-            return (
-                TrajectoryStep(
-                    kind=ASSISTANT_MESSAGE,
-                    content=self.call_payload,
-                ),
-            )
-        if self.kind == UNSUPPORTED_ITEM:
-            return (
-                TrajectoryStep(
-                    kind=UNSUPPORTED_ITEM,
-                    name=self.name,
-                    tool_id=tool_id,
-                    content=self.call_payload,
-                ),
-            )
-        return self._tool_steps(tool_id)
-
-    def _tool_steps(self, tool_id: str) -> tuple[TrajectoryStep, ...]:
-        tool_steps: list[TrajectoryStep] = []
-        if self.call_payload is not MISSING:
-            tool_steps.append(
-                TrajectoryStep(
-                    kind=TOOL_CALL,
-                    name=self.name,
-                    tool_id=tool_id,
-                    content=self.call_payload,
-                ),
-            )
-        if self.result_payload is not MISSING:
-            tool_steps.append(
-                TrajectoryStep(
-                    kind=TOOL_RESULT,
-                    tool_id=tool_id,
-                    content=self.result_payload,
-                ),
-            )
-        return tuple(tool_steps)
-
-
 def _agent_message(
     stream_item: dict[str, Any],
     completed: bool,
-) -> CodexItemPayloads:
+) -> _payloads.CodexItemPayloads:
     """The agent's own text turn."""
     message = stream_item.get(TEXT)
     spoken = isinstance(message, str) and message
-    return CodexItemPayloads(
-        kind=ASSISTANT_MESSAGE,
-        call_payload=message if spoken else MISSING,
+    return _payloads.CodexItemPayloads(
+        kind=_payloads.ASSISTANT_MESSAGE,
+        call_payload=message if spoken else _payloads.MISSING,
     )
 
 
 def _command_execution(
     stream_item: dict[str, Any],
     completed: bool,
-) -> CodexItemPayloads:
+) -> _payloads.CodexItemPayloads:
     """A shell command: what was run, and the output it aggregated.
 
     A running command already carries the `aggregated_output` field, empty,
@@ -189,12 +109,12 @@ def _command_execution(
     never produced.
     """
     command = stream_item.get(COMMAND)
-    return CodexItemPayloads(
-        kind=TOOL_CALL,
+    return _payloads.CodexItemPayloads(
+        kind=_payloads.TOOL_CALL,
         name=COMMAND_EXECUTION,
-        call_payload=command if isinstance(command, str) else MISSING,
+        call_payload=command if isinstance(command, str) else _payloads.MISSING,
         result_payload=(
-            stream_item.get(AGGREGATED_OUTPUT, MISSING) if completed else MISSING
+            stream_item.get(AGGREGATED_OUTPUT, _payloads.MISSING) if completed else _payloads.MISSING
         ),
     )
 
@@ -202,7 +122,7 @@ def _command_execution(
 def _web_search(
     stream_item: dict[str, Any],
     completed: bool,
-) -> CodexItemPayloads:
+) -> _payloads.CodexItemPayloads:
     """A web search: the query it ran, and the action it resolved to.
 
     A search announces itself with an empty query and an unresolved action and
@@ -210,12 +130,12 @@ def _web_search(
     is both what the call is read from -- it is merged last -- and the only one
     that reports an outcome.
     """
-    return CodexItemPayloads(
-        kind=TOOL_CALL,
+    return _payloads.CodexItemPayloads(
+        kind=_payloads.TOOL_CALL,
         name=WEB_SEARCH,
-        call_payload=stream_item.get(QUERY, MISSING),
+        call_payload=stream_item.get(QUERY, _payloads.MISSING),
         result_payload=(
-            stream_item.get(ACTION, MISSING) if completed else MISSING
+            stream_item.get(ACTION, _payloads.MISSING) if completed else _payloads.MISSING
         ),
     )
 
@@ -223,7 +143,7 @@ def _web_search(
 def _mcp_tool_call(
     stream_item: dict[str, Any],
     completed: bool,
-) -> CodexItemPayloads:
+) -> _payloads.CodexItemPayloads:
     """An MCP tool call: its arguments, and the result or error it ended on.
 
     A call that failed reports it either way -- the server's own error
@@ -238,18 +158,18 @@ def _mcp_tool_call(
         for part in (stream_item.get(SERVER), stream_item.get(TOOL))
         if isinstance(part, str) and part
     ]
-    return CodexItemPayloads(
-        kind=TOOL_CALL,
+    return _payloads.CodexItemPayloads(
+        kind=_payloads.TOOL_CALL,
         name=NAME_SEPARATOR.join(name_parts) or MCP_TOOL_CALL,
-        call_payload=stream_item.get(ARGUMENTS, MISSING),
-        result_payload=MISSING if outcome is None else outcome,
+        call_payload=stream_item.get(ARGUMENTS, _payloads.MISSING),
+        result_payload=_payloads.MISSING if outcome is None else outcome,
     )
 
 
 def _file_change(
     stream_item: dict[str, Any],
     completed: bool,
-) -> CodexItemPayloads:
+) -> _payloads.CodexItemPayloads:
     """A patch application: the paths it touched and how it ended.
 
     The change list is recorded as the structure codex reports -- one entry
@@ -263,18 +183,18 @@ def _file_change(
     """
     status = stream_item.get(STATUS)
     ended = isinstance(status, str) and status in TERMINAL_STATUSES
-    return CodexItemPayloads(
-        kind=TOOL_CALL,
+    return _payloads.CodexItemPayloads(
+        kind=_payloads.TOOL_CALL,
         name=FILE_CHANGE,
-        call_payload=stream_item.get(CHANGES, MISSING),
-        result_payload=status if ended else MISSING,
+        call_payload=stream_item.get(CHANGES, _payloads.MISSING),
+        result_payload=status if ended else _payloads.MISSING,
     )
 
 
 def _todo_list(
     stream_item: dict[str, Any],
     completed: bool,
-) -> CodexItemPayloads:
+) -> _payloads.CodexItemPayloads:
     """A plan: the list it opened with, and the state it ended in.
 
     Codex republishes the whole plan on every revision, so one plan is one
@@ -285,17 +205,17 @@ def _todo_list(
     call alone -- where a plan stood when the stream stopped is not where it
     ended.
     """
-    plan = stream_item.get(PLAN_STEPS, MISSING)
-    return CodexItemPayloads(
-        kind=TOOL_CALL,
+    plan = stream_item.get(PLAN_STEPS, _payloads.MISSING)
+    return _payloads.CodexItemPayloads(
+        kind=_payloads.TOOL_CALL,
         name=TODO_LIST,
         call_payload=plan,
-        result_payload=plan if completed else MISSING,
+        result_payload=plan if completed else _payloads.MISSING,
         keeps_first_call=True,
     )
 
 
-ItemNormalizer = Callable[[dict[str, Any], bool], CodexItemPayloads]
+ItemNormalizer = Callable[[dict[str, Any], bool], _payloads.CodexItemPayloads]
 NORMALIZERS: Mapping[str, ItemNormalizer] = MappingProxyType({
     AGENT_MESSAGE: _agent_message,
     COMMAND_EXECUTION: _command_execution,
@@ -309,7 +229,7 @@ NORMALIZERS: Mapping[str, ItemNormalizer] = MappingProxyType({
 def normalize_item(
     stream_item: dict[str, Any],
     completed: bool,
-) -> CodexItemPayloads | None:
+) -> _payloads.CodexItemPayloads | None:
     """Normalize one item frame, or `None` for one no record carries.
 
     An unclaimed item type yields the placeholder rather than nothing, so the
@@ -322,8 +242,8 @@ def normalize_item(
     normalizer = NORMALIZERS.get(item_type)
     if normalizer is None:
         status = stream_item.get(STATUS)
-        return CodexItemPayloads(
-            kind=UNSUPPORTED_ITEM,
+        return _payloads.CodexItemPayloads(
+            kind=_payloads.UNSUPPORTED_ITEM,
             name=item_type,
             call_payload=status if isinstance(status, str) else None,
         )

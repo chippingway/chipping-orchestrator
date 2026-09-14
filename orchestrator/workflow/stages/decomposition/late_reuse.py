@@ -124,7 +124,7 @@ from types import MappingProxyType
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.snapshots import refs as _snapshot_refs
+from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, refs as _snapshot_refs
 from orchestrator.github import client as _client, comments as _comments, pinned_state as _pinned_state
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
@@ -595,7 +595,7 @@ def _mirrored(
     the remote read that would have parked it.
     """
     try:
-        return _snapshot_refs.local_snapshot_present(
+        return _snapshot_mirrors.local_snapshot_present(
             spec, spec.target_root,
             ref=ancestry.snapshot_ref, sha=ancestry.snapshot_sha,
         )
