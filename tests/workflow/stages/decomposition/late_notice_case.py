@@ -70,13 +70,12 @@ class _RefusedDeliveryCase(GuardedLateCase):
 
 
 class _TerminatorRecordCase(_RefusedDeliveryCase):
-    """A record carrying the wrapper's own terminator, at the old ceiling.
+    """A legacy record whose terminators expand beyond the storage ceiling.
 
     Live on issues, written by a binary that rendered the payload without
     escaping those terminators -- an agent's explanation and a preserved
-    pull-request body are where they come from. The record is unchanged and
-    already durable; only what rendering it costs moved. Every case below is
-    a regression about not charging the sentence its park owes for that.
+    pull-request body are where they come from. Escaping an already durable
+    record must not prevent delivery of the notice its park owes.
     """
 
     terminators = 0

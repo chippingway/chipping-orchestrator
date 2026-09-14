@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.workflow.late_split import (
     events as _events,

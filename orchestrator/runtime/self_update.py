@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import subprocess
 
-from orchestrator.config import settings as config
+from orchestrator import config
 
 _RUNTIME_SOURCE_PREFIX = "orchestrator/"
 

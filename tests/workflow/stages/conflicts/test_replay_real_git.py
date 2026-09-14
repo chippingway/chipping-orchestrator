@@ -25,7 +25,7 @@ import unittest
 from dataclasses import replace as _replace
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.workflow.late_split import (
     exemption_reading as _exemption_reading,

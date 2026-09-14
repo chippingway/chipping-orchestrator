@@ -8,7 +8,7 @@ records a stranded park once so repeated ticks do not consume human replies.
 """
 from __future__ import annotations
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.base_sync import persistence
 from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoveryContext,

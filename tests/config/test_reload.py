@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from orchestrator.config import environment
 
-_CONFIG_MODULE = "orchestrator.config.settings"
+_CONFIG_MODULE = "orchestrator.config"
 _HERMETIC = MappingProxyType(
     {
         "ORCHESTRATOR_SKIP_DOTENV": "1",
@@ -24,7 +24,7 @@ _INVALID_AGENT = "gemini"
 
 
 class ConfigReloadTest(unittest.TestCase):
-    """`orchestrator.config.settings` resolves every setting through
+    """`orchestrator.config` resolves every setting through
     `environment._SettingsResolver` as it is imported, so
     `importlib.reload(config)` re-runs the resolver against the current
     environment (re-parsing values and re-running import-time validation)

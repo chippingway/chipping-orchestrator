@@ -18,7 +18,7 @@ from tests.git.worktrees.recovery_test_support import (
     _seed_branch_fixture,
     _temp_root,
 )
-from tests.workflow.stages.question.question_real_git_test_support import (
+from tests.support.git import (
     _run_git,
     _seed_target_root,
     _spec_for,

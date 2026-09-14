@@ -60,6 +60,10 @@ _BACKEND_OWNERS = (
 
 _DISPATCH_OWNER = f"{_PACKAGE}.agents.runner"
 
+# The package initializer publishes the dispatch entry as the agents API, so
+# it names the function without ever starting anything with it.
+_AGENTS_FACADE = f"{_PACKAGE}.agents"
+
 _TRACKED_OWNER = f"{_PACKAGE}.workflow.engine.usage"
 
 
@@ -126,11 +130,13 @@ class AgentSpawnBoundaryTest(unittest.TestCase):
         self.tracked_run = _function_named(self.tracked_module, _TRACKED_RUN)
 
     def test_one_module_names_the_dispatch_entry(self) -> None:
-        # Every reference reaches the charged workflow wrapper, so no second
-        # caller can start a run outside the lifetime ledger.
+        # The workflow's charged wrapper, plus the initializer that republishes
+        # the entry as the agents package API. A stage or engine owner here is
+        # a spawn road that never passes an `AgentRunBudget`, and so a run the
+        # lifetime ledger is never told about.
         self.assertEqual(
             _modules_naming(_DISPATCH_ENTRY),
-            frozenset((_TRACKED_OWNER,)),
+            frozenset((_AGENTS_FACADE, _TRACKED_OWNER)),
         )
 
     def test_only_the_runner_names_a_backend(self) -> None:

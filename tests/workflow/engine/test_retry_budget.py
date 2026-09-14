@@ -12,7 +12,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import (
     retry_budget as _retry_budget,
     retry_notices as _retry_notices,

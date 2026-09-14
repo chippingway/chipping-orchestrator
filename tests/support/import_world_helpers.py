@@ -1,9 +1,9 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Keep one `orchestrator.config.settings` object installed across a reload test.
+"""Keep one `orchestrator.config` object installed across a reload test.
 
 A reload test pops modules so a re-import re-runs against a patched
-environment. What it must not leave behind is a rebuilt `orchestrator.config.settings`:
+environment. What it must not leave behind is a rebuilt `orchestrator.config`:
 dozens of unrelated modules bind that module object once, at their own import
 time, so a swap splits them into two camps -- whoever imported before the swap
 holds one object, whoever imports after holds the other. A
@@ -19,8 +19,8 @@ keeps the one object the suite-wide fixture patches.
 
 The reloaded modules themselves are still what the test drives; only the
 process-wide bindings are put back. Restoring `sys.modules` alone would not do
-it: importing `orchestrator.config.settings` also rebinds `settings` on the persistent
-`orchestrator.config` package object, so a later `from orchestrator.config import settings`
+it: importing `orchestrator.config` also rebinds `config` on the persistent
+`orchestrator` package object, so a later `from orchestrator import config`
 would resolve the discarded reload straight out of the package namespace.
 """
 
@@ -30,7 +30,7 @@ import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-CONFIG_MODULE = "orchestrator.config.settings"
+CONFIG_MODULE = "orchestrator.config"
 
 ANALYTICS_OWNERS = "orchestrator.observability.analytics"
 
@@ -38,9 +38,9 @@ SETTINGS_ATTRIBUTE = "settings"
 
 SETTINGS_MODULE = f"{ANALYTICS_OWNERS}.{SETTINGS_ATTRIBUTE}"
 
-_PACKAGE = "orchestrator.config"
+_PACKAGE = "orchestrator"
 
-_ATTRIBUTE = "settings"
+_ATTRIBUTE = "config"
 
 _MISSING = object()
 
@@ -58,7 +58,7 @@ def _reinstate(saved_module: object, saved_attribute: object) -> None:
 
 @contextmanager
 def restored_import_world() -> Iterator[None]:
-    """Reinstate the entering `orchestrator.config.settings` module when the body ends.
+    """Reinstate the entering `orchestrator.config` module when the body ends.
 
     The body is free to pop and re-import it; whatever it installs is what the
     body returns, but the module the rest of the session resolves is the one it

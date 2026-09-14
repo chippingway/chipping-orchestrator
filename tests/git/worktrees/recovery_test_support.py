@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
-from tests.workflow.stages.question.question_real_git_test_support import (
+from tests.support.git import (
     _run_git,
     _seed_target_root,
     _spec_for,

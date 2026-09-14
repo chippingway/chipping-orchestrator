@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from tests.workflow.fixtures import (
     KEY_AWAITING_HUMAN,
     KEY_PARK_REASON,

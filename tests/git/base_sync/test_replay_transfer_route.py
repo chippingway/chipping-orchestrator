@@ -24,18 +24,16 @@ class TransferRouteTest(seed.TransferCase):
 
         _recovery_cases._assert_selects(self, _recovery_cases.UNVOUCHED)
 
-    def test_a_settled_transfer_reads_as_a_rollback(self) -> None:
-        # The write that settled says the pull request HAD this commit, so a
-        # remote standing anywhere else was rolled back -- and the head it was
-        # rolled back to is the very anchor a retry would lease against.
-        seed.settled(self.state)
+    def test_publication_evidence_reads_as_a_rollback(self) -> None:
+        # Either record proves the remote carried this commit, so a remote
+        # back on the anchor has been rolled back and cannot be retried.
+        for record in (seed.settled, seed.receipted):
+            with self.subTest(record=record.__name__):
+                self._fresh()
+                record(self.state)
 
-        _recovery_cases._assert_selects(self, "_park_rolled_back_recovery")
+                _recovery_cases._assert_selects(self, "_park_rolled_back_recovery")
 
-    def test_a_receipt_for_the_replay_says_so_too(self) -> None:
-        seed.receipted(self.state)
-
-        _recovery_cases._assert_selects(self, "_park_rolled_back_recovery")
 
     def test_a_transfer_nobody_can_vouch_for_parks(self) -> None:
         # A permission naming a commit this checkout is not standing on is a

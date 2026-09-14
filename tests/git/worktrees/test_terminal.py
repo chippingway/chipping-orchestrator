@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git import commands
 from orchestrator.git.worktrees import terminal
 from tests.git.worktrees.lifecycle_test_support import (
@@ -23,7 +23,7 @@ from tests.git.worktrees.terminal_test_support import (
     _branch_exists,
     _seed_cleanup_fixture,
 )
-from tests.workflow.stages.question.question_real_git_test_support import (
+from tests.support.git import (
     _seed_target_root,
     _spec_for,
 )

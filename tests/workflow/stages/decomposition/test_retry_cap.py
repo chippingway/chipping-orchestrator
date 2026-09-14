@@ -15,7 +15,7 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from tests.workflow.fixtures import LABEL_READY, _agent, _iso_hours_ago
 from tests.workflow.stages.decomposition import retry_cap_support as support
 

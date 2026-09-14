@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
 from tests.workflow.fixtures import (
     _TEST_SPEC,

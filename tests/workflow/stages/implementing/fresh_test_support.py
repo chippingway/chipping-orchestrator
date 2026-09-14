@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES
 from tests.workflow.stages import implementing_fixing_test_cases
 

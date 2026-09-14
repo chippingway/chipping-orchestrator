@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import retry_ledger as _retry_ledger
 from tests.workflow.fixtures import (
     _TEST_SPEC,

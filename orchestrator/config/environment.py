@@ -7,7 +7,7 @@ positive-integer controls, non-negative budgets, HITL handle lists,
 verify-command lists) and the `_SettingsResolver` that drives the whole
 pipeline: it loads the non-secret `.env` (via the `_dotenv` leaf), then reads
 each `os.environ` key, validates it, and returns the resolved settings
-mapping. `orchestrator.config.settings` invokes the resolver on every import / reload
+mapping. `orchestrator.config` invokes the resolver on every import / reload
 and binds the mapping as the package's public API; the abort-on-invalid /
 warn-to-stderr diagnostics the resolver calls on bad input are injected from
 that package's single configuration-failure funnel.

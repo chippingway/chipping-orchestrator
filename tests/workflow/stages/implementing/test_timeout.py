@@ -16,7 +16,7 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import (

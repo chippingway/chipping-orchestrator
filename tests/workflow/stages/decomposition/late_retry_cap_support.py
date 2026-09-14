@@ -19,7 +19,7 @@ from __future__ import annotations
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import retry_values as _retry_values
 from tests.support.fakes import (
     FakeComment,

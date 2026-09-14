@@ -21,7 +21,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from unittest.mock import patch
 
-from orchestrator.config import credentials as _config_credentials
+from orchestrator import config
 from orchestrator.git import branch_transport, credentials, ref_transport
 from orchestrator.git.measurement import commits
 from orchestrator.git.measurement.models import MeasurementFailure
@@ -78,7 +78,7 @@ def _a_leaking_remote() -> Iterator[None]:
     deployment can resolve for the repository, and a session built around it.
     """
     with patch.object(
-        _config_credentials, "resolve_github_token", return_value=_LEAKED_TOKEN,
+        config, "_resolve_github_token", return_value=_LEAKED_TOKEN,
     ), patch.object(credentials, "_git_auth_session", _leaking_session):
         yield
 

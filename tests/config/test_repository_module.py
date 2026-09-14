@@ -14,16 +14,17 @@ class RepositoryConfigModuleTest(unittest.TestCase):
     """Repository types and settings accessors have separate defining owners."""
 
     def test_repospec_is_owned_by_models(self) -> None:
-        from orchestrator.config import models, settings
+        config = importlib.import_module(_config_cases._CONFIG_MODULE)
+        from orchestrator.config import models
 
-        self.assertNotIn("RepoSpec", settings.__dict__)
+        self.assertIs(config.RepoSpec, models.RepoSpec)
         self.assertEqual(models.RepoSpec.__module__, _config_cases._MODELS_MODULE)
 
     def test_default_repo_specs_wrapper_on_config(self) -> None:
         config = importlib.import_module(_config_cases._CONFIG_MODULE)
 
         # `config.default_repo_specs` is the narrow wrapper; its module of
-        # record is `orchestrator.config.settings` so `patch.object(config, ...)` keeps
+        # record is `orchestrator.config` so `patch.object(config, ...)` keeps
         # intercepting it.
         self.assertEqual(
             config.default_repo_specs.__module__,

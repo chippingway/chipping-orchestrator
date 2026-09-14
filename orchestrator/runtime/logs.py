@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from logging.handlers import RotatingFileHandler
 
-from orchestrator.config import settings as config
+from orchestrator import config
 
 log = logging.getLogger("orchestrator")
 

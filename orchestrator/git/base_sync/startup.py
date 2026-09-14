@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from github.PullRequest import PullRequest
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git import commands
 from orchestrator.git.base_sync import attempts, conflicts, persistence, pre_pr
 from orchestrator.git.base_sync.models import _AutoRebaseContext

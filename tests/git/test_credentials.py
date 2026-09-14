@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import credentials as _config_credentials, settings as config
+from orchestrator import config
 from orchestrator.git import credentials
 from tests.git.token_transport_test_support import (
     FAKE_TOKEN,
@@ -53,7 +53,7 @@ class ResolvedTokenTest(unittest.TestCase):
     def test_returns_the_slug_token(self) -> None:
         resolver = MagicMock(return_value=FAKE_TOKEN)
 
-        with patch.object(_config_credentials, TOKEN_RESOLVER, resolver):
+        with patch.object(config, TOKEN_RESOLVER, resolver):
             token = credentials._resolved_git_token(
                 _spec(REPOSITORY_SLUG), FETCH_OPERATION,
             )
@@ -65,7 +65,7 @@ class ResolvedTokenTest(unittest.TestCase):
         # A multi-repo deployment missing one token file needs both the repo
         # and the blocked operation in the log to know which file to drop.
         with (
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=""),
+            patch.object(config, TOKEN_RESOLVER, return_value=""),
             self.assertLogs(credentials.log, level="ERROR") as logs,
         ):
             token = credentials._resolved_git_token(

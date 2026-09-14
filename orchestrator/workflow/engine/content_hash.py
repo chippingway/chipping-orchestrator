@@ -94,11 +94,11 @@ def _compute_user_content_hash(
     when a human edits the issue body or adds acceptance criteria after
     the workflow has already picked it up.
 
-    `include_bare_continue` is the legacy-compat escape hatch: with it True the
-    bare `/orchestrator continue` filter (below) is skipped, reproducing the
-    pre-issue-#729 algorithm. `_detect_user_content_change` uses it to recognize
-    a baseline written by the old algorithm and absorb the one-time delta instead
-    of firing false drift. Default False (the current algorithm).
+    `include_bare_continue=True` reproduces persisted baselines that counted
+    bare `/orchestrator continue` commands as human content.
+    `_detect_user_content_change` uses that reading to normalize a baseline
+    without reporting drift caused solely by excluding a retry command.
+    The default excludes those commands.
 
     Non-human content is filtered eight ways:
 

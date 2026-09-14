@@ -16,7 +16,8 @@ from github.Issue import Issue
 from github.Label import Label
 from github.Repository import Repository
 
-from orchestrator.config import credentials as _config_credentials, models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.checks import GitHubChecksMixin
 from orchestrator.github.labels import GitHubLabelMixin
 from orchestrator.github.reviews import GitHubReviewMixin
@@ -47,7 +48,7 @@ class GitHubClient(
     ) -> None:
         slug = repo_slug or config.REPO if repo_spec is None else repo_spec.slug
         if token is None:
-            token = _config_credentials.resolve_github_token(slug)
+            token = config._resolve_github_token(slug)
         if not token:
             raise RuntimeError(
                 "GITHUB_TOKEN is empty. Export it in the orchestrator's "

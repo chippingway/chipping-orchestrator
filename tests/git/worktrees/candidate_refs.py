@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.workflow.stages.question.question_real_git_test_support import (
+from tests.support.git import (
     _run_git,
 )
 

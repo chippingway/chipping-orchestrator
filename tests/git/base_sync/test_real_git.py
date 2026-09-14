@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.late_split import exemption_reading as _exemption_reading
 from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,

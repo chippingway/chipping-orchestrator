@@ -14,7 +14,7 @@ crash-recovery anchor has to be dropped.
 """
 from __future__ import annotations
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.base_sync import attempts, persistence
 from orchestrator.git.base_sync.models import _AutoRebaseContext
 from orchestrator.git.base_sync.state import (

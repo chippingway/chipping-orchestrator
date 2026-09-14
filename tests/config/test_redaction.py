@@ -9,7 +9,7 @@ from unittest.mock import patch
 from orchestrator.config import credentials
 
 _REDACTION_MARKER = "***"
-_CONFIGURED_TOKEN = "orchestrator.config.settings.GITHUB_TOKEN"
+_CONFIGURED_TOKEN = "orchestrator.config.GITHUB_TOKEN"
 
 
 def _patched_env(**env_values: str):
@@ -43,7 +43,7 @@ class RedactSecretsTest(unittest.TestCase):
         # Token-file path (ORCHESTRATOR_TOKEN_FILE / default
         # ~/.config/<repo>/token) populates config.GITHUB_TOKEN without
         # touching os.environ. The env-loop alone would miss it, so the
-        # resolved setting is read straight off `orchestrator.config.settings` at
+        # resolved setting is read straight off `orchestrator.config` at
         # call time. Regression: without that pass, agent stderr that
         # cat'd the token file would leak the credential into the park
         # comment.

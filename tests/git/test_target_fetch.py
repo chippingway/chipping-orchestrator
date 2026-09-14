@@ -8,7 +8,8 @@ import unittest
 from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import credentials as _config_credentials, models as _config_models
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport
 from tests.git.token_transport_test_support import (
     CACHE_BRANCH,
@@ -65,7 +66,7 @@ class AuthedTargetFetchTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, token_resolver),
+            patch.object(config, TOKEN_RESOLVER, token_resolver),
         ):
             fetch = branch_transport._authed_target_fetch(repo, CACHE_BRANCH)
 
@@ -101,7 +102,7 @@ class AuthedTargetFetchTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=SECRET_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=SECRET_TOKEN),
         ):
             branch_transport._authed_target_fetch(_spec(), MAIN_BRANCH)
 
@@ -124,7 +125,7 @@ class AuthedTargetFetchTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=SECRET_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=SECRET_TOKEN),
         ):
             fetch = branch_transport._authed_target_fetch(_spec(), MAIN_BRANCH)
 
@@ -151,7 +152,7 @@ class AuthedTargetFetchTest(unittest.TestCase):
                 _temp_git_repo_with_local_config([(SSL_VERIFY_KEY, "false")]),
             )
             stack.enter_context(
-                patch.object(_config_credentials, TOKEN_RESOLVER, return_value=SECRET_TOKEN),
+                patch.object(config, TOKEN_RESOLVER, return_value=SECRET_TOKEN),
             )
             log_capture.records = stack.enter_context(
                 self.assertLogs(branch_transport.log, level="ERROR"),
@@ -182,7 +183,7 @@ class AuthedTargetFetchTest(unittest.TestCase):
         with ExitStack() as stack:
             stack.enter_context(patch(SUBPROCESS_RUN, subprocess_run))
             stack.enter_context(
-                patch.object(_config_credentials, TOKEN_RESOLVER, return_value=""),
+                patch.object(config, TOKEN_RESOLVER, return_value=""),
             )
             log_capture.records = stack.enter_context(
                 self.assertLogs(branch_transport.log, level="ERROR"),

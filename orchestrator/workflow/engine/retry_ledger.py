@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     retry_park_state as _retry_park_state,

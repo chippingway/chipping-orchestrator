@@ -11,7 +11,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming
 
 # The `issue-<n>` tail every name below ends in, anchored whole and with no

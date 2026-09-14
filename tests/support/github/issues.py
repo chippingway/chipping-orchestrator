@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github import events as _events
 from orchestrator.github.comments import carries_own_marker
 from orchestrator.github.pinned_state import PINNED_STATE_MARKER, PinnedState

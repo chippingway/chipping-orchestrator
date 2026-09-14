@@ -73,8 +73,7 @@ The rules under the map hold for the whole tree, the packages on those pages inc
 
 ```
 orchestrator/
-  __init__.py           a package marker that loads no owner
-  version.py            the distribution version, imported directly
+  __init__.py           the distribution version, published as `__version__`, without loading runtime owners
   cli.py                `chipping-orchestrator` console-script entry point and
                         the polling process's composition point
   __main__.py           `python -m orchestrator` launch form over `cli.main`;
@@ -162,11 +161,11 @@ left are declared one by one in `tests/repository/test_layering.py`: three base-
 through the workflow's comment and guard owners, deferred to a call because at module scope they would be a cycle. An
 undeclared hop fails wherever it is written, and a declared one fails if it is bound at module scope after all. The
 launch forms compose each other and are reached from nothing below them at any scope, and no import anywhere is
-relative, because a relative target names its module by position and no layer can be read off it. Every package
-initializer is a marker that imports and binds nothing. Submodules on its namespace are the objects that other
-modules' imports planted there, so importing the package costs no owner behind it. The source check distinguishes
-those submodules from eager sibling imports, which would look identical in the namespace. Models, services, version
-metadata, and resolved settings are imported from their defining modules; the policy is described under
+relative, because a relative target names its module by position and no layer can be read off it. Most package
+initializers are markers that import and bind nothing. The declared public packages retain their explicit
+`__all__` surfaces, including the root's version, reloadable `config` bindings, and the lazy `workflow.tick`
+entry point. Other operations are imported from their defining modules. The source and namespace checks distinguish
+these deliberate publishers from marker packages; the policy is described under
 [`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration).
 
 

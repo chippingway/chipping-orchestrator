@@ -31,7 +31,8 @@ import logging
 from pathlib import Path
 from stat import S_ISDIR
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands
 from orchestrator.git.worktrees import paths
 

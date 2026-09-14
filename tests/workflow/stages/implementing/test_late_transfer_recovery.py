@@ -1,15 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Recovered, changed, and abandoned authorization receipts during a rewrite transfer."""
+"""Recovery reconstructs granted transfers and recognizes their landed pushes."""
 from __future__ import annotations
 
 import unittest
 
 from orchestrator.workflow.late_split import (
-    exemption_reading as _exemption_reading,
-    overrides as _overrides,
     rewrite_fields as _rewrite_fields,
-    rewrite_reading as _rewrite_reading,
     rewrite_values as _rewrite_values,
     rewrites as _rewrites,
 )
@@ -19,10 +16,7 @@ from orchestrator.workflow.stages.implementing import (
     late_transfer as _transfer,
     late_transfer_evidence as _late_transfer_evidence,
     late_transfer_reading as _late_transfer_reading,
-    state as _state,
 )
-from orchestrator.workflow.state import WorkflowLabel
-from tests.support import fakes as _github_fakes
 from tests.workflow.stages.implementing import (
     late_transfer_case as _transfer_case,
     late_transfer_payloads as _transfer_payloads,
@@ -134,84 +128,6 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
         self.assertEqual(self._re_asked(), "")
 
 
-class RevalidatedRecoveryTest(_transfer_case._RecoveryCase, unittest.TestCase):
-    """Every way the terms a permit was granted on stopped being true.
-
-    Each leaves an approval standing over a rewrite nothing revalidated, and
-    each has to fall back to the ordinary cumulative gate rather than ride the
-    debt's bare object id to the remote.
-    """
-
-    def test_a_legacy_authorization_is_revalidated(self) -> None:
-        # The restart road asked over a comment whose operator authorization
-        # is gone -- an older binary's record, or one a hand edit left. The
-        # permission the grant wrote still names the rewrite, but the
-        # exemption it would move licenses nothing without a human behind it,
-        # so the permit refuses on the re-ask and the ordinary cumulative gate
-        # measures the rewrite.
-        _overrides.clear_publication_override(self.state)
-        self.github.write_pinned_state(self.issue, self.state)
-
-        self.assertEqual(self._re_asked(), "")
-        self.assertFalse(self._bypasses())
-
-    def test_a_stale_authorization_is_revalidated(self) -> None:
-        # The same on a record that still reads whole and no longer describes
-        # what is here: the digest is the one term the objects answer, so a
-        # group somebody edited between the grant and this poll takes the
-        # bypass down with it rather than riding the debt's object id out.
-        self._recovered({
-            _overrides.LATE_OVERRIDE_FINGERPRINT: _transfer_payloads.OTHER_DIGEST,
-        })
-
-        self.assertEqual(self._re_asked(), "")
-        self.assertFalse(self._bypasses())
-
-    def test_a_malformed_permission_is_measured(self) -> None:
-        # The record the recovery would rebuild its evidence from is one this
-        # build cannot read, so there is nothing to re-ask the permit over --
-        # and the approval may not answer for it either, or an oversized
-        # rewrite nothing revalidated would be pushed.
-        for described, damage in _transfer_case._STANDING_CLAIMS.items():
-            with self.subTest(claim=described):
-                self._recovered(damage)
-
-                self.assertEqual(self._re_asked(), "")
-                self.assertFalse(self._bypasses())
-
-    def test_a_disagreeing_digest_is_measured(self) -> None:
-        # The digest the permission recorded is what it says it was granted
-        # over. One that disagrees with the contribution actually here is a
-        # record somebody edited or one taken under other rules, and a grant
-        # that carried on would write this reading's digest over it -- a
-        # repair of evidence nobody checked, under the authority of the
-        # transfer being decided. So the permit refuses and the record stands.
-        self._recovered({_rewrite_fields.LATE_REWRITE_FINGERPRINT: _transfer_payloads.OTHER_DIGEST})
-
-        self.assertEqual(self._re_asked(), "")
-        authorized = _rewrite_reading.read_rewrite_authorization(
-            self.github.read_pinned_state(self.issue),
-        )
-        self.assertEqual(authorized.fingerprint, _transfer_payloads.OTHER_DIGEST)
-        self.assertEqual(
-            authorized.phase, _rewrite_values.LateRewritePhase.AUTHORIZED,
-        )
-
-    def test_a_replaced_publication_is_measured(self) -> None:
-        # The permission names the pull request and the stage the rewrite was
-        # made against. Repointed or relabelled since, the push it licensed is
-        # one nothing may make unmeasured.
-        self.state.set(_state._PR_NUMBER, _transfer_payloads.PR_NUMBER + 1)
-
-        self.assertEqual(self._re_asked(), "")
-
-    def test_a_relabelled_issue_is_measured(self) -> None:
-        self.issue.labels.clear()
-        self.issue.labels.append(_github_fakes.FakeLabel(str(WorkflowLabel.FIXING)))
-
-        self.assertEqual(self._re_asked(), "")
-
-
 class LostReceiptRecoveryTest(_transfer_case._RecoveryCase, unittest.TestCase):
     """The tick after a push that landed and a receipt that did not.
 
@@ -261,79 +177,3 @@ class LostReceiptRecoveryTest(_transfer_case._RecoveryCase, unittest.TestCase):
         )
 
         self.assertEqual(_transfer._carried_over(moved, _transfer_payloads.REWRITTEN_SHA), "")
-
-
-class AbandonedAuthorizationTest(_transfer_case._TransferCase, unittest.TestCase):
-    """What a rollback owes when the push a permission licensed is refused."""
-
-    def setUp(self) -> None:
-        super().setUp()
-        self._carried()
-        self.gate = _support.gate(self.github, self.issue, self.state)
-
-    def test_a_rollback_drops_the_permission(self) -> None:
-        # Both heads a rewrite can be put back onto. A squash collapses the
-        # accepted commit itself, so the reset lands on the commit the
-        # exemption never left. A base rebase reads the pre-rebase anchor for
-        # itself and goes back to THAT, which is the accepted commit only
-        # while the branch was standing exactly on it -- and the equality of
-        # the two contributions never said that it was. Either way the object
-        # the permission was granted for is on no branch, and it goes with it.
-        for restored in (_transfer_payloads.ACCEPTED_SHA, _transfer_payloads.LEASED_SHA):
-            with self.subTest(restored=restored):
-                self._carried()
-
-                self.assertTrue(
-                    _transfer._abandoned_authorization(self.gate, restored),
-                )
-
-                self.assertTrue(
-                    _exemption_reading.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA),
-                )
-                identity = _exemption_reading.read_semantic_identity(self.state)
-                self.assertEqual(identity.candidate_sha, _transfer_payloads.ACCEPTED_SHA)
-                self.assertEqual(identity.fingerprint, _transfer_payloads.ACCEPTED_DIGEST)
-                self.assertFalse(
-                    _rewrite_reading.carries_rewrite_authorization(self.state),
-                )
-
-    def test_a_published_transfer_is_not_dropped(self) -> None:
-        # Past the receipt the pull request carries the rewritten commit and
-        # the exemption has already moved onto it, so there is no permission
-        # left outstanding and nothing here to take back.
-        _support.spent(self.state)
-
-        self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, _transfer_payloads.ACCEPTED_SHA),
-        )
-
-        self.assertTrue(_exemption_reading.is_exempt(self.state, _transfer_payloads.REWRITTEN_SHA))
-
-    def test_another_reset_drops_nothing(self) -> None:
-        self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, _transfer_payloads.STRANGER_SHA),
-        )
-
-        self.assertTrue(
-            _rewrite_reading.carries_rewrite_authorization(self.state),
-        )
-
-    def test_a_damaged_authorization_is_not_dropped(self) -> None:
-        # Dropping a permission nobody can check would throw away the only
-        # account of how the exemption came to name what it names.
-        self.state.data.pop(_rewrite_fields.LATE_REWRITE_FROM_BASE_SHA)
-
-        self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, _transfer_payloads.ACCEPTED_SHA),
-        )
-
-        self.assertTrue(
-            _rewrite_reading.carries_rewrite_authorization(self.state),
-        )
-
-    def test_no_permission_drops_nothing(self) -> None:
-        _rewrites.clear_rewrite_authorization(self.state)
-
-        self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, _transfer_payloads.ACCEPTED_SHA),
-        )

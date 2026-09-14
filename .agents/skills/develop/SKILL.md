@@ -48,10 +48,13 @@ Before committing, run each of these and fix what they report:
   `[tool.ruff.lint.per-file-ignores]` and inline `# noqa: <CODE> - <reason>` directives, each naming the rule it
   covers and why, and `tests/repository/test_noqa_directives.py` fails on a bare `# noqa` or a file-wide
   `# ruff: noqa`. Recurring CI breakers:
-  - **F401** (unused import): remove unused bindings and import definitions from their owners. Package
-    initializers are markers and carry no imports or `__all__`. Existing test support re-exports use
-    `... as <name>` only for a name the module never reads itself; their exact paths are declared under
-    `PLC0414` in `[tool.ruff.lint.per-file-ignores]`. `tests/repository/test_reexport_aliases.py` holds that set.
+  - **F401** (unused import): if the name is meant to be a re-export from a package facade that binds its
+    surface with imports (`orchestrator/agents/`, `github/`, `scheduler/`, `observability/usage/`), alias it with
+    `... as <name>` so ruff treats it as an explicit re-export instead of dead code. A name the initializer
+    lists in `__all__` — how `orchestrator/workflow/` publishes its label and guard surface — is already exempt.
+    Outside an initializer that alias also trips **PLC0414**, so the module has to be one of the exact paths
+    waived under `[tool.ruff.lint.per-file-ignores]` in `pyproject.toml`; alias only a name the module never reads
+    itself, and add the path in the same commit. `tests/repository/test_reexport_aliases.py` fails on anything else.
   - **F541** (f-string without placeholders): use a plain string.
   - **F841** (unused local).
   - **E402** (module-level import not at top of file).
@@ -73,17 +76,19 @@ Before committing, run each of these and fix what they report:
 
 ## Workflow owners and stage modules
 
-Every package initializer is a marker, so callers name defining modules directly. Labels live on
-`workflow/state.py`, label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions.py`, and
-write guards on `workflow/transition_guard.py`. The per-repo tick lives on `workflow/engine/tick.py` and resolved
-process settings on `config/settings.py`. Get the boundaries right:
+Most package initializers are markers. The deliberate public APIs retain their explicit `__all__` surfaces and
+exact-path WPS410/WPS412 exclusions. `orchestrator.workflow` publishes the two label vocabularies, the transition
+guard, its predicate and exception, and the lazy per-repo `tick` entry point. Labels live on `workflow/state.py`,
+label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions.py`, and write guards on
+`workflow/transition_guard.py`.
 
-- Initializers bind no engine, stage, model, service, or settings owner. The GitHub and git layers can therefore
-  import the label, reading, graph, and guard owners without loading the engine into their own initialization. Tests in
-  `tests/workflow/test_imports.py` check that direction, and `tests/repository/test_package_exports.py` checks every
-  initializer's source and namespace.
-- Settings reloads and patches target `orchestrator.config.settings`, the same module object all callers retain.
-  Repository types are imported from `config.models`, and token resolution from `config.credentials`.
+- The workflow initializer imports no engine or stage. Its `tick` shim resolves `workflow/engine/tick.py` inside
+  the call, so the GitHub and git layers can import labels and guards without an initialization cycle.
+  `tests/workflow/test_imports.py` checks that direction, and `tests/repository/test_package_exports.py` holds the
+  declared public surfaces and marker initializers.
+- Settings reloads and patches target `orchestrator.config`, the same module object all callers retain.
+  `config.RepoSpec` is the public alias of `config.models.RepoSpec`; callers that need only the type may import its
+  defining owner. Token resolution is defined on `config.credentials`.
 - Stage modules import the owner they borrow from at module scope —
   `from orchestrator.git.worktrees import paths as _worktree_paths`,
   `from orchestrator.workflow.engine import guards as _guards` — and call through that alias. Never

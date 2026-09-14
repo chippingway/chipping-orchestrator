@@ -58,7 +58,7 @@ def parse_log_path() -> Path | None:
     pops and re-imports it beside the `settings` holder to land a patched
     `LOG_DIR` sees the patched one.
     """
-    from orchestrator.config import settings as config
+    from orchestrator import config
 
     raw = os.environ.get("ANALYTICS_LOG_PATH")
     if raw is None:

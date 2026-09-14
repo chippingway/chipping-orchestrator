@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow import transition_guard as _transition_guard
 from orchestrator.workflow.state import WorkflowLabel
 from orchestrator.workflow.transition_guard import IllegalTransition, guard_transition, is_allowed_transition

@@ -4,8 +4,9 @@
 
 ``RepoSpec`` is the per-repo identity threaded through the workflow;
 ``RepoEnvEntry`` is the intermediate record produced while tokenizing one
-``REPOS`` entry. The parsing and default-spec construction that turn env
-strings into these types live in ``repositories``.
+``REPOS`` entry. ``repositories`` parses environment strings and constructs
+these records. The package's ``default_repo_specs`` accessor returns the
+configured list resolved at import.
 """
 from __future__ import annotations
 
@@ -17,10 +18,8 @@ from pathlib import Path
 class RepoSpec:
     """Per-repo identity threaded through the workflow.
 
-    Replaces the global `REPO` / `TARGET_REPO_ROOT` / `BASE_BRANCH` reads
-    inside `orchestrator.workflow` so a future multi-repo loop can drive
-    several repos from one orchestrator process without touching
-    module-level state.
+    Each workflow tick carries its repository identity explicitly so several
+    repositories can run in one process without mutating global settings.
 
     `remote_name` is the name of the git remote in `target_root` that points
     at this repo on GitHub. Defaults to `origin`; override when the local

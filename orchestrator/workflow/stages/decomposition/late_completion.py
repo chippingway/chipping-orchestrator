@@ -13,8 +13,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from orchestrator import config
 from orchestrator.agents.models import AgentResult
-from orchestrator.config import settings as config
 from orchestrator.workflow.engine import guards as _guards, issue_usage as _issue_usage, usage as _usage
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,

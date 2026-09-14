@@ -7,7 +7,8 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming, paths
 from tests.git.worktrees.path_test_support import (
     ALICE_REPO_SLUG,

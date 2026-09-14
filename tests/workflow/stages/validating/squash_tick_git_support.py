@@ -22,7 +22,8 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.observability.analytics import settings as _analytics_settings
 

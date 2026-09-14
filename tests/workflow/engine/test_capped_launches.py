@@ -21,7 +21,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import (
     retry_values as _retry_values,
     run_ledger_values as _run_ledger_values,

@@ -32,7 +32,8 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState

@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.comments import is_trusted_author
 
 # The blank line between quoted comments is the paragraph break the prompt

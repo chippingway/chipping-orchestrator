@@ -14,7 +14,7 @@ from tests.workflow.stages.implementing import (
 
 
 class _ConsentComments:
-    """Human replies, visible pinned records, and notice counts on a consent thread."""
+    """Thread operations shared by oversized-publication consent cases."""
 
     def _reply(self, body: str, author: str = _consent_payloads.TRUSTED_AUTHOR) -> int:
         """Add one comment past the consumed watermark, and say which it is."""

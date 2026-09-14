@@ -7,7 +7,7 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github.labels import COMMUNITY_CONTRIBUTION_LABEL
 from orchestrator.workflow.engine import community
 from tests.support.fakes import FakeGitHubClient

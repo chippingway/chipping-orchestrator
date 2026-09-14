@@ -25,7 +25,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
 from tests.workflow.fixtures import (
     KEY_AWAITING_HUMAN,

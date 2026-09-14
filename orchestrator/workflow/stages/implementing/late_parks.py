@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.measurement import (
     models as _measurement,
 )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.config.environment import parse_verify_commands
 from orchestrator.git.verification.models import VerifyResult
 from tests.workflow.fixtures import (

@@ -13,9 +13,9 @@ import logging
 
 from github.Issue import Issue
 
+from orchestrator import config
 from orchestrator.agents import provider_failures as _provider_failures
 from orchestrator.agents.models import AgentResult
-from orchestrator.config import settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import agent_diagnostics as _agent_diagnostics, comments as _comments

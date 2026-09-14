@@ -16,7 +16,8 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState

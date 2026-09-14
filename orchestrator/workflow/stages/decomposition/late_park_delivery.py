@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import (
     guards as _guards,
     retry_notices as _retry_notices,

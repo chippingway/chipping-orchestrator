@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.stages.conflicts import (
     models as _models,

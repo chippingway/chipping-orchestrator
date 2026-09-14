@@ -18,7 +18,7 @@ from __future__ import annotations
 import pathlib
 from unittest import mock
 
-from orchestrator.config import settings as _config
+from orchestrator import config as _config
 
 # The recovery cases name this module `support` and read the frozen commit
 # off it rather than the measurement owner. Nothing here reads it, so the

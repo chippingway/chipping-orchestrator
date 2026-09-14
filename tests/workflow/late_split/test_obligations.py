@@ -57,7 +57,7 @@ class ResourceLedgerTest(unittest.TestCase):
         self.assertEqual(recorded.consumers, (3, 5, 7))
 
 
-class OpaqueLedgerTest(unittest.TestCase):
+class ObligationOpacityTest(unittest.TestCase):
     """An obligation this binary cannot type is one nothing may read past."""
 
     def test_a_typed_record_owes_nothing_opaque(self) -> None:

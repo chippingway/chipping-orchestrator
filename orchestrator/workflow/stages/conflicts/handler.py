@@ -28,7 +28,8 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import terminals as _terminals
 from orchestrator.workflow.stages.conflicts import (

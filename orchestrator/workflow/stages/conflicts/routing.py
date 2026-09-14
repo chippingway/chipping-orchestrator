@@ -40,7 +40,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming

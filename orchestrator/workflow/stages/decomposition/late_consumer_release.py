@@ -12,7 +12,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.github import comments as _comments
 from orchestrator.workflow.late_split import (
     ancestry as _ancestry,

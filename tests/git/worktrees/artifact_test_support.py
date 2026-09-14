@@ -16,7 +16,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import locks
 from orchestrator.git.worktrees import paths
 from tests.git.worktrees import artifact_git as _artifact_git

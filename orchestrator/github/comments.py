@@ -44,7 +44,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from orchestrator.config import settings as config
+from orchestrator import config
 
 # What every hidden receipt this orchestrator writes begins with -- the pinned
 # state comment, the split's forward link and supersession notices, and the

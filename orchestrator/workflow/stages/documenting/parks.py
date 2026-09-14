@@ -21,8 +21,8 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
+from orchestrator import config
 from orchestrator.agents.models import AgentResult
-from orchestrator.config import settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards

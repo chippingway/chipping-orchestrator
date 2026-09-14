@@ -9,8 +9,8 @@ import signal
 import unittest
 from unittest.mock import MagicMock, patch
 
+from orchestrator import config
 from orchestrator.agents import processes as _agent_processes
-from orchestrator.config import settings as config
 from orchestrator.runtime import shutdown
 from orchestrator.runtime.state import RuntimeState
 from tests.runtime import polling_signal_probes as _signal_probes, polling_test_support as _support

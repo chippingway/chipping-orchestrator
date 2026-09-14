@@ -28,7 +28,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.stages.decomposition import run as _decomposing
 from orchestrator.workflow.stages.discussion import handler as _discussion
 from orchestrator.workflow.stages.question import handler as _question

@@ -221,7 +221,7 @@ examples.
   this one never reopens — a lifetime total is spent once, and no clock returns it. `0` = unlimited. A negative or
   non-integer value aborts at import, like the parallelism caps: a ceiling under zero is one no run could ever come
   in under. What the setting carries is the ceiling itself — validated at import and published on
-  `orchestrator.config.settings` — and the accounting it is judged against is the per-issue ledger on
+  `orchestrator.config` — and the accounting it is judged against is the per-issue ledger on
   [`workflow/engine/run_ledger.py`](../orchestrator/workflow/engine/run_ledger.py): the allowance in force (this
   setting, unless the issue records one of its own), the monotonic `agent_runs_used` count seeded and floored by the
   `issue_agent_runs` meter, and the `reserved` / `started` phases of the launch currently holding a charge, matched

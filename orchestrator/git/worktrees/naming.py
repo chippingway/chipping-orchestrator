@@ -199,7 +199,7 @@ def _resolve_branch_name(
        handlers were inconsistent about persisting `branch`, so a
        legacy in-flight PR can carry `pr_number` without `branch`.
        The PR's head is the legacy ref by construction (the only
-       form the orchestrator ever produced before this change), so
+       form produced by deployments without slug namespacing), so
        inferring `orchestrator/issue-<n>` keeps us anchored on the
        existing PR instead of opening a duplicate on the namespaced
        branch.

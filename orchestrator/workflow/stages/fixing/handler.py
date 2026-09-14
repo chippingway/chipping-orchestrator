@@ -34,7 +34,8 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import guards as _guards, terminals as _terminals

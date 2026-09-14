@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from tests.support.fakes import FakeComment, FakeGitHubClient, make_issue
 from tests.workflow.fixtures import (
     BACKEND_CODEX,

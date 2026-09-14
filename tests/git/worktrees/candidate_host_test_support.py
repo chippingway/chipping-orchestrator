@@ -26,7 +26,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import paths
 from tests.git.worktrees import candidate_refs as _candidate_refs, candidate_remotes as _candidate_remotes
 from tests.git.worktrees.artifact_git import BASE_BRANCH
-from tests.workflow.stages.question.question_real_git_test_support import (
+from tests.support.git import (
     _run_git,
 )
 

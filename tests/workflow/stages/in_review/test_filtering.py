@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import comments as _comments
 from tests.support.fakes import (
     FakeComment,

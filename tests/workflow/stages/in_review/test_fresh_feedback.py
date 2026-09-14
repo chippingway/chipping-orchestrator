@@ -16,7 +16,7 @@ import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.workflow.engine import issue_processing as _issue_processing
 from tests.support.fakes import (
     FakeComment,

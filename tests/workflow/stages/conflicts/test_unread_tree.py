@@ -25,7 +25,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from tests.workflow.patch_models import _agent
 from tests.workflow.stages.conflicts.conflicts_test_support import (
     CONFLICT_PR_HEAD_SHA,

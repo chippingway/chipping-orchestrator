@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, FakePRReview, FakeUser, make_issue
 from tests.workflow.fixtures import _agent, _issue_branch, _PatchedWorkflowMixin
 

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.config import settings as orchestrator_config
+from orchestrator import config as orchestrator_config
 from orchestrator.observability.analytics.recording import events as _recording_events
 from tests.observability.analytics.analytics_reload_helpers import reload_analytics as _reload
 

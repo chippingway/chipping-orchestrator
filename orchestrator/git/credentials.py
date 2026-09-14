@@ -37,7 +37,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator.config import credentials as _config_credentials, models as _config_models, settings as config
+from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands
 
 # The channel is named for the git-plumbing domain rather than for this
@@ -79,7 +80,7 @@ def _scrubbed(reported: str, token: str) -> str:
 
 def _resolved_git_token(spec: _config_models.RepoSpec, operation: str) -> str | None:
     """Resolve a per-repository token and log an operation-specific error."""
-    token = _config_credentials.resolve_github_token(spec.slug)
+    token = config._resolve_github_token(spec.slug)
     if token:
         return token
     log.error(

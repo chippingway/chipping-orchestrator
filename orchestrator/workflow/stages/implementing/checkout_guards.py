@@ -39,7 +39,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator.config import settings as config
+from orchestrator import config
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github import client as _client, pinned_state as _pinned_state

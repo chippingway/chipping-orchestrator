@@ -15,7 +15,7 @@ import threading
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.config import credentials as _config_credentials
+from orchestrator import config
 from orchestrator.git import ref_transport
 from tests.git.concurrency_test_support import (
     PROBE_DELAY_SECONDS,
@@ -99,7 +99,7 @@ class RefPushTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
         ):
             pushed = ref_transport._push_ref(
                 _spec(), WORKTREE, ref=REF, revision=SHA, expected="",
@@ -117,7 +117,7 @@ class RefPushTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
         ):
             ref_transport._push_ref(
                 _spec(), WORKTREE, ref=REF, revision=SHA, expected=OTHER_SHA,
@@ -132,7 +132,7 @@ class RefPushTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
         ):
             ref_transport._delete_remote_ref(
                 _spec(), WORKTREE, ref=REF, expected=SHA,
@@ -150,7 +150,7 @@ class RefTransportRefusalTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=""),
+            patch.object(config, TOKEN_RESOLVER, return_value=""),
             self.assertLogs(PLUMBING_LOG, level=ERROR),
         ):
             pushed = ref_transport._push_ref(
@@ -170,7 +170,7 @@ class RefTransportRefusalTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
             self.assertLogs(PLUMBING_LOG, level=ERROR),
         ):
             deleted = ref_transport._delete_remote_ref(
@@ -189,7 +189,7 @@ class RefTransportRefusalTest(unittest.TestCase):
 
         with (
             patch(SUBPROCESS_RUN, side_effect=run_recorder),
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=SECRET_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=SECRET_TOKEN),
             self.assertLogs(PLUMBING_LOG, level=ERROR) as reported,
         ):
             pushed = ref_transport._push_ref(
@@ -214,7 +214,7 @@ class RefUpdateSerializationTest(unittest.TestCase):
         probe = _ConcurrencyProbe(delay=PROBE_DELAY_SECONDS)
 
         with (
-            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+            patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
             patch(SUBPROCESS_RUN, side_effect=_PushProbe(probe)),
         ):
             threads = [

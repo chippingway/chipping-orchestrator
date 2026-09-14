@@ -43,7 +43,7 @@ from contextlib import ExitStack
 
 from github.Issue import Issue
 
-from orchestrator.config import models as _config_models, settings as config
+from orchestrator import config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import creation as _worktree_creation, decomposition as _worktree_decomposition
 from orchestrator.github import client as _client, pinned_state as _pinned_state
@@ -69,7 +69,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 def _prepare_decomposer_run(
     gh: _client.GitHubClient,
-    spec: _config_models.RepoSpec,
+    spec: config.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
 ) -> _DecomposerRunPlan:
@@ -100,7 +100,7 @@ def _prepare_decomposer_run(
 
 def _process_decomposer_run(
     gh: _client.GitHubClient,
-    spec: _config_models.RepoSpec,
+    spec: config.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
     run_plan: _DecomposerRunPlan,
@@ -147,7 +147,7 @@ def _process_decomposer_run(
 
 
 def _late_adjudication_owns_the_tick(
-    gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
+    gh: _client.GitHubClient, spec: config.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
 ) -> bool:
     """Whether this `decomposing` tick belongs to the late size gate.
 
@@ -179,7 +179,7 @@ def _late_adjudication_owns_the_tick(
     return _handoff._settled_candidate_owns_the_tick(gh, spec, issue, state)
 
 
-def _handle_decomposing(gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
+def _handle_decomposing(gh: _client.GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
     state = gh.read_pinned_state(issue)
     # Ahead of the late route as well as the gates below it: a retry-cap park
     # is this budget's, not the size gate's, and the sentence it owes is owed

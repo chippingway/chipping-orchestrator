@@ -27,7 +27,7 @@ def reload_analytics(
 ) -> tuple[ModuleType, ModuleType]:
     """Re-parse every analytics knob against `environment`.
 
-    Hands back the `orchestrator.config.settings` / settings-holder pair the owners
+    Hands back the `orchestrator.config` / settings-holder pair the owners
     read through, so a test can assert on the values an environment implies
     and patch one of them for the call it is about to make.
 
