@@ -198,6 +198,10 @@ _FAMILY_BUCKET_ISSUE: int = 0
 _CONFLICTS_PACKAGE = "orchestrator.workflow.stages.conflicts"
 _DECOMPOSITION_PACKAGE = "orchestrator.workflow.stages.decomposition"
 _LATE_CANCELLATION_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_cancellation"
+
+_LATE_CLOSE_OBSERVATION_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_close_observation"
+
+_LATE_CLOSE_READING_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_close_reading"
 _LATE_RELABEL_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_relabel"
 _LATE_RESTART_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_restart"
 _LATE_REUSE_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_reuse"
@@ -377,13 +381,13 @@ def _pinned_state_refuses(
     state = late_relabel._dispatch_state(gh, issue)
     if state is None:
         return True
-    late_cancellation = importlib.import_module(_LATE_CANCELLATION_OWNER)
+    late_close_observation = importlib.import_module(_LATE_CLOSE_OBSERVATION_OWNER)
     if observed_closed:
         # The poll read this issue closed and the worker has refetched it
         # since. A reopen in that window would leave the fresh object saying
         # open with a live cycle under it, so the reading is applied here
         # rather than re-derived from the object the guard is about to read.
-        late_cancellation._mark_observed_close(gh, issue, state)
+        late_close_observation._mark_observed_close(gh, issue, state)
     if _cycle_stops_the_tick(gh, spec, issue, label, state):
         return True
     if _run_limit_holds_the_tick(
@@ -1251,8 +1255,8 @@ def _recorded_at_poll(
     """
     issue_number = int(issue.number)
     observations.observe_close(spec.slug, issue_number)
-    late_cancellation = importlib.import_module(_LATE_CANCELLATION_OWNER)
-    if late_cancellation._record_observed_close(
+    late_close_observation = importlib.import_module(_LATE_CLOSE_OBSERVATION_OWNER)
+    if late_close_observation._record_observed_close(
         gh, spec, issue_number, polled=issue,
     ):
         return True
@@ -1596,8 +1600,8 @@ def _kept_closed_reading(
     answers with what that read established.
     """
     observations.observe_close(spec.slug, issue_number)
-    late_cancellation = importlib.import_module(_LATE_CANCELLATION_OWNER)
-    if not late_cancellation._record_observed_close(gh, spec, issue_number):
+    late_close_observation = importlib.import_module(_LATE_CLOSE_OBSERVATION_OWNER)
+    if not late_close_observation._record_observed_close(gh, spec, issue_number):
         observations.settle_close(spec.slug, issue_number)
         return
     _said_deferred(spec, issue_number, _HELD_BY_A_WORKER)
@@ -1759,8 +1763,8 @@ def _kept_cleanup_reading(
     end, which the next tick's own cleanup pass settles.
     """
     observations.observe_close(spec.slug, issue_number)
-    late_cancellation = importlib.import_module(_LATE_CANCELLATION_OWNER)
-    if late_cancellation._cleanup_settled(gh, spec, issue_number):
+    late_close_reading = importlib.import_module(_LATE_CLOSE_READING_OWNER)
+    if late_close_reading._cleanup_settled(gh, spec, issue_number):
         observations.settle_close(spec.slug, issue_number)
         return
     _said_deferred(spec, issue_number, _ENDING_UNFINISHED)
@@ -1800,8 +1804,8 @@ def _deferred_cleanup(
     """
     observations.observe_close(spec.slug, issue_number)
     _said_deferred(spec, issue_number, reason)
-    late_cancellation = importlib.import_module(_LATE_CANCELLATION_OWNER)
-    late_cancellation._record_observed_close(gh, spec, issue_number)
+    late_close_observation = importlib.import_module(_LATE_CLOSE_OBSERVATION_OWNER)
+    late_close_observation._record_observed_close(gh, spec, issue_number)
 
 
 def _said_deferred(

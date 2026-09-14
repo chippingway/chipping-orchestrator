@@ -758,71 +758,28 @@ workflow/                   marker package for state, engine, and stage owners
                             until it lands; and a swept label put BACK on an owner still owing the remote that a
                             hand relabel moved outside all four, since after a restart the label is the only
                             thing that reaches a closed issue
-      late_cancellation.py  the irreversible ending an owner observed closed earns, the mark a CLOSED owner gets
-                            from this guard when its label names an ordinary terminal rather than the cleanup
-                            sweep, the record read the dispatcher asks of a refused submit for the same window,
-                            the refusal EVERY label earns over a
-                            cancelled cycle -- each of them names a handler that would act on the issue rather
-                            than end it -- with the terminal written wherever the transition graph declares the
-                            edge from, plus the `ready` and `blocked` the cycle's own decomposer writes as its
-                            ordinary outcome, where a refusal would stand on every visit the sweep makes forever,
-                            and never from the unlabeled
-                            state, which IS the restart handshake, and
-                            deferred whole past a control label that says now is not the time; the reading of that
-                            ending the dispatcher takes on the way OUT of a cleanup pass, so a pass that returned
-                            with the ending owed under a label no query asks for keeps the observation that routes
-                            it back, and the obligations half of the same question, asked by the sweep deciding
-                            whether an owner may be let out of it; the receipt a
-                            poll leaves on
-                            the thread for a close it could hand to no worker -- a comment, since the pinned
-                            comment is written whole and the worker holding the issue owns it, retried until one
-                            lands, written from the SAME read that answers whether the reading is still owed, and
-                            scoped to the cycle a retirement in flight names where the record names none -- the
-                            once-per-process scan that adopts one a DEAD process was holding, scoped
-                            to the cycle so an operator's authorized restart is not ended by an older close and
-                            claimed only once the walk answered; the mark a handler already inside its own child
-                            walk takes when the latch answers mid-scan; and the two
-                            entries into the ending: the closed owner's, and the dispatcher refusal a REOPENED one
-                            takes, which runs the same reconciliation and writes the same terminal -- reaching no
-                            handler either way,
-                            since an issue worked again without passing the ending would be the cancelled cycle
-                            resumed by accident -- the unlabeled state included, which `late_restart` answers
-                            one guard ahead and which falls through to nothing, since the pickup path behind
-                            it would greet a cancelled cycle as new; the reading of what is owed by ANY
-                            measure that decides both, the ending's own list plus the settled-ledger answer
-                            the domain gives, since a child receipt and an untypeable consumer ledger are on
-                            neither of the first two; the terminal written from the unlabeled state only
-                            where the record shows one was never applied, so the operator's own
-                            restart (taking `rejected` off) is not undone while a workflow label a human
-                            stripped mid-cleanup still earns the ending it interrupted; the cycle that
-                            terminal is owed for, recorded before the label write so a tick that dies between
-                            the two has something to come back to, with the PROOF a restart reads taken from a
-                            label that LANDED -- from the write returning where this pass made it, since a
-                            client's cached labels outlive the write that changes them and a closed owner
-                            gets no second visit, and from seeing `rejected` on the issue where it did not,
-                            which is what backfills a cycle that ended before the record existed, and from
-                            the newest workflow label THIS orchestrator applied where neither reached --
-                            asked from BEHIND the reconciliation, so an obligation the ending discovers
-                            rather than reads is on the ledger before anything decides the cycle owes
-                            nothing -- what answers an
-                            unlabeled issue over a cancelled cycle is
-                            `late_restart`, asked one guard ahead of this one. The pass
-                            itself is the cancellation persisted (with the boundary it interrupted, since
-                            `cancelling` overwrites the phase every later rule reads) and reported once, before any
-                            external call; the held pull request -- the one obligation no other pass ever sees --
-                            released, told once over a cycle-scoped marker, and closed, re-asked on every visit
-                            because its state is a human's to change and recorded only where that state moved; the
-                            branch a supersession left behind but never wrote down taken on as owed, off the
-                            announcement's own receipt rather than the phase a retry rewinds, only where the record
-                            names none, and only once that pull request is settled -- the boundary is written
-                            before the attempt, so it says nothing about whether it landed; the child receipts
-                            discharged so the terminal a restart reads is one it will accept; the rest handed to
-                            `late_cleanup`'s own rules unchanged, with the consumer
-                            scan taken only where a ref is actually held; that pull request asked ONCE MORE on
-                            the far side of all of it, since a branch delete, a ref delete and a consumer read apiece
-                            stand between the first ask and the terminal; and the `rejected` terminal, written last,
-                            only for a closed owner, and only once nothing is owed -- which is what takes the issue
-                            out of the sweep for good
+      late_cancellation_reading.py
+                            outstanding cleanup and pull-request obligations, unprovable holds, and the combined
+                            settled-ledger proof required before a cancelled cycle may end or restart
+      late_cancellation_state.py
+                            persist cancellation before telemetry and reconstruct a retired cycle from retained
+                            obligations and this issue's ancestry; already-cancelled generations remain unchanged
+      late_close_reading.py fresh owner and cycle readings, close-receipt markers, and the proof that cleanup ended;
+                            a retirement in flight can still supply the cycle a concurrent close must name
+      late_close_observation.py
+                            claim and post observed-close receipts, adopt them after a process restart, and turn fresh
+                            or latched closure into durable cancellation without letting a later reopen erase it
+      late_cancellation_pr.py
+                            release and close the held pull request with a cycle receipt, persist changed obligations,
+                            report their outcome, and verify the publication again after cleanup
+      late_cancellation_cleanup.py
+                            reconcile the held publication, adopt an unrecorded superseded branch, scan consumers,
+                            settle cleanup, and discharge child receipts before the final publication proof
+      late_cancellation_terminal.py
+                            record the owed rejected terminal, apply its label, and confirm it; recover confirmation
+                            from the orchestrator's own label history so restart requires a terminal that really landed
+      late_cancellation.py  route closed or reopened cancelled owners through the same cleanup and terminal rules;
+                            hard-skip controls defer effects, and an ordinary handler never resumes a cancelled cycle
       late_authorization_proof.py
                             recompute the frozen contribution for trusted consent and retained publication overrides;
                             every frozen term and the digest must still match before publishing unsplit

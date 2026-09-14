@@ -26,7 +26,7 @@ from unittest.mock import patch
 
 from orchestrator.workflow.engine import observation_state as _observation_state, observations as _observations
 from orchestrator.workflow.stages.decomposition import (
-    late_cancellation as _late_cancellation,
+    late_close_reading as _late_close_reading,
 )
 
 # Every registry the shared observation-state owner keeps, with the empty container a new
@@ -51,7 +51,7 @@ def receipt_for(issue_number: int, cycle_id: int) -> str:
     Built through the production spelling, so a test that plants one plants
     exactly what a later process scans for.
     """
-    return _late_cancellation._observed_close_marker(issue_number, cycle_id)
+    return _late_close_reading._observed_close_marker(issue_number, cycle_id)
 
 
 class ObservedCloseCase:

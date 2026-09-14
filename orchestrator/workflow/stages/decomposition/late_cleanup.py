@@ -147,7 +147,6 @@ answer.
 """
 from __future__ import annotations
 
-import importlib
 import logging
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -178,18 +177,12 @@ from orchestrator.workflow.late_split.models import (
 )
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
+    late_cancellation_state as _late_cancellation_state,
     late_publication as _late_publication,
     state as _state,
 )
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from orchestrator.workflow.state import stage_name
-
-# Resolved at call time: the cancellation owner imports this module for the
-# reclamation rules it reuses unchanged, so a module-scope bind here would be
-# a cycle.
-_CANCELLATION_OWNER = (
-    "orchestrator.workflow.stages.decomposition.late_cancellation"
-)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -857,16 +850,14 @@ def _observed_close(
     write behind it happens once, on the pass that first reads one: a record
     that already carries the mark is handed straight back.
 
-    The cancellation owner is resolved at call time because it imports this
-    module for the reclamation rules a cancelled cycle reuses unchanged; a
-    module-scope bind here would point that edge back at itself.
+    Cancellation state is persisted by its independent owner; reclamation
+    keeps the same generation and outstanding obligations through that write.
     """
     if generation.cancelled:
         return generation
     if not _observations.close_observed(walk.spec.slug, walk.issue.number):
         return generation
-    late_cancellation = importlib.import_module(_CANCELLATION_OWNER)
-    return late_cancellation._marked(
+    return _late_cancellation_state._marked(
         walk.gh, walk.issue, walk.state, generation,
     )
 

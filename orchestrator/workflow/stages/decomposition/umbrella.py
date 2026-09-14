@@ -23,14 +23,15 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     activation as _activation,
-    late_cancellation as _late_cancellation,
+    late_cancellation_state as _late_cancellation_state,
     late_cleanup as _late_cleanup,
+    late_close_observation as _late_close_observation,
     late_publication as _late_publication,
-    models as _models,
     parents as _parents,
     state as _state,
     umbrella_terminal as _umbrella_terminal,
 )
+from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -92,12 +93,12 @@ def _complete_umbrella(
     """
     if state.get(_state._UMBRELLA_RESOLVED_AT) is None:
         _umbrella_terminal._resolution_said(gh, issue, state)
-    if _late_cancellation._latched_close_ends(gh, spec, issue, state):
+    if _late_close_observation._latched_close_ends(gh, spec, issue, state):
         return
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
     state.set(_state._UMBRELLA_RESOLVED_AT, _usage._now_iso())
-    if _late_cancellation._latched_close_ends(gh, spec, issue, state):
+    if _late_close_observation._latched_close_ends(gh, spec, issue, state):
         return
     if _publication_holds_the_terminal(gh, issue, state):
         return
@@ -180,7 +181,7 @@ def _reinstated(
         "run from",
         issue.number, live.cycle_id,
     )
-    _late_cancellation._marked(gh, issue, state, live)
+    _late_cancellation_state._marked(gh, issue, state, live)
     return True
 
 
@@ -189,7 +190,7 @@ def _completed_or_cancelled(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
-    scan: _models._ChildScan,
+    scan: _ChildScan,
 ) -> None:
     """Resolve this umbrella, unless a close arrived while it was settling.
 
@@ -206,7 +207,7 @@ def _completed_or_cancelled(
     """
     if not _late_cleanup._settled_for_terminal(gh, spec, issue, state, scan):
         return
-    if _late_cancellation._latched_close_ends(gh, spec, issue, state):
+    if _late_close_observation._latched_close_ends(gh, spec, issue, state):
         return
     _complete_umbrella(gh, spec, issue, state)
 
@@ -248,7 +249,7 @@ def _acted_on_children(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
-    scan: _models._ChildScan,
+    scan: _ChildScan,
 ) -> None:
     """Do what this reading of the children earns, if anything still may.
 
@@ -264,7 +265,7 @@ def _acted_on_children(
     labels the closed-owner sweep queries, so a cancellation it bypassed
     would never be recorded by anything.
     """
-    if _late_cancellation._latched_close_ends(gh, spec, issue, state):
+    if _late_close_observation._latched_close_ends(gh, spec, issue, state):
         return
     if _parents._parked_on_children(gh, spec, issue, state, scan):
         # Parked for a human, and still the owner of what its split put on the
