@@ -158,7 +158,7 @@ untouched.
 
 No agent runs here. This is the seam that decides whether an adjudication happens at all, and it sits at the one
 place every clean committed developer outcome publishes through (`_publish_committed_work` on
-`stages/implementing/disposition.py`, measured by the `stages/implementing/late_gate.py` owners) — a run that
+`stages/implementing/candidate_recovery.py`, measured by `stages/implementing/late_gate.py`) — a run that
 finished, a
 timeout that had committed before it was killed, and a branch a crash stranded all reach it, which is what makes the
 measurement a contract rather than a check.

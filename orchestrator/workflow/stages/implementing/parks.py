@@ -1,41 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Why a run that produced no publishable commit stopped, and what that costs.
+"""Classify an agent result that produced no publishable commit and park it.
 
-A commit-less run reaches exactly one of four parks, and the difference
-between them is not cosmetic: `park_reason` is the field
-`/orchestrator continue` keys off. A quota notice, a provider that refused to
-serve the turn, and an empty result are all tagged `agent_silent` -- retryable
-session failures an operator can continue once the other side is back -- and
-all advance the silent-park streak that eventually rotates a poisoned session
-to a fresh spawn. What makes the first two worth separating from a real
-question is that both arrive as ORDINARY non-empty final messages: the text
-the CLI hands back is the refusal, not the agent's words, so the field a
-question is read off says nothing about the run. A real question is the
-opposite: it clears the reason and zeroes the streak, because it needs a
-human's words before anything should run again, and a stale transient reason
-left behind would let a later tick auto-recover over a question nobody
-answered.
-
-The dirty-worktree park is the fifth, and it exists to refuse a push rather
-than to explain a failure: the branch would omit the uncommitted files, so the
-PR would not match what the agent produced. A tree nothing could READ is that
-same refusal with the other half missing -- `git status` failing, or an index
-entry git was told to stop comparing, establishes nothing about what the
-checkout carries -- and it is its own park because what an operator has to fix
-there is a repository rather than a file list. Every park here posts the HITL
-comment, ratchets `last_action_comment_id` past its own notice so the next tick
-reads the human's reply and not that notice, and emits `park_awaiting_human` --
-but leaves the pinned-state write to the handler, so the park composes with
-whatever else that tick staged.
-
-Past its own notice and no FURTHER, which is the whole of what a run these
-parks end can be interleaved with. An agent takes minutes, and a human writing
-in that window has written something nothing here has read: ratcheted to
-whatever the thread ends on, the notice this park posts carries the watermark
-over their comment and it is skipped for good. On this stage that comment can
-be the `/orchestrator authorize-oversized` an adjudicated candidate is waiting
-for, and the road that could act on it never sees it.
+Session limits, transient provider failures, and silent exits retain their
+retryable reason and streak. Real questions clear that reason and streak.
+Each park emits its event and leaves the state write to the caller. Its
+reply watermark stops before any unclaimed human comment from the run.
 """
 from __future__ import annotations
 
@@ -46,11 +16,11 @@ from github.Issue import Issue
 from orchestrator.agents import provider_failures as _provider_failures
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import settings as config
-from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import agent_diagnostics as _agent_diagnostics, comments as _comments
 from orchestrator.workflow.stages.implementing import (
+    park_watermarks as _park_watermarks,
     session_read as _session_read,
     state as _state,
 )
@@ -204,7 +174,7 @@ def _on_question(
         park_reason = _park_real_question(gh, issue, state, raw)
     else:
         park_reason = _park_silent_failure(gh, issue, state, agent_result)
-    read_to = _read_this_far(gh, issue, state, said_before)
+    read_to = _park_watermarks._read_this_far(gh, issue, state, said_before)
     if read_to is not None:
         state.set(_state._LAST_ACTION_COMMENT_ID, read_to)
     gh.emit_event(
@@ -212,174 +182,4 @@ def _on_question(
         issue_number=issue.number,
         stage=stage_name(gh.workflow_label(issue)),
         reason=park_reason,
-    )
-
-
-def _read_this_far(
-    gh: GitHubClient, issue: Issue, state: PinnedState, said_before: set,
-) -> int | None:
-    """How far a park ending a RUN may record this thread as read.
-
-    Past every comment of ours above the watermark and past nothing else. A
-    park's notice has to carry the watermark over itself, or the next tick
-    reads our own sentence as somebody's fresh guidance and pays a developer
-    to answer it. But the run this park ends took minutes, and a human writing
-    in that window wrote something no reading here has looked at: carried to
-    the thread's TIP instead, the notice takes their comment with it and it is
-    skipped for good. On this stage that comment can be the
-    `/orchestrator authorize-oversized` an adjudicated candidate is waiting
-    for, and the only road that could act on it never sees it.
-
-    So the walk stops at the first comment that is not ours, which is the
-    boundary between what this tick read and what landed behind its back.
-    Which comments are ours is read off the ledger every post writes to, since
-    that is the one record here that names them.
-
-    Two answers fall back to the tip, and each is the lesser of what is left.
-    A post whose id nothing could read adds nothing to that ledger, so no walk
-    could pass our own notice and every tick after would answer it as
-    guidance. And a watermark that was never set is a tick with nothing to
-    bound: the spawn behind it quoted the whole thread to the agent, so the
-    comments below have been answered rather than missed.
-    """
-    latest = gh.latest_comment_id(issue)
-    ours = _comments._orchestrator_ids(state)
-    read_to = state.get(_state._LAST_ACTION_COMMENT_ID)
-    if ours == said_before or not isinstance(read_to, int):
-        return latest
-    for seen in sorted(gh.comments_after(issue, read_to), key=_comment_id):
-        if _comment_id(seen) not in ours:
-            break
-        read_to = _comment_id(seen)
-    return read_to
-
-
-def _comment_id(seen) -> int:
-    """One comment's own address, or 0 for one nothing here can name."""
-    identified = getattr(seen, "id", None)
-    return identified if isinstance(identified, int) else 0
-
-
-def _on_unpublishable_tree(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    agent_result: AgentResult,
-    tree: _WorktreeStatus,
-) -> None:
-    """Park a tree a push may not be taken from, by which half of it failed.
-
-    One seam for the one question a publication has to answer -- is this tree
-    provably carrying nothing loose -- because the two ways it can answer no
-    are a refusal either way and only the operator's next move differs. Paths
-    git named are files to commit or clear; a reading that never happened is a
-    repository to look at, and it must not be reported as the empty list it
-    literally is.
-    """
-    if tree.paths:
-        _on_dirty_worktree(gh, issue, state, agent_result, list(tree.paths))
-        return
-    _on_unreadable_worktree(gh, issue, state, agent_result)
-
-
-def _on_dirty_worktree(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    agent_result: AgentResult,
-    dirty: list[str],
-) -> None:
-    """Park instead of pushing when the agent left uncommitted changes.
-
-    Pushing here would publish a branch that omits the dirty files, so the PR
-    would not match what the agent actually produced. We surface the situation
-    to the human and resume the codex session on their reply, identical to the
-    question path.
-    """
-    _park_unpushable_tree(
-        gh, issue, state, _dirty_worktree_message(agent_result, dirty),
-        {"reason": "dirty_worktree", "dirty_files": len(dirty)},
-    )
-
-
-def _on_unreadable_worktree(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    agent_result: AgentResult,
-) -> None:
-    """Park instead of pushing when the tree could not be read at all.
-
-    An unreadable tree is not a clean one. `git status` failing -- or an index
-    entry git has been told to stop comparing, which makes the rest of what it
-    reports unusable -- establishes nothing about what the checkout carries,
-    and a push that went ahead on it would publish a branch nobody proved
-    matches the work. So it is refused exactly as named dirty files are, and
-    the comment says which of the two happened, since what an operator has to
-    fix is a repository rather than a file list.
-    """
-    _park_unpushable_tree(
-        gh, issue, state, _unreadable_worktree_message(agent_result),
-        {"reason": "unreadable_worktree"},
-    )
-
-
-def _park_unpushable_tree(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    message: str,
-    reported: dict,
-) -> None:
-    """Post the refusal, hold the issue, and report it under its own reason."""
-    said_before = _comments._orchestrator_ids(state)
-    _comments._post_issue_comment(gh, issue, state, message)
-    state.set(_state._AWAITING_HUMAN, True)
-    # Mirror `_on_question`: this needs human input, so stale transient state
-    # must not auto-recover over it.
-    state.set(_state._PARK_REASON, None)
-    state.set(_state._SILENT_PARK_COUNT, 0)
-    read_to = _read_this_far(gh, issue, state, said_before)
-    if read_to is not None:
-        state.set(_state._LAST_ACTION_COMMENT_ID, read_to)
-    gh.emit_event(
-        "park_awaiting_human",
-        issue_number=issue.number,
-        stage=stage_name(gh.workflow_label(issue)),
-        **reported,
-    )
-
-
-def _unreadable_worktree_message(agent_result: AgentResult) -> str:
-    last_msg = agent_result.last_message.strip()
-    tail = ""
-    if last_msg:
-        quoted = _session_read._as_blockquote(last_msg)
-        tail = f"\n\n_Last agent message:_\n\n{quoted}"
-    return (
-        f"{config.HITL_MENTIONS} agent committed but this worktree's state "
-        "could not be read (`git status` failed, or an index entry is marked "
-        "`assume-unchanged`/`skip-worktree`); refusing to push a branch "
-        "nothing here can prove matches the work. Clear what is blocking the "
-        f"read, then reply and the orchestrator will resume the session.{tail}"
-    )
-
-
-def _dirty_worktree_message(
-    agent_result: AgentResult, dirty: list[str],
-) -> str:
-    shown = dirty[:10]
-    files_md = "\n".join(f"- `{file_path}`" for file_path in shown)
-    if len(dirty) > len(shown):
-        elided = len(dirty) - len(shown)
-        files_md = f"{files_md}\n- … ({elided} more)"
-    last_msg = agent_result.last_message.strip()
-    tail = ""
-    if last_msg:
-        tail = f"\n\n_Last agent message:_\n\n{_session_read._as_blockquote(last_msg)}"
-    return (
-        f"{config.HITL_MENTIONS} agent committed but left {len(dirty)} "
-        f"uncommitted change(s); refusing to push an incomplete branch. "
-        f"Reply with guidance and the orchestrator will resume the session.\n\n"
-        f"{files_md}{tail}"
     )

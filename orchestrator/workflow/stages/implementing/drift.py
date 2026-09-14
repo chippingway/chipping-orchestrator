@@ -40,14 +40,20 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
+    candidate_recovery as _candidate_recovery,
     disposition as _disposition,
     drift_preflight as _drift_preflight,
     models as _models,
     parks as _parks,
     resume as _resume,
     session_read as _session_read,
-    state as _state,
     worktree as _worktree,
+)
+from orchestrator.workflow.stages.implementing.state import (
+    _BRANCH,
+    _CODEX_SESSION_ID,
+    _DEV_AGENT,
+    _SILENT_PARK_COUNT,
 )
 
 
@@ -86,7 +92,7 @@ def _handle_user_content_drift(
     do with the new body instead.
     """
     state.set("user_content_hash", new_hash)
-    session = state.get(_state._DEV_AGENT) or state.get(_state._CODEX_SESSION_ID)
+    session = state.get(_DEV_AGENT) or state.get(_CODEX_SESSION_ID)
     if session and not _retry_ledger._grant_is_unspent(state):
         _resume_dev_on_implementing_drift(gh, spec, issue, state)
         return True
@@ -139,7 +145,7 @@ def _post_implementing_drift_ack(
         ":speech_balloon: dev session reports the existing "
         f"work satisfies the edit:\n\n{quoted}",
     )
-    state.set(_state._SILENT_PARK_COUNT, 0)
+    state.set(_SILENT_PARK_COUNT, 0)
 
 
 def _dispose_implementing_drift(
@@ -155,7 +161,7 @@ def _dispose_implementing_drift(
     ):
         return
     if drift.committed:
-        _disposition._publish_committed_work(
+        _candidate_recovery._publish_committed_work(
             gh, spec, issue, state,
             _models._AgentWork(drift.agent_result, drift.worktree),
         )
@@ -184,7 +190,7 @@ def _resume_dev_on_implementing_drift(
     drift = _run_implementing_drift_resume(gh, spec, issue, state)
     state.set("last_agent_action_at", _usage._now_iso())
     state.set(
-        _state._BRANCH,
+        _BRANCH,
         _naming._resolve_branch_name(state, spec, issue.number),
     )
     _dispose_implementing_drift(gh, spec, issue, state, drift)

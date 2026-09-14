@@ -1267,20 +1267,10 @@ workflow/                   marker package for state, engine, and stage owners
       execution.py          one resume, its poisoned-session retry -- withheld on an issue a poll observed closed,
                             since that retry is a SECOND agent -- and what each attempt is allowed to persist
       worktree.py           the checkout a resume runs in, restored when reaped
-      disposition.py        the publish / timeout-park decision, taken on both readings of what a run left --
-                            the head moved off `before_sha`, and the branch is ahead of base -- so a checkout
-                            something advanced onto that base is not read as a commit, at the timeout's
-                            disposition or at its next-tick recovery; the attribution both readings rest on,
-                            which needs BOTH ends of the comparison read and parks where either is not; the
-                            certified floor a clean exit is credited against, the size gate every clean
-                            committed candidate passes, the timeout park's own recovery, and the approved
-                            commit an interrupted publication owes, disposed against the record naming it
-                            rather than against any ahead-of-base reading -- and NAMED on the work handed
-                            to the seam, like every other recovery, since the gate reads the head again and
-                            a commit landing between the two proofs would be approved in the original's
-                            place and pushed under a record naming neither. The three parks the size gate
-                            itself takes are answered by `late_recovery` beside it, which routes each back
-                            through this owner's publication seam
+      disposition.py        run-output attribution, inherited floors, timeout parks and their recovery, and agent-result
+                            settlement; both heads must be readable and the run must leave commits above its floor
+      candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
+                            through a proved clean tree and the size gate; a recovery hands on the candidate it proved
       late_gate.py          the order the size gate's questions are asked in, taken over one subject so both seams
                             ask them the same way: the switch, the commit the caller named -- proved against the
                             checkout before anything is persisted or pushed, since between the caller's read and this
@@ -1375,55 +1365,11 @@ workflow/                   marker package for state, engine, and stage owners
                             and says nothing about where the work went, and the delivered road records the commit
                             as a debt BEFORE it pushes -- so a tick dying there leaves an approval with no lease,
                             and waving it past publishes unleased onto whatever a branch lookup finds
-      late_consent.py       the park an adjudicated candidate with no operator authorization behind it waits on.
-                            What reaches it is every oversized reading of a candidate `late_authority` beside it
-                            calls exempt on a record nobody authorized, and an issue already standing behind the
-                            park is brought back to the gate by `late_recovery` on every poll. The reading is the
-                            gate's OWN -- the pair it froze, the count it took on the tick that acts, the ceiling
-                            it counted against -- since those are the terms an authorization is recorded on, and a
-                            candidate the count puts at or below the ceiling needs nobody's permission and settles
-                            with the park taken off on the way into the retirement's own durable write: a commit
-                            published over a record still saying a human holds the issue is one the source stage's
-                            parked road stops on every poll after. Then everything a reply to it is worth: a hold
-                            rather than a route back to
-                            the adjudication, since the change has been ruled one change already and what is
-                            missing is the person, taken without deleting, migrating, or repairing a field,
-                            announced once per pair, and taken without making the COUNT durable -- a generation
-                            answering "oversized" is what the dispatcher restores `workflow:decomposing` over, so a
-                            park carrying one would be relabelled out from under itself on the next poll and
-                            nothing could ever answer it. The command earns the `late_override_*` group written
-                            from the gate's OWN reading -- the pair it froze, the count it took, the ceiling it was
-                            counted against, the digest recomputed between that pair, and the comment it was
-                            written in -- in the one write that takes the park off, consumes the reply and drops
-                            any sentence the park still owed the thread, while a reading this host cannot take
-                            records nothing and leaves both where they stand. What that write consumes is what the
-                            READING got to, then the unbroken run of OUR OWN comments above it, and no further: ids
-                            ascend, so an answer of ours lands above the reply it answers and must be consumed or
-                            the next poll reads our own words as a human's, while a watermark taken from the
-                            thread's tip NOW would swallow whatever landed since the fetch -- a retraction of the
-                            very command being acted on included -- unread and unanswered, and one jumped straight
-                            to the answer's own id would swallow the corrected command an operator posted between
-                            the reading and that answer. A command it may not act on is answered under a scoped
-                            receipt and consumed on the same terms. Both sentences this owner words -- the park's
-                            notice and that refusal -- carry a receipt scoped to what they answer, RECORDED before
-                            the sentence carrying it goes out and dropped by the write past the post. So the record
-                            says whether a tick died mid-sentence and the THREAD says which side of the post it
-                            died on: a receipt some comment of ours carries is a sentence that was said, one no
-                            comment carries is a sentence still owed, and a park that reaches the quiet road with a
-                            receipt outstanding drops it rather than re-reading the thread on every later poll. The
-                            park itself goes down ahead of its notice too, so a restarted tick finds somebody
-                            already waiting rather than announcing a second time over a watermark that would move
-                            past the command written in between. Both halves of the thread's answer are asked --
-                            the receipt and the author -- which is the safe direction for SILENCING a sentence and
-                            the wrong one for claiming a comment: these strings are public text, deterministic from
-                            an issue and a commit, and the login may be the operator's own, so read as proof of
-                            authorship a retraction written under a quoted receipt would be taken for one of ours,
-                            deleted from the reading, and the authorization beneath it would publish on consent
-                            withdrawn. Nothing here writes the id ledger, which is the only thing that says a
-                            comment is ours; what an unclaimed sentence of ours costs is standing in the reading as
-                            somebody's word, which is no command, so the park holds. The notices are worded on
-                            the side of publication the park was taken on, since guidance reaches a developer only
-                            where the ordinary resume is still in front of the issue
+      late_consent_state.py durable authorization parks, candidate-scoped notice receipts, quiet delivery settlement,
+                            and consumption through the command reading's watermark; later human replies remain unread
+      late_consent.py       request an operator's authorization for an adjudicated oversized commit, validate the named
+                            candidate, fingerprint its contribution again, and record the measured terms while retiring
+                            the park; refusals retain the candidate and share the same scoped receipt rules
       late_command.py       which reply on a standing park a tick should act on, and nothing else: no record is
                             written and nothing is decided. The LAST fresh trusted reply, because reading the
                             batch as a set is what poisons a park -- a reply matching nothing is never consumed
@@ -2102,16 +2048,12 @@ workflow/                   marker package for state, engine, and stage owners
                             implementing -- and every one of those written durably AHEAD of the
                             `workflow:validating` label, so nothing this line spends is stranded on an issue
                             that has moved on and a relabel that fails leaves the branch recognizable
-      parks.py              the session-limit, provider-unavailable, question, silent-failure, dirty-tree, and
-                            unreadable-tree parks, the last two behind one seam so the caller asks whether the
-                            tree is PROVABLY clean. Each records the thread read past its OWN notice and past
-                            nothing else: the run it ends took minutes nobody read the thread during, so a
-                            watermark stamped to the tip carries this stage's notice over whatever a human wrote
-                            in them -- an `/orchestrator authorize-oversized` among it -- and the only road that
-                            could act on that comment never sees it. The walk stops at the first comment the
-                            ledger does not vouch for, and gives up the tip only where no walk could work: a post
-                            whose id nothing recorded, and a thread with no watermark at all, whose spawn quoted
-                            the whole of it to the agent already
+      park_watermarks.py    advance past the unbroken run of comments claimed by the orchestrator id ledger, stopping at
+                            the first unclaimed reply; only an unavailable ledger update or prior watermark uses the tip
+      checkout_parks.py     dirty and unreadable checkout refusals, operator messages, and staged park events; both retain
+                            the work and use the shared watermark reader after posting their notice
+      parks.py              classify session limits, transient provider failures, real questions, and silent exits;
+                            retryable failures keep their reason and streak, while a question clears both
       drift.py              a body edit mid-implementation: the resume it earns -- withheld while a continuation
                             has bought an attempt, since a resume passes no gate and the attempt is owed as a fresh
                             spawn -- and the `ACK:` that answers it

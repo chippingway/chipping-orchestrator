@@ -22,6 +22,10 @@ _PARENT = "orchestrator.workflow.stages"
 _HANDLER_OWNER = "handler"
 
 _OWNERS = (
+    "candidate_recovery",
+    "late_consent_state",
+    "park_watermarks",
+    "checkout_parks",
     "checkout_guards",
     "checkout_recovery",
     "continue_command",

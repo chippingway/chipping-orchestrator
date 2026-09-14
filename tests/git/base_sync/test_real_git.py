@@ -8,6 +8,7 @@ from unittest.mock import patch
 from orchestrator.config import settings as config
 from orchestrator.workflow.late_split import exemption_reading as _exemption_reading
 from orchestrator.workflow.stages.implementing import (
+    candidate_recovery as _candidate_recovery,
     checkout_recovery as _checkout_recovery,
     disposition as _disposition,
 )
@@ -224,7 +225,7 @@ class RefreshTimeoutParkRealGitTest(
             env_extra=self._author_env,
         )
 
-        with patch.object(_disposition, PUBLISH_SEAM) as published:
+        with patch.object(_candidate_recovery, PUBLISH_SEAM) as published:
             self.assertEqual(self._recover(), "pushed")
             published.assert_called_once()
 

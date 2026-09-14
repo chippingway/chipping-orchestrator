@@ -32,6 +32,7 @@ from orchestrator.workflow.stages.conflicts import (
     transitions as _transitions,
 )
 from orchestrator.workflow.stages.implementing import (
+    checkout_parks as _checkout_parks,
     late_push as _late_push,
     late_records as _late_records,
     parks as _dev_parks,
@@ -77,7 +78,7 @@ def _post_conflict_resolution_result(
 
     dirty = _worktree_status._worktree_dirty_files(wt)
     if dirty:
-        _dev_parks._on_dirty_worktree(
+        _checkout_parks._on_dirty_worktree(
             ctx.gh, ctx.issue, ctx.state, run.dev_result, dirty,
         )
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)

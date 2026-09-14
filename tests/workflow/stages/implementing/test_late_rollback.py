@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.workflow.stages.implementing import (
-    disposition as _disposition,
+    candidate_recovery as _candidate_recovery,
     late_command as _command,
     late_rollback as _rollback,
     state as _state,
@@ -168,7 +168,7 @@ class SeamCrashRollbackTest(_consent_case._ParkedCase, unittest.TestCase):
         self._reply(_consent_payloads.AUTHORIZE)
         entered = _ReadsTheRecordAndDies(self)
         with (
-            patch.object(_disposition, _PUBLISH_COMMITTED_WORK, entered),
+            patch.object(_candidate_recovery, _PUBLISH_COMMITTED_WORK, entered),
             self.assertRaises(_consent_crashes.CrashedTick),
         ):
             self._run_tick()
@@ -303,7 +303,7 @@ class HeldSeamOutcomeTest(_consent_case._ParkedCase, unittest.TestCase):
         self._reply(_consent_payloads.AUTHORIZE)
 
         with patch.object(
-            _disposition, _PUBLISH_COMMITTED_WORK,
+            _candidate_recovery, _PUBLISH_COMMITTED_WORK,
             _ClearsTheParkAndPublishesNothing(),
         ):
             self._run_tick()
