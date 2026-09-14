@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from orchestrator.workflow.late_split.models import LateGeneration
-from orchestrator.workflow.stages.decomposition import late_hold as _late_hold
+from orchestrator.workflow.stages.decomposition import late_hold_text as _late_hold_text
 from tests.support.fakes import FakeGitHubClient, FakeIssue, FakePR
 from tests.workflow.fixtures import _issue_branch
 from tests.workflow.stages.decomposition.late_published_support import (
@@ -145,5 +145,5 @@ class PublishedSplitCase(LateSplitCase):
             plan_pr_head=self.published_pr.head.sha,
             plan_pr_body=PUBLISHED_BODY,
         )
-        self.published_pr.body = _late_hold._hold_body(held)
+        self.published_pr.body = _late_hold_text._hold_body(held)
         return held

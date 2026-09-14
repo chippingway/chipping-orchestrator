@@ -14,7 +14,8 @@ from orchestrator.workflow.late_split.models import (
     LateResourceState,
 )
 from orchestrator.workflow.stages.decomposition import (
-    late_restart as _late_restart,
+    late_restart_effects as _late_restart_effects,
+    late_restart_state as _late_restart_state,
 )
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.stages.decomposition import late_restart_support as _fix
@@ -505,7 +506,7 @@ class RestartTransactionTest(_fix.RestartCase, unittest.TestCase):
         # announcing it again.
         self._seed()
         with patch.object(
-            _late_restart, _ANNOUNCED_STEP, side_effect=RuntimeError(_REFUSED),
+            _late_restart_effects, _ANNOUNCED_STEP, side_effect=RuntimeError(_REFUSED),
         ):
             self._reported_route()
         held = self._pinned()
@@ -560,7 +561,7 @@ class RestartTransactionTest(_fix.RestartCase, unittest.TestCase):
         # target over a record that still says cancelled, and the refusal
         # beside this guard would answer that by handing it `rejected` again.
         self._seed()
-        with patch.object(_late_restart, _RETIRED_STEP, Mock()):
+        with patch.object(_late_restart_state, _RETIRED_STEP, Mock()):
             self._reported_route()
 
         dispatched = self._reported_route()

@@ -37,7 +37,7 @@ from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.workflow.late_split import payloads as _payloads
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
-    late_hold as _late_hold,
+    late_hold_release as _late_hold_release,
     late_outcome as _late_outcome,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
@@ -144,7 +144,7 @@ def _released_hold(context: _LateContext) -> bool:
     leaves the generation exactly as it arrived: live, oversized, and carrying
     the same recorded verdict, which is what makes the retry free.
     """
-    release = _late_hold._release_hold(
+    release = _late_hold_release._release_hold(
         context.gh, context.issue, context.generation,
     )
     context.generation = release.generation

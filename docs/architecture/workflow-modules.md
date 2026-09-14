@@ -604,18 +604,13 @@ workflow/                   marker package for state, engine, and stage owners
                             against the whole-comment budget with notice headroom
       late_session.py       persist spawn, bounded session, and result records and invoke the tracked adjudicator;
                             every discarded answer drops its publication override, and preflight reserves session room
-      late_hold.py          the cycle-marked hold a reusable open pull request wears: which one that is -- a hold
-                            already recorded (released first and re-taken where the publication entry has since
-                            named another, since the record holds one identity and one preserved body), then that
-                            entry naming the implementation PR the work is already on, then the issue's own
-                            `pr_number` -- the one guarded read every decision is
-                            made from, the discussion provenance the last of those three has to establish, the
-                            identity, head, and original body persisted (and proved persisted) before the edit --
-                            a head this reading could not name refusing the hold rather than being recorded absent --
-                            the notice worded by the side of publication it is written onto, the spelling an earlier
-                            binary wrote beside the two this one does, and the one question that recognizes any of
-                            the three as ours, the head that moved under a standing hold reported and never
-                            restamped, and the retry, the refusal, and the settled pull request it reconciles to
+      late_hold_text.py     exact cycle-marked descriptions for unpublished, published, and superseded hold forms
+      late_hold_reading.py  choose the held, published, or issue-recorded pull request, read it once, and require plan
+                            provenance for the issue pointer; missing or unreadable evidence refuses the hold
+      late_hold_release.py  restore only descriptions matching this cycle's hold, and release a stale hold before its
+                            replacement is taken; an open pull request whose restoration failed keeps the handoff held
+      late_hold.py          preserve the chosen pull request's identity, head, and body before applying its hold;
+                            refuse unrecorded or displaced descriptions and report moved heads without restamping them
       late_verdict.py       what one finished reply decides: the lineage-bound refusal recorded as the categorized
                             question it actually is, the record written and persisted before anything is posted,
                             and the announcement a recorded question is reconciled by -- made past the owner
@@ -658,24 +653,13 @@ workflow/                   marker package for state, engine, and stage owners
                             endings, split hostile closing runs into blocks, and select the shortest complete rendering
       late_notice.py        durable park notices, explanation insertion, comment-size fallbacks, and authenticated receipt
                             reads; the notice must still match the standing park, and a failed read leaves it owed
-      late_owner.py         the fresh tri-state read EVERY completed run passes before anything acts on what it
-                            left: the latch consulted ahead of GitHub, since a close a poll saw while this worker
-                            held the issue is the one reading a request cannot give back, the standing claim it is
-                            entered past rather than makes (written by the completion's
-                            own write, so a tick that died on the way here still left a park and an owed read), the
-                            reconciliation that takes an owed read again ahead of every gate, the
-                            cancellation a closed owner earns -- recorded and reported once per cycle, since
-                            several barriers reach the same closed reading in one run and the cycle ended at the
-                            first, with the repeat's own claim still dropped -- the park an unreadable one takes
-                            only where nothing
-                            else already holds the issue, and the one follow-up that park owes the thread --
-                            posted before the write that clears it. Two barriers beside it take the latch ALONE,
-                            for the steps whose own moment is too tight for a request and where a claim would name
-                            `owner_check` over the boundary the tick actually reached: the create, the spawn, the
-                            developer revision on both sides of its run and against the resume itself, and each
-                            step of an authorized settlement's publication
-                            share one, and the activation past a retirement already standing at `cleaning_up` has
-                            its own
+      late_owner_reading.py fresh open/closed/unreadable owner readings, with the close-observation latch checked before
+                            GitHub so a reopen cannot erase a close already observed during the worker's run
+      late_owner_settlement.py
+                            persist cleared claims, cancellation, and unreadable-owner parks, and deduplicate recovery
+                            follow-ups within the park episode before clearing its state
+      late_owner.py         guard late outcomes and child activation, claim completion ahead of the owner reading,
+                            reconcile pending checks, and release or discard staged parks after that reading settles
       late_snapshot.py      the immutable copy every child of a split is cut from: the ref this generation's
                             identity names, the obligation written ahead of the push and again behind the proof, the
                             create-or-verify that never overwrites, the fetch that proves a child could obtain it,
@@ -1020,37 +1004,14 @@ workflow/                   marker package for state, engine, and stage owners
                             whose owner read is still owed: the kill-switch route it refuses, and the dispatch it
                             refuses -- with the hand relabel it repairs -- when a human has moved the label out from
                             under an open adjudication
-      late_restart.py       the fresh cycle an operator authorizes by taking a settled cancellation's `rejected`
-                            back off: what the record has to prove before that gesture counts -- a cycle that
-                            exists, one a close already ended, and one that owes nothing under BOTH readings, since
-                            the ending's outstanding list and the domain's settled ledger overlap without
-                            containing each other (only the first reports a held PR this generation cannot show it
-                            held, which no pass can settle and a restart would erase; only the second counts a
-                            child receipt or an untypeable consumer ledger, over which the retirement would refuse
-                            with the marker already down) -- the proof half of the terminal record, saying
-                            this cycle's `rejected` LANDED on the issue, without which a workflow label a
-                            human stripped mid-cleanup and a terminal write GitHub refused both read exactly
-                            like the removal that authorizes a restart -- the
-                            open, unlabeled issue the gesture is read off, and the marker that answers it for
-                            itself once a transaction has begun; the identity that record is repaired to before
-                            anything is written, since a pinned comment naming another issue would file the fresh
-                            cycle and both sinks' records of it under that one, and a root naming no issue at all
-                            is a record the telemetry contract refuses outright -- the current issue is the issue
-                            the comment was read off, and the root is kept where the record is this issue's own and
-                            re-derived from the ancestry otherwise; the control label that defers the whole of it;
-                            the `DECOMPOSE` setting that chooses between the two labels a restart may apply, and the
-                            record that outranks it from the moment a notice has announced one; then the
-                            transaction -- the marker made durable first, the notice said once over a cycle-scoped
-                            receipt proved from the thread and ADOPTED off it where an earlier pass posted one and
-                            lost the id it tracked in memory only, the label written where the issue is not already
-                            on it and put back where the name is there but this orchestrator is not what applied it
-                            -- the restart's own application is what separates the fresh cycle from its
-                            predecessor's terminal in the history the ending's last-resort proof reads, and GitHub
-                            records no event for a label already present -- and the retirement behind both, with the
-                            projection that retirement writes: a
-                            whitelist keeping the pinned comment's own identity, the bounded orchestrator comment
-                            ids, the cumulative issue usage, and the identity joining the fresh cycle to its
-                            predecessor, and dropping everything else
+      late_restart_effects.py
+                            deduplicate and adopt restart notices by cycle receipt, then establish the chosen label;
+                            reapply a foreign label so the fresh cycle has the restart's own history boundary
+      late_restart_state.py repair restart identity, persist its marker, and project the fresh cycle while retaining
+                            thread attribution and cumulative usage; retirement drops the predecessor's work and sessions
+      late_restart.py       admit and resume an authorized restart only after cancellation and every obligation settle;
+                            hard-skip controls defer it, the recorded target outranks settings, and notice plus label
+                            effects must succeed before retirement
       late_result_models.py late-run identity, adjudication answers, guarded splits, and settlement dispositions; an
                             actionable answer remains bound to the exact cycle, generation, and candidate it read
       late_content_models.py

@@ -712,10 +712,11 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   `rejected`, which is what takes an owner out of the sweep for good.
 - **The latch is a barrier the run in flight is held to, not just a note for the next tick.** The worker that owns
   the issue asks it before every step the remote keeps, through the same owner read those barriers already take
-  (`late_owner._read_owner` consults the latch before it asks GitHub). That is the reading GitHub cannot give back: a
-  close and a reopen that both happened inside one of the run's own steps leaves the issue reporting `open`, and only
-  the poll ever saw otherwise. A latched close therefore ends the cycle where the run stands — the cancellation
-  persisted by the worker that owns the pinned comment, and nothing further spawned, created, or activated.
+  (`late_owner_reading._read_owner` consults the latch before it asks GitHub). That is the reading GitHub
+  cannot give back: a close and a reopen that both happened inside one of the run's own steps leaves the issue
+  reporting `open`, and only the poll ever saw otherwise. A latched close therefore ends the cycle where the
+  run stands — the cancellation persisted by the worker that owns the pinned comment, and nothing further
+  spawned, created, or activated.
 - **Where those barriers are, and why each one is there.** Every one of them sits immediately before a step nothing
   takes back, and each covers a window of *remote work* the poll runs beside:
   - **the child loop**, before every child including the first — the write that forces the parent to be an umbrella
@@ -2675,8 +2676,8 @@ cannot silence the next recovery. A forged marker costs its author the notificat
 anyway.
 
 The late size gate's `late_owner_unreadable` park heals the same way and by the same rules, from its own owner
-(`late_owner.py`) and under its own marker (`<!--orchestrator-late-owner-recovery-->`), so a follow-up from one
-mode's episode cannot silence the other's. Two things differ. Its retry hangs off a durable
+(`late_owner_settlement.py`) and under its own marker (`<!--orchestrator-late-owner-recovery-->`), so a follow-up
+from one mode's episode cannot silence the other's. Two things differ. Its retry hangs off a durable
 `late_owner_check_pending` on the generation rather than off the park, since the routes it has to survive skip the
 park entirely; and its follow-up is posted *before* the write that clears the park rather than after, so the crash
 window loses the write instead of the sentence — which the thread-marker check then makes free to repeat. A park

@@ -17,7 +17,7 @@ from orchestrator.config import settings as config
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     late_coordinator as _late_coordinator,
-    late_hold as _late_hold,
+    late_hold_text as _late_hold_text,
     models as _models,
     run as _run,
 )
@@ -257,7 +257,7 @@ class LateSettledHandoffTest(unittest.TestCase):
             pr_number=late_support.PLAN_PR_NUMBER,
         )
         self.plan_pr = late_support.seed_plan_pr(
-            self.github, body=_late_hold._hold_body(self.generation),
+            self.github, body=_late_hold_text._hold_body(self.generation),
         )
 
     def test_the_hold_comes_off_the_plan_pr(self) -> None:

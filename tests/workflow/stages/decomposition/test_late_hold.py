@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.workflow.stages.decomposition import (
     late_hold as _late_hold,
+    late_hold_release as _late_hold_release,
+    late_hold_text as _late_hold_text,
     late_session as _late_session,
 )
 from tests.support.fakes import FakeGitHubClient, FakePRRef
@@ -151,7 +153,7 @@ class PlanPrHoldTest(_HoldCase):
         # and a word changed here reads every one of them as somebody's own
         # description -- refusing to restore what it replaced, for good.
         self.assertEqual(
-            _late_hold._hold_body(_support.late_generation()), CURRENT_HOLD,
+            _late_hold_text._hold_body(_support.late_generation()), CURRENT_HOLD,
         )
 
     def test_hold_body_carries_the_generation(self) -> None:
@@ -159,7 +161,7 @@ class PlanPrHoldTest(_HoldCase):
 
         self._reconcile(generation)
 
-        self.assertIn(_late_hold._hold_marker(generation), self.plan_pr.body)
+        self.assertIn(_late_hold_text._hold_marker(generation), self.plan_pr.body)
         self.assertNotIn(_support.PLAN_PR_BODY, self.plan_pr.body)
 
     def test_retry_over_its_own_hold_is_a_no_op(self) -> None:
@@ -214,7 +216,7 @@ class ReappliedHoldTest(_HoldCase):
         self.assertTrue(hold.held)
         self.assertFalse(hold.displaced)
         self.assertFalse(hold.failed)
-        self.assertEqual(self.plan_pr.body, _late_hold._hold_body(held))
+        self.assertEqual(self.plan_pr.body, _late_hold_text._hold_body(held))
         self.assertEqual(hold.generation.plan_pr_body, _support.PLAN_PR_BODY)
 
     def test_an_advanced_generation_needs_no_re_mark(self) -> None:
@@ -233,7 +235,7 @@ class ReappliedHoldTest(_HoldCase):
 
         self.assertTrue(second.held)
         self.assertFalse(second.displaced)
-        self.assertEqual(self.plan_pr.body, _late_hold._hold_body(advanced))
+        self.assertEqual(self.plan_pr.body, _late_hold_text._hold_body(advanced))
         self.assertEqual(len(self.github.edited_pr_bodies), 1)
 
     def test_an_edited_hold_is_left_alone(self) -> None:
@@ -279,7 +281,7 @@ class SettledPlanPrTest(_HoldCase):
             plan_pr_number=_support.PLAN_PR_NUMBER, plan_pr_body=_support.PLAN_PR_BODY,
         )
 
-        release = _late_hold._release_hold(
+        release = _late_hold_release._release_hold(
             self.github, self.issue, held,
         )
 

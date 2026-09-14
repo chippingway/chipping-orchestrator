@@ -168,7 +168,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup as _late_cleanup,
-    late_hold as _late_hold,
+    late_hold_release as _late_hold_release,
 )
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from orchestrator.workflow.state import (
@@ -1277,7 +1277,7 @@ def _reached(
     pull request closed while the hold is still on it is a human's words
     replaced for good.
     """
-    release = _late_hold._release_hold(gh, issue, generation)
+    release = _late_hold_release._release_hold(gh, issue, generation)
     if release.failed:
         return release.generation, _late_models.LateResourceState.FAILED
     if not _closed_over_notice(gh, issue, release.generation, number):
