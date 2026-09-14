@@ -44,7 +44,7 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.measurement import commits as _measurement_commits
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import (
@@ -261,7 +261,7 @@ def _on_commits(
         gh, issue, state, published, wt,
     ) or _barrier._ended_before_the_push(gh, spec, issue, state, approved):
         return
-    branch = _worktree_paths._resolve_branch_name(state, spec, issue.number)
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
     if not _branch_transport._push_branch(
         spec, wt, branch, revision=published,
         force_with_lease=_leased_against(state, approved, published),

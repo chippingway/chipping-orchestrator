@@ -53,7 +53,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import pull_requests as _pull_requests
 from orchestrator.github.issues import (
     _ISSUE_STATE_CLOSED,
@@ -178,7 +178,7 @@ def _interrupted_plan_pr(run: _models._DiscussionRun, branch: str):
 
 def _plan_branch(run: _models._DiscussionRun) -> str:
     """The ref the publication pushed to, resolved the way every reader does."""
-    return _worktree_paths._resolve_branch_name(
+    return _naming._resolve_branch_name(
         run.state, run.spec, run.issue.number,
     )
 

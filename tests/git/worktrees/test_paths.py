@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming, paths
 from tests.git.worktrees.path_test_support import (
     ALICE_REPO_SLUG,
     BASE_BRANCH,
@@ -58,7 +58,7 @@ class WorktreePathSlugNamespaceTest(unittest.TestCase):
 
 class SanitizeSlugTest(unittest.TestCase):
     def test_sanitize_slug_replaces_owner_separator(self) -> None:
-        self.assertEqual(paths._sanitize_slug("owner/name"), "owner__name")
+        self.assertEqual(_naming._sanitize_slug("owner/name"), "owner__name")
 
     def test_sanitize_slug_is_a_single_segment(self) -> None:
         # A directory name with `/` would split into nested directories,
@@ -69,17 +69,17 @@ class SanitizeSlugTest(unittest.TestCase):
             "name-only",
             "weird name with spaces",
         ):
-            cleaned = paths._sanitize_slug(raw)
+            cleaned = _naming._sanitize_slug(raw)
             self.assertNotIn("/", cleaned, f"slug={raw!r} -> {cleaned!r}")
 
     def test_sanitize_slug_no_leading_dot(self) -> None:
         # Hidden directories (.foo) hide the worktree from a casual
         # operator inspection; escape leading dots.
-        self.assertFalse(paths._sanitize_slug(".dotfile/repo").startswith("."))
-        self.assertFalse(paths._sanitize_slug("./repo").startswith("."))
+        self.assertFalse(_naming._sanitize_slug(".dotfile/repo").startswith("."))
+        self.assertFalse(_naming._sanitize_slug("./repo").startswith("."))
 
     def test_sanitize_slug_strips_unsafe_chars(self) -> None:
-        cleaned = paths._sanitize_slug("owner@#$/name with spaces")
+        cleaned = _naming._sanitize_slug("owner@#$/name with spaces")
         # No path separator, no shell-special chars; only [A-Za-z0-9_.-]
         for ch in cleaned:
             self.assertTrue(
@@ -90,8 +90,8 @@ class SanitizeSlugTest(unittest.TestCase):
     def test_sanitize_slug_empty_input_falls_back(self) -> None:
         # Empty would collapse `WORKTREES_DIR/<slug>/issue-N` into
         # `WORKTREES_DIR/issue-N`, reintroducing the cross-repo collision.
-        self.assertNotEqual(paths._sanitize_slug(""), "")
-        self.assertNotEqual(paths._sanitize_slug(""), ".")
+        self.assertNotEqual(_naming._sanitize_slug(""), "")
+        self.assertNotEqual(_naming._sanitize_slug(""), ".")
 
     def test_default_repo_spec_path_format(self) -> None:
         # Anchor the documented `<owner>__<name>/issue-N` layout.
@@ -123,13 +123,13 @@ class BranchNameSlugNamespaceTest(unittest.TestCase):
         )
 
         self.assertNotEqual(
-            paths._branch_name(spec_a, SHARED_BRANCH_ISSUE_NUMBER),
-            paths._branch_name(spec_b, SHARED_BRANCH_ISSUE_NUMBER),
+            _naming._branch_name(spec_a, SHARED_BRANCH_ISSUE_NUMBER),
+            _naming._branch_name(spec_b, SHARED_BRANCH_ISSUE_NUMBER),
         )
 
     def test_branch_name_format(self) -> None:
         self.assertEqual(
-            paths._branch_name(_migration_spec(), 9),
+            _naming._branch_name(_migration_spec(), 9),
             "orchestrator/chippingway__orchestrator/issue-9",
         )
 
@@ -138,7 +138,7 @@ class BranchNameSlugNamespaceTest(unittest.TestCase):
         # to constrain what branches it is willing to delete.
         for repo_slug in (ALICE_REPO_SLUG, BOB_REPO_SLUG, "weird name/x"):
             self.assertTrue(
-                paths._branch_name(
+                _naming._branch_name(
                     _spec(repo_slug), PR_NUMBER,
                 ).startswith("orchestrator/"),
                 repo_slug,
@@ -162,7 +162,7 @@ class IssueSegmentNumberTest(unittest.TestCase):
                 self.assertEqual(
                     paths._issue_segment_number(built.name), issue_number,
                 )
-                branch = paths._branch_name(_migration_spec(), issue_number)
+                branch = _naming._branch_name(_migration_spec(), issue_number)
                 self.assertEqual(
                     paths._issue_segment_number(branch.rsplit("/", 1)[-1]),
                     issue_number,

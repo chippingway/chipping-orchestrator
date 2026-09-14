@@ -7,7 +7,7 @@ from __future__ import annotations
 import subprocess
 import unittest
 
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming
 from tests.git.worktrees.path_test_support import (
     ALICE_REPO_SLUG,
     DOUBLE_DOT_SLUG,
@@ -35,7 +35,7 @@ class SanitizeBranchSegmentTest(unittest.TestCase):
         # injectivity suffix is appended because the ref-only rewrite
         # is information-lossy (`foo.lock` and `foo_lock` would
         # otherwise collide).
-        out = paths._sanitize_branch_segment(LOCK_SUFFIX_SLUG)
+        out = _naming._sanitize_branch_segment(LOCK_SUFFIX_SLUG)
         self.assertTrue(
             out.startswith("owner__foo_lock__h"),
             f"unexpected sanitized form: {out!r}",
@@ -45,14 +45,14 @@ class SanitizeBranchSegmentTest(unittest.TestCase):
         self.assertRegex(out, r"^owner__foo_lock__h[0-9a-f]{16}$")
 
     def test_double_dot_collapses_to_underscore(self) -> None:
-        out = paths._sanitize_branch_segment(DOUBLE_DOT_SLUG)
+        out = _naming._sanitize_branch_segment(DOUBLE_DOT_SLUG)
         self.assertRegex(out, r"^owner__foo_bar__h[0-9a-f]{16}$")
         # Triple+ dot runs collapse to a single `_` too.
-        out3 = paths._sanitize_branch_segment("a/...b")
+        out3 = _naming._sanitize_branch_segment("a/...b")
         self.assertRegex(out3, r"^a___b__h[0-9a-f]{16}$")
 
     def test_trailing_dot_is_rewritten(self) -> None:
-        out = paths._sanitize_branch_segment("owner/foo.")
+        out = _naming._sanitize_branch_segment("owner/foo.")
         self.assertRegex(out, r"^owner__foo___h[0-9a-f]{16}$")
 
     def test_ordinary_slugs_round_trip(self) -> None:
@@ -67,8 +67,8 @@ class SanitizeBranchSegmentTest(unittest.TestCase):
             "acme/widget-private",
         ):
             self.assertEqual(
-                paths._sanitize_branch_segment(repo_slug),
-                paths._sanitize_slug(repo_slug),
+                _naming._sanitize_branch_segment(repo_slug),
+                _naming._sanitize_slug(repo_slug),
                 repo_slug,
             )
 
@@ -87,8 +87,8 @@ class SanitizeBranchSegmentTest(unittest.TestCase):
             ("owner/...", "owner/__"),
         ]
         for first_slug, second_slug in ambiguous_pairs:
-            seg_a = paths._sanitize_branch_segment(first_slug)
-            seg_b = paths._sanitize_branch_segment(second_slug)
+            seg_a = _naming._sanitize_branch_segment(first_slug)
+            seg_b = _naming._sanitize_branch_segment(second_slug)
             self.assertNotEqual(
                 seg_a,
                 seg_b,
@@ -102,8 +102,8 @@ class SanitizeBranchSegmentTest(unittest.TestCase):
         # to read prior state.
         repo_slug = LOCK_SUFFIX_SLUG
         self.assertEqual(
-            paths._sanitize_branch_segment(repo_slug),
-            paths._sanitize_branch_segment(repo_slug),
+            _naming._sanitize_branch_segment(repo_slug),
+            _naming._sanitize_branch_segment(repo_slug),
         )
 
 

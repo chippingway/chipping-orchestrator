@@ -53,7 +53,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.agents import AgentResult
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     paths as _worktree_paths,
@@ -123,7 +123,7 @@ def _publish_committed_work(
     cannot say.
     """
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
-    tree = _verification_probes._worktree_status(work.worktree)
+    tree = _worktree_status._worktree_status(work.worktree)
     if not tree.is_clean:
         _parks._on_unpublishable_tree(
             gh, issue, state, work.agent_result, tree,
@@ -198,7 +198,7 @@ def _carries_a_late_commit(
     if not worktree.exists():
         # Worktree reaped: the local commit is gone, nothing to publish.
         return False
-    if not _verification_probes._worktree_status(worktree).is_clean:
+    if not _worktree_status._worktree_status(worktree).is_clean:
         return False
     pre_sha = state.get(_state._PRE_IMPLEMENT_SHA)
     if not isinstance(pre_sha, str) or not pre_sha:

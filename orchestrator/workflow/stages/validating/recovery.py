@@ -50,8 +50,8 @@ from types import MappingProxyType
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
+from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
@@ -138,7 +138,7 @@ def _recover_timed_out_fix(
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if (
         not worktree.exists()
-        or _verification_probes._worktree_dirty_files(worktree)
+        or _worktree_status._worktree_dirty_files(worktree)
     ):
         return _state._OUTCOME_STUCK
     before_sha = state.get(_state._PRE_DEV_FIX_SHA)
@@ -211,7 +211,7 @@ def _publish_recovered_fix(
     exactly that reading, so leaving the count to it is what ties the round to
     the push that earned it rather than to the poll that noticed.
     """
-    branch = _worktree_paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         gate.state, gate.spec, gate.issue.number,
     )
     owed = _rounds._spends_next_round(gate.state)

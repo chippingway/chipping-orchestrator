@@ -44,6 +44,7 @@ from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
+    naming as _naming,
     paths as _worktree_paths,
 )
 from orchestrator.github.client import GitHubClient
@@ -95,7 +96,7 @@ def _retry_parked_dev_session(
     if not wt.exists():
         wt = _worktree_creation._ensure_worktree(
             spec, issue.number,
-            branch=_worktree_paths._resolve_branch_name(state, spec, issue.number),
+            branch=_naming._resolve_branch_name(state, spec, issue.number),
         )
     before_sha = _verification_probes._head_sha(wt)
     followup = f"{_prompts._CONTINUE_RETRY_PROMPT}\n\n{_prompts._FOREGROUND_ONLY_NOTE}"
@@ -105,7 +106,7 @@ def _retry_parked_dev_session(
     state.set("last_agent_action_at", _usage._now_iso())
     state.set(
         _state._BRANCH,
-        _worktree_paths._resolve_branch_name(state, spec, issue.number),
+        _naming._resolve_branch_name(state, spec, issue.number),
     )
     # A shutdown-killed or live-paused resume leaves durable state untouched so
     # the next process re-detects and re-runs the retry (mirrors the drift and

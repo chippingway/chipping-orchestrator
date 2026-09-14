@@ -68,7 +68,7 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git.measurement import additions as _measurement
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.workflow.engine import comments as _comments, messages as _messages
 from orchestrator.workflow.late_split import (
     events as _events,
@@ -158,7 +158,7 @@ def _reconcile_revised_candidate(
     commit as it stands, which is exactly what the marker says on the path
     where an agent is the one speaking.
     """
-    tree = _verification_probes._worktree_status(worktree)
+    tree = _worktree_status._worktree_status(worktree)
     if not tree.readable or tree.paths:
         return _parked(
             context, _DIRTY_PARK,

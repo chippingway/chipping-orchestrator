@@ -12,7 +12,7 @@ from unittest.mock import patch
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.base_sync import pre_pr, refresh
 from orchestrator.git.publication import probes as publication_probes
-from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.verification import probes as verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths
 
 
@@ -35,7 +35,7 @@ def _git_result(
 # single home and patching an aggregate hub would intercept nothing.
 _BASE_SYNC_TARGETS = MappingProxyType(
     {
-        "dirty": (verification_probes, "_worktree_dirty_files"),
+        "dirty": (_worktree_status, "_worktree_dirty_files"),
         "rebase": (pre_pr, "_rebase_base_into_worktree"),
         "push": (branch_transport, "_push_branch"),
         "head_sha": (verification_probes, "_head_sha"),

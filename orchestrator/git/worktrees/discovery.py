@@ -49,7 +49,7 @@ from collections.abc import Sequence
 
 from orchestrator import config
 from orchestrator.git import ref_discovery
-from orchestrator.git.worktrees import attribution, inventory, paths
+from orchestrator.git.worktrees import attribution, inventory, naming as _naming, paths
 from orchestrator.git.worktrees.models import (
     CandidateLayout,
     IssueArtifacts,
@@ -227,7 +227,7 @@ def _candidate_layout(
 def _current_names(artifacts: IssueArtifacts) -> tuple[str, ...]:
     """What this issue's artifacts are called under the layout in use now."""
     return (
-        paths._branch_name(artifacts.spec, artifacts.issue_number),
+        _naming._branch_name(artifacts.spec, artifacts.issue_number),
         str(paths._worktree_path(artifacts.spec, artifacts.issue_number)),
     )
 
@@ -235,7 +235,7 @@ def _current_names(artifacts: IssueArtifacts) -> tuple[str, ...]:
 def _legacy_names(artifacts: IssueArtifacts) -> tuple[str, ...]:
     """What they were called before slug namespacing landed."""
     return (
-        paths._legacy_branch_name(artifacts.issue_number),
+        _naming._legacy_branch_name(artifacts.issue_number),
         str(paths._legacy_worktree_path(artifacts.issue_number)),
     )
 
@@ -245,7 +245,7 @@ def _widened(
 ) -> MaintenanceCandidate:
     """One candidate: the artifacts as the host and the remote together hold them.
 
-    The two lists are merged through `paths._issue_branch_names` rather than
+    The two lists are merged through `naming._issue_branch_names` rather than
     concatenated, which does what the local scan's own recording does one level
     up: an issue carrying both layouts always reads namespaced-first, the order
     a teardown takes them in, one name cannot arrive twice because it is on
@@ -258,7 +258,7 @@ def _widened(
     """
     held = frozenset(artifacts.branches) | frozenset(published)
     branches = tuple(
-        name for name in paths._issue_branch_names(
+        name for name in _naming._issue_branch_names(
             artifacts.spec, artifacts.issue_number,
         )
         if name in held

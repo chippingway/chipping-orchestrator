@@ -27,7 +27,7 @@ from github.Issue import Issue
 
 from orchestrator import agents as _agents, config
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -183,6 +183,6 @@ def _resume_dev_on_implementing_drift(
     state.set("last_agent_action_at", _usage._now_iso())
     state.set(
         _state._BRANCH,
-        _worktree_paths._resolve_branch_name(state, spec, issue.number),
+        _naming._resolve_branch_name(state, spec, issue.number),
     )
     _dispose_implementing_drift(gh, spec, issue, state, drift)

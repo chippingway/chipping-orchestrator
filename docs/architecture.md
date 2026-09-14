@@ -505,7 +505,7 @@ Two more sit on the working-tree operations themselves rather than in the envelo
 `core.worktree` in a linked worktree's own `config.worktree` — which an agent
 enables by writing `extensions.worktreeConfig` into the clone it shares — points every path operation at any directory
 it likes, and a `-c core.worktree=` override does NOT win against it, so the tree is named with `--work-tree` instead:
-by `verification/probes._worktree_status`, which would otherwise report on a clean shadow checkout, and by the
+by `verification/status._worktree_status`, which would otherwise report on a clean shadow checkout, and by the
 `reset --hard` in `worktrees/creation._move_branch_onto`, which would otherwise report success and move the ref while
 writing the reviewed commit's files into that other directory -- leaving the issue's checkout on the plan it had, the
 handoff baseline naming a tip the tree is not on, and whatever was in the redirected directory overwritten.

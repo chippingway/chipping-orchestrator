@@ -33,18 +33,21 @@ from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.git.verification import (
     probes as _verification_probes,
     runner as _verify_runner,
+    status as _worktree_status,
 )
 from orchestrator.git.worktrees import (
+    anchoring as _anchoring,
     cleanup as _worktree_cleanup,
     creation as _worktree_creation,
     decomposition as _worktree_decomposition,
+    naming as _naming,
     paths as _worktree_paths,
     recovery as _worktree_recovery,
     terminal as _worktree_terminal,
 )
 
 GIT_SEAM_OWNERS = MappingProxyType({
-    "_anchor_pr_worktree": _worktree_creation,
+    "_anchor_pr_worktree": _anchoring,
     "_authed_fetch": _branch_transport,
     "_authed_target_fetch": _branch_transport,
     "_base_object_present": _measurement_commits,
@@ -82,13 +85,13 @@ GIT_SEAM_OWNERS = MappingProxyType({
     "_refresh_base_and_worktrees": _base_sync_refresh,
     "_remote_branch_tip": _branch_transport,
     "_remove_issue_worktree": _worktree_cleanup,
-    "_resolve_branch_name": _worktree_paths,
+    "_resolve_branch_name": _naming,
     "_revision_contains_path": _verification_probes,
     "_run_verify_commands": _verify_runner,
     "_squash_and_force_push": _squash,
-    "_worktree_dirty_files": _verification_probes,
+    "_worktree_dirty_files": _worktree_status,
     "_worktree_path": _worktree_paths,
-    "_worktree_status": _verification_probes,
+    "_worktree_status": _worktree_status,
     "create_snapshot_ref": _snapshot_refs,
     "delete_snapshot_ref": _snapshot_refs,
     "prove_snapshot_ref": _snapshot_refs,

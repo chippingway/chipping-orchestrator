@@ -115,7 +115,7 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import comments as _github_comments
 from orchestrator.workflow.engine import comments as _comments, usage as _usage
 from orchestrator.workflow.late_split import (
@@ -320,7 +320,7 @@ def _retired_split(
     # `pr_number`: the resolver falls back to the legacy ref while a pull
     # request is recorded, so a second reading after that write could name a
     # different branch from the one this transaction just recorded as owed.
-    branch = _worktree_paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         context.state, context.spec, context.issue.number,
     )
     undone = _publication_holds(context)

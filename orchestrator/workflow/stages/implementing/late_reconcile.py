@@ -24,7 +24,7 @@ import logging
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import state as _late_state
@@ -261,7 +261,7 @@ def _settles_the_frozen_pair(
     owed = _records._Spends(fields=_late_state.read_late_spends(gate.state))
     published = _push._publishes(
         gate,
-        _worktree_paths._resolve_branch_name(
+        _naming._resolve_branch_name(
             gate.state, gate.spec, gate.issue.number,
         ),
         # What the tick that froze this pair said its hold owed. Restored

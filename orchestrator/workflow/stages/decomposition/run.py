@@ -44,7 +44,7 @@ from contextlib import ExitStack
 from github.Issue import Issue
 
 from orchestrator import agents, config
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import creation as _worktree_creation, decomposition as _worktree_decomposition
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
@@ -180,7 +180,7 @@ def _process_decomposer_run(
     wt = _worktree_decomposition._decompose_worktree_path(spec, issue.number)
     if (
         _worktree_creation._has_new_commits(spec, wt)
-        or _verification_probes._worktree_dirty_files(wt)
+        or _worktree_status._worktree_dirty_files(wt)
     ):
         run_plan.keep_worktree = True
         _guards._park_awaiting_human(

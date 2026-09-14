@@ -129,7 +129,7 @@ from orchestrator.git.measurement import (
     commits as _measurement_commits,
     fingerprint as _measurement_fingerprint,
 )
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.github import labels as _labels
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
@@ -685,7 +685,7 @@ def _unproven_checkout(
     that is not the rewritten commit, or one this host cannot peel, is a
     checkout the rewrite's own before-and-after says nothing about.
     """
-    if not _verification_probes._worktree_status(gate.worktree).is_clean:
+    if not _worktree_status._worktree_status(gate.worktree).is_clean:
         return _UNPROVABLE_TREE
     proved = _measurement_commits._prove_candidate_commit(
         gate.worktree, _HEAD,

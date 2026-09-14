@@ -29,7 +29,7 @@ from pathlib import Path
 
 from orchestrator.agents import AgentResult
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
     comments as _comments,
     drift as _engine_drift,
@@ -135,7 +135,7 @@ def _run_fixing_resume(
     if not wt.exists():
         wt = _worktree_creation._ensure_worktree(
             ctx.spec, ctx.issue.number,
-            branch=_worktree_paths._resolve_branch_name(
+            branch=_naming._resolve_branch_name(
                 ctx.state, ctx.spec, ctx.issue.number,
             ),
         )

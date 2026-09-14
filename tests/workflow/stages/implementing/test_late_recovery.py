@@ -18,8 +18,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.verification.probes import _WorktreeStatus
+from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.stages.implementing import (
     checkout_recovery as _checkout_recovery,
@@ -117,7 +117,7 @@ class _RoutingCase(support._ParkedCase):
                 _worktree_paths, support.WORKTREE_PATH, return_value=worktree,
             ),
             patch.object(
-                _verification_probes, _WORKTREE_STATUS, return_value=tree,
+                _worktree_status, _WORKTREE_STATUS, return_value=tree,
             ),
             patch.object(
                 _checkout_recovery, _OFF_THE_PARKED_COMMIT, return_value=moved,

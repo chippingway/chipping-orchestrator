@@ -42,8 +42,8 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git.publication import probes as _publication_probes
-from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import drift as _drift
 from orchestrator.workflow.stages.conflicts import (
     divergence as _divergence,
@@ -102,7 +102,7 @@ def _prepare_conflict_worktree(
     straight to `validating`) and the caller must return.
     """
     wt = _guards._ensure_conflict_worktree(ctx)
-    branch = _worktree_paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         ctx.state, ctx.spec, ctx.issue.number,
     )
 
@@ -291,7 +291,7 @@ def _resumes_the_dev(
 
     Which of the two a human actually asked for is `_resumed` below.
     """
-    if not _verification_probes._worktree_status(sync.worktree).readable:
+    if not _worktree_status._worktree_status(sync.worktree).readable:
         _transitions._park_unreadable_worktree(ctx)
         return True
     return _resumed(ctx, pr, pr_number, conflict_round, sync)

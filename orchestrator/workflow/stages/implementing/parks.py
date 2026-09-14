@@ -45,7 +45,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.agents import AgentResult, provider_failures as _provider_failures
-from orchestrator.git.verification.probes import _WorktreeStatus
+from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import agent_diagnostics as _agent_diagnostics, comments as _comments

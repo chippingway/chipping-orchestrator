@@ -28,7 +28,7 @@ from orchestrator.git.measurement.models import (
 )
 from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, refs as _snapshot_refs
 from orchestrator.git.snapshots.refs import SnapshotOutcome
-from orchestrator.git.verification.probes import _WorktreeStatus
+from orchestrator.git.verification.status import _WorktreeStatus
 from tests.workflow.git_owners import seam_patch
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,

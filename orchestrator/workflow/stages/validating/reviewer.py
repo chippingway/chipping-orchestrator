@@ -33,7 +33,7 @@ from __future__ import annotations
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -70,7 +70,7 @@ def _run_reviewer_round(
 
     wt = _worktree_creation._ensure_worktree(
         spec, issue.number,
-        branch=_worktree_paths._resolve_branch_name(state, spec, issue.number),
+        branch=_naming._resolve_branch_name(state, spec, issue.number),
     )
     _, dev_backend_for_prompt, _, _ = _dev_session_read._read_dev_session(state)
     review_prompt = _prompts._build_review_prompt(
@@ -177,7 +177,7 @@ def _dispatch_reviewer_result(
         _approval._finalize_validating_approval(
             _late_records._gate(gh, spec, issue, state, reviewer_run.wt),
             reviewer_run,
-            _worktree_paths._resolve_branch_name(state, spec, issue.number),
+            _naming._resolve_branch_name(state, spec, issue.number),
         )
         return
 

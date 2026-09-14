@@ -32,8 +32,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from orchestrator.git import branch_transport as _branch_transport
-from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
+from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.stages.discussion import (
     models as _models,
     run as _run,
@@ -73,7 +73,7 @@ def _plan_artifact(run: _models._DiscussionRun) -> _models._PlanArtifact:
     own worktree can move -- which is how a branch carrying a code commit and a
     plan commit could be made to look like a branch carrying only the plan.
     """
-    branch = _worktree_paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         run.state, run.spec, run.issue.number,
     )
     return _probe_plan_branch(run, branch, _plan_worktree(run, branch))
@@ -86,7 +86,7 @@ def _probe_plan_branch(
     plan_path = _state._plan_path(run.issue.number)
     head_sha = _verification_probes._head_sha(worktree)
     base_sha = str(run.state.get(_state._BASE_SHA) or "")
-    tree_status = _verification_probes._worktree_status(worktree)
+    tree_status = _worktree_status._worktree_status(worktree)
     return _models._PlanArtifact(
         branch=branch,
         worktree=worktree,

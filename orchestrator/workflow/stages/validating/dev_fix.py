@@ -29,8 +29,8 @@ from dataclasses import replace as _replace
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards
@@ -135,11 +135,11 @@ def _publish_dev_fix(
     pre-tick base refresh with nothing coming back to drop it.
     """
     state.set("silent_park_count", 0)
-    dirty = _verification_probes._worktree_dirty_files(run.worktree)
+    dirty = _worktree_status._worktree_dirty_files(run.worktree)
     if dirty:
         _dev_parks._on_dirty_worktree(gh, issue, state, run.agent_result, dirty)
         return False
-    branch = _worktree_paths._resolve_branch_name(state, spec, issue.number)
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
     published = _late_push._publishes(
         _late_records._gate(gh, spec, issue, state, run.worktree), branch,
         _late_records._Entered(

@@ -51,7 +51,7 @@ touching the order the decisions are made in.
 """
 from __future__ import annotations
 
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.stages.discussion import (
@@ -148,7 +148,7 @@ def _assess_discussion_worktree(
     discussion_result = round_result.agent_result
     worktree = _worktree_paths._worktree_path(run.spec, run.issue.number)
     dirty_files = tuple(
-        _verification_probes._worktree_dirty_files(worktree),
+        _worktree_status._worktree_dirty_files(worktree),
     )
     if dirty_files:
         return _models._DiscussionOutcome(

@@ -68,7 +68,7 @@ from typing import Any
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths as _worktree_paths, terminal as _worktree_terminal
+from orchestrator.git.worktrees import naming as _naming, terminal as _worktree_terminal
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     _ISSUE_STATE_CLOSED,
@@ -330,7 +330,7 @@ def _cleanup_review_terminal(context: _ReviewTerminalContext) -> None:
         context.gh,
         context.spec,
         context.issue.number,
-        branch=_worktree_paths._resolve_branch_name(
+        branch=_naming._resolve_branch_name(
             context.state, context.spec, context.issue.number,
         ),
     )

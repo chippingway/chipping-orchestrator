@@ -35,7 +35,7 @@ import logging
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import guards as _guards, terminals as _terminals
 from orchestrator.workflow.stages.fixing import (
@@ -190,7 +190,7 @@ def _publish_stranded_fix(
     stranded = _stranded._stranded_fix_unpushed(spec, wt, state, issue)
     if not stranded:
         return _models._StrandedPublication()
-    branch = _worktree_paths._resolve_branch_name(state, spec, issue.number)
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
     published = _late_push._publishes(
         _late_records._gate(gh, spec, issue, state, wt), branch,
         # The remote head the stranded proof was taken against, which is the

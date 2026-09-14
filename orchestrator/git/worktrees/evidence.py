@@ -59,8 +59,8 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git import branch_transport, commands, locks
-from orchestrator.git.verification import probes as verification_probes
-from orchestrator.git.worktrees import paths, probes
+from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.worktrees import naming as _naming, probes
 from orchestrator.git.worktrees.models import BranchTip, ProbeAnswer
 
 # The channel is named for the worktree-lifecycle domain rather than for this
@@ -338,7 +338,7 @@ def _clean_worktree(worktree: Path) -> ProbeAnswer:
     than the artifact it is about.
     """
     try:
-        status = verification_probes._worktree_status(worktree)
+        status = _worktree_status._worktree_status(worktree)
     except Exception:
         log.warning(
             "the checkout %s could not be reached", worktree, exc_info=True,
@@ -372,7 +372,7 @@ def _nothing_ignored(worktree: Path) -> ProbeAnswer:
     probe whose contract is three answers may not have a fourth.
     """
     try:
-        hidden = verification_probes._ignored_paths(worktree)
+        hidden = _worktree_status._ignored_paths(worktree)
     except Exception:
         log.warning(
             "the checkout %s could not be reached", worktree, exc_info=True,
@@ -655,7 +655,7 @@ def _head_is_own_branch(
     answer, branch = _head_ref(worktree)
     if answer is not ProbeAnswer.CONFIRMED:
         return answer
-    if branch not in paths._issue_branch_names(spec, issue_number):
+    if branch not in _naming._issue_branch_names(spec, issue_number):
         return ProbeAnswer.REFUTED
     return ProbeAnswer.CONFIRMED
 

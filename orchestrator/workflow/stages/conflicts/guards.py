@@ -18,7 +18,7 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git import branch_transport as _branch_transport, commands as _git_commands
-from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.conflicts import models as _models
 
@@ -35,7 +35,7 @@ def _ensure_conflict_worktree(ctx: _models._ConflictContext) -> Path:
     if not wt.exists():
         wt = _worktree_creation._ensure_pr_worktree(
             ctx.spec, ctx.issue.number,
-            branch=_worktree_paths._resolve_branch_name(
+            branch=_naming._resolve_branch_name(
                 ctx.state, ctx.spec, ctx.issue.number,
             ),
         )

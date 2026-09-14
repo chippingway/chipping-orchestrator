@@ -13,6 +13,7 @@ from importlib.util import find_spec
 from orchestrator.git import worktrees as _worktrees_package
 from tests.git.inventory_test_support import inventory_modules
 
+_ANCHORING = 'anchoring'
 _ATTRIBUTION = 'attribution'
 _BRANCH_PROBES = 'branch_probes'
 _CHECKOUT_ATTRIBUTION = 'checkout_attribution'
@@ -27,6 +28,7 @@ _EVIDENCE = 'evidence'
 _INVENTORY = 'inventory'
 _MAINTENANCE = 'maintenance'
 _MODELS = 'models'
+_NAMING = 'naming'
 _PATHS = 'paths'
 _PROBES = 'probes'
 _RECLAIM = 'reclaim'
@@ -48,6 +50,7 @@ _ABSENT_TARGETS = (_AGGREGATE_HUB, _LIFECYCLE_SPELLING)
 
 _MODULES = (
     "orchestrator.git.worktrees",
+    "orchestrator.git.worktrees.anchoring",
     "orchestrator.git.worktrees.attribution",
     "orchestrator.git.worktrees.branch_probes",
     "orchestrator.git.worktrees.checkout_attribution",
@@ -62,6 +65,7 @@ _MODULES = (
     "orchestrator.git.worktrees.inventory",
     "orchestrator.git.worktrees.maintenance",
     "orchestrator.git.worktrees.models",
+    "orchestrator.git.worktrees.naming",
     "orchestrator.git.worktrees.paths",
     "orchestrator.git.worktrees.probes",
     "orchestrator.git.worktrees.reclaim",
@@ -200,9 +204,9 @@ _OWNER_DEFINED = (
     ("_REF_DELETE", _RECLAIM),
     ("_REF_SEPARATOR", _ATTRIBUTION),
     ("_REMOTE_BRANCH_PREFIX", _DISCOVERY),
-    ("_SAFE_CHAR", _PATHS),
-    ("_SLUG_DIGEST_LEN", _PATHS),
-    ("_SLUG_SAFE_RE", _PATHS),
+    ("_SAFE_CHAR", _NAMING),
+    ("_SLUG_DIGEST_LEN", _NAMING),
+    ("_SLUG_SAFE_RE", _NAMING),
     ("_VERIFY_QUIETLY", _EVIDENCE),
     ("_VERIFY_REF", _CREATION),
     ("_WORKTREE_ADD", _CREATION),
@@ -213,18 +217,19 @@ _OWNER_DEFINED = (
     ("_WORKTREE_REMOVE_FORCE", _CREATION),
     ("_activity_reason", _MAINTENANCE),
     ("_all_worktrees_accounted", _EVIDENCE),
-    ("_anchor_pr_worktree", _CREATION),
-    ("_anchor_target", _CREATION),
+    ("_anchor_pr_worktree", _ANCHORING),
+    ("_anchor_target", _ANCHORING),
     ("_answered", _MAINTENANCE),
     ("_artifact_reading", _ELIGIBILITY),
     ("_artifact_verdict", _ELIGIBILITY),
     ("_attributed_issues", _ATTRIBUTION),
     ("_attributed_legacy", _INVENTORY),
+    ("_base_anchor", _ANCHORING),
     ("_base_contains", _EVIDENCE),
     ("_branch_attribution", _ATTRIBUTION),
     ("_branch_commit_count", _RECOVERY),
     ("_branch_has_unpushed_commits", _RECOVERY),
-    ("_branch_name", _PATHS),
+    ("_branch_name", _NAMING),
     ("_branch_reasons", _ELIGIBILITY),
     ("_branch_retentions", _ELIGIBILITY),
     ("_branch_tip", _ELIGIBILITY),
@@ -268,7 +273,7 @@ _OWNER_DEFINED = (
     ("_ensure_decompose_worktree", _DECOMPOSITION),
     ("_ensure_pr_worktree", _CREATION),
     ("_ensure_worktree", _CREATION),
-    ("_fetch_for_restore", _CREATION),
+    ("_fetch_for_restore", _ANCHORING),
     ("_fetched_issue", _CLAIMS),
     ("_file_claim", _INVENTORY),
     ("_group_published", _DISCOVERY),
@@ -278,6 +283,7 @@ _OWNER_DEFINED = (
     ("_head_ref", _EVIDENCE),
     ("_held_checkouts", _INVENTORY),
     ("_issue_artifacts", _INVENTORY),
+    ("_issue_branch_names", _NAMING),
     ("_issue_checkout_number", _PROBES),
     ("_issue_segment_number", _PATHS),
     ("_issue_worktree_paths", _PATHS),
@@ -287,6 +293,7 @@ _OWNER_DEFINED = (
     ("_legacy_checkout_claim", _CHECKOUT_ATTRIBUTION),
     ("_legacy_checkout_numbers", _PROBES),
     ("_legacy_claim", _INVENTORY),
+    ("_legacy_branch_name", _NAMING),
     ("_legacy_names", _DISCOVERY),
     ("_legacy_worktree_path", _PATHS),
     ("_local_branch_tip", _EVIDENCE),
@@ -297,7 +304,7 @@ _OWNER_DEFINED = (
     ("_maintenance_candidates", _DISCOVERY),
     ("_matching_owners", _ATTRIBUTION),
     ("_merged", _INVENTORY),
-    ("_move_branch_onto", _CREATION),
+    ("_move_branch_onto", _ANCHORING),
     ("_nothing_ignored", _EVIDENCE),
     ("_open_pull_request_retentions", _CLAIMS),
     ("_pr_branch_start_point", _CREATION),
@@ -319,19 +326,19 @@ _OWNER_DEFINED = (
     ("_remove_recognized_worktree", _RECLAIM),
     ("_repo_worktrees_root", _PATHS),
     ("_report_unsettled", _CHECKOUT_ATTRIBUTION),
-    ("_resolve_branch_name", _PATHS),
-    ("_resolved_commit", _CREATION),
+    ("_resolve_branch_name", _NAMING),
+    ("_resolved_commit", _ANCHORING),
     ("_resolved_root", _INVENTORY),
     ("_resolved_tip", _EVIDENCE),
     ("_root_inventory", _INVENTORY),
     ("_run_decompose_worktree_removal", _DECOMPOSITION),
     ("_run_issue_worktree_removal", _CLEANUP),
     ("_run_local_branch_deletion", _CLEANUP),
-    ("_sanitize_branch_segment", _PATHS),
-    ("_sanitize_slug", _PATHS),
+    ("_sanitize_branch_segment", _NAMING),
+    ("_sanitize_slug", _NAMING),
     ("_scanned", _INVENTORY),
     ("_shared_repository", _EVIDENCE),
-    ("_slug_digest", _PATHS),
+    ("_slug_digest", _NAMING),
     ("_slugs_by_worktrees_root", _CHECKOUT_ATTRIBUTION),
     ("_spec_inventory", _INVENTORY),
     ("_specs_by_clone", _INVENTORY),
@@ -344,6 +351,7 @@ _OWNER_DEFINED = (
     ("_take_remote_branch", _MAINTENANCE),
     ("_terminal_retentions", _CLAIMS),
     ("_tip_retentions", _ELIGIBILITY),
+    ("_unanchorable_branch_reading", _ANCHORING),
     ("_widened", _DISCOVERY),
     ("_workflow_members", _CLAIMS),
     ("_worktree_issue_numbers", _PROBES),
@@ -353,6 +361,7 @@ _OWNER_DEFINED = (
 # The owners that report, each binding the channel an operator's level and
 # handler selection is keyed on.
 _REPORTING_OWNERS = (
+    _ANCHORING,
     _ATTRIBUTION, _BRANCH_PROBES, _CHECKOUT_ATTRIBUTION, _CLAIMS, _CLEANUP,
     _COMMIT_CLAIMS, _CREATION, _DECOMPOSITION, _DISCOVERY, _EVIDENCE, _INVENTORY,
     _MAINTENANCE, _PROBES, _RECLAIM, _TERMINAL,

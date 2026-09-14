@@ -20,7 +20,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.git.verification.probes import _WorktreeStatus
+from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.implementing import (
     late_authorship as _authorship,

@@ -32,7 +32,7 @@ import logging
 
 from orchestrator import config
 from orchestrator.agents import AgentResult
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
 from orchestrator.workflow.engine import agent_diagnostics as _agent_diagnostics, guards as _guards, usage as _usage
 from orchestrator.workflow.stages.question import models as _models, run as _run, state as _state
@@ -80,7 +80,7 @@ def _assess_question_worktree(
         return _models._QuestionOutcome(_state._QUESTION_COMMITS, True)
 
     dirty_files = tuple(
-        _verification_probes._worktree_dirty_files(worktree),
+        _worktree_status._worktree_dirty_files(worktree),
     )
     if dirty_files:
         return _models._QuestionOutcome(

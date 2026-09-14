@@ -38,7 +38,7 @@ from pathlib import Path
 from orchestrator import config
 from orchestrator.agents import AgentResult
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import comments as _comments, prompts as _prompts
 from orchestrator.workflow.stages.implementing import resume as _dev_resume
 from orchestrator.workflow.stages.validating import models as _models, recovery as _recovery, state as _state
@@ -182,7 +182,7 @@ def _run_awaiting_dev(
         worktree = _worktree_creation._ensure_worktree(
             context.spec,
             context.issue.number,
-            branch=_worktree_paths._resolve_branch_name(
+            branch=_naming._resolve_branch_name(
                 context.state, context.spec, context.issue.number,
             ),
         )

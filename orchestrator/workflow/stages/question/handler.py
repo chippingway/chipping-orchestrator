@@ -24,7 +24,7 @@ import contextlib
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths as _worktree_paths, terminal as _worktree_terminal
+from orchestrator.git.worktrees import naming as _naming, terminal as _worktree_terminal
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import usage as _usage
 from orchestrator.workflow.stages.question import models as _models, outcomes as _outcomes, run as _run
@@ -40,7 +40,7 @@ def _teardown_question_worktree(run: _models._QuestionRun) -> None:
     _worktree_terminal._cleanup_question_worktree(
         run.spec,
         run.issue.number,
-        branch=_worktree_paths._resolve_branch_name(
+        branch=_naming._resolve_branch_name(
             run.state, run.spec, run.issue.number,
         ),
     )

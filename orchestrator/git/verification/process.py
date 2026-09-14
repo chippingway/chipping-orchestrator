@@ -19,7 +19,12 @@ from contextlib import suppress
 from pathlib import Path
 
 from orchestrator.agents import process_groups as _process_groups
-from orchestrator.git.verification import models as _models, output as _output, probes as _probes
+from orchestrator.git.verification import (
+    models as _models,
+    output as _output,
+    probes as _probes,
+    status as _worktree_status,
+)
 
 _DRAIN_BUDGET_SECONDS = 5
 
@@ -116,7 +121,7 @@ def _completed_verify_result(
             exit_code=proc.returncode,
             output=_output._truncate_verify_output(combined_output),
         )
-    dirty_files = _probes._worktree_dirty_files(worktree)
+    dirty_files = _worktree_status._worktree_dirty_files(worktree)
     if dirty_files:
         return _models.VerifyResult(
             status="dirty",

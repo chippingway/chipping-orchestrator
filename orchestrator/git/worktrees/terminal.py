@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator import config
-from orchestrator.git.worktrees import cleanup, paths
+from orchestrator.git.worktrees import cleanup, naming as _naming
 from orchestrator.github.client import GitHubClient
 
 # The channel is named for the worktree-lifecycle domain rather than for
@@ -61,7 +61,7 @@ def _cleanup_question_worktree(
     `.git/config.lock` reason described on `_ensure_worktree`.
     """
     if branch is None:
-        branch = paths._branch_name(spec, issue_number)
+        branch = _naming._branch_name(spec, issue_number)
     cleanup._remove_issue_worktree(spec, issue_number, log_prefix="question ")
     cleanup._delete_local_issue_branch(
         spec, issue_number, branch, log_prefix="question ",
@@ -110,7 +110,7 @@ def _cleanup_terminal_branch(
     (no local git plumbing) and stays outside the lock.
     """
     if branch is None:
-        branch = paths._branch_name(spec, issue_number)
+        branch = _naming._branch_name(spec, issue_number)
 
     # Each helper contains its own exception boundary so a local failure
     # cannot skip the next cleanup surface.

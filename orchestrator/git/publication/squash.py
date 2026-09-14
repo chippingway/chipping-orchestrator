@@ -43,7 +43,7 @@ from __future__ import annotations
 from orchestrator import config
 from orchestrator.git.measurement import commits as measurement_commits
 from orchestrator.git.publication import models, planning, resume, rewrite, standing
-from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.verification import status as _worktree_status
 
 # The revision a checkout's own head is named by.
 _HEAD = "HEAD"
@@ -293,7 +293,7 @@ def _still_the_planned_checkout(gate, planned: str) -> tuple[bool, str]:
     """
     proved = measurement_commits._prove_candidate_commit(gate.worktree, _HEAD)
     unmoved = proved.is_frozen and proved.sha == planned
-    if unmoved and verification_probes._worktree_status(
+    if unmoved and _worktree_status._worktree_status(
         gate.worktree,
     ).is_clean:
         return True, ""

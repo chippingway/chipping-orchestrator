@@ -49,7 +49,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.git.worktrees import (
-    paths as _worktree_paths,
+    naming as _naming,
     recovery as _worktree_recovery,
 )
 from orchestrator.github.client import GitHubClient
@@ -123,7 +123,7 @@ def _handoff_unspent(
     if state.get(_state._HANDOFF_ANCHOR_SHA):
         return True
     tip = _worktree_recovery._branch_tip_sha(
-        spec, _worktree_paths._resolve_branch_name(state, spec, issue.number),
+        spec, _naming._resolve_branch_name(state, spec, issue.number),
     )
     if not tip:
         return None

@@ -16,7 +16,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git.measurement.models import FrozenCommit
-from orchestrator.git.verification.probes import _WorktreeStatus
+from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.stages.implementing import (
     late_command as _command,
     state as _state,

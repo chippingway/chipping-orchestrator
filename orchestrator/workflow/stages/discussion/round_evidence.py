@@ -30,7 +30,7 @@ with no disposition of its own is still classifiable a tick later.
 """
 from __future__ import annotations
 
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
     paths as _worktree_paths,
     recovery as _worktree_recovery,
@@ -42,18 +42,18 @@ from orchestrator.workflow.stages.discussion import models as _models, state as 
 # nothing to preserve, and no probe that could have failed to say so -- and the
 # reading a caller hands the blocked-resume park when what blocks it is a
 # commit rather than anything in the tree.
-_CLEAN_TREE = _verification_probes._WorktreeStatus(readable=True)
+_CLEAN_TREE = _worktree_status._WorktreeStatus(readable=True)
 
 # What a checkout that could not answer for itself reports, whichever of
 # the two reads failed: a tree `git status` could not report on and a
 # `HEAD` that would not resolve are both checkouts nothing here has
 # established anything about, and the callers hold on either.
-_UNREADABLE_TREE = _verification_probes._WorktreeStatus(readable=False)
+_UNREADABLE_TREE = _worktree_status._WorktreeStatus(readable=False)
 
 
 def _stranded_worktree_state(
     run: _models._DiscussionRun,
-) -> _verification_probes._WorktreeStatus:
+) -> _worktree_status._WorktreeStatus:
     """What the checkout was holding before this round could open, if anything.
 
     Every park this stage writes suppresses the next tick, so work waiting in
@@ -82,7 +82,7 @@ def _stranded_worktree_state(
     worktree = _worktree_paths._worktree_path(run.spec, run.issue.number)
     if not worktree.exists():
         return _CLEAN_TREE
-    return _verification_probes._worktree_status(worktree)
+    return _worktree_status._worktree_status(worktree)
 
 
 def _round_anchor_moved(run: _models._DiscussionRun) -> bool | None:

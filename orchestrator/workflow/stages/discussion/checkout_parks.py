@@ -23,7 +23,7 @@ the dirty one would go looking for changes that were never named.
 from __future__ import annotations
 
 from orchestrator import config
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.stages.discussion import (
     models as _models,
     park_messages as _park_messages,
@@ -47,7 +47,7 @@ def _park_dirty_discussion(
 
 
 def _park_stranded_worktree(
-    run: _models._DiscussionRun, stranded: _verification_probes._WorktreeStatus,
+    run: _models._DiscussionRun, stranded: _worktree_status._WorktreeStatus,
 ) -> None:
     """Park on a checkout no round may open over, instead of recreating it.
 
@@ -148,7 +148,7 @@ def _park_foreign_commit(run: _models._DiscussionRun) -> None:
 
 
 def _park_blocked_resume(
-    run: _models._DiscussionRun, stranded: _verification_probes._WorktreeStatus,
+    run: _models._DiscussionRun, stranded: _worktree_status._WorktreeStatus,
 ) -> None:
     """Report a reply that cannot be answered until the checkout is restored.
 

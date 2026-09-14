@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming
 from tests.git.worktrees.path_test_support import (
     BRANCH_KEY,
     LEGACY_BRANCH,
@@ -36,7 +36,7 @@ class ResolveBranchNamePinnedTest(unittest.TestCase):
         spec = _migration_spec()
         state = _state({BRANCH_KEY: LEGACY_BRANCH})
         self.assertEqual(
-            paths._resolve_branch_name(state, spec, 7),
+            _naming._resolve_branch_name(state, spec, 7),
             LEGACY_BRANCH,
         )
 
@@ -44,7 +44,7 @@ class ResolveBranchNamePinnedTest(unittest.TestCase):
         spec = _migration_spec()
         state = _state({})
         self.assertEqual(
-            paths._resolve_branch_name(state, spec, 7),
+            _naming._resolve_branch_name(state, spec, 7),
             NAMESPACED_BRANCH,
         )
 
@@ -58,7 +58,7 @@ class ResolveBranchNamePinnedTest(unittest.TestCase):
         spec = _migration_spec()
         state = _state({BRANCH_KEY: "feature/foreign-branch"})
         self.assertEqual(
-            paths._resolve_branch_name(state, spec, 7),
+            _naming._resolve_branch_name(state, spec, 7),
             NAMESPACED_BRANCH,
         )
 
@@ -72,7 +72,7 @@ class ResolveBranchNamePinnedTest(unittest.TestCase):
             }
         )
         self.assertEqual(
-            paths._resolve_branch_name(state, spec, 9),
+            _naming._resolve_branch_name(state, spec, 9),
             "orchestrator/chippingway__orchestrator/issue-9",
         )
 
@@ -81,7 +81,7 @@ class ResolveBranchNamePinnedTest(unittest.TestCase):
         for bad in (None, PR_NUMBER, [LEGACY_BRANCH]):
             state = _state({BRANCH_KEY: bad})
             self.assertEqual(
-                paths._resolve_branch_name(state, spec, 7),
+                _naming._resolve_branch_name(state, spec, 7),
                 NAMESPACED_BRANCH,
                 f"bad pinned value {bad!r} did not fall back",
             )
@@ -101,7 +101,7 @@ class ResolveBranchNamePrMigrationTest(unittest.TestCase):
         spec = _migration_spec()
         state = _state({PR_NUMBER_KEY: PR_NUMBER})
         self.assertEqual(
-            paths._resolve_branch_name(state, spec, 7),
+            _naming._resolve_branch_name(state, spec, 7),
             LEGACY_BRANCH,
         )
 
@@ -119,7 +119,7 @@ class ResolveBranchNamePrMigrationTest(unittest.TestCase):
             }
         )
         self.assertEqual(
-            paths._resolve_branch_name(state, spec, 7),
+            _naming._resolve_branch_name(state, spec, 7),
             LEGACY_BRANCH,
         )
 
@@ -136,7 +136,7 @@ class ResolveBranchNamePrMigrationTest(unittest.TestCase):
             }
         )
         self.assertEqual(
-            paths._resolve_branch_name(state, spec, 7),
+            _naming._resolve_branch_name(state, spec, 7),
             NAMESPACED_BRANCH,
         )
 
@@ -153,12 +153,12 @@ class IssueBranchNamesTest(unittest.TestCase):
 
     def test_it_names_the_current_and_legacy_forms(self) -> None:
         self.assertEqual(
-            paths._issue_branch_names(_migration_spec(), 7),
+            _naming._issue_branch_names(_migration_spec(), 7),
             (NAMESPACED_BRANCH, LEGACY_BRANCH),
         )
 
     def test_another_repos_branch_is_not_listed(self) -> None:
-        names = paths._issue_branch_names(_migration_spec(), 7)
+        names = _naming._issue_branch_names(_migration_spec(), 7)
 
         self.assertNotIn("orchestrator/other-repository/issue-7", names)
 
@@ -169,8 +169,8 @@ class IssueBranchNamesTest(unittest.TestCase):
         spec = _migration_spec()
 
         self.assertIn(
-            paths._resolve_branch_name(_state(), spec, 7),
-            paths._issue_branch_names(spec, 7),
+            _naming._resolve_branch_name(_state(), spec, 7),
+            _naming._issue_branch_names(spec, 7),
         )
 
 

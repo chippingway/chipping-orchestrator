@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
@@ -122,7 +122,7 @@ def _accepted_push_landed(context: _LateContext, worktree) -> bool:
         _late_records._gate(
             context.gh, context.spec, context.issue, context.state, worktree,
         ),
-        _worktree_paths._resolve_branch_name(
+        _naming._resolve_branch_name(
             context.state, context.spec, context.issue.number,
         ),
     ):

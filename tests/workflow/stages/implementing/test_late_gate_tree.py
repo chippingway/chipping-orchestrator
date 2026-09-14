@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.git.verification.probes import _WorktreeStatus
+from orchestrator.git.verification.status import _WorktreeStatus
 from tests.workflow.fixtures import LABEL_VALIDATING, MEASURED_CANDIDATE_SHA
 from tests.workflow.stages.implementing import late_gate_test_support as support
 

@@ -23,8 +23,8 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git.base_sync import pre_pr as _base_sync_pre_pr
-from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import guards as _guards, messages as _messages
 from orchestrator.workflow.stages.conflicts import models as _models, transitions as _transitions
 from orchestrator.workflow.stages.implementing import (
@@ -71,7 +71,7 @@ def _post_conflict_resolution_result(
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 
-    dirty = _verification_probes._worktree_dirty_files(wt)
+    dirty = _worktree_status._worktree_dirty_files(wt)
     if dirty:
         _dev_parks._on_dirty_worktree(
             ctx.gh, ctx.issue, ctx.state, run.dev_result, dirty,
@@ -160,7 +160,7 @@ def _finalize_conflict_resolution(
     fetched at. Left to the reading taken afterwards, a push that landed
     while the agent was out would become the lease this force-push replaces.
     """
-    branch = _worktree_paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         ctx.state, ctx.spec, ctx.issue.number,
     )
     published = _late_push._publishes(

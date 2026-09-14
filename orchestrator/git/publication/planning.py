@@ -24,7 +24,7 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.git import commands
 from orchestrator.git.publication import titles
-from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.verification import probes as verification_probes, status as _worktree_status
 
 
 class _SquashPreparationError(RuntimeError):
@@ -143,7 +143,7 @@ def _prepare_squash(
     original_head = verification_probes._head_sha(worktree)
     if not original_head:
         raise _SquashPreparationError("could not read original HEAD")
-    if verification_probes._worktree_dirty_files(worktree):
+    if _worktree_status._worktree_dirty_files(worktree):
         raise _SquashPreparationError("worktree has uncommitted changes")
     count = _squash_commit_count(worktree, base_sha)
     subjects = _squash_subjects(worktree, base_sha)

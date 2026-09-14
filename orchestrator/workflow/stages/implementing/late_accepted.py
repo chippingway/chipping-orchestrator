@@ -17,7 +17,7 @@ import logging
 from pathlib import Path
 
 from orchestrator.git.measurement import commits as _measurement_commits
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.stages.implementing import (
     late_parks as _parks,
     late_publication as _publication_gate,
@@ -131,7 +131,7 @@ def _standing_on(worktree: Path, approved: str) -> bool:
     one reading that decides whether an accepted commit may be handed on is
     spelled once.
     """
-    if not _verification_probes._worktree_status(worktree).is_clean:
+    if not _worktree_status._worktree_status(worktree).is_clean:
         log.error(
             "the checkout at %s is not provably clean; refusing to publish "
             "the accepted commit %s from it", worktree, approved,

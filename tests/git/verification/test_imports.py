@@ -16,6 +16,7 @@ _MODULES = (
     "orchestrator.git.verification.models",
     "orchestrator.git.verification.output",
     "orchestrator.git.verification.probes",
+    "orchestrator.git.verification.status",
     "orchestrator.git.verification.process",
     "orchestrator.git.verification.runner",
 )
@@ -41,6 +42,7 @@ _RESULT_OWNERS = (
     "orchestrator.git.verification.models",
     "orchestrator.git.verification.output",
     "orchestrator.git.verification.probes",
+    "orchestrator.git.verification.status",
 )
 
 _SUBPROCESS_OWNERS = (

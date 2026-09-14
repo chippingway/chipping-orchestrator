@@ -142,7 +142,7 @@ from dataclasses import replace
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import (
     client as _client,
     comments as _github_comments,
@@ -1141,7 +1141,7 @@ def _superseded_branch(
             "is", issue.number,
         )
         return generation
-    branch = _worktree_paths._resolve_branch_name(state, spec, issue.number)
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
     log.warning(
         "issue=#%d was cancelled between the supersession of its held PR and "
         "the write that records the branch it superseded; taking %r on as "

@@ -626,29 +626,31 @@ orchestrator/
     verification/       what a verify run is, and the reads a checkout is judged by
       models.py         the `VerifyResult` statuses and fields, and the output budget
       output.py         the redact-then-truncate pass over captured verify output
-      probes.py         the HEAD reads, the porcelain status in both its answers (the paths, whether git could be
+      probes.py         HEAD and branch identity, committed-path and regular-file reads, object presence and
+                        ancestry. Object presence accepts caller-owned environment pins so a partial clone can
+                        distinguish objects already in its store from those a promisor remote could supply
+      status.py         the porcelain status in both its answers (the paths, whether git could be
                         asked, and the `is_clean` a caller whose next step is a push asks instead of truth-testing
                         the list) -- taken without optional locks, so asking what a tree holds does not refresh
                         and rewrite its index -- the ignored-path read beside it, which is what git leaves out of
                         every one of those and out of its own refusal to remove a dirty worktree, so a caller
                         about to DELETE a tree can be told about the `.env` a caller about to publish rightly
-                        passes over, and the two a named commit is judged by — the presence read taking a
-                        caller's own environment pins, since in a partial clone "here" means one thing to a
-                        caller about to fetch the object and another to one saying whether the store already
-                        held it
+                        passes over. Suppressed index entries make the status unproven even when porcelain
+                        reports no paths; NUL-delimited parsing preserves rename sources and unusual filenames
       process.py        one command's group spawn / kill / drain and its verdict
       runner.py         the stripped child environment and the fail-fast command sequencing
     worktrees/          the per-issue checkouts an agent runs in, the read-only inventory of which issues they
                         and the branches beside them name, the classification of which of those may be
                         reclaimed, and the bounded pass that spends one of those classifications
-      paths.py          slug sanitization, git-ref-safe branch segments, path, branch, and pinned/legacy
-                        resolution, the exact set of names one issue's branch can be published under and the two
-                        paths it can have been checked out at -- the per-repository one written now and the flat
+      naming.py         slug sanitization, git-ref-safe branch segments, and pinned or legacy branch resolution:
+                        the exact set of names one issue's branch can be published under
+      paths.py          the two paths an issue can have been checked out at -- the per-repository one and the flat
                         one that predates the slug in the path -- and the
                         `issue-<n>` read that runs back the other way -- canonical spellings only, so a padded or
                         signed number is no issue at all
-      creation.py       issue and PR worktree creation, stale-worktree reuse and the probe it turns on, and the one
-                        move that re-anchors a reused checkout onto a PR head or its merged base
+      creation.py       issue and PR worktree creation, stale-worktree reuse and the unpushed-commit probe it turns on
+      anchoring.py      the shared restore fetch and the guarded move that re-anchors a reused checkout onto a PR
+                        head or its merged base, with the target-root lock held across refresh and movement
       cleanup.py        lock-held worktree removal and local branch deletion, each behind its best-effort boundary,
                         plus the fail-closed read a caller that has to RECORD the teardown asks afterwards
       recovery.py       candidate-branch discovery, the unpushed-commit probe, and the tip read a recorded SHA is
@@ -823,7 +825,7 @@ off a facade:
   verification probes; `resume` calls `rewrite` and reaches the gate through the one hop that owner spells;
   `standing` calls `resume` for the ancestry read and reaches the gate through that same hop; `squash` calls
   `planning`, `resume`, `rewrite`, and `standing`.
-- `verification/` — `output` calls `models`, `process` calls `output` and `probes`, and `runner` calls `process`.
+- `verification/` — `output` calls `models`, `process` calls `output` and `status`, and `runner` calls `process`.
   Both subprocess owners reach the agent package for what a spawned child costs rather than keeping a second copy:
   `process` takes the bounded drain from `agents/process_groups.py`, and `runner` takes that same drain, the
   registry the shutdown sweep reads from `agents/processes.py`, and the stripped child environment a verify shell
@@ -841,19 +843,20 @@ off a facade:
   hardened local resolution that proves what the fetch brought. `mirrors` reaches `commands`, `locks`, and
   `worktrees.paths` for the local copy and its repository-qualified name. The workflow decides WHEN a snapshot is
   taken and what its absence costs; this package decides only what a snapshot ref IS and refuses everything outside it.
-- `worktrees/` — the creators call `commands`, `locks`, `branch_transport`, and their `paths` / `recovery` siblings;
+- `worktrees/` — the creators call `commands`, `locks`, `branch_transport`, and their `paths`, `naming`, `anchoring`,
+  and `recovery` siblings. `anchoring` reads branch transport and moves the checkout under the target-root lock;
   `decomposition` resolves its own path helper; `terminal` composes its local teardown from `cleanup`. The read-only
   scan sits on the same owners: `inventory` calls `branch_probes`, `probes`, `attribution`, and
   `checkout_attribution`, and `paths` itself for the checkout path it hands back; `probes`, `attribution`, and
-  `checkout_attribution` reach `paths` too, for the names they compare against, and only the two probe owners reach
-  `commands` — `branch_probes` the `locks` its listing is taken under as well.
+  `checkout_attribution` reach `paths` and `naming` for the names they compare against. Only the two probe owners
+  reach `commands` — `branch_probes` the `locks` its listing is taken under as well.
   `models` carries only data. Nothing in the scan writes, fetches, or names GitHub, which is what lets a caller take
   it at any point in a tick. The classification over it keeps that split visible:
   `evidence` calls `commands`, `locks`, `paths`, `probes` for the clone-identity read the scan owns, both
   `git/verification/` tree reads (the status one, and the
   ignored-path one git leaves out of it and out of its own refusal to remove a dirty worktree), and
   `branch_transport` for the one question a local ref may not answer — what the remote says a branch is at;
-  `claims` names GitHub and reaches `paths` for the branch names it asks GitHub about rather than for anything on
+  `claims` names GitHub and reaches `naming` for the branch names it asks GitHub about rather than for anything on
   disk; `commit_claims` names GitHub alone, since the commit it asks about is handed to it; `eligibility` calls all
   three and nothing else. None of the four writes anything, on the host or on GitHub.
   The pass over them is where that stops, and only its own step owner writes: `discovery` calls `inventory`,

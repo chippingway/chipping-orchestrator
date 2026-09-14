@@ -29,7 +29,7 @@ from __future__ import annotations
 from github.Issue import Issue
 
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github.comments import filter_trusted
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -89,7 +89,7 @@ def _drift_worktree(ctx: _models._InReviewContext):
     if not wt.exists():
         wt = _worktree_creation._ensure_worktree(
             ctx.spec, ctx.issue.number,
-            branch=_worktree_paths._resolve_branch_name(
+            branch=_naming._resolve_branch_name(
                 ctx.state, ctx.spec, ctx.issue.number,
             ),
         )

@@ -23,7 +23,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.observability.analytics import settings as _analytics_settings
 
 ISSUE_NUMBER = 9
@@ -120,7 +120,7 @@ class ApprovedCheckoutMixin:
             target_root=tmpdir / "target",
             base_branch=BASE_BRANCH,
         )
-        branch = _worktree_paths._branch_name(spec, ISSUE_NUMBER)
+        branch = _naming._branch_name(spec, ISSUE_NUMBER)
         self._seeds_the_base(spec, tmpdir)
         self._seeds_the_branch(spec, branch)
         path = self._adds_the_worktree(spec, branch)

@@ -17,7 +17,7 @@ from orchestrator.git.base_sync import (
     recovery,
     snapshot,
 )
-from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from tests.git.base_sync import base_sync_helpers as fixtures
 from tests.git.base_sync.gate_reads_support import _gate_candidates, _gate_reads
 from tests.git.base_sync.refresh_test_support import MOVED_CHECKOUT_SHA
@@ -491,7 +491,7 @@ class RetryRecoveryPushTest(unittest.TestCase):
         with contextlib.ExitStack() as stack:
             stack.enter_context(
                 patch.object(
-                    verification_probes,
+                    _worktree_status,
                     DIRTY_FILES,
                     MagicMock(return_value=list(dirty)),
                 ),

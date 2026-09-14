@@ -32,8 +32,8 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.publication import probes as _publication_probes
-from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.pinned_state import PinnedState
 
 
@@ -66,9 +66,9 @@ def _stranded_fix_unpushed(
     as the lease and force-overwritten. A tip nothing could read is no head
     either, and refuses here rather than publishing against one.
     """
-    if _verification_probes._worktree_dirty_files(wt):
+    if _worktree_status._worktree_dirty_files(wt):
         return ""
-    branch = _worktree_paths._resolve_branch_name(state, spec, issue.number)
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
     fetch = _branch_transport._authed_fetch(
         spec,
         f"+refs/heads/{branch}:refs/remotes/{spec.remote_name}/{branch}",

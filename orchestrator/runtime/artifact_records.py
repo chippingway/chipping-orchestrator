@@ -49,7 +49,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.git.worktrees.models import (
     CandidateLayout,
     MaintenanceOutcome,
@@ -221,7 +221,7 @@ def _named_branch(answer: MaintenanceResult) -> str | None:
     if not _names_a_branch(answer):
         return None
     artifacts = answer.candidate.artifacts
-    published = paths._issue_branch_names(
+    published = _naming._issue_branch_names(
         artifacts.spec, artifacts.issue_number,
     )
     return next(
