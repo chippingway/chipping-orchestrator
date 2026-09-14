@@ -20,6 +20,8 @@
 #     followed by `up` does not lose history. `data/` is .gitignored.
 #   * The init directory is mounted read-only so the container cannot
 #     mutate the DDL on disk.
+#   * Bind sources must exist so a stale container cannot recreate its
+#     old bind directories and initialize an empty database there.
 
 services:
   analytics-db:
@@ -33,8 +35,17 @@ services:
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - ./data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d:ro
+      - type: bind
+        source: ./data
+        target: /var/lib/postgresql/data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./init
+        target: /docker-entrypoint-initdb.d
+        read_only: true
+        bind:
+          create_host_path: false
     healthcheck:
       test:
         - CMD-SHELL

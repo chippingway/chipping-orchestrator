@@ -312,7 +312,8 @@ skill catalog by default. The daily pass that reclaims a finished issue's worktr
 candidate it considers — what it did, why, and never a path, a command, or git's own output. Set `EVENT_LOG_PATH` when
 you also want an operator-owned audit JSONL file outside the repo.
 
-For dashboard views, start the local Postgres service (`(cd analytics-db && docker compose up -d)`), set
+For dashboard views,
+[prepare and start the local Postgres service](docs/observability/analytics-database.md#service-layout), set
 `ANALYTICS_DB_URL` in `.env`, then sync the JSONL sink into it and launch Streamlit:
 
 ```sh

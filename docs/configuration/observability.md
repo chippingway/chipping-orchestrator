@@ -102,11 +102,15 @@ Postgres or Streamlit, so deferring or disabling the dashboard never affects wor
 
 1. **Confirm the JSONL sink is producing records.** `ANALYTICS_LOG_PATH` defaults to `logs/analytics.jsonl`.
    `wc -l logs/analytics.jsonl` and `tail -1 logs/analytics.jsonl | python -m json.tool` sanity-check it.
-2. **Start the local Postgres service.** From `analytics-db/`, run `docker compose up -d`. The init script
+2. **Start the local Postgres service.** For a new database, the operator first creates `analytics-db/data/`;
+   an existing deployment must keep its data directory. Start the service from `analytics-db/` with
+   `docker compose up -d`. The init script
    ([`../../analytics-db/init/01-schema.sql`](../../analytics-db/init/01-schema.sql)) creates the `analytics_events`
    table on first start; the data volume lives at `analytics-db/data/` (gitignored). The port binding is pinned to
    `127.0.0.1` and credentials default to `orchestrator` / `orchestrator`; override `POSTGRES_PASSWORD` (and any
-   other field) in `analytics-db/.env` before exposing the port off-host or storing real data.
+   other field) in `analytics-db/.env` before exposing the port off-host or storing real data. Missing bind sources
+   fail startup. After moving the checkout, follow the
+   [container recreation steps](../observability/analytics-database.md#moving-or-renaming-the-checkout).
 3. **Point the orchestrator at the database.** Set `ANALYTICS_DB_URL` in `.env`:
 
    ```sh
