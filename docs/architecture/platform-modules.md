@@ -320,7 +320,12 @@ orchestrator/
                         records the `frozen` owner answers for, the read-only stages and the parks they leave
                         behind, and last -- because it is the only one that costs a read of the checkout -- the
                         commit a stage still owes a step, which is also where the label scope on the two
-                        freezes no write ever ends is applied
+                        freezes no write ever ends is applied. Beside them the one question the dispatcher asks
+                        of this owner: whether an auto-rebase anchor this refresh has not answered -- a pull
+                        request that would not read returns before its recovery runs -- holds the stage handler
+                        back, which it does only while the refresh can still reach it. A label the refresh does
+                        not drive, an issue it skips for any freeze above, and a park some stage left are each
+                        released by something other than the refresh, so holding any of them is a deadlock
       frozen.py         which records hold a checkout still and what ends each freeze: the ones that freeze a
                         branch by their presence -- the late reading, the approval, and the terms of a squash
                         mid-rewrite among them, each read as the whole GROUP its write puts down rather than as

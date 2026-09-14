@@ -303,7 +303,10 @@ measured commit and
 leased against that frozen head; a tree that is not provably clean, an unreadable or closed pull request, and a head
 that moved off the frozen one each park rather than push. A pair frozen and never counted is measured ahead of the
 handler on the next tick, by the dispatcher, on the stage the record names — and one whose checkout is not on this
-host stops the tick instead of letting the stage run over a candidate nobody read. Both roads that reconciliation
+host stops the tick instead of letting the stage run over a candidate nobody read. An auto-rebase anchor the base
+refresh left unanswered — a pull request that would not read returns before its recovery runs — holds the handler
+back the same way, on the labels the refresh drives, unless a freeze keeps the refresh away or a stage's own park
+stands, since neither of those is released by the refresh. Both roads that reconciliation
 takes end in a push, so an issue that is closed and a pull request that has merged or been closed are each handed back
 to the stage terminal ahead of it, with the generation, the receipt and the debt left exactly as they stand. Work that
 ends *after* the gate has read it — a close a poll latched, or a pull request somebody merged or closed in the window

@@ -25,7 +25,12 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator.git.base_sync import frozen as _frozen
-from orchestrator.git.base_sync.state import log
+from orchestrator.git.base_sync.state import (
+    _AUTO_REBASE_PARK_REASONS,
+    _PENDING_PUSH_SHA,
+    _PR_REFRESH_DETOUR_LABELS,
+    log,
+)
 from orchestrator.github import (
     client as _client,
     labels as _labels,
@@ -223,3 +228,55 @@ def _state_holds_the_branch(
         )
         return True
     return False
+
+
+def _recovery_holds_dispatch(
+    issue: Issue,
+    label: str | None,
+    state: _pinned_state.PinnedState,
+    worktree: Path,
+) -> bool:
+    """Whether an unfinished auto-rebase attempt holds this issue's handler.
+
+    The anchor is this refresh's to answer, and the refresh answers it ahead
+    of every handler -- but only on a tick that REACHES it. A pull request
+    that would not read, a base lag that would not count, an issue that would
+    not fetch: each returns before the recovery runs and leaves the anchor
+    exactly where it was. The handler behind the dispatcher then runs over a
+    checkout standing on a replay no push has published -- a reviewer spawned
+    on `validating`, a developer resumed on `fixing` -- which is precisely the
+    agent an interrupted rebase must not cost. So the dispatcher defers while
+    the anchor stands, and the next tick's refresh gets the recovery back.
+
+    Only while the refresh CAN get it back, because every other hold is a
+    deadlock. Three shapes are released by something other than the refresh,
+    and each of them lets the handler run:
+
+    * A label the refresh does not drive. The refresh answers an anchor there
+      without reading any pull request -- a clear, or the stranded park -- so
+      there is nothing transient for a hold to wait out.
+    * An issue the refresh skips outright, for any of the freezes above. Those
+      are records the dispatcher's own reconciliation answers, and it is
+      behind this question; held here, the record that keeps the refresh away
+      is never answered and the anchor is never reached.
+    * A park some STAGE left. The refresh leaves such a park intact rather than
+      rebasing past it, and only the handler that wrote it can take it down.
+
+    A park the refresh left is held like any other tick, since every stage
+    handler short-circuits on one anyway and the reply that releases it is the
+    refresh's own to recognize.
+
+    Asked of the label the dispatcher resolved rather than read again, so the
+    handler this holds back and the stage this reads are the same one.
+    """
+    if not state.get(_PENDING_PUSH_SHA):
+        return False
+    if label not in _PR_REFRESH_DETOUR_LABELS:
+        return False
+    if state.get("awaiting_human") and (
+        state.get("park_reason") not in _AUTO_REBASE_PARK_REASONS
+    ):
+        return False
+    return not _issue_skips_base_sync(
+        issue, int(issue.number), state, worktree,
+    )

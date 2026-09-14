@@ -1,0 +1,108 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""A tick whose base refresh could not reach an interrupted rebase.
+
+The refresh answers a pinned auto-rebase anchor ahead of every handler, but a
+pull request that would not read returns before its recovery runs. What is
+left for the dispatcher is an issue standing on a replay no push published,
+with a handler about to spawn an agent over it -- and the boundary pinned here
+is that the tick stops there, while a park its own stage owns still reaches
+the handler that can release it.
+"""
+from __future__ import annotations
+
+import unittest
+from unittest.mock import patch
+
+from orchestrator.git.base_sync import pr as _pr
+from orchestrator.workflow.engine import dispatch
+from orchestrator.workflow.state import WorkflowLabel
+from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC
+
+ISSUE = 7
+
+PR_NUMBER = 42
+
+ANCHOR = "be40e5ba" * 5
+
+ANCHOR_KEY = "pending_auto_base_rebase_push_sha"
+
+VALIDATING = WorkflowLabel.VALIDATING
+
+# The refresh's own read of the pull request, failing the way a transient
+# GitHub error does.
+_UNREADABLE_PR = RuntimeError("502 from GitHub")
+
+
+class _InterruptedRebaseCase(unittest.TestCase):
+    """A `validating` issue whose rebase died before its grant or its push.
+
+    The attempt pinned its anchor and the terms it was made under, and got no
+    further than that: no permission, no debt, no generation -- nothing the
+    dispatcher's reconciliation would ever stop a tick for on its own.
+    """
+
+    def setUp(self) -> None:
+        self.gh = FakeGitHubClient()
+        self.issue = make_issue(ISSUE, label=str(VALIDATING))
+        self.gh.add_issue(self.issue)
+
+    def _seed(self, **pinned) -> None:
+        self.gh.seed_state(
+            ISSUE,
+            pr_number=PR_NUMBER,
+            branch="orchestrator/acme__widget/issue-7",
+            pending_auto_base_rebase_push_sha=ANCHOR,
+            pending_auto_base_rebase_rewrite_pr=PR_NUMBER,
+            pending_auto_base_rebase_rewrite_stage=str(VALIDATING),
+            **pinned,
+        )
+
+    def _refreshes_with_an_unreadable_pr(self) -> None:
+        """The refresh pass that returns before its recovery can run."""
+        with patch.object(self.gh, "get_pr", side_effect=_UNREADABLE_PR):
+            _pr._sync_pr_worktree_to_base(
+                self.gh, _TEST_SPEC, self.issue,
+                self.gh.read_pinned_state(self.issue), _FAKE_WT, PR_NUMBER, 0,
+            )
+
+    def _stops(self) -> bool:
+        """Whether the dispatcher stops this tick short of its handler."""
+        return dispatch._record_stops_the_tick(
+            self.gh, _TEST_SPEC, self.issue, VALIDATING,
+            self.gh.read_pinned_state(self.issue),
+        )
+
+
+class DeferredRecoveryTest(_InterruptedRebaseCase):
+    """The tick the refresh could not finish is not handed to a reviewer."""
+
+    def test_an_unanswered_anchor_stops_the_tick(self) -> None:
+        self._seed()
+        self._refreshes_with_an_unreadable_pr()
+
+        # The refresh left the anchor exactly where the crash did...
+        pinned = self.gh.pinned_data(ISSUE)
+        self.assertEqual(pinned.get(ANCHOR_KEY), ANCHOR)
+        # ...and the dispatcher defers to it rather than spawning the
+        # reviewer over a replay no push has published.
+        self.assertTrue(self._stops())
+
+    def test_without_one_the_handler_runs(self) -> None:
+        # What says the stop above is the anchor's and nothing else's.
+        self.gh.seed_state(ISSUE, pr_number=PR_NUMBER)
+
+        self.assertFalse(self._stops())
+
+    def test_a_park_its_stage_owns_is_not_deadlocked(self) -> None:
+        # The refresh leaves a stage's park intact rather than rebasing past
+        # it, so holding the handler that can release it would hold for good.
+        self._seed(awaiting_human=True, park_reason="review_cap")
+        self._refreshes_with_an_unreadable_pr()
+
+        self.assertFalse(self._stops())
+
+
+if __name__ == "__main__":
+    unittest.main()

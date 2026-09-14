@@ -139,6 +139,11 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             stage's handler, the reading owed for a size-gate pair frozen and never counted --
                             taken ahead of the handler that would otherwise run against a pull request still
                             standing where the gate froze it, and only on the stage the record itself names --
+                            the hold an auto-rebase anchor the base refresh left unanswered puts on every stage it
+                            drives -- a pull request that would not read returns before its recovery runs, and the
+                            handler would otherwise spawn an agent over a replay no push published -- lifted for an
+                            issue that refresh skips for a freeze and for a park some stage left, since neither is
+                            released by the refresh --
                             the hold an issue that has spent its whole lifetime agent-run allowance gets, taken
                             once here rather than taught to thirteen handlers because `awaiting_human` means a
                             different road on each of them and none of those buys back a run (it replays the

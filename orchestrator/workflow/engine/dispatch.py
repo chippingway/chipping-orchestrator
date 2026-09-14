@@ -127,6 +127,8 @@ from types import MappingProxyType
 from github.Issue import Issue
 
 from orchestrator import config
+from orchestrator.git.base_sync import refresh_selection as _refresh_selection
+from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     _ISSUE_STATE_CLOSED,
@@ -573,19 +575,40 @@ def _record_stops_the_tick(
     label: str | None,
     state,
 ) -> bool:
-    """The three the read answers once a live cycle has been established.
+    """What the read answers once a live cycle has been established.
 
     Split from the questions above it because those decide whether there is a
     cycle to ask about at all: a cancelled or reclaimed record stops the tick
     whatever the label says, and only past them does the label mean what it
-    reads. Each owner below is imported at call time for the reason the ones
-    above are -- the stage tree imports this module back.
+    reads. Each stage owner below is imported at call time for the reason the
+    ones above are -- the stage tree imports this module back.
+
+    An auto-rebase anchor the base refresh has not answered is asked second,
+    ahead of the reconciliation, and it is the one question here that is not
+    a late record's. The refresh settles an interrupted rebase before any
+    handler runs, but a pull request that would not read returns before its
+    recovery does -- and the handler this dispatcher is about to reach would
+    spawn an agent over a replay no push has published. Whether that holds
+    the tick, and the freezes and parks under which holding it would be a
+    deadlock instead, are the refresh selection's to say; it sits below this
+    layer, so it is bound at module scope.
     """
     late_relabel = importlib.import_module(_LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
         log.warning(
             "repo=%s issue=#%s was relabelled %r while its committed candidate "
             "was under adjudication; not dispatching it",
+            spec.slug, issue.number, label,
+        )
+        return True
+    if _refresh_selection._recovery_holds_dispatch(
+        issue, label, state,
+        _worktree_paths._worktree_path(spec, issue.number),
+    ):
+        log.info(
+            "repo=%s issue=#%s carries an auto-rebase anchor the base refresh "
+            "has not answered yet; holding the %r handler so no agent runs "
+            "over an unpublished replay",
             spec.slug, issue.number, label,
         )
         return True

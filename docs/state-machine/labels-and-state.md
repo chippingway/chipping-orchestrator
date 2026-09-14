@@ -1245,7 +1245,12 @@ The keys that matter for the state machine fall into a few groups:
   committed work to publish either way at that point — so the freeze ends with the stage that needed it rather than
   following the issue through review.
   `pending_auto_base_rebase_push_sha` — set to the pre-rebase local HEAD immediately BEFORE
-  `_rebase_base_into_worktree`; cleared on every exit that leaves the branch where the attempt found it. A non-empty
+  `_rebase_base_into_worktree`; cleared on every exit that leaves the branch where the attempt found it. While it
+  stands on a label the refresh drives, the dispatcher holds the stage handler back
+  (`refresh_selection._recovery_holds_dispatch`): a refresh that could not reach the recovery — a pull request that
+  would not read — would otherwise hand a reviewer or a developer a replay no push has published. The hold is lifted
+  for an issue the refresh skips for a freeze and for a park some stage left, since neither is released by the
+  refresh and holding either would never end. A non-empty
   value on entry means a previous tick rebased and died
   before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
   head, or park. The no-op is for an attempt that pinned the anchor and got no further: a checkout back on it with a
