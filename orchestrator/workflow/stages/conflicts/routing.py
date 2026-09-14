@@ -49,6 +49,7 @@ from orchestrator.workflow.stages.conflicts import (
     divergence as _divergence,
     guards as _guards,
     models as _models,
+    parks as _conflict_parks,
     rebase as _rebase,
     resume as _resume,
     state as _state,
@@ -161,7 +162,7 @@ def _unreadable_divergence(
         "stands from %s; refusing to rebase or push over a branch nothing "
         "compared", ctx.issue.number, remote_ref,
     )
-    _transitions._park_conflict(
+    _conflict_parks._park_conflict(
         ctx,
         f"{config.HITL_MENTIONS} how far this issue's worktree stands from "
         f"`{remote_ref}` could not be read, so no rebase was run and nothing "
@@ -292,7 +293,7 @@ def _resumes_the_dev(
     Which of the two a human actually asked for is `_resumed` below.
     """
     if not _worktree_status._worktree_status(sync.worktree).readable:
-        _transitions._park_unreadable_worktree(ctx)
+        _conflict_parks._park_unreadable_worktree(ctx)
         return True
     return _resumed(ctx, pr, pr_number, conflict_round, sync)
 
@@ -348,7 +349,7 @@ def _resumed(
     if edited is not None and sync.ahead <= 0:
         _resume._resume_on_user_content_change(ctx, pr_number, edited)
         return True
-    if not _transitions._waits_on_a_human(ctx.state):
+    if not _conflict_parks._waits_on_a_human(ctx.state):
         return False
     if sync.ahead > 0 and _transitions._settled_round_owed(ctx.state)[0]:
         return False
@@ -367,7 +368,7 @@ def _capped(ctx: _models._ConflictContext, conflict_round: int) -> bool:
     """
     if conflict_round < config.MAX_CONFLICT_ROUNDS:
         return False
-    _transitions._park_conflict(
+    _conflict_parks._park_conflict(
         ctx,
         f"{config.HITL_MENTIONS} auto-conflict-resolution still failing "
         f"after {conflict_round} round(s) "

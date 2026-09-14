@@ -26,7 +26,11 @@ from orchestrator.git.base_sync import pre_pr as _base_sync_pre_pr
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import guards as _guards, messages as _messages
-from orchestrator.workflow.stages.conflicts import models as _models, transitions as _transitions
+from orchestrator.workflow.stages.conflicts import (
+    models as _models,
+    parks as _conflict_parks,
+    transitions as _transitions,
+)
 from orchestrator.workflow.stages.implementing import (
     late_push as _late_push,
     late_records as _late_records,
@@ -106,7 +110,7 @@ def _park_stalled_conflict_result(
         return True
 
     if dev_result.timed_out:
-        _transitions._park_conflict(
+        _conflict_parks._park_conflict(
             ctx,
             f"{config.HITL_MENTIONS} dev agent timed out resolving rebase "
             f"conflicts after {config.AGENT_TIMEOUT}s; manual intervention "
@@ -122,7 +126,7 @@ def _park_stalled_conflict_result(
     quoted = ""
     if raw:
         quoted = f"\n\nAgent output:\n\n{_messages._as_blockquote(raw)}"
-    _transitions._park_conflict(
+    _conflict_parks._park_conflict(
         ctx,
         f"{config.HITL_MENTIONS} rebase is still in progress after the "
         "dev agent returned; finish it manually or comment with "
@@ -186,7 +190,7 @@ def _finalize_conflict_resolution(
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
     if not published.landed:
-        _transitions._park_conflict(
+        _conflict_parks._park_conflict(
             ctx,
             f"{config.HITL_MENTIONS} git push failed after conflict "
             "resolution; see orchestrator logs.",

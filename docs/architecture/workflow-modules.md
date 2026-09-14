@@ -461,35 +461,11 @@ workflow/                   marker package for state, engine, and stage owners
                             announced once per reason
       guards.py             the worktree restore and the two probes that prove a stale PR head is safe to
                             force-publish over
-      divergence.py         the park a behind-base worktree earns, the two leases that excuse it -- a head
-                            validated as orchestrator-produced, and a divergence this stage's own replay record
-                            accounts for, which is the shape every real rebase leaves since the head it replayed
-                            stops being an ancestor -- and the crash-recovered push -- measured by the size gate
-                            first, since a crash between a commit and the gate is the window this recovery exists
-                            for, named against the head this stage read, which is the commit the round it finishes
-                            is recorded under, and PINNED to the tip the divergence reading was taken against,
-                            since "ahead and not behind" is a claim about that one commit and an unpinned push
-                            would have the gate adopt whatever the pull request moved to in between; a push
-                            neither the exceptional lease nor that tip can name refuses (`unpinnable_recovery`)
-                            rather than letting git read the remote for itself. The behind-base probe is taken
-                            BEFORE that push, since the reading is the same either side of one and taken first it
-                            says which round a held candidate would owe: on base the push completes a round of its
-                            own and leaves the receipt for it, behind base it is the preamble to a rebase that
-                            owns the round instead. The rewrite it hands the gate is READ rather than probed: the
-                            commits it finds are whatever an earlier tick left, and nothing off the branch says
-                            which -- a replay that tick ran, a resolution its agent authored, or the unpushed fix
-                            commits the `fixing` drift reroute sends over, which it does on base as readily as
-                            behind it. So it is answered from the `conflict_replay_*` record a rebase wrote about
-                            itself, and only where that record is about the publication and the commit in hand --
-                            the pull request it names is the one this issue still records, the head it names is
-                            the one this push is leased against, and the commit it names is the one the checkout
-                            is standing on. Past the grant the PERMISSION takes over, which the gate falls back to
-                            and re-asks in full. The commit the push publishes is NAMED on both roads and a head
-                            nothing could read refuses on both -- unnamed, the gate measures and pushes whatever
-                            landed between this owner's reading and its own -- while only what the push owes turns
-                            on the behind-base count. The tree is PROVED clean rather than asked for its paths,
-                            since a status that established nothing names none either and the gate's own proof is
-                            part of a measurement `DECOMPOSE=off` never takes
+      divergence.py         admission over a stale orchestrator-produced head or a recorded replay, and recovered
+                            publication through the size gate under the original lease; the behind-base count decides
+                            whether the push finishes a round or precedes another rebase
+      recovery_guards.py    recovery parks for an unreadable candidate, unpinned remote tip, or dirty/unreadable checkout;
+                            each refusal retains the recovered work and the exact reason a later tick retries
       rebase.py             the branch and base fetches, the pre-rebase head every exit of the round leases its
                             push against -- refused when nothing could read it, since the gate reads no head as a
                             caller that established none and pins the push to whatever the pull request has moved
@@ -506,31 +482,10 @@ workflow/                   marker package for state, engine, and stage owners
                             established nothing names no paths and a head that would not resolve reads as the head
                             this stage started on, so taken as absences they hand a reviewer a tree nobody read or
                             a rewritten head the pull request never received
-      evidence.py           what a clean rebase tells the size gate it replaced, and the record it leaves so a
-                            later tick can be told the same thing. The evidence is the pair the replay came FROM
-                            -- the head the pull request was standing on, which is also the head the force-push is
-                            leased against, since a rebase runs only over a checkout proved in sync with its
-                            remote -- and the pair it went TO, over the fork point the branch left the base at
-                            now. One caller builds it from a reading of its own, and no other can, because no
-                            other knows what the commit it is publishing IS: every other push here carries a
-                            commit somebody else made. So the replay also WRITES ITSELF DOWN, in the two steps its
-                            shape forces -- the head, its fork point, and the pull request it is being made
-                            against before the rebase destroys the first two, then the commit it produced before
-                            the gate is entered -- and the group is read twice on the tick that finds the replayed
-                            commit unpushed. The divergence guard asks it first, since a replay leaves the branch
-                            ahead of its publication AND behind it -- the shape a stale checkout carrying somebody
-                            else's commit also has, which this stage parks -- so a record naming that head, that
-                            commit and that pull request is what tells the two apart and leases the force-push to
-                            the pre-rebase head; the recovery then reads it again for the evidence it hands the
-                            gate, rather than probing the branch. The pull request is on it because `pr_number` is
-                            a field a later tick can find repointed, and a replay read against whichever one the
-                            issue records THEN is a rewrite offered about a publication it was never made against.
-                            The stamped commit is what makes a stale group inert: one naming a commit the checkout
-                            is not on describes a replay that is not in hand. Both writes are spent only for a
-                            branch standing on the commit this issue exempts. It grants nothing: a replay that
-                            moved a byte fingerprints to another contribution and is measured like any other
-                            candidate. An end nothing could name presents no evidence at all rather than a claim
-                            with a hole in it
+      evidence.py           live and recovered rewrite evidence: the replayed input pair and the new fork point;
+                            recovery requires the recorded publication, original lease, and produced commit to agree
+      replay_records.py     two-step replay persistence, before rebase and before publication; whole-commit reads and
+                            the original publication identity keep a stale or unfinished record from proving a push
       resume.py             the three dev-resume entry points, the shared run, and the `/orchestrator continue`
                             classification. Each of the three can end in a commit this stage publishes onto a
                             pull request the remote already carries, so each passes the size gate -- the fresh
@@ -541,20 +496,12 @@ workflow/                   marker package for state, engine, and stage owners
       outcomes.py           the interrupt / timeout / mid-rebase parks read before HEAD, and the push a completed
                             resolution earns -- measured by the size gate first, since a resolution grows the pull
                             request like any other candidate, and pinned by the pre-rebase head this stage read
-      transitions.py        the park-and-write pair, the unreadable-head park the rebase and the body-edit resume
-                            share, the one predicate that says whether a standing park is a PERSON's -- which the
-                            same pair reads, so a transient refusal taken over a question records nothing and
-                            leaves the reason the resume turns on where it is -- the pushed-round tail every exit
-                            shares, plus the round a
-                            hold owes: named for the gate to write down ahead of its relabel, read back by the tick
-                            the settlement hands the label to -- through the one parse the handler asks in front of
-                            the body-edit resume, so what is outstanding cannot be read two ways -- and only over a
-                            checkout standing ON the head it names,
-                            since in sync with its remote is what a replacement host rebuilt at a moved pull request
-                            reads as too -- and dropped by whichever tail finally pays it, since the resumed tick
-                            reads a published resolution as a branch already standing on its base, which is the no-op
-                            flip that resolves nothing
-      models.py             the frozen records the owners hand each other
+      parks.py              park notices, durable reasons, and the predicate that preserves a human question through
+                            transient refusals; unreadable-head and unreadable-worktree parks are shared by callers
+      transitions.py        held-round receipt reads and writes, exact-head recovery, round increments, and handoff to
+                            validation; a settled receipt is cleared only by the tail that pays it
+      models.py             frozen conflict context, checkout and resume results, live replay pairs, and recorded replay
+                            values handed between the stage's owners
       state.py              the counter keys they share, the single settled pair one held round at a time is named
                             by, and the `conflict_replay_*` group a rebase writes about itself -- both ends of what
                             it replaced, the commit it produced, and the publication it was made against -- for the

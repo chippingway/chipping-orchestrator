@@ -22,6 +22,9 @@ _PARENT = "orchestrator.workflow.stages"
 _HANDLER_OWNER = "handler"
 
 _OWNERS = (
+    "parks",
+    "recovery_guards",
+    "replay_records",
     "divergence",
     "evidence",
     "guards",

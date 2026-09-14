@@ -1,36 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What to do with a worktree that does not match its remote PR head.
+"""Diverged-worktree admission and commit-pinned recovery publication.
 
-The default is to refuse: a branch behind its remote head may carry someone
-else's commit, and force-pushing the local state would drop it. The single
-exception is narrow on purpose -- the worktree is ahead, already rebased onto
-the current base, and the head it is behind is one the orchestrator itself
-recorded -- and it exists because that is exactly the shape a prior tick leaves
-when it rebased and crashed before the push.
-
-The ahead-only case is the other half of the same crash: commits that never
-reached the remote. Pushing them is safe, but the follow-up question is not
-obvious -- the `fixing` dead-lock reroute also lands unpushed FIX commits here,
-which are not a rebase, so the branch is still behind base afterwards. That is
-why the push probes rather than assuming, and falls through to the rebase path
-when it finds it, letting one round cover both.
-
-Nothing READ off this branch is evidence of a rewrite, and it may not be.
-Every commit that reaches here is one an earlier tick made and never
-published, and no probe run now tells which kind it is: a rebase that tick
-replayed, a resolution its agent authored over conflicted files, or the
-unpushed FIX commits the `fixing` drift reroute sends here whether the branch
-is behind base or standing on it. Being on base tells them apart no better --
-that reroute fires precisely on a branch that already carries its base.
-
-What tells them apart is the RECORD the replay wrote about itself: the head it
-replaced and the fork point behind it, put down before the rebase ran, and the
-commit it produced, stamped on before the size gate was entered. This push
-hands the gate that record and only where it is about the commit in hand --
-the head it names is the one this push is leased against, and the commit it
-names is the one the checkout is standing on. Everything else presents
-nothing and is measured, which is what a change nobody adjudicated is owed.
+Only an orchestrator-produced stale head or this stage's recorded replay
+licenses a force-push over divergence. Recovery carries its original lease
+through the size gate, and settles the conflict round only after the push
+lands and the checkout has caught up with the base.
 """
 from __future__ import annotations
 
@@ -39,12 +14,14 @@ from pathlib import Path
 
 from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git import commands as _git_commands
-from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
+from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.workflow.stages.conflicts import (
     evidence as _evidence,
     guards as _guards,
     models as _models,
-    state as _state,
+    parks as _conflict_parks,
+    recovery_guards as _recovery_guards,
+    replay_records as _replay_records,
     transitions as _transitions,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -57,20 +34,6 @@ log = logging.getLogger("orchestrator.workflow")
 # What a round a recovered push finished is recorded as, in the audit event
 # and in the receipt a hold leaves for the tick that resumes behind it.
 _RECOVERED_PUSH = "recovered_push"
-
-
-_UNNAMEABLE_PUSH_PARK = (
-    "{mentions} this issue's worktree carries {ahead} commit(s) an earlier "
-    "tick never pushed, and the commit they leave the branch on could not be "
-    "read. That id is what the push would be named against, so without it "
-    "anything committed over the worktree before the push goes out in its "
-    "place -- under a lease proved against the head the branch used to be on. "
-    "It is also what a round this push finishes is recorded under, in the "
-    "audit event and in the receipt a size-gate hold leaves behind, and a "
-    "receipt naming no commit is one no later tick can prove. Nothing was "
-    "pushed and nothing was discarded. Repair the checkout so its head reads, "
-    "and the next tick publishes them again."
-)
 
 
 def _guard_diverged_worktree(
@@ -163,7 +126,7 @@ def _park_diverged_worktree(
     """
     spec = ctx.spec
     pr_head_short = pr.head.sha[:8]
-    _transitions._park_conflict(
+    _conflict_parks._park_conflict(
         ctx,
         f"{config.HITL_MENTIONS} worktree on `{sync.branch}` is {sync.ahead} "
         f"ahead and {sync.behind} behind `{spec.remote_name}/{sync.branch}` "
@@ -223,7 +186,7 @@ def _push_recovered_commits(
     """
     wt = sync.worktree
     lease = publish_lease or sync.fetched_tip
-    if _parked_dirty_recovery(ctx, wt) or _parked_unpinnable_recovery(
+    if _recovery_guards._parked_dirty_recovery(ctx, wt) or _recovery_guards._parked_unpinnable_recovery(
         ctx, sync, lease,
     ):
         return True
@@ -253,7 +216,7 @@ def _push_recovered_commits(
     # flip) for the combined push+rebase round.
     still_behind = _still_behind_base(wt, _base_ref(ctx.spec))
     recovered_sha = _verification_probes._head_sha(wt)
-    if _parked_unnameable_push(ctx, sync, recovered_sha):
+    if _recovery_guards._parked_unnameable_push(ctx, sync, recovered_sha):
         return True
     published = _late_push._publishes(
         _late_records._gate(ctx.gh, ctx.spec, ctx.issue, ctx.state, wt),
@@ -299,7 +262,7 @@ def _push_recovered_commits(
     # pass runs after final reviewer approval. A replay record goes with it:
     # the commit it explains is on the remote, and this tail's own write
     # carries the drop.
-    _evidence._forgets_the_replay(ctx.state)
+    _replay_records._forgets_the_replay(ctx.state)
     _transitions._hand_resolved_round_to_validating(
         ctx, conflict_round, pr_number,
         outcome=_RECOVERED_PUSH, sha=recovered_sha,
@@ -322,99 +285,12 @@ def _refused_the_recovery(
     if held:
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
-    _transitions._park_conflict(
+    _conflict_parks._park_conflict(
         ctx,
         f"{config.HITL_MENTIONS} git push of recovered conflict "
         "resolution failed; see orchestrator logs.",
         reason="push_failed",
     )
-
-
-def _parked_unnameable_push(
-    ctx: _models._ConflictContext,
-    sync: _models._WorktreeSync,
-    recovered_sha: str,
-) -> bool:
-    """Refuse a recovered push whose commit nothing could read.
-
-    Naming the commit is what makes the push and everything recorded about it
-    one decision. The gate proves the checkout independently, and the worktree
-    is writable in between: unnamed, a commit landing in that window is the
-    one measured and force-pushed -- under a lease this owner proved against
-    the head the branch used to be on -- while nothing here ever read it.
-    That holds on both roads, so the reading is required on both.
-
-    Where the push also FINISHES a round -- the branch already carries its
-    base -- the same id is what the round is recorded under, in the audit
-    event the tail emits and in the receipt a size-gate hold leaves for the
-    tick that resumes behind the adjudication. The receipt is the one that
-    outlives the tick: it goes down in the push's own durable write, so a
-    crash between that write and the tail would come back to
-    `("recovered_push", "")` -- a pair naming no commit, which every later
-    tick refuses because nothing can prove it, on a branch that is in sync by
-    then, so the round a push really landed is reported as the flip that
-    resolves nothing.
-    """
-    if recovered_sha:
-        return False
-    log.error(
-        "issue=#%d resolving_conflict: nothing could read the commit %d "
-        "recovered commit(s) leave the branch on; refusing to publish a push "
-        "nothing could name",
-        ctx.issue.number, sync.ahead,
-    )
-    _transitions._park_conflict(
-        ctx,
-        _UNNAMEABLE_PUSH_PARK.format(
-            mentions=config.HITL_MENTIONS, ahead=sync.ahead,
-        ),
-        reason=_state._REASON_UNREADABLE_HEAD,
-        # Said once, for the reason the reading is retried at all: a later
-        # tick's own head read is what clears this, not a reply.
-        once=True,
-    )
-    return True
-
-
-def _parked_unpinnable_recovery(
-    ctx: _models._ConflictContext,
-    sync: _models._WorktreeSync,
-    lease: str,
-) -> bool:
-    """Whether this recovered push has no head to pin itself against.
-
-    The lease is the whole of what keeps a force-push off a pull request
-    somebody moved while the commits were sitting unpushed, and the one
-    fallback available here is the head read at push time -- which is exactly
-    the move it exists to catch. So a tip nothing could read parks with the
-    commits still on the branch, the same way every other reading this stage
-    could not take does.
-
-    False is the ordinary answer, and it is where the road below carries on.
-    """
-    if lease:
-        return False
-    spec = ctx.spec
-    remote_ref = f"{spec.remote_name}/{sync.branch}"
-    log.error(
-        "issue=#%d resolving_conflict: %d recovered commit(s) are ahead of "
-        "%s and nothing could name the head they were proved against; "
-        "refusing to force-push under a lease git would take for itself",
-        ctx.issue.number, sync.ahead, remote_ref,
-    )
-    _transitions._park_conflict(
-        ctx,
-        f"{config.HITL_MENTIONS} this issue's worktree carries {sync.ahead} "
-        f"commit(s) an earlier tick never pushed, and the head `{remote_ref}` "
-        "was standing on when that was established could not be read -- so "
-        "there is nothing to pin the force-push against, and pinning it to "
-        "the head read now would adopt whatever landed while the commits were "
-        "waiting. Nothing was pushed and nothing was discarded. The next tick "
-        "fetches and reads it again.",
-        reason=_state._REASON_UNPINNABLE_RECOVERY,
-        once=True,
-    )
-    return True
 
 
 def _base_ref(spec: _config_models.RepoSpec) -> str:
@@ -436,43 +312,6 @@ def _recovered_round(still_behind: int, recovered_sha: str):
     if still_behind:
         return _late_records._SPENDS_NOTHING
     return _transitions._settles_the_held_round(_RECOVERED_PUSH, recovered_sha)
-
-
-def _parked_dirty_recovery(
-    ctx: _models._ConflictContext, wt: Path,
-) -> bool:
-    """Refuse a recovered push taken over a tree nothing proved clean.
-
-    If the previous tick crashed before its own dirty check ran, the worktree
-    may carry edits the unpushed commit does NOT contain. Pushing in that
-    state would publish a SHA that silently omits them, and the reviewer at
-    validating would later run on a local tree that does not match the pull
-    request. Mirrors `_on_dirty_worktree`: park awaiting human, no flip.
-
-    Proved, not merely un-named. A status read that established nothing names
-    no paths and so does a tree with nothing in it, so asking for the paths
-    alone waves the first through as the second -- and the size gate's own
-    tree proof is no backstop, since it is part of the measurement an install
-    running `DECOMPOSE=off` never takes. The two failures part on what a human
-    has to do: uncommitted work is removed or committed, while a status nobody
-    could read is a checkout to repair, which the next tick's own reading
-    clears.
-    """
-    tree = _worktree_status._worktree_status(wt)
-    if tree.is_clean:
-        return False
-    if not tree.readable:
-        _transitions._park_unreadable_worktree(ctx)
-        return True
-    _transitions._park_conflict(
-        ctx,
-        f"{config.HITL_MENTIONS} worktree has {len(tree.paths)} "
-        "uncommitted change(s) alongside recovered conflict "
-        "resolution; refusing to push an incomplete branch. "
-        "Resolve the dirty tree manually before resuming.",
-        reason="dirty_worktree",
-    )
-    return True
 
 
 def _still_behind_base(wt: Path, base_ref: str) -> int:

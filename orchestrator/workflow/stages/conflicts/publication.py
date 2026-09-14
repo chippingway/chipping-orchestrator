@@ -39,6 +39,8 @@ from orchestrator.workflow.stages.conflicts import (
     evidence as _evidence,
     models as _models,
     outcomes as _outcomes,
+    parks as _conflict_parks,
+    replay_records as _replay_records,
     resume as _resume,
     state as _state,
     transitions as _transitions,
@@ -98,7 +100,7 @@ _DIRTY_WORKTREE = "dirty_worktree"
 def _publish_clean_rebase(
     ctx: _models._ConflictContext,
     wt: Path,
-    replayed: _evidence._Replayed,
+    replayed: _models._Replayed,
     conflict_round: int,
     pr_number,
 ) -> None:
@@ -134,7 +136,7 @@ def _publish_clean_rebase(
             "checkout nobody read",
             ctx.issue.number, spec.remote_name, spec.base_branch,
         )
-        _transitions._park_conflict(
+        _conflict_parks._park_conflict(
             ctx,
             _UNREADABLE_HEAD_PARK.format(
                 mentions=config.HITL_MENTIONS, base_ref=_base_ref(spec),
@@ -152,7 +154,7 @@ def _publish_clean_rebase(
     # durable before the gate is entered rather than after: the window it
     # exists for is exactly the one between the replay and the permission the
     # gate's own grant persists.
-    _evidence._records_the_replayed_commit(ctx, replayed, after_sha)
+    _replay_records._records_the_replayed_commit(ctx, replayed, after_sha)
     published = _late_push._publishes(
         _late_records._gate(ctx.gh, spec, ctx.issue, ctx.state, wt),
         _naming._resolve_branch_name(ctx.state, spec, ctx.issue.number),
@@ -187,7 +189,7 @@ def _publish_clean_rebase(
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
     if not published.landed:
-        _transitions._park_conflict(
+        _conflict_parks._park_conflict(
             ctx,
             f"{config.HITL_MENTIONS} git push failed after auto-rebasing "
             f"`{spec.remote_name}/{spec.base_branch}`; "
@@ -199,7 +201,7 @@ def _publish_clean_rebase(
     # pass runs after final reviewer approval. The replay record goes with it:
     # the commit it explains is on the remote, so nothing is left for a later
     # tick to recover, and this tail's own write carries the drop.
-    _evidence._forgets_the_replay(ctx.state)
+    _replay_records._forgets_the_replay(ctx.state)
     _transitions._hand_resolved_round_to_validating(
         ctx, conflict_round, pr_number,
         outcome="base_rebased_clean", sha=after_sha,
@@ -232,7 +234,7 @@ def _unprovable_tree(ctx: _models._ConflictContext, wt: Path) -> bool:
         return False
     base_ref = _base_ref(ctx.spec)
     if tree.readable:
-        _transitions._park_conflict(
+        _conflict_parks._park_conflict(
             ctx,
             _DIRTY_TREE_PARK.format(
                 mentions=config.HITL_MENTIONS,
@@ -247,7 +249,7 @@ def _unprovable_tree(ctx: _models._ConflictContext, wt: Path) -> bool:
         "after `git rebase %s`; refusing to push or flip",
         ctx.issue.number, base_ref,
     )
-    _transitions._park_conflict(
+    _conflict_parks._park_conflict(
         ctx,
         _UNREADABLE_TREE_PARK.format(
             mentions=config.HITL_MENTIONS, base_ref=base_ref,
@@ -278,7 +280,7 @@ def _flip_base_up_to_date(
         "issue=#%d resolving_conflict: branch already up-to-date with %s/%s",
         ctx.issue.number, ctx.spec.remote_name, ctx.spec.base_branch,
     )
-    _evidence._forgets_the_replay(ctx.state)
+    _replay_records._forgets_the_replay(ctx.state)
     ctx.state.set(_state._REVIEW_ROUND, 0)
     ctx.state.set(_state._CONFLICT_ROUND, conflict_round + 1)
     _transitions._emit_conflict_round_incremented(
@@ -288,7 +290,7 @@ def _flip_base_up_to_date(
         outcome="base_up_to_date",
         sha=after_sha,
     )
-    _transitions._left_unparked(ctx)
+    _conflict_parks._left_unparked(ctx)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
 

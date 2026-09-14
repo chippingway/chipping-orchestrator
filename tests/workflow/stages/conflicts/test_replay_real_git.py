@@ -33,8 +33,8 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.conflicts import (
     divergence as _divergence,
-    evidence as _evidence,
     models as _conflict_models,
+    replay_records as _replay_records,
 )
 from orchestrator.workflow.stages.implementing import (
     late_push as _late_push,
@@ -188,16 +188,16 @@ class DivergentRecoveryRealGitTest(_real_replay._RealReplayCase, unittest.TestCa
 
     def _records_the_replay(self, gate) -> None:
         """What the rebase wrote about itself before it ran, and then again."""
-        _evidence._records_the_replay(
+        _replay_records._records_the_replay(
             self._context(gate),
-            _evidence._Replayed(
+            _conflict_models._Replayed(
                 head=self.replay.accepted, base_sha=self.replay.accepted_base,
             ),
             _real_replay.PR_NUMBER,
         )
-        _evidence._records_the_replayed_commit(
+        _replay_records._records_the_replayed_commit(
             self._context(gate),
-            _evidence._Replayed(
+            _conflict_models._Replayed(
                 head=self.replay.accepted, base_sha=self.replay.accepted_base,
             ),
             self.replay.replayed,

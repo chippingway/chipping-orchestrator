@@ -31,7 +31,11 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import terminals as _terminals
-from orchestrator.workflow.stages.conflicts import models as _models, routing as _routing, transitions as _transitions
+from orchestrator.workflow.stages.conflicts import (
+    models as _models,
+    parks as _conflict_parks,
+    routing as _routing,
+)
 from orchestrator.workflow.state import WorkflowLabel
 
 
@@ -93,7 +97,7 @@ def _park_conflict_missing_pr_number(ctx: _models._ConflictContext) -> None:
     """
     if ctx.state.get("awaiting_human"):
         return
-    _transitions._park_conflict(
+    _conflict_parks._park_conflict(
         ctx,
         # The name the human has to type into GitHub is the label verbatim;
         # the prose before it names the stage.
