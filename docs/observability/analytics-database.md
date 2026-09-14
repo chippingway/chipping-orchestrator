@@ -23,11 +23,17 @@ pinned to `127.0.0.1` so the database is unreachable off-host regardless of fire
 `orchestrator` and are overridable via `analytics-db/.env` (`POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` /
 `POSTGRES_PORT`). `docker compose` reads `.env` from the compose-file directory, not the orchestrator root.
 
+Both binds set `create_host_path: false`: a missing source fails startup instead of silently creating an empty
+directory. On a first deployment, the operator must create `analytics-db/data/` before starting the service. For an
+existing deployment, retain the existing data directory; do not create a replacement to bypass a missing-source error.
+
 ```sh
 cd analytics-db
+mkdir -p data                         # operator setup for a new database only
 docker compose up -d                  # start the local service (data lives in ./data, gitignored)
 docker compose down                   # stop the container; data on the ./data bind mount is preserved
-docker compose down && rm -rf ./data  # stop and wipe history (the bind is a host directory, so `down -v` does NOT remove it)
+# `down -v` does not remove the host bind directory.
+docker compose down && rm -rf ./data  # stop and wipe history; repeat `mkdir -p data` before the next `up`
 ```
 
 To apply or re-apply the schema against an already-running compose service:
@@ -36,6 +42,27 @@ To apply or re-apply the schema against an already-running compose service:
 cd analytics-db
 docker compose exec -T analytics-db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f /docker-entrypoint-initdb.d/01-schema.sql'
 ```
+
+### Moving or renaming the checkout
+
+Docker stores absolute bind-source paths in each container. Moving the checkout does not update them, and
+`restart: unless-stopped` keeps using the saved paths. A container created with short volume syntax can recreate
+missing directories at its original checkout path and initialize an empty database without the schema scripts.
+Changing the Compose file takes effect only after the container is recreated.
+
+Stop the service before moving an existing deployment. The operator must preserve its data directory and `.env` at
+the destination. From the destination checkout, recreate the container to resolve the binds there:
+
+```sh
+cd analytics-db
+docker compose up -d --force-recreate --wait analytics-db
+docker inspect orchestrator-analytics-db --format '{{json .Mounts}}'
+```
+
+Check that both sources name the destination checkout. `docker compose restart` does not update the mount paths.
+If Docker has already recreated directories at a former path, take a logical backup of the running cluster with
+`pg_dumpall` before recreating the container, then back up and verify the database at the destination. Leave both host
+data directories intact until the operator has reconciled the databases.
 
 ## Endpoint shape
 
