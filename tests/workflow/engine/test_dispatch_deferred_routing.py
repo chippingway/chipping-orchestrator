@@ -24,7 +24,12 @@ from unittest.mock import Mock, patch
 
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
-from orchestrator.workflow.engine import dispatch
+from orchestrator.workflow.engine import (
+    dispatch_partition as _dispatch_partition,
+    issue_processing as _issue_processing,
+    poll_models as _poll_models,
+    stage_targets as _stage_targets,
+)
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
 from tests.workflow.fixtures import (
     LABEL_BLOCKED,
@@ -99,15 +104,15 @@ class HeldObservationOutranksTheFiltersTest(ObservedCloseCase, unittest.TestCase
         issue.labels.append(FakeLabel(PAUSED_LABEL))
         self.github.add_issue(issue)
 
-        partition = dispatch._partition_pollable_issues(self.github, _SPEC)
+        partition = _dispatch_partition._partition_pollable_issues(self.github, _SPEC)
 
         self.assertEqual(partition.cleanup_numbers, set())
         self.assertEqual(partition.fanout_numbers, [])
         self.assertEqual(partition.family_numbers, [])
 
-    def _partitioned(self) -> dispatch._PollablePartition:
+    def _partitioned(self) -> _poll_models._PollablePartition:
         """Partition this repo with the one held observation in hand."""
-        return dispatch._partition_pollable_issues(
+        return _dispatch_partition._partition_pollable_issues(
             self.github, _SPEC, self.owed,
         )
 
@@ -154,9 +159,9 @@ class ParkedClosedOwnerTest(ObservedCloseCase, unittest.TestCase):
         self.assertEqual(partition.fanout_numbers, [])
         self.assertEqual(partition.family_numbers, [])
 
-    def _partitioned(self) -> dispatch._PollablePartition:
+    def _partitioned(self) -> _poll_models._PollablePartition:
         """Partition this repo with no held observation at all."""
-        return dispatch._partition_pollable_issues(self.github, _SPEC)
+        return _dispatch_partition._partition_pollable_issues(self.github, _SPEC)
 
 
 class ParkedWithNoCycleTest(ObservedCloseCase, unittest.TestCase):
@@ -208,16 +213,16 @@ class ParkedWithNoCycleTest(ObservedCloseCase, unittest.TestCase):
         issue.labels.append(FakeLabel(control))
         github.add_issue(issue)
         github.seed_state(_OWNER_NUMBER, pr_number=7)
-        module_name, handler_name = dispatch._STAGE_HANDLER_TARGETS[
+        module_name, handler_name = _stage_targets._STAGE_HANDLER_TARGETS[
             LABEL_IMPLEMENTING
         ]
         dispatched = Mock()
         with patch.object(
             importlib.import_module(module_name), handler_name, dispatched,
         ):
-            dispatch._process_issue(
+            _issue_processing._process_issue(
                 github, _SPEC, issue,
-                reading=dispatch._PollReading(closed=True),
+                reading=_poll_models._PollReading(closed=True),
             )
         return dispatched
 

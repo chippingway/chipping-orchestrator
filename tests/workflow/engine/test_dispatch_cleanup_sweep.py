@@ -16,7 +16,14 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
-from orchestrator.workflow.engine import dispatch
+from orchestrator.workflow.engine import (
+    dispatch_partition as _dispatch_partition,
+    dispatch_workers as _dispatch_workers,
+    issue_processing as _issue_processing,
+    poll_models as _poll_models,
+    scheduled_dispatch as _scheduled_dispatch,
+    stage_targets as _stage_targets,
+)
 from orchestrator.workflow.stages.decomposition import late_sweep as _late_sweep
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
 from tests.workflow.fixtures import (
@@ -64,7 +71,7 @@ def _intercepted(target: tuple[str, str], reached: Mock):
     )
 
 
-def _partition_of(*issues) -> dispatch._PollablePartition:
+def _partition_of(*issues) -> _poll_models._PollablePartition:
     """Partition a repo holding exactly these issues, in this tick."""
     github = FakeGitHubClient()
     for number, label, closed in issues:
@@ -72,7 +79,7 @@ def _partition_of(*issues) -> dispatch._PollablePartition:
     # One fan-out issue so the partition is the ordinary mixed shape a
     # saturated cap is decided against.
     github.add_issue(make_issue(1, label=LABEL_IMPLEMENTING))
-    return dispatch._partition_pollable_issues(github, _SPEC)
+    return _dispatch_partition._partition_pollable_issues(github, _SPEC)
 
 
 def _routed(
@@ -84,12 +91,12 @@ def _routed(
     github.add_issue(issue)
     reached = (Mock(), Mock())
     with (
-        _intercepted(dispatch._CLEANUP_SWEEP_TARGET, reached[0]),
-        _intercepted(dispatch._STAGE_HANDLER_TARGETS[label], reached[1]),
+        _intercepted(_stage_targets._CLEANUP_SWEEP_TARGET, reached[0]),
+        _intercepted(_stage_targets._STAGE_HANDLER_TARGETS[label], reached[1]),
     ):
-        dispatch._route_issue_to_handler(
+        _issue_processing._route_issue_to_handler(
             github, _SPEC, issue, label,
-            reading=dispatch._PollReading(
+            reading=_poll_models._PollReading(
                 cleanup_only=cleanup_only, closed=closed,
             ),
         )
@@ -153,7 +160,7 @@ class CleanupRouteTest(ObservedCloseCase, unittest.TestCase):
                 github, issue = self._parked_owner(skip_label)
 
                 with self.assertLogs(_WORKFLOW_LOG):
-                    dispatch._process_issue(github, _SPEC, issue)
+                    _issue_processing._process_issue(github, _SPEC, issue)
 
                 pinned = github.pinned_data(_OWNER_NUMBER)
                 self.assertTrue(pinned["late_cancelled"])
@@ -167,7 +174,7 @@ class CleanupRouteTest(ObservedCloseCase, unittest.TestCase):
         issue.closed = False
 
         with self.assertLogs(_WORKFLOW_LOG):
-            dispatch._process_issue(github, _SPEC, issue)
+            _issue_processing._process_issue(github, _SPEC, issue)
 
         self.assertEqual(github.write_state_calls, 0)
 
@@ -212,18 +219,18 @@ class CleanupRouteSurvivesRefetchTest(ObservedCloseCase, unittest.TestCase):
         partition = _partition_of((_OWNER_NUMBER, LABEL_UMBRELLA, True))
         scheduler = _RecordingScheduler()
 
-        dispatch._submit_scheduler_fanout_issues(
+        _scheduled_dispatch._submit_scheduler_fanout_issues(
             FakeGitHubClient(), _SPEC, scheduler, partition, 1,
         )
 
         for number, route in (
-            (_OWNER_NUMBER, dispatch._swept_for_cleanup),
-            (1, dispatch._refetch_and_process),
+            (_OWNER_NUMBER, _dispatch_workers._swept_for_cleanup),
+            (1, _dispatch_workers._refetch_and_process),
         ):
             with self.subTest(issue=number):
                 submitted = scheduler.routes[number]
 
-                self.assertIs(submitted.func, dispatch._releases_the_claim)
+                self.assertIs(submitted.func, _scheduled_dispatch._releases_the_claim)
                 self.assertIs(submitted.args[-1].func, route)
 
     def test_a_reopened_owner_is_marked_and_left(self) -> None:
@@ -292,7 +299,7 @@ class CleanupExemptionTest(ObservedCloseCase, unittest.TestCase):
         self.assertIn(_OWNER_NUMBER, partition.fanout_closed)
         self.assertEqual(partition.family_numbers, [7])
         self.assertFalse(
-            dispatch._family_bucket_cap_exempt(partition.family_labels),
+            _poll_models._family_bucket_cap_exempt(partition.family_labels),
         )
 
     def test_an_open_family_issue_stays_in_the_bucket(self) -> None:
@@ -305,7 +312,7 @@ class CleanupExemptionTest(ObservedCloseCase, unittest.TestCase):
 
         self.assertEqual(partition.family_numbers, [_OWNER_NUMBER, 7])
         self.assertTrue(
-            dispatch._family_bucket_cap_exempt(partition.family_labels),
+            _poll_models._family_bucket_cap_exempt(partition.family_labels),
         )
 
 

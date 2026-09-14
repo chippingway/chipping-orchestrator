@@ -65,7 +65,7 @@ _SINK = "orchestrator.observability.analytics.sink"
 # calls, so the write path has one place a record is built.
 _PRODUCERS = (
     ("orchestrator.github.client", _EVENTS_OWNER),
-    ("orchestrator.workflow.engine.dispatch", _EVENTS_OWNER),
+    ("orchestrator.workflow.engine.issue_processing", _EVENTS_OWNER),
     ("orchestrator.workflow.engine.usage", _AGENT_EXIT_OWNER),
     ("orchestrator.skills.catalog", _EVENTS_OWNER),
 )

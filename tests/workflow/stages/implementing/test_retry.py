@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.workflow.engine import issue_processing
 from tests.workflow.stages.implementing import retry_test_support as support
 
 IssueScenario = support.IssueScenario
@@ -69,7 +70,6 @@ _TEST_SPEC = support._TEST_SPEC
 _agent = support._agent
 _iso_hours_ago = support._iso_hours_ago
 config = support.config
-dispatch = support.dispatch
 make_issue = support.make_issue
 patch = support.patch
 _retry_budget = support._retry_budget
@@ -674,7 +674,7 @@ class RetryCapParkOwnsTheTickTest(unittest.TestCase, _RetryCapContinueMixin):
                 seeded = self._pinned(github)
 
                 with self._only_trusted():
-                    dispatch._process_issue(github, _TEST_SPEC, skipped)
+                    issue_processing._process_issue(github, _TEST_SPEC, skipped)
 
                 self.assertEqual(self._pinned(github), seeded)
                 self.assertEqual(github.posted_comments, [])

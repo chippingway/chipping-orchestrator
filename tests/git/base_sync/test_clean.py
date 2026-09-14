@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 from orchestrator.config import settings as config
 from orchestrator.git.measurement import additions as _measurement
 from orchestrator.git.measurement.models import AdditionMeasurement
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from orchestrator.workflow.stages.in_review import handler as _in_review
 from tests.git.base_sync.clean_assertions import (
     _assert_clean_events,
@@ -242,7 +242,7 @@ class CleanRebasePushFailureUnitTest(
             side_effect=in_review,
         ):
             scenario.run(self)
-            _dispatch._process_issue(
+            _issue_processing._process_issue(
                 self.gh,
                 self.spec,
                 self.gh._issues[ISSUE],

@@ -12,7 +12,7 @@ from importlib.util import find_spec
 from pathlib import Path
 
 from orchestrator.workflow import stages as _stages
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import stage_targets as _stage_targets
 
 _PACKAGE = "orchestrator.workflow.stages"
 
@@ -122,7 +122,7 @@ class OwnerTreeImportSiteTest(unittest.TestCase):
         # the dispatched call. The unlabeled entry is skipped because an
         # unlabeled issue starts on the engine's pickup sibling, not a stage.
         stage_packages = {f"{_PACKAGE}.{stage}" for stage in _stage_packages()}
-        for label, (module_name, _) in _dispatch._STAGE_HANDLER_TARGETS.items():
+        for label, (module_name, _) in _stage_targets._STAGE_HANDLER_TARGETS.items():
             if label is None:
                 continue
             with self.subTest(label=label):

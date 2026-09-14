@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.skills import catalog
-from orchestrator.workflow.engine import dispatch as _dispatch, tick as _tick
+from orchestrator.workflow.engine import stage_targets as _stage_targets, tick as _tick
 from orchestrator.workflow.late_split import phases as _late_phases, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -69,7 +69,7 @@ _REFUSED = RuntimeError("comment rejected")
 
 # The handler an OPEN issue on this label reaches, and the one the whole
 # deferral exists to keep a cancelled cycle away from.
-UMBRELLA_TARGET = _dispatch._STAGE_HANDLER_TARGETS[LABEL_UMBRELLA]
+UMBRELLA_TARGET = _stage_targets._STAGE_HANDLER_TARGETS[LABEL_UMBRELLA]
 
 
 class DeferralCase(ObservedCloseCase, _SchedulerWorkflowTest):

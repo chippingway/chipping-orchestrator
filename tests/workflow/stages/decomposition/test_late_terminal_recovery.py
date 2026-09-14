@@ -19,7 +19,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import dispatch_closure as _dispatch_closure
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import _TEST_SPEC, _PatchedWorkflowMixin
 from tests.workflow.observation_support import (
@@ -360,7 +360,7 @@ class _PollsAfterTheRetirement:
         if self._polled or state.data.get(_CYCLE_ID) is not None:
             return answered
         self._polled = True
-        _dispatch._kept_closed_reading(
+        _dispatch_closure._kept_closed_reading(
             self._github, _TEST_SPEC, PARENT_NUMBER,
         )
         if self._dying:

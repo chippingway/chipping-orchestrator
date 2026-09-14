@@ -49,8 +49,10 @@ from orchestrator.skills import catalog as _catalog
 from orchestrator.workflow.engine import (
     community as _community,
     dispatch as _dispatch,
+    dispatch_workers as _dispatch_workers,
     observations as _observations,
     parallel as _parallel,
+    scheduled_dispatch as _scheduled_dispatch,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -88,7 +90,7 @@ def _run_sequential_tick(
                 _dispatch._process_polled_issue(gh, spec, issue)
         except Exception:
             log.exception(
-                _dispatch._PROCESSING_FAILED_LOG,
+                _scheduled_dispatch._PROCESSING_FAILED_LOG,
                 spec.slug, issue.number,
             )
     _swept_unyielded(gh, spec, yielded, semaphore_cm)
@@ -116,10 +118,10 @@ def _swept_unyielded(
     ):
         try:
             with semaphore_cm:
-                _dispatch._swept_for_cleanup(gh, spec, owed)
+                _dispatch_workers._swept_for_cleanup(gh, spec, owed)
         except Exception:
             log.exception(
-                _dispatch._PROCESSING_FAILED_LOG, spec.slug, owed,
+                _scheduled_dispatch._PROCESSING_FAILED_LOG, spec.slug, owed,
             )
 
 

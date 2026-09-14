@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.git.snapshots.refs import SnapshotOutcome
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from orchestrator.workflow.stages.decomposition import (
     late_child_records as _late_child_records,
 )
@@ -169,7 +169,7 @@ class ChildBoundaryTest(LateSplitCase, unittest.TestCase):
         where it created it.
         """
         with RecordedDelete(SnapshotOutcome.DELETED).answering():
-            _dispatch._process_issue(self.github, _TEST_SPEC, child)
+            _issue_processing._process_issue(self.github, _TEST_SPEC, child)
 
 
 if __name__ == "__main__":

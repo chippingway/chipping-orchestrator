@@ -24,7 +24,7 @@ from orchestrator.github.labels import (
     PAUSED_LABEL,
     hard_skip_control_label,
 )
-from orchestrator.workflow.engine import dispatch, pickup
+from orchestrator.workflow.engine import issue_processing as _issue_processing, pickup
 from orchestrator.workflow.stages.implementing import handler as implementing
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
 from tests.workflow.fixtures import _TEST_SPEC
@@ -51,7 +51,7 @@ class PausedLabelSkipsProcessingTest(unittest.TestCase):
 
         implementing_mock = MagicMock()
         with patch.object(implementing, "_handle_implementing", implementing_mock):
-            dispatch._process_issue(gh, _TEST_SPEC, issue)
+            _issue_processing._process_issue(gh, _TEST_SPEC, issue)
 
         implementing_mock.assert_not_called()
         self.assertEqual(gh.label_history, [])
@@ -65,7 +65,7 @@ class PausedLabelSkipsProcessingTest(unittest.TestCase):
 
         pickup_mock = MagicMock()
         with patch.object(pickup, "_handle_pickup", pickup_mock):
-            dispatch._process_issue(gh, _TEST_SPEC, issue)
+            _issue_processing._process_issue(gh, _TEST_SPEC, issue)
 
         pickup_mock.assert_not_called()
         self.assertEqual(gh.label_history, [])
@@ -77,7 +77,7 @@ class PausedLabelSkipsProcessingTest(unittest.TestCase):
 
         implementing_mock = MagicMock()
         with patch.object(implementing, "_handle_implementing", implementing_mock):
-            dispatch._process_issue(gh, _TEST_SPEC, issue)
+            _issue_processing._process_issue(gh, _TEST_SPEC, issue)
 
         implementing_mock.assert_called_once_with(gh, _TEST_SPEC, issue)
 

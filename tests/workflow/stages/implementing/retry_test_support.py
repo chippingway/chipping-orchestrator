@@ -12,7 +12,6 @@ from orchestrator.config import settings as config
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
 from orchestrator.workflow.engine import (
-    dispatch as _dispatch,
     retry_budget as _retry_budget,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -70,9 +69,7 @@ RUN_AGENT = "run_agent"
 # the module the stage calls.
 agent_runner = _agent_runner
 worktree_creation = _worktree_creation
-# The two a test drives directly: the dispatch a hard-skipped issue is refused
-# by, and the park handler the stage answers a spent budget with.
-dispatch = _dispatch
+# The park handler the stage answers a spent budget with.
 retry_cap = _implementing_retry_cap
 RESUME_SESSION_ID = "resume_session_id"
 

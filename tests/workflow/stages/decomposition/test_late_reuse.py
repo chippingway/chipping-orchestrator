@@ -20,7 +20,7 @@ import unittest
 from unittest.mock import Mock
 
 from orchestrator.git.snapshots.refs import SnapshotOutcome
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from orchestrator.workflow.late_split import ancestry as _ancestry
 from orchestrator.workflow.late_split.models import LateResourceState
 from orchestrator.workflow.stages.decomposition import (
@@ -166,7 +166,7 @@ class _ReuseCase(_PatchedWorkflowMixin):
         child = self.child(seeded)
         with answers.answering():
             return self._run(
-                lambda: _dispatch._process_issue(
+                lambda: _issue_processing._process_issue(
                     seeded.github, _TEST_SPEC, child,
                 ),
                 run_agent=_agent(),

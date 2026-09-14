@@ -20,7 +20,12 @@ import importlib
 import unittest
 from unittest.mock import Mock, patch
 
-from orchestrator.workflow.engine import dispatch, observations
+from orchestrator.workflow.engine import (
+    dispatch_partition as _dispatch_partition,
+    issue_processing as _issue_processing,
+    observations,
+    stage_targets as _stage_targets,
+)
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import refused_submit_support as _support
 from tests.workflow.engine.refused_submit_support import RefusingOnce, Retiring, Scheduler
@@ -121,7 +126,7 @@ class EnumerationLatchTest(ObservedCloseCase, unittest.TestCase):
         # Nothing has been submitted at all here.
         github = _live_owner()
 
-        dispatch._partition_pollable_issues(github, _support.SPEC)
+        _dispatch_partition._partition_pollable_issues(github, _support.SPEC)
 
         self.assertTrue(
             observations.close_observed(_support.SPEC.slug, _support.OWNER_NUMBER),
@@ -133,7 +138,7 @@ class EnumerationLatchTest(ObservedCloseCase, unittest.TestCase):
         github = _live_owner()
         github.get_issue(_support.OWNER_NUMBER).closed = False
 
-        dispatch._partition_pollable_issues(github, _support.SPEC)
+        _dispatch_partition._partition_pollable_issues(github, _support.SPEC)
 
         self.assertEqual(self._observed(_support.SPEC.slug), frozenset())
 
@@ -170,7 +175,7 @@ class _AdmittedCase(ObservedCloseCase):
 
     def _ran(self) -> Mock:
         """Run the task this tick handed the scheduler, holding its handler."""
-        module_name, handler_name = dispatch._STAGE_HANDLER_TARGETS[
+        module_name, handler_name = _stage_targets._STAGE_HANDLER_TARGETS[
             LABEL_IMPLEMENTING
         ]
         dispatched = Mock()
@@ -254,14 +259,14 @@ class AdmittedClosedSubmitTest(_AdmittedCase, unittest.TestCase):
 
     def _polled_afresh(self) -> Mock:
         """Dispatch this issue the way a process that lost the latch would."""
-        module_name, handler_name = dispatch._STAGE_HANDLER_TARGETS[
+        module_name, handler_name = _stage_targets._STAGE_HANDLER_TARGETS[
             LABEL_IMPLEMENTING
         ]
         dispatched = Mock()
         with patch.object(
             importlib.import_module(module_name), handler_name, dispatched,
         ):
-            dispatch._process_issue(
+            _issue_processing._process_issue(
                 self.github, _support.SPEC, self.github.get_issue(_support.OWNER_NUMBER),
             )
         return dispatched

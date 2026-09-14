@@ -19,7 +19,10 @@ from unittest.mock import Mock, patch
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow import state as _workflow_state
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
+    stage_targets as _stage_targets,
+)
 from orchestrator.workflow.late_split import phases as _late_phases
 from tests.support.fakes import FakeGitHubClient, FakePRRef, make_issue
 from tests.workflow.fixtures import (
@@ -135,7 +138,7 @@ class _FrozenPairMixin(_PatchedWorkflowMixin):
     def _route(self, github, issue, *, handled=None, **run_options):
         """Route one issue the way a tick does, reporting the handler call."""
         dispatched = Mock()
-        owner_name, named = _dispatch._STAGE_HANDLER_TARGETS[
+        owner_name, named = _stage_targets._STAGE_HANDLER_TARGETS[
             handled or _workflow_state.WorkflowLabel.FIXING
         ]
         run_options.setdefault("run_agent", _agent())
@@ -145,7 +148,7 @@ class _FrozenPairMixin(_PatchedWorkflowMixin):
             _worktree_paths, WORKTREE_PATH, return_value=fixing.TEMP_ROOT,
         ):
             mocks = self._run(
-                lambda: _dispatch._route_issue_to_handler(
+                lambda: _issue_processing._route_issue_to_handler(
                     github, _TEST_SPEC, issue,
                     github.workflow_label(issue),
                 ),
@@ -165,7 +168,7 @@ class _FrozenPairMixin(_PatchedWorkflowMixin):
             _worktree_paths, WORKTREE_PATH, return_value=fixing.TEMP_ROOT,
         ):
             return self._run(
-                lambda: _dispatch._route_issue_to_handler(
+                lambda: _issue_processing._route_issue_to_handler(
                     github, _TEST_SPEC, issue,
                     github.workflow_label(issue),
                 ),

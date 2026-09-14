@@ -8,7 +8,7 @@ from typing import Any
 
 from orchestrator.git.base_sync import refresh as _base_refresh
 from orchestrator.workflow.engine import (
-    dispatch as _dispatch,
+    issue_processing as _issue_processing,
 )
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.fixtures import (
@@ -19,7 +19,7 @@ from tests.workflow.fixtures import (
 
 def dispatched_tick(github: FakeGitHubClient, issue) -> Callable[[], Any]:
     """The whole of an ordinary tick: one issue routed by its label."""
-    return lambda: _dispatch._route_issue_to_handler(
+    return lambda: _issue_processing._route_issue_to_handler(
         github, _TEST_SPEC, issue, github.workflow_label(issue),
     )
 

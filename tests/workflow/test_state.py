@@ -10,7 +10,7 @@ import unittest
 
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github import labels as _labels
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import poll_models as _poll_models
 from orchestrator.workflow.label_reading import coerce_workflow_label
 from orchestrator.workflow.state import ControlLabel, WorkflowLabel
 from orchestrator.workflow.transitions import _DETOUR_TO_RESOLVING, ALLOWED_TRANSITIONS
@@ -51,8 +51,8 @@ class WorkflowLabelEnumTest(unittest.TestCase):
     def test_frozenset_membership_both_directions(self) -> None:
         # Plain string against an enum-valued set, and enum against a
         # string-seeded set -- both must hold (hash/eq match str).
-        self.assertIn("workflow:blocked", _dispatch._FAMILY_AWARE_LABELS)
-        self.assertIn(WorkflowLabel.BLOCKED, _dispatch._FAMILY_AWARE_LABELS)
+        self.assertIn("workflow:blocked", _poll_models._FAMILY_AWARE_LABELS)
+        self.assertIn(WorkflowLabel.BLOCKED, _poll_models._FAMILY_AWARE_LABELS)
         self.assertIn(
             _VALIDATING_LABEL, _base_sync_state._PR_REFRESH_DETOUR_LABELS,
         )

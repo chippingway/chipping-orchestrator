@@ -900,11 +900,11 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   to the live stage handler. It is handed back again whenever a receipt actually LANDS: a claim taken when the thread
   carried nothing proved nothing about one posted since, and every later pass would read straight past it. Cycle
   scoping is what keeps an old close from ending the fresh cycle an operator authorized by removing `rejected`.
-- **Every path that runs a cleanup holds its observation the same way.** The scheduler's fan-out submit, the in-tick
-  parallel one, and the sequential stream all wrap the pass in `dispatch._cleanup_observation`, with the refetch
-  *inside* the wrapper — that read is the first thing a cleanup spends and the likeliest to fail, and a pass that
-  raised marked nothing. Without the wrapper the exception is merely logged and a reopen before the next tick resumes
-  the uncancelled cycle.
+- **Every path that runs a cleanup holds its observation the same way.** The scheduler's fan-out submit, the
+  in-tick parallel one, and the sequential stream all wrap the pass in
+  `cleanup_observation._cleanup_observation`, with the refetch *inside* the wrapper — that read is the first
+  thing a cleanup spends and the likeliest to fail, and a pass that raised marked nothing. Without the wrapper
+  the exception is merely logged and a reopen before the next tick resumes the uncancelled cycle.
 - **A closed owner whose label names an ordinary terminal is still cancelled.** The cleanup route takes a closed
   owner on either label an adjudication runs under; what reaches the dispatcher's own guard closed is the one window
   no label covers — an authorized settlement hands its issue to `workflow:implementing` a moment before it retires

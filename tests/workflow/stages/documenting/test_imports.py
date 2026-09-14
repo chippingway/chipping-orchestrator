@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from types import MappingProxyType
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import stage_targets as _stage_targets
 from orchestrator.workflow.stages import documenting as _package
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -129,7 +129,7 @@ class DispatchTargetTest(unittest.TestCase):
         # that is where a patch has to land to intercept one.
         owner = _OWNER_MODULES[_HANDLER_OWNER]
         self.assertEqual(
-            _dispatch._STAGE_HANDLER_TARGETS[WorkflowLabel.DOCUMENTING],
+            _stage_targets._STAGE_HANDLER_TARGETS[WorkflowLabel.DOCUMENTING],
             (owner.__name__, _HANDLE_DOCUMENTING),
         )
         self.assertTrue(hasattr(owner, _HANDLE_DOCUMENTING))

@@ -36,7 +36,12 @@ from types import MappingProxyType, SimpleNamespace
 from unittest.mock import Mock, patch
 
 from orchestrator.git.worktrees import paths as _worktree_paths
-from orchestrator.workflow.engine import dispatch
+from orchestrator.workflow.engine import (
+    dispatch_guards as _dispatch_guards,
+    issue_processing as _issue_processing,
+    poll_models as _poll_models,
+    stage_targets as _stage_targets,
+)
 from tests.support.fakes import (
     FakeGitHubClient,
     FakePR,
@@ -142,14 +147,14 @@ class _HoldCase:
         self,
         issue,
         *,
-        reading=dispatch._POLLED_OPEN,
+        reading=_poll_models._POLLED_OPEN,
         label: str = LABEL_IMPLEMENTING,
     ) -> None:
-        module_name, handler_name = dispatch._STAGE_HANDLER_TARGETS[label]
+        module_name, handler_name = _stage_targets._STAGE_HANDLER_TARGETS[label]
         with patch.object(
             importlib.import_module(module_name), handler_name, self.reached,
         ):
-            dispatch._route_issue_to_handler(
+            _issue_processing._route_issue_to_handler(
                 self.gh, _SPEC, issue, label, reading=reading,
             )
 
@@ -213,7 +218,7 @@ class RunLimitHoldTest(_HoldCase, unittest.TestCase):
         issue = self._issue()
         self._seed(_limit_seeds.parked_state())
 
-        self._route(issue, reading=dispatch._PollReading(closed=True))
+        self._route(issue, reading=_poll_models._PollReading(closed=True))
 
         self._assert_dispatched(issue)
 
@@ -313,7 +318,7 @@ class TerminalWorkTest(_HoldCase, _PatchedWorkflowMixin, unittest.TestCase):
             _worktree_paths, _WORKTREE_PATH, return_value=_TEMP_ROOT,
         ):
             return self._run(
-                lambda: dispatch._route_issue_to_handler(
+                lambda: _issue_processing._route_issue_to_handler(
                     self.gh, _TEST_SPEC, issue,
                     self.gh.workflow_label(issue),
                 ),
@@ -526,10 +531,10 @@ class HoldPlacementTest(unittest.TestCase):
         restart = Mock(return_value=True)
 
         with patch.object(
-            importlib.import_module(dispatch._LATE_RESTART_OWNER),
+            importlib.import_module(_stage_targets._LATE_RESTART_OWNER),
             "_restarts", restart,
         ):
-            held = dispatch._pinned_state_refuses(
+            held = _dispatch_guards._pinned_state_refuses(
                 gh, _SPEC, issue, LABEL_IMPLEMENTING,
             )
 

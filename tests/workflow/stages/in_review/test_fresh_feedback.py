@@ -17,7 +17,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -165,7 +165,7 @@ class InReviewRoutesFreshFeedbackToFixingTest(
 
         with patch.object(config, "IN_REVIEW_DEBOUNCE_SECONDS", REVIEW_DEBOUNCE_SECONDS):
             mocks = self._run(
-                lambda: _dispatch._process_issue(gh, _TEST_SPEC, issue),
+                lambda: _issue_processing._process_issue(gh, _TEST_SPEC, issue),
                 run_agent=_agent(),
             )
 

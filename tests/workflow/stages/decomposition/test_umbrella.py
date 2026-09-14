@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import issue_processing as _issue_processing
 from orchestrator.workflow.stages.decomposition import umbrella as _umbrella
 from tests.support.fakes import (
     FakeGitHubClient,
@@ -92,7 +92,7 @@ def _dispatch_umbrella(
     issue: FakeIssue,
 ):
     with patch.object(_umbrella, "_handle_umbrella") as umbrella_handler:
-        _dispatch._process_issue(gh, _TEST_SPEC, issue)
+        _issue_processing._process_issue(gh, _TEST_SPEC, issue)
         return umbrella_handler
 
 

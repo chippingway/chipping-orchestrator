@@ -34,7 +34,10 @@ from unittest.mock import Mock, patch
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow import state as _workflow_state
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
+    stage_targets as _stage_targets,
+)
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     MEASURED_BASE_SHA,
@@ -173,7 +176,7 @@ class _ContentUpdateMixin(_ResolvingConflictMixin):
     def _reconciled(self, github, issue, **run_options):
         """Route one tick with the reconciliation ahead of a mocked handler."""
         dispatched = Mock()
-        owner_name, named = _dispatch._STAGE_HANDLER_TARGETS[
+        owner_name, named = _stage_targets._STAGE_HANDLER_TARGETS[
             RESOLVING_CONFLICT
         ]
         run_options.setdefault("added_lines", UNDER_THE_CEILING)
@@ -183,7 +186,7 @@ class _ContentUpdateMixin(_ResolvingConflictMixin):
             _worktree_paths, WORKTREE_PATH, return_value=TEMP_ROOT,
         ):
             mocks = self._run(
-                lambda: _dispatch._route_issue_to_handler(
+                lambda: _issue_processing._route_issue_to_handler(
                     github, _TEST_SPEC, issue, github.workflow_label(issue),
                 ),
                 run_agent=_agent(),

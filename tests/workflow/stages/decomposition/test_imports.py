@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from types import MappingProxyType
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import stage_targets as _stage_targets
 from orchestrator.workflow.stages import decomposition as _package
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -230,14 +230,14 @@ class DispatchTargetTest(unittest.TestCase):
         # `decomposing` and `umbrella` open or closed -- so nothing else pins
         # the pair, and a module renamed out from under it would surface as a
         # closed owner nothing ever settles.
-        owner_name, handler_name = _dispatch._CLEANUP_SWEEP_TARGET
+        owner_name, handler_name = _stage_targets._CLEANUP_SWEEP_TARGET
         owner = _OWNER_MODULES["late_sweep"]
 
         self.assertEqual(owner_name, owner.__name__)
         self.assertTrue(callable(getattr(owner, handler_name)))
         self.assertNotIn(
-            _dispatch._CLEANUP_SWEEP_TARGET,
-            _dispatch._STAGE_HANDLER_TARGETS.values(),
+            _stage_targets._CLEANUP_SWEEP_TARGET,
+            _stage_targets._STAGE_HANDLER_TARGETS.values(),
         )
 
     def test_each_label_resolves_to_its_owner(self) -> None:
@@ -248,7 +248,7 @@ class DispatchTargetTest(unittest.TestCase):
             with self.subTest(label=label):
                 owner = _OWNER_MODULES[owner_name]
                 self.assertEqual(
-                    _dispatch._STAGE_HANDLER_TARGETS[label],
+                    _stage_targets._STAGE_HANDLER_TARGETS[label],
                     (owner.__name__, handler_name),
                 )
                 self.assertTrue(hasattr(owner, handler_name))

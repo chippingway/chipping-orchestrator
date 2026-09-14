@@ -13,7 +13,10 @@ import functools
 import importlib
 from unittest.mock import Mock, patch
 
-from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
+    stage_targets as _stage_targets,
+)
 from tests.workflow.stages.decomposition.late_cleanup_support import (
     RecordedDelete,
     SeededUmbrella,
@@ -33,12 +36,12 @@ def routed_owner(
     Hands back the handler that was held, so a case says what it is about by
     asserting the handler was or was not reached.
     """
-    module_name, handler_name = _dispatch._STAGE_HANDLER_TARGETS[label]
+    module_name, handler_name = _stage_targets._STAGE_HANDLER_TARGETS[label]
     owner = importlib.import_module(module_name)
     dispatched = Mock()
     answers = remote or RecordedDelete(SnapshotOutcome.DELETED)
     with answers.answering(), patch.object(owner, handler_name, dispatched):
         walk_owner(case, seeded, functools.partial(
-            _dispatch._route_issue_to_handler, label=label,
+            _issue_processing._route_issue_to_handler, label=label,
         ))
     return dispatched
