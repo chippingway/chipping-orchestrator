@@ -9,10 +9,7 @@ from orchestrator.workflow.late_split.models import (
     LateResource,
     LateVerdict,
 )
-from orchestrator.workflow.late_split.rewrites import (
-    LateRewriteKind,
-    LateRewriteProof,
-)
+from orchestrator.workflow.late_split.rewrite_values import LateRewriteKind, LateRewriteProof
 from tests.workflow.late_split.generation_test_support import (
     CHILD_COUNT,
     FIRST_CHILD,

@@ -80,7 +80,7 @@ from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     formats as _formats,
-    rewrites as _rewrites,
+    rewrite_values as _rewrite_values,
     state as _late_state,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -297,7 +297,7 @@ def _rewritten(
     entry: _records._PublicationEntry,
     squashed: str,
     collapsed: _Collapsed,
-) -> _rewrites.LateRewrite:
+) -> _rewrite_values.LateRewrite:
     """What this squash replaced, and the publication it replaced it on.
 
     Everything a transfer could be granted on and nothing this owner decides.
@@ -320,8 +320,8 @@ def _rewritten(
     where the switch kept the squash out of the gate, whose entry names a head
     and no publication at all.
     """
-    return _rewrites.LateRewrite(
-        kind=_rewrites.LateRewriteKind.SQUASH,
+    return _rewrite_values.LateRewrite(
+        kind=_rewrite_values.LateRewriteKind.SQUASH,
         from_sha=collapsed.head,
         from_base_sha=collapsed.base_sha,
         to_sha=squashed,

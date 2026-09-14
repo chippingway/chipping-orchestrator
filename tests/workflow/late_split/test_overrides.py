@@ -10,6 +10,7 @@ from orchestrator.git.measurement.models import FINGERPRINT_FORMAT
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
+    exemption_reading as _exemption_reading,
     keys as _late_keys,
     overrides as _overrides,
     state as _late_state,
@@ -360,7 +361,7 @@ class AuthorizationLifetimeTest(unittest.TestCase):
 
         _overrides.record_publication_override(state, authorized_publication())
 
-        self.assertEqual(_exemption.read_exemption(state), DESCENDANT_SHA)
+        self.assertEqual(_exemption_reading.read_exemption(state), DESCENDANT_SHA)
         _overrides.clear_publication_override(state)
         self.assertEqual(state.data, untouched)
 

@@ -40,6 +40,7 @@ from dataclasses import replace
 
 from orchestrator.workflow.late_split import (
     events as _events,
+    rewrite_values as _rewrite_values,
     rewrites as _rewrites,
     state as _late_state,
     telemetry as _telemetry,
@@ -97,7 +98,7 @@ def _reports_the_transfer(
 
 
 def _forgets_the_reported_proof(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> None:
     """Drop the proof the record above was made from, durably.
 
@@ -130,7 +131,7 @@ def _forgets_the_reported_proof(
 
 
 def _reported(
-    gate: _records._Gate, rewrite: _rewrites.LateRewrite,
+    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> LateGeneration:
     """The generation one transfer record is correlated by.
 

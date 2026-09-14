@@ -13,7 +13,7 @@ from orchestrator.workflow.late_split.models import (
     LateResourceState,
     LateVerdict,
 )
-from orchestrator.workflow.late_split.rewrites import LateRewriteProof
+from orchestrator.workflow.late_split.rewrite_values import LateRewriteProof
 from tests.workflow.late_split import event_test_support as _event_support, generation_test_support as _support
 
 _FAMILY_KEY = "family"

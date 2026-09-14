@@ -21,7 +21,7 @@ from unittest.mock import Mock
 
 from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.workflow.engine import dispatch as _dispatch
-from orchestrator.workflow.late_split import lineage as _lineage
+from orchestrator.workflow.late_split import ancestry as _ancestry
 from orchestrator.workflow.late_split.models import LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_reuse as _late_reuse,
@@ -138,7 +138,7 @@ class _ReuseCase(_PatchedWorkflowMixin):
         """Leave one reclamation's receipt on the child, as its owner would."""
         seeded.github.comment(
             self.child(seeded),
-            _lineage.release_marker(
+            _ancestry.release_marker(
                 owner=PARENT_NUMBER, cycle=cycle, generation=GENERATION_NUMBER,
             ),
         )
@@ -423,7 +423,7 @@ class ReuseCostTest(_ReuseCase, unittest.TestCase):
         self.child(seeded).comments.append(
             FakeComment(
                 id=_FORGED_COMMENT_ID,
-                body=_lineage.release_marker(
+                body=_ancestry.release_marker(
                     owner=PARENT_NUMBER,
                     cycle=CYCLE_ID,
                     generation=GENERATION_NUMBER,
@@ -608,7 +608,7 @@ class AskedOfTheRemoteTest(_ReuseCase, unittest.TestCase):
         # which is the park-by-paste this check exists to refuse.
         seeded = _resumable()
         forged = make_issue(
-            _STRANGER_NUMBER, label=_READY, body=_lineage.child_marker(
+            _STRANGER_NUMBER, label=_READY, body=_ancestry.child_marker(
                 issue=PARENT_NUMBER,
                 cycle=CYCLE_ID,
                 generation=GENERATION_NUMBER,
@@ -642,7 +642,7 @@ class AskedOfTheRemoteTest(_ReuseCase, unittest.TestCase):
                 })
                 claiming = make_issue(
                     _STRANGER_NUMBER, label=_READY,
-                    body=_lineage.child_marker(
+                    body=_ancestry.child_marker(
                         issue=owner,
                         cycle=CYCLE_ID,
                         generation=GENERATION_NUMBER,

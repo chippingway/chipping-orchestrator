@@ -341,53 +341,24 @@ workflow/                   marker package for state, engine, and stage owners
                             decision naming the cycle a `rejected` is owed for, and the proof that one landed on
                             the issue, which together are the only durable evidence that the label an operator
                             removes to authorize a restart was ever applied, and which an attempt alone is not
-    lineage.py              what a child born of a split inherits and reads back fail-closed: the lineage it
-                            continues, the adjudication that created it, the snapshot ref and exact commit it may
-                            reuse, and the slice it owns -- plus the two markers that claim a lineage outside the
-                            pinned comment, the receipt the transaction stamps into a child's body and the one a
-                            reclamation leaves on its thread, and the reader that turns the first back into a
-                            lineage when the pinned write that would have recorded one never landed
-    exemption.py            the one commit an accepted candidate publishes under, and the semantic identity of what
-                            that commit contributes beside it -- the frozen pair it was adjudicated between, the
-                            canonical digest of the contribution between them, and the version that digest was taken
-                            under. Both written, read, and compared fail-closed and deliberately outside the group a
-                            cleared generation drops; the identity is read whole or not at all, so a missing or
-                            damaged member, a candidate that is not the exempt commit, a version this build does not
-                            compute, and a comment older than the group each transfer nothing while the exact-SHA
-                            exemption goes on answering for the commit it names. The group belongs to the commit on
-                            the field beside it, so a write that moves that field to another commit takes the
-                            identity with it -- and one that re-records the same commit keeps it, which is what a
-                            settlement resumed between that write and its handoff is standing on
-    rewrites.py             what authorizes that exemption to MOVE onto the commit a workflow rewrite replaced the
-                            accepted one with: the bounded rewrite kind, both pre- and post-rewrite pairs, the
-                            digest they were granted equal on and the scheme it was taken under, the publication
-                            the rewrite was made against, and the phase the transfer stands at. Written BEFORE the
-                            push it licenses and moving nothing -- the exemption stays on the commit a human ruled
-                            on, since the object the rewrite produced is on no remote yet and a verdict rotated
-                            onto it there would be stranded by a push that failed. What SPENDS a permission is
-                            `record_rewrite_publication`, staged into the write that receipts the landed push: the
-                            exemption, the identity beside it, the operator authorization that made that exemption
-                            a bypass, and the phase move to `published` in one statement,
-                            since a reader is entitled to find them agreeing. Both writes live here rather than at
-                            the seam that decides, so the reader is the writer's own gate -- a publication is
-                            recorded only over a permission this build can read back whole and still finds
-                            outstanding, and every other record is refused rather than repaired. The phase is what
-                            binds the group to the exemption -- the accepted end while `authorized`, the rewritten
-                            one once `published` -- and what a rollback reads, since only an `authorized`
-                            permission may be dropped when a refused force-push resets the branch back onto the
-                            commit the exemption never left. Read whole or not at all, so a missing member, a kind
-                            or a phase this build cannot account for, a stage that does not make the kind recorded
-                            beside it, and a bound end the exemption does not name each authorize nothing. The
-                            kind and the stage are held TOGETHER, on the one predicate the reader and the writer
-                            share (`entered_from`): each is a value this build knows, and only the pair says
-                            whether the record describes a rewrite anything here produced -- a `conflict_rebase`
-                            against `validating`, or a `squash` against `resolving_conflict`, types in both halves
-                            and names a rewrite that stage does not make. Each kind is held to the stages its own
-                            producer names: the squash to `validating`, where the approval handoff makes one
-                            before it relabels; the `conflict_rebase` to `resolving_conflict`, whose owner spells
-                            that label itself; and the `auto_clean_rebase` to the four the base refresh drives,
-                            since what its evidence names is whichever of them the issue was on when the base
-                            moved
+    ancestry.py             frozen inherited ancestry, snapshot transforms, child and release receipt markers, and
+                            the body reader that recovers a child's claimed lineage when its pinned write was lost
+    lineage.py              durable inherited fields, fail-closed snapshot reads, and parent corroboration; keys and
+                            write omission rules preserve ancestry after the child's own generation is retired
+    exemption_reading.py    exact-commit exemption reads, their key groups, and whole semantic identities; a transferable
+                            identity requires the frozen pair, matching exempt candidate, digest, and supported format,
+                            while a claimed but unreadable group stays distinct from no record
+    exemption.py            exemption and semantic-identity writes outside the generation's lifetime; moving the exempt
+                            commit drops its old identity, and writing the same commit retains the identity it earned
+    rewrite_values.py       persisted rewrite kinds, phases, and proof vocabulary, frozen authorization values, and the
+                            valid kind/stage pairs; automatic rebases use the state graph's base-refresh stage set
+    rewrite_fields.py       rewrite keys and wire shapes, bounded field reads, and validated encodings; the phase chooses
+                            whether the accepted or rewritten commit binds the group to the exemption
+    rewrite_reading.py      rewrite claims, whole authorizations, outstanding permissions, and pending reporting proofs;
+                            unreadable claims cannot be replaced as though no authorization were recorded
+    rewrites.py             rewrite grants before a push and publication rotation after one; the exemption, identity,
+                            operator authorization, phase, and reporting proof are staged together for the caller's
+                            settlement write, and only a readable outstanding grant may be spent
     overrides.py            the one oversized candidate an OPERATOR authorized to publish as it stands, bound to the
                             exact candidate SHA a human read: the frozen base it was read over, the canonical digest of
                             the contribution between them and the scheme that digest was taken under, the measurement

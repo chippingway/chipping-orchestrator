@@ -17,6 +17,7 @@ the permit was granted or already on the commit it licensed.
 from __future__ import annotations
 
 from orchestrator.workflow.late_split import (
+    rewrite_values as _rewrite_values,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -26,10 +27,10 @@ from orchestrator.workflow.stages.implementing import (
 from tests.workflow.stages.implementing import late_transfer_payloads as _transfer_payloads
 
 
-def rewrite(**overrides) -> _rewrites.LateRewrite:
+def rewrite(**overrides) -> _rewrite_values.LateRewrite:
     """The evidence the squash hands in, with any one term replaced."""
-    return _rewrites.LateRewrite(**{
-        "kind": _rewrites.LateRewriteKind.SQUASH,
+    return _rewrite_values.LateRewrite(**{
+        "kind": _rewrite_values.LateRewriteKind.SQUASH,
         "from_sha": _transfer_payloads.ACCEPTED_SHA,
         "from_base_sha": _transfer_payloads.MERGE_BASE_SHA,
         "to_sha": _transfer_payloads.REWRITTEN_SHA,
@@ -62,7 +63,7 @@ def spent(state) -> None:
     the settlement kept for its own report included.
     """
     _rewrites.record_rewrite_publication(
-        state, _rewrites.LateRewriteProof.PUSHED,
+        state, _rewrite_values.LateRewriteProof.PUSHED,
     )
 
 
@@ -82,7 +83,7 @@ def gate(github, issue, state, **overrides) -> _records._Gate:
     })
 
 
-def granted(state, **overrides) -> _rewrites.LateRewrite:
+def granted(state, **overrides) -> _rewrite_values.LateRewrite:
     """The comment a permit's own write leaves, and the rewrite it is for.
 
     Both halves, because the grant writes both: the permission that says what

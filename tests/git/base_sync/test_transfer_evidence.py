@@ -29,7 +29,7 @@ from orchestrator.git.measurement.models import (
 )
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
-    rewrites as _rewrites,
+    rewrite_values as _rewrite_values,
 )
 from tests.git.base_sync import (
     base_sync_helpers as fixtures,
@@ -83,8 +83,8 @@ class ReconstructedTest(seed.TransferCase):
         against: taken from today, a relabel or a repoint made while the
         process was down would pass as the terms the rewrite was made under.
         """
-        self.assertEqual(self._rebuilt(), _rewrites.LateRewrite(
-            kind=_rewrites.LateRewriteKind.AUTO_CLEAN_REBASE,
+        self.assertEqual(self._rebuilt(), _rewrite_values.LateRewrite(
+            kind=_rewrite_values.LateRewriteKind.AUTO_CLEAN_REBASE,
             from_sha=seed.ACCEPTED_SHA,
             from_base_sha=seed.ACCEPTED_BASE_SHA,
             to_sha=seed.REPLAYED_SHA,

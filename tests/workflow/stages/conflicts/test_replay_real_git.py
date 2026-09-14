@@ -28,8 +28,8 @@ from unittest.mock import MagicMock, patch
 from orchestrator.config import settings as config
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
-    rewrites as _rewrites,
+    exemption_reading as _exemption_reading,
+    rewrite_reading as _rewrite_reading,
 )
 from orchestrator.workflow.stages.conflicts import (
     divergence as _divergence,
@@ -93,7 +93,7 @@ class ReplayedTransferRealGitTest(_real_replay._RealReplayCase, unittest.TestCas
             self._gate_for(gate, self.replay.replayed), self.replay.replayed,
         )
 
-        authorized = _rewrites.read_rewrite_authorization(gate.state)
+        authorized = _rewrite_reading.read_rewrite_authorization(gate.state)
         self.assertEqual(authorized.rewrite.from_sha, self.replay.accepted)
         self.assertEqual(
             authorized.rewrite.from_base_sha, self.replay.accepted_base,
@@ -122,9 +122,9 @@ class ReplayedTransferRealGitTest(_real_replay._RealReplayCase, unittest.TestCas
         )
 
         self.assertEqual(carried, "")
-        self.assertIsNone(_rewrites.read_rewrite_authorization(gate.state))
+        self.assertIsNone(_rewrite_reading.read_rewrite_authorization(gate.state))
         self.assertEqual(
-            gate.gh.pinned_data(_real_replay.ISSUE_NUMBER)[_exemption.LATE_EXEMPT_SHA],
+            gate.gh.pinned_data(_real_replay.ISSUE_NUMBER)[_exemption_reading.LATE_EXEMPT_SHA],
             self.replay.accepted,
         )
 
@@ -243,7 +243,7 @@ class AuthoredChangeRealGitTest(_real_replay._RealReplayCase, unittest.TestCase)
         published = self._publishes(gate, amended)
 
         self.assertTrue(published.held)
-        self.assertFalse(_rewrites.carries_rewrite_authorization(gate.state))
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(gate.state))
         self.assertIn(
             (_real_replay.ISSUE_NUMBER, LABEL_DECOMPOSING), gate.gh.label_history,
         )
@@ -261,7 +261,7 @@ class AuthoredChangeRealGitTest(_real_replay._RealReplayCase, unittest.TestCase)
             (_real_replay.ISSUE_NUMBER, LABEL_DECOMPOSING), gate.gh.label_history,
         )
         self.assertEqual(
-            gate.gh.pinned_data(_real_replay.ISSUE_NUMBER)[_exemption.LATE_EXEMPT_SHA],
+            gate.gh.pinned_data(_real_replay.ISSUE_NUMBER)[_exemption_reading.LATE_EXEMPT_SHA],
             self.replay.replayed,
         )
 

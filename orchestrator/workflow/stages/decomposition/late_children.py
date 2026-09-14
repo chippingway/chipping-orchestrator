@@ -79,6 +79,7 @@ from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
 from orchestrator.github import comments as _github_comments, issues as _github_issues
 from orchestrator.workflow.engine import usage as _usage
 from orchestrator.workflow.late_split import (
+    ancestry as _ancestry,
     formats as _formats,
     generation_reading as _generation_reading,
     identity as _identity,
@@ -576,7 +577,7 @@ def _sole_receipt(orphan: Issue, marker: str) -> bool:
     and is refused the same way.
     """
     body = getattr(orphan, "body", "") or ""
-    return marker in body and body.count(_lineage.CHILD_RECEIPT) == 1
+    return marker in body and body.count(_ancestry.CHILD_RECEIPT) == 1
 
 
 def _forged_receipt(children: tuple) -> str | None:
@@ -737,7 +738,7 @@ def _seed_child_state(
 
 def _child_ancestry(
     context: _LateContext, child: dict, snapshot_ref: str,
-) -> _lineage.LateAncestry:
+) -> _ancestry.LateAncestry:
     """What this child inherits from the generation that created it.
 
     The depth is asked of the lineage owner rather than incremented here, so
@@ -754,7 +755,7 @@ def _child_ancestry(
     the reader.
     """
     generation = context.generation
-    return _lineage.LateAncestry(
+    return _ancestry.LateAncestry(
         root_issue=generation.root_issue,
         lineage_depth=_identity.child_lineage_depth(generation.lineage_depth),
         parent_issue=generation.current_issue,
@@ -770,7 +771,7 @@ def _child_ancestry(
 
 def _child_marker(generation, index: int) -> str:
     """The hidden marker naming this issue, adjudication, and slice."""
-    return _lineage.child_marker(
+    return _ancestry.child_marker(
         issue=generation.current_issue,
         cycle=generation.cycle_id,
         generation=generation.generation,

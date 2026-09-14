@@ -21,6 +21,7 @@ from dataclasses import replace
 from orchestrator.git.base_sync import models, transfers
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
+    rewrite_values as _rewrite_values,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import late_parks as _parks
@@ -68,8 +69,8 @@ OTHER_PR_NUMBER = fixtures.PR_NUMBER + 1
 
 # The permission the interrupted tick's own grant records: both pairs, the
 # publication it was made against, and the head its push is leased to.
-GRANTED = _rewrites.LateRewrite(
-    kind=_rewrites.LateRewriteKind.AUTO_CLEAN_REBASE,
+GRANTED = _rewrite_values.LateRewrite(
+    kind=_rewrite_values.LateRewriteKind.AUTO_CLEAN_REBASE,
     from_sha=ACCEPTED_SHA,
     from_base_sha=ACCEPTED_BASE_SHA,
     to_sha=REPLAYED_SHA,
@@ -162,7 +163,7 @@ def settled(state, rewrite=GRANTED):
     """
     granted(state, rewrite)
     spent = _rewrites.record_rewrite_publication(
-        state, _rewrites.LateRewriteProof.PUSHED,
+        state, _rewrite_values.LateRewriteProof.PUSHED,
     )
     _parks._record_publication(
         state, spent.to_sha, spent.lease, fixtures.PR_NUMBER,

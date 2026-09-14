@@ -208,10 +208,10 @@ def _rewritten_by_the_rebase(
     # workflow layer above this package, so binding them at module load would
     # make every git-side import pay for the stage tree they pull in.
     from orchestrator.workflow.late_split import (
-        exemption as _exemption,
-        rewrites as _rewrites,
+        exemption_reading as _exemption_reading,
+        rewrite_values as _rewrite_values,
     )
-    identity = _exemption.read_semantic_identity(context.state)
+    identity = _exemption_reading.read_semantic_identity(context.state)
     if identity is None:
         return None
     replayed_onto = measurement_commits._freeze_base_commit(
@@ -222,8 +222,8 @@ def _rewritten_by_the_rebase(
     made_against = publication or _PendingRewrite(
         sha=after_sha, pr_number=context.pr_number, stage=context.label,
     )
-    return _rewrites.LateRewrite(
-        kind=_rewrites.LateRewriteKind.AUTO_CLEAN_REBASE,
+    return _rewrite_values.LateRewrite(
+        kind=_rewrite_values.LateRewriteKind.AUTO_CLEAN_REBASE,
         from_sha=identity.candidate_sha,
         from_base_sha=identity.base_sha,
         to_sha=after_sha,
@@ -285,11 +285,11 @@ def _carried_by(
     # Lazy for the reason every upward reach in this package is: the record
     # sits in the workflow layer above it.
     from orchestrator.workflow.late_split import (
-        exemption as _exemption,
-        rewrites as _rewrites,
+        exemption_reading as _exemption_reading,
+        rewrite_reading as _rewrite_reading,
     )
-    if _exemption.unreadable_exemption(context.state) or (
-        _rewrites.stranded_transfer_proof(context.state)
+    if _exemption_reading.unreadable_exemption(context.state) or (
+        _rewrite_reading.stranded_transfer_proof(context.state)
     ):
         return _Handoff.UNVOUCHED
     standing = _standing_permission(context, local_head)
@@ -297,7 +297,7 @@ def _carried_by(
         return standing
     if _foreign_debt(context, local_head):
         return _Handoff.UNVOUCHED
-    if _exemption.read_exemption(context.state) is None:
+    if _exemption_reading.read_exemption(context.state) is None:
         return _Handoff.NOTHING
     return _Handoff.UNRECORDED
 
@@ -380,10 +380,12 @@ def _standing_permission(
     """
     # Lazy for the reason every upward reach in this package is: the record
     # sits in the workflow layer above it.
-    from orchestrator.workflow.late_split import rewrites as _rewrites
-    if not _rewrites.claims_the_exemption(context.state):
+    from orchestrator.workflow.late_split import (
+        rewrite_reading as _rewrite_reading,
+    )
+    if not _rewrite_reading.claims_the_exemption(context.state):
         return None
-    authorization = _rewrites.read_rewrite_authorization(context.state)
+    authorization = _rewrite_reading.read_rewrite_authorization(context.state)
     if authorization is None:
         return _Handoff.UNVOUCHED
     settled = _is_settled(authorization)
@@ -397,8 +399,10 @@ def _standing_permission(
 
 def _is_settled(authorization) -> bool:
     """Whether this record says the receipt behind its push has landed."""
-    from orchestrator.workflow.late_split import rewrites as _rewrites
-    return authorization.phase == _rewrites.LateRewritePhase.PUBLISHED
+    from orchestrator.workflow.late_split import (
+        rewrite_values as _rewrite_values,
+    )
+    return authorization.phase == _rewrite_values.LateRewritePhase.PUBLISHED
 
 
 def _claimed_by_this_attempt(context, authorization, local_head) -> _Handoff:
@@ -490,8 +494,10 @@ def _names_the_adjudicated_pair(context, authorization) -> bool:
     describes a contribution this issue never adjudicated, however well each
     field is shaped on its own.
     """
-    from orchestrator.workflow.late_split import exemption as _exemption
-    identity = _exemption.read_semantic_identity(context.state)
+    from orchestrator.workflow.late_split import (
+        exemption_reading as _exemption_reading,
+    )
+    identity = _exemption_reading.read_semantic_identity(context.state)
     if identity is None or identity.fingerprint != authorization.fingerprint:
         return False
     rewrite = authorization.rewrite
@@ -754,17 +760,18 @@ def _rotated_onto(state: PinnedState, local_head: str) -> bool:
     # Lazy for the reason every upward reach in this package is: the record
     # sits in the workflow layer above it.
     from orchestrator.workflow.late_split import (
-        exemption as _exemption,
-        rewrites as _rewrites,
+        exemption_reading as _exemption_reading,
+        rewrite_reading as _rewrite_reading,
+        rewrite_values as _rewrite_values,
     )
-    authorization = _rewrites.read_rewrite_authorization(state)
+    authorization = _rewrite_reading.read_rewrite_authorization(state)
     if authorization is None:
         return False
-    if authorization.phase != _rewrites.LateRewritePhase.PUBLISHED:
+    if authorization.phase != _rewrite_values.LateRewritePhase.PUBLISHED:
         return False
     if authorization.rewrite.to_sha != local_head:
         return False
-    return _exemption.is_exempt(state, local_head)
+    return _exemption_reading.is_exempt(state, local_head)
 
 
 def _permits_the_publication(
@@ -859,13 +866,13 @@ def _left_mid_transfer(state: PinnedState) -> bool:
     # Lazy for the reason every upward reach in this package is: the record
     # sits in the workflow layer above it.
     from orchestrator.workflow.late_split import (
-        exemption as _exemption,
-        rewrites as _rewrites,
+        exemption_reading as _exemption_reading,
+        rewrite_reading as _rewrite_reading,
     )
-    if not _rewrites.carries_rewrite_authorization(state):
+    if not _rewrite_reading.carries_rewrite_authorization(state):
         return False
-    if _exemption.unreadable_exemption(state):
+    if _exemption_reading.unreadable_exemption(state):
         return True
-    if not _rewrites.claims_the_exemption(state):
+    if not _rewrite_reading.claims_the_exemption(state):
         return False
-    return _rewrites.outstanding_permission(state)
+    return _rewrite_reading.outstanding_permission(state)

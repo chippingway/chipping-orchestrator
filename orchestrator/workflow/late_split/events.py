@@ -93,10 +93,7 @@ from orchestrator.workflow.late_split.models import (
     LateResourceState,
     LateVerdict,
 )
-from orchestrator.workflow.late_split.rewrites import (
-    LateRewriteKind,
-    LateRewriteProof,
-)
+from orchestrator.workflow.late_split.rewrite_values import LateRewriteKind, LateRewriteProof
 
 _REQUIRES = "requires"
 _NOT_CARRIED = "does not carry"

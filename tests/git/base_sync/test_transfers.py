@@ -21,6 +21,8 @@ from types import MappingProxyType
 from orchestrator.git.base_sync import transfers
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
+    exemption_reading as _exemption_reading,
+    rewrite_fields as _rewrite_fields,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing.state import _APPROVED_BASIS
@@ -40,13 +42,13 @@ FOREIGN_DEBTS = MappingProxyType({
 # would have written. `None` is the member taken out.
 TAKEN_APART = MappingProxyType({
     "an exemption that is not a commit": {
-        _exemption.LATE_EXEMPT_SHA: "not-a-commit",
+        _exemption_reading.LATE_EXEMPT_SHA: "not-a-commit",
     },
     "an identity short of its base": {
-        _exemption.LATE_EXEMPT_BASE_SHA: None,
+        _exemption_reading.LATE_EXEMPT_BASE_SHA: None,
     },
     "a permission short of its accepted base": {
-        _rewrites.LATE_REWRITE_FROM_BASE_SHA: None,
+        _rewrite_fields.LATE_REWRITE_FROM_BASE_SHA: None,
     },
 })
 
@@ -333,7 +335,7 @@ class UnvouchedClaimTest(seed.TransferCase):
     def test_a_proof_nothing_can_report_from(self) -> None:
         """A settlement and a reading this build cannot account for at once."""
         seed.settled(self.state)
-        self.state.set(_rewrites.LATE_REWRITE_PROOF, "a reading nobody takes")
+        self.state.set(_rewrite_fields.LATE_REWRITE_PROOF, "a reading nobody takes")
 
         self._refuses()
 

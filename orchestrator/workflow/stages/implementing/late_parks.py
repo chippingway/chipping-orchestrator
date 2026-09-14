@@ -65,7 +65,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.late_split import (
     events as _events,
-    exemption as _exemption,
+    exemption_reading as _exemption_reading,
     formats as _formats,
     models as _late_models,
     payloads as _payloads,
@@ -1001,7 +1001,7 @@ def _minted_basis(state: _pinned_state.PinnedState) -> LateApprovalBasis:
     adjudication is long over and whose candidate this gate really did admit
     for itself. What the other answer costs is the bypass.
     """
-    if state.carries(_exemption.LATE_EXEMPT_SHA):
+    if state.carries(_exemption_reading.LATE_EXEMPT_SHA):
         return LateApprovalBasis.ADJUDICATION
     return LateApprovalBasis.UNMEASURED
 

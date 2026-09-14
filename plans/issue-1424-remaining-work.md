@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 38 paths and 42 pairs (42 production, 0
-test), all matching isolated diagnostics. Eighty-seven pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 35 paths and 39 pairs (39 production, 0
+test), all matching isolated diagnostics. Ninety pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201, WPS202, and WPS204. The files must stay until that set is empty and
 validation passes.
@@ -103,13 +103,22 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 45 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: move cached label reads to the label owner and canonical repository identity
+- `6bbe91af`: move cached label reads to the label owner and canonical repository identity
   onto the concrete GitHub client; separate pull-request reads and guarded retirement from mutations; separate
   late-generation phases and read-only predicates from the frozen record and its immutable updates. Three
   production pairs removed, completing removal of WPS214 and WPS215 exclusions. The defining owners, test
   imports, and documentation follow the moves. Of 986 compared bodies, all production bodies match; the only
   test difference is a default value naming the phase owner directly. The focused run passes 2,173 tests.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 42 remaining production
+  pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate exact-commit and semantic exemption reads, frozen ancestry and receipt
+  values, and rewrite vocabulary, field encodings, and whole-record reads. Three production WPS202 pairs removed.
+  Coordinated writes preserve their pinned key groups and publication ordering; callers name each defining owner.
+  Of 798 compared function/method bodies and 433 whole definitions, the only differences requiring inspection
+  are six call-time import updates; those retain their deferred loading and existing decisions. The corrected
+  import/layering checks pass, and the declaring inventory names the new readers and value owner.
+  Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 39 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes

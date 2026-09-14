@@ -22,7 +22,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.late_split import exemption as _exemption
+from orchestrator.workflow.late_split import exemption_reading as _exemption_reading
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
@@ -128,8 +128,8 @@ class SingleReconciliationTest(GuardedLateCase, unittest.TestCase):
         self._settle()
         state = self.github.read_pinned_state(self.issue)
 
-        self.assertTrue(_exemption.is_exempt(state, _stage_support.CANDIDATE_SHA))
-        self.assertFalse(_exemption.is_exempt(state, _stage_support.OTHER_SHA))
+        self.assertTrue(_exemption_reading.is_exempt(state, _stage_support.CANDIDATE_SHA))
+        self.assertFalse(_exemption_reading.is_exempt(state, _stage_support.OTHER_SHA))
 
     def test_a_half_finished_settlement_finishes(self) -> None:
         # The window a crash can land in: the exemption is durable and the

@@ -12,7 +12,10 @@ from orchestrator.git.measurement.models import (
 )
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
+    exemption_reading as _exemption_reading,
+    rewrite_fields as _rewrite_fields,
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -33,21 +36,21 @@ from tests.workflow.stages.implementing import (
 # absent -- a crash between two halves of one write -- and anything else is a
 # value nothing here would have written.
 _STANDING_CLAIMS = MappingProxyType({
-    "a partial one": {_rewrites.LATE_REWRITE_FROM_BASE_SHA: None},
+    "a partial one": {_rewrite_fields.LATE_REWRITE_FROM_BASE_SHA: None},
     "one that names no rewritten commit": {
-        _rewrites.LATE_REWRITE_TO_SHA: None,
+        _rewrite_fields.LATE_REWRITE_TO_SHA: None,
     },
     "one at a phase this build does not write": {
-        _rewrites.LATE_REWRITE_PHASE: "reverted",
+        _rewrite_fields.LATE_REWRITE_PHASE: "reverted",
     },
     "one for a kind this build does not authorize": {
-        _rewrites.LATE_REWRITE_KIND: "amend",
+        _rewrite_fields.LATE_REWRITE_KIND: "amend",
     },
     "one for a kind the recorded stage does not make": {
-        _rewrites.LATE_REWRITE_KIND: str(_rewrites.LateRewriteKind.CONFLICT_REBASE),
+        _rewrite_fields.LATE_REWRITE_KIND: str(_rewrite_values.LateRewriteKind.CONFLICT_REBASE),
     },
     "one with a hand-edited accepted commit": {
-        _rewrites.LATE_REWRITE_FROM_SHA: _transfer_payloads.ACCEPTED_SHA[:7],
+        _rewrite_fields.LATE_REWRITE_FROM_SHA: _transfer_payloads.ACCEPTED_SHA[:7],
     },
 })
 
@@ -76,7 +79,7 @@ _UNUSABLE_EVIDENCE = MappingProxyType({
     "an unknown rewrite kind": {"kind": "amend"},
     "no rewrite kind at all": {"kind": None},
     "a kind the recorded stage does not make": {
-        "kind": _rewrites.LateRewriteKind.CONFLICT_REBASE,
+        "kind": _rewrite_values.LateRewriteKind.CONFLICT_REBASE,
     },
     "an abbreviated accepted commit": {"from_sha": _transfer_payloads.ACCEPTED_SHA[:7]},
     "an accepted base that is prose": {"from_base_sha": "the merge base"},
@@ -117,9 +120,9 @@ _MOVED_CHECKOUTS = MappingProxyType({
 # so the rule is exercised over every road an exemption can travel rather than
 # over the one the fixture happens to describe.
 _SUPPORTED_REWRITES = MappingProxyType({
-    _rewrites.LateRewriteKind.SQUASH: WorkflowLabel.VALIDATING,
-    _rewrites.LateRewriteKind.CONFLICT_REBASE: WorkflowLabel.RESOLVING_CONFLICT,
-    _rewrites.LateRewriteKind.AUTO_CLEAN_REBASE: WorkflowLabel.IN_REVIEW,
+    _rewrite_values.LateRewriteKind.SQUASH: WorkflowLabel.VALIDATING,
+    _rewrite_values.LateRewriteKind.CONFLICT_REBASE: WorkflowLabel.RESOLVING_CONFLICT,
+    _rewrite_values.LateRewriteKind.AUTO_CLEAN_REBASE: WorkflowLabel.IN_REVIEW,
 })
 
 # Every way the two contributions are not one contribution.
@@ -179,10 +182,10 @@ class _TransferCase(ObservedCloseCase):
 
     def _assert_untouched(self) -> None:
         """The exemption is where the adjudication left it, and alone."""
-        self.assertTrue(_exemption.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA))
+        self.assertTrue(_exemption_reading.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA))
         pinned = self.github.pinned_data(self.issue.number)
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _transfer_payloads.ACCEPTED_SHA)
-        self.assertFalse(_rewrites.carries_rewrite_authorization(self.state))
+        self.assertEqual(pinned[_exemption_reading.LATE_EXEMPT_SHA], _transfer_payloads.ACCEPTED_SHA)
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(self.state))
 
 
 class _RecoveryCase(_TransferCase):

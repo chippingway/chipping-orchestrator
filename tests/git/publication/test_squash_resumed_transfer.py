@@ -18,7 +18,10 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.late_split import rewrites as _rewrites
+from orchestrator.workflow.late_split import (
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
+)
 from tests.git.publication import squash_git_support as squash_support
 from tests.git.publication.squash_crash_doubles import REVISION
 from tests.git.publication.squash_exemption_support import (
@@ -66,11 +69,11 @@ class ResumedTransferRealGitTest(
         gate = self._adjudicated()
         self._crashes_before_the_push(gate)
         squashed = self._head_sha()
-        outstanding = _rewrites.read_rewrite_authorization(
+        outstanding = _rewrite_reading.read_rewrite_authorization(
             gate.gh.read_pinned_state(gate.issue),
         )
         self.assertEqual(
-            outstanding.phase, _rewrites.LateRewritePhase.AUTHORIZED,
+            outstanding.phase, _rewrite_values.LateRewritePhase.AUTHORIZED,
         )
         self.assertEqual(outstanding.rewrite.to_sha, squashed)
 
@@ -111,10 +114,10 @@ class ResumedTransferRealGitTest(
     def _assert_settled(self, gate) -> None:
         """The permission the push was licensed by is spent, not standing."""
         self.assertEqual(
-            _rewrites.read_rewrite_authorization(
+            _rewrite_reading.read_rewrite_authorization(
                 gate.gh.read_pinned_state(gate.issue),
             ).phase,
-            _rewrites.LateRewritePhase.PUBLISHED,
+            _rewrite_values.LateRewritePhase.PUBLISHED,
         )
 
     def _assert_not_adjudicated(self, gate) -> None:

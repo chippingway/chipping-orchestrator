@@ -83,9 +83,11 @@ _LATE_TRANSFER = f"{PACKAGE}.workflow.stages.implementing.late_transfer"
 # The exemption a verdict left and the record that authorizes it to move: the
 # two halves of the evidence a base sync assembles for the rewrite it is about
 # to publish.
-_EXEMPTION = f"{PACKAGE}.workflow.late_split.exemption"
+_EXEMPTION = f"{PACKAGE}.workflow.late_split.exemption_reading"
 
-_REWRITES = f"{PACKAGE}.workflow.late_split.rewrites"
+_REWRITES = f"{PACKAGE}.workflow.late_split.rewrite_reading"
+
+_REWRITE_VALUES = f"{PACKAGE}.workflow.late_split.rewrite_values"
 
 _PUBLICATION = f"{PACKAGE}.git.publication"
 
@@ -136,6 +138,7 @@ _CALL_TIME_HOPS = MappingProxyType({
         _LATE_RECORDS,
         _LATE_TRANSFER,
         _REWRITES,
+        _REWRITE_VALUES,
     ),
     f"{_PUBLICATION}.rewrite": (_LATE_REWRITE,),
 })

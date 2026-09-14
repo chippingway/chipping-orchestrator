@@ -17,7 +17,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from orchestrator.git.measurement import fingerprint as _fingerprint
-from orchestrator.workflow.late_split import exemption as _exemption
+from orchestrator.workflow.late_split import exemption as _exemption, exemption_reading as _exemption_reading
 from tests.git.publication import squash_git_support as squash_support
 from tests.git.publication.squash_gate_support import (
     PublicationSeed,
@@ -173,5 +173,5 @@ class _AdjudicatedSquashMixin:
     def _assert_exempts(self, gate, commit: str) -> None:
         """The commit the comment durably exempts, whatever else moved."""
         self.assertEqual(
-            self._pinned(gate)[_exemption.LATE_EXEMPT_SHA], commit,
+            self._pinned(gate)[_exemption_reading.LATE_EXEMPT_SHA], commit,
         )

@@ -6,8 +6,11 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
+    exemption_reading as _exemption_reading,
     overrides as _overrides,
+    rewrite_fields as _rewrite_fields,
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -77,8 +80,8 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
             with self.subTest(claim=described):
                 self._recovered({
                     **damage,
-                    _rewrites.LATE_REWRITE_PHASE: str(
-                        _rewrites.LateRewritePhase.PUBLISHED,
+                    _rewrite_fields.LATE_REWRITE_PHASE: str(
+                        _rewrite_values.LateRewritePhase.PUBLISHED,
                     ),
                 })
 
@@ -92,10 +95,10 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
         # and it has to BE the one this issue exempts. Bound to any other, the
         # record has not been shown to describe a transfer that is over.
         self._recovered({
-            _rewrites.LATE_REWRITE_PHASE: str(
-                _rewrites.LateRewritePhase.PUBLISHED,
+            _rewrite_fields.LATE_REWRITE_PHASE: str(
+                _rewrite_values.LateRewritePhase.PUBLISHED,
             ),
-            _rewrites.LATE_REWRITE_TO_SHA: _transfer_payloads.FOREIGN_SHA,
+            _rewrite_fields.LATE_REWRITE_TO_SHA: _transfer_payloads.FOREIGN_SHA,
         })
 
         self.assertTrue(_transfer._licensed_by_a_permit(self.state))
@@ -121,7 +124,7 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
         # some other commit is a comment disagreeing with itself. Compared
         # against the commit the record names, a hand-edited target would make
         # the permit invisible and the approval would look like any other.
-        self.state.data[_rewrites.LATE_REWRITE_TO_SHA] = _transfer_payloads.FOREIGN_SHA
+        self.state.data[_rewrite_fields.LATE_REWRITE_TO_SHA] = _transfer_payloads.FOREIGN_SHA
 
         self.assertTrue(_transfer._licensed_by_a_permit(self.state))
         self.assertFalse(self._bypasses())
@@ -180,15 +183,15 @@ class RevalidatedRecoveryTest(_transfer_case._RecoveryCase, unittest.TestCase):
         # that carried on would write this reading's digest over it -- a
         # repair of evidence nobody checked, under the authority of the
         # transfer being decided. So the permit refuses and the record stands.
-        self._recovered({_rewrites.LATE_REWRITE_FINGERPRINT: _transfer_payloads.OTHER_DIGEST})
+        self._recovered({_rewrite_fields.LATE_REWRITE_FINGERPRINT: _transfer_payloads.OTHER_DIGEST})
 
         self.assertEqual(self._re_asked(), "")
-        authorized = _rewrites.read_rewrite_authorization(
+        authorized = _rewrite_reading.read_rewrite_authorization(
             self.github.read_pinned_state(self.issue),
         )
         self.assertEqual(authorized.fingerprint, _transfer_payloads.OTHER_DIGEST)
         self.assertEqual(
-            authorized.phase, _rewrites.LateRewritePhase.AUTHORIZED,
+            authorized.phase, _rewrite_values.LateRewritePhase.AUTHORIZED,
         )
 
     def test_a_replaced_publication_is_measured(self) -> None:
@@ -282,13 +285,13 @@ class AbandonedAuthorizationTest(_transfer_case._TransferCase, unittest.TestCase
                 )
 
                 self.assertTrue(
-                    _exemption.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA),
+                    _exemption_reading.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA),
                 )
-                identity = _exemption.read_semantic_identity(self.state)
+                identity = _exemption_reading.read_semantic_identity(self.state)
                 self.assertEqual(identity.candidate_sha, _transfer_payloads.ACCEPTED_SHA)
                 self.assertEqual(identity.fingerprint, _transfer_payloads.ACCEPTED_DIGEST)
                 self.assertFalse(
-                    _rewrites.carries_rewrite_authorization(self.state),
+                    _rewrite_reading.carries_rewrite_authorization(self.state),
                 )
 
     def test_a_published_transfer_is_not_dropped(self) -> None:
@@ -301,7 +304,7 @@ class AbandonedAuthorizationTest(_transfer_case._TransferCase, unittest.TestCase
             _transfer._abandoned_authorization(self.gate, _transfer_payloads.ACCEPTED_SHA),
         )
 
-        self.assertTrue(_exemption.is_exempt(self.state, _transfer_payloads.REWRITTEN_SHA))
+        self.assertTrue(_exemption_reading.is_exempt(self.state, _transfer_payloads.REWRITTEN_SHA))
 
     def test_another_reset_drops_nothing(self) -> None:
         self.assertFalse(
@@ -309,20 +312,20 @@ class AbandonedAuthorizationTest(_transfer_case._TransferCase, unittest.TestCase
         )
 
         self.assertTrue(
-            _rewrites.carries_rewrite_authorization(self.state),
+            _rewrite_reading.carries_rewrite_authorization(self.state),
         )
 
     def test_a_damaged_authorization_is_not_dropped(self) -> None:
         # Dropping a permission nobody can check would throw away the only
         # account of how the exemption came to name what it names.
-        self.state.data.pop(_rewrites.LATE_REWRITE_FROM_BASE_SHA)
+        self.state.data.pop(_rewrite_fields.LATE_REWRITE_FROM_BASE_SHA)
 
         self.assertFalse(
             _transfer._abandoned_authorization(self.gate, _transfer_payloads.ACCEPTED_SHA),
         )
 
         self.assertTrue(
-            _rewrites.carries_rewrite_authorization(self.state),
+            _rewrite_reading.carries_rewrite_authorization(self.state),
         )
 
     def test_no_permission_drops_nothing(self) -> None:

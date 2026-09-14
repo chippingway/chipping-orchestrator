@@ -11,8 +11,10 @@ from orchestrator.git.measurement.models import (
     MeasurementFailure,
 )
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
-    rewrites as _rewrites,
+    exemption_reading as _exemption_reading,
+    rewrite_fields as _rewrite_fields,
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
 )
 from orchestrator.workflow.stages.implementing import (
     late_transfer as _transfer,
@@ -36,8 +38,8 @@ class GrantedTransferTest(_transfer_case._TransferCase, unittest.TestCase):
         carried = self._carried()
 
         self.assertEqual(carried, _transfer._CARRIED_OVER)
-        self.assertTrue(_exemption.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA))
-        self.assertFalse(_exemption.is_exempt(self.state, _transfer_payloads.REWRITTEN_SHA))
+        self.assertTrue(_exemption_reading.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA))
+        self.assertFalse(_exemption_reading.is_exempt(self.state, _transfer_payloads.REWRITTEN_SHA))
 
     def test_the_grant_is_durable_before_the_push(self) -> None:
         # The write happens inside the permit rather than behind the push, so
@@ -46,10 +48,10 @@ class GrantedTransferTest(_transfer_case._TransferCase, unittest.TestCase):
         self._carried()
 
         pinned = self.github.pinned_data(self.issue.number)
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _transfer_payloads.ACCEPTED_SHA)
+        self.assertEqual(pinned[_exemption_reading.LATE_EXEMPT_SHA], _transfer_payloads.ACCEPTED_SHA)
         self.assertEqual(
-            pinned[_rewrites.LATE_REWRITE_PHASE],
-            str(_rewrites.LateRewritePhase.AUTHORIZED),
+            pinned[_rewrite_fields.LATE_REWRITE_PHASE],
+            str(_rewrite_values.LateRewritePhase.AUTHORIZED),
         )
 
     def test_the_identity_stays_on_the_accepted_pair(self) -> None:
@@ -58,7 +60,7 @@ class GrantedTransferTest(_transfer_case._TransferCase, unittest.TestCase):
         # leave the issue claiming a contribution over a commit no remote has.
         self._carried()
 
-        identity = _exemption.read_semantic_identity(self.state)
+        identity = _exemption_reading.read_semantic_identity(self.state)
         self.assertEqual(identity.candidate_sha, _transfer_payloads.ACCEPTED_SHA)
         self.assertEqual(identity.base_sha, _transfer_payloads.MERGE_BASE_SHA)
         self.assertEqual(identity.fingerprint, _transfer_payloads.ACCEPTED_DIGEST)
@@ -66,7 +68,7 @@ class GrantedTransferTest(_transfer_case._TransferCase, unittest.TestCase):
     def test_the_authorization_records_the_grant(self) -> None:
         self._carried()
 
-        authorization = _rewrites.read_rewrite_authorization(self.state)
+        authorization = _rewrite_reading.read_rewrite_authorization(self.state)
         self.assertEqual(authorization.rewrite, _support.rewrite())
         self.assertEqual(authorization.fingerprint, _transfer_payloads.ACCEPTED_DIGEST)
         # The commit that was collapsed and the head the push is pinned to are
@@ -91,7 +93,7 @@ class GrantedTransferTest(_transfer_case._TransferCase, unittest.TestCase):
         pinned = self.github.pinned_data(self.issue.number)
         self.assertEqual(pinned[_state._APPROVED_SHA], _transfer_payloads.REWRITTEN_SHA)
         self.assertEqual(pinned[_state._APPROVED_LEASE], _transfer_payloads.LEASED_SHA)
-        self.assertIn(_rewrites.LATE_REWRITE_PHASE, pinned)
+        self.assertIn(_rewrite_fields.LATE_REWRITE_PHASE, pinned)
 
 
 class RefusedEvidenceTest(_transfer_case._TransferCase, unittest.TestCase):
@@ -209,18 +211,18 @@ class RefusedProvenanceTest(_transfer_case._TransferCase, unittest.TestCase):
                 self._claimed(damage)
 
                 self.assertEqual(self._carried(), "")
-                self.assertTrue(_exemption.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA))
+                self.assertTrue(_exemption_reading.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA))
 
     def test_a_claim_for_another_commit_is_replaced(self) -> None:
         # The one group that is not a claim about anything this transfer is
         # doing: a later exemption moved past it, so the end its phase binds
         # to names a commit nothing exempts. Read as a claim it would refuse
         # every transfer this issue could ever earn again.
-        self._claimed({_rewrites.LATE_REWRITE_FROM_SHA: _transfer_payloads.STRANGER_SHA})
+        self._claimed({_rewrite_fields.LATE_REWRITE_FROM_SHA: _transfer_payloads.STRANGER_SHA})
 
         self.assertEqual(self._carried(), _transfer._CARRIED_OVER)
         self.assertEqual(
-            _rewrites.read_rewrite_authorization(self.state).rewrite,
+            _rewrite_reading.read_rewrite_authorization(self.state).rewrite,
             _support.rewrite(),
         )
 

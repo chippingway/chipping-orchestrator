@@ -2190,8 +2190,8 @@ rather than preserving.
   MEASURE is right to take a damaged group for an absent one, since it counts the candidate afresh either way; a road
   whose move is to walk PAST an issue as though no verdict were in flight is not, and a half-written group, a
   hand-edited digest, and a field carrying `null` all read as nothing there. `unreadable_exemption` on the
-  [`exemption`](../../orchestrator/workflow/late_split/exemption.py) owner is what tells the two apart: a comment
-  carrying any member of the group whose exempt commit cannot be read back is claiming one it cannot show, and so is
+  [`exemption_reading`](../../orchestrator/workflow/late_split/exemption_reading.py) owner tells the two apart: a
+  comment carrying a member of the group whose exempt commit cannot be read back claims one it cannot show, as does
   an identity group with a member present that does not read back whole. The legacy shape is neither, which is why
   the identity half is asked by presence rather than by truth — a comment written before the group existed carries
   the exempt commit alone and is complete for what it says. It is read by the transfer classification below and by
@@ -2208,8 +2208,10 @@ rather than preserving.
   **What authorized it to move.** `late_rewrite_kind`, `late_rewrite_phase`, `late_rewrite_from_sha`,
   `late_rewrite_from_base_sha`, `late_rewrite_to_sha`, `late_rewrite_to_base_sha`, `late_rewrite_fingerprint`,
   `late_rewrite_fingerprint_format`, `late_rewrite_pr_number`, `late_rewrite_source_stage`, and `late_rewrite_lease`
-  are the evidence one transfer was granted on, on the
-  [`rewrites`](../../orchestrator/workflow/late_split/rewrites.py) owner and outside `LATE_STATE_KEYS` on the same
+  are the evidence one transfer was granted on. Their keys and encodings live in
+  [`rewrite_fields`](../../orchestrator/workflow/late_split/rewrite_fields.py), their whole-record reads in
+  [`rewrite_reading`](../../orchestrator/workflow/late_split/rewrite_reading.py), and their coordinated writes in
+  [`rewrites`](../../orchestrator/workflow/late_split/rewrites.py). They stay outside `LATE_STATE_KEYS` on the same
   terms as the two groups above. They go down BEFORE the push they license and they move **nothing**: the exemption
   and its identity stay on the commit a human ruled on, because the object the rewrite produced is on no remote yet
   and a verdict rotated onto it there would be stranded by a push that failed or a process that died. What this

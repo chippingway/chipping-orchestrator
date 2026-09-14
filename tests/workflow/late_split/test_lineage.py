@@ -7,7 +7,7 @@ import unittest
 from types import MappingProxyType
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split import lineage as _lineage
+from orchestrator.workflow.late_split import ancestry as _ancestry, lineage as _lineage
 
 SHA_LENGTH = 40
 
@@ -53,7 +53,7 @@ DAMAGED_FIELDS = (
 )
 
 
-def ancestry(**overrides) -> _lineage.LateAncestry:
+def ancestry(**overrides) -> _ancestry.LateAncestry:
     """The ancestry a first-generation child is seeded with."""
     fields = {
         "root_issue": ROOT_ISSUE,
@@ -66,10 +66,10 @@ def ancestry(**overrides) -> _lineage.LateAncestry:
         "base_branch": BASE_BRANCH,
         "scope": SCOPE,
     }
-    return _lineage.LateAncestry(**{**fields, **overrides})
+    return _ancestry.LateAncestry(**{**fields, **overrides})
 
 
-def round_trip(record: _lineage.LateAncestry) -> _lineage.LateAncestry:
+def round_trip(record: _ancestry.LateAncestry) -> _ancestry.LateAncestry:
     """What a written ancestry reads back as."""
     state = PinnedState()
     _lineage.write_late_ancestry(state, record)
@@ -119,7 +119,7 @@ class AncestryAbsenceTest(unittest.TestCase):
     def test_an_absent_ancestry_adds_no_key(self) -> None:
         state = PinnedState(data=dict(LEGACY_STATE))
 
-        _lineage.write_late_ancestry(state, _lineage.LateAncestry())
+        _lineage.write_late_ancestry(state, _ancestry.LateAncestry())
 
         self.assertEqual(state.data, dict(LEGACY_STATE))
 

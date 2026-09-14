@@ -18,7 +18,12 @@ from orchestrator.config import settings as config
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
-from orchestrator.workflow.late_split import lineage as _lineage, phases as _late_phases, state as _late_state
+from orchestrator.workflow.late_split import (
+    ancestry as _ancestry,
+    lineage as _lineage,
+    phases as _late_phases,
+    state as _late_state,
+)
 from orchestrator.workflow.late_split.models import LateGeneration
 from tests.support.fakes import (
     FakeComment,
@@ -159,7 +164,7 @@ def recorded_ancestry() -> dict:
     recorded = PinnedState(data={})
     _lineage.write_late_ancestry(
         recorded,
-        _lineage.LateAncestry(
+        _ancestry.LateAncestry(
             root_issue=CHILD_ROOT_ISSUE,
             lineage_depth=CHILD_DEPTH,
             parent_issue=CHILD_PARENT_ISSUE,

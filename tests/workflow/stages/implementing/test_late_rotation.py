@@ -18,9 +18,11 @@ from unittest.mock import patch
 
 from orchestrator.config import settings as config
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
+    exemption_reading as _exemption_reading,
     overrides as _overrides,
-    rewrites as _rewrites,
+    rewrite_fields as _rewrite_fields,
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
 )
 from orchestrator.workflow.stages.implementing import (
     late_push as _push,
@@ -164,15 +166,15 @@ class _SettlementCase(unittest.TestCase):
         publication a human has already decided.
         """
         durable = self._durable()
-        self.assertTrue(_exemption.is_exempt(durable, REWRITTEN_SHA))
-        identity = _exemption.read_semantic_identity(durable)
+        self.assertTrue(_exemption_reading.is_exempt(durable, REWRITTEN_SHA))
+        identity = _exemption_reading.read_semantic_identity(durable)
         self.assertEqual(identity.base_sha, MERGE_BASE_SHA)
         self.assertEqual(identity.candidate_sha, REWRITTEN_SHA)
         self.assertEqual(identity.fingerprint, ACCEPTED_DIGEST)
         self.assertTrue(_overrides.is_authorized(durable, REWRITTEN_SHA))
         self.assertEqual(
-            _rewrites.read_rewrite_authorization(durable).phase,
-            _rewrites.LateRewritePhase.PUBLISHED,
+            _rewrite_reading.read_rewrite_authorization(durable).phase,
+            _rewrite_values.LateRewritePhase.PUBLISHED,
         )
 
     def _assert_left_put(self) -> None:
@@ -183,9 +185,9 @@ class _SettlementCase(unittest.TestCase):
         nobody granted it for.
         """
         durable = self._durable()
-        self.assertTrue(_exemption.is_exempt(durable, ACCEPTED_SHA))
+        self.assertTrue(_exemption_reading.is_exempt(durable, ACCEPTED_SHA))
         self.assertEqual(
-            _exemption.read_semantic_identity(durable).candidate_sha,
+            _exemption_reading.read_semantic_identity(durable).candidate_sha,
             ACCEPTED_SHA,
         )
         self.assertTrue(_overrides.is_authorized(durable, ACCEPTED_SHA))
@@ -309,7 +311,7 @@ class ReceiptAndRecordTest(_SettlementCase):
         self._publishes(standing=LEASED_SHA, granted=False)
 
         reporting.assert_called_once()
-        self.assertTrue(_exemption.is_exempt(durable[0], REWRITTEN_SHA))
+        self.assertTrue(_exemption_reading.is_exempt(durable[0], REWRITTEN_SHA))
         self.assertEqual(durable[0].data[KEY_RECEIPT_SHA], REWRITTEN_SHA)
         self.assertEqual(
             self._records_of(EVENT_TRANSFER), [],
@@ -326,8 +328,8 @@ class ReceiptAndRecordTest(_SettlementCase):
 
         self._assert_left_put()
         self.assertEqual(
-            _rewrites.read_rewrite_authorization(self._durable()).phase,
-            _rewrites.LateRewritePhase.AUTHORIZED,
+            _rewrite_reading.read_rewrite_authorization(self._durable()).phase,
+            _rewrite_values.LateRewritePhase.AUTHORIZED,
         )
         self.assertNotIn(KEY_RECEIPT_SHA, self._durable().data)
         self.assertEqual(self._records_of(EVENT_TRANSFER), [])
@@ -337,9 +339,9 @@ class ReceiptAndRecordTest(_SettlementCase):
 
         durable = self._durable()
         self._reported()
-        self.assertNotIn(_rewrites.LATE_REWRITE_PROOF, durable.data)
-        self.assertIsNone(_rewrites.unreported_transfer(durable))
-        self.assertFalse(_rewrites.stranded_transfer_proof(durable))
+        self.assertNotIn(_rewrite_fields.LATE_REWRITE_PROOF, durable.data)
+        self.assertIsNone(_rewrite_reading.unreported_transfer(durable))
+        self.assertFalse(_rewrite_reading.stranded_transfer_proof(durable))
 
     def test_a_refused_drop_leaves_the_report_owed(self) -> None:
         # The safe way round: the record has been made and a later tick may
@@ -354,7 +356,7 @@ class ReceiptAndRecordTest(_SettlementCase):
         rotation = _rotation._Rotation(
             staged=True,
             rewrite=_support.rewrite(),
-            proof=_rewrites.LateRewriteProof.PUSHED,
+            proof=_rewrite_values.LateRewriteProof.PUSHED,
         )
 
         with patch.object(
@@ -370,8 +372,8 @@ class ReceiptAndRecordTest(_SettlementCase):
         # staged and the write that would have made it durable was refused,
         # so the report stands owed and may be made again.
         self.assertEqual(
-            _rewrites.unreported_transfer(self._durable()),
-            _rewrites.LateRewriteProof.PUSHED,
+            _rewrite_reading.unreported_transfer(self._durable()),
+            _rewrite_values.LateRewriteProof.PUSHED,
         )
 
 
@@ -394,7 +396,7 @@ class SupersededPermissionTest(_SettlementCase):
 
         self._assert_left_put()
         self.assertFalse(
-            _rewrites.carries_rewrite_authorization(self._durable()),
+            _rewrite_reading.carries_rewrite_authorization(self._durable()),
         )
         self.assertEqual(self._records_of(EVENT_TRANSFER), [])
 
@@ -457,8 +459,8 @@ class RefusedPermitTest(unittest.TestCase):
     def test_the_verdict_does_not_move(self) -> None:
         durable = self._durable()
 
-        self.assertTrue(_exemption.is_exempt(durable, ACCEPTED_SHA))
-        identity = _exemption.read_semantic_identity(durable)
+        self.assertTrue(_exemption_reading.is_exempt(durable, ACCEPTED_SHA))
+        identity = _exemption_reading.read_semantic_identity(durable)
         self.assertEqual(identity.candidate_sha, ACCEPTED_SHA)
         self.assertEqual(identity.base_sha, MERGE_BASE_SHA)
 
@@ -466,10 +468,10 @@ class RefusedPermitTest(unittest.TestCase):
         # Not spent, because no permit vouched for it; not dropped either,
         # because the remote is now on a head the permit accounts for and a
         # later tick whose refusal has cleared can still settle it.
-        authorization = _rewrites.read_rewrite_authorization(self._durable())
+        authorization = _rewrite_reading.read_rewrite_authorization(self._durable())
 
         self.assertEqual(
-            authorization.phase, _rewrites.LateRewritePhase.AUTHORIZED,
+            authorization.phase, _rewrite_values.LateRewritePhase.AUTHORIZED,
         )
         self.assertEqual(authorization.rewrite.to_sha, REWRITTEN_SHA)
 

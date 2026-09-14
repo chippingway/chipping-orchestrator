@@ -6,9 +6,6 @@ per-file-ignores =
     orchestrator/git/base_sync/recovery.py:WPS202
     orchestrator/git/base_sync/transfers.py:WPS201,WPS202
     orchestrator/workflow/state.py:WPS202
-    orchestrator/workflow/late_split/exemption.py:WPS202
-    orchestrator/workflow/late_split/rewrites.py:WPS202
-    orchestrator/workflow/late_split/lineage.py:WPS202
     orchestrator/workflow/engine/dispatch.py:WPS201,WPS202
     orchestrator/workflow/engine/terminals.py:WPS202
     orchestrator/workflow/stages/conflicts/divergence.py:WPS202

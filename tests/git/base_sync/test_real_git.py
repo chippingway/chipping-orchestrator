@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.late_split import exemption as _exemption
+from orchestrator.workflow.late_split import exemption_reading as _exemption_reading
 from orchestrator.workflow.stages.implementing import (
     checkout_recovery as _checkout_recovery,
     disposition as _disposition,
@@ -101,7 +101,7 @@ class RefreshLateHandoffRealGitTest(
         self.assertEqual(accepted, self._wt_head())
         self.assertFalse((self._wt / EXTRA_FILENAME).exists())
         self.assertTrue(
-            _exemption.is_exempt(self._pinned(), self._wt_head()),
+            _exemption_reading.is_exempt(self._pinned(), self._wt_head()),
             "the next tick's gate would measure this candidate again",
         )
 
@@ -121,7 +121,7 @@ class RefreshLateHandoffRealGitTest(
 
         self.assertNotEqual(head_before, self._wt_head())
         self.assertTrue((self._wt / EXTRA_FILENAME).exists())
-        self.assertFalse(_exemption.is_exempt(self._pinned(), self._wt_head()))
+        self.assertFalse(_exemption_reading.is_exempt(self._pinned(), self._wt_head()))
 
     def test_a_restored_checkout_survives_an_advance(self) -> None:
         # The park whose remedy is an operator's `git checkout` rather than a

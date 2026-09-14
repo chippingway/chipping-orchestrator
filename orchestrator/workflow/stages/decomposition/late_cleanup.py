@@ -163,9 +163,9 @@ from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.late_split import (
+    ancestry as _ancestry,
     events as _events,
     formats as _formats,
-    lineage as _lineage,
     state as _late_state,
     telemetry as _telemetry,
 )
@@ -907,7 +907,7 @@ def _release_consumers(
     """
     if generation.cancelled:
         return generation, True
-    marker = _lineage.release_marker(
+    marker = _ancestry.release_marker(
         owner=walk.issue.number,
         cycle=generation.cycle_id,
         generation=generation.generation,

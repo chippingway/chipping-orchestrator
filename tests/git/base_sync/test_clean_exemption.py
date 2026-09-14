@@ -31,8 +31,9 @@ from orchestrator.git.measurement.models import (
     MeasurementFailure,
 )
 from orchestrator.workflow.late_split import (
-    exemption as _exemption,
-    rewrites as _rewrites,
+    exemption_reading as _exemption_reading,
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
 )
 from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync import refresh_test_support as _support
@@ -99,8 +100,8 @@ class _CleanRebaseCase(_SyncWorktreeWithBaseFixture):
         self.assertEqual(len(self._events_of(EVENT_MEASUREMENT)), 1)
         self.assertEqual(self._events_of(EVENT_TRANSFER), [])
         durable = self._durable()
-        self.assertTrue(_exemption.is_exempt(durable, _support.BEFORE_SHA))
-        self.assertFalse(_rewrites.carries_rewrite_authorization(durable))
+        self.assertTrue(_exemption_reading.is_exempt(durable, _support.BEFORE_SHA))
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(durable))
 
 
 class TransferredRebaseTest(_CleanRebaseCase, unittest.TestCase):
@@ -116,10 +117,10 @@ class TransferredRebaseTest(_CleanRebaseCase, unittest.TestCase):
         # the pair it goes to is this rebase's own, and the anchor beside it
         # is the head the force-push was leased against rather than a third
         # spelling of the commit that was replaced.
-        authorized = _rewrites.read_rewrite_authorization(self._durable())
+        authorized = _rewrite_reading.read_rewrite_authorization(self._durable())
 
-        self.assertEqual(authorized.rewrite, _rewrites.LateRewrite(
-            kind=_rewrites.LateRewriteKind.AUTO_CLEAN_REBASE,
+        self.assertEqual(authorized.rewrite, _rewrite_values.LateRewrite(
+            kind=_rewrite_values.LateRewriteKind.AUTO_CLEAN_REBASE,
             from_sha=_support.BEFORE_SHA,
             from_base_sha=ACCEPTED_BASE_SHA,
             to_sha=_support.AFTER_SHA,
@@ -132,12 +133,12 @@ class TransferredRebaseTest(_CleanRebaseCase, unittest.TestCase):
     def test_the_receipt_carries_the_exemption_over(self) -> None:
         durable = self._durable()
 
-        self.assertTrue(_exemption.is_exempt(durable, _support.AFTER_SHA))
-        identity = _exemption.read_semantic_identity(durable)
+        self.assertTrue(_exemption_reading.is_exempt(durable, _support.AFTER_SHA))
+        identity = _exemption_reading.read_semantic_identity(durable)
         self.assertEqual(identity.base_sha, REPLAYED_BASE_SHA)
         self.assertEqual(
-            _rewrites.read_rewrite_authorization(durable).phase,
-            _rewrites.LateRewritePhase.PUBLISHED,
+            _rewrite_reading.read_rewrite_authorization(durable).phase,
+            _rewrite_values.LateRewritePhase.PUBLISHED,
         )
 
     def test_no_generation_or_adjudication_is_created(self) -> None:
@@ -193,8 +194,8 @@ class MeasuredRebaseTest(_CleanRebaseCase, unittest.TestCase):
 
         self.assertEqual(self._events_of(EVENT_TRANSFER), [])
         durable = self._durable()
-        self.assertTrue(_exemption.is_exempt(durable, _support.BEFORE_SHA))
-        self.assertFalse(_rewrites.carries_rewrite_authorization(durable))
+        self.assertTrue(_exemption_reading.is_exempt(durable, _support.BEFORE_SHA))
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(durable))
 
 
 class RolledBackRebaseTest(_CleanRebaseCase, unittest.TestCase):
@@ -215,8 +216,8 @@ class RolledBackRebaseTest(_CleanRebaseCase, unittest.TestCase):
         self._rebases(push_result=False)
 
         durable = self._durable()
-        self.assertTrue(_exemption.is_exempt(durable, ACCEPTED_SHA))
-        self.assertFalse(_rewrites.carries_rewrite_authorization(durable))
+        self.assertTrue(_exemption_reading.is_exempt(durable, ACCEPTED_SHA))
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(durable))
         pinned = self.gh.pinned_data(_support.ISSUE)
         self.assertEqual(pinned[_support.KEY_PARK_REASON], _support.PARK_PUSH_FAILED)
 
@@ -238,10 +239,10 @@ class InterruptedRebaseTest(_CleanRebaseCase, unittest.TestCase):
         self.assertEqual(pushed[REVISION], _support.AFTER_SHA)
         self.assertEqual(pushed[LEASE], _support.BEFORE_SHA)
         durable = self._durable()
-        self.assertTrue(_exemption.is_exempt(durable, _support.AFTER_SHA))
+        self.assertTrue(_exemption_reading.is_exempt(durable, _support.AFTER_SHA))
         self.assertEqual(
-            _rewrites.read_rewrite_authorization(durable).phase,
-            _rewrites.LateRewritePhase.PUBLISHED,
+            _rewrite_reading.read_rewrite_authorization(durable).phase,
+            _rewrite_values.LateRewritePhase.PUBLISHED,
         )
 
     def test_the_refresh_tail_is_finished(self) -> None:
