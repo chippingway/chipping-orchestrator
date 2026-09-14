@@ -1711,9 +1711,11 @@ ceiling. What that receipt leaves on both observability streams is one bounded `
 pairs, the pull request, the rewrite kind, and which reading proved the publication — the leased force-push that moved
 it, or the leased no-op a recovery finds it already standing on. That record is `late_transfer_telemetry`'s rather
 than the rotation's, asked by the push tail past the settling write, so nothing is reported for a move GitHub
-refused. A digest the standing permission already recorded is held to the reading the permit just took, since a grant
-that carried on would write its own answer over evidence nobody checked. Refused, nothing changes and the squash is
-measured exactly as above. And the permission is droppable in exactly one window — a force-push the remote refuses
+refused — and a process lost past that write is reported by the reconciliation ahead of the next handler, from the
+proof the settlement kept, once. A digest the standing permission already recorded is held to the reading the permit
+just took, since a grant that carried on would write its own answer over evidence nobody checked. Refused, nothing
+changes and the squash is measured exactly as above. And the permission is droppable in exactly one window — a
+force-push the remote refuses
 resets the branch back onto the commit the exemption never left, so the rollback takes the permission back and nothing
 else, while past the receipt the pull request carries the rewritten commit and there is nothing to take back. The squash
 is not the only rewrite decided on those terms: the per-tick base refresh publishes a clean rebase of the same branch
@@ -2301,14 +2303,17 @@ value it does not have. Ahead of the HANDLER it is only half of one — a public
 pull request, or its head parses as no group, and an approval missing the lease it is spent with parses as no
 approval, so both of the questions above answer "nothing owed" and the stage runs. So the raw fields are read first,
 on the five stages that publish onto a pull request the remote already carries: a marked group that cannot name all
-three, or an approval that cannot produce its pair, parks `late_measurement_failed` with nothing pushed and nothing
-discarded. None of the pieces is recoverable from anywhere else, so the refusal owes a human — announced once, since
-a fresh notice every poll is a mention nobody can answer any faster. Those five are named off the transition graph's
+three, an approval that cannot produce its pair, or a settled transfer's `late_rewrite_proof` standing over a
+permission, a phase, or a reading nothing can report from, parks `late_measurement_failed` with nothing pushed and
+nothing discarded. None of the pieces is recoverable from anywhere else, so the refusal owes a human — announced
+once, since a fresh notice every poll is a mention nobody can answer any faster. Those five are named off the
+transition graph's
 own set rather than derived from it: `workflow:implementing` has an edge to the adjudication too and is **not** one
 of them, because its approval carries no pull-request head by design — its push is the one that opens the pull
 request — so a crash between the two leaves exactly the shape this would otherwise call damaged and park instead of
-finishing. `workflow:decomposing` is excluded because the settlement there holds evidence this would be reading half
-of.
+finishing. `workflow:decomposing` is asked only the publication group and the transfer proof, because the settlement
+there holds the reading and the approval half-decided, while a group or a proof it did not write is one it cannot
+repair.
 
 **Both of those roads end in a push, so what is over is asked ahead of either.** The terminal that drains finished
 work runs inside the stage handler, which is *behind* this owner — so without a barrier the crash window the whole
