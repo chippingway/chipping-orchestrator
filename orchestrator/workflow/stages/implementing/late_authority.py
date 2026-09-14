@@ -69,8 +69,8 @@ from orchestrator.workflow.late_split import (
     overrides as _overrides,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
-    late_records as _records,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -82,7 +82,7 @@ _ON_ITS_PULL_REQUEST = "is the commit its pull request already stands on"
 
 
 def _publishes_on_an_exemption(
-    gate: _records._Gate, candidate_sha: str,
+    gate: _late_gate_models._Gate, candidate_sha: str,
 ) -> bool:
     """Whether an adjudication AND an operator both vouch for this commit.
 
@@ -119,7 +119,7 @@ def _publishes_on_an_exemption(
     return _contributes_what_was_authorized(gate)
 
 
-def _contributes_what_was_authorized(gate: _records._Gate) -> bool:
+def _contributes_what_was_authorized(gate: _late_gate_models._Gate) -> bool:
     """Whether the pair a human authorized still contributes what they read.
 
     Taken over the pair the RECORD names rather than over anything the
@@ -153,7 +153,7 @@ def _contributes_what_was_authorized(gate: _records._Gate) -> bool:
 
 
 def _unauthorized_exemption(
-    gate: _records._Gate, candidate_sha: str,
+    gate: _late_gate_models._Gate, candidate_sha: str,
 ) -> bool:
     """Whether this commit is exempt on a record no human stands behind.
 
@@ -176,7 +176,7 @@ def _unauthorized_exemption(
 
 
 def _already_on_its_pull_request(
-    gate: _records._Gate, candidate_sha: str,
+    gate: _late_gate_models._Gate, candidate_sha: str,
 ) -> str:
     """Why an adjudicated commit publishes untouched, or "" where it may not.
 
@@ -222,7 +222,7 @@ def _already_on_its_pull_request(
     return _ON_ITS_PULL_REQUEST if standing else ""
 
 
-def _unauthorized_debt(gate: _records._Gate, candidate_sha: str) -> bool:
+def _unauthorized_debt(gate: _late_gate_models._Gate, candidate_sha: str) -> bool:
     """Whether the push this commit is owed rests on an unauthorized exemption.
 
     Asked of the approval's own recorded basis rather than of the records

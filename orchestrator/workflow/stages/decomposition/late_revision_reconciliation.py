@@ -78,17 +78,14 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
+    late_content_models as _late_content_models,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
+    late_result_models as _late_result_models,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateContentSettlement,
-    _LateContext,
-    _LateDisposition,
-    _OwnerState,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _OwnerState
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -138,7 +135,7 @@ _UNANSWERED_PARK = (
 
 def _reconcile_revised_candidate(
     context: _LateContext, worktree: Path, agent_result=None,
-) -> _LateContentSettlement:
+) -> _late_content_models._LateContentSettlement:
     """Prove the tree clean, freeze what it ends on, and measure it again.
 
     Clean first, because everything after it is a claim about one commit. A
@@ -210,7 +207,7 @@ def _quoted_reply(agent_result) -> str:
 
 def _remeasured(
     context: _LateContext, worktree: Path, revised: str,
-) -> _LateContentSettlement:
+) -> _late_content_models._LateContentSettlement:
     """Re-freeze this candidate under the ceiling as it stands now.
 
     The generation counter advances even when the commit did not. A recorded
@@ -280,7 +277,7 @@ def _remeasured(
     )
     return _guarded_revision(
         context,
-        _LateDisposition.REVISED,
+        _late_result_models._LateDisposition.REVISED,
         announce=_REMEASURED_NOTICE.format(
             revised=measured.candidate_sha,
             additions=measured.additions,
@@ -293,10 +290,10 @@ def _remeasured(
 
 def _guarded_revision(
     context: _LateContext,
-    settled: _LateDisposition,
+    settled: _late_result_models._LateDisposition,
     *,
     announce: str = "",
-) -> _LateContentSettlement:
+) -> _late_content_models._LateContentSettlement:
     """Read the owner again now the developer has finished, and report it.
 
     The same guard a finished adjudication passes, for the same reason and at
@@ -322,24 +319,24 @@ def _guarded_revision(
     """
     owner = _late_owner._guarded_owner(context)
     if owner == _OwnerState.CLOSED:
-        return _LateContentSettlement(
-            disposition=_LateDisposition.CANCELLED, persisted=True,
+        return _late_content_models._LateContentSettlement(
+            disposition=_late_result_models._LateDisposition.CANCELLED, persisted=True,
         )
     if owner == _OwnerState.UNREADABLE:
-        return _LateContentSettlement(
-            disposition=_LateDisposition.PARKED, persisted=True,
+        return _late_content_models._LateContentSettlement(
+            disposition=_late_result_models._LateDisposition.PARKED, persisted=True,
         )
     if announce:
         _comments._post_issue_comment(
             context.gh, context.issue, context.state, announce,
         )
         _late_park_state._persist(context)
-    return _LateContentSettlement(disposition=settled, persisted=True)
+    return _late_content_models._LateContentSettlement(disposition=settled, persisted=True)
 
 
 def _parked(
     context: _LateContext, message: str, *, reason: str,
-) -> _LateContentSettlement:
+) -> _late_content_models._LateContentSettlement:
     """Hand the issue back with the generation exactly as it arrived.
 
     The owner is read past the park for the same reason it is read past a
@@ -367,4 +364,4 @@ def _parked(
     )
     _late_parks._stage_park(context, message, reason=reason)
     _late_outcome._completed(context)
-    return _guarded_revision(context, _LateDisposition.PARKED)
+    return _guarded_revision(context, _late_result_models._LateDisposition.PARKED)

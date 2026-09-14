@@ -68,8 +68,8 @@ from orchestrator.workflow.late_split import (
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_publication as _publication_gate,
-    late_records as _records,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -109,7 +109,7 @@ _NOTHING = _Rotation()
 
 
 def _rotates_the_exemption(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     published: _publication_gate._PublishedCandidate,
 ) -> _Rotation:
     """Stage what a landed push does to the permission that licensed it.
@@ -159,7 +159,7 @@ def _rotates_the_exemption(
 
 
 def _unvouched(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> _Rotation:
     """Leave a permission this tick's permit did not vouch for standing.
 
@@ -193,7 +193,7 @@ def _unvouched(
 
 
 def _carried(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     published: _publication_gate._PublishedCandidate,
 ) -> _Rotation:
     """Carry the exemption onto the commit this push put on the remote.
@@ -237,7 +237,7 @@ def _proved_by(
 
 
 def _abandoned(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite, published: str,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite, published: str,
 ) -> _Rotation:
     """Drop a permission the commit this push published has gone past.
 

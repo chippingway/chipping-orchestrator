@@ -48,8 +48,8 @@ from orchestrator.workflow.stages.discussion.state import (
     _PLAN_SHA as _DISCUSSION_PLAN_SHA,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_overflow as _overflow,
-    late_records as _records,
     models as _models,
     state as _state,
 )
@@ -106,7 +106,7 @@ def _ended_before_the_push(
     flight would be answered one push too late by a latch read before it, and
     this one costs nothing, so the cheap answer gets the final word.
     """
-    recorded = _records._RecordedPublication.named_by(
+    recorded = _late_gate_models._RecordedPublication.named_by(
         state.get(_state._PR_NUMBER),
     )
     if recorded.damaged:

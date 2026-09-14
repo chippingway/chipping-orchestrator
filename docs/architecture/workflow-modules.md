@@ -591,7 +591,8 @@ workflow/                   marker package for state, engine, and stage owners
                             the explicit live-generation predicate leaves initial decomposition to its own gate
       late_evidence.py      prove the record belongs to this issue and carries every frozen field its readers need,
                             then prove both commits on this host before a pull-request hold or agent spawn; a
-                            failed proof parks with the recorded candidate left for the operator to restore
+                            failed proof parks with the recorded candidate left for the operator to restore; the
+                            post-run check also refuses a moved head or a tree no longer proved clean
       late_attempt.py       the durable attempt identity and the retry accounting its pre-spawn write omits;
                             both close-latch checks restore the unspent counters before cancellation can write,
                             so a run declined by shutdown or a live pause costs the issue nothing
@@ -1103,10 +1104,12 @@ workflow/                   marker package for state, engine, and stage owners
                             whitelist keeping the pinned comment's own identity, the bounded orchestrator comment
                             ids, the cumulative issue usage, and the identity joining the fresh cycle to its
                             predecessor, and dropping everything else
-      late_models.py        the carriers the late owners hand each other: the tick's subject, the hold, the run, the
-                            adjudication, the tri-state owner reading and the park staged for it to release, the
-                            split that reading cleared for the transaction which creates its children, the content
-                            fingerprint and what the humans have said since, and what one call did
+      late_result_models.py late-run identity, adjudication answers, guarded splits, and settlement dispositions; an
+                            actionable answer remains bound to the exact cycle, generation, and candidate it read
+      late_content_models.py
+                            frozen content fingerprints, trusted authorization replies, drift signals, and the outcome
+                            of consuming one reading
+      late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
       models.py             the run plan and its worktree policy, the locked session, the split plan, and the child
                             scan
       state.py              the pinned-state field names the owners share, the held-child alias, and the
@@ -1836,24 +1839,13 @@ workflow/                   marker package for state, engine, and stage owners
                             own, none of them a pull request -- and a debt whose label has moved to one of those
                             stops the tick rather than being ignored, since the stage behind it would run over a
                             publication the approved commit never reached
-      late_records.py       what one gate call is about -- the publication it was entered on included, where there
-                            is one, and the two claims a caller makes about its tick: that no developer ran, which
-                            decides whether a moved head is fresh output, and the narrower one that it is answering
-                            a reading the gate itself recorded, which is what the switch is asked against -- plus
-                            the before-state a caller that REWROTE its way here destroyed, which is the one thing
-                            no reading taken now could recover and the only evidence a transfer may be granted on --
-                            the answer it hands back, the identities a record of it
-                            is minted under -- the readings already lost travelling with the CANDIDATE rather than
-                            with the generation counter, since a base the remote would not name records no base and
-                            freezes the same commit afresh next tick -- and the validated-or-minted identity every
-                            refusal is reported
-                            under so a damaged record cannot take its own refusal down with it -- and, for the
-                            pull request a record names, the THREE-way answer a barrier standing in front of a
-                            push needs: a number, an absence, or a field the comment carries and no reader here
-                            will type. Told apart because reading the third as the second is how every one of
-                            those barriers fails open: each identity is read fail-closed, so an unusable one
-                            comes back as no identity, and a push held to nothing goes out onto whatever the
-                            branch's pull request has become
+      late_gate_models.py   frozen gate calls, publication provenance, caller-owned route spending, and gate verdicts;
+                            publication ids distinguish absence from damaged claims, and the close latch stays shared
+      late_identity_reading.py
+                            retained measurement misses, inherited root/depth, and generation identity validation;
+                            unreadable or foreign records cannot supply a reportable identity
+      late_records.py       gate construction and candidate-generation minting; identities advance durably, the frozen
+                            candidate owns its spent readings, and existing publication context is retained
       late_freeze.py        the pair a count is taken over -- the candidate proved, the base frozen or re-proved,
                             and a base neither of those could reach counted as one of the readings this pair may
                             lose rather than parked outright -- and whether a recorded one may be acted on at all,

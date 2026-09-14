@@ -16,7 +16,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_command as _command,
-    late_records as _records,
+    late_gate_models as _late_gate_models,
     state as _state,
 )
 
@@ -56,12 +56,12 @@ _RECEIPTS = MappingProxyType({
 })
 
 
-def _receipt(gate: _records._Gate, said: str, scope) -> str:
+def _receipt(gate: _late_gate_models._Gate, said: str, scope) -> str:
     """The receipt one sentence of ours is stamped with, scoped to its subject."""
     return _RECEIPTS[said].format(issue=gate.issue.number, scope=scope)
 
 
-def _recorded_as_said(gate: _records._Gate) -> None:
+def _recorded_as_said(gate: _late_gate_models._Gate) -> None:
     """Catch the record up with a thread that already carries our sentence.
 
     An outstanding receipt says a tick died between recording a sentence and
@@ -85,7 +85,7 @@ def _recorded_as_said(gate: _records._Gate) -> None:
     gate.gh.write_pinned_state(gate.issue, gate.state)
 
 
-def _owes_the_notice(gate: _records._Gate, receipt: str) -> bool:
+def _owes_the_notice(gate: _late_gate_models._Gate, receipt: str) -> bool:
     """Whether a sentence this park recorded is still owed to the thread.
 
     Two questions, and the record answers only the first. A park carrying no
@@ -123,7 +123,7 @@ def _owes_the_notice(gate: _records._Gate, receipt: str) -> bool:
     return not _command._already_said(gate, receipt)
 
 
-def _held(gate: _records._Gate, receipt: str) -> None:
+def _held(gate: _late_gate_models._Gate, receipt: str) -> None:
     """Make this park, and the receipt it is about to say, durable first.
 
     Both halves go down in one write and both are the same precaution. The
@@ -143,7 +143,7 @@ def _held(gate: _records._Gate, receipt: str) -> None:
 
 
 def _stands_over(
-    gate: _records._Gate, generation: LateGeneration,
+    gate: _late_gate_models._Gate, generation: LateGeneration,
 ) -> bool:
     """Whether this park is already up, over this very candidate.
 
@@ -169,7 +169,7 @@ def _stands_over(
 
 
 def _consumed(
-    gate: _records._Gate, answer: _command._Answer, said: int = 0,
+    gate: _late_gate_models._Gate, answer: _command._Answer, said: int = 0,
 ) -> None:
     """Record what this tick read as read, and its own answer with it.
 

@@ -106,18 +106,14 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
     late_content as _late_content,
+    late_content_models as _late_content_models,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_revision as _late_revision,
     late_session as _late_session,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateAuthorization,
-    _LateContentSettlement,
-    _LateContentSignal,
-    _LateContext,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -168,8 +164,8 @@ _CONTINUE_REFUSED = (
 
 
 def _answered_single(
-    context: _LateContext, signal: _LateContentSignal,
-) -> _LateContentSettlement:
+    context: _LateContext, signal: _late_content_models._LateContentSignal,
+) -> _late_content_models._LateContentSettlement:
     """What a reply to a parked unsplittable candidate is worth.
 
     Guidance outranks an authorization in the same batch, and deliberately.
@@ -193,14 +189,14 @@ def _answered_single(
                 candidate=context.generation.candidate_sha,
             ),
         )
-    return _LateContentSettlement()
+    return _late_content_models._LateContentSettlement()
 
 
 def _authorized(
     context: _LateContext,
-    signal: _LateContentSignal,
-    authorization: _LateAuthorization,
-) -> _LateContentSettlement:
+    signal: _late_content_models._LateContentSignal,
+    authorization: _late_content_models._LateAuthorization,
+) -> _late_content_models._LateContentSettlement:
     """Record what an operator authorized this candidate to publish on.
 
     Nothing is published here, which is the whole shape of it: what this
@@ -235,7 +231,7 @@ def _authorized(
         )
     contribution = _proved_contribution(context)
     if contribution is None:
-        return _LateContentSettlement()
+        return _late_content_models._LateContentSettlement()
     log.info(
         "issue=#%d had its oversized candidate %s authorized to publish "
         "unsplit by a trusted operator in comment %d; recording the terms "
@@ -258,11 +254,11 @@ def _authorized(
     _late_parks._answer_park(context)
     _consume(context, signal)
     _late_park_state._persist(context)
-    return _LateContentSettlement(persisted=True)
+    return _late_content_models._LateContentSettlement(persisted=True)
 
 
 def _names_the_candidate(
-    authorization: _LateAuthorization, generation,
+    authorization: _late_content_models._LateAuthorization, generation,
 ) -> bool:
     """Whether the commit this command names is the one parked.
 
@@ -407,11 +403,11 @@ def _names_this_candidate(publication, generation) -> bool:
 
 def _refused(
     context: _LateContext,
-    signal: _LateContentSignal,
+    signal: _late_content_models._LateContentSignal,
     said: str,
     *,
     still_waiting: bool = True,
-) -> _LateContentSettlement:
+) -> _late_content_models._LateContentSettlement:
     """Say why this reply changed nothing, and leave the issue where it goes.
 
     Consumed on the way out, which is what makes the sentence once per REPLY
@@ -451,7 +447,7 @@ def _refused(
         _late_parks._answer_park(context)
     _consume(context, signal)
     _late_park_state._persist(context)
-    return _LateContentSettlement(
+    return _late_content_models._LateContentSettlement(
         disposition=_LateDisposition.PARKED if still_waiting else None,
         persisted=True,
     )
@@ -471,7 +467,7 @@ def _already_answered(context: _LateContext, marker: str) -> bool:
     )
 
 
-def _consume(context: _LateContext, signal: _LateContentSignal) -> None:
+def _consume(context: _LateContext, signal: _late_content_models._LateContentSignal) -> None:
     """Record the conversation this tick acted on as read, both ways.
 
     The generation's own fingerprints stop the command coming back as a fresh

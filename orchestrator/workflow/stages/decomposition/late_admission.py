@@ -21,10 +21,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_parks as _late_parks,
     late_retry_cap as _late_retry_cap,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateContext,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 
 _HOLD_FAILED_PARK = (
     "could not put the adjudication hold on the pull request this issue's "

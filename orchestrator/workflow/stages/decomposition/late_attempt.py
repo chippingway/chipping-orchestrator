@@ -15,11 +15,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     late_session as _late_session,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateContext,
-    _LateDisposition,
-    _LateRun,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition, _LateRun
 
 # The per-issue accounting the pre-spawn write leaves exactly as it found it:
 # every field the shared gate charges a fresh spawn against, which is what

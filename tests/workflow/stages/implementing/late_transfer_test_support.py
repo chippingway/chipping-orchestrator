@@ -21,8 +21,8 @@ from orchestrator.workflow.late_split import (
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
-    late_records as _records,
 )
 from tests.workflow.stages.implementing import late_transfer_payloads as _transfer_payloads
 
@@ -42,9 +42,9 @@ def rewrite(**overrides) -> _rewrite_values.LateRewrite:
     })
 
 
-def entry(**overrides) -> _records._PublicationEntry:
+def entry(**overrides) -> _late_gate_models._PublicationEntry:
     """The publication the gate froze before the rewrite was measured."""
-    return _records._PublicationEntry(**{
+    return _late_gate_models._PublicationEntry(**{
         "stage": _transfer_payloads.SOURCE_STAGE,
         "pr_number": _transfer_payloads.PR_NUMBER,
         "published_sha": _transfer_payloads.LEASED_SHA,
@@ -67,9 +67,9 @@ def spent(state) -> None:
     )
 
 
-def gate(github, issue, state, **overrides) -> _records._Gate:
+def gate(github, issue, state, **overrides) -> _late_gate_models._Gate:
     """The subject one gate call taken past publication is about."""
-    return _records._Gate(**{
+    return _late_gate_models._Gate(**{
         "gh": github,
         "spec": _transfer_payloads.SPEC,
         "issue": issue,

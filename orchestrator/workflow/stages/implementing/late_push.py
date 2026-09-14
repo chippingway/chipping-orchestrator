@@ -38,9 +38,9 @@ from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
     late_publication as _publication_gate,
-    late_records as _records,
     late_rotation as _rotation,
     late_transfer_telemetry as _transfer_telemetry,
     state as _state,
@@ -73,9 +73,9 @@ class _PushedCandidate:
 
 
 def _publishes(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     branch: str,
-    entered: _records._Entered = _records._UNENTERED,
+    entered: _late_gate_models._Entered = _late_gate_models._UNENTERED,
 ) -> _PushedCandidate:
     """Measure this candidate, push what it earned, and spend what it paid.
 
@@ -203,7 +203,7 @@ def _repinned(
     return _replace(published, lease=published.standing)
 
 
-def _unproven_checkout(gate: _records._Gate, published: str) -> bool:
+def _unproven_checkout(gate: _late_gate_models._Gate, published: str) -> bool:
     """Refuse the handoff where the checkout stopped being what was pushed.
 
     The window the pre-push proof cannot cover, and the same one the initial
@@ -249,7 +249,7 @@ def _unproven_checkout(gate: _records._Gate, published: str) -> bool:
 
 
 def _pushed(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     branch: str,
     published: _publication_gate._PublishedCandidate,
 ) -> bool:
@@ -276,7 +276,7 @@ def _pushed(
 
 
 def _publication_paid(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     published: _publication_gate._PublishedCandidate,
     unproven: bool,
 ) -> None:
@@ -385,7 +385,7 @@ A process that died in that window would leave a paid debt standing,
             gate.entry.published_sha if gate.entry
             else _parks._approved_lease(gate.state)
         )
-        _records._spend(gate.state, gate.spends)
+        _late_gate_models._spend(gate.state, gate.spends)
         _parks._forget_approval(gate.state)
         _parks._record_publication(
             gate.state, landed, superseded, published.pull_request,

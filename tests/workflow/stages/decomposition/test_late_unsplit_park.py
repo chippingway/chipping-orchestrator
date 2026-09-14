@@ -20,10 +20,7 @@ from __future__ import annotations
 import unittest
 from types import MappingProxyType
 
-from orchestrator.workflow.stages.decomposition.late_models import (
-    UNRECORDED_SPLIT_BLOCKER,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import UNRECORDED_SPLIT_BLOCKER, _LateDisposition
 from tests.workflow.fixtures import LABEL_DECOMPOSING
 from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_content_support import (

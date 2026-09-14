@@ -13,9 +13,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
     late_park_state as _late_park_state,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    UNRECORDED_SPLIT_BLOCKER,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import UNRECORDED_SPLIT_BLOCKER
 from tests.workflow.stages.decomposition import (
     late_notice_case as _notice_case,
     late_notice_payloads as _notice_payloads,

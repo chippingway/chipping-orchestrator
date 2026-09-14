@@ -38,6 +38,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.implementing import (
     late_freeze as _freeze,
     late_gate as _gate,
+    late_gate_models as _late_gate_models,
     late_overflow as _overflow,
     late_parks as _parks,
     late_records as _records,
@@ -144,7 +145,7 @@ _REFUSED = _PublishedCandidate(held=True, refused=True)
 
 
 def _holds_published_work(
-    plain: _records._Gate, entered: _records._Entered,
+    plain: _late_gate_models._Gate, entered: _late_gate_models._Entered,
 ) -> _PublishedCandidate:
     """Whether the size gate keeps this candidate off an open pull request.
 
@@ -204,9 +205,9 @@ def _holds_published_work(
 
 
 def _unentered(
-    gate: _records._Gate,
-    verdict: _records._GateVerdict,
-    entered: _records._Entered,
+    gate: _late_gate_models._Gate,
+    verdict: _late_gate_models._GateVerdict,
+    entered: _late_gate_models._Entered,
 ) -> _PublishedCandidate:
     """The answer for a candidate the switch kept out of the gate.
 
@@ -266,7 +267,7 @@ def _unentered(
     )
 
 
-def _publication_ended(gate: _records._Gate) -> bool:
+def _publication_ended(gate: _late_gate_models._Gate) -> bool:
     """Whether this publication ended while the tick was working up to it.
 
     Two endings, read together because they are asked at one point for one
@@ -311,7 +312,7 @@ def _publication_ended(gate: _records._Gate) -> bool:
     late by a latch read before it, and this one costs nothing, so the cheap
     answer is the one that gets the final word.
     """
-    number = _records._RecordedPublication.named_by(
+    number = _late_gate_models._RecordedPublication.named_by(
         gate.state.get(_state._PR_NUMBER),
     ).number
     if not number:
@@ -342,7 +343,7 @@ def _publication_ended(gate: _records._Gate) -> bool:
     return True
 
 
-def _checkout_head(gate: _records._Gate) -> str:
+def _checkout_head(gate: _late_gate_models._Gate) -> str:
     """The commit this checkout is standing on, or "" if it cannot say.
 
     Proved rather than read, for the reason every other commit in this domain
@@ -361,9 +362,9 @@ def _checkout_head(gate: _records._Gate) -> str:
 
 
 def _measured(
-    gate: _records._Gate,
-    verdict: _records._GateVerdict,
-    entry: _records._PublicationEntry,
+    gate: _late_gate_models._Gate,
+    verdict: _late_gate_models._GateVerdict,
+    entry: _late_gate_models._PublicationEntry,
 ) -> _PublishedCandidate:
     """The answer for a candidate this call proved, measured, and let through.
 
@@ -413,7 +414,7 @@ def _measured(
 
 
 def _unpinnable(
-    gate: _records._Gate, candidate_sha: str,
+    gate: _late_gate_models._Gate, candidate_sha: str,
 ) -> _PublishedCandidate:
     """Refuse an approved commit whose lease the record cannot show.
 

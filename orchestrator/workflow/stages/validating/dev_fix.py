@@ -36,6 +36,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import (
     checkout_parks as _checkout_parks,
+    late_gate_models as _late_gate_models,
     late_push as _late_push,
     late_records as _late_records,
     parks as _dev_parks,
@@ -143,7 +144,7 @@ def _publish_dev_fix(
     branch = _naming._resolve_branch_name(state, spec, issue.number)
     published = _late_push._publishes(
         _late_records._gate(gh, spec, issue, state, run.worktree), branch,
-        _late_records._Entered(
+        _late_gate_models._Entered(
             stage=run.stage,
             # The head the pull request was standing on before this run made
             # its commit. Left for the gate to read afterwards, a pull request
@@ -151,7 +152,7 @@ def _publish_dev_fix(
             # the force-push overwrites them with work measured against the
             # head it used to be on.
             head=run.entered_head,
-            spends=run.spends or _late_records._SPENDS_NOTHING,
+            spends=run.spends or _late_gate_models._SPENDS_NOTHING,
             # The head this route read and decided to publish on. The gate
             # proves the checkout again, and a commit landing between the two
             # reads would otherwise be measured, pushed, and receipted here

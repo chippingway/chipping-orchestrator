@@ -61,7 +61,7 @@ from orchestrator.workflow.stages.decomposition import (
     session as _session,
     state as _state,
 )
-from orchestrator.workflow.stages.decomposition.late_models import _LateDisposition
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.stages.decomposition.models import _DecomposerCleanup, _DecomposerRunPlan
 
 log = logging.getLogger("orchestrator.workflow")

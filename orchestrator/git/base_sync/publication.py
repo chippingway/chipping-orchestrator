@@ -52,7 +52,7 @@ def _gated_publication():
 
 
 def _gate_records():
-    """The subject and terms one gated publication is described by.
+    """The subject constructor for one gated publication.
 
     The gate's own record owner, reached the same way and for the same
     reason: what this package hands the gate is a subject built from the
@@ -179,13 +179,15 @@ def _publish_auto_rebase(
         context.state, context.spec, context.issue.number,
     )
     records = _gate_records()
+    # Gate values stay deferred with the workflow call to preserve layering.
+    from orchestrator.workflow.stages.implementing.late_gate_models import _Entered
     published = _gated_publication()._publishes(
         records._gate(
             context.gh, context.spec, context.issue, context.state,
             context.worktree,
         ),
         branch,
-        records._Entered(
+        _Entered(
             head=before_sha or "",
             reconciling=True,
             # The head this refresh read for itself, and the one the notice,

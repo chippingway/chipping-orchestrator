@@ -55,6 +55,7 @@ from orchestrator.git.worktrees import naming as _naming, paths as _worktree_pat
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_push as _late_push,
     late_records as _late_records,
 )
@@ -167,7 +168,7 @@ def _recover_timed_out_fix(
 
 
 def _publish_recovered_fix(
-    gate: _late_records._Gate, candidate: str = "", entered_head: str = "",
+    gate: _late_gate_models._Gate, candidate: str = "", entered_head: str = "",
 ) -> str:
     """Measure a commit a park left unpublished, then push what it earned.
 
@@ -217,7 +218,7 @@ def _publish_recovered_fix(
     owed = _rounds._spends_next_round(gate.state)
     published = _late_push._publishes(
         gate, branch,
-        _late_records._Entered(
+        _late_gate_models._Entered(
             reconciling=True,
             spends=owed,
             candidate=candidate,

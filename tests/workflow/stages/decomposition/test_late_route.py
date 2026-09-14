@@ -21,7 +21,7 @@ from orchestrator.workflow.stages.decomposition import (
     models as _models,
     run as _run,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
+from orchestrator.workflow.stages.decomposition.late_result_models import (
     _LateAdjudicationRun,
     _LateDisposition,
     _LateRun,

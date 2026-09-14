@@ -37,8 +37,8 @@ from orchestrator.workflow.stages.conflicts import (
     replay_records as _replay_records,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_push as _late_push,
-    late_records as _late_records,
     late_transfer as _transfer,
 )
 from tests.support.replay_repository import (
@@ -134,7 +134,7 @@ class ReplayedTransferRealGitTest(_real_replay._RealReplayCase, unittest.TestCas
             gate,
             reconciling=True,
             candidate=candidate,
-            entry=_late_records._PublicationEntry(
+            entry=_late_gate_models._PublicationEntry(
                 stage=_real_replay.STAGE,
                 pr_number=_real_replay.PR_NUMBER,
                 published_sha=self.replay.accepted,

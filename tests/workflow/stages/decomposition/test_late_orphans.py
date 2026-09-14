@@ -17,9 +17,7 @@ from unittest.mock import MagicMock, patch
 from orchestrator.workflow.stages.decomposition import (
     late_children as _late_children,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.stages.decomposition.late_crash_support import (
     killed_after,

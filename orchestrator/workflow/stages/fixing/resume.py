@@ -44,7 +44,7 @@ from orchestrator.workflow.stages.fixing import (
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
-    late_records as _late_records,
+    late_gate_models as _late_gate_models,
     resume as _dev_resume,
 )
 from orchestrator.workflow.stages.validating import (
@@ -81,7 +81,7 @@ def _spends_fix_round(state, pending_fix_at_was_set: bool):
     tick with a generation on the pinned comment, and THAT one is a park --
     the developer's work is still pending and its round is not spent.
     """
-    return _late_records._Spends(fields=(
+    return _late_gate_models._Spends(fields=(
         *_bookmarks._cleared_pending_fix_bookmarks(),
         (_state._REVIEW_ROUND, _fix_review_round(state, pending_fix_at_was_set)),
     ))
@@ -341,6 +341,6 @@ def _resume_fixing_and_dispatch_result(
     # not run on this exit -- the single docs pass is deferred to the final-docs
     # handoff after reviewer approval, so running the docs stage against an
     # unapproved diff here would just push a no-op and waste a tick.
-    _late_records._spend(ctx.state, owed)
+    _late_gate_models._spend(ctx.state, owed)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)

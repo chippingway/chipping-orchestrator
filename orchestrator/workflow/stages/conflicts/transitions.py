@@ -19,7 +19,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.conflicts import models as _models, parks as _conflict_parks, state as _state
 from orchestrator.workflow.stages.implementing import (
-    late_records as _late_records,
+    late_gate_models as _late_gate_models,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -109,7 +109,7 @@ def _settles_the_held_round(outcome: str, sha: str | None):
     ahead of the relabel, and the resumed tick finishes the ORIGINAL outcome
     from it rather than re-deriving a wrong one.
     """
-    return _late_records._Spends(fields=(
+    return _late_gate_models._Spends(fields=(
         (_state._SETTLED_OUTCOME, outcome),
         (_state._SETTLED_SHA, sha or ""),
     ))

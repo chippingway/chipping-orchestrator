@@ -12,7 +12,7 @@ from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
 from orchestrator.workflow.late_split.events import LateVerdictCategory
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
-    late_models as _models,
+    late_result_models as _late_result_models,
     late_session as _session,
 )
 from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
@@ -67,9 +67,9 @@ def recorded_child(
     return recorded
 
 
-def _completed_run(**overrides) -> _models._LateRun:
+def _completed_run(**overrides) -> _late_result_models._LateRun:
     return replace(
-        _models._LateRun(
+        _late_result_models._LateRun(
             role=_support.ROLE_DECOMPOSER,
             spec=_support.LATE_SPEC,
             backend=_support.LATE_BACKEND,
@@ -119,7 +119,7 @@ class LateRunRecordTest(unittest.TestCase):
     def test_a_result_records_verdict_and_category(self) -> None:
         state = PinnedState()
 
-        _session._record_late_result(state, _models._LateAdjudication(
+        _session._record_late_result(state, _late_result_models._LateAdjudication(
             verdict=LateVerdict.QUESTION,
             category=LateVerdictCategory.SCOPE_AMBIGUOUS,
             question=ASKED,
@@ -138,7 +138,7 @@ class LateRunRecordTest(unittest.TestCase):
         state = PinnedState()
         _session._record_late_spawn(state, _completed_run())
         _session._record_late_result(
-            state, _models._LateAdjudication(
+            state, _late_result_models._LateAdjudication(
                 verdict=LateVerdict.SINGLE, split_blocker=_support.SPLIT_BLOCKER,
             ),
         )
@@ -154,7 +154,7 @@ class LateResultRecordTest(unittest.TestCase):
         # refuse the re-run while the answer it stands for was gone.
         state = PinnedState()
 
-        _session._record_late_result(state, _models._LateAdjudication(
+        _session._record_late_result(state, _late_result_models._LateAdjudication(
             verdict=LateVerdict.SPLIT,
             rationale="two slices",
             children=SPLIT_CHILDREN,
@@ -179,7 +179,7 @@ class LateResultRecordTest(unittest.TestCase):
         # -- and the budget that issue states is one of them.
         state = PinnedState()
 
-        _session._record_late_result(state, _models._LateAdjudication(
+        _session._record_late_result(state, _late_result_models._LateAdjudication(
             verdict=LateVerdict.SPLIT,
             children=({
                 TITLE: FIRST_TITLE,
@@ -198,7 +198,7 @@ class LateResultRecordTest(unittest.TestCase):
         # record, so both read back the same way.
         state = PinnedState()
 
-        _session._record_late_result(state, _models._LateAdjudication(
+        _session._record_late_result(state, _late_result_models._LateAdjudication(
             verdict=LateVerdict.SPLIT,
             children=(
                 {TITLE: FIRST_TITLE, BODY: FIRST_BODY},
@@ -223,7 +223,7 @@ class LateResultRecordTest(unittest.TestCase):
         # get from anywhere else once the run is over.
         state = PinnedState()
 
-        _session._record_late_result(state, _models._LateAdjudication(
+        _session._record_late_result(state, _late_result_models._LateAdjudication(
             verdict=LateVerdict.SINGLE,
             rationale="one coherent change",
             split_blocker=_support.SPLIT_BLOCKER,
@@ -239,7 +239,7 @@ class LateResultRecordTest(unittest.TestCase):
 
     def test_a_recovered_outcome_is_whole(self) -> None:
         state = PinnedState()
-        _session._record_late_result(state, _models._LateAdjudication(
+        _session._record_late_result(state, _late_result_models._LateAdjudication(
             verdict=LateVerdict.SPLIT, children=SPLIT_CHILDREN,
         ))
 
@@ -265,7 +265,7 @@ class LateResultRecordTest(unittest.TestCase):
         # free to decide something else.
         cases = (
             ("recorded", {_support.KEYS.split_blocker: _support.SPLIT_BLOCKER}, _support.SPLIT_BLOCKER),
-            ("legacy", {}, _models.UNRECORDED_SPLIT_BLOCKER),
+            ("legacy", {}, _late_result_models.UNRECORDED_SPLIT_BLOCKER),
         )
         for name, recorded, expected in cases:
             with self.subTest(case=name):
@@ -300,12 +300,12 @@ class LateResultBudgetTest(unittest.TestCase):
         # than handed half an outcome.
         oversized = "x" * _session.MAX_RECORDED_BODY
         cases = (
-            _models._LateAdjudication(
+            _late_result_models._LateAdjudication(
                 verdict=LateVerdict.QUESTION,
                 category=LateVerdictCategory.UNKNOWN,
                 question=oversized,
             ),
-            _models._LateAdjudication(
+            _late_result_models._LateAdjudication(
                 verdict=LateVerdict.SINGLE, split_blocker=oversized,
             ),
         )
@@ -325,7 +325,7 @@ class LateResultBudgetTest(unittest.TestCase):
         held = PinnedState(data={
             _support.KEYS.plan_pr_body: "p" * (_session.MAX_RECORDED_BODY - 100),
         })
-        modest = _models._LateAdjudication(
+        modest = _late_result_models._LateAdjudication(
             verdict=LateVerdict.SPLIT, children=SPLIT_CHILDREN,
         )
 
@@ -346,8 +346,8 @@ class LateResultBudgetTest(unittest.TestCase):
             _support.KEYS.plan_pr_body: "p" * (_session.MAX_RECORDED_BODY - _ROOM_LEFT),
         }
         verdicts = (
-            ("single", _models._LateAdjudication(verdict=LateVerdict.SINGLE)),
-            ("split", _models._LateAdjudication(
+            ("single", _late_result_models._LateAdjudication(verdict=LateVerdict.SINGLE)),
+            ("split", _late_result_models._LateAdjudication(
                 verdict=LateVerdict.SPLIT, children=SPLIT_CHILDREN,
             )),
         )

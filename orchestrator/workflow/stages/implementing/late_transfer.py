@@ -142,7 +142,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_authority as _authority,
-    late_records as _records,
+    late_gate_models as _late_gate_models,
     late_verdict as _verdict_owner,
     state as _state,
 )
@@ -301,7 +301,7 @@ class _Permit:
         return not self.refusal
 
 
-def _carried_over(gate: _records._Gate, candidate_sha: str) -> str:
+def _carried_over(gate: _late_gate_models._Gate, candidate_sha: str) -> str:
     """Carry the exemption onto this rewritten commit, or "" if it may not.
 
     Answered before anything is measured and before anything is pushed, and
@@ -418,7 +418,7 @@ def _licensed_by_a_permit(state: PinnedState) -> bool:
 
 
 def _permit(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     rewrite: _rewrite_values.LateRewrite,
     identity: _exemption_reading.LateSemanticIdentity,
 ) -> _Permit:
@@ -464,7 +464,7 @@ def _permit(
 
 
 def _unauthorized_exemption(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the exemption this would move licenses nothing, or "".
 
@@ -502,7 +502,7 @@ def _unauthorized_exemption(
 
 
 def _unreadable_authorization(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why a claim already standing here forbids replacing it, or "".
 
@@ -529,7 +529,7 @@ def _unreadable_authorization(
     return ""
 
 
-def _disagreeing_authorization(gate: _records._Gate, fingerprint: str) -> str:
+def _disagreeing_authorization(gate: _late_gate_models._Gate, fingerprint: str) -> str:
     """Why the digest a standing permission recorded is not this one, or "".
 
     The one field of an authorization that says what it was GRANTED over
@@ -566,7 +566,7 @@ def _disagreeing_authorization(gate: _records._Gate, fingerprint: str) -> str:
 
 
 def _unusable_evidence(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why this evidence names no rewrite at all, or "".
 
@@ -606,7 +606,7 @@ def _unusable_evidence(
 
 
 def _disagreeing_publication(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the rewrite is not against the publication this call froze, or "".
 
@@ -645,7 +645,7 @@ def _disagreeing_publication(
 
 
 def _standing_where_the_permit_left_it(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> bool:
     """Whether the remote is a head this permit accounts for.
 
@@ -676,7 +676,7 @@ def _standing_where_the_permit_left_it(
 
 
 def _unproven_checkout(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the checkout is not provably the rewritten commit, or "".
 
@@ -700,7 +700,7 @@ def _unproven_checkout(
 
 
 def _unproven_lease(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the head this push is leased against is not one to lease on, or "".
 
@@ -732,7 +732,7 @@ def _unproven_lease(
 
 
 def _unconfirmed_owner(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why this issue is not the one the rewrite was made on, or "".
 
@@ -795,7 +795,7 @@ def _moved_issue(fetched: Issue, source_stage: WorkflowLabel | None) -> str:
 
 
 def _unproven_base(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> str:
     """Why the base the rewrite was read over is not the branch's, or "".
 
@@ -859,7 +859,7 @@ def _unproven_base(
 
 
 def _equal_contributions(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     rewrite: _rewrite_values.LateRewrite,
     identity: _exemption_reading.LateSemanticIdentity,
 ) -> _Permit:
@@ -889,7 +889,7 @@ def _equal_contributions(
 
 
 def _accepted_contribution(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     rewrite: _rewrite_values.LateRewrite,
     identity: _exemption_reading.LateSemanticIdentity,
 ) -> _Permit:
@@ -926,7 +926,7 @@ def _accepted_contribution(
 
 
 def _unclaimed_contribution(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     rewrite: _rewrite_values.LateRewrite,
     identity: _exemption_reading.LateSemanticIdentity,
     accepted: _Permit,
@@ -961,7 +961,7 @@ def _unclaimed_contribution(
 
 
 def _fingerprinted(
-    gate: _records._Gate, side: str, base_sha: str, candidate_sha: str,
+    gate: _late_gate_models._Gate, side: str, base_sha: str, candidate_sha: str,
 ) -> _Permit:
     """One end of the rewrite as a comparable digest, or why there is none."""
     contribution = _measurement_fingerprint._fingerprint_contribution(
@@ -976,7 +976,7 @@ def _fingerprinted(
 
 
 def _authorized(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     rewrite: _rewrite_values.LateRewrite,
     fingerprint: str,
     recorded: str,
@@ -1038,7 +1038,7 @@ def _authorized(
     return _persisted(gate, before)
 
 
-def _persisted(gate: _records._Gate, before: dict) -> bool:
+def _persisted(gate: _late_gate_models._Gate, before: dict) -> bool:
     """Make the staged transfer durable, or put the comment back as it was.
 
     A write GitHub refuses is a transfer that did not happen, and the one
@@ -1081,7 +1081,7 @@ def _persisted(gate: _records._Gate, before: dict) -> bool:
     return True
 
 
-def _abandoned_authorization(gate: _records._Gate, restored: str) -> bool:
+def _abandoned_authorization(gate: _late_gate_models._Gate, restored: str) -> bool:
     """Drop the permission a rolled-back rewrite will never spend.
 
     A force-push the remote refuses is followed by a reset onto the head the

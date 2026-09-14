@@ -13,9 +13,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.stages.decomposition.late_session import (
     MAX_RECORDED_BODY,
 )

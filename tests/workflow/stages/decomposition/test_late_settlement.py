@@ -24,9 +24,7 @@ from unittest.mock import patch
 
 from orchestrator.workflow.late_split import exemption_reading as _exemption_reading
 from orchestrator.workflow.late_split.models import LateFailure
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.stages.implementing import (
     late_parks as _gate_parks,
 )

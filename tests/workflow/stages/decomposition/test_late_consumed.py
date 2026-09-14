@@ -11,9 +11,7 @@ one at a time beside the semantics each route is really about.
 """
 from __future__ import annotations
 
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition.late_content_replies import reply
 from tests.workflow.stages.decomposition.late_content_support import (
     ASKED_STATE,

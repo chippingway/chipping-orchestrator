@@ -42,10 +42,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     late_revision_reconciliation as _late_reconciliation,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateContentSettlement,
-    _LateContext,
-)
+from orchestrator.workflow.stages.decomposition.late_content_models import _LateContentSettlement
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 
 _STRANDED_CHILDREN_PARK = (
     "this issue's committed candidate cannot be revised: the adjudication "

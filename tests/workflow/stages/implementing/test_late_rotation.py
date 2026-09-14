@@ -25,8 +25,8 @@ from orchestrator.workflow.late_split import (
     rewrite_values as _rewrite_values,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_push as _push,
-    late_records as _records,
     late_rotation as _rotation,
     late_transfer_telemetry as _telemetry_owner,
     state as _state,
@@ -130,7 +130,7 @@ class _SettlementCase(unittest.TestCase):
                 candidate="", entry=None, rewrite=None,
             ),
             _transfer_payloads.BRANCH,
-            _records._Entered(**{
+            _late_gate_models._Entered(**{
                 "stage": _transfer_payloads.SOURCE_STAGE,
                 "head": LEASED_SHA,
                 "candidate": REWRITTEN_SHA,
@@ -434,7 +434,7 @@ class RefusedPermitTest(unittest.TestCase):
                     candidate="", entry=None, rewrite=None,
                 ),
                 _transfer_payloads.BRANCH,
-                _records._Entered(
+                _late_gate_models._Entered(
                     stage=_transfer_payloads.SOURCE_STAGE,
                     head=LEASED_SHA,
                     candidate=REWRITTEN_SHA,

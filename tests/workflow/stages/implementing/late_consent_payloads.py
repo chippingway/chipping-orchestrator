@@ -23,7 +23,7 @@ from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.implementing import (
     late_consent_state as _consent_state,
-    late_records as _records,
+    late_gate_models as _late_gate_models,
 )
 from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
@@ -161,7 +161,7 @@ def measured() -> LateGeneration:
 # of, the pull request the work already has, and the head that pull request
 # stands on. What it changes here is the notice, since guidance reaches a
 # developer only where the ordinary resume is still in front of the issue.
-PUBLISHED_ENTRY = _records._PublicationEntry(
+PUBLISHED_ENTRY = _late_gate_models._PublicationEntry(
     stage=LABEL_IMPLEMENTING,
     pr_number=PR_NUMBER,
     published_sha=MEASURED_BASE_SHA,

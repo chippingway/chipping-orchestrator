@@ -23,10 +23,8 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.late_split import keys as _late_keys
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
 from orchestrator.workflow.stages.decomposition.late_notice import PARK_NOTICE
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition.late_content_replies import reply
 from tests.workflow.stages.decomposition.late_content_support import (
     EDITED_TITLE,

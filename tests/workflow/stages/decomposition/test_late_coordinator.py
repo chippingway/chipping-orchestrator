@@ -13,9 +13,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_attempt as _late_attempt,
     late_session as _late_session,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.fixtures import STAGE_DECOMPOSING
 from tests.workflow.stages.decomposition import late_test_support as _support

@@ -39,9 +39,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     late_session as _late_session,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition import (
     late_notice_case as _notice_case,
     late_notice_payloads as _notice_payloads,

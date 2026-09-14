@@ -36,8 +36,8 @@ from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.implementing import (
     late_authority as _authority,
     late_consent as _consent,
+    late_gate_models as _late_gate_models,
     late_parks as _parks,
-    late_records as _records,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -68,7 +68,7 @@ _ROUTED_ON_PUBLICATION_NOTICE = (
     "ships as one change or becomes child issues."
 )
 
-def _settled(gate: _records._Gate, generation: LateGeneration) -> bool:
+def _settled(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
     """What a measured candidate earns: adjudication, or the ordinary push.
 
     Strictly past the ceiling, which is the record's own comparison: a
@@ -123,7 +123,7 @@ def _settled(gate: _records._Gate, generation: LateGeneration) -> bool:
     return _authorized(gate, settled)
 
 
-def _accepted(gate: _records._Gate, generation: LateGeneration) -> bool:
+def _accepted(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
     """Retire the generation a small candidate never needed, and publish.
 
     The debt it leaves is recorded as this gate's own READING, which is what
@@ -178,7 +178,7 @@ def _accepted(gate: _records._Gate, generation: LateGeneration) -> bool:
     return _retired(gate, generation, _late_state.read_late_spends(gate.state))
 
 
-def _authorized(gate: _records._Gate, generation: LateGeneration) -> bool:
+def _authorized(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
     """Retire the generation an operator authorized past the ceiling, and publish.
 
     The same close-safe retirement a small candidate earns, on the one road
@@ -215,7 +215,7 @@ def _authorized(gate: _records._Gate, generation: LateGeneration) -> bool:
     return _retired(gate, generation, _late_state.read_late_spends(gate.state))
 
 
-def _frozen_lease(gate: _records._Gate) -> str:
+def _frozen_lease(gate: _late_gate_models._Gate) -> str:
     """The head an approval on the published side is pinned to.
 
     The retirement below takes the generation -- and the head it froze -- off
@@ -235,7 +235,7 @@ def _frozen_lease(gate: _records._Gate) -> str:
     return gate.entry.published_sha
 
 
-def _supersedes_approval(gate: _records._Gate, candidate_sha: str) -> None:
+def _supersedes_approval(gate: _late_gate_models._Gate, candidate_sha: str) -> None:
     """Drop an approval this publication is going past.
 
     An approval names one commit and says that commit is owed a push. A tick
@@ -264,7 +264,7 @@ def _supersedes_approval(gate: _records._Gate, candidate_sha: str) -> None:
     _parks._forget_approval(gate.state)
 
 
-def _superseded(gate: _records._Gate, recorded: LateGeneration) -> bool:
+def _superseded(gate: _late_gate_models._Gate, recorded: LateGeneration) -> bool:
     """Drop a record this publication is going past, and publish without it.
 
     Two roads reach it and they are the same fact. With the switch off a fresh
@@ -295,7 +295,7 @@ def _superseded(gate: _records._Gate, recorded: LateGeneration) -> bool:
 
 
 def _retired(
-    gate: _records._Gate, generation: LateGeneration, owed: tuple = (),
+    gate: _late_gate_models._Gate, generation: LateGeneration, owed: tuple = (),
 ) -> bool:
     """Drop this generation durably, BEFORE the publication it licenses.
 
@@ -356,7 +356,7 @@ def _retired(
     return True
 
 
-def _cancelled(gate: _records._Gate, generation: LateGeneration) -> bool:
+def _cancelled(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
     """End this cycle where a close is already latched against the issue.
 
     Asked before the retirement rather than after, because the retirement is
@@ -382,7 +382,7 @@ def _cancelled(gate: _records._Gate, generation: LateGeneration) -> bool:
     return True
 
 
-def _marked(gate: _records._Gate, generation: LateGeneration) -> None:
+def _marked(gate: _late_gate_models._Gate, generation: LateGeneration) -> None:
     """Record this cycle cancelled, then report it, in that order.
 
     Nothing is owed a publication on a cancelled cycle, so the commit an
@@ -406,7 +406,7 @@ def _marked(gate: _records._Gate, generation: LateGeneration) -> None:
     )
 
 
-def _routed(gate: _records._Gate, generation: LateGeneration) -> bool:
+def _routed(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
     """Hand an oversized candidate to the adjudication, publishing nothing.
 
     The measurement is made durable first, because the label is what makes
@@ -445,10 +445,10 @@ def _routed(gate: _records._Gate, generation: LateGeneration) -> bool:
 
 
 def _unmeasured_verdict(
-    gate: _records._Gate,
+    gate: _late_gate_models._Gate,
     recorded: LateGeneration,
-    admitted: _records._GateVerdict = _records._HELD,
-) -> _records._GateVerdict:
+    admitted: _late_gate_models._GateVerdict = _late_gate_models._HELD,
+) -> _late_gate_models._GateVerdict:
     """Publish a candidate this gate did not measure -- unless a close beat it.
 
     The three ways past the measurement, and they share the step that is easy
@@ -514,7 +514,7 @@ def _unmeasured_verdict(
     _parks._retire_spent_park(gate.state)
     _supersedes_approval(gate, admitted.candidate_sha)
     if _superseded(gate, recorded):
-        return _records._HELD
+        return _late_gate_models._HELD
     _parks._retire_authorized_park(gate.state)
     _owed_by_an_unmeasured_push(
         gate, admitted.candidate_sha, _frozen_lease(gate), admitted.basis,
@@ -523,7 +523,7 @@ def _unmeasured_verdict(
 
 
 def _owed_by_an_unmeasured_push(
-    gate: _records._Gate, candidate_sha: str, lease: str, basis: str = "",
+    gate: _late_gate_models._Gate, candidate_sha: str, lease: str, basis: str = "",
 ) -> None:
     """Name the commit an unmeasured publication owes a push for, durably.
 
@@ -572,7 +572,7 @@ def _owed_by_an_unmeasured_push(
 
 
 def _stages_unmeasured_debt(
-    gate: _records._Gate, candidate_sha: str, lease: str, basis: str = "",
+    gate: _late_gate_models._Gate, candidate_sha: str, lease: str, basis: str = "",
 ) -> bool:
     """Put the debt an unmeasured push owes in memory, and say whether it did.
 
@@ -623,7 +623,7 @@ def _stages_unmeasured_debt(
     return True
 
 
-def _spent(gate: _records._Gate) -> None:
+def _spent(gate: _late_gate_models._Gate) -> None:
     """Close the route bookkeeping this hold's caller will never get to.
 
     Written here rather than by the caller because of what comes next: the
@@ -636,7 +636,7 @@ def _spent(gate: _records._Gate) -> None:
     tick with a generation on the pinned comment, and that one is a park: the
     developer's work is still pending and its round is not spent.
     """
-    _records._spend(gate.state, gate.spends)
+    _late_gate_models._spend(gate.state, gate.spends)
 
 
 def _routed_notice(generation: LateGeneration) -> str:

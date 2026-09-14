@@ -203,13 +203,15 @@ def _pushes_the_recovered_head(
     """
     landed = recovery_snapshot.head
     records = publication._gate_records()
+    # Gate values stay deferred with the workflow call to preserve layering.
+    from orchestrator.workflow.stages.implementing.late_gate_models import _Entered
     published = publication._gated_publication()._publishes(
         records._gate(
             context.gh, context.spec, context.issue, context.state,
             context.worktree,
         ),
         recovery_snapshot.branch,
-        records._Entered(
+        _Entered(
             head=context.pending_pre_rebase_sha or "", reconciling=True,
             # The head this recovery verified against the remote and the one
             # the finalize below records as published. The gate proves the

@@ -82,10 +82,7 @@ from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     late_content_replies as _replies,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateContentSignal,
-    _LateFingerprint,
-)
+from orchestrator.workflow.stages.decomposition.late_content_models import _LateContentSignal, _LateFingerprint
 
 # The issue-wide record of what the workflow has already acted on, which every
 # announced park advances past its own notice. Read here as the floor a REPLY

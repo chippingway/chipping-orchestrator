@@ -63,12 +63,9 @@ from orchestrator.workflow.stages.decomposition import (
     late_revision_obligations as _late_obligations,
     late_revision_reconciliation as _late_reconciliation,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateContentSettlement,
-    _LateContentSignal,
-    _LateContext,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_content_models import _LateContentSettlement, _LateContentSignal
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.stages.implementing import resume as _dev_resume
 
 log = logging.getLogger("orchestrator.workflow")

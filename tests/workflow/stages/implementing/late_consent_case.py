@@ -12,7 +12,7 @@ from orchestrator.github.pinned_state import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_command as _command,
-    late_records as _records,
+    late_gate_models as _late_gate_models,
     state as _state,
 )
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -91,7 +91,7 @@ class _ParkedCase(_consent_comments._ConsentComments, _PatchedWorkflowMixin):
 
     def _gate(self, state: PinnedState | None = None, **entered):
         """The gate call this park was taken on, or is being answered from."""
-        return _records._Gate(
+        return _late_gate_models._Gate(
             gh=self.github,
             spec=_TEST_SPEC,
             issue=self.issue,

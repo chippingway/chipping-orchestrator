@@ -15,9 +15,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.workflow.late_split.models import LateFailure
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import FakePR
 from tests.workflow.fixtures import LABEL_DECOMPOSING, LABEL_IMPLEMENTING
 from tests.workflow.stages.decomposition import late_settlement_support as _support

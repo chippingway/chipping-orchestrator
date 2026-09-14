@@ -10,10 +10,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     late_transaction as _late_transaction,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _HeldPrHold,
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _HeldPrHold
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.stages.decomposition import (
     late_test_support as _support,

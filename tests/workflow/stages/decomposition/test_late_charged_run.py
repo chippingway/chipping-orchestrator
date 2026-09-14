@@ -24,9 +24,7 @@ from orchestrator.workflow.engine import (
     run_ledger_models as _run_ledger_models,
     run_ledger_values as _run_ledger_values,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import FakeLabel
 from tests.workflow.stages.decomposition.late_run_support import (
     adjudicate,

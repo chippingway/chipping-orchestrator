@@ -47,6 +47,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_gate_models as _late_gate_models,
     late_records as _records,
     late_rotation as _rotation,
 )
@@ -55,7 +56,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 
 def _reports_the_transfer(
-    gate: _records._Gate, rotation: _rotation._Rotation,
+    gate: _late_gate_models._Gate, rotation: _rotation._Rotation,
 ) -> None:
     """Write the one record a settled transfer leaves on both sinks.
 
@@ -98,7 +99,7 @@ def _reports_the_transfer(
 
 
 def _forgets_the_reported_proof(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> None:
     """Drop the proof the record above was made from, durably.
 
@@ -131,7 +132,7 @@ def _forgets_the_reported_proof(
 
 
 def _reported(
-    gate: _records._Gate, rewrite: _rewrite_values.LateRewrite,
+    gate: _late_gate_models._Gate, rewrite: _rewrite_values.LateRewrite,
 ) -> LateGeneration:
     """The generation one transfer record is correlated by.
 

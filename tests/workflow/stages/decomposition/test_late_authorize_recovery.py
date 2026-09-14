@@ -3,9 +3,7 @@
 """Recovering a recorded authorization after interruption or a replaced adjudication."""
 from __future__ import annotations
 
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition import (
     late_authorize_case as _authorize_case,
     late_content_replies as _content_replies,

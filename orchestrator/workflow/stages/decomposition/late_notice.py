@@ -17,11 +17,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_notice_fences as _notice_fences,
     late_session as _late_session,
 )
-from orchestrator.workflow.stages.decomposition.late_models import (
-    UNRECORDED_SPLIT_BLOCKER,
-    _LateContext,
-    _StagedPark,
-)
+from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _StagedPark
+from orchestrator.workflow.stages.decomposition.late_result_models import UNRECORDED_SPLIT_BLOCKER
 
 log = logging.getLogger("orchestrator.workflow")
 

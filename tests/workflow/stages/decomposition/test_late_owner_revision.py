@@ -12,9 +12,7 @@ neither is said until the read comes back open.
 from __future__ import annotations
 
 from orchestrator.workflow.late_split.phases import LatePhase
-from orchestrator.workflow.stages.decomposition.late_models import (
-    _LateDisposition,
-)
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition.late_content_replies import reply
 from tests.workflow.stages.decomposition.late_content_support import KEY_GENERATION, PARK_REVISION_DIRTY
 from tests.workflow.stages.decomposition.late_revision_support import (

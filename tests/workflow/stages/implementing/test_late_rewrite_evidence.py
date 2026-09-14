@@ -7,7 +7,7 @@ import unittest
 
 from orchestrator.workflow.late_split import rewrite_values as _rewrite_values
 from orchestrator.workflow.stages.implementing import (
-    late_records as _records,
+    late_gate_models as _late_gate_models,
     late_rewrite as _rewrite,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -69,7 +69,7 @@ class RewriteEvidenceTest(unittest.TestCase):
     def _rewritten(self, standing: str) -> _rewrite_values.LateRewrite:
         """The evidence a squash hands in for a publication standing here."""
         return _rewrite._rewritten(
-            _records._PublicationEntry(
+            _late_gate_models._PublicationEntry(
                 stage=SOURCE_STAGE,
                 pr_number=PR_NUMBER,
                 published_sha=standing,
