@@ -44,7 +44,11 @@ from __future__ import annotations
 from orchestrator.config import settings as config
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, prompts as _prompts
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    conversation_prompts as _conversation_prompts,
+    prompt_context as _prompt_context,
+)
 from orchestrator.workflow.stages.discussion import models as _models, state as _state
 
 
@@ -191,7 +195,7 @@ def _build_round_prompt(
     """
     if replies and session.session_id:
         return _models._DiscussionPrompt(
-            text=_prompts._build_discussion_followup_prompt(
+            text=_conversation_prompts._build_discussion_followup_prompt(
                 replies, _state._plan_path(run.issue.number),
             ),
             consumed=tuple(replies),
@@ -217,10 +221,10 @@ def _build_full_context_prompt(
     """
     thread = tuple(run.gh.comments_after(run.issue, None))
     return _models._DiscussionPrompt(
-        text=_prompts._build_discussion_prompt(
+        text=_conversation_prompts._build_discussion_prompt(
             run.spec,
             run.issue,
-            _comments._thread_text(
+            _prompt_context._thread_text(
                 thread, retained_ids=_comments._orchestrator_ids(run.state),
             ),
             config.default_repo_specs(),

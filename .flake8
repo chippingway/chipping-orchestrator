@@ -11,18 +11,11 @@ per-file-ignores =
     orchestrator/workflow/late_split/models.py:WPS214
     orchestrator/workflow/late_split/rewrites.py:WPS202
     orchestrator/workflow/late_split/lineage.py:WPS202
-    orchestrator/workflow/engine/comments.py:WPS202
     orchestrator/workflow/engine/observations.py:WPS202,WPS204
     orchestrator/workflow/engine/dispatch.py:WPS201,WPS202
-    orchestrator/workflow/engine/drift.py:WPS202
-    orchestrator/workflow/engine/prompts.py:WPS202
     orchestrator/workflow/engine/retry_budget.py:WPS202
-    orchestrator/workflow/engine/run_budget.py:WPS202
-    orchestrator/workflow/engine/run_circuit.py:WPS202
-    orchestrator/workflow/engine/run_ledger.py:WPS202
     orchestrator/workflow/engine/run_limit.py:WPS202
     orchestrator/workflow/engine/terminals.py:WPS202
-    orchestrator/workflow/engine/usage.py:WPS201,WPS202
     orchestrator/workflow/stages/conflicts/divergence.py:WPS202
     orchestrator/workflow/stages/conflicts/evidence.py:WPS202
     orchestrator/workflow/stages/conflicts/transitions.py:WPS202

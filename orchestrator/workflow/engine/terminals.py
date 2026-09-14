@@ -76,7 +76,7 @@ from orchestrator.github.issues import (
     _STATE_ATTR,
 )
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import usage as _usage
+from orchestrator.workflow.engine import issue_usage as _issue_usage, usage as _usage
 from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -344,7 +344,7 @@ def _finalize_merged_pr(
 ) -> None:
     context.state.set("merged_at", _usage._now_iso())
     context.gh.set_workflow_label(context.issue, WorkflowLabel.DONE)
-    _usage._post_issue_usage_verdict(context.gh, context.issue, context.state)
+    _issue_usage._post_issue_usage_verdict(context.gh, context.issue, context.state)
     context.gh.write_pinned_state(context.issue, context.state)
     context.gh.emit_event(
         "pr_merged",
@@ -368,7 +368,7 @@ def _finalize_merged_pr(
 def _finalize_rejected_pr(context: _ReviewTerminalContext) -> None:
     context.state.set("closed_without_merge_at", _usage._now_iso())
     context.gh.set_workflow_label(context.issue, WorkflowLabel.REJECTED)
-    _usage._post_issue_usage_verdict(context.gh, context.issue, context.state)
+    _issue_usage._post_issue_usage_verdict(context.gh, context.issue, context.state)
     context.gh.write_pinned_state(context.issue, context.state)
     context.gh.emit_event(
         "pr_closed_without_merge",
@@ -387,7 +387,7 @@ def _finalize_rejected_pr(context: _ReviewTerminalContext) -> None:
 def _finalize_closed_issue_with_open_pr(context: _ReviewTerminalContext) -> None:
     context.state.set("closed_without_merge_at", _usage._now_iso())
     context.gh.set_workflow_label(context.issue, WorkflowLabel.REJECTED)
-    _usage._post_issue_usage_verdict(context.gh, context.issue, context.state)
+    _issue_usage._post_issue_usage_verdict(context.gh, context.issue, context.state)
     context.gh.write_pinned_state(context.issue, context.state)
 
 

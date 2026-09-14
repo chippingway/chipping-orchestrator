@@ -1322,7 +1322,8 @@ The keys that matter for the state machine fall into a few groups:
   fresh spawn), `merged_at` / `closed_without_merge_at` terminal stamps, and the per-round stamps `last_question_at` /
   `last_discussion_at` the two operator-applied conversation stages set on every run they settle.
 - **Usage meter.** `issue_agent_runs` + `issue_total_tokens` + `issue_total_cost_usd` + `issue_cost_sources` are
-  per-issue cumulative counters folded in by `_accumulate_issue_usage` at each developer (implementing), reviewer
+  per-issue cumulative counters folded in by `engine/issue_usage.py`'s `_accumulate_issue_usage` at each developer
+  (implementing), reviewer
   (validating), decomposer (decomposing), question, and discussion run site from the `UsageMetrics` that
   `_run_agent_tracked` parses. `issue_total_tokens` sums input +
   output + cache-read + cache-write (codex `cached_tokens` is excluded — it is already part of `input_tokens`, so
@@ -1332,9 +1333,11 @@ The keys that matter for the state machine fall into a few groups:
   handler's existing single `write_pinned_state`, so an `interrupted` run that returns without writing never accrues.
   The decomposer / question / discussion stages additionally skip the fold for `interrupted` runs, so even
   their dirty/commits inspection park (which does write pinned state) records no counter.
-- **Agent-run ledger.** `agent_run_allowance` + `agent_runs_used` + `agent_run_reservation`, owned by
-  [`orchestrator/workflow/engine/run_ledger.py`](../../orchestrator/workflow/engine/run_ledger.py) and read back as
-  one typed `AgentRunLedger` snapshot (the configured ceiling, the allowance in force, the count spent, the launch
+- **Agent-run ledger.** `agent_run_allowance` + `agent_runs_used` + `agent_run_reservation` are read by
+  [`run_ledger_values.py`](../../orchestrator/workflow/engine/run_ledger_values.py) and mutated by
+  [`run_ledger.py`](../../orchestrator/workflow/engine/run_ledger.py). The
+  [`run_ledger_models.py`](../../orchestrator/workflow/engine/run_ledger_models.py) owner supplies the typed
+  `AgentRunLedger` snapshot (the configured ceiling, the allowance in force, the count spent, the launch
   outstanding, and what is left of the allowance). `agent_run_allowance` is the ceiling this issue is held to; absent
   — which is every issue nobody decided anything special about — `MAX_AGENT_RUNS_PER_ISSUE` governs and is read live,
   and a recorded `0` says unlimited exactly as a configured `0` does. `agent_runs_used` is monotonic: it is charged
@@ -1560,7 +1563,8 @@ The lifetime ledger is charged at the one place every role reaches an agent thro
 [`orchestrator/workflow/engine/run_circuit.py`](../../orchestrator/workflow/engine/run_circuit.py), asked immediately
 around the sole low-level `run_agent` call inside `_run_agent_tracked`. A gate written into each spawning handler
 would be a gate the next handler is added without; there is exactly one call that starts an agent process, so a
-charge around it is one every role, stage, and cycle pays. Every launch names an `AgentRunBudget` — the issue a
+charge around it is one every role, stage, and cycle pays. Every launch names the `AgentRunBudget` defined in
+`engine/run_charge_state.py` — the issue a
 charge is written on, and the caller's own `PinnedState` — and the parameter is **required**, so a spawn road that
 omitted it would not compile rather than quietly spend runs nothing counts. All eight spawn sites (the decomposer's
 fresh and resumed runs, the late adjudicator, the question and discussion rounds, the developer's fresh spawn and

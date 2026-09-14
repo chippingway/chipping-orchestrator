@@ -15,7 +15,13 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import comments, drift, prompts
+from orchestrator.workflow.engine import (
+    content_hash as _requirement_hash,
+    conversation_prompts as _conversation_prompts,
+    decomposition_prompts as _decomposition_prompts,
+    prompt_context as _prompt_context,
+    prompts,
+)
 from tests.support.fakes import FakeComment, FakeUser, make_issue
 from tests.workflow.engine import comment_trust_test_support as trust
 from tests.workflow.fixtures import _TEST_SPEC
@@ -33,17 +39,17 @@ def _built_prompts(issue, comments_text: str) -> dict[str, str]:
         "documentation": prompts._build_documentation_prompt(
             _TEST_SPEC, issue, comments_text, specs,
         ),
-        "decompose": prompts._build_decompose_prompt(
+        "decompose": _decomposition_prompts._build_decompose_prompt(
             _TEST_SPEC, issue, comments_text, specs,
         ),
-        "question": prompts._build_question_prompt(
+        "question": _conversation_prompts._build_question_prompt(
             _TEST_SPEC, issue, comments_text, specs,
         ),
     }
 
 
 def _content_hash(issue) -> str:
-    return drift._compute_user_content_hash(issue, set())
+    return _requirement_hash._compute_user_content_hash(issue, set())
 
 
 class PromptBuilderTrustFilterTest(unittest.TestCase):
@@ -55,7 +61,7 @@ class PromptBuilderTrustFilterTest(unittest.TestCase):
     def test_only_allowed_content_reaches_prompts(self) -> None:
         issue = trust.issue_with_comments()
         with patch.object(config, trust.ALLOWLIST_CONFIG, (trust.ALLOWED_AUTHOR,)):
-            comments_text = comments._recent_comments_text(issue)
+            comments_text = _prompt_context._recent_comments_text(issue)
         for name, prompt in _built_prompts(issue, comments_text).items():
             with self.subTest(builder=name):
                 self.assertNotIn(trust.MALICIOUS_URL, prompt)

@@ -72,7 +72,11 @@ from dataclasses import replace
 from github.Issue import Issue
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, drift as _engine_drift, messages as _messages
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    content_hash as _content_hash,
+    messages as _messages,
+)
 from orchestrator.workflow.late_split import formats as _formats, identity as _identity
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
@@ -197,7 +201,7 @@ def _trusted_thread(issue: Issue, state: PinnedState) -> list:
         issue_comment
         for issue_comment in issue.get_comments()
         if _formats.whole_number(getattr(issue_comment, "id", None))
-        and not _engine_drift._is_hidden_comment(
+        and not _content_hash._is_hidden_comment(
             issue_comment, orchestrator_ids,
         )
     ]

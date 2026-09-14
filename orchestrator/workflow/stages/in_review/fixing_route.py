@@ -24,7 +24,11 @@ back to `in_review`, undoing the route this owner just took.
 from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, drift as _drift, usage as _usage
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    content_hash as _content_hash,
+    usage as _usage,
+)
 from orchestrator.workflow.stages.in_review import models as _models
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -98,7 +102,7 @@ def _route_feedback_to_fixing(
     )
     state.set(
         "user_content_hash",
-        _drift._compute_user_content_hash(ctx.issue, _comments._orchestrator_ids(state)),
+        _content_hash._compute_user_content_hash(ctx.issue, _comments._orchestrator_ids(state)),
     )
     # If we were parked awaiting human, the comment that triggered this route is
     # the human signal -- clear the park flags so the fixing handler is not

@@ -35,6 +35,7 @@ from orchestrator.workflow.engine import (
     drift as _engine_drift,
     guards as _guards,
     messages as _messages,
+    prompt_context as _prompt_context,
     retry_budget as _retry_budget,
     usage as _usage,
 )
@@ -107,7 +108,7 @@ def _run_implementing_drift_resume(
     worktree = _worktree._ensure_resume_worktree(spec, issue, state)
     before_sha = _verification_probes._head_sha(worktree)
     followup = _engine_drift._build_user_content_change_prompt(
-        issue, _comments._recent_comments_text(issue),
+        issue, _prompt_context._recent_comments_text(issue),
     )
     resumed = _resume._resume_dev_with_text(
         gh, spec, issue, state, followup, pause_guard=True,

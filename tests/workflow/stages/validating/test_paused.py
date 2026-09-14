@@ -25,7 +25,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from orchestrator.github.labels import PAUSED_LABEL
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -98,7 +98,7 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
             ),
         )
         state = {
-            "user_content_hash": _drift._compute_user_content_hash(
+            "user_content_hash": _content_hash._compute_user_content_hash(
                 issue,
                 set(),
             ),

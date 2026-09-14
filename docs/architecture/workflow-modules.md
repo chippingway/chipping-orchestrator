@@ -68,8 +68,12 @@ workflow/                   marker package for state, engine, and stage owners
                             what leaks; the same ordering puts it ahead of the `rstrip`, so a multi-line env value
                             ending in a newline still matches verbatim. The block is quoted through
                             `messages.py`'s blockquote, so it reads as the last-message body it is appended under
-    comments.py             the orchestrator marker, the capped id ledger both posters write, and the trusted-author
-                            thread read every prompt quotes
+    comments.py             the orchestrator marker and bounded id ledger shared by issue and pull-request comment
+                            posts; callers persist the ledger, and shared token accounts are never treated as
+                            exclusively automated
+    prompt_context.py       trusted-author thread reads, retained orchestrator comment ids, quoted comment lines, and
+                            bounded tracked-repository awareness for agent prompts; marker text alone cannot admit a
+                            comment
     community.py            the open pull requests this orchestrator never opened, which is why the tick sweeps
                             them itself: one opened by somebody else carries no pinned state for a handler to
                             consult, so nothing dispatches it. `ALLOWED_ISSUE_AUTHORS` decides there is anything
@@ -177,11 +181,12 @@ workflow/                   marker package for state, engine, and stage owners
                             once-per-owner-per-process claim that bounds the thread scan recovering an observation
                             a DEAD process was holding, held for the length of the walk and handed back where it
                             raised
-    drift.py                the user-content hash and the eight filters that keep content nobody wrote out of it --
-                            the three whole-comment operator commands among them, since answering one edits nothing
-                            and the tick that answers it hands the same issue on to a stage handler -- the dev
-                            resume a drift earns, and the decomposition reset the pre-implementation route takes
-                            -- manifest, session, and every claim that manifest made about the children it created
+    content_hash.py         the user-content hash and filters for pinned records, orchestrator output, bots, untrusted
+                            authors, and whole-comment operator commands; the legacy bare-continue mode recognizes an
+                            existing baseline
+    drift.py                baseline persistence and legacy normalization, the dev resume a requirements edit earns, and
+                            the pre-implementation decomposition reset; consumed watermarks cover the guidance delivered
+                            to the agent
     guards.py               what a finished agent run may leave behind: the never-invoked, shutdown-interruption,
                             and freshly-read pause refusals, and the awaiting-human park. The first is asked ahead
                             of the second wherever a stage reads the worktree before it asks whether the run
@@ -202,8 +207,14 @@ workflow/                   marker package for state, engine, and stage owners
                             end, the adjudication's and the size gate's, each proving it against its own record
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
-    prompts.py              the prompt builders the stages share, the header, notes, and placeholders they are
-                            assembled from, and the single-decision comment
+    prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, and the
+                            continuation note for a session-limit retry
+    prompts.py              implementation, review, documentation, fixing, conflict-resolution, and fresh-session prompt
+                            builders; each response marker agrees with the parser that settles its stage
+    conversation_prompts.py question, discussion, and PR-feedback follow-up prompts; discussion publication instructions
+                            describe the confirmed plan artifact and the commit its stage verifies
+    decomposition_prompts.py the decomposition prompt with the validator-owned child limit, and the bounded
+                            single-decision comment that carries manifest notes into implementation
     retry_budget.py         the per-issue daily spawn budget every stage's gate is decided by: the decision it
                             answers and posts nothing for, the parking form that composes the tail around it for
                             the stages whose park carries nothing of their own,
@@ -215,30 +226,18 @@ workflow/                   marker package for state, engine, and stage owners
                             four audit phases over them. The late adjudication is decided by the same gate and
                             renewed by the same step, and owns its park's delivery itself, since what a refusal
                             leaves standing there is a generation's whole record
-    run_budget.py           the one record every agent-run budget transition leaves on both observability sinks:
-                            the `agent_run_budget` family, its four durable phases -- a charge reserved, the spawn
-                            it paid for, the lifetime a refusal ended, and the ceiling a command widened -- the
-                            launch identity a charge is taken under and the id a record correlates on -- the bounded
-                            head of that identity and the count the charge moved, since the identity alone repeats
-                            across charges -- the whole ledger reading every phase repeats (the configured ceiling,
-                            the allowance in force, the runs spent, and what is left of them, spelled out as a word
-                            where nothing bounds them rather than dropped), the closed vocabulary a refusal explains
-                            itself from, and the
-                            two guarded writes that reach the audit and analytics streams without either being
-                            able to cost the other or the tick -- along with the one guarded read that builds a
-                            record, since an extension's stage is asked past the write that widened the ceiling.
-                            It decides nothing and is asked only once a transition is durable, so what the stream
-                            counts is what an issue actually spent
-    run_circuit.py          the charge one launch takes at the boundary a process is invoked from: the launch
-                            identity a request is fingerprinted under, the two durable writes the crash window
-                            lives between -- `reserved` before anything is invoked, `started` before the
-                            invocation -- the standing charge only the launch that took it may reuse, the fresh
-                            durable read the pair is written onto, the merge that carries back its own fields and
-                            nothing the caller staged, and the interrupted answer every refusal returns. The park
-                            below is taken here, on the reading the refusal was made on, and no process is invoked
-                            unless the charge landed. Each of the three durable steps is recorded to both sinks
-                            through `run_budget.py` and recorded AFTER the write that takes it, so a reused charge
-                            reports only the spawn it paid for and a refused write reports nothing
+    run_budget_models.py    the four durable budget-event phases, refusal vocabulary, and the logical launch identity
+                            used to correlate a charge
+    run_budget_fields.py    the complete ledger payload, explicit unlimited remainder, reservation id combining a
+                            bounded fingerprint and used count, and guarded stage lookup for a durable extension
+    run_budget.py           budget events emitted only after the transition is durable; audit and analytics writes are
+                            guarded independently so either may fail without costing the other or the tick
+    run_charge_state.py     the issue and caller-state context of a launch charge, fresh pinned reads, guarded durable
+                            writes, and a merge of only the fields that charge changed; an unreadable or failed record
+                            refuses invocation
+    run_circuit.py          the ordered reserved and started writes before the sole process invocation; only the logical
+                            launch holding a reservation reuses it, each durable step emits its budget event, and
+                            exhaustion parks on the same reading
     run_grant.py            the one command that answers the spent-ledger park below: a trusted `/orchestrator
                             add-agent-runs N`, read only while that park stands and only as the request the parser
                             beside it hands over. It persists an allowance of exactly `used + N` -- absolute rather
@@ -260,14 +259,14 @@ workflow/                   marker package for state, engine, and stage owners
                             is touched here. The bare-command reading the drift hash filters on lives beside them,
                             since the tick that answers the command is the tick the stage below runs on and a hash
                             counting it would call a body nobody edited changed requirements
-    run_ledger.py           the lifetime agent-run ledger one issue is read against: the allowance in force -- the
-                            issue's own where it carries one, the configured ceiling everywhere else -- the
-                            monotonic count of runs it has spent, seeded and floored by the legacy `issue_agent_runs`
-                            meter and kept running while the ceiling is off, the `reserved` / `started` phases of the
-                            launch currently holding a charge and the fingerprint naming which launch that is, the
-                            typed snapshot carrying what is left of the allowance and whether the charge standing on
-                            it is this launch's, and the two fields an issue-state projection keeps of the group. It
-                            decides nothing and posts nothing: what to do about a spent ledger is the reader's
+    run_ledger_models.py    immutable allowance, used-count, and reservation snapshots; the reserved/started vocabulary
+                            and predicates for unlimited, spent, and reusable launch charges
+    run_ledger_values.py    the pinned ledger field names and validated readings; an absent allowance defers to
+                            configuration, the used count is floored by the legacy meter, and malformed values supply no
+                            reservation evidence
+    run_ledger.py           ledger snapshots and the reserve/start/settle mutations; used counts remain monotonic,
+                            settlement clears only reservation fields, and PROJECTED_KEYS retains the allowance and
+                            count across state projection
     run_limit.py            what a spent lifetime ledger leaves: the durable `agent_run_limit` park, the sentence it
                             owes the thread scoped to the exhaustion that minted it -- the allowance in force and
                             the runs spent against it, so a notice quoting numbers the issue has moved off is
@@ -300,11 +299,15 @@ workflow/                   marker package for state, engine, and stage owners
                             are pending, and the completion drain that reports each failure as it lands. Reached
                             only from the tick above, and every collaborator under it is named on the owner that
                             defines it
-    usage.py                the tracked agent run: the request model, the launch fingerprint taken off it and the
-                            stage / role identity a charge is recorded under,
-                            the required budget every caller names the issue and its pinned state through, the circuit
-                            the sole low-level spawn is gated on, the audit spawn / exit pair, the analytics record,
-                            the `skill_triggered` emission, and the per-issue counters a terminal receipt is read off
+    run_requests.py         agent invocation requests, stable logical-round fingerprints, launch identities, and
+                            optional runner arguments; prompt text is excluded so rebuilding a prompt cannot buy a
+                            second charge
+    run_reporting.py        agent-exit audit and analytics records, configured-model fallback, and triggered-skill
+                            emissions; a failure to emit those skill records cannot discard a completed agent result
+    issue_usage.py          historical per-issue usage counters and their terminal receipt; unknown and estimated costs
+                            remain distinct from known prices and from the separate launch allowance
+    usage.py                the tracked agent invocation: charge the required issue budget, emit spawn, call the runner,
+                            record its exit and skills, and return the result for the stage to settle
   late_split/               the late size gate's own domain: what one generation IS, apart from anything that drives
                             one
     formats.py              what any late value has to look like -- a real integer, a git object id, a bounded

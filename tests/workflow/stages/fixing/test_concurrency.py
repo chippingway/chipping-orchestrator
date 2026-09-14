@@ -56,7 +56,7 @@ class FixingContentHashAndConcurrencyTest(
         # second time on input it already handled. The hash must
         # advance with the consumption so the validating drift check
         # is a no-op on the next tick.
-        from orchestrator.workflow.engine.drift import _compute_user_content_hash
+        from orchestrator.workflow.engine.content_hash import _compute_user_content_hash
 
         long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
         comment = FakeComment(

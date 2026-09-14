@@ -84,7 +84,7 @@ When the orchestrator drives more than one repo (`REPOS`) and `EXPOSE_TRACKED_RE
 reasoning-prompt builders prepend a compact, read-only awareness block naming the *other* repos this process tracks.
 It lets an agent implementing an issue in one repo know that a sibling repo is also monitored and where its source is
 checked out locally. The block is built once by `_build_tracked_repos_context(current, specs)` in
-`workflow/engine/comments.py` from `config.default_repo_specs()` — no GitHub round-trip, no pinned state, no new
+`workflow/engine/prompt_context.py` from `config.default_repo_specs()` — no GitHub round-trip, no pinned state, no new
 config surface.
 
 Shape of the block:
@@ -101,7 +101,9 @@ Shape of the block:
   read-only ones (reviewer / decomposer / question), and in the discussion prompts, whose single write a human's
   confirmation unlocks — none of them widens what the surrounding prompt granted.
 
-Which prompts carry it (every builder below lives in `workflow/engine/prompts.py`):
+Delivery builders live in `workflow/engine/prompts.py`, question/discussion and PR-follow-up builders in
+`workflow/engine/conversation_prompts.py`, and the decomposition builder in
+`workflow/engine/decomposition_prompts.py`. Their use of the awareness block is:
 
 - **Embedded** in `_build_implement_prompt`, `_build_documentation_prompt`, `_build_review_prompt`,
   `_build_decompose_prompt`, `_build_question_prompt`, `_build_discussion_prompt`, and

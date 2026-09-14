@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import make_issue
 from tests.workflow.stages.documenting.documenting_drift_test_support import (
     DriftRunCapture,
@@ -79,7 +79,7 @@ def _pending_state(case, issue, parked: bool) -> dict:
     state = {
         "review_round": 0,
         "docs_drift_unwind_pending": True,
-        "user_content_hash": _drift._compute_user_content_hash(issue, set()),
+        "user_content_hash": _content_hash._compute_user_content_hash(issue, set()),
         "pr_number": case.pr_number,
         "branch": _branch(case.issue_number),
         "dev_agent": DEV_AGENT,
@@ -104,7 +104,7 @@ def _seed_pending_unwind(case, *, parked: bool):
     )
     seed_options = {
         "docs_drift_unwind_pending": True,
-        "user_content_hash": _drift._compute_user_content_hash(
+        "user_content_hash": _content_hash._compute_user_content_hash(
             original_issue,
             set(),
         ),

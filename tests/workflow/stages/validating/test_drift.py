@@ -9,7 +9,7 @@ from unittest.mock import patch
 from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.git.worktrees import paths as _worktree_paths
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import (
     DEFAULT_PR_HEAD_SHA,
     FakeComment,
@@ -61,7 +61,7 @@ WRITE_FAILED = "pinned write rejected"
 # The baseline a `_parked_issue` thread already hashes to. Seeding it is what
 # keeps the drift check from writing one itself, ahead of the recovery write a
 # test is simulating the failure of.
-UNCHANGED_CONTENT_HASH = _drift._compute_user_content_hash(
+UNCHANGED_CONTENT_HASH = _content_hash._compute_user_content_hash(
     make_issue(VALIDATING_ISSUE), set(),
 )
 REVIEWER_DRIFT_PR = 10000
@@ -936,7 +936,7 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
         # loop on the same drift.
         self.assertEqual(
             reviewer_drift_state.get("user_content_hash"),
-            _drift._compute_user_content_hash(issue, set()),
+            _content_hash._compute_user_content_hash(issue, set()),
         )
 
     def _parked_reviewer_drift(self):
@@ -960,7 +960,7 @@ class ValidatingDriftDefersToReviewerRecoveryTest(
                 head_branch="orchestrator/chippingway__orchestrator/issue-1000",
             ),
         )
-        seed_hash = _drift._compute_user_content_hash(
+        seed_hash = _content_hash._compute_user_content_hash(
             make_issue(1000, body="initial body"),
             set(),
         )

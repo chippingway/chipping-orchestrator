@@ -8,7 +8,7 @@ import pathlib
 from unittest import mock
 
 from orchestrator.config import settings as _config
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support import fakes
 from tests.workflow import fixtures
 
@@ -174,7 +174,7 @@ class ContinueCommandFixtureMixin(_PatchedWorkflowMixin):
             review_round=1,
             pr_number=RESUME_PR,
             branch=_issue_branch(number),
-            user_content_hash=_drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         _open_pr_for(github, issue_number=number, pr_number=RESUME_PR)
         return github, issue

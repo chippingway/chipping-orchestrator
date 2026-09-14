@@ -16,7 +16,7 @@ from unittest.mock import MagicMock, patch
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.labels import PAUSED_LABEL
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.implementing import resume as _implementing_resume
 from tests.support.fakes import (
     FakeComment,
@@ -108,7 +108,7 @@ class ImplementingLivePauseFreshSpawnTest(unittest.TestCase, _PatchedWorkflowMix
         gh.add_issue(issue)
         gh.seed_state(
             1,
-            user_content_hash=_drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         before_writes = gh.write_state_calls
 
@@ -166,7 +166,7 @@ class ImplementingLivePauseResumeTest(unittest.TestCase, _PatchedWorkflowMixin):
             dev_agent="claude",
             dev_session_id="sess-old",
             branch=f"orchestrator/chippingway__orchestrator/issue-{POISONED_RESUME_ISSUE}",
-            user_content_hash=_drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         self._before_writes = gh.write_state_calls
 
@@ -204,7 +204,7 @@ class ImplementingLivePauseRecoveryTest(unittest.TestCase, _PatchedWorkflowMixin
         gh.add_issue(issue)
         gh.seed_state(
             RECOVERY_ISSUE,
-            user_content_hash=_drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
 
         # Tick 1: fresh spawn commits, but the guard reads the paused view and

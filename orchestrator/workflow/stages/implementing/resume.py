@@ -34,7 +34,11 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, prompts as _prompts
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    prompt_context as _prompt_context,
+    prompt_notes as _prompt_notes,
+)
 from orchestrator.workflow.stages.implementing import (
     execution as _execution,
     late_command as _late_command,
@@ -233,10 +237,10 @@ def _resume_developer_on_human_reply(
     state.set(_state._LAST_ACTION_COMMENT_ID, consumed_max)
 
     followup = "\n\n".join(
-        _comments._quote_comment_line(comment)
+        _prompt_context._quote_comment_line(comment)
         for comment in new_comments if comment.body
     )
-    followup = f"{followup}\n\n{_prompts._FOREGROUND_ONLY_NOTE}"
+    followup = f"{followup}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     return _resume_dev_with_text(
         gh, spec, issue, state, followup, pause_guard=pause_guard,
     )

@@ -20,7 +20,10 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import run_grant_request as _run_grant_request, run_ledger as _run_ledger
+from orchestrator.workflow.engine import (
+    run_grant_request as _run_grant_request,
+    run_ledger_values as _run_ledger_values,
+)
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import (
     lifetime_comments as _lifetime_comments,
@@ -84,7 +87,7 @@ class LifetimeJourneyTest(unittest.TestCase, _PatchedWorkflowMixin):
 
         self.assertEqual(walked.total, _lifetime_models.ALLOWANCE)
         self.assertTrue(walked.parked)
-        self.assertNotIn(_run_ledger.AGENT_RUN_ALLOWANCE, walked.pinned)
+        self.assertNotIn(_run_ledger_values.AGENT_RUN_ALLOWANCE, walked.pinned)
 
     def test_the_total_is_the_pinned_comment(self) -> None:
         # A restarted orchestrator knows what the issue's own comment says and
@@ -121,7 +124,7 @@ class LifetimeJourneyTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(bought.total, _GRANTED_RUNS)
         self.assertEqual(bought.spent, _lifetime_models.ALLOWANCE + _GRANTED_RUNS)
         self.assertEqual(
-            bought.pinned.get(_run_ledger.AGENT_RUN_ALLOWANCE),
+            bought.pinned.get(_run_ledger_values.AGENT_RUN_ALLOWANCE),
             _lifetime_models.ALLOWANCE + _GRANTED_RUNS,
         )
         self.assertTrue(bought.parked)
@@ -184,7 +187,7 @@ class ResetRoundTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
         self.assertEqual(walked.spent, 0)
         self.assertEqual(
-            walked.pinned.get(_run_ledger.AGENT_RUN_ALLOWANCE),
+            walked.pinned.get(_run_ledger_values.AGENT_RUN_ALLOWANCE),
             _lifetime_models.ALLOWANCE,
         )
 

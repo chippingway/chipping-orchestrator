@@ -41,7 +41,8 @@ from orchestrator.workflow.engine import (
     drift as _drift,
     guards as _guards,
     messages as _messages,
-    prompts as _prompts,
+    prompt_context as _prompt_context,
+    prompt_notes as _prompt_notes,
     usage as _usage,
 )
 from orchestrator.workflow.stages.conflicts import (
@@ -166,7 +167,7 @@ def _body_edit_followup(ctx: _models._ConflictContext) -> str:
     the edit itself.
     """
     return _drift._build_user_content_change_prompt(
-        ctx.issue, _comments._recent_comments_text(ctx.issue),
+        ctx.issue, _prompt_context._recent_comments_text(ctx.issue),
     )
 
 
@@ -246,13 +247,13 @@ def _awaiting_human_followup(ctx: _models._ConflictContext) -> str | None:
         "last_action_comment_id", max(comment.id for comment in new_comments),
     )
     if continue_action == "retry":
-        return f"{_prompts._CONTINUE_RETRY_PROMPT}\n\n{_prompts._FOREGROUND_ONLY_NOTE}"
+        return f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     joined = "\n\n".join(
-        _comments._quote_comment_line(comment)
+        _prompt_context._quote_comment_line(comment)
         for comment in new_comments
         if comment.body
     )
-    return f"{joined}\n\n{_prompts._FOREGROUND_ONLY_NOTE}"
+    return f"{joined}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}"
 
 
 def _run_conflict_resume(

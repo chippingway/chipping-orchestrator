@@ -17,7 +17,7 @@ from unittest.mock import patch
 from orchestrator.config import settings as config
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import run_ledger as _run_ledger
+from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
 from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
 from tests.support.fakes import (
@@ -47,12 +47,12 @@ GATE_ALLOWANCE = 4
 
 LEDGERS = MappingProxyType({
     "some": {
-        _run_ledger.AGENT_RUN_ALLOWANCE: GATE_ALLOWANCE,
-        _run_ledger.AGENT_RUNS_USED: 1,
+        _run_ledger_values.AGENT_RUN_ALLOWANCE: GATE_ALLOWANCE,
+        _run_ledger_values.AGENT_RUNS_USED: 1,
     },
     "none": {
-        _run_ledger.AGENT_RUN_ALLOWANCE: GATE_ALLOWANCE,
-        _run_ledger.AGENT_RUNS_USED: GATE_ALLOWANCE,
+        _run_ledger_values.AGENT_RUN_ALLOWANCE: GATE_ALLOWANCE,
+        _run_ledger_values.AGENT_RUNS_USED: GATE_ALLOWANCE,
     },
 })
 
@@ -221,8 +221,8 @@ class _PublicationAssertions:
         a charge taken here would be one nothing spawned.
         """
         self.assertEqual(
-            self._pinned().get(_run_ledger.AGENT_RUNS_USED),
-            ledger[_run_ledger.AGENT_RUNS_USED],
+            self._pinned().get(_run_ledger_values.AGENT_RUNS_USED),
+            ledger[_run_ledger_values.AGENT_RUNS_USED],
         )
 
     def _assert_resumed(self, mocks) -> None:

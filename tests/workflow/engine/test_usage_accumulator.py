@@ -17,7 +17,10 @@ from orchestrator.config import settings as config
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.usage.metrics import UsageMetrics
-from orchestrator.workflow.engine import drift as _drift, usage as engine_usage
+from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
+    issue_usage as _issue_usage,
+)
 from orchestrator.workflow.stages.implementing import resume as _resume
 from tests.workflow.engine import usage_accumulator_test_support as support
 
@@ -74,7 +77,7 @@ class AccumulateIssueUsageHelperTest(unittest.TestCase):
 
     def test_single_fold_sums_and_records_source(self) -> None:
         state = PinnedState()
-        engine_usage._accumulate_issue_usage(
+        _issue_usage._accumulate_issue_usage(
             state,
             _usage(
                 input_tokens=100,
@@ -95,7 +98,7 @@ class AccumulateIssueUsageHelperTest(unittest.TestCase):
         # as the portion of it served from cache; summing the latter would
         # double-count part of the input.
         state = PinnedState()
-        engine_usage._accumulate_issue_usage(
+        _issue_usage._accumulate_issue_usage(
             state,
             _usage(
                 backend="codex",
@@ -114,7 +117,7 @@ class AccumulateIssueUsageHelperTest(unittest.TestCase):
         usage_state = PinnedState()
         # A priced run, an unpriced run (cost None), and a second priced run
         # sharing the first's source.
-        engine_usage._accumulate_issue_usage(
+        _issue_usage._accumulate_issue_usage(
             usage_state,
             _usage(
                 input_tokens=10,
@@ -122,7 +125,7 @@ class AccumulateIssueUsageHelperTest(unittest.TestCase):
                 cost_source=_COST_SOURCE_ESTIMATED,
             ),
         )
-        engine_usage._accumulate_issue_usage(
+        _issue_usage._accumulate_issue_usage(
             usage_state,
             _usage(
                 input_tokens=5,
@@ -130,7 +133,7 @@ class AccumulateIssueUsageHelperTest(unittest.TestCase):
                 cost_source=_COST_SOURCE_UNKNOWN,
             ),
         )
-        engine_usage._accumulate_issue_usage(
+        _issue_usage._accumulate_issue_usage(
             usage_state,
             _usage(
                 output_tokens=7,
@@ -152,11 +155,11 @@ class AccumulateIssueUsageHelperTest(unittest.TestCase):
         # Fail-open: a parse failure surfaces `result.usage is None`, which
         # must neither count a run nor create any counter key.
         empty = PinnedState()
-        engine_usage._accumulate_issue_usage(empty, None)
+        _issue_usage._accumulate_issue_usage(empty, None)
         self.assertEqual(empty.data, {})
         # And it leaves existing counters untouched.
         seeded = PinnedState(data={_RUNS_KEY: 2, _TOKENS_KEY: 9})
-        engine_usage._accumulate_issue_usage(seeded, None)
+        _issue_usage._accumulate_issue_usage(seeded, None)
         self.assertEqual(seeded.get(_RUNS_KEY), 2)
         self.assertEqual(seeded.get(_TOKENS_KEY), 9)
 
@@ -169,9 +172,9 @@ class FormatIssueUsageVerdictTest(unittest.TestCase):
     def test_zero_runs_returns_none(self) -> None:
         # An empty state and an explicit zero both skip the line so a
         # terminal with no counted run posts no receipt.
-        self.assertIsNone(engine_usage._format_issue_usage_verdict(PinnedState()))
+        self.assertIsNone(_issue_usage._format_issue_usage_verdict(PinnedState()))
         self.assertIsNone(
-            engine_usage._format_issue_usage_verdict(
+            _issue_usage._format_issue_usage_verdict(
                 PinnedState(data={_RUNS_KEY: 0}),
             )
         )
@@ -204,7 +207,7 @@ class FormatIssueUsageVerdictTest(unittest.TestCase):
                 if cost is not None:
                     verdict_data[_COST_KEY] = cost
                 self.assertEqual(
-                    engine_usage._format_issue_usage_verdict(
+                    _issue_usage._format_issue_usage_verdict(
                         PinnedState(data=verdict_data),
                     ),
                     f":receipt: this issue: 3 agent runs · "
@@ -212,7 +215,7 @@ class FormatIssueUsageVerdictTest(unittest.TestCase):
                 )
 
     def test_tokens_are_thousands_separated(self) -> None:
-        line = engine_usage._format_issue_usage_verdict(
+        line = _issue_usage._format_issue_usage_verdict(
             PinnedState(data={
                 _RUNS_KEY: 1,
                 _TOKENS_KEY: 1234567,
@@ -376,7 +379,7 @@ class ReviewerRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin)
             # Seed the drift baseline so `_detect_user_content_change` does not
             # itself write pinned state on first encounter -- this test asserts
             # the handler writes NOTHING once the reviewer run is interrupted.
-            user_content_hash=_drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
 
         with patch.object(config, "REVIEW_AGENT", "codex"):

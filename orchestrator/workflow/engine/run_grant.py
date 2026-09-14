@@ -63,6 +63,7 @@ from orchestrator.workflow.engine import (
     run_budget as _run_budget,
     run_grant_request as _run_grant_request,
     run_ledger as _run_ledger,
+    run_ledger_values as _run_ledger_values,
     run_limit as _run_limit,
 )
 
@@ -215,7 +216,7 @@ def _grant_runs(
         used=ledger.used,
         marker=marker,
     )))
-    state.set(_run_ledger.AGENT_RUN_ALLOWANCE, allowance)
+    state.set(_run_ledger_values.AGENT_RUN_ALLOWANCE, allowance)
     state.set(_AWAITING_HUMAN, False)
     state.set(_PARK_REASON, None)
     _run_limit._settle_notice(state)

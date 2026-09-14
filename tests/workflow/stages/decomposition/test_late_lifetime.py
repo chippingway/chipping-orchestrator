@@ -23,7 +23,7 @@ from unittest.mock import patch
 from orchestrator.config import settings as config
 from orchestrator.workflow.engine import (
     dispatch as _dispatch,
-    run_ledger as _run_ledger,
+    run_ledger_values as _run_ledger_values,
     run_limit as _run_limit,
 )
 from orchestrator.workflow.late_split import state as _late_state
@@ -88,8 +88,8 @@ class RepeatedAdjudicationTest(unittest.TestCase):
         held.start()
         self.addCleanup(held.stop)
         seeded = seeded_late_issue(**{
-            _run_ledger.AGENT_RUN_ALLOWANCE: _ALLOWANCE,
-            _run_ledger.AGENT_RUNS_USED: 0,
+            _run_ledger_values.AGENT_RUN_ALLOWANCE: _ALLOWANCE,
+            _run_ledger_values.AGENT_RUNS_USED: 0,
         })
         self.github = seeded[0]
         self.issue = seeded[1]
@@ -99,7 +99,7 @@ class RepeatedAdjudicationTest(unittest.TestCase):
 
         self.assertEqual(sum(adjudicated), _ALLOWANCE)
         self.assertEqual(
-            self._pinned().get(_run_ledger.AGENT_RUNS_USED), _ALLOWANCE,
+            self._pinned().get(_run_ledger_values.AGENT_RUNS_USED), _ALLOWANCE,
         )
 
     def test_a_refused_round_decides_nothing(self) -> None:
@@ -176,10 +176,10 @@ class RestartedCycleTest(
 
         pinned = self._pinned()
         self.assertEqual(
-            pinned.get(_run_ledger.AGENT_RUN_ALLOWANCE), _ALLOWANCE,
+            pinned.get(_run_ledger_values.AGENT_RUN_ALLOWANCE), _ALLOWANCE,
         )
         self.assertEqual(
-            pinned.get(_run_ledger.AGENT_RUNS_USED), _ALLOWANCE,
+            pinned.get(_run_ledger_values.AGENT_RUNS_USED), _ALLOWANCE,
         )
 
     def test_the_fresh_cycle_reaches_no_agent(self) -> None:
@@ -200,8 +200,8 @@ class RestartedCycleTest(
 
     def _spent_ledger(self) -> dict:
         return {
-            _run_ledger.AGENT_RUN_ALLOWANCE: _ALLOWANCE,
-            _run_ledger.AGENT_RUNS_USED: _ALLOWANCE,
+            _run_ledger_values.AGENT_RUN_ALLOWANCE: _ALLOWANCE,
+            _run_ledger_values.AGENT_RUNS_USED: _ALLOWANCE,
         }
 
     def _dispatched(self) -> dict:

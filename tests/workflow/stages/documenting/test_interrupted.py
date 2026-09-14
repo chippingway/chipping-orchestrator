@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import drift as _drift
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -158,7 +158,7 @@ def _interrupted_fixture():
         branch=_branch(INTERRUPTED_ISSUE_NUMBER),
         dev_agent=DEV_AGENT,
         dev_session_id=DEV_SESSION,
-        user_content_hash=_drift._compute_user_content_hash(issue, set()),
+        user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
     )
     return github, issue, github.write_state_calls
 
@@ -228,7 +228,7 @@ class HandleDocumentingInterruptedTest(unittest.TestCase, _DocumentingWorkflowMi
             last_action_comment_id=INTERRUPTED_RESUME_WATERMARK,
             dev_agent=DEV_AGENT,
             dev_session_id=DEV_SESSION,
-            user_content_hash=_drift._compute_user_content_hash(issue, set()),
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         before_writes = gh.write_state_calls
 

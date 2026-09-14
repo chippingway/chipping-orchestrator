@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import usage as engine_usage
+from orchestrator.workflow.engine import run_reporting as _run_reporting
 
 _CODEX_BACKEND = "codex"
 _CODEX_MODEL = "gpt-5-codex"
@@ -25,19 +25,19 @@ class ConfiguredModelExtractionTest(unittest.TestCase):
 
     def test_codex_dash_m_split_form(self) -> None:
         self.assertEqual(
-            engine_usage._configured_model(_CODEX_BACKEND, ("-m", _CODEX_MODEL)),
+            _run_reporting._configured_model(_CODEX_BACKEND, ("-m", _CODEX_MODEL)),
             _CODEX_MODEL,
         )
 
     def test_codex_dash_m_equals_form(self) -> None:
         self.assertEqual(
-            engine_usage._configured_model(_CODEX_BACKEND, (f"-m={_CODEX_MODEL}",)),
+            _run_reporting._configured_model(_CODEX_BACKEND, (f"-m={_CODEX_MODEL}",)),
             _CODEX_MODEL,
         )
 
     def test_claude_long_flag_split_form(self) -> None:
         self.assertEqual(
-            engine_usage._configured_model(
+            _run_reporting._configured_model(
                 "claude", ("--model", "claude-opus-4-7"),
             ),
             "claude-opus-4-7",
@@ -45,7 +45,7 @@ class ConfiguredModelExtractionTest(unittest.TestCase):
 
     def test_claude_long_flag_equals_form(self) -> None:
         self.assertEqual(
-            engine_usage._configured_model(
+            _run_reporting._configured_model(
                 "claude", ("--model=claude-opus-4-7",),
             ),
             "claude-opus-4-7",
@@ -54,9 +54,9 @@ class ConfiguredModelExtractionTest(unittest.TestCase):
     def test_returns_none_when_flag_absent(self) -> None:
         # No `-m` / `--model` in the spec -- the parser keeps its
         # "unknown" handling rather than receiving an empty string.
-        self.assertIsNone(engine_usage._configured_model(_CODEX_BACKEND, ()))
+        self.assertIsNone(_run_reporting._configured_model(_CODEX_BACKEND, ()))
         self.assertIsNone(
-            engine_usage._configured_model("claude", ("--effort", "high")),
+            _run_reporting._configured_model("claude", ("--effort", "high")),
         )
 
     def test_codex_ignores_claude_flag(self) -> None:
@@ -65,7 +65,7 @@ class ConfiguredModelExtractionTest(unittest.TestCase):
         # wrong backend, the analytics fallback stays empty rather than
         # mislabeling.
         self.assertIsNone(
-            engine_usage._configured_model(
+            _run_reporting._configured_model(
                 _CODEX_BACKEND, ("--model", _CODEX_MODEL),
             ),
         )
@@ -73,4 +73,4 @@ class ConfiguredModelExtractionTest(unittest.TestCase):
     def test_trailing_flag_without_value_returns_none(self) -> None:
         # Defensive: a stray `-m` at the end of extra_args (which a
         # bad spec could produce) must not raise.
-        self.assertIsNone(engine_usage._configured_model(_CODEX_BACKEND, ("-m",)))
+        self.assertIsNone(_run_reporting._configured_model(_CODEX_BACKEND, ("-m",)))

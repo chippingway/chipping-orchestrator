@@ -35,10 +35,10 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    comments as _comments,
-    prompts as _prompts,
+    decomposition_prompts as _decomposition_prompts,
+    prompt_context as _prompt_context,
     retry_budget as _retry_budget,
-    run_circuit as _run_circuit,
+    run_charge_state as _run_charge_state,
     usage as _usage,
 )
 from orchestrator.workflow.stages.decomposition import state as _state
@@ -110,12 +110,12 @@ def _spawn_fresh_decomposer(
     # strip configured CLI args on subsequent resumes.
     state.set("decomposer_agent", session.spec)
     decomposer_result = _usage._run_agent_tracked(
-        gh, _run_circuit.AgentRunBudget(issue=issue, state=state),
+        gh, _run_charge_state.AgentRunBudget(issue=issue, state=state),
         agent_role="decomposer",
         stage="decomposing",
         backend=session.backend,
-        prompt=_prompts._build_decompose_prompt(
-            spec, issue, _comments._recent_comments_text(issue),
+        prompt=_decomposition_prompts._build_decompose_prompt(
+            spec, issue, _prompt_context._recent_comments_text(issue),
             config.default_repo_specs(),
         ),
         cwd=wt,
@@ -141,7 +141,7 @@ def _decomposer_followup(
         max(comment.id for comment in comments),
     )
     return "\n\n".join(
-        _comments._quote_comment_line(comment)
+        _prompt_context._quote_comment_line(comment)
         for comment in comments if comment.body
     )
 
@@ -169,7 +169,7 @@ def _resume_decomposer_on_human_reply(
         )
     session = _DecomposerSession(*_read_decomposer_session(state))
     decomposer_result = _usage._run_agent_tracked(
-        gh, _run_circuit.AgentRunBudget(issue=issue, state=state),
+        gh, _run_charge_state.AgentRunBudget(issue=issue, state=state),
         agent_role="decomposer",
         stage="decomposing",
         backend=session.backend,

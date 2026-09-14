@@ -96,8 +96,8 @@ from __future__ import annotations
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
-from orchestrator.workflow.engine import comments as _comments
-from orchestrator.workflow.engine.comments import _SECTION_SEP
+from orchestrator.workflow.engine import prompt_context as _prompt_context
+from orchestrator.workflow.engine.prompt_context import _SECTION_SEP
 from orchestrator.workflow.late_split.events import LateVerdictCategory
 from orchestrator.workflow.late_split.models import (
     MAX_LINEAGE_DEPTH,
@@ -173,7 +173,7 @@ def _build_late_decompose_prompt(
     """Compose the late adjudication prompt for one frozen candidate."""
     body = issue.body or _NO_BODY
     convo = comments_text or _NO_PRIOR_COMMENTS
-    tracked = _comments._build_tracked_repos_context(spec, specs)
+    tracked = _prompt_context._build_tracked_repos_context(spec, specs)
     tracked_block = f"{tracked}\n\n" if tracked else ""
     header = (
         f"You are the late decomposer for GitHub issue #{issue.number}: "

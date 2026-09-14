@@ -12,7 +12,10 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
-from orchestrator.workflow.engine import drift, run_ledger as _run_ledger
+from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
+    run_ledger_values as _run_ledger_values,
+)
 from orchestrator.workflow.stages.decomposition import run as _decomposing
 from orchestrator.workflow.stages.discussion import handler as _discussion
 from orchestrator.workflow.stages.implementing import handler as _implementing
@@ -127,11 +130,11 @@ def spent_issue(road: SpawningRoad):
     gh.seed_state(
         road.number,
         **{
-            _run_ledger.AGENT_RUN_ALLOWANCE: ALLOWANCE,
-            _run_ledger.AGENT_RUNS_USED: ALLOWANCE,
+            _run_ledger_values.AGENT_RUN_ALLOWANCE: ALLOWANCE,
+            _run_ledger_values.AGENT_RUNS_USED: ALLOWANCE,
             # Seeded so a first-encounter drift baseline write is not what a
             # case about the spawn ends up measuring.
-            "user_content_hash": drift._compute_user_content_hash(issue, set()),
+            "user_content_hash": _content_hash._compute_user_content_hash(issue, set()),
             **road.seed,
         },
     )

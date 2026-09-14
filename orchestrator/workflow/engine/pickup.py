@@ -36,7 +36,11 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, drift as _drift, usage as _usage
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    content_hash as _content_hash,
+    usage as _usage,
+)
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -85,7 +89,7 @@ def _start_decomposing(
     _record_pickup_comment(state, pickup)
     state.set(
         "user_content_hash",
-        _drift._compute_user_content_hash(issue, _comments._orchestrator_ids(state)),
+        _content_hash._compute_user_content_hash(issue, _comments._orchestrator_ids(state)),
     )
     gh.set_workflow_label(issue, WorkflowLabel.DECOMPOSING)
     gh.write_pinned_state(issue, state)
@@ -115,7 +119,7 @@ def _start_implementing(
     _record_pickup_comment(state, pickup)
     state.set(
         "user_content_hash",
-        _drift._compute_user_content_hash(issue, _comments._orchestrator_ids(state)),
+        _content_hash._compute_user_content_hash(issue, _comments._orchestrator_ids(state)),
     )
     gh.set_workflow_label(issue, WorkflowLabel.IMPLEMENTING)
     gh.write_pinned_state(issue, state)

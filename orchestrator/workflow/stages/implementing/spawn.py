@@ -50,11 +50,12 @@ from orchestrator.git.worktrees import (
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    comments as _comments,
     guards as _guards,
+    issue_usage as _issue_usage,
+    prompt_context as _prompt_context,
     prompts as _prompts,
     retry_budget as _retry_budget,
-    run_circuit as _run_circuit,
+    run_charge_state as _run_charge_state,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -94,14 +95,14 @@ def _spawn_implementer(
     state.set(_state._DEV_AGENT, session.spec)
     agent_result = _usage._run_agent_tracked(
         gh,
-        _run_circuit.AgentRunBudget(issue=issue, state=state),
+        _run_charge_state.AgentRunBudget(issue=issue, state=state),
         agent_role="developer",
         stage=_state._IMPLEMENTING_STAGE,
         backend=session.backend,
         prompt=_prompts._build_implement_prompt(
             spec,
             issue,
-            _comments._recent_comments_text(issue),
+            _prompt_context._recent_comments_text(issue),
             config.default_repo_specs(),
         ),
         cwd=worktree,
@@ -110,7 +111,7 @@ def _spawn_implementer(
         review_round=state.get("review_round", 0),
         retry_count=state.get(_state._RETRY_COUNT),
     )
-    _usage._accumulate_issue_usage(state, agent_result.usage)
+    _issue_usage._accumulate_issue_usage(state, agent_result.usage)
     if agent_result.session_id:
         state.set(_state._DEV_SESSION_ID, agent_result.session_id)
         state.set(_state._DEV_RESUME_COUNT, 0)

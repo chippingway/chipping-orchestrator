@@ -53,7 +53,7 @@ from __future__ import annotations
 
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
-from orchestrator.workflow.engine import guards as _guards, usage as _usage
+from orchestrator.workflow.engine import guards as _guards, issue_usage as _issue_usage, usage as _usage
 from orchestrator.workflow.stages.discussion import (
     checkout_parks as _checkout_parks,
     models as _models,
@@ -121,7 +121,7 @@ def _assess_discussion_outcome(
 
     run.state.set(_state._LAST_DISCUSSION_AT, _usage._now_iso())
     if not discussion_result.interrupted:
-        _usage._accumulate_issue_usage(run.state, discussion_result.usage)
+        _issue_usage._accumulate_issue_usage(run.state, discussion_result.usage)
 
     committed = _round_committed(run, round_result)
     if committed is None:

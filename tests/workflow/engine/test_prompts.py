@@ -13,7 +13,13 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import drift, prompts
+from orchestrator.workflow.engine import (
+    conversation_prompts as _conversation_prompts,
+    decomposition_prompts as _decomposition_prompts,
+    drift,
+    prompt_notes as _prompt_notes,
+    prompts,
+)
 from tests.support.fakes import FakeComment, FakeUser, make_issue
 from tests.workflow.fixtures import _TEST_SPEC
 
@@ -38,7 +44,7 @@ def _discussion_prompt(spec, issue, comments_text, specs) -> str:
     stage would publish -- so the header sweep below reaches it through this
     rather than teaching every other builder a parameter none of them has.
     """
-    return prompts._build_discussion_prompt(
+    return _conversation_prompts._build_discussion_prompt(
         spec, issue, comments_text, specs, _PLAN_PATH,
     )
 
@@ -49,8 +55,8 @@ _HEADER_BUILDERS = (
     ("respawn_preamble", prompts._build_fresh_respawn_preamble),
     ("review", prompts._build_review_prompt),
     ("documentation", prompts._build_documentation_prompt),
-    ("question", prompts._build_question_prompt),
-    ("decompose", prompts._build_decompose_prompt),
+    ("question", _conversation_prompts._build_question_prompt),
+    ("decompose", _decomposition_prompts._build_decompose_prompt),
     ("discussion", _discussion_prompt),
 )
 
@@ -82,7 +88,7 @@ def _commit_producing_prompts() -> dict[str, str]:
             _TEST_SPEC, issue, comments_text="", specs=[_TEST_SPEC],
         ),
         "fix": prompts._build_fix_prompt("please fix the typo"),
-        "pr_comment_followup": prompts._build_pr_comment_followup(comments),
+        "pr_comment_followup": _conversation_prompts._build_pr_comment_followup(comments),
         "documentation": prompts._build_documentation_prompt(
             _TEST_SPEC, issue, comments_text="", specs=[_TEST_SPEC],
         ),
@@ -98,7 +104,7 @@ def _commit_producing_prompts() -> dict[str, str]:
         "discussion": _discussion_prompt(
             _TEST_SPEC, issue, "", [_TEST_SPEC],
         ),
-        "discussion_followup": prompts._build_discussion_followup_prompt(
+        "discussion_followup": _conversation_prompts._build_discussion_followup_prompt(
             comments, _PLAN_PATH,
         ),
     }
@@ -121,16 +127,16 @@ class SharedPromptHeaderTest(unittest.TestCase):
                 )
                 self.assertIn(_ISSUE_BODY, prompt)
                 self.assertIn(_THREAD_TEXT, prompt)
-                self.assertNotIn(prompts._NO_BODY, prompt)
-                self.assertNotIn(prompts._NO_PRIOR_COMMENTS, prompt)
+                self.assertNotIn(_prompt_notes._NO_BODY, prompt)
+                self.assertNotIn(_prompt_notes._NO_PRIOR_COMMENTS, prompt)
 
     def test_empty_body_and_thread_get_placeholders(self) -> None:
         issue = make_issue(_PROMPT_ISSUE_NUMBER, title=_ISSUE_TITLE, body="")
         for name, builder in _HEADER_BUILDERS:
             with self.subTest(builder=name):
                 prompt = builder(_TEST_SPEC, issue, "", [_TEST_SPEC])
-                self.assertIn(prompts._NO_BODY, prompt)
-                self.assertIn(prompts._NO_PRIOR_COMMENTS, prompt)
+                self.assertIn(_prompt_notes._NO_BODY, prompt)
+                self.assertIn(_prompt_notes._NO_PRIOR_COMMENTS, prompt)
 
 
 class QuotedCommentSectionsTest(unittest.TestCase):
@@ -147,7 +153,7 @@ class QuotedCommentSectionsTest(unittest.TestCase):
             FakeComment(_FEEDBACK_COMMENT_ID + 1, "and drop the flag", FakeUser("bob")),
         ]
 
-        prompt = prompts._build_pr_comment_followup(quoted_comments)
+        prompt = _conversation_prompts._build_pr_comment_followup(quoted_comments)
 
         self.assertIn(
             "> @alice: rename foo to bar\n> \n> @bob: and drop the flag", prompt,

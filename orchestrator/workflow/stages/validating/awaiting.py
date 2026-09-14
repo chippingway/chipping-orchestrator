@@ -39,7 +39,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import settings as config
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
-from orchestrator.workflow.engine import comments as _comments, prompts as _prompts
+from orchestrator.workflow.engine import comments as _comments, prompt_notes as _prompt_notes
 from orchestrator.workflow.stages.implementing import resume as _dev_resume
 from orchestrator.workflow.stages.validating import models as _models, recovery as _recovery, state as _state
 
@@ -163,7 +163,7 @@ def _resume_awaiting_dev_agent(
             pause_guard=True,
         )
     context.consume_comments()
-    followup = f"{_prompts._CONTINUE_RETRY_PROMPT}\n\n{_prompts._FOREGROUND_ONLY_NOTE}"
+    followup = f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     return _dev_resume._resume_dev_with_text(
         context.gh,
         context.spec,

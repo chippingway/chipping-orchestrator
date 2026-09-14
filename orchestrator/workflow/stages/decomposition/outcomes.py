@@ -34,9 +34,10 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     agent_diagnostics as _agent_diagnostics,
     comments as _comments,
+    decomposition_prompts as _decomposition_prompts,
     guards as _guards,
+    issue_usage as _issue_usage,
     messages as _messages,
-    prompts as _prompts,
     usage as _usage,
 )
 from orchestrator.workflow.stages.decomposition import (
@@ -114,7 +115,7 @@ def _finalize_single_decision(
     """
     _comments._post_issue_comment(
         gh, issue, state,
-        _prompts._build_single_decision_comment(parsed),
+        _decomposition_prompts._build_single_decision_comment(parsed),
     )
     state.set("decomposed_at", _usage._now_iso())
     gh.set_workflow_label(issue, WorkflowLabel.READY)
@@ -197,7 +198,7 @@ def _settle_decomposer_run(
     # clean-interrupted case is additionally short-circuited by the
     # `_ignore_if_interrupted` guard in `_handle_decomposing`.
     if not decomposer_result.interrupted:
-        _usage._accumulate_issue_usage(state, decomposer_result.usage)
+        _issue_usage._accumulate_issue_usage(state, decomposer_result.usage)
 
     if decomposer_result.timed_out:
         _guards._park_awaiting_human(

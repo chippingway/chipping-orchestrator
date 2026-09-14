@@ -22,7 +22,10 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import retry_budget as _retry_budget, run_ledger as _run_ledger
+from orchestrator.workflow.engine import (
+    retry_budget as _retry_budget,
+    run_ledger_values as _run_ledger_values,
+)
 from tests.workflow.engine import charged_run_roads as roads, charged_run_test_support as support
 from tests.workflow.fixtures import (
     KEY_AWAITING_HUMAN,
@@ -118,9 +121,9 @@ class CappedLaunchTest(unittest.TestCase, _PatchedWorkflowMixin):
         driven.mocks[support.RUN_AGENT].assert_not_called()
         pinned = driven.github.pinned_data(driven.number)
         self.assertEqual(
-            pinned.get(_run_ledger.AGENT_RUNS_USED), support.SPENT_BEFORE,
+            pinned.get(_run_ledger_values.AGENT_RUNS_USED), support.SPENT_BEFORE,
         )
-        self.assertNotIn(_run_ledger.AGENT_RUN_RESERVATION, pinned)
+        self.assertNotIn(_run_ledger_values.AGENT_RUN_RESERVATION, pinned)
         self.assertTrue(pinned.get(KEY_AWAITING_HUMAN))
         self.assertEqual(pinned.get(KEY_PARK_REASON), park_reason)
 

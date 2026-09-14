@@ -36,7 +36,12 @@ from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, drift as _engine_drift, usage as _usage
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    drift as _engine_drift,
+    prompt_context as _prompt_context,
+    usage as _usage,
+)
 from orchestrator.workflow.stages.implementing import resume as _dev_resume
 from orchestrator.workflow.stages.validating import (
     drift_models as _drift_models,
@@ -58,7 +63,7 @@ def _run_validating_drift(
         )
     before_sha = _verification_probes._head_sha(worktree)
     followup = _engine_drift._build_user_content_change_prompt(
-        issue, _comments._recent_comments_text(issue),
+        issue, _prompt_context._recent_comments_text(issue),
     )
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(
         gh, spec, issue, state, followup, pause_guard=True,

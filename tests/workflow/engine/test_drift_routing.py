@@ -7,7 +7,12 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import comments, drift, pickup as _pickup
+from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
+    drift,
+    pickup as _pickup,
+    prompt_context as _prompt_context,
+)
 from orchestrator.workflow.stages.decomposition import blocked as _blocked
 from orchestrator.workflow.stages.in_review import handler as _in_review
 from orchestrator.workflow.stages.validating import handler as _validating
@@ -37,7 +42,7 @@ class HandlePickupInitializesUserContentHashTest(
         orch_ids = set(state.get("orchestrator_comment_ids") or [])
         self.assertEqual(
             state[support.KEY_USER_CONTENT_HASH],
-            drift._compute_user_content_hash(issue, orch_ids),
+            _content_hash._compute_user_content_hash(issue, orch_ids),
         )
 
     def test_pickup_with_decompose_on_seeds_hash(self) -> None:
@@ -74,7 +79,7 @@ class UserContentChangePromptIncludesCommentsTest(unittest.TestCase):
             body="new acceptance criterion: handle empty input",
             user=support.FakeUser(support.TRUSTED_AUTHOR),
         ))
-        comments_text = comments._recent_comments_text(issue)
+        comments_text = _prompt_context._recent_comments_text(issue)
         prompt = drift._build_user_content_change_prompt(
             issue, comments_text,
         )
@@ -217,7 +222,7 @@ class BareAddAgentRunsIsNotDriftTest(
         issue = support.make_issue(
             issue_number, label=support.LABEL_VALIDATING,
         )
-        baseline = drift._compute_user_content_hash(issue, set())
+        baseline = _content_hash._compute_user_content_hash(issue, set())
         issue.comments.append(support.FakeComment(
             id=support._ADD_AGENT_RUNS_COMMENT_ID,
             body="\n\n".join(
