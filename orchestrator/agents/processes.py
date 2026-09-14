@@ -4,12 +4,12 @@
 
 Agent runs and the verify runner both spawn children into their own process
 group (``start_new_session=True``) and register the group leader here so the
-shutdown sweep can reach an in-flight run. Process creation lives in this owner
-so the historical ``orchestrator.agents.processes.subprocess.Popen`` patch
-point and the shared shutdown registry keep their exact behavior; the drain,
-the group-liveness probe, and the signal escalation each teardown here spends
-belong to the ``process_groups`` owner beside it. The ``orchestrator.agents``
-API re-exports only ``terminate_all_running``.
+shutdown sweep can reach an in-flight run. Process creation and the shared
+shutdown registry live in this owner; tests intercept launches at
+``orchestrator.agents.processes.subprocess.Popen``. The drain, the group-liveness
+probe, and the signal escalation each teardown here spends belong to the
+``process_groups`` owner beside it. Callers import ``terminate_all_running``
+directly from this owner.
 """
 from __future__ import annotations
 

@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Validate workflow-label writes against the declared transition graph.
 
-A repeated label is allowed. Off, warning, and enforcement modes preserve
-their existing behavior and messages, and warnings use the literal
-orchestrator.state_machine channel selected by operator filters.
+A repeated label is allowed. ``off`` skips validation, ``warn`` logs illegal
+transitions, and ``enforce`` raises ``IllegalTransition``. Warnings use the
+literal ``orchestrator.state_machine`` channel selected by operator filters.
 """
 from __future__ import annotations
 
