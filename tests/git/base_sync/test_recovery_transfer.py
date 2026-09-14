@@ -87,6 +87,11 @@ def _handled() -> MagicMock:
     return MagicMock(return_value=True)
 
 
+def _grants(case, rewrite=seed.GRANTED) -> None:
+    """Put the permission and the debt one grant leaves on the comment."""
+    seed.granted(case.state, rewrite)
+
+
 @contextlib.contextmanager
 def _every_answer(selected: dict):
     """Patch every terminal the road can select, recording them by name."""
@@ -139,7 +144,7 @@ class UnpublishedRouteTest(seed.TransferCase):
         # A permission naming a commit this checkout is not standing on is a
         # claim nothing can check, and every other road from here would leave
         # the ordinary gate to measure an adjudicated change again.
-        seed.granted(self.state, replace(seed.GRANTED, to_sha=seed.NEWER_SHA))
+        _grants(self, replace(seed.GRANTED, to_sha=seed.NEWER_SHA))
 
         self._assert_selects("_park_unvouched_recovery")
 
@@ -171,6 +176,29 @@ class UnpublishedRouteTest(seed.TransferCase):
         self.assertEqual(
             retried.call_args.args[2], transfers._Handoff.UNRECORDED,
         )
+
+    def test_this_routes_own_grant_reopens_that_road(self) -> None:
+        # The retry above persists its permission before it pushes, so a crash
+        # there leaves terms with no head beside an outstanding grant. Refused
+        # as the plain in-flight window, this route would park every crash its
+        # own durable write caused -- on counts that read a replay as
+        # divergence -- and leave the permission with nothing to spend it.
+        self._fresh(pending_rewrite=seed.DECLARED)
+        _grants(self)
+
+        retried = self._assert_selects(RETRY_PUSH)
+
+        self.assertEqual(
+            retried.call_args.args[2], transfers._Handoff.OUTSTANDING,
+        )
+
+    def test_a_grant_from_another_attempt_still_parks(self) -> None:
+        # The permission is what vouches for the head above, so one this
+        # build cannot tie to the attempt in hand vouches for nothing.
+        self._fresh(pending_rewrite=seed.DECLARED)
+        _grants(self, replace(seed.GRANTED, source_stage=seed.OTHER_STAGE))
+
+        self._assert_selects("_park_unvouched_recovery")
 
     def test_a_moved_remote_falls_back_to_the_counts(self) -> None:
         for described, counts, answer in (
@@ -247,7 +275,7 @@ class UnmovedHeadTest(seed.TransferCase):
         self.context = replace(self.context, pending_rewrite=seed.DAMAGED)
 
     def _unspent_permission(self) -> None:
-        seed.granted(self.state)
+        _grants(self)
 
     def _foreign_announcement(self) -> None:
         attempts._announces(self.context, seed.REPLAYED_SHA)
@@ -273,6 +301,12 @@ class UnmovedHeadTest(seed.TransferCase):
 class LicensedRetryTest(seed.TransferCase):
     """What the permit decides for a push nothing else may license."""
 
+    def setUp(self) -> None:
+        super().setUp()
+        # The permission the interrupted grant left, which is what every case
+        # below but the two that start over is decided on.
+        _grants(self)
+
     def test_assembled_evidence_reaches_the_permit(self) -> None:
         # The grant never landed, so the evidence is re-derived and handed to
         # the permit -- and the gate behind it is told the permit is the whole
@@ -292,8 +326,6 @@ class LicensedRetryTest(seed.TransferCase):
     def test_a_standing_permission_is_the_evidence(self) -> None:
         # The record IS the evidence there, so nothing is assembled and the
         # gate re-asks the permission the grant left.
-        seed.granted(self.state)
-
         entered = self._retries(permits=_handled())
 
         self.assertIsNone(entered.rewrite)
@@ -322,8 +354,6 @@ class LicensedRetryTest(seed.TransferCase):
             self._parks("_park_unproven_replay_recovery", permit_alone=True)
 
     def test_a_refused_permit_parks_unmeasured(self) -> None:
-        seed.granted(self.state)
-
         self._parks(
             "_park_refused_permit_recovery",
             permits=MagicMock(return_value=False),
@@ -332,8 +362,6 @@ class LicensedRetryTest(seed.TransferCase):
     def test_a_permit_the_gate_refuses_parks_too(self) -> None:
         # The permit is asked twice -- here and inside the gate -- so one that
         # stops holding in between is refused there rather than measured.
-        seed.granted(self.state)
-
         self._parks(
             "_park_refused_permit_recovery",
             published=_pushed(held=True, refused=True),
@@ -342,8 +370,6 @@ class LicensedRetryTest(seed.TransferCase):
     def test_a_push_that_moved_no_verdict_parks(self) -> None:
         # The push went out and the rotation did not ride it, so the
         # permission is still outstanding and the anchor stays pinned.
-        seed.granted(self.state)
-
         parked = self._parks(UNFINISHED, published=_pushed(landed=True))
 
         self.assertIn(seed.REPLAYED_SHA, parked.call_args.args[2])
@@ -407,11 +433,14 @@ class LicensedRetryTest(seed.TransferCase):
 class PermitEntryTest(seed.TransferCase):
     """The publication the permit is re-asked over is this tick's own read."""
 
+    def setUp(self) -> None:
+        super().setUp()
+        _grants(self)
+
     def test_an_unenterable_publication_refuses(self) -> None:
         # The entry is the pull request read before any effect, and the terms
         # the record claims are checked against it. Nothing to check them
         # against is a refusal rather than a fall-through.
-        seed.granted(self.state)
         carried = MagicMock()
 
         with patch.object(
@@ -428,7 +457,6 @@ class PermitEntryTest(seed.TransferCase):
         carried.assert_not_called()
 
     def test_the_permit_reads_the_frozen_entry(self) -> None:
-        seed.granted(self.state)
         carried = MagicMock(return_value="carried")
 
         with patch.object(_transfer, "_carried_over", carried), patch.object(

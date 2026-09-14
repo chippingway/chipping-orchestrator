@@ -84,6 +84,15 @@ _UNSPENT_TRANSFERS = frozenset((
     transfers._Handoff.OUTSTANDING, transfers._Handoff.UNVOUCHED,
 ))
 
+# The two handoffs a checkout whose attempt record has no head may still be
+# published on. Neither is an id the ATTEMPT wrote: one is the verdict the
+# permit re-proves the contribution against, and the other is the permission
+# this route's own grant persisted before its push -- cross-bound to the
+# lease, the terms, and the accepted pair before it is called outstanding.
+_VOUCHED_IN_FLIGHT = frozenset((
+    transfers._Handoff.UNRECORDED, transfers._Handoff.OUTSTANDING,
+))
+
 _RECOVERY_SIGNATURE = inspect.Signature((
     inspect.Parameter("gh", inspect.Parameter.POSITIONAL_OR_KEYWORD),
     inspect.Parameter("spec", inspect.Parameter.POSITIONAL_OR_KEYWORD),
@@ -142,12 +151,14 @@ def _retry_recovery_push(
     afterwards for the same reason, since a permit that stopped holding
     between the two asks leaves the push landed and the verdict where it was.
 
-    `permit_alone` says the caller holds no id vouching for this checkout at
-    all -- the attempt was still in flight when the process died -- so the
-    evidence is the only thing that can. Evidence that will not assemble parks
-    there rather than falling through, because the fall-through is the
-    ordinary cumulative reading and measuring a commit is not a way of
-    establishing whose it is.
+    `permit_alone` says the ATTEMPT record names no head -- the process died
+    inside the window between `git rebase` and the write after it -- so the
+    transfer is the only thing that can vouch for this checkout. Evidence that
+    will not assemble parks there rather than falling through, because the
+    fall-through is the ordinary cumulative reading and measuring a commit is
+    not a way of establishing whose it is. A permission this route's own grant
+    already persisted is that evidence rather than the absence of it, so it
+    licenses the road exactly as the re-derived rewrite does.
     """
     dirty_files = verification_probes._worktree_dirty_files(context.worktree)
     if dirty_files:
@@ -552,22 +563,42 @@ def _is_an_attempt_in_flight(
     completed: _AutoRebaseRecoverySnapshot,
     carried: transfers._Handoff,
 ) -> bool:
-    """Whether this is the window between `git rebase` and its own record.
+    """Whether the attempt is still inside the window its record has no head.
 
-    The narrowest window the attempt has and the only one no id can close: the
-    rebase produced a commit, the write naming it never happened, and what the
-    comment still carries is the terms the attempt was entered under and the
-    anchor the remote is standing on. Every id-based road refuses this
-    checkout, rightly -- nothing wrote the head down, so nothing can say it is
-    this attempt's work.
+    The narrowest window the attempt has and the only one no ATTEMPT record
+    can close: the rebase produced a commit, the write naming it never
+    happened, and what the comment still carries is the terms the attempt was
+    entered under and the anchor the remote is standing on. Every road that
+    reads the head off that record refuses this checkout, rightly -- nothing
+    wrote it down, so nothing there can say it is this attempt's work.
 
-    Something else can. An issue whose exemption names the commit the pull
-    request carries has a pair a human ruled on recorded on it, and the permit
-    re-fingerprints the checkout's contribution against that pair before it
-    licenses anything: a replay of the accepted change proves out, and a
-    commit somebody else left does not. So the road is opened only where there
-    IS such a verdict to prove against, and the push behind it is permitted or
-    it does not happen.
+    Something else can, and which something depends on how far the tick that
+    died had got.
+
+    A comment carrying no permission is answered by the verdict alone. An
+    issue whose exemption names the commit the pull request carries has a pair
+    a human ruled on recorded on it, and the permit re-fingerprints the
+    checkout's contribution against that pair before it licenses anything: a
+    replay of the accepted change proves out, and a commit somebody else left
+    does not. So the road opens only where there IS such a verdict to prove
+    against, and the push behind it is permitted or it does not happen.
+
+    A comment carrying an OUTSTANDING one is answered by the permission
+    itself, and it is this route's own grant looking back at it. The road
+    above persists that permission before it pushes, so a process lost between
+    the two comes back to exactly this shape -- terms with no head, and a
+    permission naming one. It is not the window it resembles: the grant is
+    cross-bound to this attempt before it is called outstanding, by the lease
+    the anchor names, the publication and stage the terms name, and the
+    accepted pair the identity names, and it was written only once the permit
+    had proved the contribution equal to the one a human ruled on. Refused
+    here, this route would park every crash its own durable write caused --
+    the counts over a replayed branch read as divergence -- and the
+    authorization it left would stand for ever with nothing able to spend it.
+
+    Every other handoff is somebody else's claim or none: a settled transfer
+    is over, one nobody can vouch for is refused above, and an issue carrying
+    no verdict at all reaches neither road.
 
     Both other halves are still required, and for the reasons they always
     were. The remote has to be standing exactly on the anchor, which is what
@@ -575,7 +606,7 @@ def _is_an_attempt_in_flight(
     is pinned to. And the terms have to read back whole, since the permit's
     publication checks are asked against them.
     """
-    if carried != transfers._Handoff.UNRECORDED:
+    if carried not in _VOUCHED_IN_FLIGHT:
         return False
     if completed.remote_head != context.pending_pre_rebase_sha:
         return False

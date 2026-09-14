@@ -1304,7 +1304,9 @@ The keys that matter for the state machine fall into a few groups:
   write and the clear are on the running roads: the terms and the anchor go down before `git rebase`, the replay goes
   down before the dirty check, both finishes mark what they announced, and every ending drops the group. The
   three-valued read is what the recovery classifies an unpublished checkout on — absent falls back to the divergence
-  counts, in flight is proved by what the contribution is rather than by an id, damaged and disowning both park — and
+  counts, in flight is proved by what the contribution is rather than by an id — or, past the permit's own grant, by
+  the permission that grant persisted, which is cross-bound to the anchor, the terms, and the accepted pair before it
+  is called outstanding — and damaged and disowning both park. And
   the terms are what say the attempt was made for the publication this tick holds, asked before any road that posts a
   notice or files an event. The presence test on the MARK is the one reading still consulted by no road, so a crash
   between an announcement and its relabel still costs the stream a second `base_rebased` and the pull request a

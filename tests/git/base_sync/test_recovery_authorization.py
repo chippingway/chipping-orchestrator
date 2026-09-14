@@ -246,6 +246,46 @@ class CrashAfterTheGrantTest(_AdjudicatedRecoveryCase):
         self._assert_nothing_was_read_again()
 
 
+class CrashAtTheGrantTest(_AdjudicatedRecoveryCase):
+    """The window this route's own durable grant opens under itself.
+
+    The road for a replay in flight persists the permission before it pushes,
+    so a process lost between the two comes back to the shape neither half of
+    the record accounts for on its own: terms with no head, and an
+    authorization naming the head the checkout is standing on. Read as the
+    plain in-flight window it would be refused for carrying a permission; read
+    by the counts it would be refused as divergence, since a replayed branch
+    is behind its own publication. Either way this route would park every
+    crash its own write caused, and leave the authorization standing with
+    nothing able to spend it.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.forget_the_replay_head()
+        self._grants()
+        self.counted = self.divergence_from_remote()
+        self.resumed = self._resumes()
+
+    def test_the_grant_this_route_left_vouches(self) -> None:
+        # Cross-bound to the anchor it is leased against, the publication the
+        # terms name, and the accepted pair the identity names -- and written
+        # only once the permit had proved the contribution equal to it.
+        self.assertFalse(self.resumed)
+        self._assert_the_verdict_moved()
+
+    def test_the_counts_never_decide_it(self) -> None:
+        # The proof the classification is not reading the divergence: read
+        # before the tick, a real replay is ahead of its publication by the
+        # rebase and behind it by the object that rebase replaced.
+        self.assertGreater(self.counted[0], 0)
+        self.assertGreater(self.counted[1], 0)
+        self.assertEqual(self.push.leases, [self.anchor])
+
+    def test_the_replay_is_never_read_again(self) -> None:
+        self._assert_nothing_was_read_again()
+
+
 class UndoneRebaseTest(_AdjudicatedRecoveryCase):
     """A branch put back on the anchor with the grant still standing."""
 

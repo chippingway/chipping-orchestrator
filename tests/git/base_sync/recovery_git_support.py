@@ -389,18 +389,23 @@ class RecoveryGitFixtureMixin:
         run_git("reset", "--hard", self.anchor, cwd=self.work)
 
     def forget_the_rewrite_record(self) -> None:
-        """Drop what the attempt recorded as its own replay.
+        """Drop the whole record of the attempt, terms and replay together.
+
+        The comment an older binary left, which claims nothing about the
+        attempt at all -- and the state every divergent checkout nothing here
+        made looks like.
+        """
+        self._forgets(_REWRITE_RECORD_KEYS)
+
+    def forget_the_replay_head(self) -> None:
+        """Drop the head alone, leaving the terms the anchor went down with.
 
         The window between `git rebase` returning and the write that names
-        what it produced, which is the one state a recovery has no provenance
-        for -- and the state every divergent checkout nothing here made looks
-        like.
+        what it produced. The terms are still there because they are written
+        before git is allowed to touch the branch; the head is not, because it
+        cannot exist until git hands it back.
         """
-        issue = self.gh._issues[ISSUE]
-        state = self.gh.read_pinned_state(issue)
-        for key in _REWRITE_RECORD_KEYS:
-            state.set(key, None)
-        self.gh.write_pinned_state(issue, state)
+        self._forgets((KEY_PENDING_REWRITE_SHA,))
 
     def divergence_from_remote(self) -> tuple[int, int]:
         """Ahead and behind as git counts this branch against the tracking ref.
@@ -428,6 +433,14 @@ class RecoveryGitFixtureMixin:
             for event in self.gh.recorded_events
             if event.get(EVENT_FIELD) == REBASED_EVENT
         ]
+
+    def _forgets(self, keys: tuple[str, ...]) -> None:
+        """Blank these members of the attempt record, durably."""
+        issue = self.gh._issues[ISSUE]
+        state = self.gh.read_pinned_state(issue)
+        for key in keys:
+            state.set(key, None)
+        self.gh.write_pinned_state(issue, state)
 
     def _rewind_tracking_ref(self) -> None:
         """Point the tracking ref back at the anchor the crash pinned.

@@ -394,7 +394,9 @@ orchestrator/
                         the terms the attempt recorded are held to the publication this tick holds, since every
                         road behind them posts a notice, files an event, and drops the anchor. Where a verdict
                         is being carried the permit is the whole of what may let the push out: it is asked ahead
-                        of the gate, the gate is told the same, and the rotation is read back afterwards. The
+                        of the gate, the gate is told the same, and the rotation is read back afterwards -- and
+                        the permission that ask persists is itself what vouches for the checkout on the tick
+                        after a crash between it and the push. The
                         counts answer only for a comment that recorded no replay at all. Two more states are
                         answered by what the attempt left rather than by where the branch is: an issue
                         relabelled off the refresh-driven set, and a checkout back ON the anchor -- the shortcut
