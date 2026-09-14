@@ -15,12 +15,8 @@ from __future__ import annotations
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import run_grant_request as _run_grant_request
 from tests.support.fakes import FakeComment, FakeUser
-from tests.workflow.engine.run_limit_test_support import (
-    ALLOWANCE,
-    USED_FIELD,
-    WATERMARK,
-    parked_state,
-)
+from tests.workflow.engine.run_limit_seeds import ALLOWANCE, parked_state
+from tests.workflow.engine.run_limit_test_support import USED_FIELD, WATERMARK
 
 # What one buyable request asks for, and the ceiling it leaves behind on an
 # issue that has already spent everything it was allowed. The number is read

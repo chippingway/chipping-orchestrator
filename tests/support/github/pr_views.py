@@ -3,7 +3,7 @@
 """Read-only views over pull-request fake state and histories."""
 from __future__ import annotations
 
-from tests.support.github.models import FakePR
+from tests.support.github.pull_request_models import FakePR
 
 
 class _PullHistoryView:

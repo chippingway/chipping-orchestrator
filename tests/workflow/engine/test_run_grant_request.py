@@ -19,6 +19,7 @@ from orchestrator.workflow.engine import (
 )
 from tests.workflow.engine import (
     run_grant_test_support as grant,
+    run_limit_seeds as _limit_seeds,
     run_limit_test_support as support,
 )
 
@@ -36,7 +37,7 @@ _NOT_A_REQUEST = (
     _run_grant._GRANT_NOTICE.format(
         added=grant.ADDED,
         allowance=grant.GRANTED_ALLOWANCE,
-        used=support.ALLOWANCE,
+        used=_limit_seeds.ALLOWANCE,
         marker=_run_grant._GRANTED_MARKER.format(
             issue=support.ISSUE_NUMBER, comment=grant.FIRST_ASK,
         ),

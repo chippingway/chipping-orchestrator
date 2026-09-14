@@ -10,11 +10,11 @@ from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.late_split import events as _events, records as _records
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.late_split import generation_test_support as _support
+from tests.workflow.late_split import event_test_support as _event_support, generation_test_support as _support
 
-_MEASUREMENT, _VERDICT = _support.family_cases()[:2]
-_CLEANUP = _support.family_cases()[4]
-_RESTART = _support.family_cases()[-1]
+_MEASUREMENT, _VERDICT = _event_support.family_cases()[:2]
+_CLEANUP = _event_support.family_cases()[4]
+_RESTART = _event_support.family_cases()[-1]
 _CATEGORY = _support.CATEGORY
 _IMPLEMENTING = "workflow:implementing"
 # A pending restart, aimed at whichever state the current setting chose.
@@ -86,15 +86,15 @@ class CorrelationKeyTest(unittest.TestCase):
     def test_different_families_keep_own_keys(self) -> None:
         keys = {
             _records.correlation_key(_record(event))
-            for event in _support.family_cases()
+            for event in _event_support.family_cases()
         }
-        self.assertEqual(len(keys), len(_support.family_cases()))
+        self.assertEqual(len(keys), len(_event_support.family_cases()))
 
     def test_two_split_sizes_are_two_adjudications(self) -> None:
         # One candidate split into two children and into seven are different
         # outcomes of the same phase: a key blind to the count reports one.
         splits = tuple(
-            _support.verdict_event(verdict=LateVerdict.SPLIT, child_count=count)
+            _event_support.verdict_event(verdict=LateVerdict.SPLIT, child_count=count)
             for count in (_support.CHILD_COUNT, _support.OTHER_CHILD_COUNT)
         )
         self.assertNotEqual(
@@ -104,7 +104,7 @@ class CorrelationKeyTest(unittest.TestCase):
 
     def test_two_categories_are_two_questions(self) -> None:
         asked = tuple(
-            _support.verdict_event(
+            _event_support.verdict_event(
                 verdict=LateVerdict.QUESTION, category=category,
             )
             for category in (_CATEGORY.SCOPE_AMBIGUOUS, _CATEGORY.UNSAFE_SPLIT)
@@ -115,7 +115,7 @@ class CorrelationKeyTest(unittest.TestCase):
         )
 
     def test_one_verdict_retried_is_one_step(self) -> None:
-        retried = _support.verdict_event(
+        retried = _event_support.verdict_event(
             verdict=LateVerdict.SPLIT, child_count=_support.CHILD_COUNT,
         )
         self.assertEqual(
@@ -131,7 +131,7 @@ class ResourceCorrelationTest(unittest.TestCase):
         # children reconciles two obligations, and a key that saw only the
         # kind and the outcome would report one of them.
         cleanups = tuple(
-            _support.cleanup_event(resource)
+            _event_support.cleanup_event(resource)
             for resource in (_support.FIRST_CHILD, _support.SECOND_CHILD)
         )
         self.assertNotEqual(
@@ -140,7 +140,7 @@ class ResourceCorrelationTest(unittest.TestCase):
         )
 
     def test_one_resource_retried_is_one_step(self) -> None:
-        retried = _support.cleanup_event(_support.FIRST_CHILD)
+        retried = _event_support.cleanup_event(_support.FIRST_CHILD)
         self.assertEqual(
             _records.correlation_key(_record(_CLEANUP)),
             _records.correlation_key(_record(retried)),
@@ -149,9 +149,9 @@ class ResourceCorrelationTest(unittest.TestCase):
     def test_two_outcomes_of_one_resource_differ(self) -> None:
         # A snapshot retained and the same snapshot reconciled are two facts
         # about one ref: collapsing them would hide the reclamation half.
-        deleted = _support.cleanup_event(_support.RECLAIMED_SNAPSHOT)
+        deleted = _event_support.cleanup_event(_support.RECLAIMED_SNAPSHOT)
         self.assertNotEqual(
-            _records.correlation_key(_record(_support.family_cases()[3])),
+            _records.correlation_key(_record(_event_support.family_cases()[3])),
             _records.correlation_key(_record(deleted)),
         )
 

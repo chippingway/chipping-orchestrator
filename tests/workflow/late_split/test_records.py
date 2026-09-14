@@ -8,13 +8,13 @@ import unittest
 from orchestrator.workflow.late_split import events as _events, formats as _formats, records as _records
 from orchestrator.workflow.late_split.models import LateGeneration, LateVerdict
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.late_split import generation_test_support as _support
+from tests.workflow.late_split import event_test_support as _event_support, generation_test_support as _support
 
 _PREDECESSOR = 1
 _REFUSED = _formats.InvalidLateValue
-_MEASUREMENT, _VERDICT = _support.family_cases()[:2]
-_FAILURE = _support.family_cases()[2]
-_CLEANUP = _support.family_cases()[4]
+_MEASUREMENT, _VERDICT = _event_support.family_cases()[:2]
+_FAILURE = _event_support.family_cases()[2]
+_CLEANUP = _event_support.family_cases()[4]
 _MEASUREMENT_FAILURE = "measurement_failure"
 _DETAIL = "detail"
 # The pair every size-bearing record names, spelled once because three of the
@@ -29,7 +29,7 @@ _PROSE = "rationale: inspect /srv/private/key before splitting"
 # time, and a generation that has let all of it go.
 _MEASURED_CASES = tuple(
     (event, name)
-    for event in _support.family_cases()[:2]
+    for event in _event_support.family_cases()[:2]
     for name in ("candidate_sha", _BASE_SHA, "threshold", "additions", "phase")
 )
 _STRIPPED = _support.measured_generation(
@@ -75,7 +75,7 @@ class BoundedRecordTest(unittest.TestCase):
     """A record carries correlation and nothing a reader could not publish."""
 
     def test_no_family_writes_an_unlisted_field(self) -> None:
-        for event in _support.family_cases():
+        for event in _event_support.family_cases():
             with self.subTest(family=str(event.family)):
                 self.assertLessEqual(
                     set(_payload(event)),
@@ -155,7 +155,7 @@ class BoundedRecordTest(unittest.TestCase):
             "restart_target": _support.DECOMPOSING,
             "restart_predecessor": _PREDECESSOR,
         }
-        payload = _payload(_support.family_cases()[-1], **restarting)
+        payload = _payload(_event_support.family_cases()[-1], **restarting)
         self.assertEqual(payload["restart_step"], "pending")
         self.assertEqual(payload["restart_target"], _support.DECOMPOSING)
         self.assertEqual(payload["predecessor_cycle_id"], _PREDECESSOR)
@@ -169,7 +169,7 @@ class PublicationRecordTest(unittest.TestCase):
         # cleanup reconciling a snapshot of an initial publication and one
         # reconciling a pull request the remote already carries are the same
         # family describing two different steps.
-        for event in _support.family_cases():
+        for event in _event_support.family_cases():
             with self.subTest(family=str(event.family)):
                 self.assertEqual(_payload(event)[_PUBLICATION], _PRE)
 
@@ -285,7 +285,7 @@ class FamilyContextTest(unittest.TestCase):
     def test_a_reconciling_family_is_not_held_to_it(self) -> None:
         # The other five describe reconciliation rather than size, and a
         # restart's fresh cycle has deliberately let its commits go.
-        for event in _support.family_cases()[2:]:
+        for event in _event_support.family_cases()[2:]:
             with self.subTest(family=str(event.family)):
                 self.assertNotIn(
                     _SOURCE_SHA,
@@ -308,7 +308,7 @@ class TransferRecordTest(unittest.TestCase):
         # moved OFF is the family's, because nothing else on a record could
         # name a commit the branch no longer carries.
         recorded = _records.build_late_payload(
-            _support.transfer_event(), _support.transferred_generation(),
+            _event_support.transfer_event(), _support.transferred_generation(),
         )
 
         self.assertEqual(recorded[_SOURCE_SHA], _support.CANDIDATE_SHA)
@@ -325,7 +325,7 @@ class TransferRecordTest(unittest.TestCase):
 
     def test_it_names_the_publication_it_happened_on(self) -> None:
         recorded = _records.build_late_payload(
-            _support.transfer_event(), _support.transferred_generation(),
+            _event_support.transfer_event(), _support.transferred_generation(),
         )
 
         self.assertEqual(recorded[_PUBLICATION], _POST)
@@ -344,7 +344,7 @@ class TransferRecordTest(unittest.TestCase):
         for fields in unattributable:
             with self.subTest(**fields), self.assertRaises(_REFUSED):
                 _records.build_late_payload(
-                    _support.transfer_event(),
+                    _event_support.transfer_event(),
                     _support.transferred_generation(**fields),
                 )
 
@@ -352,7 +352,7 @@ class TransferRecordTest(unittest.TestCase):
         for name in ("candidate_sha", _BASE_SHA):
             with self.subTest(field=name), self.assertRaises(_REFUSED):
                 _records.build_late_payload(
-                    _support.transfer_event(),
+                    _event_support.transfer_event(),
                     _support.transferred_generation(**{name: ""}),
                 )
 

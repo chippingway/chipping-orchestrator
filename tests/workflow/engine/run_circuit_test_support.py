@@ -21,7 +21,8 @@ from orchestrator.workflow.engine import (
     run_limit as _run_limit,
     usage as _usage,
 )
-from tests.support.fakes import FakeGitHubClient, FakeIssue, make_issue
+from tests.support.fakes import FakeIssue, make_issue
+from tests.workflow.engine import run_circuit_client as _circuit_client
 from tests.workflow.fixtures import LABEL_IMPLEMENTING
 
 ISSUE_NUMBER = 1543
@@ -72,10 +73,6 @@ NO_PROCESS_EXIT_CODE = -1
 # request under test may not claim.
 OTHER_LAUNCH = "0f0f0f0f"
 
-_WRITE_REFUSED = "pinned write refused"
-
-_READ_REFUSED = "pinned read refused"
-
 
 def agent_result(**overrides) -> AgentResult:
     """What the runner hands back when a process actually ran."""
@@ -102,44 +99,6 @@ def fingerprint(**overrides) -> str:
     return _usage._AgentRunRequest(**{**named, **overrides}).fingerprint
 
 
-class CircuitGitHubClient(FakeGitHubClient):
-    """A client that remembers its pinned writes and can refuse them.
-
-    The refusals are what the circuit's own promises are read against: a
-    launch may not reach a process on a state nobody could read or a charge
-    nobody could record, and neither failure is one a stage above could see
-    from the result alone.
-    """
-
-    def __init__(self, **client_fields) -> None:
-        super().__init__(**client_fields)
-        self.writes: list[dict] = []
-        self.unreadable = False
-        self.unparsed = False
-        self._writes_allowed: int | None = None
-
-    def refuse_write(self, *, after: int = 0) -> None:
-        """Refuse the pinned write that follows `after` further ones."""
-        self._writes_allowed = after
-
-    def read_pinned_state(self, issue: FakeIssue) -> PinnedState:
-        if self.unreadable:
-            raise RuntimeError(_READ_REFUSED)
-        if self.unparsed:
-            return PinnedState(comment_id=1, data={}, parsed=False)
-        return super().read_pinned_state(issue)
-
-    def write_pinned_state(
-        self, issue: FakeIssue, state: PinnedState,
-    ) -> PinnedState:
-        self.writes.append(dict(state.data))
-        if self._writes_allowed is not None:
-            if self._writes_allowed <= 0:
-                raise RuntimeError(_WRITE_REFUSED)
-            self._writes_allowed -= 1
-        return super().write_pinned_state(issue, state)
-
-
 @dataclass
 class Launch:
     """One tracked run driven through the circuit, and what it left.
@@ -149,7 +108,7 @@ class Launch:
     issue had already recorded when it did.
     """
 
-    gh: CircuitGitHubClient
+    gh: _circuit_client.CircuitGitHubClient
     issue: FakeIssue
     state: PinnedState
     answer: AgentResult | None = None
@@ -198,14 +157,14 @@ class _Invocation:
         return agent_result() if self.outcome is None else self.outcome
 
 
-def seeded(gh: CircuitGitHubClient | None = None, **pinned) -> Launch:
+def seeded(gh: _circuit_client.CircuitGitHubClient | None = None, **pinned) -> Launch:
     """One issue whose pinned comment already says `pinned`.
 
     The caller's own state is read back off the issue, the way a tick's is,
     so a case that stages a field onto it is staging it over durable state
     rather than over nothing.
     """
-    client = gh or CircuitGitHubClient()
+    client = gh or _circuit_client.CircuitGitHubClient()
     issue = make_issue(ISSUE_NUMBER, label=LABEL_IMPLEMENTING)
     client.add_issue(issue)
     client.write_pinned_state(issue, PinnedState(data=dict(pinned)))

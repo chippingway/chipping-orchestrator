@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 from orchestrator.agents import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings, sink as analytics_sink
 from orchestrator.workflow.engine import usage as engine_usage
-from tests.workflow.engine import usage_test_support as support
+from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
 EVENT_AGENT_EXIT = support.EVENT_AGENT_EXIT
@@ -24,20 +24,20 @@ ROLE_DEVELOPER = support.ROLE_DEVELOPER
 _AGENT_ROLE_KEY = support._AGENT_ROLE_KEY
 _ANALYTICS_FILENAME = support._ANALYTICS_FILENAME
 _ANALYTICS_PATH_ATTR = support._ANALYTICS_PATH_ATTR
-_CLAUDE_MODEL = support._CLAUDE_MODEL
-_CONTENT_KEY = support._CONTENT_KEY
+_CLAUDE_MODEL = _usage_frames._CLAUDE_MODEL
+_CONTENT_KEY = _usage_frames._CONTENT_KEY
 _DEVELOP_SKILL = support._DEVELOP_SKILL
 _EVENT_KEY = support._EVENT_KEY
 _FAKE_WT = support._FAKE_WT
-_ID_KEY = support._ID_KEY
-_INPUT_TOKENS_KEY = support._INPUT_TOKENS_KEY
-_MESSAGE_KEY = support._MESSAGE_KEY
-_OUTPUT_TOKENS_KEY = support._OUTPUT_TOKENS_KEY
+_ID_KEY = _usage_frames._ID_KEY
+_INPUT_TOKENS_KEY = _usage_frames._INPUT_TOKENS_KEY
+_MESSAGE_KEY = _usage_frames._MESSAGE_KEY
+_OUTPUT_TOKENS_KEY = _usage_frames._OUTPUT_TOKENS_KEY
 _PROMPT_FORWARDING_ISSUE_NUMBER = support._PROMPT_FORWARDING_ISSUE_NUMBER
-_RESULT_KEY = support._RESULT_KEY
+_RESULT_KEY = _usage_frames._RESULT_KEY
 _RUN_AGENT_ATTR = support._RUN_AGENT_ATTR
 _agent_runner = support.agent_runner
-_SKILL_KEY = support._SKILL_KEY
+_SKILL_KEY = _usage_frames._SKILL_KEY
 _STAGE_KEY = support._STAGE_KEY
 _TRACK_SKILLS_ATTR = support._TRACK_SKILLS_ATTR
 _TRAJECTORY_FAILURE_ISSUE_NUMBER = support._TRAJECTORY_FAILURE_ISSUE_NUMBER
@@ -45,12 +45,12 @@ _TRAJECTORY_ISSUE_NUMBER = support._TRAJECTORY_ISSUE_NUMBER
 _TRAJECTORY_PATH_ATTR = support._TRAJECTORY_PATH_ATTR
 _TRAJECTORY_PROMPT = support._TRAJECTORY_PROMPT
 _TRAJECTORY_SINK_ISSUE_NUMBER = support._TRAJECTORY_SINK_ISSUE_NUMBER
-_TYPE_KEY = support._TYPE_KEY
-_USAGE_KEY = support._USAGE_KEY
+_TYPE_KEY = _usage_frames._TYPE_KEY
+_USAGE_KEY = _usage_frames._USAGE_KEY
 _analytics_path = support._analytics_path
 _tracked_budget = support._tracked_budget
 _analytics_records = support._analytics_records
-_claude_stdout_with_skills = support._claude_stdout_with_skills
+_claude_stdout_with_skills = _usage_frames._claude_stdout_with_skills
 
 
 def _claude_trajectory_stdout(

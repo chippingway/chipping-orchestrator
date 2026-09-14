@@ -45,6 +45,7 @@ from tests.support.fakes import (
 )
 from tests.workflow.engine import (
     run_grant_test_support as grant,
+    run_limit_seeds as _limit_seeds,
     run_limit_test_support as support,
 )
 from tests.workflow.fixtures import (
@@ -168,7 +169,7 @@ class _HoldCase:
         issue = self._issue(label=label)
         if pull_request is not None:
             self.gh.add_pr(pull_request)
-        self._seed(support.parked_state(pr_number=_PR_NUMBER))
+        self._seed(_limit_seeds.parked_state(pr_number=_PR_NUMBER))
         return issue
 
     def _pull_request(self, **fields):
@@ -186,7 +187,7 @@ class RunLimitHoldTest(_HoldCase, unittest.TestCase):
 
     def test_a_parked_issue_reaches_no_handler(self) -> None:
         issue = self._issue()
-        self._seed(support.parked_state())
+        self._seed(_limit_seeds.parked_state())
 
         self._route(issue)
 
@@ -199,7 +200,7 @@ class RunLimitHoldTest(_HoldCase, unittest.TestCase):
         # The terminal below ends the issue rather than spending a run on it,
         # and a refusal here would leave it permanently mid-ending.
         issue = self._issue(closed=True)
-        self._seed(support.parked_state())
+        self._seed(_limit_seeds.parked_state())
 
         self._route(issue)
 
@@ -210,7 +211,7 @@ class RunLimitHoldTest(_HoldCase, unittest.TestCase):
         # The issue this tick was routed on was closed when it was
         # enumerated, whatever the object in hand now reads as.
         issue = self._issue()
-        self._seed(support.parked_state())
+        self._seed(_limit_seeds.parked_state())
 
         self._route(issue, reading=dispatch._PollReading(closed=True))
 
@@ -220,8 +221,8 @@ class RunLimitHoldTest(_HoldCase, unittest.TestCase):
         # `awaiting_human` alone is every stage's park, and each of those has
         # a road of its own below that answers it.
         issue = self._issue()
-        self._seed(support.state_with(**{
-            support.AWAITING_HUMAN: True, support.PARK_REASON: "retry_cap",
+        self._seed(_limit_seeds.state_with(**{
+            _limit_seeds.AWAITING_HUMAN: True, _limit_seeds.PARK_REASON: "retry_cap",
         }))
 
         self._route(issue)
@@ -390,7 +391,7 @@ class TerminalBeforeTheGrantTest(_HoldCase, unittest.TestCase):
         self.gh.add_pr(self._pull_request(
             head=FakePRRef(sha=_PLAN_SHA), **settled,
         ))
-        self._seed(support.parked_state(**{
+        self._seed(_limit_seeds.parked_state(**{
             "pr_number": _PR_NUMBER, _KEY_PLAN_SHA: _PLAN_SHA,
         }))
         return issue
@@ -407,8 +408,8 @@ class TerminalBeforeTheGrantTest(_HoldCase, unittest.TestCase):
         """No allowance widened, no park cleared, and nothing said about it."""
         recorded = self.gh.pinned_data(support.ISSUE_NUMBER)
         self.assertNotIn(support.ALLOWANCE_FIELD, recorded)
-        self.assertEqual(recorded[support.USED_FIELD], support.ALLOWANCE)
-        self.assertTrue(recorded[support.AWAITING_HUMAN])
+        self.assertEqual(recorded[support.USED_FIELD], _limit_seeds.ALLOWANCE)
+        self.assertTrue(recorded[_limit_seeds.AWAITING_HUMAN])
         self.assertEqual(self.gh.posted_comments, [])
         self.assertEqual(support.phases(self.gh), [])
 
@@ -448,7 +449,7 @@ class RunLimitNoticeTest(_HoldCase, unittest.TestCase):
 
     def _parked_issue(self):
         issue = self._issue()
-        self._seed(support.parked_state(owing=True))
+        self._seed(_limit_seeds.parked_state(owing=True))
         return issue
 
 
@@ -471,7 +472,7 @@ class BoughtRunTest(_HoldCase, unittest.TestCase):
         self.reached.assert_called_once_with(self.gh, _SPEC, issue)
         recorded = self.gh.pinned_data(support.ISSUE_NUMBER)
         self.assertEqual(
-            recorded[support.ALLOWANCE_FIELD], support.ALLOWANCE + 2,
+            recorded[support.ALLOWANCE_FIELD], _limit_seeds.ALLOWANCE + 2,
         )
         self.assertEqual(support.phases(self.gh), [support.GRANTED])
 
@@ -494,8 +495,8 @@ class BoughtRunTest(_HoldCase, unittest.TestCase):
         # It is read only where the park it lifts stands: on any other one it
         # would be answering a question it was not asked.
         issue = self._issue()
-        self._seed(support.state_with(**{
-            support.AWAITING_HUMAN: True, support.PARK_REASON: "retry_cap",
+        self._seed(_limit_seeds.state_with(**{
+            _limit_seeds.AWAITING_HUMAN: True, _limit_seeds.PARK_REASON: "retry_cap",
         }))
         issue.comments.append(grant.command(_ADD_RUNS))
 
@@ -521,7 +522,7 @@ class HoldPlacementTest(unittest.TestCase):
         gh = FakeGitHubClient()
         issue = make_issue(support.ISSUE_NUMBER, label=LABEL_IMPLEMENTING)
         gh.add_issue(issue)
-        gh.seed_state(support.ISSUE_NUMBER, **support.parked_state().data)
+        gh.seed_state(support.ISSUE_NUMBER, **_limit_seeds.parked_state().data)
         restart = Mock(return_value=True)
 
         with patch.object(

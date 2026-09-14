@@ -14,9 +14,8 @@ from orchestrator.workflow.late_split.models import (
     LateVerdict,
 )
 from orchestrator.workflow.late_split.rewrites import LateRewriteProof
-from tests.workflow.late_split import generation_test_support as _support
+from tests.workflow.late_split import event_test_support as _event_support, generation_test_support as _support
 
-_FAMILY = _events.LateEventFamily
 _FAMILY_KEY = "family"
 _CATEGORY = _events.LateVerdictCategory
 _REFUSED = _formats.InvalidLateValue
@@ -42,20 +41,11 @@ _RETURNED = f"{_SAID}\rhint: check your credentials"
 _UNMEASURED_FAILURE = LateFailure.SNAPSHOT_FAILED
 
 
-def _failure(**fields) -> _events.LateEvent:
-    """One typed late failure, described by whatever refused it."""
-    return _events.LateEvent(
-        family=_FAMILY.FAILURE,
-        failure=LateFailure.MEASUREMENT_FAILED,
-        **fields,
-    )
-
-
 class FamilySchemaTest(unittest.TestCase):
     """A family carries what it owns, all of it, and nothing else."""
 
     def test_every_family_builds_with_its_own_fields(self) -> None:
-        for event in _support.every_family():
+        for event in _event_support.every_family():
             with self.subTest(family=str(event.family)):
                 self.assertIsInstance(event, _events.LateEvent)
 
@@ -63,8 +53,8 @@ class FamilySchemaTest(unittest.TestCase):
         # The walk above is only worth what it covers, so a family the schema
         # gains without a case is a family nothing here checks.
         self.assertEqual(
-            {event.family for event in _support.every_family()},
-            set(_FAMILY),
+            {event.family for event in _event_support.every_family()},
+            set(_event_support._FAMILY),
         )
 
     def test_a_field_the_family_lacks_is_refused(self) -> None:
@@ -72,20 +62,20 @@ class FamilySchemaTest(unittest.TestCase):
         # cancellation claiming a restart step: each would be a record whose
         # fields describe a step that did not happen.
         unowned = (
-            {_FAMILY_KEY: _FAMILY.MEASUREMENT, "verdict": LateVerdict.SINGLE},
+            {_FAMILY_KEY: _event_support._FAMILY.MEASUREMENT, "verdict": LateVerdict.SINGLE},
             {
-                _FAMILY_KEY: _FAMILY.FAILURE,
+                _FAMILY_KEY: _event_support._FAMILY.FAILURE,
                 "failure": LateFailure.SNAPSHOT_FAILED,
                 "resource": _support.SNAPSHOT,
             },
             {
-                _FAMILY_KEY: _FAMILY.CANCELLATION,
+                _FAMILY_KEY: _event_support._FAMILY.CANCELLATION,
                 "restart_step": _events.LateRestartStep.PENDING,
             },
-            {_FAMILY_KEY: _FAMILY.MEASUREMENT, "measurement_failure": _STEP},
-            {_FAMILY_KEY: _FAMILY.CANCELLATION, "detail": _SAID},
+            {_FAMILY_KEY: _event_support._FAMILY.MEASUREMENT, "measurement_failure": _STEP},
+            {_FAMILY_KEY: _event_support._FAMILY.CANCELLATION, "detail": _SAID},
             {
-                _FAMILY_KEY: _FAMILY.CANCELLATION,
+                _FAMILY_KEY: _event_support._FAMILY.CANCELLATION,
                 "transfer_proof": _PROOF.PUSHED,
             },
         )
@@ -99,8 +89,8 @@ class FamilySchemaTest(unittest.TestCase):
         # pin, and the member is what tells those apart afterwards. Optional
         # in both directions: most of the vocabulary answers for a step that
         # took no reading at all, and a failure naming none is still a record.
-        described = _failure(measurement_failure=_STEP, detail=_SAID)
-        bare = _failure()
+        described = _event_support._failure(measurement_failure=_STEP, detail=_SAID)
+        bare = _event_support._failure()
 
         self.assertIs(described.measurement_failure, _STEP)
         self.assertEqual(described.detail, _SAID)
@@ -109,8 +99,8 @@ class FamilySchemaTest(unittest.TestCase):
 
     def test_a_missing_required_field_is_refused(self) -> None:
         for family in (
-            _FAMILY.VERDICT, _FAMILY.FAILURE, _FAMILY.SNAPSHOT,
-            _FAMILY.CLEANUP, _FAMILY.RESTART, _FAMILY.TRANSFER,
+            _event_support._FAMILY.VERDICT, _event_support._FAMILY.FAILURE, _event_support._FAMILY.SNAPSHOT,
+            _event_support._FAMILY.CLEANUP, _event_support._FAMILY.RESTART, _event_support._FAMILY.TRANSFER,
         ):
             with self.subTest(family=str(family)), self.assertRaises(_REFUSED):
                 _events.LateEvent(family=family)
@@ -122,7 +112,7 @@ class FamilySchemaTest(unittest.TestCase):
     def test_the_refusal_names_the_family_and_field(self) -> None:
         with self.assertRaisesRegex(_REFUSED, "late_measurement.*failure"):
             _events.LateEvent(
-                family=_FAMILY.MEASUREMENT, failure=LateFailure.RESTART_FAILED,
+                family=_event_support._FAMILY.MEASUREMENT, failure=LateFailure.RESTART_FAILED,
             )
 
 
@@ -132,7 +122,7 @@ class VerdictCompanionTest(unittest.TestCase):
     def test_a_single_verdict_may_explain_itself(self) -> None:
         # The artifact-dominated `single` is the signal the telemetry exists
         # to count, so the verdict that produces it has to be recordable.
-        explained = _support.verdict_event(
+        explained = _event_support.verdict_event(
             verdict=LateVerdict.SINGLE,
             category=_CATEGORY.GENERATED_ARTIFACTS,
         )
@@ -140,24 +130,24 @@ class VerdictCompanionTest(unittest.TestCase):
 
     def test_a_verdict_needs_no_category(self) -> None:
         self.assertIsNone(
-            _support.verdict_event(verdict=LateVerdict.SINGLE).category,
+            _event_support.verdict_event(verdict=LateVerdict.SINGLE).category,
         )
 
     def test_a_question_must_say_what_it_asks_about(self) -> None:
         # The one verdict a category is required of: a question nobody can
         # group is a question nobody can act on.
         with self.assertRaises(_REFUSED):
-            _support.verdict_event(verdict=LateVerdict.QUESTION)
+            _event_support.verdict_event(verdict=LateVerdict.QUESTION)
 
     def test_a_child_count_pairs_only_with_a_split(self) -> None:
         with self.assertRaises(_REFUSED):
-            _support.verdict_event(
+            _event_support.verdict_event(
                 verdict=LateVerdict.QUESTION,
                 category=_CATEGORY.UNSAFE_SPLIT,
                 child_count=_support.CHILD_COUNT,
             )
         with self.assertRaises(_REFUSED):
-            _support.verdict_event(verdict=LateVerdict.SPLIT)
+            _event_support.verdict_event(verdict=LateVerdict.SPLIT)
 
 
 class FailureCompanionTest(unittest.TestCase):
@@ -175,7 +165,7 @@ class FailureCompanionTest(unittest.TestCase):
         for fields in unpaired:
             with self.subTest(fields=sorted(fields)), self.assertRaises(_REFUSED):
                 _events.LateEvent(
-                    family=_FAMILY.FAILURE,
+                    family=_event_support._FAMILY.FAILURE,
                     failure=_UNMEASURED_FAILURE,
                     **fields,
                 )
@@ -185,7 +175,7 @@ class FailureCompanionTest(unittest.TestCase):
         # sentence they were about to tell a human, and that sentence is
         # prose. A line with no step over it is the field it would travel in.
         with self.assertRaises(_REFUSED):
-            _failure(detail=_SAID)
+            _event_support._failure(detail=_SAID)
 
 
 class DetailTypeTest(unittest.TestCase):
@@ -201,13 +191,13 @@ class DetailTypeTest(unittest.TestCase):
         )
         for fields in lookalikes:
             with self.subTest(fields=sorted(fields)), self.assertRaises(_REFUSED):
-                _support.verdict_event(**fields)
+                _event_support.verdict_event(**fields)
 
     def test_prose_cannot_enter_through_a_typed_field(self) -> None:
         # The adversarial case the closed vocabulary exists for: an
         # adjudication's rationale, naming a path, offered as a category.
         with self.assertRaises(_REFUSED):
-            _support.verdict_event(
+            _event_support.verdict_event(
                 verdict=LateVerdict.QUESTION, category=_PROSE,
             )
 
@@ -217,7 +207,7 @@ class DetailTypeTest(unittest.TestCase):
         # comparison and be written verbatim under the field named for it.
         for asked in (str(_STEP), _PROSE):
             with self.subTest(asked=asked), self.assertRaises(_REFUSED):
-                _failure(measurement_failure=asked)
+                _event_support._failure(measurement_failure=asked)
 
     def test_a_detail_must_be_one_bounded_line(self) -> None:
         # The one field no vocabulary closes, so the bound is what stands in
@@ -229,12 +219,12 @@ class DetailTypeTest(unittest.TestCase):
         )
         for said in unbounded:
             with self.subTest(said=said), self.assertRaises(_REFUSED):
-                _failure(measurement_failure=_STEP, detail=said)
+                _event_support._failure(measurement_failure=_STEP, detail=said)
 
     def test_a_count_must_be_a_real_count(self) -> None:
         for counted in (True, 2.5, "4", -1):
             with self.subTest(counted=counted), self.assertRaises(_REFUSED):
-                _support.verdict_event(
+                _event_support.verdict_event(
                     verdict=LateVerdict.SPLIT, child_count=counted,
                 )
 
@@ -252,10 +242,10 @@ class DetailTypeTest(unittest.TestCase):
         )
         for resource in untyped:
             with self.subTest(kind=str(resource.kind)), self.assertRaises(_REFUSED):
-                _support.cleanup_event(resource)
+                _event_support.cleanup_event(resource)
 
     def test_a_typed_resource_is_accepted(self) -> None:
-        recorded = _support.cleanup_event(
+        recorded = _event_support.cleanup_event(
             LateResource(
                 kind=LateResourceKind.BRANCH,
                 target="orchestrator/issue-7",
@@ -279,7 +269,7 @@ class TransferDetailTest(unittest.TestCase):
             "transferred_from_base_sha",
         ):
             with self.subTest(missing=name), self.assertRaises(_REFUSED):
-                _support.transfer_event(**{name: None})
+                _event_support.transfer_event(**{name: None})
 
     def test_an_end_must_be_a_whole_commit(self) -> None:
         # Bounded as a commit rather than as text: an abbreviation names no
@@ -287,12 +277,12 @@ class TransferDetailTest(unittest.TestCase):
         # through a field named for a SHA is exactly what the bound is for.
         for given in (_support.CANDIDATE_SHA[:7], _PROSE, ""):
             with self.subTest(given=given), self.assertRaises(_REFUSED):
-                _support.transfer_event(transferred_from_sha=given)
+                _event_support.transfer_event(transferred_from_sha=given)
 
     def test_its_vocabularies_are_closed(self) -> None:
         for name in ("rewrite_kind", "transfer_proof"):
             with self.subTest(field=name), self.assertRaises(_REFUSED):
-                _support.transfer_event(**{name: _PROSE})
+                _event_support.transfer_event(**{name: _PROSE})
 
 
 class MeasurementFailureEventTest(unittest.TestCase):
@@ -304,7 +294,7 @@ class MeasurementFailureEventTest(unittest.TestCase):
         # `measurement_failed` goes on matching every one of these.
         recorded = _events.measurement_failure_event(_STEP, _SAID)
 
-        self.assertIs(recorded.family, _FAMILY.FAILURE)
+        self.assertIs(recorded.family, _event_support._FAMILY.FAILURE)
         self.assertIs(recorded.failure, LateFailure.MEASUREMENT_FAILED)
         self.assertIs(recorded.measurement_failure, _STEP)
 
