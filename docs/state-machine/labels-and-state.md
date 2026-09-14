@@ -1288,13 +1288,25 @@ The keys that matter for the state machine fall into a few groups:
   go through the same clear — so no road can leave a member behind. That clear is held to the reset LANDING wherever
   one is made: a reset that failed abandoned nothing, and the comment is then the only account of where the checkout
   may be standing, so nothing is dropped and the next tick still has an anchor to come back with.
-  **What is live today is the record, not yet the decisions above.** Every write and the clear are on the running
-  roads: the terms and the anchor go down before `git rebase`, the replay goes down before the dirty check, both
-  finishes mark what they announced, and every ending drops the group. The readings — the three answers, the presence
-  test on the mark — are implemented beside them and consulted by no road yet, so an interrupted attempt is still
-  recovered on the anchor and the divergence counts alone, and a crash between an announcement and its relabel still
-  costs the stream a second `base_rebased` and the pull request a second notice. The keys are written now so that the
-  recovery taught to act on them has a record to act on for attempts that were in flight before it shipped.
+  **What is live today is the record; the decisions above are built and DORMANT.** Every write and the clear are on
+  the running roads: the terms and the anchor go down before `git rebase`, the replay goes down before the dirty
+  check, both finishes mark what they announced, and every ending drops the group. The readings — the three answers,
+  the presence test on the mark — are consulted only by `recovery._recover_vouched_replay_context`, which no
+  production selector reaches, so an interrupted attempt is still recovered on the anchor and the divergence counts
+  alone, and a crash between an announcement and its relabel still costs the stream a second `base_rebased` and the
+  pull request a second notice. What that route decides on them is fixed all the same. An unpublished checkout is
+  classified on the three-valued read: absent falls back to the divergence counts, in flight is proved by what the
+  contribution is — or, past the permit's own grant, by the permission that grant persisted, cross-bound to the
+  anchor, the terms, and the accepted pair before it is called outstanding — and damaged and disowning both park. The
+  terms are held to the publication the tick holds before any road that posts a notice or files an event, forgiving
+  only the `validating` relabel a finish makes beside a mark naming the head in hand. The MARK is read by presence on
+  every road that would push, call an attempt unstarted, or clear one under a relabel: it stands only where a
+  publication landed, and no finish announces the anchor. A checkout back ON the anchor with a replay recorded, a
+  permission unspent, or any mark standing is a rebase something undid, finished as that rollback rather than
+  cleared. Its parks read `auto_base_rebase_push_failed` where the push, the remote, or an announced publication the
+  remote lost is what refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
+  unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand. The keys are
+  written now so that the route, once selected, has a record to act on for attempts that were in flight before it.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since
@@ -2273,7 +2285,11 @@ rather than preserving.
   exemption is already on the head, so one write has finished the transfer and a second claim about it would be a
   second move. *Unvouched*: everything else — a group this build cannot read whole, an exemption CLAIMED and not
   shown, a proof nothing can be reported from, an outstanding permission naming another commit, or one whose lease,
-  publication, stage, digest, accepted pair, or paired debt belongs to some other attempt. Only *unrecorded* is
+  publication, stage, digest, accepted pair, or paired debt belongs to some other attempt — and, with no permission
+  standing at all, a `late_approved_*` debt that is not the one this attempt's own gate records before its push: one
+  naming another commit or another lease, or one this build cannot read back whole. The refresh's freeze lets an
+  approval leased to the anchor through as this attempt's own work, so that debt has to be held to the replay here
+  rather than measured past and overwritten. Only *unrecorded* is
   handed evidence this owner made, and that asymmetry is the safety rule: a grant replaces the whole group rather
   than adding beside it, so assembling a claim over one already standing would repair a record nobody checked under
   the authority of the transfer being decided. A *settled* record whose `late_rewrite_to_sha` is this attempt's own
@@ -2296,10 +2312,20 @@ rather than preserving.
   And whether the record says a replay reached a remote that no longer has it, which a *settled* transfer says
   outright and a whole receipt says for a replay no permit ever licensed: the head they rolled back to is the very
   head a retry would lease its force-push against, so the lease would be satisfied and the rollback would be gone.
-  **None of these readings is on a running road yet.** The publisher's own evidence is — it is what the size gate is
-  handed on every exempt rebase — but the classification, the re-derivation, the accounting, and the rollback answer
-  are consulted by no caller, so an interrupted transfer is still recovered on the anchor and the divergence counts
-  alone. They are written now so the recovery taught to act on them has the whole set to act on.
+  **None of these readings is on a running road yet; the recovery that decides on them is built and DORMANT.** The
+  publisher's own evidence is — it is what the size gate is handed on every exempt rebase — but the classification,
+  the re-derivation, and the rollback answer are consulted only by `recovery._recover_vouched_replay_context`, which
+  no production selector reaches, and the accounting by nothing at all, so an interrupted transfer is still recovered
+  on the anchor and the divergence counts alone. On that route a checkout the pull request is not standing on is
+  classified off the pair of SHAs the attempt recorded — the anchor the remote must still be on, the replay the
+  checkout must still be — and off the handoff above: a *settled* transfer or a whole receipt over a remote that has
+  moved is somebody's rollback and parks, an *unvouched* record parks, and a record that disowns the checkout parks.
+  What is left is licensed by the permit and by nothing else — re-asked over the record where there is one and over
+  the re-derived evidence where the grant never landed, ahead of the gated push rather than through it, with
+  `permit_only` telling the gate the same so a refusal on either side is a refusal rather than a fall-through to the
+  cumulative reading. The rotation is read back past the push, since a permit that stopped holding in between leaves
+  the push landed and the verdict where it was. Every park there that resets is held to the reset landing like any
+  other: a reset git refuses keeps the anchor, the replay, the mark, the permission, and the debt.
 
   `late_rewrite_proof` sits beside that group and deliberately outside it. It records which reading proved the push a
   settlement was taken on had landed — `pushed` for the leased force-push that moved the pull request off the head the
@@ -2322,7 +2348,8 @@ rather than preserving.
   Its LIFECYCLE is live and its readings are not, the same split the attempt record above has. The settlement writes
   the proof and the reporting owner drops it behind the record it feeds, so a comment carries one only inside that
   window — but `unreported_transfer` is consulted by nothing at all and `stranded_transfer_proof` only by the
-  transfer classification above, which is itself consulted by no road, so a process lost inside it still leaves a
+  transfer classification above, which is itself consulted only by the dormant route, so a process lost inside it
+  still leaves a
   settled transfer neither sink hears about. What the durable proof buys today is that the fact is there to report
   from once a reader is taught to look.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,

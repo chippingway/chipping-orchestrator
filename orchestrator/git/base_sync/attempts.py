@@ -253,6 +253,30 @@ def _already_announced(state: PinnedState, local_head: str) -> bool:
     return bool(local_head) and recorded == local_head
 
 
+def _carries_an_announcement(state: PinnedState) -> bool:
+    """Whether a finish on this attempt got as far as announcing something.
+
+    The bare presence of the mark, and it is a fact about the ROUTE rather
+    than about any commit: the key is written between a finish's notice and
+    its relabel and dropped by the write that clears the attempt, so a comment
+    carrying it says the notice went out and the audit event was filed for a
+    publication that had already landed. Which head it names is a separate
+    question, and the two readers below are what ask it.
+
+    That makes this the question a caller asks when what it needs to know is
+    whether the route got that far AT ALL. A road that would push has to,
+    because the remote no longer standing on an announced publication is
+    somebody's rollback -- and one deciding whether an attempt ever started
+    has to, because no finish announces the anchor, so a mark equal to it is a
+    checkpoint something took apart rather than an absence.
+
+    Blanked rather than removed by that clear, like every other field this
+    domain retires, so the key being there with a null under it is the record
+    nobody wrote.
+    """
+    return state.get(_PENDING_ANNOUNCED_SHA) is not None
+
+
 def _foreign_mark(state: PinnedState, local_head: str) -> bool:
     """Whether a mark stands here that does not belong to the head in hand.
 
@@ -268,6 +292,6 @@ def _foreign_mark(state: PinnedState, local_head: str) -> bool:
     happened once, with no way for a reader to tell which of the two describes
     the head the branch ended on.
     """
-    if state.get(_PENDING_ANNOUNCED_SHA) is None:
+    if not _carries_an_announcement(state):
         return False
     return not _already_announced(state, local_head)

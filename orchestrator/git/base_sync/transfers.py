@@ -36,10 +36,11 @@ are closed:
   making a second claim about a transfer one write already finished.
 * `UNVOUCHED` -- a group is standing that this build cannot read whole, one
   claiming a commit that is not the head in hand, or one whose paired debt
-  disagrees with it. Nothing is assembled and nothing is settled, and the
-  caller parks rather than letting the ordinary gate measure a change a human
-  already ruled on -- which is the answer a permission nobody can check has to
-  get.
+  disagrees with it -- or, with no permission standing at all, a debt that is
+  not the one this attempt's own gate records before its push. Nothing is
+  assembled and nothing is settled, and the caller parks rather than letting
+  the ordinary gate measure a change a human already ruled on -- which is the
+  answer a permission nobody can check has to get.
 
 Only `UNRECORDED` is handed fresh evidence, and that asymmetry is the safety
 rule. A grant REPLACES the whole authorization group rather than adding beside
@@ -47,22 +48,34 @@ it, so a caller that assembled a claim of its own over a group already
 standing would repair a record nobody checked, under the authority of the very
 transfer it is in the middle of deciding.
 
-The last three questions here are the ones a road that publishes nothing new
-has to ask. Whether the rewrite the pull request already carries is one this
-comment can ACCOUNT for -- finishing that road clears the recovery anchor, and
-the anchor is the only thing that brings the tick back, so an exemption still
-on the old commit, a debt nothing paid, or a receipt nobody wrote may not be
-walked past however right the remote looks. Whether the record says a replay
-reached a remote that no longer has it, which is somebody's rollback rather
-than this attempt's unfinished push -- the head they rolled back to being the
-very head a retry would lease itself against. And whether a settlement this
-tick asked for actually MOVED the verdict, which the call that asked may not
-take on trust: a permit granted before the gate is re-asked inside it, so a
-push can land with the exemption left where it was.
+The last five questions here are the ones the roads out of a recovery ask.
+Three are about a replay the remote may already have seen. Whether the
+rewrite the pull request already carries is one this comment can ACCOUNT for
+-- finishing that road clears the recovery anchor, and the anchor is the only
+thing that brings the tick back, so an exemption still on the old commit, a
+debt nothing paid, or a receipt nobody wrote may not be walked past however
+right the remote looks. Whether the record says a replay reached a remote that
+no longer has it, which is somebody's rollback rather than this attempt's
+unfinished push -- the head they rolled back to being the very head a retry
+would lease itself against. And whether a settlement this tick asked for
+actually MOVED the verdict, which the call that asked may not take on trust: a
+permit granted before the gate is re-asked inside it, so a push can land with
+the exemption left where it was.
 
-Only the evidence the publisher hands its gate is on a running road. Every
-classification below is consulted by no caller yet and waits for the recovery
-that is taught to decide on it.
+The fourth is the permit itself, re-asked over whichever evidence the recovery
+holds and asked ahead of the gated push rather than through it: the gate
+answers a refusal with the ordinary cumulative reading, which on a road that
+is finishing a publication rather than deciding one either reports a landing
+with the verdict left where it was or sends an adjudicated change into a
+second adjudication. The fifth is the one a road walking AWAY from an attempt
+asks: whether a permission on the comment still says a push is owed.
+
+Only the evidence the publisher hands its gate is on a running road. The
+classification, the re-derivation, the rollback and rotation readings, the
+permit ask, and the mid-transfer question are consulted only by the dormant
+vouched-replay route in ``recovery``, which no production selector reaches
+yet; `_unaccounted_publication` is consulted by nothing and waits for the
+recovery road that finishes a rewrite the pull request already carries.
 
 The counts this carries are what the subject costs rather than a module that
 outgrew itself. One transfer is decided on three records that live a layer
@@ -75,6 +88,7 @@ entitled to would stop being one thing to read.
 """
 from __future__ import annotations
 
+from dataclasses import replace as _replace
 from enum import StrEnum
 
 from orchestrator.git.base_sync.models import (
@@ -274,16 +288,54 @@ def _carried_by(
         exemption as _exemption,
         rewrites as _rewrites,
     )
-    if _exemption.unreadable_exemption(context.state):
-        return _Handoff.UNVOUCHED
-    if _rewrites.stranded_transfer_proof(context.state):
+    if _exemption.unreadable_exemption(context.state) or (
+        _rewrites.stranded_transfer_proof(context.state)
+    ):
         return _Handoff.UNVOUCHED
     standing = _standing_permission(context, local_head)
     if standing is not None:
         return standing
+    if _foreign_debt(context, local_head):
+        return _Handoff.UNVOUCHED
     if _exemption.read_exemption(context.state) is None:
         return _Handoff.NOTHING
     return _Handoff.UNRECORDED
+
+
+def _foreign_debt(
+    context: _AutoRebaseRecoveryContext, local_head: str,
+) -> bool:
+    """Whether a debt with no permission beside it is somebody else's.
+
+    Asked only once no permission stands, because a permission and its debt
+    are one grant and the reader above already holds each to the other. What
+    is left is the debt on its own, and it has one honest shape: the approval
+    the ordinary gate records for THIS replay before its push -- the commit on
+    this checkout, leased to this attempt's anchor, and readable whole. That
+    is exactly the record the refresh's freeze sets aside for its own
+    interrupted work, which is why an approval leased to the anchor reaches a
+    recovery at all.
+
+    Anything else that reaches one is a claim the freeze let through on its
+    lease alone. A debt naming another commit says a push is owed for work
+    this checkout is not, and one whose basis or lease cannot be read cannot
+    say what it is. Read as no transfer, the replay is measured and
+    force-pushed and the gate's own write replaces that debt with one of its
+    own -- overwriting the only account of the push it recorded.
+    """
+    # Lazy for the reason every upward reach in this package is: the debt
+    # sits in the workflow layer above it.
+    from orchestrator.workflow.stages.implementing import late_parks
+    if late_parks._unreadable_approval(context.state):
+        return True
+    owed = late_parks._approved_commit(context.state)
+    if not owed:
+        return False
+    if owed != local_head:
+        return True
+    return late_parks._approved_lease(context.state) != (
+        context.pending_pre_rebase_sha
+    )
 
 
 def _standing_permission(
@@ -468,11 +520,17 @@ def _outstanding_or_unvouched(state: PinnedState, rewrite) -> _Handoff:
 
     Read through the same fail-closed readers the debt's own owner uses: a
     hand-edited value is no approval, which is exactly the disagreement this
-    is looking for.
+    is looking for. Those readers answer for two of the group's three members,
+    so the third is asked by PRESENCE beside them: a debt claiming a basis
+    this build cannot name is a group something took apart, and read as the
+    two members that happen to agree it would license the permit-only push
+    over a record nobody can show whole.
     """
     # Lazy for the reason every upward reach in this package is: the debt
     # sits in the workflow layer above it.
     from orchestrator.workflow.stages.implementing import late_parks
+    if late_parks._unreadable_approval(state):
+        return _Handoff.UNVOUCHED
     owed = late_parks._approved_commit(state) == rewrite.to_sha
     if owed and late_parks._approved_lease(state) == rewrite.lease:
         return _Handoff.OUTSTANDING
@@ -707,3 +765,107 @@ def _rotated_onto(state: PinnedState, local_head: str) -> bool:
     if authorization.rewrite.to_sha != local_head:
         return False
     return _exemption.is_exempt(state, local_head)
+
+
+def _permits_the_publication(
+    context: _AutoRebaseRecoveryContext, local_head: str, rewrite=None,
+) -> bool:
+    """Whether the permit still licenses this recovery to publish.
+
+    Asked BEFORE the gated publication rather than through it, and that is
+    the whole of what makes this road safe. The gate's answer to a permit
+    that declines is the ordinary cumulative reading, which is right for a
+    rebase deciding whether to publish and wrong on a recovery twice over: a
+    count under the ceiling reports a publication landed with the verdict
+    still on the commit a human ruled on, and a count over it routes an
+    adjudicated change into a second adjudication with a pull request already
+    open over the work. There is nothing on this road to decide -- the push
+    the interrupted tick never made is already leased -- so the only question
+    is whether the permission may be spent, and a refusal is a refusal. The
+    gate is told the same thing on the way in, so a permit that stops holding
+    between this ask and its own is refused there rather than measured.
+
+    Asked over the evidence this recovery holds: the record the grant left,
+    where there is one, and otherwise the rewrite re-derived for a grant the
+    crash came before -- which is what `late_transfer` reads when a caller
+    hands in no rewrite of its own. Every term is re-derived there: the
+    publication this call freezes, the one the issue records, the checkout,
+    the lease as an object this host holds, the issue read afresh, and both
+    contributions fingerprinted from the objects themselves. A grant
+    re-writes nothing, since the payload it would stage is the one already on
+    the comment.
+
+    The entry is frozen here for the same reason the permit needs one at all:
+    it is the pull request read this tick, before any effect, and the terms
+    the record claims are checked against it rather than against themselves.
+    """
+    # Lazy for the reason every upward reach in this package is: the permit
+    # and the entry it is asked over sit in the workflow layer above it.
+    from orchestrator.workflow.stages.implementing import (
+        late_overflow as _overflow,
+        late_records as _records,
+        late_transfer as _transfer,
+    )
+    gate = _records._gate(
+        context.gh, context.spec, context.issue, context.state,
+        context.worktree,
+    )
+    entered = _records._Entered(
+        head=context.pending_pre_rebase_sha or "",
+        reconciling=True,
+        candidate=local_head,
+    )
+    entry = _overflow._frozen_entry(gate, entered)
+    if not entry.is_frozen:
+        log.warning(
+            "issue=#%d auto-rebase recovery cannot enter the publication its "
+            "interrupted rewrite was made against (%s); the transfer it owes "
+            "is left standing",
+            context.issue.number, entry.refusal,
+        )
+        return False
+    gate = _replace(
+        gate, entry=entry, candidate=local_head, reconciling=True,
+        rewrite=rewrite,
+    )
+    return bool(_transfer._carried_over(gate, local_head))
+
+
+def _left_mid_transfer(state: PinnedState) -> bool:
+    """Whether a permission on this comment still says a push is owed.
+
+    Asked where a recovery is about to walk away from an attempt rather than
+    finish it, and asked of the record alone: no fetch, no checkout, no
+    comparison -- none of which the caller is on a road to make. What it needs
+    to know is only whether walking away would leave a human's verdict
+    licensed onto a commit no push carried, with the approval debt granted
+    beside it still standing.
+
+    Fail-closed in the same direction every reader of this record is. A group
+    this build cannot read back whole answers yes, because "not shown to be
+    over" is the only reading available to a caller deciding whether it is
+    safe to forget one -- and so does any group beside an exemption the
+    comment claims and cannot show, since nothing can then say which verdict
+    the group is about.
+
+    A group the EXEMPTION has moved past is the one exception, passed over
+    exactly as `_standing_permission` passes it over. A settled rotation is
+    never cleared, so a later adjudication accepting fresh work leaves it
+    describing a commit nothing exempts -- which the fail-closed reader
+    answers with the same bare None a damaged group gets. Read as owed, that
+    history would hold every attempt this issue makes under a relabel, however
+    untouched, in a park nothing it did could release.
+    """
+    # Lazy for the reason every upward reach in this package is: the record
+    # sits in the workflow layer above it.
+    from orchestrator.workflow.late_split import (
+        exemption as _exemption,
+        rewrites as _rewrites,
+    )
+    if not _rewrites.carries_rewrite_authorization(state):
+        return False
+    if _exemption.unreadable_exemption(state):
+        return True
+    if not _rewrites.claims_the_exemption(state):
+        return False
+    return _rewrites.outstanding_permission(state)

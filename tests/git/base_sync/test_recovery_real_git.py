@@ -1,23 +1,38 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Crash recovery against a real repository left mid-rebase."""
+"""Crash recovery against a real repository left mid-rebase.
+
+Both routes, each over the shape it is built for: the running one over a
+commit on top of the anchor, and the dormant vouched-replay one over a real
+replay of the branch -- which it classifies on the record the attempt left,
+since the divergence counts read that replay as an out-of-band update.
+"""
 
 from __future__ import annotations
 
 import unittest
 
+from orchestrator.workflow.stages.implementing import late_parks as _parks
 from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.recovery_git_support import RecoveryGitFixtureMixin
+from tests.git.base_sync.vouched_replay_git_support import (
+    VouchedReplayGitFixtureMixin,
+)
+
+PARK_FAILED = "auto_base_rebase_failed"
+
+# A commit id no object in this repository answers to.
+MISSING_COMMIT = "dead" * 10
 
 
-class RecoveryRealGitTest(RecoveryGitFixtureMixin, unittest.TestCase):
-    """The comparison the routing runs on is the one git itself computed."""
+class _InterruptedRebaseCases:
+    """The four interruptions every recovery route answers the same way."""
 
     def test_unpushed_rebase_is_leased_onto_remote(self) -> None:
         recovered = self.recover()
 
-        # Ahead-only against the freshly fetched remote head, so the recovery
-        # reissues the push the crash interrupted rather than rebasing again.
+        # The remote is still on the anchor, so the recovery reissues the push
+        # the crash interrupted rather than rebasing again.
         self.assertTrue(recovered)
         self.assertEqual(self.push.leases, [self.anchor])
         self.assertEqual(self._remote_head(), self.recovered)
@@ -90,6 +105,111 @@ class RecoveryRealGitTest(RecoveryGitFixtureMixin, unittest.TestCase):
         self.assertIsNone(published.get(fixtures.KEY_PENDING_PUSH_SHA))
         self.assertEqual(self.gh.label_history, [])
         self.assertEqual(self.rebase_events(), [])
+
+
+class RecoveryRealGitTest(
+    _InterruptedRebaseCases, RecoveryGitFixtureMixin, unittest.TestCase,
+):
+    """The comparison the running route runs on is the one git computed."""
+
+
+class VouchedReplayRealGitTest(
+    _InterruptedRebaseCases, VouchedReplayGitFixtureMixin, unittest.TestCase,
+):
+    """The dormant route, over the replay a real `git rebase` leaves."""
+
+    def test_unpushed_rebase_is_leased_onto_remote(self) -> None:
+        # A replay is behind its own publication -- git counts the commit the
+        # remote still carries as one this branch no longer has -- so the
+        # counts alone would read the canonical pre-push recovery as an
+        # out-of-band update and park it. The pair of heads the attempt
+        # recorded is what sees past that.
+        self.assertGreater(self.divergence_from_remote()[1], 0)
+
+        super().test_unpushed_rebase_is_leased_onto_remote()
+
+    def test_a_head_the_record_disowns_is_reset(self) -> None:
+        stranded = self.strand_an_unrelated_head(forget_record=False)
+
+        recovered = self.recover()
+
+        # A rebuilt worktree, an operator's reset, and a branch pointed at
+        # other work all leave this shape and all satisfy the anchor lease.
+        # The record naming some other commit is what refuses it.
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self.assertEqual(self._remote_head(), self.anchor)
+        self.assertNotEqual(stranded, self.anchor)
+        self._assert_parked(PARK_FAILED)
+
+    def test_an_unrecorded_replay_uses_the_counts(self) -> None:
+        self.strand_an_unrelated_head()
+
+        recovered = self.recover()
+
+        # A comment carrying no record of a replay is the one state the
+        # ahead/behind counts still answer for, and a branch with commits the
+        # remote does not have parks rather than force-pushing over them.
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self._assert_parked(fixtures.PARK_PUSH_FAILED)
+
+    def test_a_replay_a_finish_announced_is_reset(self) -> None:
+        # The mark is written past a finish's notice and audit event, so it
+        # stands only where a push had landed. The remote being back on the
+        # anchor is that publication rolled back -- reissuing the push would
+        # overwrite it and announce the same rebase a second time.
+        self._assert_announcement_parks(self.recovered)
+
+    def test_a_mark_naming_another_head_is_reset_too(self) -> None:
+        # A checkpoint something took apart says the route got that far and
+        # nothing more; read as an absence it costs the same second notice.
+        self._assert_announcement_parks(self.anchor)
+
+    def test_its_own_relabel_then_a_rollback_resets(self) -> None:
+        # The finish pushed, announced, and relabelled to `validating` before
+        # the write that clears the attempt, and the remote was rolled back
+        # while the process was down. The relabel is this route's own last
+        # step rather than a stage somebody moved the issue to, so what is
+        # left is the announced publication the remote has lost.
+        self.publish_recovered_head()
+        self.announce_a_finish(self.recovered)
+        self.roll_the_remote_back()
+
+        recovered = self.recover(label=fixtures.VALIDATING)
+
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self.assertEqual(self._remote_head(), self.anchor)
+        self._assert_parked(fixtures.PARK_PUSH_FAILED)
+
+    def test_a_debt_this_attempt_did_not_leave_parks(self) -> None:
+        # Leased to this very anchor, so the refresh's freeze sets it aside as
+        # this attempt's own work -- but it names a commit nothing here made.
+        # Pushed past, the replay goes out and the gate's write replaces the
+        # only record of a push somebody else is owed.
+        state = self.gh.read_pinned_state(self.issue)
+        _parks._approve(
+            state, MISSING_COMMIT, self.anchor,
+            _parks.LateApprovalBasis.UNMEASURED,
+        )
+        self.gh.write_pinned_state(self.issue, state)
+
+        recovered = self.recover()
+
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self._assert_parked(PARK_FAILED)
+
+    def _assert_announcement_parks(self, announced: str) -> None:
+        self.announce_a_finish(announced)
+
+        recovered = self.recover()
+
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self.assertEqual(self._remote_head(), self.anchor)
+        self._assert_parked(fixtures.PARK_PUSH_FAILED)
 
 
 if __name__ == "__main__":

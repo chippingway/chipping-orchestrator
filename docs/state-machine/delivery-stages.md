@@ -1667,7 +1667,12 @@ such pushes and no others:
   are made of;
 - the base-sync auto rebase `git/base_sync/publication._publish_auto_rebase` and its own crash recovery
   `git/base_sync/recovery._retry_recovery_push`, both of which reach the gate through
-  `base_sync/publication._gated_publication()` so the sync layer keeps its call-time hop upward;
+  `base_sync/publication._gated_publication()` so the sync layer keeps its call-time hop upward. The recovery is the
+  one caller that can enter `permit_only`, and only from its DORMANT vouched-replay route, which no production
+  selector reaches yet: for the replay of an adjudicated commit it is finishing a publication rather than deciding
+  one, so the cumulative reading is the wrong answer twice over and `late_gate`'s `_permitted_only` asks the permit
+  and nothing else. A refusal there is handed back as `refused` rather than parked or routed — nothing was measured,
+  nothing was decided — and the recovery resets onto its anchor and parks;
 - and the final documentation pass `documenting/publication._push_docs_and_advance`.
 
 One more seam pushes without measuring, and it skips the reading for a reason and nothing else beside it.
