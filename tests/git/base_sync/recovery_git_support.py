@@ -9,12 +9,12 @@ unnoticed. These fixtures therefore build an actual bare remote and clone and
 stub only the two network hops, so the branch state each scenario asserts on
 is the one git itself computed.
 
-Two shapes, one per route. The running recovery reads the divergence counts,
-so its fixture leaves a commit on top of the anchor -- the ahead-only shape it
-reissues a push on. The dormant vouched-replay route exists for the shape a
-real `git rebase` leaves, which those counts read as divergence, so the
-builder here can replay the branch onto an advanced base instead, and
-``vouched_replay_git_support`` enters that route over it.
+Two shapes. The plain one leaves a commit on top of the anchor -- the
+ahead-only shape the divergence counts alone would reissue a push on. The
+other is the shape a real `git rebase` leaves, which those counts read as
+divergence, so the builder here can replay the branch onto an advanced base
+instead, and ``vouched_replay_git_support`` recovers over it on the record
+the attempt left.
 """
 
 from __future__ import annotations

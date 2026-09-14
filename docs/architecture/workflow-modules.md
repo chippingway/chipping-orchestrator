@@ -103,7 +103,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;
                             an implementing plan PR does not prove that implementation work ended
     dispatch_guards.py      pinned-state admission, restart before cancellation, publication reconciliation, and
-                            operator controls; an already-pinned unlabeled issue is left where its labels put it
+                            operator controls; an already-pinned unlabeled issue is left where its labels put it.
+                            A standing auto-rebase anchor holds the handler, on the adjudication's own road too,
+                            and is asked again behind the reconciliation; whether it holds and what a held tick
+                            is owed are `base_sync/recovery_holds.py`'s
     poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup;
                             a failed label read reaches per-issue exception isolation through the family bucket
     dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and preserve

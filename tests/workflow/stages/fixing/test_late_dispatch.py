@@ -65,6 +65,13 @@ WORKTREE_PATH = "_worktree_path"
 MOVED_CANDIDATE = "ef" * (SHA_LENGTH // 2)
 AWAITING_HUMAN = fixing.AWAITING_HUMAN
 
+# The anchor an auto rebase pins before git runs, which its own recovery is
+# the only road that ends.
+KEY_ANCHOR = "pending_auto_base_rebase_push_sha"
+
+# A stage the refresh drives, which is the only kind an auto rebase pins one on.
+ANCHORED_STAGE = _workflow_state.WorkflowLabel.VALIDATING
+
 # What a reading nobody could take left behind, for the tick that takes it.
 _MEASUREMENT_PARK = ((AWAITING_HUMAN, True), (PARK_REASON, PARK_MEASUREMENT_FAILED))
 
@@ -313,6 +320,55 @@ class FrozenPairReconciliationTest(unittest.TestCase, _FrozenPairMixin):
         pinned = github.pinned_data(ISSUE)
         self.assertEqual(pinned[KEY_CANDIDATE_SHA], MEASURED_CANDIDATE_SHA)
         self.assertEqual(pinned[PARK_REASON], PARK_MEASUREMENT_FAILED)
+
+
+class AnchoredPairTest(unittest.TestCase, _FrozenPairMixin):
+    """A pair an auto rebase froze on its own replay, beside its anchor."""
+
+    def test_the_published_pair_still_holds_the_tick(self) -> None:
+        # The rebase died before the count, so both records stand. The pair's
+        # freeze lets the reconciliation run and its leased push lands -- but
+        # the anchor is still pinned, and the handler behind would run before
+        # the recovery that finalizes the replay. The tick stops there, and
+        # the anchor is left for the refresh to answer.
+        anchored, anchored_issue = self._frozen(
+            label=ANCHORED_STAGE, stage=ANCHORED_STAGE,
+        )
+        self._pins_the_anchor(anchored, anchored_issue)
+
+        stage_handler, patched = self._route(
+            anchored, anchored_issue, handled=ANCHORED_STAGE,
+        )
+
+        patched[PUSH_BRANCH].assert_called_once()
+        stage_handler.assert_not_called()
+        self.assertEqual(
+            anchored.pinned_data(ISSUE)[KEY_ANCHOR], fixing.PR_HEAD_SHA,
+        )
+
+    def test_an_oversized_generation_holds_decomposer(self) -> None:
+        # Measured past the ceiling, the generation is the adjudication's to
+        # decide, and the reconciliation ahead of the decomposer leaves it
+        # standing -- so the anchor is asked on that road too, and the tick
+        # stops before a decomposer is spawned over an unpublished replay.
+        decomposing = _workflow_state.WorkflowLabel.DECOMPOSING
+        oversized, oversized_issue = self._frozen(
+            label=decomposing, additions=PAST_THE_CEILING,
+        )
+        self._pins_the_anchor(oversized, oversized_issue)
+
+        decomposer, spawned = self._route(
+            oversized, oversized_issue, handled=decomposing,
+        )
+
+        decomposer.assert_not_called()
+        spawned[RUN_AGENT].assert_not_called()
+
+    def _pins_the_anchor(self, github, issue) -> None:
+        """Leave the anchor the rebase pinned before git ran."""
+        state = github.read_pinned_state(issue)
+        state.set(KEY_ANCHOR, fixing.PR_HEAD_SHA)
+        github.write_pinned_state(issue, state)
 
 
 class ParkedPairPollTest(unittest.TestCase, _FrozenPairMixin):

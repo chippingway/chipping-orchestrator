@@ -305,9 +305,22 @@ measured commit and
 leased against that frozen head; a tree that is not provably clean, an unreadable or closed pull request, and a head
 that moved off the frozen one each park rather than push. A pair frozen and never counted is measured ahead of the
 handler on the next tick, by the dispatcher, on the stage the record names — and one whose checkout is not on this
-host stops the tick instead of letting the stage run over a candidate nobody read. Both roads that reconciliation
-takes end in a push, so an issue that is closed and a pull request that has merged or been closed are each handed back
-to the stage terminal ahead of it, with the generation, the receipt and the debt left exactly as they stand. Work that
+host stops the tick instead of letting the stage run over a candidate nobody read. An auto-rebase anchor still
+standing — a failed base fetch or a pull request that would not read returns before its recovery runs — holds the
+handler back the same way, unless a hard-skip or a late claim the reconciliation answers — a frozen pair, an approved
+push — keeps the refresh away, since that is not released by the refresh — and it is asked again once the
+reconciliation has run, so a claim it spends leaves the anchor holding the tick. Every other record and park the
+refresh freezes on holds: a stage's handler takes its park down on a reply and runs on into the agent it was holding
+back, and a timeout, a reading nobody could take, or a collapse mid-rewrite is likewise ended by a handler the hold
+keeps back. So beside an anchor none of them keeps the refresh away, and the refresh answers the anchor under them
+with the recovery alone, no reply spent, leaving each for its owner. On a label the
+refresh does not drive, read-only stages included, the dispatcher answers the anchor itself on the refresh's
+ineligible road — a clear, or the stranded park — and holds the handler until the record ends. On one it drives, a
+checkout whose HEAD names a commit nothing can read stays held until the refresh has reset and parked it, and one
+that is not on disk is restored, so the next refresh walks it.
+Both roads that reconciliation takes end in a push, so an issue that is closed and a pull request that has merged or
+been closed are each handed back to the stage terminal ahead of it, with the generation, the receipt and the debt left
+exactly as they stand. Work that
 ends *after* the gate has read it — a close a poll latched, or a pull request somebody merged or closed in the window
 behind the entry freeze, whose branch is still at the head this tick froze so the lease would succeed — is refused
 immediately before the push itself; the initial publication and the push a settled adjudication makes from

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Publish the verified recovery head and account for its exact outcome.
 
-The running recovery uses the measured gate. The dormant replay route may
+An ordinary recovery uses the measured gate. A replay carrying a verdict may
 supply transfer evidence and require a permit-only push, rechecking the permit
 inside the gate and the verdict's rotation after publication. A refusal never
 falls through to measurement, and a held tick does not finalize twice.
@@ -75,10 +75,6 @@ def _retry_recovery_push(
     not a way of establishing whose it is. A permission this route's own grant
     already persisted is that evidence rather than the absence of it, so it
     licenses the road exactly as the re-derived rewrite does.
-
-    Both are the dormant route's to pass. The running route hands in neither,
-    and with neither the transfer is `NOTHING`, nothing is re-derived, and the
-    push is the measured one described first.
     """
     dirty_files = _worktree_status._worktree_dirty_files(context.worktree)
     if dirty_files:

@@ -317,14 +317,20 @@ orchestrator/
       refresh.py        the authenticated base fetch, the walk of the repository's worktrees root that hands
                         each entry to the selection owner below, the scheduler-active guard that keeps a
                         worktree out from under a live worker, the dirty-tree refusal a pre-PR rebase owes,
-                        the base-lag probe, and the pre-PR versus PR-aware route
+                        the base-lag probe, and the pre-PR versus PR-aware route -- including the one road a lag
+                        that cannot be counted does not end: over a pinned auto-rebase anchor it is itself the
+                        answer, and the checkout is reset and parked rather than left for a handler the
+                        dispatcher holds back
       refresh_selection.py
                         which discovered directories name an issue, whether that issue reads at all, and the
                         order the refusals that end a sync before any rewrite are asked in: the hard-skip, the
                         records the `frozen` owner answers for, the read-only stages and the parks they leave
                         behind, and last -- because it is the only one that costs a read of the checkout -- the
                         commit a stage still owes a step, which is also where the label scope on the two
-                        freezes no write ever ends is applied
+                        freezes no write ever ends is applied. Beside an auto-rebase anchor only the late claims
+                        the reconciliation answers freeze the walk and a read-only park is set aside: the
+                        dispatcher holds every handler that would end the rest, so none of them may freeze the
+                        recovery out as well
       frozen.py         which records hold a checkout still and what ends each freeze: the ones that freeze a
                         branch by their presence -- the late reading, the approval, and the terms of a squash
                         mid-rewrite among them, each read as the whole GROUP its write puts down rather than as
@@ -342,9 +348,12 @@ orchestrator/
                         commit not yet made), and the two no write ever ends (the accepted commit and the
                         published one), which freeze only while the checkout still stands on the commit they
                         name and only while the stage that has to act on it still holds the issue
-      eligibility.py    the label, park, open-PR, recovery, and clean-tree gates one PR sync clears
+      eligibility.py    the label, park, open-PR, recovery, and clean-tree gates one PR sync clears, and whether a
+                        park a stage left still owes a standing anchor its recovery
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
-      pr.py             the order a PR-having worktree's gates, rebase, and publication are asked in
+      pr.py             the order a PR-having worktree's gates, rebase, and publication are asked in, the
+                        recovery alone an anchor a stage's park stands over is answered with, and the same gates
+                        in front of the abort a checkout whose lag cannot be counted takes
       startup.py        the pre-rebase HEAD guard, and the anchor and the attempt's terms persisted before git
                         runs
       attempts.py       the replay and announcement checkpoints, their presence checks, and the whole-record
@@ -380,20 +389,20 @@ orchestrator/
                         transfer reading passes over settled history when deciding whether an attempt can be cleared
       transfer_permits.py
                         freeze the current publication entry and ask its transfer permit ahead of a recovered push;
-                        the dormant replay route requires the same permit again inside the publication gate
+                        the replay recovery requires the same permit again inside the publication gate
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
                         with
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals
       snapshot.py       the branch fetch, the local / remote head reads and divergence counts, and the abort an
                         unreadable one takes
-      recovery.py       the running crash-recovery coordinator: clear an ineligible label, hand back an unmoved
-                        checkout, recognize a published head, then check divergence before retrying. Its keyword
-                        adapter binds the caller's arguments into the recovery context
+      recovery.py       the crash-recovery entry the refresh calls: its keyword adapter binds the caller's
+                        arguments, the attempt record included, into the recovery context and enters
+                        `replay_recovery`
       recovery_push.py  the shared dirty-guarded retry, bound to the exact verified checkout. Ordinary recovery uses
-                        the measured gate; dormant replay recovery may require a transfer permit before and inside
+                        the measured gate; a replay carrying a verdict may require a transfer permit before and inside
                         the gate, then verify that the verdict rotated before finalizing the push
       replay_recovery.py
-                        the dormant record-based coordinator; no production selector enters it. Label and unmoved
+                        the record-based coordinator the refresh enters through `recovery`. Label and unmoved
                         cleanup precede comparison, a published head precedes retry checks, and proven replay evidence
                         precedes the divergence fallback
       replay_cleanup.py the clear-or-park decision for an ineligible label or a checkout back on the anchor. Records
@@ -401,7 +410,7 @@ orchestrator/
       replay_evidence.py
                         pure readings tying the checkout and recorded publication to this attempt, including the
                         grant-vouched window before a replay head was recorded and the finish's own relabel
-      replay_refusals.py the ordered preflight before a dormant replay retry: foreign publication, announcement,
+      replay_refusals.py the ordered preflight before a replay retry: foreign publication, announcement,
                         rollback, unvouched transfer, and unclaimed checkout. Every refusal stays ahead of publication
       outcomes.py       ordinary recovery's already-published, unknown-comparison, diverged, dirty, and failed-push
                         answers; successful notices are formatted by recovery_notices
@@ -414,6 +423,13 @@ orchestrator/
       replay_publication_parks.py
                         keep the checkout and pinned evidence when the issue's publication or label changed; a
                         stranded park is recorded once so repeated ticks do not advance the reply watermark
+      recovery_holds.py
+                        what no recovery road reaches: the reset and park over a checkout whose base lag cannot
+                        be counted, and the dispatch hold -- whether a standing anchor keeps a stage handler back,
+                        which every label the refresh does not drive does, and one it drives does unless a late
+                        claim the reconciliation answers freezes the refresh out -- with a missing checkout
+                        restored where the refresh drives the label and the ineligible answer taken where it does
+                        not
       persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the
@@ -847,9 +863,8 @@ off a facade:
   `runtime/exclusion.py`, it claims the host against processes no scheduler hold can see.
 - `base_sync/` — `models` and `state` carry only data. On the sync side `refresh` calls `refresh_selection` before
   `pre_pr` and `pr`, `refresh_selection` asks `frozen` alone, `pr` asks `eligibility`, `startup`, and `publication` in
-    that order, and `guards` ends in `persistence`. On the running recovery side `recovery` calls `snapshot`,
-  `outcomes`, and
-  `recovery_push`. The dormant `replay_recovery` coordinator uses `replay_cleanup` before comparison, then
+    that order, and `guards` ends in `persistence`. On the recovery side `recovery` enters `replay_recovery`,
+  which uses `replay_cleanup` before comparison, then
   `replay_refusals` and `replay_evidence` before selecting that shared push. Its refusal owners separate checkout
   rollback, publication identity, and transfer accounting. `recovery_push` coordinates the gate and `persistence`
     finalization, and `transfer_permits` freezes the entry for the permit it re-asks. `attempts` is under both: it
@@ -858,6 +873,8 @@ off a facade:
   `attempt_records` owns interrupted-replay validation; `recovery_notices` delivers the notice and audit event in
   the order `persistence` coordinates with its checkpoint and routing. `transfer_evidence` assembles the rewrite
   the publisher or recovery hands to the size gate. `transfers` classifies the interrupted permission through
-  `transfer_attempts` and `transfer_publication`, using the bounded handoff values in `transfer_values`. The three
-  keyword-call adapters — the PR sync, the conflict route, and the crash recovery — still take the argument lists
-  their callers spell and normalize each into the typed context entry point beside it.
+  `transfer_attempts` and `transfer_publication`, using the bounded handoff values in `transfer_values`.
+  `recovery_holds` reads the refusals the dispatch hold releases for off `refresh_selection` and `frozen`, and
+  answers a held anchor through `replay_cleanup` and `replay_publication_parks`. The three keyword-call adapters — the
+  PR sync, the conflict route, and the crash recovery — still take the argument lists their callers spell and
+  normalize each into the typed context entry point beside it.

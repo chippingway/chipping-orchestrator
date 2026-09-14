@@ -1,8 +1,8 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Coordinate the dormant vouched-replay recovery in its required decision order.
+"""Coordinate the vouched-replay recovery in its required decision order.
 
-No production selector enters this route. It checks label and unmoved-head
+The refresh enters it through `recovery`. It checks label and unmoved-head
 cleanup before comparison, recognizes a published head before considering a
 retry, and refuses foreign publication, prior announcement, rollback, damaged
 transfer, and unclaimed checkout in that order. Only then may recorded or
@@ -31,21 +31,18 @@ from orchestrator.git.base_sync.state import _PR_REFRESH_DETOUR_LABELS
 def _recover_vouched_replay_context(
     context: _AutoRebaseRecoveryContext,
 ) -> bool:
-    """Route an interrupted auto-rebase on the record it left -- DORMANT.
+    """Route an interrupted auto-rebase on the record it left.
 
-    The three steps of ordinary recovery, in the same order, each answered by
-    what the attempt and its transfer left rather than by the label, HEAD, and
-    the counts alone: an ineligible label keeps any record a clear would
-    strand, an unmoved HEAD is the shortcut only for an attempt that never
-    started, and a checkout the pull request is not standing on is classified
-    off the pair of SHAs the attempt recorded and how far the transfer beside
-    them got.
+    Three steps, in order, each answered by what the attempt and its transfer
+    left rather than by the label, HEAD, and the counts alone: an ineligible
+    label keeps any record a clear would strand, an unmoved HEAD is the
+    shortcut only for an attempt that never started, and a checkout the pull
+    request is not standing on is classified off the pair of SHAs the attempt
+    recorded and how far the transfer beside them got.
 
-    No production selector calls this. The refresh enters `recovery` and
-    nothing else, so this road, the permit-only push behind it, and every park
-    it adds are reached by their own tests alone, and wait for the change that
-    selects them. `context.pending_rewrite` is read here and nowhere on the
-    running route, which is why the caller has to supply it.
+    The refresh reaches this through `recovery`, and `context.pending_rewrite`
+    is what the eligibility gate read off the pinned comment for it -- the
+    attempt record every classification here turns on.
     """
     if context.label not in _PR_REFRESH_DETOUR_LABELS:
         return _replay_cleanup._answers_an_ineligible_label(context)

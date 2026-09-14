@@ -4,7 +4,7 @@
 
 Publication identity, an existing announcement, rollback, transfer integrity,
 and checkout ownership are checked in that order. This preflight serves the
-dormant replay coordinator and keeps every refusal ahead of the shared push.
+replay coordinator and keeps every refusal ahead of the shared push.
 """
 from __future__ import annotations
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Decide whether a relabelled or unmoved replay attempt can be cleared.
 
-The dormant replay route asks these questions before comparing or publishing.
+The recovery asks these questions before comparing or publishing.
 An untouched anchor can be dropped; a recorded replay, announcement, or
 unspent transfer requires reconciliation without silently losing its record.
 """

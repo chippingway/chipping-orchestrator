@@ -16,11 +16,14 @@ from orchestrator.git.base_sync import (
     persistence,
     recovery,
     recovery_push as _recovery_push,
-    replay_cleanup as _replay_cleanup,
+    replay_publication_parks as _replay_publication_parks,
     replay_recovery as _replay_recovery,
     snapshot,
 )
-from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.verification import (
+    probes as _probes,
+    status as _worktree_status,
+)
 from tests.git.base_sync import base_sync_helpers as fixtures
 from tests.git.base_sync.gate_reads_support import _gate_candidates, _gate_reads
 from tests.git.base_sync.refresh_test_support import MOVED_CHECKOUT_SHA
@@ -33,7 +36,7 @@ CLEAR_INELIGIBLE = "_clear_ineligible_recovery"
 
 CLEAR_UNCHANGED = "_clear_unchanged_recovery"
 
-ROUTE_SNAPSHOT = "_route_recovery_snapshot"
+ROUTE_SNAPSHOT = "_route_vouched_snapshot"
 
 RETRY_PUSH = "_retry_recovery_push"
 
@@ -43,19 +46,9 @@ PUSH_BRANCH = "_push_branch"
 
 DIRTY_FILES = "_worktree_dirty_files"
 
-# Every road of the dormant vouched-replay route a running selector could
-# reach it through, with each defining owner as the patch target.
-_VOUCHED_ROADS = MappingProxyType({
-    "_recover_vouched_replay_context": _replay_recovery,
-    "_answers_an_ineligible_label": _replay_cleanup,
-    "_finish_an_unmoved_head": _replay_cleanup,
-    "_route_vouched_snapshot": _replay_recovery,
-    "_route_an_unpublished_head": _replay_recovery,
-})
+HEAD_SHA = "_head_sha"
 
-# A changed head strictly ahead of the remote it was compared against, which
-# is the one comparison the running route reissues a push over.
-_MOVED_AHEAD = fixtures._snapshot(ahead=1)
+STRANDED = "_park_stranded_recovery"
 
 PUSHED_METHOD = "crash_recovery_pushed"
 
@@ -101,7 +94,7 @@ _OWNERS = MappingProxyType(
         CLEAR_UNCHANGED: snapshot,
         COMPLETE_SNAPSHOT: snapshot,
         FETCH_SNAPSHOT: snapshot,
-        ROUTE_SNAPSHOT: recovery,
+        ROUTE_SNAPSHOT: _replay_recovery,
     },
 )
 
@@ -235,7 +228,7 @@ class RecoveryRouteTest(unittest.TestCase):
 
         with _routed(
             **{CLEAR_INELIGIBLE: cleared, FETCH_SNAPSHOT: fetch},
-        ):
+        ), self._standing_on(fixtures.PRE_REBASE_SHA):
             recovered = recovery._recover_pending_auto_base_rebase_context(
                 self._relabelled(context),
             )
@@ -301,42 +294,29 @@ class RecoveryRouteTest(unittest.TestCase):
 
         self.assertIs(route.call_args.args[1], moved)
 
-    def test_the_vouched_route_is_never_selected(self) -> None:
-        # That route is dormant. Every shape this one is handed -- a relabel,
-        # an unmoved head, a changed one -- is answered on its own roads, and
-        # the push it reaches hands in no transfer, so nothing it does can
-        # enter the gate permit-only.
-        dormant = {name: MagicMock() for name in _VOUCHED_ROADS}
-        retried = _handled()
-        context = fixtures._recovery_context()
+    def test_an_ineligible_label_keeps_a_replay(self) -> None:
+        # The checkout has moved off the anchor and no road under this label
+        # will ever classify it, so the record a clear would strand is kept
+        # and a human is asked instead.
+        cleared = _handled()
+        parked = _handled()
 
-        with self._vouched_roads_replaced(dormant, retried):
-            for routed in (self._relabelled(context), context, context):
-                recovery._recover_pending_auto_base_rebase_context(routed)
+        with _routed(**{CLEAR_INELIGIBLE: cleared}), self._standing_on(
+            MOVED_CHECKOUT_SHA,
+        ), patch.object(_replay_publication_parks, STRANDED, parked):
+            recovery._recover_pending_auto_base_rebase_context(
+                self._relabelled(fixtures._recovery_context()),
+            )
 
-        for road in dormant.values():
-            road.assert_not_called()
-        self.assertEqual(retried.call_args.args, (context, _MOVED_AHEAD))
-        self.assertEqual(retried.call_args.kwargs, {})
+        parked.assert_called_once()
+        cleared.assert_not_called()
 
     @contextlib.contextmanager
-    def _vouched_roads_replaced(self, dormant: dict, retried: MagicMock):
-        """Stand doubles in for the vouched roads and the running route's reads.
-
-        The fetch answers an unmoved head first and a changed one second, in
-        the order the test walks the shapes after the relabel.
-        """
-        unmoved = fixtures._snapshot(local_head=fixtures.PRE_REBASE_SHA)
-        with contextlib.ExitStack() as stack:
-            for name, road in dormant.items():
-                stack.enter_context(patch.object(_VOUCHED_ROADS[name], name, road))
-            stack.enter_context(patch.object(_recovery_push, RETRY_PUSH, retried))
-            stack.enter_context(_routed(**{
-                CLEAR_INELIGIBLE: _handled(),
-                CLEAR_UNCHANGED: MagicMock(return_value=False),
-                FETCH_SNAPSHOT: MagicMock(side_effect=[unmoved, _MOVED_AHEAD]),
-                COMPLETE_SNAPSHOT: MagicMock(return_value=_MOVED_AHEAD),
-            }))
+    def _standing_on(self, head_sha: str):
+        """Answer the local head read the ineligible road takes for itself."""
+        with patch.object(
+            _probes, HEAD_SHA, MagicMock(return_value=head_sha),
+        ):
             yield
 
     def _relabelled(self, context):
@@ -356,7 +336,7 @@ class RecoveryComparisonTest(unittest.TestCase):
         with _routed(
             **{COMPLETE_SNAPSHOT: MagicMock(return_value=None)},
         ):
-            routed = recovery._route_recovery_snapshot(
+            routed = _replay_recovery._route_vouched_snapshot(
                 fixtures._recovery_context(), fixtures._snapshot(),
             )
 
@@ -369,7 +349,7 @@ class RecoveryComparisonTest(unittest.TestCase):
             **{COMPLETE_SNAPSHOT: MagicMock(return_value=completed)},
         ):
             self.assertTrue(
-                recovery._route_recovery_snapshot(
+                _replay_recovery._route_vouched_snapshot(
                     fixtures._recovery_context(), fixtures._snapshot(),
                 ),
             )

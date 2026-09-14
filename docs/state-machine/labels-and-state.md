@@ -1253,8 +1253,27 @@ The keys that matter for the state machine fall into a few groups:
   `_rebase_base_into_worktree`; cleared on every exit that leaves the branch where the attempt found it. A non-empty
   value on entry means a previous tick rebased and died
   before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
-  head, or park as `auto_base_rebase_push_failed`. It is also what tells the approval that interrupted attempt wrote
-  from a stage's, so the refresh is not frozen out of finishing its own route (see [Base refresh](#base-refresh)).
+  head, or park, on the record described below. While it stands, the dispatcher holds the stage handler back
+  (`recovery_holds._recovery_holds_dispatch`): a refresh that could not reach the recovery — a failed base fetch, a
+  pull request that would not read — would otherwise hand a reviewer, a developer, or a decomposer a replay no push
+  has published. On a label the refresh does not drive — the read-only stages it skips and a generation an
+  adjudication is still deciding included — nothing is waited on: the dispatcher takes the refresh's own ineligible
+  road itself, a clear or the stranded park, and over a checkout that is not on disk goes straight to the park, since
+  no reading of where the branch stands can be taken. The stranded park asks for the label back and a reply both,
+  since that park is the refresh's own and a relabel alone never releases it. On a label the refresh drives, the hold
+  is lifted only for a late claim the reconciliation answers — a frozen pair, an approved push — since that freezes
+  the refresh out and the reconciliation is what ends it, and it is asked again once the reconciliation has run, so a
+  claim it spends leaves the anchor holding the tick. Every other record and park holds, since each is ended by a
+  stage handler the hold keeps back: a park some stage left is taken down on a reply by a handler that runs on into
+  the agent it was holding back, and a timeout, a reading nobody could take, a read-only baseline, or a collapse
+  mid-rewrite is ended the same way. Beside an anchor none of them freezes the refresh out, so it answers the anchor
+  under them with the recovery alone — no reply spent, no rebase of its own started — and a finish leaves each where
+  its owner put it. A checkout whose HEAD names a commit this store cannot read is held until the refresh has
+  answered it — a base lag it cannot count over a pinned anchor is reset and parked, trusting no comparison of what
+  the attempt left, and a reset git refuses keeps every record — and one that is not on disk is restored for the
+  next refresh to walk, since the handler that would recreate it rebuilds it from the local branch, which may still
+  be the unpublished replay. The anchor is also what tells the approval that interrupted attempt wrote from a
+  stage's, so the refresh is not frozen out of finishing its own route (see [Base refresh](#base-refresh)).
   `pending_auto_base_rebase_rewrite_pr` + `pending_auto_base_rebase_rewrite_stage` — the TERMS of the same attempt,
   written in the anchor's own statement, before `git rebase` is allowed to touch the branch. They say which
   publication the attempt was made for, which is not a thing the anchor can prove: read off the issue on the tick
@@ -1293,13 +1312,10 @@ The keys that matter for the state machine fall into a few groups:
   go through the same clear — so no road can leave a member behind. That clear is held to the reset LANDING wherever
   one is made: a reset that failed abandoned nothing, and the comment is then the only account of where the checkout
   may be standing, so nothing is dropped and the next tick still has an anchor to come back with.
-  **What is live today is the record; the decisions above are built and DORMANT.** Every write and the clear are on
-  the running roads: the terms and the anchor go down before `git rebase`, the replay goes down before the dirty
-  check, both finishes mark what they announced, and every ending drops the group. The readings — the three answers,
-  the presence test on the mark — are consulted only by `replay_recovery._recover_vouched_replay_context`, which no
-  production selector reaches, so an interrupted attempt is still recovered on the anchor and the divergence counts
-  alone, and a crash between an announcement and its relabel still costs the stream a second `base_rebased` and the
-  pull request a second notice. What that route decides on them is fixed all the same. An unpublished checkout is
+  **The whole record is live: every write, the clear, and the readings.** The terms and the anchor go down before
+  `git rebase`, the replay goes down before the dirty check, both finishes mark what they announced, and every ending
+  drops the group; the three answers and the presence test on the mark are what `_recover_pending_auto_base_rebase`
+  decides on. An unpublished checkout is
   classified on the three-valued read: absent falls back to the divergence counts, in flight is proved by what the
   contribution is — or, past the permit's own grant, by the permission that grant persisted, cross-bound to the
   anchor, the terms, and the accepted pair before it is called outstanding — and damaged and disowning both park. The
@@ -1314,8 +1330,9 @@ The keys that matter for the state machine fall into a few groups:
   it is never cleared, and read as one it would strand every untouched attempt the issue makes. Its parks read
   `auto_base_rebase_push_failed` where the push, the remote, or an announced publication the remote lost is what
   refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
-  unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand. The keys are
-  written now so that the route, once selected, has a record to act on for attempts that were in flight before it.
+  unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand. What no road
+  reads yet is a mark over a remote that KEPT the publication, so a crash between an announcement and its relabel
+  there still costs the stream a second `base_rebased` and the pull request a second notice.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since
@@ -2334,12 +2351,11 @@ rather than preserving.
   And whether the record says a replay reached a remote that no longer has it, which a *settled* transfer says
   outright and a whole receipt says for a replay no permit ever licensed: the head they rolled back to is the very
   head a retry would lease its force-push against, so the lease would be satisfied and the rollback would be gone.
-  **None of these readings is on a running road yet; the recovery that decides on them is built and DORMANT.** The
-  publisher's own evidence is — it is what the size gate is handed on every exempt rebase — but the classification,
-  the re-derivation, and the rollback answer are consulted only by `replay_recovery._recover_vouched_replay_context`,
-  which
-  no production selector reaches, and the accounting by nothing at all, so an interrupted transfer is still recovered
-  on the anchor and the divergence counts alone. On that route a checkout the pull request is not standing on is
+  **Every one of these readings but the accounting is on a running road.** The publisher's own evidence is what the
+  size gate is handed on every exempt rebase, and the classification, the re-derivation, and the rollback answer are
+  what the crash recovery the refresh enters decides on; the accounting is consulted by nothing yet, and belongs to
+  the road that finishes a rewrite the pull request already carries. On the recovery, a checkout the pull request is
+  not standing on is
   classified off the pair of SHAs the attempt recorded — the anchor the remote must still be on, the replay the
   checkout must still be — and off the handoff above: a *settled* transfer or a whole receipt over a remote that has
   moved is somebody's rollback and parks, an *unvouched* record parks, and a record that disowns the checkout parks.
@@ -2368,13 +2384,13 @@ rather than preserving.
   the permission it described, and a fresh grant drops it with the transfer it replaces, since the phase going back to
   `authorized` is what would leave it unreadable beside the new one.
 
-  Its LIFECYCLE is live and its readings are not, the same split the attempt record above has. The settlement writes
-  the proof and the reporting owner drops it behind the record it feeds, so a comment carries one only inside that
-  window — but `unreported_transfer` is consulted by nothing at all and `stranded_transfer_proof` only by the
-  transfer classification above, which is itself consulted only by the dormant route, so a process lost inside it
-  still leaves a
-  settled transfer neither sink hears about. What the durable proof buys today is that the fact is there to report
-  from once a reader is taught to look.
+  Its LIFECYCLE is live and so is its presence reading; its REPORT is not. The settlement writes the proof and the
+  reporting owner drops it behind the record it feeds, so a comment carries one only inside that window.
+  `stranded_transfer_proof` is read on the recovery's own road, through the transfer classification above, and
+  `unreported_transfer` only inside it — as the test of whether a proof names a report still owed. Neither is read
+  for the report itself: the classification answers a stranded proof *unvouched*, which is a park rather than a
+  record, so a process lost inside that window still leaves a settled transfer neither sink hears about. What the
+  durable proof buys today is that the fact is there to report from once a reporting road is taught to look.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,
   `late_override_fingerprint`, `late_override_fingerprint_format`, `late_override_additions`,
   `late_override_threshold`, and `late_override_comment_id` are the terms an operator authorized one oversized

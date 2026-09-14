@@ -8,8 +8,8 @@ That is the whole point of doing it here: what licenses the reissued push is
 the claim that the replay contributes what the adjudication accepted, and the
 only way to hold this domain to it is to let a real `git rebase` produce the
 replay and let the digest be taken over what git actually wrote. Every case
-enters the dormant vouched-replay route directly, since no production selector
-reaches it yet.
+enters where the refresh does, through the eligibility gate, since the decision
+it hands back is what says the tick is over.
 
 Each window has to end in the same place -- the push the dead tick never
 made goes out, the verdict moves with it, and the tick is over -- and neither
@@ -19,8 +19,9 @@ adjudication with the pull request already open over the work.
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from orchestrator.git.base_sync import eligibility, models
 from orchestrator.git.measurement import (
     additions as _measurement,
     commits as _measurement_commits,
@@ -41,7 +42,6 @@ from orchestrator.workflow.stages.implementing import (
 )
 from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync import recovery_git_support as fixtures
-from tests.git.base_sync.refresh_test_support import _patched
 from tests.git.base_sync.vouched_replay_git_support import (
     KEY_PENDING_REWRITE_SHA,
     VouchedReplayGitFixtureMixin,
@@ -75,10 +75,10 @@ class _AdjudicatedRecoveryCase(VouchedReplayGitFixtureMixin, unittest.TestCase):
         # this fixture has no token to reach one with. It is the real advanced
         # base rather than a placeholder, because the reachability check
         # behind it is a genuine walk of this repository.
-        _patched(
-            self, _measurement_commits, "_freeze_base_commit",
+        self.enterContext(patch.object(
+            _measurement_commits, "_freeze_base_commit",
             MagicMock(return_value=FrozenCommit(sha=self.replayed_base)),
-        )
+        ))
         self.accepted_digest = _fingerprint._fingerprint_contribution(
             self.work, self.accepted_base, self.anchor,
         ).digest
@@ -168,18 +168,44 @@ class _AdjudicatedRecoveryCase(VouchedReplayGitFixtureMixin, unittest.TestCase):
         self.assertEqual(fixtures.head_sha(self.work), self.recovered)
 
 
+def _resumes(case) -> bool:
+    """The tick after the crash, entered where the refresh enters it.
+
+    Through the eligibility gate rather than the recovery call, because what
+    has to be proved is not only that the push goes out: the decision this
+    gate hands back is what says the tick is OVER, so nothing behind it
+    rebases the branch a second time or spawns anything over it. The replay
+    the crash left is already on the advanced base, so nothing is behind.
+    """
+    issue = case.gh._issues[fixtures.ISSUE]
+    return eligibility._auto_rebase_recovery_decision(
+        models._AutoRebaseContext(
+            gh=case.gh,
+            spec=case.spec,
+            issue=issue,
+            state=case.gh.read_pinned_state(issue),
+            worktree=case.work,
+            pr_number=fixtures.PR_NUMBER,
+            behind=0,
+            label=fixtures.LABEL,
+            pending_pre_rebase_sha=case.anchor,
+        ),
+        None,
+    ).should_continue
+
+
 class CrashBeforeTheGrantTest(_AdjudicatedRecoveryCase):
     """The window between `git rebase` and the permission it was owed."""
 
     def setUp(self) -> None:
         super().setUp()
-        self.resumed = self.recover()
+        self.resumed = _resumes(self)
 
     def test_the_re_derived_evidence_earns_the_permit(self) -> None:
         # Nothing on the comment named a rewrite, so the evidence is rebuilt
         # from exactly the readings the dead tick would have taken -- and the
         # real replay of the accepted change proves out against it.
-        self.assertTrue(self.resumed)
+        self.assertFalse(self.resumed)
         self._assert_the_verdict_moved()
         self.assertEqual(len(self._events_of(TRANSFER_EVENT)), 1)
 
@@ -198,13 +224,13 @@ class CrashAfterTheGrantTest(_AdjudicatedRecoveryCase):
     def setUp(self) -> None:
         super().setUp()
         self._grants()
-        self.resumed = self.recover()
+        self.resumed = _resumes(self)
 
     def test_a_standing_permission_is_spent(self) -> None:
         # The record IS the evidence here, re-asked in full rather than
         # believed, and the receipt behind the reissued push is what finally
         # carries the verdict over.
-        self.assertTrue(self.resumed)
+        self.assertFalse(self.resumed)
         self._assert_the_verdict_moved()
 
     def test_the_debt_the_grant_left_is_paid(self) -> None:
@@ -240,13 +266,13 @@ class CrashAtTheGrantTest(_AdjudicatedRecoveryCase):
         self.forget_the_rewrite_record(head_only=True)
         self._grants()
         self.counted = self.divergence_from_remote()
-        self.resumed = self.recover()
+        self.resumed = _resumes(self)
 
     def test_the_grant_this_route_left_vouches(self) -> None:
         # Cross-bound to the anchor it is leased against, the publication the
         # terms name, and the accepted pair the identity names -- and written
         # only once the permit had proved the contribution equal to it.
-        self.assertTrue(self.resumed)
+        self.assertFalse(self.resumed)
         self._assert_the_verdict_moved()
 
     def test_the_counts_never_decide_it(self) -> None:
@@ -268,14 +294,14 @@ class UndoneRebaseTest(_AdjudicatedRecoveryCase):
         super().setUp()
         self._grants()
         self.roll_back_to_the_anchor()
-        self.resumed = self.recover()
+        self.resumed = _resumes(self)
 
     def test_the_rollback_is_finished_not_restarted(self) -> None:
         # HEAD equalling the anchor is the shortcut only for an attempt that
         # never started. Taken here it would drop the anchor and hand the
         # branch to a fresh rebase, which force-pushes a commit no
         # adjudication has seen over the one the pull request carries.
-        self.assertTrue(self.resumed)
+        self.assertFalse(self.resumed)
         self.assertEqual(self.push.leases, [])
         self.assertEqual(fixtures.head_sha(self.work), self.anchor)
         self.assertEqual(
@@ -319,7 +345,7 @@ class RefusedPermitTest(_AdjudicatedRecoveryCase):
         )
         self.gh.write_pinned_state(self.gh._issues[fixtures.ISSUE], state)
 
-        self.assertTrue(self.recover())
+        self.assertFalse(_resumes(self))
 
         self.assertEqual(self.push.leases, [])
         self.assertEqual(fixtures.head_sha(self.work), self.anchor)

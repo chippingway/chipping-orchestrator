@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Read whether the interrupted replay belongs to this checkout and publication.
 
-These predicates have no effects. The dormant replay coordinator applies them
+These predicates have no effects. The replay coordinator applies them
 in order before any retry, distinguishing a recorded replay, a grant-vouched
 in-flight window, and a publication changed outside the attempt.
 """

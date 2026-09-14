@@ -25,6 +25,7 @@ from orchestrator.git.base_sync import (
     refresh_selection as _selection,
     state as _state,
 )
+from orchestrator.git.base_sync.models import _AutoRebaseRequest
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import paths as _paths
 from orchestrator.github import client as _client
@@ -62,6 +63,13 @@ def _sync_worktree_with_base(
     Pre-PR worktrees are rebased locally when clean. PR worktrees always
     reach the PR-aware coordinator so a pinned crash-recovery anchor is
     honored even when local HEAD already contains the latest base.
+
+    A lag that cannot be counted at all ends the sync, with one exception: a
+    pinned anchor. There the failure IS the answer -- the checkout the
+    interrupted attempt left names a commit nothing here can read, so no
+    comparison of what it did can be trusted -- and ending the sync would
+    leave the anchor for a handler the dispatcher holds back while it stands.
+    So it is reset and parked on the PR-aware coordinator's own gates instead.
     """
     issue = _selection._base_sync_issue(gh, issue_number)
     if issue is None:
@@ -83,6 +91,11 @@ def _sync_worktree_with_base(
 
     behind = _worktree_behind_base(spec, worktree, issue_number)
     if behind is None:
+        if pr_number is not None and state.get(_state._PENDING_PUSH_SHA):
+            # No lag to route on, so the request carries none.
+            _pr._sync_unreadable_pr_worktree(_AutoRebaseRequest(
+                gh, spec, issue, state, worktree, int(pr_number), 0,
+            ))
         return
     if pr_number is not None:
         _pr._sync_pr_worktree_to_base(

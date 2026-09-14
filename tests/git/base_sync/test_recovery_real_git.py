@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Crash recovery against a real repository left mid-rebase.
 
-Both routes, each over the shape it is built for: the running one over a
-commit on top of the anchor, and the dormant vouched-replay one over a real
-replay of the branch -- which it classifies on the record the attempt left,
-since the divergence counts read that replay as an out-of-band update.
+The recovery the refresh enters, over two shapes: a commit on top of the
+anchor, and a real replay of the branch -- which it classifies on the record
+the attempt left, since the divergence counts read that replay as an
+out-of-band update.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ MISSING_COMMIT = "dead" * 10
 
 
 class _InterruptedRebaseCases:
-    """The four interruptions every recovery route answers the same way."""
+    """The four interruptions both shapes are answered the same way on."""
 
     def test_unpushed_rebase_is_leased_onto_remote(self) -> None:
         recovered = self.recover()
@@ -113,13 +113,13 @@ class _InterruptedRebaseCases:
 class RecoveryRealGitTest(
     _InterruptedRebaseCases, RecoveryGitFixtureMixin, unittest.TestCase,
 ):
-    """The comparison the running route runs on is the one git computed."""
+    """The comparison the recovery runs on is the one git computed."""
 
 
 class VouchedReplayRealGitTest(
     _InterruptedRebaseCases, VouchedReplayGitFixtureMixin, unittest.TestCase,
 ):
-    """The dormant route, over the replay a real `git rebase` leaves."""
+    """The same recovery, over the replay a real `git rebase` leaves."""
 
     def test_unpushed_rebase_is_leased_onto_remote(self) -> None:
         # A replay is behind its own publication -- git counts the commit the

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Restore the anchor when a replay's checkout or remote contradicts its record.
 
-The dormant replay recovery refuses unrecorded work and out-of-band rollback.
+The replay recovery refuses unrecorded work and out-of-band rollback.
 The reset must succeed before its abandoned bookkeeping can be cleared;
 announced publications cannot be pushed and announced a second time.
 """
