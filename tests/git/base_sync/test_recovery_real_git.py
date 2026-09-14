@@ -9,15 +9,24 @@ import unittest
 from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.recovery_git_support import RecoveryGitFixtureMixin
 
+PARK_FAILED = "auto_base_rebase_failed"
+
 
 class RecoveryRealGitTest(RecoveryGitFixtureMixin, unittest.TestCase):
     """The comparison the routing runs on is the one git itself computed."""
 
     def test_unpushed_rebase_is_leased_onto_remote(self) -> None:
+        # A replay is behind its own publication -- git counts the commit the
+        # remote still carries as one this branch no longer has -- so the
+        # counts alone would read the canonical pre-push recovery as an
+        # out-of-band update and park it.
+        self.assertGreater(self.divergence_from_remote()[1], 0)
+
         recovered = self.recover()
 
-        # Ahead-only against the freshly fetched remote head, so the recovery
-        # reissues the push the crash interrupted rather than rebasing again.
+        # The pair of heads the attempt recorded is what sees past that: the
+        # remote is still on the anchor and the checkout is the replay this
+        # attempt wrote down, so the interrupted push is reissued.
         self.assertTrue(recovered)
         self.assertEqual(self.push.leases, [self.anchor])
         self.assertEqual(self._remote_head(), self.recovered)
@@ -62,6 +71,32 @@ class RecoveryRealGitTest(RecoveryGitFixtureMixin, unittest.TestCase):
         self.assertFalse((self.work / fixtures.SCRATCH_FILE).exists())
         self.assertTrue(self.is_clean())
         self._assert_parked(fixtures.PARK_DIRTY)
+
+    def test_a_head_the_record_disowns_is_reset(self) -> None:
+        stranded = self.strand_an_unrelated_head(forget_record=False)
+
+        recovered = self.recover()
+
+        # A rebuilt worktree, an operator's reset, and a branch pointed at
+        # other work all leave this shape and all satisfy the anchor lease.
+        # The record naming some other commit is what refuses it.
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self.assertEqual(self._remote_head(), self.anchor)
+        self.assertNotEqual(stranded, self.anchor)
+        self._assert_parked(PARK_FAILED)
+
+    def test_an_unrecorded_replay_uses_the_counts(self) -> None:
+        self.strand_an_unrelated_head()
+
+        recovered = self.recover()
+
+        # A comment carrying no record of a replay is the one state the
+        # ahead/behind counts still answer for, and a branch with commits the
+        # remote does not have parks rather than force-pushing over them.
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self._assert_parked(fixtures.PARK_PUSH_FAILED)
 
     def _remote_head(self) -> str:
         return fixtures.head_sha(self.remote, fixtures.BRANCH_REF)

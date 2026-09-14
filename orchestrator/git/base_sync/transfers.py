@@ -47,8 +47,8 @@ it, so a caller that assembled a claim of its own over a group already
 standing would repair a record nobody checked, under the authority of the very
 transfer it is in the middle of deciding.
 
-The last three questions here are the ones a road that publishes nothing new
-has to ask. Whether the rewrite the pull request already carries is one this
+The last four questions here are the ones the roads out of a recovery ask.
+Three belong to a road that publishes nothing new. Whether the rewrite the pull request already carries is one this
 comment can ACCOUNT for -- finishing that road clears the recovery anchor, and
 the anchor is the only thing that brings the tick back, so an exemption still
 on the old commit, a debt nothing paid, or a receipt nobody wrote may not be
@@ -60,9 +60,16 @@ tick asked for actually MOVED the verdict, which the call that asked may not
 take on trust: a permit granted before the gate is re-asked inside it, so a
 push can land with the exemption left where it was.
 
-Only the evidence the publisher hands its gate is on a running road. Every
-classification below is consulted by no caller yet and waits for the recovery
-that is taught to decide on it.
+The fourth is the permit itself, re-asked over whichever of those two the
+recovery holds and asked ahead of the gated push rather than through it: the
+gate answers a refusal with the ordinary cumulative reading, which on a road
+that is finishing a publication rather than deciding one either reports a
+landing with the verdict left where it was or sends an adjudicated change into
+a second adjudication.
+
+Everything but the accounting is on a running road. `_unaccounted_publication`
+is the exception and waits for the recovery road that finishes a rewrite the
+pull request already carries.
 
 The counts this carries are what the subject costs rather than a module that
 outgrew itself. One transfer is decided on three records that live a layer
@@ -75,6 +82,7 @@ entitled to would stop being one thing to read.
 """
 from __future__ import annotations
 
+from dataclasses import replace as _replace
 from enum import StrEnum
 
 from orchestrator.git.base_sync.models import (
@@ -707,3 +715,67 @@ def _rotated_onto(state: PinnedState, local_head: str) -> bool:
     if authorization.rewrite.to_sha != local_head:
         return False
     return _exemption.is_exempt(state, local_head)
+
+
+def _permits_the_publication(
+    context: _AutoRebaseRecoveryContext, local_head: str, rewrite=None,
+) -> bool:
+    """Whether the permit still licenses this recovery to publish.
+
+    Asked BEFORE the gated publication rather than through it, and that is
+    the whole of what makes this road safe. The gate's answer to a permit
+    that declines is the ordinary cumulative reading, which is right for a
+    rebase deciding whether to publish and wrong on a recovery twice over: a
+    count under the ceiling reports a publication landed with the verdict
+    still on the commit a human ruled on, and a count over it routes an
+    adjudicated change into a second adjudication with a pull request already
+    open over the work. There is nothing on this road to decide -- the push
+    the interrupted tick never made is already leased -- so the only question
+    is whether the permission may be spent, and a refusal is a refusal. The
+    gate is told the same thing on the way in, so a permit that stops holding
+    between this ask and its own is refused there rather than measured.
+
+    Asked over the evidence this recovery holds: the record the grant left,
+    where there is one, and otherwise the rewrite re-derived for a grant the
+    crash came before -- which is what `late_transfer` reads when a caller
+    hands in no rewrite of its own. Every term is re-derived there: the
+    publication this call freezes, the one the issue records, the checkout,
+    the lease as an object this host holds, the issue read afresh, and both
+    contributions fingerprinted from the objects themselves. A grant
+    re-writes nothing, since the payload it would stage is the one already on
+    the comment.
+
+    The entry is frozen here for the same reason the permit needs one at all:
+    it is the pull request read this tick, before any effect, and the terms
+    the record claims are checked against it rather than against themselves.
+    """
+    # Lazy for the reason every upward reach in this package is: the permit
+    # and the entry it is asked over sit in the workflow layer above it.
+    from orchestrator.workflow.stages.implementing import (
+        late_overflow as _overflow,
+        late_records as _records,
+        late_transfer as _transfer,
+    )
+    gate = _records._gate(
+        context.gh, context.spec, context.issue, context.state,
+        context.worktree,
+    )
+    entered = _records._Entered(
+        head=context.pending_pre_rebase_sha or "",
+        reconciling=True,
+        candidate=local_head,
+    )
+    entry = _overflow._frozen_entry(gate, entered)
+    if not entry.is_frozen:
+        log.warning(
+            "issue=#%d auto-rebase recovery cannot enter the publication its "
+            "interrupted rewrite was made against (%s); the transfer it owes "
+            "is left standing",
+            context.issue.number, entry.refusal,
+        )
+        return False
+    gate = _replace(
+        gate, entry=entry, candidate=local_head, reconciling=True,
+        rewrite=rewrite,
+    )
+    return bool(_transfer._carried_over(gate, local_head))

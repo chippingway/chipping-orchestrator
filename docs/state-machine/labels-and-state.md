@@ -1248,8 +1248,11 @@ The keys that matter for the state machine fall into a few groups:
   `_rebase_base_into_worktree`; cleared on every exit that leaves the branch where the attempt found it. A non-empty
   value on entry means a previous tick rebased and died
   before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
-  head, or park as `auto_base_rebase_push_failed`. It is also what tells the approval that interrupted attempt wrote
-  from a stage's, so the refresh is not frozen out of finishing its own route (see [Base refresh](#base-refresh)).
+  head, or park — as `auto_base_rebase_push_failed` where the push or the remote is what refused, and as
+  `auto_base_rebase_failed` where the pinned comment is: a record nobody can vouch for, a record that disowns the
+  checkout, a permit that declines, or a replay in flight nothing can prove. It is also what tells the approval that
+  interrupted attempt wrote from a stage's, so the refresh is not frozen out of finishing its own route (see
+  [Base refresh](#base-refresh)).
   `pending_auto_base_rebase_rewrite_pr` + `pending_auto_base_rebase_rewrite_stage` — the TERMS of the same attempt,
   written in the anchor's own statement, before `git rebase` is allowed to touch the branch. They say which
   publication the attempt was made for, which is not a thing the anchor can prove: read off the issue on the tick
@@ -2296,10 +2299,17 @@ rather than preserving.
   And whether the record says a replay reached a remote that no longer has it, which a *settled* transfer says
   outright and a whole receipt says for a replay no permit ever licensed: the head they rolled back to is the very
   head a retry would lease its force-push against, so the lease would be satisfied and the rollback would be gone.
-  **None of these readings is on a running road yet.** The publisher's own evidence is — it is what the size gate is
-  handed on every exempt rebase — but the classification, the re-derivation, the accounting, and the rollback answer
-  are consulted by no caller, so an interrupted transfer is still recovered on the anchor and the divergence counts
-  alone. They are written now so the recovery taught to act on them has the whole set to act on.
+  **The recovery that publishes decides on all of these.** A checkout the pull request is not standing on is
+  classified off the pair of SHAs the attempt recorded — the anchor the remote must still be on, the replay the
+  checkout must still be — and off the handoff above, and only then does anything reach a push: a *settled* transfer
+  or a whole receipt over a remote that has moved is somebody's rollback and parks, an *unvouched* record parks, and a
+  record that disowns the checkout parks. What is left is licensed by the permit and by nothing else — re-asked here
+  over the record where there is one and over the re-derived evidence where the grant never landed, ahead of the gated
+  push rather than through it, with `permit_only` telling the gate the same so a refusal on either side is a refusal
+  rather than a fall-through to the cumulative reading. The rotation is read back past the push, since a permit that
+  stopped holding in between leaves the push landed and the verdict where it was. The divergence counts answer for one
+  state only: a comment that recorded no replay at all. The ACCOUNTING is the one reading still dormant — it belongs to
+  the road that finishes a rewrite the pull request already carries.
 
   `late_rewrite_proof` sits beside that group and deliberately outside it. It records which reading proved the push a
   settlement was taken on had landed — `pushed` for the leased force-push that moved the pull request off the head the

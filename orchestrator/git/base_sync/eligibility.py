@@ -49,6 +49,7 @@ def _auto_rebase_label_is_eligible(context: _AutoRebaseContext) -> bool:
             pr_number=context.pr_number,
             label=context.label,
             pending_pre_rebase_sha=str(context.pending_pre_rebase_sha),
+            pending_rewrite=attempts._pending_rewrite(context.state),
         )
     log.debug(
         "issue=#%d behind %s/%s by %d but label=%r; not auto-rebasing",
@@ -166,6 +167,7 @@ def _auto_rebase_recovery_decision(
         pr_number=context.pr_number,
         label=context.label,
         pending_pre_rebase_sha=str(context.pending_pre_rebase_sha),
+        pending_rewrite=attempts._pending_rewrite(context.state),
         behind=context.behind,
         unparking_consumed_max=consumed_comment_id,
     ):

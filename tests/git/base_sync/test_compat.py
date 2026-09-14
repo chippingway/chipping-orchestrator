@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from orchestrator.git.base_sync import conflicts, pr, recovery
+from orchestrator.git.base_sync import conflicts, models, pr, recovery
 
 _SPEC = "spec"
 _ISSUE = "issue"
@@ -34,7 +34,9 @@ _EXPECTED_SIGNATURES = (
         "_recover_pending_auto_base_rebase",
         (
             "(gh, spec, issue, state, worktree, *, pr_number, label, "
-            "pending_pre_rebase_sha, behind=0, unparking_consumed_max=None)"
+            "pending_pre_rebase_sha, pending_rewrite=_PendingRewrite(sha='', "
+            "pr_number=0, stage=None, damaged=False), behind=0, "
+            "unparking_consumed_max=None)"
         ),
     ),
     (
@@ -94,6 +96,10 @@ class BaseSyncCompatibilityAdapterTest(unittest.TestCase):
         context = recover.call_args.args[0]
         self.assertEqual(context.behind, 0)
         self.assertIsNone(context.unparking_consumed_max)
+        # A caller from before the attempt record existed says nothing about
+        # what the replay produced, and the empty record is what the routing
+        # reads as "fall back to the counts" rather than as a claim.
+        self.assertEqual(context.pending_rewrite, models._PendingRewrite())
 
     def test_conflict_route_builds_typed_context(self) -> None:
         route = Mock()

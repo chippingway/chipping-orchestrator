@@ -285,6 +285,17 @@ def _decided(
     already calls decided has nothing left to earn. Refused, the candidate
     falls through to the measurement exactly as it always did.
 
+    A caller that may publish on the permit and on NOTHING else is answered
+    one function over, and answered there ALONE rather than after the three
+    records below have had their say. That is the crash recovery, and every
+    other road to publishing is the wrong answer for it: the reading it would
+    otherwise fall back to measures a commit an interrupted push is already
+    leased for, and the reasons that skip a reading say the candidate may
+    publish without saying a verdict may move onto it -- so the switch being
+    off would let the push out with no permit behind it, the route would
+    finish with the exemption still on the commit a human ruled on, and the
+    permission would stand outstanding for ever.
+
     The delivery proof is taken ONCE, at the top and for every candidate,
     because the road past the measurement that rests on it -- a commit this
     stage's own receipt names -- may not take a second reading of its own: a
@@ -330,6 +341,8 @@ def _decided(
     delivered = _delivery._delivered_before_the_relabel(gate, candidate_sha)
     if _delivery._holds_an_unprovable_receipt(gate, candidate_sha, delivered):
         return _records._HELD
+    if gate.permit_only:
+        return _permitted_only(gate, recorded, candidate_sha, delivered)
     decided = _needs_no_measuring(gate, recorded, candidate_sha, delivered)
     permitted = decided or _transfer._carried_over(gate, candidate_sha)
     if permitted:
@@ -355,6 +368,59 @@ def _decided(
         else _reading._freshly_measured(gate, recorded, candidate_sha)
     )
     return _held_or_published(candidate_sha, held)
+
+
+def _permitted_only(
+    gate: _records._Gate,
+    recorded: LateGeneration,
+    candidate_sha: str,
+    delivered,
+) -> _records._GateVerdict:
+    """What a candidate may publish on where a permit is the only licence.
+
+    One question and no fallbacks. The caller is finishing a publication
+    rather than deciding one -- the push it was leased for is already owed --
+    so what it needs to know is whether the permission may be spent, and every
+    other answer this gate can give is about something else.
+
+    That is why the three records that skip a reading are not asked here, and
+    the switch is not either. Each of them says a candidate may PUBLISH
+    without a count; none of them says a human's verdict may move onto it, and
+    the write past the push turns on the second. Let through on one of them,
+    the recovery would push, finish its route with the exemption still on the
+    commit the adjudication accepted, and leave the permission standing
+    outstanding with nothing left to spend it.
+
+    The delivery proof above is still taken, because it is the one answer that
+    is not about licensing: a commit the record says this stage already pushed
+    and this host cannot confirm holds the tick whatever a permit says.
+
+    A refusal is handed back rather than parked or routed: nothing was
+    measured, nothing was decided, and the caller owns what it means where it
+    stands.
+    """
+    permitted = _transfer._carried_over(gate, candidate_sha)
+    if not permitted:
+        log.warning(
+            "issue=#%d candidate %s earned no permit and its caller may "
+            "publish it on nothing else; refusing rather than measuring a "
+            "commit an interrupted push is already leased for",
+            gate.issue.number, candidate_sha,
+        )
+        return _records._REFUSED
+    log.info(
+        "issue=#%d candidate %s %s; publishing it on that permit alone",
+        gate.issue.number, candidate_sha, permitted,
+    )
+    return _verdict_owner._unmeasured_verdict(
+        gate, recorded, _records._GateVerdict(
+            held=True,
+            candidate_sha=candidate_sha,
+            permitted_sha=candidate_sha,
+            basis=_admitted_by(""),
+            delivered_pr=delivered.number,
+        ),
+    )
 
 
 def _held_or_published(

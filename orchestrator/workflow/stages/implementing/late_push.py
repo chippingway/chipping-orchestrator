@@ -60,10 +60,16 @@ class _PushedCandidate:
     paid already spent. Neither is the push that was allowed and then failed,
     which is the caller's own to park for: only it knows what a failed push
     means where it stands.
+
+    `refused` narrows the first for the one caller that may publish on a
+    rewrite permit and nothing else: the permit declined, nothing was
+    measured, and the gate neither parked nor routed -- so the caller owns
+    what happens next rather than being told the tick is over.
     """
 
     held: bool = False
     landed: bool = False
+    refused: bool = False
 
 
 def _publishes(
@@ -129,12 +135,13 @@ def _publishes(
         candidate=entered.candidate,
         spends=entered.spends,
         rewrite=entered.rewrite,
+        permit_only=entered.permit_only,
     )
     published = _publication_gate._holds_published_work(
         gate, _replace(entered, branch=branch),
     )
     if published.held:
-        return _PushedCandidate(held=True)
+        return _PushedCandidate(held=True, refused=published.refused)
     published = _repinned(published)
     if _publication_gate._publication_ended(gate):
         return _PushedCandidate(held=True)

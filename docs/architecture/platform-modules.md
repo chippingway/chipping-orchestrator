@@ -371,9 +371,11 @@ orchestrator/
                         crash is decided on -- no transfer, a replay no permission was written for, one still
                         outstanding, one already settled, and a claim nobody can check -- with the evidence
                         re-derived for the first of those alone, the accounting a road that publishes nothing new
-                        owes, and the rollback a receipt beside a remote that has moved describes. Only the
-                        publisher's own assembly is on a running road; every classification waits for the recovery
-                        that is taught to decide on it
+                        owes, and the rollback a receipt beside a remote that has moved describes. The permit
+                        itself is asked here too, over whichever evidence the caller holds and ahead of the gated
+                        push rather than through it, since the gate answers a refusal by measuring. Only the
+                        accounting is dormant, waiting for the recovery road that finishes a rewrite the pull
+                        request already carries
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
                         with
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals
@@ -383,8 +385,19 @@ orchestrator/
                         measured by the same gate and named against the head this recovery verified against the
                         remote: one an earlier tick rebased and never pushed is a head nothing has read against
                         the base it now sits on, and one something moved since is not the head the finalize
-                        behind the push records
-      outcomes.py       the already-published, unknown-comparison, diverged, dirty, and failed-push answers
+                        behind the push records. A checkout the pull request is NOT standing on is classified by
+                        the pair of SHAs the attempt recorded rather than by the divergence counts -- a replay is
+                        behind its own publication, so the counts read the canonical pre-push recovery as an
+                        out-of-band update -- and by how far the transfer beside them got. Where a verdict is
+                        being carried the permit is the whole of what may let the push out: it is asked ahead of
+                        the gate, the gate is told the same, and the rotation is read back afterwards. The counts
+                        answer only for a comment that recorded no replay at all
+      outcomes.py       the already-published, unknown-comparison, diverged, dirty, and failed-push answers,
+                        beside the parks a transfer adds: a record nobody can vouch for, an attempt record that
+                        disowns the checkout, a permit that refuses, a replay in flight no verdict can prove, a
+                        remote rolled back off a replay the record says it carried, and the one park that leaves
+                        HEAD alone -- a push that landed with the route behind it unfinished, where a reset would
+                        take the checkout off work the pull request has
       persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the
