@@ -328,9 +328,10 @@ orchestrator/
                         request that would not read returns before its recovery runs -- holds the stage handler
                         back, which it does only while the refresh can still reach it. A label the refresh does
                         not drive, an issue it skips for any freeze above, a park some stage left, and a checkout
-                        the refresh cannot reach -- one not on disk, which the walk never visits, or one whose
-                        HEAD names a commit it cannot read -- are each released by something other than the
-                        refresh, so holding any of them is a deadlock
+                        whose HEAD names a commit it cannot read are each released by something other than the
+                        refresh, so holding any of them is a deadlock. A checkout that is not on disk is held all
+                        the same -- its handler would rebuild it onto whatever the local branch still names -- and
+                        the dispatcher restores it for the next refresh to walk
       frozen.py         which records hold a checkout still and what ends each freeze: the ones that freeze a
                         branch by their presence -- the late reading, the approval, and the terms of a squash
                         mid-rewrite among them, each read as the whole GROUP its write puts down rather than as

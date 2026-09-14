@@ -104,12 +104,14 @@ class RecoveryDispatchHoldTest(_HoldCase):
 
 
 class UnreachableCheckoutTest(_HoldCase):
-    """A checkout the refresh cannot take a recovery in holds nothing."""
+    """Which checkouts the refresh cannot walk, and which still hold."""
 
-    def test_an_absent_checkout_is_not_held(self) -> None:
-        # The refresh walks the directories that exist, so an anchor over a
-        # missing one is never reached -- and the handler is what makes it.
-        self.assertFalse(self._holds(worktree=self.worktree / "gone"))
+    def test_an_absent_checkout_is_still_held(self) -> None:
+        # The refresh never walks it, but its handler would rebuild it from the
+        # local branch -- which may be the unpublished replay -- and hand that
+        # to an agent. So it holds, and the dispatcher brings it back.
+        self.assertTrue(self._holds(worktree=self.worktree / "gone"))
+        self.head.assert_not_called()
 
     def test_an_unreadable_head_is_not_held(self) -> None:
         self.head.return_value = ""

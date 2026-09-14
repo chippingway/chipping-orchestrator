@@ -17,6 +17,7 @@ from dataclasses import replace
 from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
+from orchestrator.git import commands as _commands
 from orchestrator.git.base_sync import (
     attempts,
     outcomes,
@@ -40,6 +41,10 @@ from tests.git.base_sync import (
 
 RETRY_PUSH = "_retry_recovery_push"
 
+UNVOUCHED = "_park_unvouched_recovery"
+
+ANCHOR_KEY = "pending_auto_base_rebase_push_sha"
+
 FOREIGN_PUBLICATION = "_park_foreign_publication_recovery"
 
 ANNOUNCED = "_park_announced_recovery"
@@ -51,7 +56,7 @@ _ANSWERS = MappingProxyType({
     FOREIGN_PUBLICATION: outcomes,
     ANNOUNCED: outcomes,
     "_park_rolled_back_recovery": outcomes,
-    "_park_unvouched_recovery": outcomes,
+    UNVOUCHED: outcomes,
     "_park_unrecorded_recovery": outcomes,
     "_park_diverged_recovery": outcomes,
     "_reject_unknown_recovery_comparison": outcomes,
@@ -187,6 +192,15 @@ class UnpublishedRouteTest(seed.TransferCase):
 
                 self._assert_selects(FOREIGN_PUBLICATION)
 
+    def test_a_debt_no_grant_explains_parks(self) -> None:
+        # The refresh lets an approval leased to this anchor through, since it
+        # is ordinarily the gate's own record of this replay. One naming some
+        # other commit is not, and read as no transfer the replay is pushed and
+        # the gate's write replaces the only account of the push it records.
+        seed.owes(self.state, seed.FOREIGN_SHA, seed.ACCEPTED_SHA)
+
+        self._assert_selects(UNVOUCHED)
+
     def test_a_settled_transfer_reads_as_a_rollback(self) -> None:
         # The write that settled says the pull request HAD this commit, so a
         # remote standing anywhere else was rolled back -- and the head it was
@@ -206,7 +220,7 @@ class UnpublishedRouteTest(seed.TransferCase):
         # the ordinary gate to measure an adjudicated change again.
         _grants(self, replace(seed.GRANTED, to_sha=seed.NEWER_SHA))
 
-        self._assert_selects("_park_unvouched_recovery")
+        self._assert_selects(UNVOUCHED)
 
     def test_a_record_that_disowns_the_checkout_parks(self) -> None:
         for described, pending in (
@@ -258,7 +272,7 @@ class UnpublishedRouteTest(seed.TransferCase):
         self._fresh(pending_rewrite=seed.DECLARED)
         _grants(self, replace(seed.GRANTED, source_stage=seed.OTHER_STAGE))
 
-        self._assert_selects("_park_unvouched_recovery")
+        self._assert_selects(UNVOUCHED)
 
     def test_a_moved_remote_falls_back_to_the_counts(self) -> None:
         for described, counts, answer in (
@@ -363,6 +377,35 @@ class UnmovedHeadTest(seed.TransferCase):
         taken.assert_called_once()
         refused.assert_not_called()
         return answered
+
+
+class RefusedResetRetentionTest(seed.TransferCase):
+    """A reset git refuses keeps the claim the park was taken over."""
+
+    def test_a_foreign_debt_survives_a_refused_reset(self) -> None:
+        # The reset is what abandons the replay, and so what licenses dropping
+        # a debt naming anything else. Refused, the branch may still be where
+        # the attempt left it, and the comment is the only account of both.
+        self.state.set(ANCHOR_KEY, seed.ACCEPTED_SHA)
+        seed.owes(self.state, seed.FOREIGN_SHA, seed.ACCEPTED_SHA)
+
+        with patch.object(
+            _commands, "_git_hardened", MagicMock(return_value=(
+                fixtures._git_result(
+                    returncode=fixtures.GIT_FAILURE_EXIT_CODE,
+                )
+            )),
+        ):
+            recovery._route_an_unpublished_head(
+                self.context, _snapshot(),
+                transfers._carried_by(self.context, seed.REPLAYED_SHA),
+            )
+
+        pinned = self.context.gh.pinned_data(fixtures.ISSUE)
+        self.assertEqual(pinned["late_approved_sha"], seed.FOREIGN_SHA)
+        self.assertEqual(pinned["late_approved_lease"], seed.ACCEPTED_SHA)
+        self.assertEqual(pinned[ANCHOR_KEY], seed.ACCEPTED_SHA)
+        self.assertTrue(pinned["awaiting_human"])
 
 
 class LicensedRetryTest(seed.TransferCase):

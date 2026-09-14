@@ -7,6 +7,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.git.base_sync import refresh, refresh_selection
+from orchestrator.workflow.stages.implementing import late_parks as _parks
 from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.recovery_git_support import RecoveryGitFixtureMixin
 
@@ -130,6 +131,25 @@ class RecoveryRealGitTest(RecoveryGitFixtureMixin, unittest.TestCase):
         self.assertEqual(self.push.leases, [])
         self.assertEqual(self._remote_head(), self.anchor)
         self._assert_parked(fixtures.PARK_PUSH_FAILED)
+
+    def test_a_debt_this_attempt_did_not_leave_parks(self) -> None:
+        # Leased to this very anchor, so the refresh's freeze sets it aside as
+        # this attempt's own work -- but it names a commit nothing here made.
+        # Pushed past, the replay goes out and the gate's write replaces the
+        # only record of a push somebody else is owed.
+        issue = self.gh._issues[fixtures.ISSUE]
+        state = self.gh.read_pinned_state(issue)
+        _parks._approve(
+            state, MISSING_COMMIT, self.anchor,
+            _parks.LateApprovalBasis.UNMEASURED,
+        )
+        self.gh.write_pinned_state(issue, state)
+
+        recovered = self.recover()
+
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self._assert_parked(PARK_FAILED)
 
     def test_an_unreadable_checkout_is_parked(self) -> None:
         # The branch names a commit this store does not hold, so the refresh

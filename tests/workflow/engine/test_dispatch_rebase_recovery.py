@@ -6,8 +6,9 @@ The refresh answers a pinned auto-rebase anchor ahead of every handler, but a
 pull request that would not read returns before its recovery runs. What is
 left for the dispatcher is an issue standing on a replay no push published,
 with a handler about to spawn an agent over it -- and the boundary pinned here
-is that the tick stops there, while a park its own stage owns, and a checkout
-the refresh can never reach, still get to the handler that can answer them.
+is that the tick stops there, while a park its own stage owns still gets to the
+handler that can release it, and a checkout that is not on disk is restored
+rather than handed to one.
 """
 from __future__ import annotations
 
@@ -18,7 +19,10 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.git.base_sync import pr as _pr
 from orchestrator.git.verification import probes as _probes
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import (
+    creation as _worktree_creation,
+    paths as _worktree_paths,
+)
 from orchestrator.workflow.engine import dispatch
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -121,14 +125,28 @@ class DeferredRecoveryTest(_InterruptedRebaseCase):
 
         self.assertFalse(self._stops())
 
-    def test_an_absent_checkout_is_not_deadlocked(self) -> None:
-        # The refresh walks only the checkouts on disk, so an anchor over a
-        # missing one is never answered there -- and the handler is what
-        # recreates it for the next refresh to classify.
+    def test_an_absent_checkout_is_held_and_restored(self) -> None:
+        # The refresh walks only the checkouts on disk, and the handler would
+        # rebuild this one onto the unpublished replay -- so the tick holds and
+        # the dispatcher restores it for the next refresh to walk.
         self._seed()
-        self._refreshes_with_an_unreadable_pr()
+        restore = MagicMock()
 
-        self.assertFalse(self._stops(self.checkout / "gone"))
+        with patch.object(_worktree_creation, "_ensure_pr_worktree", restore):
+            self.assertTrue(self._stops(self.checkout / "gone"))
+
+        restore.assert_called_once()
+        self.assertEqual(restore.call_args.args[1], ISSUE)
+
+    def test_a_restore_that_fails_still_holds(self) -> None:
+        # The next tick tries again; this one still runs no handler.
+        self._seed()
+        refused = MagicMock(side_effect=RuntimeError("worktree add failed"))
+
+        with patch.object(
+            _worktree_creation, "_ensure_pr_worktree", refused,
+        ), self.assertLogs("orchestrator.workflow", level="ERROR"):
+            self.assertTrue(self._stops(self.checkout / "gone"))
 
 
 if __name__ == "__main__":

@@ -1249,11 +1249,13 @@ The keys that matter for the state machine fall into a few groups:
   stands on a label the refresh drives, the dispatcher holds the stage handler back
   (`refresh_selection._recovery_holds_dispatch`): a refresh that could not reach the recovery — a pull request that
   would not read — would otherwise hand a reviewer or a developer a replay no push has published. The hold is lifted
-  for an issue the refresh skips for a freeze, for a park some stage left, and for a checkout the refresh cannot
-  reach — one not on disk, which its walk never visits, or one whose HEAD names a commit this store cannot read —
-  since none of those is released by the refresh and holding any of them would never end. The second kind is
-  answered by the refresh itself: a base lag it cannot count over a pinned anchor is reset and parked rather than
-  left standing, trusting no comparison of what the attempt left, and a reset git refuses keeps every record. A
+  for an issue the refresh skips for a freeze, for a park some stage left, and for a checkout whose HEAD names a
+  commit this store cannot read — since none of those is released by the refresh and holding any of them would never
+  end. That last kind is answered by the refresh itself: a base lag it cannot count over a pinned anchor is reset and
+  parked rather than left standing, trusting no comparison of what the attempt left, and a reset git refuses keeps
+  every record. A checkout that is not on disk is held all the same, because the handler that would recreate it
+  rebuilds it from the local branch — which may still be the unpublished replay — and hands that to an agent; the
+  dispatcher restores it itself instead, running nothing behind the restore, and the next refresh walks it. A
   non-empty
   value on entry means a previous tick rebased and died
   before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
@@ -2306,7 +2308,11 @@ rather than preserving.
   exemption is already on the head, so one write has finished the transfer and a second claim about it would be a
   second move. *Unvouched*: everything else — a group this build cannot read whole, an exemption CLAIMED and not
   shown, a proof nothing can be reported from, an outstanding permission naming another commit, or one whose lease,
-  publication, stage, digest, accepted pair, or paired debt belongs to some other attempt. Only *unrecorded* is
+  publication, stage, digest, accepted pair, or paired debt belongs to some other attempt — and, with no permission
+  standing at all, a `late_approved_*` debt that is not the one this attempt's own gate records before its push: one
+  naming another commit or another lease, or one this build cannot read back whole. The refresh's freeze lets an
+  approval leased to the anchor through as this attempt's own work, so that debt reaches the recovery and has to be
+  held to the replay here rather than measured past and overwritten. Only *unrecorded* is
   handed evidence this owner made, and that asymmetry is the safety rule: a grant replaces the whole group rather
   than adding beside it, so assembling a claim over one already standing would repair a record nobody checked under
   the authority of the transfer being decided. A *settled* record whose `late_rewrite_to_sha` is this attempt's own

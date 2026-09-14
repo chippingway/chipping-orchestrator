@@ -128,7 +128,10 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.git.base_sync import refresh_selection as _refresh_selection
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import (
+    creation as _worktree_creation,
+    paths as _worktree_paths,
+)
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     _ISSUE_STATE_CLOSED,
@@ -591,7 +594,9 @@ def _record_stops_the_tick(
     spawn an agent over a replay no push has published. Whether that holds
     the tick, and the freezes and parks under which holding it would be a
     deadlock instead, are the refresh selection's to say; it sits below this
-    layer, so it is bound at module scope.
+    layer, so it is bound at module scope. A checkout that is not on disk is
+    held too, and restored here -- the refresh only walks the checkouts that
+    exist, and the handler would rebuild this one onto the unpublished replay.
     """
     late_relabel = importlib.import_module(_LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
@@ -601,9 +606,9 @@ def _record_stops_the_tick(
             spec.slug, issue.number, label,
         )
         return True
+    checkout = _worktree_paths._worktree_path(spec, issue.number)
     if _refresh_selection._recovery_holds_dispatch(
-        issue, label, state,
-        _worktree_paths._worktree_path(spec, issue.number),
+        issue, label, state, checkout,
     ):
         log.info(
             "repo=%s issue=#%s carries an auto-rebase anchor the base refresh "
@@ -611,6 +616,8 @@ def _record_stops_the_tick(
             "over an unpublished replay",
             spec.slug, issue.number, label,
         )
+        if not checkout.is_dir():
+            _restores_the_checkout(spec, issue, state)
         return True
     late_reconcile = importlib.import_module(_LATE_RECONCILE_OWNER)
     if late_reconcile._reconciles_published_work(
@@ -622,6 +629,40 @@ def _record_stops_the_tick(
         late_reuse._refuses_reuse(gh, spec, issue, state)
         or _greeted_already(spec, issue, label, state)
     )
+
+
+def _restores_the_checkout(
+    spec: config.RepoSpec, issue: Issue, state: PinnedState,
+) -> None:
+    """Bring back the checkout an unanswered anchor names, and nothing else.
+
+    The refresh walks only the checkouts that exist, so an anchor over a
+    missing one is never answered there -- and the stage handler that would
+    recreate it rebuilds it onto whatever the local branch still names, which
+    for an interrupted rebase is the unpublished replay, and then hands that
+    to an agent. Restored here instead, nothing runs behind the restore: the
+    tick stays held, and the next refresh walks the checkout and classifies
+    the anchor over it before any handler is reached.
+
+    Restored from the pull request's own branch, the way every other
+    checkout onto a publication is, so a local ref that survived the checkout
+    is what comes back and a missing one is rebuilt from the remote. A
+    restore that fails is logged and held rather than raised: the tick still
+    runs no handler, and the next one tries again.
+    """
+    try:
+        _worktree_creation._ensure_pr_worktree(
+            spec, issue.number,
+            branch=_worktree_paths._resolve_branch_name(
+                state, spec, issue.number,
+            ),
+        )
+    except Exception:
+        log.exception(
+            "repo=%s issue=#%s could not restore the checkout its auto-rebase "
+            "anchor names; still holding its handler and retrying next tick",
+            spec.slug, issue.number,
+        )
 
 
 def _greeted_already(

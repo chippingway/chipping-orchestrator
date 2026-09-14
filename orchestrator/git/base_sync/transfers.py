@@ -36,7 +36,8 @@ are closed:
   making a second claim about a transfer one write already finished.
 * `UNVOUCHED` -- a group is standing that this build cannot read whole, one
   claiming a commit that is not the head in hand, or one whose paired debt
-  disagrees with it. Nothing is assembled and nothing is settled, and the
+  disagrees with it -- or, with no permission standing at all, a debt that
+  is not the one this attempt's own gate records before its push. Nothing is assembled and nothing is settled, and the
   caller parks rather than letting the ordinary gate measure a change a human
   already ruled on -- which is the answer a permission nobody can check has to
   get.
@@ -282,16 +283,54 @@ def _carried_by(
         exemption as _exemption,
         rewrites as _rewrites,
     )
-    if _exemption.unreadable_exemption(context.state):
-        return _Handoff.UNVOUCHED
-    if _rewrites.stranded_transfer_proof(context.state):
+    if _exemption.unreadable_exemption(context.state) or (
+        _rewrites.stranded_transfer_proof(context.state)
+    ):
         return _Handoff.UNVOUCHED
     standing = _standing_permission(context, local_head)
     if standing is not None:
         return standing
+    if _foreign_debt(context, local_head):
+        return _Handoff.UNVOUCHED
     if _exemption.read_exemption(context.state) is None:
         return _Handoff.NOTHING
     return _Handoff.UNRECORDED
+
+
+def _foreign_debt(
+    context: _AutoRebaseRecoveryContext, local_head: str,
+) -> bool:
+    """Whether a debt with no permission beside it is somebody else's.
+
+    Asked only once no permission stands, because a permission and its debt
+    are one grant and the reader above already holds each to the other. What
+    is left is the debt on its own, and it has one honest shape: the approval
+    the ordinary gate records for THIS replay before its push -- the commit on
+    this checkout, leased to this attempt's anchor, and readable whole. That
+    is exactly the record the refresh's freeze sets aside for its own
+    interrupted work, which is why an approval leased to the anchor reaches a
+    recovery at all.
+
+    Anything else that reaches one is a claim the freeze let through on its
+    lease alone. A debt naming another commit says a push is owed for work
+    this checkout is not, and one whose basis or lease cannot be read cannot
+    say what it is. Read as no transfer, the replay is measured and
+    force-pushed and the gate's own write replaces that debt with one of its
+    own -- overwriting the only account of the push it recorded.
+    """
+    # Lazy for the reason every upward reach in this package is: the debt
+    # sits in the workflow layer above it.
+    from orchestrator.workflow.stages.implementing import late_parks
+    if late_parks._unreadable_approval(context.state):
+        return True
+    owed = late_parks._approved_commit(context.state)
+    if not owed:
+        return False
+    if owed != local_head:
+        return True
+    return late_parks._approved_lease(context.state) != (
+        context.pending_pre_rebase_sha
+    )
 
 
 def _standing_permission(

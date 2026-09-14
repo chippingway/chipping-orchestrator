@@ -142,9 +142,11 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             the hold an auto-rebase anchor the base refresh left unanswered puts on every stage it
                             drives -- a pull request that would not read returns before its recovery runs, and the
                             handler would otherwise spawn an agent over a replay no push published -- lifted for an
-                            issue that refresh skips for a freeze, for a park some stage left, and for a checkout the
-                            refresh cannot reach -- absent, or with a HEAD naming a commit it cannot read -- since
-                            none of those is released by the refresh --
+                            issue that refresh skips for a freeze, for a park some stage left, and for a checkout
+                            whose HEAD names a commit it cannot read, since none of those is released by the refresh
+                            -- with a checkout that is not on disk held all the same and restored here, running
+                            nothing behind the restore, since the handler would rebuild it onto the local branch and
+                            that may still be the unpublished replay --
                             the hold an issue that has spent its whole lifetime agent-run allowance gets, taken
                             once here rather than taught to thirteen handlers because `awaiting_human` means a
                             different road on each of them and none of those buys back a run (it replays the

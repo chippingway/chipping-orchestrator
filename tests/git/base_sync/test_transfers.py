@@ -28,6 +28,13 @@ from tests.git.base_sync import (
     transfers_test_support as seed,
 )
 
+# A debt standing with no permission beside it that this attempt's own gate
+# did not leave: the commit and the head it is leased to, as `(commit, lease)`.
+FOREIGN_DEBTS = MappingProxyType({
+    "naming some other commit": (seed.FOREIGN_SHA, seed.ACCEPTED_SHA),
+    "leased to some other head": (seed.REPLAYED_SHA, seed.FOREIGN_SHA),
+})
+
 # A group something took a member out of, or left a value in that nothing here
 # would have written. `None` is the member taken out.
 TAKEN_APART = MappingProxyType({
@@ -258,6 +265,28 @@ class UnvouchedClaimTest(seed.TransferCase):
                 seed.owes(self.state, commit, lease)
 
                 self._refuses()
+
+    def test_a_debt_no_permission_explains(self) -> None:
+        """Only the debt this attempt's own gate leaves is not a claim."""
+        for described, (commit, lease) in FOREIGN_DEBTS.items():
+            with self.subTest(described):
+                self._fresh()
+                seed.owes(self.state, commit, lease)
+
+                self._refuses()
+
+    def test_an_unreadable_debt_with_no_permission(self) -> None:
+        """A basis nothing can name is no debt anybody can tie to this."""
+        seed.owes(self.state, seed.REPLAYED_SHA, seed.ACCEPTED_SHA)
+        self.state.set(_APPROVED_BASIS, "a bypass nobody grants")
+
+        self._refuses()
+
+    def test_this_attempts_own_debt_is_no_claim(self) -> None:
+        """The ordinary gate records one for this replay before its push."""
+        seed.owes(self.state, seed.REPLAYED_SHA, seed.ACCEPTED_SHA)
+
+        self.assertEqual(self._carried(), transfers._Handoff.UNRECORDED)
 
     def test_a_debt_whose_basis_cannot_be_named(self) -> None:
         """The third member of the group, which the two readers pass over."""

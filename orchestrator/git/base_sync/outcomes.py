@@ -301,9 +301,9 @@ def _park_unvouched_recovery(
 
     The comment claims something about the commit this issue exempts -- a
     transfer group short of a member, an exemption it cannot show whole, an
-    identity taken under a scheme this build does not compute -- and the
-    branch is standing on a replay of that commit with nothing on the remote
-    yet.
+    identity taken under a scheme this build does not compute -- or a push
+    owed for some other commit with no permission explaining it, and the
+    branch is standing on a replay with nothing on the remote yet.
 
     Every other road from here ends in the ordinary cumulative gate, and for
     an adjudicated change that is the wrong answer twice over: the replay is
@@ -321,10 +321,10 @@ def _park_unvouched_recovery(
     local_short = _short(recovery_snapshot.head)
     pre_rebase_short = _short(context.pending_pre_rebase_sha)
     log.warning(
-        "issue=#%d auto-rebase recovery: the pinned comment claims a transfer "
-        "for the commit this issue exempts and this build cannot read it back "
-        "whole; resetting %s onto the anchor and parking rather than measuring "
-        "an adjudicated change again",
+        "issue=#%d auto-rebase recovery: the pinned comment claims an "
+        "exemption, a transfer, or a debt this build cannot tie to this "
+        "attempt; resetting %s onto the anchor and parking rather than "
+        "measuring or pushing on a record nothing checked",
         context.issue.number, local_short,
     )
     persistence._reset_clear_and_park(
@@ -333,15 +333,16 @@ def _park_unvouched_recovery(
         message=(
             f"{config.HITL_MENTIONS} crash recovery for PR "
             f"#{context.pr_number}: this issue's pinned comment claims an "
-            "adjudication exemption -- or a transfer of one -- that the "
-            "orchestrator cannot read back whole, and the interrupted rebase "
-            f"left `{local_short}` on the branch. Publishing it would send a "
-            "change a human already ruled on back into adjudication on the "
-            "strength of a record nothing could check, so HEAD has been reset "
-            f"to the pre-rebase SHA `{pre_rebase_short}` and nothing was "
-            "pushed. Repair the `late_exempt_*` / `late_rewrite_*` fields on "
-            "the pinned comment, then reply on this issue with anything to "
-            "retry."
+            "adjudication exemption, a transfer of one, or a publication debt "
+            "that the orchestrator cannot tie to this rebase, and the "
+            f"interrupted rebase left `{local_short}` on the branch. Publishing "
+            "it would act on a record nothing could check -- sending a change "
+            "a human already ruled on back into adjudication, or overwriting "
+            "a push somebody else is still owed -- so HEAD has been reset to "
+            f"the pre-rebase SHA `{pre_rebase_short}` and nothing was pushed. "
+            "Repair the `late_exempt_*` / `late_rewrite_*` / `late_approved_*` "
+            "fields on the pinned comment, then reply on this issue with "
+            "anything to retry."
         ),
         reason=_REASON_AUTO_BASE_REBASE_FAILED,
     )

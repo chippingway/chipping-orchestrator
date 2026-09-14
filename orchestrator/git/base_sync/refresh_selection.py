@@ -262,11 +262,17 @@ def _recovery_holds_dispatch(
       is never answered and the anchor is never reached.
     * A park some STAGE left. The refresh leaves such a park intact rather than
       rebasing past it, and only the handler that wrote it can take it down.
-    * A checkout the refresh cannot REACH. One that is not on disk is never
-      walked at all, and it is the handler that recreates it; one whose HEAD
-      names a commit nothing can read has its lag refused, and the refresh
-      answers that itself, with a reset and a park -- so an anchor still
-      standing over one is a refresh that raised rather than one on its way.
+    * A checkout whose HEAD names a commit nothing can read. The refresh
+      refuses its lag and answers that itself, with a reset and a park -- so
+      an anchor still standing over one is a refresh that raised rather than
+      one on its way.
+
+    A checkout that is not on disk is NOT one of them, however it looks. The
+    refresh never walks it, but the handler that would recreate it rebuilds it
+    from the local branch -- which may still be standing on the unpublished
+    replay -- and hands that straight to an agent. So it is held like any
+    other tick, and the dispatcher restores the checkout itself for the next
+    refresh to walk.
 
     A park the refresh left is held like any other tick, since every stage
     handler short-circuits on one anyway and the reply that releases it is the
@@ -289,24 +295,24 @@ def _recovery_holds_dispatch(
 
 
 def _refresh_reaches(worktree: Path, issue_number: int) -> bool:
-    """Whether the refresh can take this checkout's recovery at all.
+    """Whether the hold may wait on the refresh for this checkout at all.
 
     Asked last, and for the reason the checkout read above is: it is the only
-    question in the hold that costs git. Both refusals are said out loud,
-    since a hold lifted here is one an operator would otherwise find as a
-    handler running over an anchor nothing answered.
+    question in the hold that costs git. The refusal is said out loud, since a
+    hold lifted here is one an operator would otherwise find as a handler
+    running over an anchor nothing answered.
+
+    A checkout that is not on disk answers yes and reads nothing. The refresh
+    cannot walk it, but the dispatcher restores it behind this answer -- and a
+    handler let through instead would rebuild it onto whatever the local
+    branch still names, which is the unpublished replay the hold exists for.
 
     The HEAD is proved to be a commit rather than read as a name, because a
     ref pointed at an object this store does not hold still names one -- and
     it is exactly that checkout whose lag the refresh cannot count.
     """
     if not worktree.is_dir():
-        log.warning(
-            "issue=#%d carries an auto-rebase anchor and no checkout at %s; "
-            "the refresh never walks a missing one, so its handler runs",
-            issue_number, worktree,
-        )
-        return False
+        return True
     head = _probes._head_sha(worktree)
     if head and _probes._commit_present(worktree, head):
         return True
