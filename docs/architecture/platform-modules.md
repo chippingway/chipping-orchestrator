@@ -379,7 +379,9 @@ orchestrator/
                         accounting a road that publishes nothing new owes, the rollback a receipt beside a remote
                         that has moved describes, the permit itself asked ahead of a recovery's gated push rather
                         than through it, since the gate answers a refusal by measuring, and whether a permission
-                        still says a push is owed, for a road walking away from an attempt. Only the publisher's
+                        still says a push is owed, for a road walking away from an attempt -- which passes over a
+                        group the exemption has moved past exactly as the classification does, so a settled
+                        rotation a later adjudication left behind is history rather than a push owed. Only the publisher's
                         own assembly is on a running road; everything else is consulted by the dormant
                         vouched-replay route in `recovery` alone, and the accounting by nothing yet
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage

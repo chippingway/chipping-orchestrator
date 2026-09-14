@@ -1303,8 +1303,12 @@ The keys that matter for the state machine fall into a few groups:
   every road that would push, call an attempt unstarted, or clear one under a relabel: it stands only where a
   publication landed, and no finish announces the anchor. A checkout back ON the anchor with a replay recorded, a
   permission unspent, or any mark standing is a rebase something undid, finished as that rollback rather than
-  cleared. Its parks read `auto_base_rebase_push_failed` where the push, the remote, or an announced publication the
-  remote lost is what refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
+  cleared. An issue relabelled off the refresh-driven set is cleared only where the attempt left nothing a clear would
+  strand — a checkout still on the anchor, no replay or damaged record, no mark, and no permission still owed — and
+  parks once otherwise. A settled rotation a later adjudication moved the exemption past is not a permission owed:
+  it is never cleared, and read as one it would strand every untouched attempt the issue makes. Its parks read
+  `auto_base_rebase_push_failed` where the push, the remote, or an announced publication the remote lost is what
+  refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
   unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand. The keys are
   written now so that the route, once selected, has a record to act on for attempts that were in flight before it.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
