@@ -68,6 +68,10 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
+    late_cancellation_reading as _late_cancellation_reading,
+    late_cancellation_state as _late_cancellation_state,
+    late_close_observation as _late_close_observation,
+    late_close_reading as _late_close_reading,
     state as _state,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -114,7 +118,7 @@ def _handle_closed_owner_cleanup(
     state = gh.read_pinned_state(issue)
     generation = _late_state.read_late_generation(state)
     if not generation.is_present:
-        generation = _late_cancellation._retired_close_adopted(
+        generation = _late_close_observation._retired_close_adopted(
             gh, spec, issue, state,
         )
     if generation is None:
@@ -127,7 +131,7 @@ def _handle_closed_owner_cleanup(
             "the cancellation and doing nothing else this visit",
             issue.number, withheld,
         )
-        _late_cancellation._marked(gh, issue, state, generation)
+        _late_cancellation_state._marked(gh, issue, state, generation)
         return
     _late_cancellation._reconcile_closed_owner(
         gh, spec, issue, state, generation,
@@ -167,11 +171,11 @@ def _kept_in_the_sweep(
     GitHub refuses is logged rather than raised -- the observation this pass
     is still carrying is what brings the next tick back to try again.
     """
-    if not _late_cancellation._still_owed(
+    if not _late_cancellation_reading._still_owed(
         _late_state.read_late_generation(state),
     ):
         return
-    if gh.workflow_label(issue) in _late_cancellation._SWEPT_LABELS:
+    if gh.workflow_label(issue) in _late_close_reading._SWEPT_LABELS:
         return
     label = (
         WorkflowLabel.UMBRELLA if state.get(_state._UMBRELLA)

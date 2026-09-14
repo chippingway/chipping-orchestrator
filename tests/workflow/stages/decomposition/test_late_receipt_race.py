@@ -27,7 +27,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
-    late_cancellation as _late_cancellation,
+    late_close_observation as _late_close_observation,
 )
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.fixtures import _TEST_SPEC
@@ -121,7 +121,7 @@ class _ReceiptCase(ObservedCloseCase):
 
     def _recorded(self) -> None:
         """One poll's attempt at the durable half of its observation."""
-        _late_cancellation._record_observed_close(
+        _late_close_observation._record_observed_close(
             self.github, _TEST_SPEC, LATE_ISSUE_NUMBER,
         )
 

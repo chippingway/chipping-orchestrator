@@ -16,7 +16,7 @@ from unittest.mock import Mock, patch
 from orchestrator.config import settings as config
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.workflow.stages.decomposition import (
-    late_cancellation as _late_cancellation,
+    late_close_reading as _late_close_reading,
 )
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine.cleanup_deferral_support import (
@@ -47,7 +47,7 @@ def cleanup_settled(github, spec, issue_number: int) -> bool:
     Driven directly for the one answer no whole tick can stage: what the
     question does when the request behind it never lands.
     """
-    return _late_cancellation._cleanup_settled(github, spec, issue_number)
+    return _late_close_reading._cleanup_settled(github, spec, issue_number)
 
 
 class UnfinishedCleanupCase(DeferralCase):

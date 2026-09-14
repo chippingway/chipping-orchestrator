@@ -24,7 +24,7 @@ from orchestrator.workflow.engine import dispatch as _dispatch
 from orchestrator.workflow.late_split import endings as _endings, phases as _late_phases, state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
-    late_cancellation as _late_cancellation,
+    late_cancellation_terminal as _late_cancellation_terminal,
 )
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import _TEST_SPEC
@@ -207,7 +207,7 @@ def crashed_ending(case) -> None:
     """
     case._seed(terminal=False)
     case.issue.closed = True
-    with patch.object(_late_cancellation, _RECORDED, Mock()):
+    with patch.object(_late_cancellation_terminal, _RECORDED, Mock()):
         case._reported_route()
 
 

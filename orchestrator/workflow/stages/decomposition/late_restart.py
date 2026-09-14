@@ -29,7 +29,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateFailure, LateGeneration
 from orchestrator.workflow.stages.decomposition import (
-    late_cancellation as _late_cancellation,
+    late_cancellation_reading as _late_cancellation_reading,
     late_restart_effects as _late_restart_effects,
     late_restart_state as _late_restart_state,
 )
@@ -130,7 +130,7 @@ def _restartable(
         return False
     if not generation.is_present or not generation.cancelled:
         return False
-    if _late_cancellation._unsettled(generation):
+    if _late_cancellation_reading._unsettled(generation):
         return False
     if generation.restart_pending:
         return True
