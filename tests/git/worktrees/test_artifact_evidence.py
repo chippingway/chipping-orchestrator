@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.worktrees import evidence
+from orchestrator.git.worktrees import activity_evidence as _activity_evidence, evidence, tip_evidence as _tip_evidence
 from orchestrator.git.worktrees.models import BranchTip, ProbeAnswer
 from tests.git.worktrees.artifact_test_support import (
     BASE_BRANCH,
@@ -240,7 +240,7 @@ class QuietCheckoutTest(_HostTestCase):
 
     def quiet(self) -> ProbeAnswer:
         """What the probe says about this checkout a minute-wide window back."""
-        return evidence._quiet_checkout(self.worktree, time.time() - MINUTE)
+        return _activity_evidence._quiet_checkout(self.worktree, time.time() - MINUTE)
 
     def settle(self) -> None:
         """Leave every trace of this checkout an hour in the past."""
@@ -248,7 +248,7 @@ class QuietCheckoutTest(_HostTestCase):
 
     def test_a_checkout_made_just_now_refutes(self) -> None:
         self.assertIs(
-            evidence._quiet_checkout(self.worktree, time.time() - HOUR),
+            _activity_evidence._quiet_checkout(self.worktree, time.time() - HOUR),
             ProbeAnswer.REFUTED,
         )
 
@@ -285,7 +285,7 @@ class QuietCheckoutTest(_HostTestCase):
 
     def test_a_path_that_is_not_there_is_unread(self) -> None:
         self.assertIs(
-            evidence._quiet_checkout(
+            _activity_evidence._quiet_checkout(
                 self.world.path(NOTHING_AT_ALL), time.time(),
             ),
             ProbeAnswer.UNREADABLE,
@@ -298,13 +298,13 @@ class BranchTipTest(_HostTestCase):
     def test_a_branch_resolves_to_its_commit(self) -> None:
         tip = self.commit()
 
-        resolved = evidence._local_branch_tip(self.spec, self.branch)
+        resolved = _tip_evidence._local_branch_tip(self.spec, self.branch)
 
         self.assertIs(resolved.answer, ProbeAnswer.CONFIRMED)
         self.assertEqual(resolved.sha, tip)
 
     def test_an_absent_branch_is_refuted(self) -> None:
-        resolved = evidence._local_branch_tip(self.spec, self.branch)
+        resolved = _tip_evidence._local_branch_tip(self.spec, self.branch)
 
         self.assertIs(resolved.answer, ProbeAnswer.REFUTED)
         self.assertEqual(resolved.sha, "")
@@ -316,7 +316,7 @@ class BranchTipTest(_HostTestCase):
         elsewhere = self.world.path(NOT_A_CLONE)
         elsewhere.mkdir()
 
-        resolved = evidence._local_branch_tip(
+        resolved = _tip_evidence._local_branch_tip(
             _spec(WIDGET_SLUG, elsewhere), self.branch,
         )
 
@@ -326,7 +326,7 @@ class BranchTipTest(_HostTestCase):
         with patch.object(
             commands, "_git_hardened", side_effect=OSError("no git here"),
         ):
-            resolved = evidence._local_branch_tip(self.spec, self.branch)
+            resolved = _tip_evidence._local_branch_tip(self.spec, self.branch)
 
         self.assertIs(resolved.answer, ProbeAnswer.UNREADABLE)
 
@@ -339,7 +339,7 @@ class PublishedTipTest(_HostTestCase):
         tip = self.commit()
         self.world.publish(self.clone, self.branch, self.branch)
 
-        published = evidence._published_tip(self.spec, self.branch)
+        published = _tip_evidence._published_tip(self.spec, self.branch)
 
         self.assertIs(published.answer, ProbeAnswer.CONFIRMED)
         self.assertEqual(published.sha, tip)
@@ -350,7 +350,7 @@ class PublishedTipTest(_HostTestCase):
         self.world.serve(self.spec)
         self.commit()
 
-        published = evidence._published_tip(self.spec, self.branch)
+        published = _tip_evidence._published_tip(self.spec, self.branch)
 
         self.assertIs(published.answer, ProbeAnswer.REFUTED)
         self.assertEqual(published.sha, "")
@@ -364,7 +364,7 @@ class PublishedTipTest(_HostTestCase):
         planted = self.commit()
         _tracking_ref(self.clone, self.branch, planted)
 
-        published = evidence._published_tip(self.spec, self.branch)
+        published = _tip_evidence._published_tip(self.spec, self.branch)
 
         self.assertIs(published.answer, ProbeAnswer.REFUTED)
 
@@ -381,7 +381,7 @@ class PublishedTipTest(_HostTestCase):
             "_remote_branch_tip",
             side_effect=OSError("no git here"),
         ):
-            published = evidence._published_tip(self.spec, self.branch)
+            published = _tip_evidence._published_tip(self.spec, self.branch)
 
         self.assertIs(published.answer, ProbeAnswer.UNREADABLE)
 
@@ -392,7 +392,7 @@ class PublishedTipTest(_HostTestCase):
         self.world.unreachable(self.spec)
         self.commit()
 
-        published = evidence._published_tip(self.spec, self.branch)
+        published = _tip_evidence._published_tip(self.spec, self.branch)
 
         self.assertIs(published.answer, ProbeAnswer.UNREADABLE)
 
@@ -409,7 +409,7 @@ class BaseAncestryTest(_HostTestCase):
         )
 
         self.assertIs(
-            evidence._base_contains(self.spec, _named(merged), tip),
+            _tip_evidence._base_contains(self.spec, _named(merged), tip),
             ProbeAnswer.CONFIRMED,
         )
 
@@ -420,7 +420,7 @@ class BaseAncestryTest(_HostTestCase):
         tip = self.commit()
 
         self.assertIs(
-            evidence._base_contains(self.spec, base, tip),
+            _tip_evidence._base_contains(self.spec, base, tip),
             ProbeAnswer.REFUTED,
         )
 
@@ -428,7 +428,7 @@ class BaseAncestryTest(_HostTestCase):
         tip = self.commit()
 
         self.assertIs(
-            evidence._base_contains(self.spec, _named(MISSING_REVISION), tip),
+            _tip_evidence._base_contains(self.spec, _named(MISSING_REVISION), tip),
             ProbeAnswer.UNREADABLE,
         )
 
@@ -442,7 +442,7 @@ class BaseAncestryTest(_HostTestCase):
         for unnamed in (ProbeAnswer.REFUTED, ProbeAnswer.UNREADABLE):
             with self.subTest(base=unnamed):
                 self.assertIs(
-                    evidence._base_contains(
+                    _tip_evidence._base_contains(
                         self.spec, BranchTip(answer=unnamed), tip,
                     ),
                     ProbeAnswer.UNREADABLE,

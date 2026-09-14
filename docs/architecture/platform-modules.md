@@ -74,7 +74,7 @@ last is held by the loader itself rather than by a check.
   `git/snapshots/mirrors.py`, and the three
   `git/measurement/` owners that log, which all report on the same token, `ls-remote`, fetch, push, and diff
   plumbing),
-  `orchestrator.base_sync` (`git/base_sync/state.py`), `orchestrator.worktree_lifecycle` (the fifteen
+  `orchestrator.base_sync` (`git/base_sync/state.py`), `orchestrator.worktree_lifecycle` (the
   `git/worktrees/` owners that log, plus `runtime/artifacts.py` and `runtime/artifact_records.py` above them — when a
   maintenance pass ran, why it did not, and the record one candidate's answer could not be written as are facts about
   the same artifacts the owners under it report on, so an operator filtering for what
@@ -658,8 +658,8 @@ orchestrator/
       models.py         the three answers a fail-closed probe can give, branch and proven commit identities,
                         retention reasons and subjects, and the eligibility verdict over a discovered candidate
       maintenance_results.py
-                        the pass's closed outcome and reason vocabularies and the result carrying them beside
-                        its candidate, artifact subject, and retained eligibility evidence
+                        the pass's closed outcome and reason vocabularies and the result constructor carrying
+                        them beside its candidate, artifact subject, and retained eligibility evidence
       branch_probes.py  the branch read a scan is built from: the `refs/heads/orchestrator/` listing in one clone,
                         named as the derivations spell it rather than as git's shortest unambiguous form, and
                         answering "could not read" -- a listing that warned about a ref it skipped included, since
@@ -698,32 +698,26 @@ orchestrator/
       inventory.py      combine those claims with per-repository checkout listings and one branch listing per
                         clone. Deduplicate each issue's artifacts, withhold ambiguous issues on every claimant,
                         and refuse unreadable or colliding roots rather than report an empty inventory
-      evidence.py       the nine hardened reads a candidate is judged by -- a checkout that is a worktree of
-                        this clone (asked of `probes`, which owns that identity read) and on one of this issue's
-                        own branch names, a tree that PROVED it carries
-                        nothing loose and one that PROVED it hides nothing besides, a tree that PROVED nothing
-                        has touched it since a caller-named instant -- its own directory for what is created or
-                        removed at the top of it, and the index and reflog under its own git directory for the
-                        edit-and-commit that moves neither -- which branches some tree of the clone is standing
-                        on, since the plumbing delete takes a ref out from under a live checkout where
-                        `branch -D` refuses, counted against the clone's own worktree entries because
-                        `worktree list` drops one whose backlink file is missing with a zero exit and nothing
-                        on stderr while that tree goes on holding its branch, a local branch tip, the
-                        commit the checkout's own HEAD stands on and which branch
-                        that HEAD is, what the REMOTE
-                        says a branch is at, and whether the base the remote named already contains a given tip
-                        -- each answering "could not read" apart from git's own no, and a base nobody named
-                        counted as the first. Loose and hidden are two reads because git treats them as two:
-                        untracked and modified paths are what it calls dirty and what `worktree remove` refuses
-                        over, while a path the repository's own rules cover is neither -- so a tree carrying
-                        nothing else answers clean and comes down with all of it inside.
-                        The two remote questions go over the authenticated `ls-remote`
-                        rather than to `refs/remotes/...`, which is a local ref the per-issue worktrees can write:
-                        a base mirror repointed at an agent's own tip would otherwise read as a base that carries
-                        its work. That read spawns processes, so it is behind a boundary of its own -- a probe
-                        with three answers may not have a fourth -- which is why the status read is behind one
-                        too, since naming the tree it reports on resolves a path an agent can turn into a
-                        symlink loop. Nothing here writes or fetches on either side
+      evidence_reads.py
+                        hardened local reads, with clone reads serialized under the target-root lock so they
+                        cannot land between a worktree mutation and the ref it creates; spawn failures stay unread
+      tip_evidence.py   local branch tips, checkout HEAD commits, authenticated remote tips, and containment in
+                        the base the remote names. Every read distinguishes absence from an unreadable answer.
+                        Tracking refs cannot prove publication because a per-issue checkout can rewrite them;
+                        the remote answer therefore comes over authenticated transport without fetching
+      evidence.py       checkout ownership, symbolic HEAD identity, status, and ignored-file evidence. Identity
+                        compares the clone and the issue's branch names before content can justify removing it.
+                        Loose and ignored files are separate reads because git refuses removal for only the first;
+                        either kind keeps the tree, as does a status or identity read that could not be taken
+      activity_evidence.py
+                        when the checkout directory, its index, and its HEAD reflog were last touched. The index
+                        and reflog see edits and commits that leave the directory timestamp alone. Quiet requires
+                        every timestamp to be readable and none to be newer than the caller's cutoff
+      checkout_listing.py
+                        which branches any worktree of this clone has checked out, with the porcelain listing
+                        counted against the clone's registered worktree entries. Git can silently omit an entry
+                        whose backlink is missing, so an incomplete count refuses deletion rather than treating
+                        the branches it could not list as unused
       claims.py         the GitHub side of the same question, asked about the issue: the issue fetch, the
                         authenticated pinned read and the two checks that its payload is a state at all, the
                         exactly-one-terminal-label rule an ending has to pass, and the open pull requests still
@@ -741,21 +735,19 @@ orchestrator/
                         retained on rather than read as an absence, and one still open is retained on too,
                         since a disagreement between two readings of the same remote is not one to settle in
                         favour of deleting
-      eligibility.py    the side-effect-free classifier over all three: the GitHub gates that settle a candidate
-                        on their own, then one tip proof run over every commit an artifact holds, with the base
-                        established once for the whole candidate. Every checkout is read on its own -- two trees
-                        with two HEADs and two reflogs, where an issue is holding both layouts. Each owes that
-                        proof as a branch does
-                        -- a worktree whose branch was deleted under it holds its commit through its own HEAD and
-                        reflog alone -- and is excused only when a reported branch is standing on that same
-                        commit, so the three shapes one issue can be reported in reach one verdict. Inside the
-                        proof the remote is asked before the base ancestry can release anything, since a merged
-                        tip can still sit under a branch the remote has been pushed past. A branch this clone no
-                        longer holds is proven through the copy the remote carries rather than waved through:
-                        the scan named it moments earlier and something deleted it since, and a remote copy
-                        nobody proved is one a teardown may neither delete nor write down. Reported as one
-                        verdict per candidate carrying every reason it is kept for, and -- when it keeps none --
-                        the commit each artifact was cleared at
+      retention_tips.py
+                        branch-tip retention proofs: ask the remote before base ancestry can clear a commit,
+                        since a merged local tip can still sit under a branch the remote has been pushed past.
+                        A branch absent locally is proven through its remote copy; a commit outside the base
+                        survives only when an ended pull request accounts for that exact tip
+      retention_checkouts.py
+                        ownership and cleanliness gates for each checkout, followed by the proof for its own
+                        HEAD. A deleted branch can leave the checkout holding the only copy through its reflog;
+                        it is excused only when a reported branch stands on the same commit and proves it too
+      eligibility.py    the side-effect-free classifier: issue state and open pull-request claims first, then
+                        checkout and branch retention proofs with one base reading for the whole candidate.
+                        Returns every retention reason or the exact commit each artifact was cleared at, so
+                        two checkout layouts with different HEADs are each proven before either may be removed
       remote_inventory.py
                         list the orchestrator branch namespace once per reachable repository and attribute it
                         against every spec sharing the clone. An unreachable remote refuses its whole repository
@@ -775,25 +767,21 @@ orchestrator/
                         the caller, which reads what each host carries before it decides there is a deletion to
                         attempt at all -- so the pinned local delete reports a ref that is not there as the
                         refusal git gave it rather than papering over it
-      maintenance.py    the pass that spends one classification: the two injected guards -- whether the run may
-                        still act at all, asked before each candidate AND again as the last thing before its first
-                        mutation, since the readings in between are where a candidate's seconds go, and whether
-                        anything is running for this issue -- the classification itself, and the quiet
-                        period every checkout is left alone for, asked in that order and each failing closed. A
-                        candidate the pass stopped before has no answer at all, which is what an interrupted pass
-                        has always looked like from here; past the last reading it is taken as one unit. Then the
-                        teardown -- every checkout first, since a
-                        branch checked out somewhere cannot be deleted, and each branch on the remote before the
-                        clone, so a failed remote delete leaves the local ref standing and the candidate
-                        discoverable. Every tip is re-read against the proof immediately before the mutation it
-                        gates, and an artifact the classification cleared no commit for ends the pass rather than
-                        being passed over: a name that is gone at one reading can be back at the next. A branch
-                        any tree of the clone is standing on ends it too -- an operator's own `worktree add` is on
-                        it as squarely as a checkout this scan named. One
-                        bounded result per candidate: `cleaned`, `retained`, or `failed`, the closed reason that
-                        fixes which, the artifact it names, and the classification's own retentions where those
-                        are what kept it. Nothing is written down and no label, pinned state, comment, or session
-                        is touched, which is what makes a repeated or interrupted pass cost nothing
+      maintenance_guards.py
+                        injected activity and continuation guards, and the quiet period every checkout must
+                        satisfy. Unreadable guards refuse action. Continuation is asked before each candidate
+                        and again immediately before its first mutation, after the costly eligibility reads
+      checkout_removal.py
+                        remove each checkout only after re-reading the exact HEAD the classification cleared.
+                        A moved or unreadable tip, missing proof, or failed removal stops the candidate
+      branch_removal.py
+                        require a complete checkout listing and refuse any branch still checked out. Delete on
+                        the remote before the clone, re-reading each tip against its proof immediately before
+                        the mutation. A failed remote delete leaves the local branch discoverable for another pass
+      maintenance.py    the bounded pass: active claim, classification, quiet period, final continuation guard,
+                        then all checkouts before any branch. Records one result per candidate through
+                        `maintenance_results`; a candidate not reached has no result. No retry queue, issue label,
+                        pinned state, comment, or session is changed, so an interrupted pass can be rediscovered
   skills/
     catalog.py          the per-tick `git ls-tree` of a repo's `SKILL.md` definitions, the `project` level it
                         classifies every one of them at, and the one `repo_skill_catalog` record it appends
@@ -838,24 +826,20 @@ off a facade:
   identity reads; `inventory_roots` resolves and groups clone roots. `probes`, `attribution`, and
   `checkout_attribution` reach `paths` and `naming` for the names they compare against. Only the two probe owners
   reach `commands` — `branch_probes` the `locks` its listing is taken under as well.
-  `candidates`, `models`, and `maintenance_results` carry only data. Nothing in the scan writes, fetches, or names
-  GitHub, which is what lets a caller take
-  it at any point in a tick. The classification over it keeps that split visible:
-  `evidence` calls `commands`, `locks`, `paths`, `probes` for the clone-identity read the scan owns, both
-  `git/verification/` tree reads (the status one, and the
-  ignored-path one git leaves out of it and out of its own refusal to remove a dirty worktree), and
-  `branch_transport` for the one question a local ref may not answer — what the remote says a branch is at;
-  `claims` names GitHub and reaches `naming` for the branch names it asks GitHub about rather than for anything on
-  disk; `commit_claims` names GitHub alone, since the commit it asks about is handed to it; `eligibility` calls all
-  three and nothing else. None of the four writes anything, on the host or on GitHub.
-  The pass over them is where that stops, and only its own step owner writes: `discovery` combines `inventory`,
-  `remote_inventory`, and `candidate_layout`. `remote_inventory` uses `ref_discovery` for the remote namespace
-  listing and `attribution` to resolve its claims against the clone groups from `inventory_roots`; `reclaim`
-  calls `commands`, `locks`, and `ref_transport` for the leased delete; `maintenance` calls `eligibility`,
-  `evidence`, and `reclaim`, takes both the active/claimed answer and the may-I-go-on answer from guards its caller
-  injects rather than reaching up for either, and names nothing in the workflow layer. The caller that injects them
-  is `runtime/artifacts.py`, which is where the pass is scheduled, where the scheduler hold it runs under is taken,
-  and — through `runtime/exclusion.py` — where the host is claimed against the processes no hold can see.
+  `candidates` and `models` carry only data; `maintenance_results` constructs the bounded record for an outcome.
+  Nothing in the scan writes, fetches, or names GitHub. Classification keeps that split visible:
+  `evidence_reads` owns hardened and locked git reads; `tip_evidence` adds authenticated remote answers;
+  `evidence` checks checkout identity and the verification status/ignored-path readings; `activity_evidence`
+  reads timestamps, and `checkout_listing` proves its list is complete. `claims` asks GitHub about the issue,
+  and `commit_claims` about one exact commit. The two retention owners compose those proofs, and `eligibility`
+  returns the candidate verdict. None of these owners writes on the host or on GitHub.
+  `discovery` combines `inventory`, `remote_inventory`, and `candidate_layout`. `remote_inventory` uses
+  `ref_discovery` for namespace listings and `attribution` for claims against the clone groups.
+  Mutations live on `reclaim`, which calls `commands`, `locks`, and `ref_transport`. `checkout_removal` and
+  `branch_removal` spend the verdict's tips immediately before those mutations; `maintenance` orders their work
+  after eligibility and the injected guards on `maintenance_guards`. The workflow layer is never imported here.
+  `runtime/artifacts.py` schedules the pass, takes the scheduler hold, and injects those guards; through
+  `runtime/exclusion.py`, it claims the host against processes no scheduler hold can see.
 - `base_sync/` — `models` and `state` carry only data. On the sync side `refresh` calls `refresh_selection` before
   `pre_pr` and `pr`, `refresh_selection` asks `frozen` alone, `pr` asks `eligibility`, `startup`, and `publication` in
   that order, and `guards` ends in `persistence`. On the recovery side `recovery` calls `snapshot`, `outcomes`, and
