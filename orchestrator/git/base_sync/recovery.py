@@ -60,6 +60,7 @@ from orchestrator.git.base_sync import (
     transfers,
 )
 from orchestrator.git.base_sync.models import (
+    _AutoRebaseContext,
     _AutoRebaseRecoveryContext,
     _AutoRebaseRecoverySnapshot,
     _PendingRewrite,
@@ -92,6 +93,14 @@ _UNSPENT_TRANSFERS = frozenset((
 _VOUCHED_IN_FLIGHT = frozenset((
     transfers._Handoff.UNRECORDED, transfers._Handoff.OUTSTANDING,
 ))
+
+# Why a checkout the base lag could not even be counted over is not one a
+# recovery may read, in the terms the abort's own notice is built around.
+_UNREADABLE_CHECKOUT = (
+    "the checkout's HEAD could not be compared against the base branch -- the "
+    "commit it names is missing or unreadable in this worktree -- so nothing "
+    "the interrupted rebase left behind could be read back and verified."
+)
 
 _RECOVERY_SIGNATURE = inspect.Signature((
     inspect.Parameter("gh", inspect.Parameter.POSITIONAL_OR_KEYWORD),
@@ -794,3 +803,39 @@ def _recover_pending_auto_base_rebase(
 
 
 _recover_pending_auto_base_rebase.__signature__ = _RECOVERY_SIGNATURE
+
+
+def _answers_an_unreadable_checkout(
+    context: _AutoRebaseContext, consumed_comment_id: int | None,
+) -> bool:
+    """Reset and park an anchor over a checkout whose HEAD cannot be read.
+
+    The one state no road above can classify, because every one of them
+    starts from a head it can read. The refresh counts the lag before any of
+    them runs, and a count that fails over a pinned anchor is a checkout
+    naming a commit this store does not hold -- a half-arrived fetch, a store
+    pruned under a crashed tick, a ref somebody pointed at nothing. Left
+    alone, the anchor stands for good: the refresh stops before the recovery
+    every tick, and the dispatcher defers to a recovery that never comes.
+
+    So it takes the fail-closed abort every unverifiable reading here takes:
+    the branch goes back onto the anchor, which is the head the pull request
+    carries, and a human is asked. Records follow the reset rather than the
+    intent -- a reset git refuses drops none of them, so the tick after a
+    repair still has the anchor to come back with.
+    """
+    return snapshot._abort_recovery_unverified(
+        _AutoRebaseRecoveryContext(
+            gh=context.gh,
+            spec=context.spec,
+            issue=context.issue,
+            state=context.state,
+            worktree=context.worktree,
+            pr_number=context.pr_number,
+            label=context.label,
+            pending_pre_rebase_sha=str(context.pending_pre_rebase_sha),
+            pending_rewrite=attempts._pending_rewrite(context.state),
+            unparking_consumed_max=consumed_comment_id,
+        ),
+        _UNREADABLE_CHECKOUT,
+    )

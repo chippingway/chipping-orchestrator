@@ -1249,8 +1249,12 @@ The keys that matter for the state machine fall into a few groups:
   stands on a label the refresh drives, the dispatcher holds the stage handler back
   (`refresh_selection._recovery_holds_dispatch`): a refresh that could not reach the recovery — a pull request that
   would not read — would otherwise hand a reviewer or a developer a replay no push has published. The hold is lifted
-  for an issue the refresh skips for a freeze and for a park some stage left, since neither is released by the
-  refresh and holding either would never end. A non-empty
+  for an issue the refresh skips for a freeze, for a park some stage left, and for a checkout the refresh cannot
+  reach — one not on disk, which its walk never visits, or one whose HEAD names a commit this store cannot read —
+  since none of those is released by the refresh and holding any of them would never end. The second kind is
+  answered by the refresh itself: a base lag it cannot count over a pinned anchor is reset and parked rather than
+  left standing, trusting no comparison of what the attempt left, and a reset git refuses keeps every record. A
+  non-empty
   value on entry means a previous tick rebased and died
   before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
   head, or park. The no-op is for an attempt that pinned the anchor and got no further: a checkout back on it with a

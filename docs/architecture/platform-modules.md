@@ -313,7 +313,10 @@ orchestrator/
       refresh.py        the authenticated base fetch, the walk of the repository's worktrees root that hands
                         each entry to the selection owner below, the scheduler-active guard that keeps a
                         worktree out from under a live worker, the dirty-tree refusal a pre-PR rebase owes,
-                        the base-lag probe, and the pre-PR versus PR-aware route
+                        the base-lag probe, and the pre-PR versus PR-aware route -- including the one road a lag
+                        that cannot be counted does not end: over a pinned auto-rebase anchor it is itself the
+                        answer, and the checkout is reset and parked rather than left for a handler the
+                        dispatcher holds back
       refresh_selection.py
                         which discovered directories name an issue, whether that issue reads at all, and the
                         order the refusals that end a sync before any rewrite are asked in: the hard-skip, the
@@ -324,8 +327,10 @@ orchestrator/
                         of this owner: whether an auto-rebase anchor this refresh has not answered -- a pull
                         request that would not read returns before its recovery runs -- holds the stage handler
                         back, which it does only while the refresh can still reach it. A label the refresh does
-                        not drive, an issue it skips for any freeze above, and a park some stage left are each
-                        released by something other than the refresh, so holding any of them is a deadlock
+                        not drive, an issue it skips for any freeze above, a park some stage left, and a checkout
+                        the refresh cannot reach -- one not on disk, which the walk never visits, or one whose
+                        HEAD names a commit it cannot read -- are each released by something other than the
+                        refresh, so holding any of them is a deadlock
       frozen.py         which records hold a checkout still and what ends each freeze: the ones that freeze a
                         branch by their presence -- the late reading, the approval, and the terms of a squash
                         mid-rewrite among them, each read as the whole GROUP its write puts down rather than as

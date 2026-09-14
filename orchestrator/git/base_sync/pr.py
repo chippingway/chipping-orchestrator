@@ -22,7 +22,12 @@ from typing import Any
 
 from github.PullRequest import PullRequest
 
-from orchestrator.git.base_sync import eligibility, publication, startup
+from orchestrator.git.base_sync import (
+    eligibility,
+    publication,
+    recovery,
+    startup,
+)
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseRequest,
@@ -74,6 +79,30 @@ def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:
         return
 
     _publish_auto_rebase_from_pr(context, pr, retry.consumed_comment_id)
+
+
+def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:
+    """Answer an anchor over a checkout whose lag against base cannot be read.
+
+    Asked on the same gates, in the same order, as the ordinary PR sync -- an
+    ineligible label is still the recovery's own ineligible road, a park some
+    stage left is still left alone, a park this refresh left is still waiting
+    on a reply, and a pull request that ended or would not read is still
+    answered as it is there. Only the step past them differs. There is no lag
+    to route on and no head worth comparing, so nothing is fetched and nothing
+    is classified: the recovery takes its fail-closed abort directly.
+    """
+    context = request.to_context(_PENDING_PUSH_SHA)
+    if not eligibility._auto_rebase_label_is_eligible(context):
+        return
+    retry = eligibility._auto_rebase_retry_decision(context)
+    if not retry.should_continue:
+        return
+    if eligibility._open_auto_rebase_pr(context) is None:
+        return
+    recovery._answers_an_unreadable_checkout(
+        context, retry.consumed_comment_id,
+    )
 
 
 def _sync_pr_worktree_to_base(*args: Any, **kwargs: Any) -> None:

@@ -31,6 +31,7 @@ from orchestrator.git.base_sync.state import (
     _PR_REFRESH_DETOUR_LABELS,
     log,
 )
+from orchestrator.git.verification import probes as _probes
 from orchestrator.github import (
     client as _client,
     labels as _labels,
@@ -261,6 +262,11 @@ def _recovery_holds_dispatch(
       is never answered and the anchor is never reached.
     * A park some STAGE left. The refresh leaves such a park intact rather than
       rebasing past it, and only the handler that wrote it can take it down.
+    * A checkout the refresh cannot REACH. One that is not on disk is never
+      walked at all, and it is the handler that recreates it; one whose HEAD
+      names a commit nothing can read has its lag refused, and the refresh
+      answers that itself, with a reset and a park -- so an anchor still
+      standing over one is a refresh that raised rather than one on its way.
 
     A park the refresh left is held like any other tick, since every stage
     handler short-circuits on one anyway and the reply that releases it is the
@@ -277,6 +283,37 @@ def _recovery_holds_dispatch(
         state.get("park_reason") not in _AUTO_REBASE_PARK_REASONS
     ):
         return False
-    return not _issue_skips_base_sync(
-        issue, int(issue.number), state, worktree,
+    if _issue_skips_base_sync(issue, int(issue.number), state, worktree):
+        return False
+    return _refresh_reaches(worktree, int(issue.number))
+
+
+def _refresh_reaches(worktree: Path, issue_number: int) -> bool:
+    """Whether the refresh can take this checkout's recovery at all.
+
+    Asked last, and for the reason the checkout read above is: it is the only
+    question in the hold that costs git. Both refusals are said out loud,
+    since a hold lifted here is one an operator would otherwise find as a
+    handler running over an anchor nothing answered.
+
+    The HEAD is proved to be a commit rather than read as a name, because a
+    ref pointed at an object this store does not hold still names one -- and
+    it is exactly that checkout whose lag the refresh cannot count.
+    """
+    if not worktree.is_dir():
+        log.warning(
+            "issue=#%d carries an auto-rebase anchor and no checkout at %s; "
+            "the refresh never walks a missing one, so its handler runs",
+            issue_number, worktree,
+        )
+        return False
+    head = _probes._head_sha(worktree)
+    if head and _probes._commit_present(worktree, head):
+        return True
+    log.warning(
+        "issue=#%d carries an auto-rebase anchor over a checkout at %s whose "
+        "HEAD %r is not a commit this store can read; not holding its handler "
+        "for a recovery that cannot read it either",
+        issue_number, worktree, head,
     )
+    return False

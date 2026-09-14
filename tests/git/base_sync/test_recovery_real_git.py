@@ -6,10 +6,14 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.git.base_sync import refresh, refresh_selection
 from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.recovery_git_support import RecoveryGitFixtureMixin
 
 PARK_FAILED = "auto_base_rebase_failed"
+
+# A commit id no object in this repository answers to.
+MISSING_COMMIT = "dead" * 10
 
 
 class RecoveryRealGitTest(RecoveryGitFixtureMixin, unittest.TestCase):
@@ -126,6 +130,27 @@ class RecoveryRealGitTest(RecoveryGitFixtureMixin, unittest.TestCase):
         self.assertEqual(self.push.leases, [])
         self.assertEqual(self._remote_head(), self.anchor)
         self._assert_parked(fixtures.PARK_PUSH_FAILED)
+
+    def test_an_unreadable_checkout_is_parked(self) -> None:
+        # The branch names a commit this store does not hold, so the refresh
+        # cannot count the lag against base -- and stopping there would leave
+        # the anchor for a recovery no tick reaches, under a dispatcher that
+        # holds the handler back while it stands. The checkout the attempt
+        # left cannot be compared against anything, so it is put back on the
+        # anchor and a human is asked.
+        branch_ref = self.work / ".git" / "refs" / "heads" / fixtures.BRANCH
+        branch_ref.write_text(f"{MISSING_COMMIT}\n")
+
+        refresh._sync_worktree_with_base(
+            self.gh, self.spec, self.work, fixtures.ISSUE,
+        )
+
+        self.assertEqual(self.push.leases, [])
+        self._assert_parked(fixtures.PARK_PUSH_FAILED)
+        self.assertFalse(refresh_selection._recovery_holds_dispatch(
+            self.issue, fixtures.LABEL,
+            self.gh.read_pinned_state(self.issue), self.work,
+        ))
 
     def _assert_announcement_parks(self, announced: str) -> None:
         self.announce_a_finish(announced)

@@ -6,15 +6,19 @@ The refresh answers a pinned auto-rebase anchor ahead of every handler, but a
 pull request that would not read returns before its recovery runs. What is
 left for the dispatcher is an issue standing on a replay no push published,
 with a handler about to spawn an agent over it -- and the boundary pinned here
-is that the tick stops there, while a park its own stage owns still reaches
-the handler that can release it.
+is that the tick stops there, while a park its own stage owns, and a checkout
+the refresh can never reach, still get to the handler that can answer them.
 """
 from __future__ import annotations
 
+import tempfile
 import unittest
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from orchestrator.git.base_sync import pr as _pr
+from orchestrator.git.verification import probes as _probes
+from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import dispatch
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -40,13 +44,23 @@ class _InterruptedRebaseCase(unittest.TestCase):
 
     The attempt pinned its anchor and the terms it was made under, and got no
     further than that: no permission, no debt, no generation -- nothing the
-    dispatcher's reconciliation would ever stop a tick for on its own.
+    dispatcher's reconciliation would ever stop a tick for on its own. Its
+    checkout is on disk and standing on a commit this store holds.
     """
 
     def setUp(self) -> None:
         self.gh = FakeGitHubClient()
         self.issue = make_issue(ISSUE, label=str(VALIDATING))
         self.gh.add_issue(self.issue)
+        self.checkout = Path(self.enterContext(
+            tempfile.TemporaryDirectory(prefix="orch-dispatch-recovery-"),
+        ))
+        for name, answer in (("_head_sha", ANCHOR), ("_commit_present", True)):
+            patcher = patch.object(
+                _probes, name, MagicMock(return_value=answer),
+            )
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def _seed(self, **pinned) -> None:
         self.gh.seed_state(
@@ -67,12 +81,16 @@ class _InterruptedRebaseCase(unittest.TestCase):
                 self.gh.read_pinned_state(self.issue), _FAKE_WT, PR_NUMBER, 0,
             )
 
-    def _stops(self) -> bool:
+    def _stops(self, checkout: Path | None = None) -> bool:
         """Whether the dispatcher stops this tick short of its handler."""
-        return dispatch._record_stops_the_tick(
-            self.gh, _TEST_SPEC, self.issue, VALIDATING,
-            self.gh.read_pinned_state(self.issue),
-        )
+        with patch.object(
+            _worktree_paths, "_worktree_path",
+            MagicMock(return_value=checkout or self.checkout),
+        ):
+            return dispatch._record_stops_the_tick(
+                self.gh, _TEST_SPEC, self.issue, VALIDATING,
+                self.gh.read_pinned_state(self.issue),
+            )
 
 
 class DeferredRecoveryTest(_InterruptedRebaseCase):
@@ -102,6 +120,15 @@ class DeferredRecoveryTest(_InterruptedRebaseCase):
         self._refreshes_with_an_unreadable_pr()
 
         self.assertFalse(self._stops())
+
+    def test_an_absent_checkout_is_not_deadlocked(self) -> None:
+        # The refresh walks only the checkouts on disk, so an anchor over a
+        # missing one is never answered there -- and the handler is what
+        # recreates it for the next refresh to classify.
+        self._seed()
+        self._refreshes_with_an_unreadable_pr()
+
+        self.assertFalse(self._stops(self.checkout / "gone"))
 
 
 if __name__ == "__main__":
