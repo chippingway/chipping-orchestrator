@@ -9,15 +9,11 @@ the lot. An import that points the other way is what turns a package into a
 cycle, and what puts a decision the workflow owns behind an import of the
 infrastructure under it.
 
-The one name a lower layer may reach up for is the typed label vocabulary, and
-only the two domains typed by it may: the GitHub and git layers are typed by
-the workflow labels they read and write, and `workflow/state.py` is the one
-owner holding those apart from the engine -- named exactly, so that a sibling
-of it cannot inherit the exemption by wearing the same prefix. Because
-importing a submodule runs the package initializer first, that is also why the
-workflow's own initializer resolves the engine inside `tick` rather than binding
-it -- an engine import there would send those layers back through the modules
-they are still initializing.
+The workflow vocabulary is the one domain a lower layer may read, and only
+GitHub and git may do so. Its label, reading, graph, and guard owners are
+named exactly so a sibling cannot inherit that permission by sharing a
+prefix. Each imports without the engine or stages, and the workflow package
+initializer is a marker that loads no owner behind it.
 
 The direction is read twice, because deferring an import weakens where it
 lands but not whether it should be there. At module scope -- a class body
@@ -57,7 +53,10 @@ _TOP = len(_LAYERS) - 1
 
 # The typed workflow state: the two label vocabularies, the transition graph
 # keyed by them, and the guard every label write passes through.
-_VOCABULARY = f"{PACKAGE}.workflow.state"
+_VOCABULARY = tuple(
+    f"{PACKAGE}.workflow.{owner}"
+    for owner in ("state", "label_reading", "transitions", "transition_guard")
+)
 
 # The two domains typed by a workflow label: the GitHub layer reads and writes
 # them, and the git layer carries them through a base sync. Nobody else has a
@@ -164,7 +163,10 @@ def _reads_the_vocabulary(module: str, target: str) -> bool:
     it as the vocabulary would hand every future workflow owner the exemption
     by naming itself carefully.
     """
-    named = target == _VOCABULARY or target.startswith(f"{_VOCABULARY}.")
+    named = any(
+        target == owner or target.startswith(f"{owner}.")
+        for owner in _VOCABULARY
+    )
     return named and module.startswith(_VOCABULARY_READERS)
 
 
@@ -202,7 +204,7 @@ class DependencyDirectionTest(unittest.TestCase):
     def test_no_module_scope_import_points_up(self) -> None:
         # The label vocabulary read by the two domains typed by it is the
         # single declared exception, so the check doubles as the guard that the
-        # exception stays one owner and two readers wide: an engine or stage
+        # exception stays within its named owners and two readers: an engine or stage
         # module bound below the workflow fails here, and so does a third
         # domain reaching for the vocabulary. The declared call-time hops fail
         # here too -- binding one at module scope is the cycle it is deferred

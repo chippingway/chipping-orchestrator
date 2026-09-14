@@ -155,8 +155,9 @@ rather than on something answering for it.
 Imports run one way through four layers — `config/` at the bottom, the domains that do the work above it, `workflow/`
 deciding with them, and `cli.py` / `__main__.py` / `runtime/` / `apps/` composing the lot. The direction is read
 twice, because deferring an import weakens where it lands but not whether it belongs. At module scope, where an import
-decides what a package costs to load and whether it can be loaded at all, nothing points up but `workflow/state.py` —
-named exactly, and only by the two layers its labels type, `github/` and `git/`. Over every scope, the only reaches
+decides what a package costs to load and whether it can be loaded at all, only `github/` and `git/` may reach the
+workflow vocabulary: `state.py`, `label_reading.py`, `transitions.py`, and `transition_guard.py`, each named exactly.
+Over every scope, the only other reaches
 left are declared one by one in `tests/repository/test_layering.py`: three base-sync owners posting a notice or a park
 through the workflow's comment and guard owners, deferred to a call because at module scope they would be a cycle. An
 undeclared hop fails wherever it is written, and a declared one fails if it is bound at module scope after all. The
@@ -190,8 +191,8 @@ The namespace is a GitHub label spelling and stops at that boundary, which is th
 [`architecture/workflow-modules.md`](architecture/workflow-modules.md) reads by: a bare tag there names the *stage* —
 the handler, the subpackage under `orchestrator/workflow/stages/` holding it, and the identifier analytics rows,
 audit event payloads, and agent-session attribution have always carried — while the wire label an issue carries is
-spelled `workflow:<tag>`. `workflow/state.py` owns both directions: `stage_name` strips the prefix for those sinks,
-and `label_for_name` resolves either spelling back to its member.
+spelled `workflow:<tag>`. `workflow/state.py` defines `stage_name`, which strips the prefix for those sinks;
+`workflow/label_reading.py` defines `label_for_name`, which resolves either spelling back to its member.
 
 The whole set, what each state means, and the control-label semantics are in
 [`state-machine/labels-and-state.md#workflow-labels`](state-machine/labels-and-state.md#workflow-labels). The startup

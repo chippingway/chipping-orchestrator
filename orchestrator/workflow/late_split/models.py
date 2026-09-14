@@ -19,10 +19,8 @@ from orchestrator.workflow.late_split import (
     generation_reading as _generation_reading,
     phases as _late_phases,
 )
-from orchestrator.workflow.state import (
-    WorkflowLabel,
-    publishes_onto_a_pull_request,
-)
+from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.transitions import publishes_onto_a_pull_request
 
 # How long a resource target may be. It is never recorded -- only digested
 # into an identifier -- but a ref, a branch, or an issue number that does not

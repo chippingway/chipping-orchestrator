@@ -5,16 +5,13 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.state import (
-    ControlLabel,
-    WorkflowLabel,
+from orchestrator.workflow.label_reading import (
     coerce_workflow_label,
     issue_workflow_label,
     label_for_name,
-    legacy_label_name,
     replaced_label_names,
-    stage_name,
 )
+from orchestrator.workflow.state import ControlLabel, WorkflowLabel, legacy_label_name, stage_name
 from tests.support.fakes import (
     FakeGitHubClient,
     FakeIssue,

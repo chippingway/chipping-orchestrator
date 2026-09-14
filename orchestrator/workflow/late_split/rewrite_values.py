@@ -13,10 +13,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
 
-from orchestrator.workflow.state import (
-    WorkflowLabel,
-    rebased_by_the_base_refresh,
-)
+from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.transitions import rebased_by_the_base_refresh
 
 
 class LateRewriteKind(StrEnum):

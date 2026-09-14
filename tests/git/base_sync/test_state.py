@@ -7,7 +7,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.git.base_sync import state
-from orchestrator.workflow import state as workflow_state
+from orchestrator.workflow import transitions as _transitions
 from orchestrator.workflow.state import WorkflowLabel
 
 # Live issues already carry these strings in their pinned-state comment, so a
@@ -79,7 +79,7 @@ class DetourLabelTest(unittest.TestCase):
         # found; detouring a label the graph forbids would raise
         # `IllegalTransition` instead of parking the issue.
         self.assertTrue(
-            state._PR_REFRESH_DETOUR_LABELS <= workflow_state._DETOUR_TO_RESOLVING,
+            state._PR_REFRESH_DETOUR_LABELS <= _transitions._DETOUR_TO_RESOLVING,
         )
 
 

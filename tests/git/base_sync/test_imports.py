@@ -68,9 +68,9 @@ _FLAT_MODULES = (
 )
 
 # The state owner exists to spell out the pinned-state keys and the label
-# vocabulary one rebase attempt is routed by, so the workflow package's `state`
-# owner -- plus the initializer an import of it runs -- are the only
-# orchestrator modules it may reach. Every owner is typed by that vocabulary, so
+# vocabulary one rebase attempt is routed by. The workflow label, reading,
+# graph, and guard owners import without the engine or stages, and only those
+# workflow owners and their marker package may be reached. Every owner is typed by that vocabulary, so
 # this is also the exempt set the forbidden-prefix check below drops before it
 # looks for an inverted dependency. The pre-PR owner adds only the git envelope
 # its rebases run under and the repository spec they read their base ref off.
@@ -78,6 +78,9 @@ _ALLOWED_MODULES = (
     "orchestrator",
     "orchestrator.workflow",
     "orchestrator.workflow.state",
+    "orchestrator.workflow.label_reading",
+    "orchestrator.workflow.transitions",
+    "orchestrator.workflow.transition_guard",
 )
 
 _ALLOWED_ROOTS = (

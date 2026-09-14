@@ -93,13 +93,14 @@ bare spellings; how it moves off them is [below](#legacy-labels-and-the-migratio
 
 Two guards run at `GitHubClient.set_workflow_label` (the single label-write chokepoint; `create_child_issue` bypasses
 `set_workflow_label` and shares only the typo guard for its direct write, coercing each child label through
-`coerce_workflow_label` — the same strictness):
+`label_reading.coerce_workflow_label` — the same strictness):
 
 - **Typo guard (always strict).** A label name not in `WorkflowLabel` raises immediately, so a typo cannot be applied as
   a literal label that the next tick would treat as unlabeled-pickup. `create_child_issue` coerces each birth label the
   same way, so split children are born with only a valid workflow label and any control label is rejected.
 - **Transition guard (`WORKFLOW_TRANSITION_GUARD` = `off` / `warn` / `enforce`, default `warn`).** An illegal
-  `current → new` relabel is checked against `ALLOWED_TRANSITIONS`. `warn` logs the rejected edge through the
+  `current → new` relabel is checked by `transition_guard.guard_transition` against `transitions.ALLOWED_TRANSITIONS`.
+  `warn` logs the rejected edge through the
   `orchestrator.state_machine` logger and proceeds; `enforce` raises `IllegalTransition`; `off` disables the check. A
   same-label re-set is always allowed. That logger name is spelled out literally in the owner, so an operator log
   filter selects on it regardless of which module the guard lives in. One write asks to skip it (`guarded=False`), and

@@ -7,14 +7,10 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow import state as _state
-from orchestrator.workflow.state import (
-    ALLOWED_TRANSITIONS,
-    IllegalTransition,
-    WorkflowLabel,
-    guard_transition,
-    is_allowed_transition,
-)
+from orchestrator.workflow import transition_guard as _transition_guard
+from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.transition_guard import IllegalTransition, guard_transition, is_allowed_transition
+from orchestrator.workflow.transitions import ALLOWED_TRANSITIONS
 from tests.support.fakes import FakeGitHubClient, make_issue
 
 _VALIDATING_LABEL = "workflow:validating"
@@ -230,7 +226,7 @@ class GuardModeTest(unittest.TestCase):
     def test_warn_logs_but_proceeds(self) -> None:
         warning_mock = MagicMock()
         with patch(
-            "orchestrator.workflow.state.log.warning",
+            "orchestrator.workflow.transition_guard.log.warning",
             warning_mock,
         ):
             guard_transition(
@@ -264,7 +260,7 @@ class GuardLoggerTest(unittest.TestCase):
     """The warn-mode logger keeps the name operator filters select on."""
 
     def test_logger_name(self) -> None:
-        self.assertEqual(_state.log.name, _GUARD_LOGGER_NAME)
+        self.assertEqual(_transition_guard.log.name, _GUARD_LOGGER_NAME)
 
 
 class SetWorkflowLabelGuardWiringTest(unittest.TestCase):
