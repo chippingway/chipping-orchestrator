@@ -9,7 +9,8 @@ import signal
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator import agents, config
+from orchestrator import config
+from orchestrator.agents import processes as _agent_processes
 from orchestrator.runtime import shutdown
 from orchestrator.runtime.state import RuntimeState
 from tests.runtime import polling_signal_probes as _signal_probes, polling_test_support as _support
@@ -153,7 +154,7 @@ class ShutdownWatchdogTest(unittest.TestCase):
 
     def test_force_exit_terminates_then_hard_exits(self) -> None:
         with (
-            patch.object(agents, _TERMINATE_ATTR) as terminated,
+            patch.object(_agent_processes, _TERMINATE_ATTR) as terminated,
             patch.object(
                 os,
                 "_exit",

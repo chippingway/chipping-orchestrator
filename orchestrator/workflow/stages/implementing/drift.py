@@ -25,7 +25,8 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import agents as _agents, config
+from orchestrator import config
+from orchestrator.agents import models as _agent_models
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import client as _client, pinned_state as _pinned_state
@@ -94,7 +95,7 @@ def _handle_user_content_drift(
 @dataclass(frozen=True)
 class _ImplementingDriftRun:
     worktree: Path
-    agent_result: _agents.AgentResult
+    agent_result: _agent_models.AgentResult
     before_sha: str | None
     paused: bool
     committed: bool
@@ -115,7 +116,7 @@ def _run_implementing_drift_resume(
 
 
 def _implementing_drift_run(
-    before_sha: str | None, resumed: tuple[Path, _agents.AgentResult, bool],
+    before_sha: str | None, resumed: tuple[Path, _agent_models.AgentResult, bool],
 ) -> _ImplementingDriftRun:
     worktree, agent_result, paused = resumed
     after_sha = _verification_probes._head_sha(worktree)

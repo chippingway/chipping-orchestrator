@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for ``orchestrator.scheduler.IssueScheduler``.
+"""Tests for ``orchestrator.scheduler.service.IssueScheduler``.
 
 Each test gates the workers with ``threading.Event`` so the in-flight
 state under load is observable without depending on wall-clock timing.
@@ -15,7 +15,7 @@ import threading
 import unittest
 from functools import partial
 
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.worker_helpers import (
     _release_on_exit,
     _signaling_failure,

@@ -11,7 +11,7 @@ that decides when a change to one of them reaches a running issue. Which stage s
 
 - **First token rule** — must match `codex` or `claude` case-insensitively (`_parse_agent_spec` compares
   `tokens[0].lower()`, so `CODEX`, `Claude`, and `codex` all parse to the same backend). The lowercased form is used
-  only for dispatch (`agents.run_agent` keys off it).
+  only for dispatch (`agents.runner.run_agent` keys off it).
 
   Pinned state stores the **raw spec string verbatim** with its original casing — `DEV_AGENT=CODEX -m gpt-5.5` is
   persisted as the literal `"CODEX -m gpt-5.5"`, and the re-lowercase happens again on every resume when

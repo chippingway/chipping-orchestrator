@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.github.labels import PAUSED_LABEL
 from orchestrator.workflow.engine import run_ledger as _run_ledger
 from tests.support.fakes import (

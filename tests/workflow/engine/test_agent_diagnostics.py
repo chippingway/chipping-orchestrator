@@ -13,7 +13,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.workflow.engine import agent_diagnostics
 
 _AGENT_SESSION_ID = "s"

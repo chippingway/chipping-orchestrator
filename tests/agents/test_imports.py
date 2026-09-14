@@ -52,15 +52,7 @@ _OWNER_ANNOTATED_FUNCS = (
 
 
 class CleanProcessImportTest(unittest.TestCase):
-    """Each agent module imports standalone in a fresh interpreter.
-
-    The package `__init__` facade and the `agents.backends` command modules
-    depend on each other; importing any of them before the package must not
-    fail with a partially-initialized-module error, so the owner submodules are
-    the only agent-package import each backend takes at module load. A
-    subprocess per module gives each one a clean `sys.modules` no other test
-    has already populated.
-    """
+    """Each owner imports cleanly before any siblings are cached."""
 
     def test_each_module_imports_standalone(self) -> None:
         for module in _MODULES:
@@ -92,52 +84,30 @@ class RuntimeAnnotationTest(unittest.TestCase):
 
 
 class PublicSurfaceTest(unittest.TestCase):
-    """The facade publishes a narrow `__all__` backed by owner identities."""
+    """Agent names are reached on the modules that define them."""
 
-    def test_all_names_the_narrow_public_surface(self) -> None:
-        self.assertEqual(
-            _agents.__all__,
-            (
-                "AgentResult",
-                "AgentRunOptions",
-                "CodexResult",
-                "run_agent",
-                "terminate_all_running",
-            ),
+    def test_package_declares_no_surface(self) -> None:
+        self.assertNotIn("__all__", _agents.__dict__)
+
+    def test_names_belong_to_their_defining_modules(self) -> None:
+        owners = (
+            (_agent_models, ("AgentResult", "AgentRunOptions", "CodexResult")),
+            (_agent_runner, ("run_agent",)),
+            (_agent_processes, ("terminate_all_running",)),
         )
+        for owner, names in owners:
+            for name in names:
+                with self.subTest(name=name):
+                    self.assertEqual(getattr(owner, name).__module__, owner.__name__)
 
-    def test_public_names_are_owner_re_exports(self) -> None:
-        # Each public name resolves to the owning module's object rather than a
-        # copy, so a caller reaching through the facade sees the owner's
-        # definition and a monkeypatch on it stays observable.
-        self.assertIs(_agents.run_agent, _agent_runner.run_agent)
-        self.assertIs(_agents.AgentResult, _agent_models.AgentResult)
-        self.assertIs(_agents.AgentRunOptions, _agent_models.AgentRunOptions)
-        self.assertIs(_agents.CodexResult, _agent_models.CodexResult)
-        self.assertIs(
-            _agents.terminate_all_running,
-            _agent_processes.terminate_all_running,
-        )
-
-    def test_facade_hides_owner_only_names(self) -> None:
-        # The facade's surface is `__all__` alone. Backend dispatch entries,
-        # the credential / session / backend-command helpers, the
-        # transient-provider verdict, and the process-group operations under
-        # the one published shutdown hook belong to their owner modules, so
-        # reaching one through the facade must fail loudly rather than resolve.
-        for owner_only_name in (
-            "_run_codex",
-            "_run_claude",
-            "_filter_agent_env",
-            "_agent_env",
-            "parse_session_id",
-            "is_transient_provider_failure",
-            "_claude_last_message",
-            "_claude_command",
-            "_codex_command",
-            "_AgentRunOptionFields",
-            "communicate_bounded",
-            "terminate_process_group",
+    def test_package_exposes_no_owner_names(self) -> None:
+        for owner_name in (
+            "AgentResult", "AgentRunOptions", "CodexResult", "run_agent",
+            "terminate_all_running", "_run_codex", "_run_claude",
+            "_filter_agent_env", "_agent_env", "parse_session_id",
+            "is_transient_provider_failure", "_claude_last_message",
+            "_claude_command", "_codex_command", "_AgentRunOptionFields",
+            "communicate_bounded", "terminate_process_group",
         ):
-            with self.subTest(name=owner_only_name), self.assertRaises(AttributeError):
-                getattr(_agents, owner_only_name)
+            with self.subTest(name=owner_name), self.assertRaises(AttributeError):
+                getattr(_agents, owner_name)

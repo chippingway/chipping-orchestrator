@@ -23,7 +23,8 @@ import signal
 import threading
 from typing import Self
 
-from orchestrator import agents, config
+from orchestrator import config
+from orchestrator.agents import processes as _agent_processes
 from orchestrator.runtime.state import SIGNAL_EXIT_BASE, RuntimeState
 
 log = logging.getLogger("orchestrator")
@@ -114,6 +115,6 @@ def force_exit(signum: int) -> None:
         config.SHUTDOWN_GRACE_SECONDS,
     )
     with ForcedExit(SIGNAL_EXIT_BASE + signum):
-        agents.terminate_all_running(
+        _agent_processes.terminate_all_running(
             grace=shutdown_terminate_grace(),
         )

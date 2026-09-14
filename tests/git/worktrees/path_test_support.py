@@ -8,7 +8,7 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git.worktrees import naming as _naming
-from orchestrator.github import PinnedState
+from orchestrator.github.pinned_state import PinnedState
 
 BASE_BRANCH = "main"
 MIGRATION_REPO_SLUG = "chippingway/orchestrator"

@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.github import PinnedState
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import terminals
 from tests.support.fakes import (
     FakeGitHubClient,

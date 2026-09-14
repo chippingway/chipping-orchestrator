@@ -22,7 +22,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from orchestrator import agents as _agents
+from orchestrator.agents import runner as _agent_runner
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
 from orchestrator.workflow.engine import dispatch
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
@@ -185,7 +185,7 @@ class ParkedWithNoCycleTest(ObservedCloseCase, unittest.TestCase):
         # taken at the seam an operator's park is actually about.
         for control in (PAUSED_LABEL, BACKLOG_LABEL):
             with self.subTest(control=control):
-                with patch.object(_agents, _RUN_AGENT) as spawned:
+                with patch.object(_agent_runner, _RUN_AGENT) as spawned:
                     self._dispatched(control)
                     spawns = spawned.call_count
 

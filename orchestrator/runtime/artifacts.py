@@ -72,7 +72,7 @@ from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, M
 from orchestrator.runtime import artifact_records
 from orchestrator.runtime.startup import RepoClients
 from orchestrator.runtime.state import RuntimeState
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 
 # The channel is the worktree-lifecycle one the pass under this owner reports
 # on, rather than the polling process's own: why a pass did not run is a fact

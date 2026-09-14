@@ -27,7 +27,7 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
     models as _models,

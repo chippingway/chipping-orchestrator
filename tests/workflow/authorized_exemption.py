@@ -14,7 +14,7 @@ stage fixtures here and the git-side ones have to agree about them.
 """
 from __future__ import annotations
 
-from orchestrator.github import PinnedState
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
     overrides as _overrides,

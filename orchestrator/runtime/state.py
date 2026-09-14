@@ -21,7 +21,7 @@ import threading
 from dataclasses import dataclass, field
 
 from orchestrator.runtime.exclusion import HostClaim, UnclaimedHost
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 
 # The shell convention for "stopped by signal N". `run.sh` keys on the two
 # codes it produces (130 / 143) to skip its restart loop, so the base is part

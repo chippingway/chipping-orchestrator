@@ -44,7 +44,7 @@ import threading
 from orchestrator import config
 from orchestrator.git.base_sync import refresh as _base_refresh
 from orchestrator.github.client import GitHubClient
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.skills import catalog as _catalog
 from orchestrator.workflow.engine import (
     community as _community,

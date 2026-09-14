@@ -19,7 +19,7 @@ import threading
 import unittest
 from functools import partial
 
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.coordination_helpers import _release_after
 from tests.scheduler.worker_helpers import _worker
 

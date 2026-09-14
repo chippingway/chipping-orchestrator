@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import dispatch, tick as _tick
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
 from tests.workflow.engine.dispatch_scheduler_workers import (

@@ -43,14 +43,13 @@ from contextlib import ExitStack
 
 from github.Issue import Issue
 
-from orchestrator import agents, config
+from orchestrator import config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import creation as _worktree_creation, decomposition as _worktree_decomposition
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     guards as _guards,
     retry_budget as _retry_budget,
-    usage as _usage,
 )
 from orchestrator.workflow.stages.decomposition import (
     drift as _drift,
@@ -66,60 +65,6 @@ from orchestrator.workflow.stages.decomposition.late_models import _LateDisposit
 from orchestrator.workflow.stages.decomposition.models import _DecomposerCleanup, _DecomposerRunPlan
 
 log = logging.getLogger("orchestrator.workflow")
-
-
-
-def _settle_decomposer_run(
-    gh: _client.GitHubClient,
-    issue: Issue,
-    state: _pinned_state.PinnedState,
-    decomposer_result: agents.AgentResult,
-) -> bool:
-    """Fold this run's usage and park on a live pause or timeout.
-
-    Returns True when the caller must return (paused or timed out), False
-    to continue to the dirty-worktree check and manifest dispatch. None of
-    these paths preserve the decompose worktree: the caller's `finally`
-    tears it down on return. The read-only dirty/commits park (which DOES
-    preserve the worktree) stays inline in `_handle_decomposing` so
-    `keep_worktree` is set BEFORE the park's side effects run.
-    """
-    # Live pause: an operator applied `paused` / `backlog` while the
-    # decomposer ran (fresh spawn or awaiting-human resume). Dispatch only
-    # saw the pre-run labels, so re-check a freshly fetched issue and return
-    # WITHOUT folding usage, parking on timeout, creating child issues,
-    # relabeling, or writing pinned state -- durable GitHub state stays
-    # exactly as the prior tick left it and the next tick re-runs the
-    # decomposer once the label is removed. The read-only decompose worktree
-    # is torn down by the caller's `finally` as on any normal exit and
-    # recreated on the re-run.
-    if _guards._paused_during_agent_run(gh, issue):
-        return True
-
-    state.set("last_agent_action_at", _usage._now_iso())
-    # Fold this run's usage into the per-issue counters at the convergence
-    # of the fresh-spawn and awaiting-human resume branches, so a real
-    # resume exit is counted exactly once and the no-new-comment resume
-    # (which returned above without running the agent) never touches the
-    # counters. Interrupted runs are excluded entirely: the read-only
-    # dirty/commits park below still writes pinned state (to preserve the
-    # inspection worktree), so folding a killed run's usage first would
-    # persist a counter the interrupted contract says must not accrue. The
-    # clean-interrupted case is additionally short-circuited by the
-    # `_ignore_if_interrupted` guard in `_handle_decomposing`.
-    if not decomposer_result.interrupted:
-        _usage._accumulate_issue_usage(state, decomposer_result.usage)
-
-    if decomposer_result.timed_out:
-        _guards._park_awaiting_human(
-            gh, issue, state,
-            f"{config.HITL_MENTIONS} decomposer timed out after "
-            f"{config.AGENT_TIMEOUT}s, manual intervention needed.",
-            reason="decomposer_timeout",
-        )
-        gh.write_pinned_state(issue, state)
-        return True
-    return False
 
 
 def _prepare_decomposer_run(
@@ -171,7 +116,7 @@ def _process_decomposer_run(
     if _guards._ignore_if_never_invoked(issue, decomposer_result):
         return
 
-    if _settle_decomposer_run(gh, issue, state, decomposer_result):
+    if _outcomes._settle_decomposer_run(gh, issue, state, decomposer_result):
         return
 
     # The decomposer is read-only. Preserve a changed worktree for operator

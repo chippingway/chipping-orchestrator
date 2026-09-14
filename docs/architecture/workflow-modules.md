@@ -640,8 +640,8 @@ workflow/                   publishes the two label vocabularies, `guard_transit
                             point the stage routes on
       validation.py         what a `split` payload must satisfy: the child cap, each child's shape, and the acyclicity
                             of the graph they declare
-      outcomes.py           the three dispositions of a finished reply: the unparsed park, the `single` finalize, and
-                            the `split` hand-off
+      outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
+                            dispositions after it: the unparsed park, the `single` finalize, and the `split` hand-off
       split.py              the crash-safe order a `split` manifest becomes child issues in, and the summary / label /
                             activation tail
       recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child

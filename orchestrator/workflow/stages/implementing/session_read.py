@@ -18,7 +18,7 @@ back to a human in the comment the park posts.
 from __future__ import annotations
 
 from orchestrator import config
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import state as _state
 

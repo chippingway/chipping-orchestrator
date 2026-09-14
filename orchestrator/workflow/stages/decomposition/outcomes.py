@@ -1,6 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The three things a finished decomposer reply can turn into.
+"""Run settlement and manifest outcomes for a finished decomposer reply.
+
+The pause and timeout settlement runs before the caller's worktree check.
+It folds usage only for an uninterrupted run and leaves a live pause intact.
+After the caller proves the read-only checkout, the reply reaches the
+manifest dispositions below.
 
 A reply either carries a usable manifest or it does not, and both halves of
 that split are dispositions the issue leaves this tick on. `single` posts the
@@ -23,7 +28,7 @@ import logging
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -34,7 +39,11 @@ from orchestrator.workflow.engine import (
     prompts as _prompts,
     usage as _usage,
 )
-from orchestrator.workflow.stages.decomposition import manifest as _manifest, split as _split, state as _state
+from orchestrator.workflow.stages.decomposition import (
+    manifest as _manifest,
+    split as _split,
+    state as _state,
+)
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -146,3 +155,57 @@ def _dispatch_decomposer_manifest(
     if split_plan is None:
         return
     _split._finalize_split(gh, issue, state, split_plan)
+
+
+
+def _settle_decomposer_run(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    decomposer_result: AgentResult,
+) -> bool:
+    """Fold this run's usage and park on a live pause or timeout.
+
+    Returns True when the caller must return (paused or timed out), False
+    to continue to the dirty-worktree check and manifest dispatch. None of
+    these paths preserve the decompose worktree: the caller's `finally`
+    tears it down on return. The read-only dirty/commits park (which DOES
+    preserve the worktree) stays inline in `_handle_decomposing` so
+    `keep_worktree` is set BEFORE the park's side effects run.
+    """
+    # Live pause: an operator applied `paused` / `backlog` while the
+    # decomposer ran (fresh spawn or awaiting-human resume). Dispatch only
+    # saw the pre-run labels, so re-check a freshly fetched issue and return
+    # WITHOUT folding usage, parking on timeout, creating child issues,
+    # relabeling, or writing pinned state -- durable GitHub state stays
+    # exactly as the prior tick left it and the next tick re-runs the
+    # decomposer once the label is removed. The read-only decompose worktree
+    # is torn down by the caller's `finally` as on any normal exit and
+    # recreated on the re-run.
+    if _guards._paused_during_agent_run(gh, issue):
+        return True
+
+    state.set("last_agent_action_at", _usage._now_iso())
+    # Fold this run's usage into the per-issue counters at the convergence
+    # of the fresh-spawn and awaiting-human resume branches, so a real
+    # resume exit is counted exactly once and the no-new-comment resume
+    # (which returned above without running the agent) never touches the
+    # counters. Interrupted runs are excluded entirely: the read-only
+    # dirty/commits park below still writes pinned state (to preserve the
+    # inspection worktree), so folding a killed run's usage first would
+    # persist a counter the interrupted contract says must not accrue. The
+    # clean-interrupted case is additionally short-circuited by the
+    # `_ignore_if_interrupted` guard in `_handle_decomposing`.
+    if not decomposer_result.interrupted:
+        _usage._accumulate_issue_usage(state, decomposer_result.usage)
+
+    if decomposer_result.timed_out:
+        _guards._park_awaiting_human(
+            gh, issue, state,
+            f"{config.HITL_MENTIONS} decomposer timed out after "
+            f"{config.AGENT_TIMEOUT}s, manual intervention needed.",
+            reason="decomposer_timeout",
+        )
+        gh.write_pinned_state(issue, state)
+        return True
+    return False

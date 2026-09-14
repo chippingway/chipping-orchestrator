@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
     from orchestrator import config
     from orchestrator.github.client import GitHubClient
-    from orchestrator.scheduler import IssueScheduler
+    from orchestrator.scheduler.service import IssueScheduler
 
 __all__ = (
     "ControlLabel",

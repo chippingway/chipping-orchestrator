@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator import config
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.workflow.engine import agent_diagnostics as _agent_diagnostics, messages as _messages
 from orchestrator.workflow.stages.discussion import (
     models as _models,

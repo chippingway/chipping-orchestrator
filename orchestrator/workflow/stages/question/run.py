@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
     guards as _guards,

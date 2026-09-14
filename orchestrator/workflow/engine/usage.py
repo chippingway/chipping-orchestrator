@@ -64,7 +64,8 @@ from typing import Any
 
 from github.Issue import Issue
 
-from orchestrator.agents import AgentResult, runner as _agent_runner
+from orchestrator.agents import runner as _agent_runner
+from orchestrator.agents.models import AgentResult
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.analytics import recording

@@ -167,7 +167,7 @@ namespace beside it, or fronts nothing and imports nothing at all — the submod
 modules' imports planted there, not what its initializer loaded, so naming the package costs no owner behind it. That
 second half is read from the initializer's source, because the namespace cannot tell an eager sibling import from
 somebody else's; what an initializer imports from outside the package for its own use is a helper rather than a
-surface, and is held to neither. The eight that publish are listed under
+surface, and is held to neither. The five that still publish are listed under
 [`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration), where each
 is also a scoped lint waiver.
 
@@ -282,7 +282,8 @@ self-exit and be restarted with new code.
   to restore the checkout.
 - **Signals**: SIGINT/SIGTERM set a flag and call `scheduler.shutdown(wait=False)` synchronously so the submit path is
   closed mid-tick; the loop then stops at the next tick boundary and drains. The drain terminates in-flight agent and
-  verify subprocess groups up front (`agents.terminate_all_running`) so a worker parked in a long agent / verify run
+  verify subprocess groups up front (`agents.processes.terminate_all_running`) so a worker parked in a long agent /
+  verify run
   unwinds in seconds instead of holding the process for up to `AGENT_TIMEOUT`. A daemon watchdog backstops the drain: if
   it overruns, the watchdog terminates those same groups and hard-exits (`os._exit(128+signum)`) so total signal→exit
   stays within `SHUTDOWN_GRACE_SECONDS` no matter what a thread is blocked on. A second Ctrl+C hits the re-armed kernel
@@ -373,7 +374,9 @@ operator-applied conversation stages in
 per-handler routing in
 [`state-machine/delivery-stages.md#user-content-drift-detection`](state-machine/delivery-stages.md#user-content-drift-detection).
 
-## Agent subprocess (`agents.run_agent`)
+<a id="agent-subprocess-agentsrun_agent"></a>
+
+## Agent subprocess (`agents.runner.run_agent`)
 
 `run_agent(backend, prompt, cwd, ...)` dispatches to the per-backend runner (`codex.run_codex` /
 `claude.run_claude`); `backend` is one of `"codex"` / `"claude"` and is re-validated at call time so a

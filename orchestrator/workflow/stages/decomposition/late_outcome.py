@@ -33,7 +33,7 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.late_split import (
     events as _events,

@@ -19,7 +19,7 @@ from unittest import mock
 from orchestrator import workflow
 from orchestrator.runtime import ticks
 from orchestrator.runtime.state import RuntimeState
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from tests.runtime import polling_test_support as _support
 from tests.workflow.git_owners import seam_patch
 

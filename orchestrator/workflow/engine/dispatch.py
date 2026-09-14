@@ -137,7 +137,7 @@ from orchestrator.github.issues import (
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.analytics import recording
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import (
     observations,
     run_grant as _run_grant,

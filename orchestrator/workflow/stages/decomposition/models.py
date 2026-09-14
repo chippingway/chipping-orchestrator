@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.git.worktrees import decomposition as _worktree_decomposition
 
 

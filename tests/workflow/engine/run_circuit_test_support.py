@@ -14,7 +14,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.agents import AgentResult, runner as _agent_runner
+from orchestrator.agents import runner as _agent_runner
+from orchestrator.agents.models import AgentResult
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     run_circuit as _run_circuit,

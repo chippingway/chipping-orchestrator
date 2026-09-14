@@ -28,7 +28,7 @@ from orchestrator.git.base_sync import (
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import paths as _paths
 from orchestrator.github import client as _client
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 
 log = _state.log
 

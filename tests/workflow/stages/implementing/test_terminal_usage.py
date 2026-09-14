@@ -31,7 +31,7 @@ class FinalizeIfIssueClosedUsageVerdictTest(unittest.TestCase, _PatchedWorkflowM
     test alone would stay green if the receipt call were removed)."""
 
     def test_rejected_posts_usage_verdict(self) -> None:
-        from orchestrator.github import PinnedState
+        from orchestrator.github.pinned_state import PinnedState
 
         gh = FakeGitHubClient()
         issue = make_issue(USAGE_ISSUE, label=LABEL_IMPLEMENTING)
@@ -80,7 +80,7 @@ class FinalizeIfIssueClosedUsageVerdictTest(unittest.TestCase, _PatchedWorkflowM
         )
 
     def test_no_counters_posts_no_verdict(self) -> None:
-        from orchestrator.github import PinnedState
+        from orchestrator.github.pinned_state import PinnedState
 
         gh = FakeGitHubClient()
         issue = make_issue(NO_USAGE_ISSUE, label=LABEL_IMPLEMENTING)
