@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import guards as _guards, usage as _usage
@@ -102,7 +102,7 @@ def _documenting_run(ctx: _models._DocumentingContext, wt):
     return _run._run_documenting_dev(ctx, wt, ahead, remote_head)
 
 
-def _handle_documenting(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_documenting(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     state = gh.read_pinned_state(issue)
     pr_number = state.get("pr_number")
 

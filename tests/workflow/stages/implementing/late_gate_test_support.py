@@ -14,7 +14,7 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import run_ledger as _run_ledger

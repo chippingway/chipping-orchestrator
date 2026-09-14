@@ -15,7 +15,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.labels import PAUSED_LABEL
 from orchestrator.workflow.engine import drift as _drift
 from orchestrator.workflow.stages.documenting import handler as _documenting

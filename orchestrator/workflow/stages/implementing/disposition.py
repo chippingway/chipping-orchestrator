@@ -51,8 +51,8 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
@@ -75,7 +75,7 @@ from orchestrator.workflow.stages.implementing import (
 
 def _publish_committed_work(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     work: _models._AgentWork,
@@ -167,7 +167,7 @@ def _park_agent_timeout(
 
 
 def _carries_a_late_commit(
-    spec: config.RepoSpec, state: PinnedState, worktree: Path,
+    spec: _config_models.RepoSpec, state: PinnedState, worktree: Path,
 ) -> bool:
     """Whether this checkout really holds a commit the timeout stranded.
 
@@ -210,7 +210,7 @@ def _carries_a_late_commit(
 
 
 def _try_recover_implementing_timeout_park(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> str:
     """Quietly publish a clean commit stranded by an implementer timeout.
 
@@ -272,7 +272,7 @@ def _try_recover_implementing_timeout_park(
 
 def _holds_approved_commit(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,
@@ -314,7 +314,7 @@ def _holds_approved_commit(
 
 def _dispose_approved_commit(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,
@@ -352,7 +352,7 @@ def _dispose_approved_commit(
 
 
 def _holds_unreconciled_candidate(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> bool:
     """Prove a recorded candidate is here before this tick spawns anything.
 
@@ -400,7 +400,7 @@ def _holds_unreconciled_candidate(
 
 def _reconcilable(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,
@@ -425,7 +425,7 @@ def _reconcilable(
 
 def _dispose_recorded_candidate(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,
@@ -464,7 +464,7 @@ def _dispose_recorded_candidate(
 
 
 def _run_left_commits(
-    spec: config.RepoSpec, state: PinnedState, prepared: _models._PreparedDevRun,
+    spec: _config_models.RepoSpec, state: PinnedState, prepared: _models._PreparedDevRun,
 ) -> bool:
     """True when there is committed work for THIS disposition to publish.
 
@@ -579,7 +579,7 @@ def _inherited_floor(state: PinnedState) -> str:
 
 
 def _timeout_left_commits(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     prepared: _models._PreparedDevRun,
     after_sha: str,
 ) -> bool:
@@ -625,7 +625,7 @@ def _timeout_left_commits(
 
 def _dispose_agent_result(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     prepared: _models._PreparedDevRun,

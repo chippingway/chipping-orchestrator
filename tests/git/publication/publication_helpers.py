@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 
 # The probes call the command owner by attribute, so both names patch there.
 GIT_HELPER = "_git"
@@ -23,9 +23,9 @@ def _spec(
     *,
     base_branch: str = "main",
     remote_name: str = "origin",
-) -> config.RepoSpec:
+) -> _config_models.RepoSpec:
     """Build a spec whose remote and base branch the probes must honor."""
-    return config.RepoSpec(
+    return _config_models.RepoSpec(
         slug="acme/widget",
         target_root=TARGET_ROOT,
         base_branch=base_branch,

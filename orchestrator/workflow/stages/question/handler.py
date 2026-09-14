@@ -23,7 +23,7 @@ import contextlib
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming, terminal as _worktree_terminal
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import usage as _usage
@@ -89,7 +89,7 @@ def _question_run_cleanup(run: _models._QuestionRun):
 
 
 def _handle_question(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> None:
     run = _models._QuestionRun.start(gh, spec, issue)
     if _finalize_closed_question(run):

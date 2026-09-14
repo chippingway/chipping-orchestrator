@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import TextIO
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.runtime import host_lock
 
 _WORKTREES_ATTR = "WORKTREES_DIR"

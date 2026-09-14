@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.workflow.engine import (
     run_grant as _run_grant,
     run_grant_request as _run_grant_request,

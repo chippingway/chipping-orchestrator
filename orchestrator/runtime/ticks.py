@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from orchestrator.config import RepoSpec
+from orchestrator.config.models import RepoSpec
 from orchestrator.github.client import GitHubClient
 from orchestrator.runtime.startup import RepoClients
 from orchestrator.runtime.state import RuntimeState

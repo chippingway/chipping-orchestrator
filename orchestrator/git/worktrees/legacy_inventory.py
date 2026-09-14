@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     checkout_attribution,
     paths,
@@ -22,7 +22,7 @@ from orchestrator.git.worktrees import (
 # A repository nothing was found for is absent from either map rather than
 # present with an empty entry, so a caller reads the same shape whether the
 # host holds one entry's flat checkouts or several entries'.
-IssueNumbers = dict[config.RepoSpec, frozenset[int]]
+IssueNumbers = dict[_config_models.RepoSpec, frozenset[int]]
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,7 @@ class LegacyCheckouts:
 
 def _legacy_claim(
     issue_number: int,
-    clones: dict[config.RepoSpec, Path | None],
+    clones: dict[_config_models.RepoSpec, Path | None],
 ) -> checkout_attribution.CheckoutClaim:
     """Which configured repository one flat checkout is a worktree of, if any."""
     worktree = paths._legacy_worktree_path(issue_number)
@@ -58,7 +58,7 @@ def _legacy_claim(
 
 
 def _attributed_legacy(
-    configured: tuple[config.RepoSpec, ...], flat: frozenset[int],
+    configured: tuple[_config_models.RepoSpec, ...], flat: frozenset[int],
 ) -> LegacyCheckouts:
     """Which repository each flat pre-namespacing checkout concerns, and how.
 

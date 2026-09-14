@@ -28,7 +28,7 @@ from types import MappingProxyType
 from typing import NamedTuple
 from unittest.mock import patch
 
-from orchestrator.config import RepoSpec
+from orchestrator.config.models import RepoSpec
 from orchestrator.git.worktrees import (
     discovery,
     maintenance,

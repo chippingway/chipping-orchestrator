@@ -14,7 +14,7 @@ from __future__ import annotations
 import contextlib
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement import (
     additions as _measurement,
     commits as _measurement_commits,

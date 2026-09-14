@@ -24,7 +24,7 @@ from dataclasses import dataclass
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.question import state as _state
@@ -34,14 +34,14 @@ from orchestrator.workflow.stages.question import state as _state
 class _QuestionRun:
     """Mutable cleanup policy and stable inputs for one question-stage tick."""
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     keep_worktree: bool
 
     @classmethod
     def start(
-        cls, gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+        cls, gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
     ) -> _QuestionRun:
         state = gh.read_pinned_state(issue)
         return cls(

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards, terminals as _terminals
@@ -57,7 +57,7 @@ def _park_missing_pr_number(
     gh.write_pinned_state(issue, state)
 
 
-def _handle_in_review(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_in_review(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     """Drive an in_review issue toward done / rejected, or hand fresh PR
     feedback off to the `fixing` stage.
 

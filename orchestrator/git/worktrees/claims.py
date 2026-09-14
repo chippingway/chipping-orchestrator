@@ -32,7 +32,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.git.worktrees.models import Retention, RetentionReason
 from orchestrator.github import issues as github_issues
@@ -258,7 +258,7 @@ def _recorded_pull_request(
 
 def _open_pull_request_retentions(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     branches: tuple[str, ...],
     state: PinnedState,

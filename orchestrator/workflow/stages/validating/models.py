@@ -41,8 +41,8 @@ from typing import Any
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models
 from orchestrator.github import (
     client as _client,
     comments as _github_comments,
@@ -131,7 +131,7 @@ class _DevFixRun:
 @dataclass(frozen=True)
 class _RequestedChanges:
     gh: _client.GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: _pinned_state.PinnedState
     decision: _ReviewerDecision
@@ -140,7 +140,7 @@ class _RequestedChanges:
 @dataclass(frozen=True)
 class _AwaitingValidation:
     gh: _client.GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: _pinned_state.PinnedState
     park_reason: Any
@@ -148,7 +148,7 @@ class _AwaitingValidation:
 
     @classmethod
     def build(
-        cls, gh: _client.GitHubClient, spec: config.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
+        cls, gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
     ) -> _AwaitingValidation:
         # Filtered by recorded id AND by `_ORCH_COMMENT_MARKER`, the same
         # pair `_rescan_fixing_feedback` uses and for the same two reasons:

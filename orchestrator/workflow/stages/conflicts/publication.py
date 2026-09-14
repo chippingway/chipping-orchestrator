@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import prompts as _prompts
@@ -206,7 +206,7 @@ def _publish_clean_rebase(
     )
 
 
-def _base_ref(spec: config.RepoSpec) -> str:
+def _base_ref(spec: _config_models.RepoSpec) -> str:
     """The remote-tracking ref this stage rebases onto."""
     return f"{spec.remote_name}/{spec.base_branch}"
 

@@ -108,7 +108,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import state as _late_state
@@ -131,7 +131,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 def _adjudicate_late_generation(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
 ) -> _LateAdjudicationRun:

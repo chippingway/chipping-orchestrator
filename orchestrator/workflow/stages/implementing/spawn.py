@@ -40,8 +40,8 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
@@ -82,7 +82,7 @@ def _recovered_dev_result(state: PinnedState) -> AgentResult:
 
 def _spawn_implementer(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,
@@ -154,7 +154,7 @@ def _charge_fresh_spawn(
 
 
 def _recovered_work_present(
-    spec: config.RepoSpec, state: PinnedState, worktree: Path, before_sha: str,
+    spec: _config_models.RepoSpec, state: PinnedState, worktree: Path, before_sha: str,
 ) -> bool:
     """True when the commits on the branch are a previous dev run's.
 
@@ -194,7 +194,7 @@ def _recovered_work_present(
 
 
 def _ensure_dev_worktree(
-    spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> Path:
     """Prepare the dev checkout, restoring a pruned one from the right ref.
 
@@ -217,7 +217,7 @@ def _ensure_dev_worktree(
 
 
 def _prepare_active_dev_run(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> _models._PreparedDevRun | None:
     """Run or recover one unparked dev tick, once the checkout can be trusted.
 
@@ -256,7 +256,7 @@ def _prepare_active_dev_run(
 
 
 def _prepare_dev_run(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> _models._PreparedDevRun | None:
     """Set up and run (or recover) the dev agent for one implementing tick.
 

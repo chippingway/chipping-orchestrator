@@ -1,0 +1,370 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""Resolved process settings and accessors over the current environment.
+
+Each import or reload resolves a fresh environment mapping and binds its values
+on this module. Callers retain this module object and read attributes at call
+time, so tests and reloads use the same settings holder. Parsing, repository
+models, dotenv loading, and token resolution remain on their defining owners.
+
+Secrets are never loaded from REPO_ROOT/.env: agents can read sibling worktrees.
+GITHUB_TOKEN comes from the process environment or a token file outside that
+checkout, as resolved by `credentials`.
+"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+from typing import NoReturn
+
+from orchestrator.config import environment, models as _models
+
+# The orchestrator checkout itself -- two levels above this package
+# (`orchestrator/config/`) -- which every other path default and the `.env`
+# lookup are derived from.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _config_error(message: str) -> NoReturn:
+    """Abort import when the configuration is invalid.
+
+    Every invalid-config path funnels through here so a typo in the
+    deployment env stops the process -- on stderr, with exit code 1 --
+    before the first GitHub call. `sys.exit(str)` makes `str(exc)` the
+    message, which the import-time validation tests assert on.
+    """
+    sys.exit(message)
+
+
+def _config_warning(message: str) -> None:
+    """Emit a non-fatal configuration diagnostic to stderr.
+
+    Warnings (an ignored .env secret, an unreadable token file, a missing
+    REPOS target_root) surface the problem but let the process continue,
+    so they go to stderr rather than aborting like `_config_error`.
+    """
+    sys.stderr.write(f"{message}\n")
+
+
+def _parse_agent_spec(name: str, spec: str) -> tuple[str, tuple[str, ...]]:
+    """Parse a shell-like backend spec into (backend, extra_args).
+
+    `environment.parse_agent_spec` bound to the error funnel above, so a caller
+    re-parsing a spec gets the same abort a bad one gets at import instead of
+    supplying a handler of its own. The workflow stages re-parse the spec
+    persisted in pinned state through here, so a bare-backend value (`"codex"`
+    / `"claude"`) round-trips to `(backend, ())` and a full spec to its tokens.
+    """
+    return environment.parse_agent_spec(name, spec, _config_error)
+
+
+# Resolve every setting from a `.env`-loaded process environment. Building a
+# fresh resolver here (not caching a module-level default) is what preserves
+# the reload / patch contract: re-importing `orchestrator.config.settings` re-runs this
+# against the current `os.environ`, and each bound value below stays an
+# independently patchable module attribute.
+_RESOLVED = environment._SettingsResolver(
+    os.environ, REPO_ROOT, _config_error, _config_warning,
+).resolve()
+
+
+REPO: str = _RESOLVED["REPO"]
+GITHUB_TOKEN: str = _RESOLVED["GITHUB_TOKEN"]
+POLL_INTERVAL: int = _RESOLVED["POLL_INTERVAL"]
+AGENT_TIMEOUT: int = _RESOLVED["AGENT_TIMEOUT"]
+
+# How many polling ticks apart the closed-issue recovery sweep in
+# `GitHubClient.list_pollable_issues` runs. That sweep issues one
+# `GET /repos/.../issues?state=closed&labels=<L>` per non-terminal workflow
+# label, PER REPO, every tick -- a fixed request cost that is independent of
+# how much real work the repo has. Across many configured repos at a short
+# `POLL_INTERVAL` it dominates per-tick request volume and is the principal
+# driver of GitHub *primary* rate-limit (5000 req/hour/PAT) exhaustion: once
+# the hourly budget is spent PyGithub's GithubRetry sleeps until the reset
+# (~uninterruptible 1000s+ stalls observed). The latency-sensitive open-issue
+# poll still runs every tick; only the closed recovery sweep is batched to
+# once per N ticks. `1` (default) preserves the legacy every-tick behavior.
+# Raise it (e.g. 4-5) on multi-repo deployments to stay under the hourly cap;
+# the only cost is that an externally-merged/closed issue may take up to N-1
+# extra ticks to finalize to `done` -- pinned GitHub state stays authoritative
+# in the meantime, so nothing is lost, only briefly deferred.
+CLOSED_ISSUE_SWEEP_EVERY_N_TICKS: int = _RESOLVED["CLOSED_ISSUE_SWEEP_EVERY_N_TICKS"]
+
+# Hard ceiling, in seconds, on how long the polling loop may take to exit
+# after a SIGTERM/SIGINT before it force-terminates in-flight agent
+# subprocesses and hard-exits. Must stay comfortably below the systemd
+# unit's `TimeoutStopSec` (90s by default) so `systemctl restart` sees a
+# clean stop instead of escalating to SIGKILL. Without a bound, `main`'s
+# shutdown drain waits on in-flight workers and an agent subprocess is
+# capped only by `AGENT_TIMEOUT` (1800s) -- 20x the stop deadline -- so a
+# restart issued while any agent was running always timed out into a brute
+# kill of both `run.sh` and python.
+SHUTDOWN_GRACE_SECONDS: int = _RESOLVED["SHUTDOWN_GRACE_SECONDS"]
+
+# Persistent log location. `runtime/logs.py` attaches a FileHandler here in
+# addition to the existing stderr stream, so post-mortems don't depend on the
+# terminal `run.sh` was started in. Already covered by the `*.log` .gitignore
+# rule.
+LOG_DIR: Path = _RESOLVED["LOG_DIR"]
+
+# Optional JSONL sink for structured audit events. When set, `GitHubClient`
+# (and `FakeGitHubClient`) append one JSON object per line whenever a
+# handler emits an event via `gh.emit_event(...)`. Event types today:
+# `stage_enter` (label transition), `agent_spawn` / `agent_exit`
+# (bookending every agent invocation with role, session id, duration, and
+# exit metadata), `review_verdict` (parsed reviewer decision), and
+# `park_awaiting_human` (every park call site with stage + reason). Unset
+# (the default) leaves the legacy behavior in place: no file is opened,
+# no IO happens. Synchronous append is intentional: tick volume is low
+# and ordering matters for the operator reading the file.
+EVENT_LOG_PATH = _RESOLVED["EVENT_LOG_PATH"]
+
+# Sink settings for the project-local analytics JSONL file
+# (`ANALYTICS_LOG_PATH`, `ANALYTICS_RETENTION_DAYS`), the trajectory
+# sink and skill-trigger switch beside them, and the libpq URL for the
+# analytics Postgres service (`ANALYTICS_DB_URL`) are parsed by
+# `orchestrator.observability.analytics.environment` and bound on
+# `orchestrator.observability.analytics.settings`; those owners do the
+# parsing / defaulting so consumers of `config.LOG_DIR` do not pull the
+# analytics defaults in transitively. The audit event log
+# (`EVENT_LOG_PATH`) above stays here because
+# `GitHubClient.emit_event` is a general-purpose audit surface, not
+# analytics-specific.
+
+REVIEW_TIMEOUT: int = _RESOLVED["REVIEW_TIMEOUT"]
+MAX_REVIEW_ROUNDS: int = _RESOLVED["MAX_REVIEW_ROUNDS"]
+# Cap on how many auto-conflict-resolution attempts one PR can use before
+# `_handle_resolving_conflict` parks awaiting human. Mirrors the
+# `MAX_REVIEW_ROUNDS` shape so a stuck rebase loop cannot burn tokens
+# indefinitely.
+MAX_CONFLICT_ROUNDS: int = _RESOLVED["MAX_CONFLICT_ROUNDS"]
+# Cap on how many fresh implementing-codex spawns one issue can use within a
+# 24h window opened at the first counted attempt. The window reopens once 24h
+# elapses since that start -- but not while the exhausted budget has the issue
+# parked: a `retry_cap` park asked for a human, and neither the clock nor a
+# later change to this setting is one, so only an explicit continuation renews
+# it. That continuation buys one spawn and records it on the issue as the
+# attempt itself, so an issue running on a grant is answered from the grant
+# and moving this setting in between neither swallows it nor multiplies it.
+# Resumes on human reply do not count. 0 = unbounded (matches
+# MAX_REVIEW_ROUNDS's implied semantics), and an unbounded budget keeps no
+# counters: it drops the window it finds, so turning it back on opens a fresh
+# one rather than refusing out of what was charged before it went off.
+MAX_RETRIES_PER_DAY: int = _RESOLVED["MAX_RETRIES_PER_DAY"]
+# Lifetime ceiling on the agent runs one issue may spend, counted on the
+# `issue_agent_runs` total the usage accounting folds onto pinned state: every
+# real agent exit charged to that issue, in every role and at every stage --
+# decomposer, developer, reviewer, and the conversation agents -- not only the
+# implementer spawns `MAX_RETRIES_PER_DAY` meters. It is the backstop under
+# the per-stage budgets rather than one more of them: those bound how often a
+# single road may be retried, and an issue that walks enough of them in turn
+# spends more than any one of them ever sees. Unlike the daily retry budget
+# this one never reopens -- a lifetime total is spent once, and no clock
+# returns it. 0 = unlimited. A negative or non-integer value aborts at import
+# like the parallelism caps, because a ceiling under zero is one no run could
+# ever come in under.
+MAX_AGENT_RUNS_PER_ISSUE: int = _RESOLVED["MAX_AGENT_RUNS_PER_ISSUE"]
+# Proactive dev-session rotation: after a single `dev_session_id` has been
+# resumed this many times, retire it and start a fresh spawn from durable
+# state (issue body + recent comments + the committed branch) instead of
+# replaying an ever-growing transcript. Each `--resume` replays the whole
+# accumulated history, so a long-lived session creeps toward the model
+# context window and eventually overflows ("Prompt is too long"). This caps
+# that creep before it overflows; the reactive overflow handler in
+# `_resume_dev_with_text` still catches a session that blows the window in
+# fewer resumes (one huge round). 0 = unbounded (resume forever, old
+# behavior).
+DEV_SESSION_MAX_RESUMES: int = _RESOLVED["DEV_SESSION_MAX_RESUMES"]
+HITL_HANDLES: tuple[str, ...] = _RESOLVED["HITL_HANDLES"]
+HITL_HANDLE: str = _RESOLVED["HITL_HANDLE"]
+HITL_MENTIONS: str = _RESOLVED["HITL_MENTIONS"]
+# Comma-separated GitHub logins whose unlabeled issues the orchestrator is
+# willing to auto-pick-up. Empty (the default) disables the allowlist and
+# preserves the legacy "anyone can trigger" behavior. Set this on a public
+# repo to keep random users from spending the orchestrator's compute budget
+# on useless tasks. When set this list is also the comment trust boundary
+# (see `github.comments`): comments from authors outside it stay visible on
+# GitHub but are dropped from agent prompts, the `user_content_hash` drift
+# signal, awaiting-human resume signals, and PR / `fixing` feedback, so an
+# outsider on a public repo cannot inject workflow-driving instructions.
+# On these surfaces a Bot/App login is gated like any other author, kept
+# out only once the allowlist is populated; a separate `user.type ==
+# "Bot"` structural check covers the drift hash and community-PR sweep.
+# Pickup itself still fires only on unlabeled issues: a maintainer who
+# manually labels an outsider's issue (e.g. `workflow:implementing`) drives it
+# to completion.
+ALLOWED_ISSUE_AUTHORS: tuple[str, ...] = _RESOLVED["ALLOWED_ISSUE_AUTHORS"]
+CODEX_BIN: str = _RESOLVED["CODEX_BIN"]
+CLAUDE_BIN: str = _RESOLVED["CLAUDE_BIN"]
+
+# Default split: claude implements, codex reviews. Validated at import so a
+# typo in the deployment env aborts the process before the first GitHub call.
+# Each spec is shell-like: the first token names the backend (`codex` /
+# `claude`), and any remaining tokens are forwarded as backend-CLI args
+# (model selection, reasoning effort, etc.) on every spawn for that role.
+# The `*_SPEC` constant holds the raw configured string -- the workflow
+# persists it verbatim in pinned state so a config flip mid-flight cannot
+# change what backend+args run on an in-flight issue (the stored spec is
+# re-parsed on every resume; current config is only consulted for fresh
+# spawns). The decomposer is a separate role and is parsed even when
+# DECOMPOSE=off so flipping the kill switch back on does not surface a fresh
+# "that env var was always invalid" failure.
+DEV_AGENT_SPEC: str = _RESOLVED["DEV_AGENT_SPEC"]
+DEV_AGENT: str = _RESOLVED["DEV_AGENT"]
+DEV_AGENT_ARGS: tuple[str, ...] = _RESOLVED["DEV_AGENT_ARGS"]
+REVIEW_AGENT_SPEC: str = _RESOLVED["REVIEW_AGENT_SPEC"]
+REVIEW_AGENT: str = _RESOLVED["REVIEW_AGENT"]
+REVIEW_AGENT_ARGS: tuple[str, ...] = _RESOLVED["REVIEW_AGENT_ARGS"]
+DECOMPOSE_AGENT_SPEC: str = _RESOLVED["DECOMPOSE_AGENT_SPEC"]
+DECOMPOSE_AGENT: str = _RESOLVED["DECOMPOSE_AGENT"]
+DECOMPOSE_AGENT_ARGS: tuple[str, ...] = _RESOLVED["DECOMPOSE_AGENT_ARGS"]
+
+# git identity injected into each agent spawn via GIT_AUTHOR_*/GIT_COMMITTER_*
+# env vars (see agents.environment.agent_env). Env vars take precedence over user.name
+# and user.email from any config scope, so agent commits are attributable to
+# the orchestrator without touching the host's git config or the shared repo
+# config. The default email uses the GitHub-recognized noreply form so it
+# won't bounce and won't link to a real user account.
+AGENT_GIT_NAME: str = _RESOLVED["AGENT_GIT_NAME"]
+AGENT_GIT_EMAIL: str = _RESOLVED["AGENT_GIT_EMAIL"]
+
+# The repository whose issues / PRs this orchestrator manages. Defaults to
+# REPO_ROOT (self-bootstrap: orchestrator manages its own repo). Override when
+# the orchestrator code is installed in one clone but drives PRs into another.
+# Worktrees are `git worktree add`-ed from this path, so commits land on its
+# git history -- not the orchestrator's own.
+TARGET_REPO_ROOT: Path = _RESOLVED["TARGET_REPO_ROOT"]
+
+WORKTREES_DIR: Path = _RESOLVED["WORKTREES_DIR"]
+
+# Base branch in the *target* repo: where worktrees branch from and where PRs
+# are opened against.
+BASE_BRANCH: str = _RESOLVED["BASE_BRANCH"]
+
+# Name of the git remote in `TARGET_REPO_ROOT` that points at REPO on GitHub.
+# Defaults to `origin`; override when the local clone uses several remotes
+# (e.g. a public `origin` and a private fork named `private`) and the
+# orchestrator should drive the non-default one. Ignored when `REPOS` is set
+# -- the per-entry fourth field on each `REPOS` row takes precedence there.
+REMOTE_NAME: str = _RESOLVED["REMOTE_NAME"]
+
+# Per-repo cap on how many issues the orchestrator may advance in parallel
+# within one repo on a single tick. Default 1 keeps the legacy "one issue
+# at a time per repo" behavior. Each `REPOS` entry can override this via
+# its optional fifth pipe-separated field.
+MAX_PARALLEL_ISSUES_PER_REPO: int = _RESOLVED["MAX_PARALLEL_ISSUES_PER_REPO"]
+# Global cap across all configured repos. Default 3 limits concurrent
+# spawn fan-out when several `REPOS` entries are configured, regardless
+# of the per-repo cap each one declares. Set higher only on hosts with
+# the CPU / memory headroom to run that many agent CLIs at once.
+MAX_PARALLEL_ISSUES_GLOBAL: int = _RESOLVED["MAX_PARALLEL_ISSUES_GLOBAL"]
+
+# One of off / warn / enforce, governing only the transition-*legality* check
+# in `set_workflow_label` (the typo guard is always strict). Default `warn`
+# keeps production safe while the declared transition table soaks against live
+# issues; flip to `enforce` once the warn logs are clean. An invalid value
+# aborts at import so a typo can't silently disable the guard.
+WORKFLOW_TRANSITION_GUARD: str = _RESOLVED["WORKFLOW_TRANSITION_GUARD"]
+
+_REPO_SPECS: list[_models.RepoSpec] = _RESOLVED["REPO_SPECS"]
+
+
+def default_repo_specs() -> list[_models.RepoSpec]:
+    """The configured RepoSpecs (validated at import).
+
+    A single element built from `REPO` / `TARGET_REPO_ROOT` / `BASE_BRANCH`
+    when `REPOS` is unset (so existing single-repo deployments keep working
+    unchanged); otherwise one element per `REPOS` entry. Returns a fresh
+    list copy so callers cannot mutate the cached result.
+    """
+    return list(_REPO_SPECS)
+
+
+# Base branch of the orchestrator's *own* repo (REPO_ROOT). Used only by the
+# self-update path: `_self_modifying_merge_happened` watches `origin/<this>`
+# for new commits under `orchestrator/`, and `run.sh` fast-forwards to it on
+# every restart. Decoupled from BASE_BRANCH so the target repo can have a
+# different default branch (e.g. `master`) without breaking self-update.
+ORCHESTRATOR_BASE_BRANCH: str = _RESOLVED["ORCHESTRATOR_BASE_BRANCH"]
+
+# Quiet window after the most recent PR/issue comment before resuming the dev
+# session in `in_review`.
+IN_REVIEW_DEBOUNCE_SECONDS: int = _RESOLVED["IN_REVIEW_DEBOUNCE_SECONDS"]
+
+# Kill switch for NEW decompositions. off -> revert to the legacy "no label
+# -> implementing" pickup, no children, no manifest, and no fresh committed
+# candidate entering the size gate. It decides what ENTERS a decomposition
+# and nothing already in one: a recorded late generation is still
+# adjudicated, revised, split, cleaned up, cancelled, and restarted with it
+# off, and a candidate already frozen is still measured -- otherwise the
+# switch would publish work nobody adjudicated. The rollout safety valve so
+# the user can disable decomposition if manifest output proves unreliable,
+# without redeploying old binaries.
+DECOMPOSE: bool = _RESOLVED["DECOMPOSE"]
+
+# The size ceiling one implementation candidate may publish under, counted in
+# textual lines the prospective pull-request diff ADDS -- the frozen remote
+# base against the exact committed candidate, across every path, with binary
+# content contributing nothing and no path, generated-file, or vendored-tree
+# exemption. A candidate at or below it publishes the way it always has; only
+# one STRICTLY past it is oversized and goes to late adjudication, so retuning
+# the ceiling cannot move the trigger by a line and a candidate landing exactly
+# on the configured value is accepted. Positive integer, validated at import
+# like the parallelism caps: 0 or a negative would call every candidate
+# oversized and route the whole repository into adjudication. The default is
+# deliberately generous -- it is a bound on what one reviewer is asked to read
+# in a sitting, not a target -- and is global on purpose, because a per-repo
+# override before there is telemetry to justify one is a knob nobody can set
+# honestly.
+MAX_ADDED_LINES: int = _RESOLVED["MAX_ADDED_LINES"]
+
+# After the reviewer agent emits VERDICT: APPROVED, squash the dev's commits
+# on the PR branch into a single conventional-commit-shaped commit and
+# force-push (with lease). Default on -- a one-commit PR is what humans
+# expect on merge. Off restores the legacy "leave the dev's commit history
+# as-is" behavior; useful if a workflow downstream (changelog generation,
+# bisect tooling) depends on the per-step commit history.
+SQUASH_ON_APPROVAL: bool = _RESOLVED["SQUASH_ON_APPROVAL"]
+
+# Whether working agents are told about the *other* repos this orchestrator
+# tracks (slug, local `target_root`, base branch) for cross-repo reference.
+# Default on, but inert for single-repo hosts: the context builder gates on
+# `len(specs) > 1`, so a default single-repo deployment sees zero added prompt
+# tokens and zero behavior change. Off forces the disclosure off globally --
+# the operator escape hatch for a security-conscious multi-repo host. The
+# disclosed data is operator-configured and non-secret (no tokens, no remote
+# URLs), and write-containment is unchanged, so default-on-when-multi-repo is
+# the right posture; the kill switch keeps it reversible.
+EXPOSE_TRACKED_REPOS: bool = _RESOLVED["EXPOSE_TRACKED_REPOS"]
+
+# Seconds between two terminal-artifact maintenance passes: the bounded
+# reclamation of the worktrees and branches of issues this orchestrator has
+# finished with, run by the polling process between passes and by the
+# `--cleanup-terminal-artifacts` one-shot mode on its own. A day by default,
+# because what a pass reclaims is disk rather than anything the workflow
+# waits on, and every gate in front of a deletion fails closed -- so the cost
+# of asking rarely is one more day of a finished issue's checkout, and the
+# cost of asking often is nothing gained. The cadence is kept in memory on the
+# clock that cannot jump, so a restart buys at most one extra pass; a pass
+# already spent is not written down anywhere, because a repeated one reports
+# what is already gone as done. Must be >= 1: a zero or negative interval
+# would put a host-wide teardown between every pair of polling passes, each
+# one holding scheduler admission closed while it proved the host quiet.
+TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS: int = _RESOLVED[
+    "TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS"
+]
+
+# Local verification commands run in the per-issue worktree on
+# VERDICT: APPROVED, before the issue is labeled `in_review`. Default
+# empty -- no verification, preserving legacy behavior. Commands run
+# sequentially via the shell with a bounded `VERIFY_TIMEOUT`; on a
+# non-zero exit, a timeout, or a dirty worktree left behind, the issue
+# is parked in `validating` with the failing command, exit/timeout, and
+# a redacted/truncated tail of the output. GitHub CI still runs against
+# the PR; the human merging it reads CI's verdict.
+VERIFY_COMMANDS: tuple[str, ...] = _RESOLVED["VERIFY_COMMANDS"]
+# Per-command wall-clock cap in seconds. Each command in VERIFY_COMMANDS
+# is run with this timeout; a single slow command parks the issue rather
+# than burning the orchestrator's tick budget.
+VERIFY_TIMEOUT: int = _RESOLVED["VERIFY_TIMEOUT"]

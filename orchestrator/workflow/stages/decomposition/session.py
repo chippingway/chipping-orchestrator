@@ -28,8 +28,8 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import decomposition as _worktree_decomposition
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
@@ -84,7 +84,7 @@ def _read_decomposer_session(
 
 
 def _spawn_fresh_decomposer(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> AgentResult | None:
     """Consume a retry slot and spawn a fresh decomposer session.
 
@@ -147,7 +147,7 @@ def _decomposer_followup(
 
 
 def _resume_decomposer_on_human_reply(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> AgentResult | None:
     """Resume the decomposer's locked-backend session with new comments.
 

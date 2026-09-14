@@ -44,7 +44,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands, locks, ref_transport
 
 # The channel is named for the worktree-lifecycle domain rather than for this
@@ -87,7 +87,7 @@ def _still_there(worktree: Path) -> bool:
 
 
 def _remove_recognized_worktree(
-    spec: config.RepoSpec, worktree: Path,
+    spec: _config_models.RepoSpec, worktree: Path,
 ) -> bool:
     """Remove one recognized checkout, without forcing anything.
 
@@ -132,7 +132,7 @@ def _remove_recognized_worktree(
 
 
 def _delete_remote_branch_at(
-    spec: config.RepoSpec, branch: str, tip_sha: str,
+    spec: _config_models.RepoSpec, branch: str, tip_sha: str,
 ) -> bool:
     """Delete one branch on the remote, leased to the commit that was proved.
 
@@ -171,7 +171,7 @@ def _delete_remote_branch_at(
 
 
 def _delete_local_ref_at(
-    spec: config.RepoSpec, branch: str, tip_sha: str,
+    spec: _config_models.RepoSpec, branch: str, tip_sha: str,
 ) -> bool:
     """Delete one local branch, only while it still stands on the proved commit.
 

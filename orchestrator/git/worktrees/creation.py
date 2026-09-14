@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands, locks
 from orchestrator.git.worktrees import anchoring as _anchoring, naming as _naming, paths, recovery
 
@@ -32,7 +32,7 @@ _WORKTREE_REMOVE_FORCE = ("worktree", "remove", "--force")
 
 
 def _ensure_worktree(
-    spec: config.RepoSpec, issue_number: int, *, branch: str | None = None,
+    spec: _config_models.RepoSpec, issue_number: int, *, branch: str | None = None,
 ) -> Path:
     """Return a worktree on a per-issue branch, reusing one with unpushed work.
 
@@ -93,7 +93,7 @@ def _ensure_worktree(
 
 
 def _ensure_pr_worktree(
-    spec: config.RepoSpec, issue_number: int, *, branch: str | None = None,
+    spec: _config_models.RepoSpec, issue_number: int, *, branch: str | None = None,
 ) -> Path:
     """Like `_ensure_worktree`, but restores the local branch from
     `origin/<branch>` when it is missing instead of branching from
@@ -189,7 +189,7 @@ def _ensure_pr_worktree(
 
 
 def _pr_branch_start_point(
-    spec: config.RepoSpec, issue_number: int, branch: str, fetched: bool,
+    spec: _config_models.RepoSpec, issue_number: int, branch: str, fetched: bool,
 ) -> str:
     """Where a PR branch with no local ref left is rebuilt from.
 
@@ -253,7 +253,7 @@ def _pr_branch_start_point(
     return f"{spec.remote_name}/{spec.base_branch}"
 
 
-def _has_new_commits(spec: config.RepoSpec, worktree: Path) -> bool:
+def _has_new_commits(spec: _config_models.RepoSpec, worktree: Path) -> bool:
     commit_count_result = commands._git(
         "rev-list", "--count",
         f"{spec.remote_name}/{spec.base_branch}..HEAD",

@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import (
     COMMUNITY_CONTRIBUTION_LABEL,
@@ -72,7 +72,7 @@ def _community_contribution_for_pr(
 
 def _label_community_contribution(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     pr,
     contribution: _CommunityContribution,
 ) -> None:
@@ -92,7 +92,7 @@ def _label_community_contribution(
 
 
 def _sweep_pr_contribution(
-    gh: GitHubClient, spec: config.RepoSpec, pr, allowed_lower: set,
+    gh: GitHubClient, spec: _config_models.RepoSpec, pr, allowed_lower: set,
 ) -> None:
     """Label one open PR when its author is an outside community contributor."""
     contribution = _community_contribution_for_pr(gh, pr, allowed_lower)
@@ -101,7 +101,7 @@ def _sweep_pr_contribution(
 
 
 def _sweep_community_contribution_prs(
-    gh: GitHubClient, spec: config.RepoSpec
+    gh: GitHubClient, spec: _config_models.RepoSpec
 ) -> None:
     """Label open PRs from authors outside ALLOWED_ISSUE_AUTHORS and ping HITL.
 

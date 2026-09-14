@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.workflow.fixtures import (
     KEY_AWAITING_HUMAN,
     KEY_PARK_REASON,

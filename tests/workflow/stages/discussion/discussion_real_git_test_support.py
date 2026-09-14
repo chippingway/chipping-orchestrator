@@ -28,7 +28,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 
 GIT_COMMAND = "git"
 QUIET_FLAG = "-q"
@@ -83,9 +83,9 @@ def _commit_file(repo: Path, path: str, text: str) -> str:
     return _git(repo, "rev-parse", "HEAD").strip()
 
 
-def _real_git_spec(root: Path) -> config.RepoSpec:
+def _real_git_spec(root: Path) -> _config_models.RepoSpec:
     """The spec whose clone and upstream both live under `root`."""
-    return config.RepoSpec(
+    return _config_models.RepoSpec(
         slug=REPO_SLUG,
         target_root=root / CLONE_DIR,
         base_branch=BASE_BRANCH,
@@ -115,7 +115,7 @@ def _fetch_upstream(spec, branch: str) -> subprocess.CompletedProcess:
 
 
 def _seed_upstream_clone(
-    spec: config.RepoSpec, upstream: Path, worktree: Path, branch: str,
+    spec: _config_models.RepoSpec, upstream: Path, worktree: Path, branch: str,
 ) -> str:
     """Build an upstream on its base branch, a clone, and one checkout.
 

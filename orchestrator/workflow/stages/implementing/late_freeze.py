@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.measurement.models import (
     FrozenCommit,

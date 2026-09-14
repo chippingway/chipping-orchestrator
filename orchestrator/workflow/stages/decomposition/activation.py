@@ -45,7 +45,7 @@ from dataclasses import dataclass
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
@@ -75,7 +75,7 @@ class _ChildActivation:
     def start(
         cls,
         gh: GitHubClient,
-        spec: config.RepoSpec,
+        spec: _config_models.RepoSpec,
         owner: Issue,
         state: PinnedState,
         scan: _ChildScan,
@@ -187,7 +187,7 @@ class _ChildActivation:
 
 def _activate_ready_children(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     scan: _ChildScan,

@@ -7,7 +7,7 @@ from __future__ import annotations
 import pathlib
 from unittest import mock
 
-from orchestrator import config as _config
+from orchestrator.config import settings as _config
 from orchestrator.workflow.engine import drift as _drift
 from tests.support import fakes
 from tests.workflow import fixtures

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git import commands as _git_commands
 from orchestrator.workflow.stages.conflicts import guards as _guards
 from tests.support.fakes import (

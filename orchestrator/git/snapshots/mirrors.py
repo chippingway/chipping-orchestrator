@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands, locks
 from orchestrator.git.snapshots import namespace
 from orchestrator.git.worktrees import naming as _naming
@@ -24,7 +24,7 @@ log = logging.getLogger("orchestrator.git_plumbing")
 _DIGEST_MARK = "__h"
 
 
-def local_snapshot_ref(spec: config.RepoSpec, ref: str) -> str:
+def local_snapshot_ref(spec: _config_models.RepoSpec, ref: str) -> str:
     """The local ref THIS repository's copy of one snapshot lands under.
 
     The repository segment is the same sanitized slug the per-issue branch
@@ -46,7 +46,7 @@ def local_snapshot_ref(spec: config.RepoSpec, ref: str) -> str:
 
 
 def local_snapshot_present(
-    spec: config.RepoSpec, worktree: Path, *, ref: str, sha: str,
+    spec: _config_models.RepoSpec, worktree: Path, *, ref: str, sha: str,
 ) -> bool:
     """Whether this host still holds its copy of one snapshot, at `sha`.
 
@@ -92,7 +92,7 @@ def _repository_segment(slug: str) -> str:
 
 
 def _mirror_dropped(
-    spec: config.RepoSpec, worktree: Path, ref: str,
+    spec: _config_models.RepoSpec, worktree: Path, ref: str,
 ) -> bool:
     """Take this host's copy of a snapshot down, and say whether it went.
 

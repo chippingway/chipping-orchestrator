@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
@@ -96,7 +96,7 @@ def _consume_new_human_replies(
 
 
 def _build_first_round_question_prompt(
-    spec: config.RepoSpec, issue: Issue,
+    spec: _config_models.RepoSpec, issue: Issue,
 ) -> str:
     """Assemble the prompt an agent with no cached context needs: the issue
     body and title plus the trusted conversation so far."""
@@ -107,7 +107,7 @@ def _build_first_round_question_prompt(
 
 
 def _build_question_resume_prompt(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     new_comments: list,
     question_session_id: str | None,

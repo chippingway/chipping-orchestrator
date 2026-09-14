@@ -60,7 +60,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.labels import hard_skip_control_label
@@ -76,7 +76,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 
 def _handle_closed_owner_cleanup(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> None:
     """Settle what one closed snapshot owner still owes the remote.
 

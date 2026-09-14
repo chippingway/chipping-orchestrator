@@ -21,7 +21,7 @@ from github.Issue import Issue
 from github.IssueComment import IssueComment
 from github.Label import Label
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github import events, labels
 from orchestrator.github.comments import carries_own_marker
 from orchestrator.workflow.state import (

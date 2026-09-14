@@ -39,7 +39,7 @@ from dataclasses import dataclass
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
@@ -68,7 +68,7 @@ from orchestrator.workflow.stages.implementing import (
 
 def _retry_parked_dev_session(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     new_comments: list,
@@ -122,7 +122,7 @@ def _retry_parked_dev_session(
 
 
 def _handle_parked_continue_command(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """Handle an operator `/orchestrator continue` on a parked `implementing`
     issue BEFORE generic user-content-drift / resume processing.

@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import is_trusted_author
 from orchestrator.github.pinned_state import PinnedState
@@ -55,7 +55,7 @@ _NO_RETAINED_IDS: frozenset = frozenset()
 
 
 def _build_tracked_repos_context(
-    current: config.RepoSpec, specs: list[config.RepoSpec]
+    current: _config_models.RepoSpec, specs: list[_config_models.RepoSpec]
 ) -> str:
     """Render the 'other tracked repos' awareness block, or '' when there is
     nothing useful to say.

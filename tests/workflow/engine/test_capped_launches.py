@@ -21,7 +21,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.workflow.engine import retry_budget as _retry_budget, run_ledger as _run_ledger
 from tests.workflow.engine import charged_run_roads as roads, charged_run_test_support as support
 from tests.workflow.fixtures import (

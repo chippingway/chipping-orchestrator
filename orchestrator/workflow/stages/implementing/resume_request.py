@@ -22,7 +22,7 @@ from dataclasses import dataclass
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow import state as _workflow_state
 from orchestrator.workflow.stages.implementing import state as _state
@@ -31,7 +31,7 @@ from orchestrator.workflow.stages.implementing import state as _state
 @dataclass(frozen=True)
 class _DevResumeRequest:
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     resume_args: tuple
     option_fields: dict

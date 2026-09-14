@@ -136,7 +136,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.measurement import (
     models as _measurement,
 )
@@ -189,7 +189,7 @@ _SWITCHED_OFF = "is new work the size gate is switched off for"
 
 def _holds_committed_work(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     work: _AgentWork,

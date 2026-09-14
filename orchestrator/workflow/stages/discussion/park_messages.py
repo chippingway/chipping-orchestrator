@@ -20,7 +20,7 @@ that stage then refuses.
 """
 from __future__ import annotations
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.workflow.stages.discussion import models as _models, state as _state
 
 _PATHS_SHOWN = 10

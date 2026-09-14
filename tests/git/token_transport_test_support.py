@@ -7,10 +7,10 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 
 SUBPROCESS_RUN = "subprocess.run"
-TOKEN_RESOLVER = "_resolve_github_token"
+TOKEN_RESOLVER = "resolve_github_token"
 MAIN_BRANCH = "main"
 TEMP_ROOT = Path("/tmp")
 WORKTREE = Path("/tmp/orchestrator-test-worktree")
@@ -37,8 +37,8 @@ def _spec(
     *,
     base_branch: str = MAIN_BRANCH,
     remote_name: str = "origin",
-) -> config.RepoSpec:
-    return config.RepoSpec(
+) -> _config_models.RepoSpec:
+    return _config_models.RepoSpec(
         slug=repo_slug,
         target_root=Path("/tmp/orchestrator-test-target-root"),
         base_branch=base_branch,

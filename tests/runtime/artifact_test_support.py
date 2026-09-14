@@ -20,7 +20,7 @@ import unittest
 from collections.abc import Iterator
 from typing import NamedTuple
 
-from orchestrator.config import RepoSpec
+from orchestrator.config.models import RepoSpec
 from orchestrator.git.worktrees.candidates import CandidateLayout, IssueArtifacts, MaintenanceCandidate, MaintenanceScan
 from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceReason, MaintenanceResult
 from orchestrator.runtime.exclusion import ExclusiveHost

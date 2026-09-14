@@ -9,7 +9,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from tests.workflow.stages.question.question_real_git_test_support import (
     _run_git,
     _seed_target_root,
@@ -38,7 +38,7 @@ class GitBranchFixture:
     branch: str
 
     @property
-    def spec(self) -> config.RepoSpec:
+    def spec(self) -> _config_models.RepoSpec:
         return _spec_for(self.target)
 
     def create(self) -> None:

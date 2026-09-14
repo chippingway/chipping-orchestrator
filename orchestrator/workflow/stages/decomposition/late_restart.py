@@ -103,7 +103,7 @@ from typing import Any
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github import (
     client as _client,
     comments as _github_comments,
@@ -189,7 +189,7 @@ _RETAINED_KEYS = (
 
 def _restarts(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     state: _pinned_state.PinnedState,
@@ -327,7 +327,7 @@ def _restartable(
     return label is None and proved
 
 
-def _deferred(spec: config.RepoSpec, issue: Issue) -> bool:
+def _deferred(spec: _config_models.RepoSpec, issue: Issue) -> bool:
     """Whether a control label says now is not the time to restart.
 
     `backlog` and `paused` park an issue outside the state machine, and every

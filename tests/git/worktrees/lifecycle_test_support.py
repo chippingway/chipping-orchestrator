@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.worktrees import decomposition, paths
 
@@ -40,8 +40,8 @@ def _git_result(
     return MagicMock(returncode=returncode, stdout=stdout, stderr=stderr)
 
 
-def _spec(remote_name: str = ORIGIN_REMOTE) -> config.RepoSpec:
-    return config.RepoSpec(
+def _spec(remote_name: str = ORIGIN_REMOTE) -> _config_models.RepoSpec:
+    return _config_models.RepoSpec(
         slug=REPO_SLUG,
         target_root=TARGET_ROOT,
         base_branch=BASE_BRANCH,
@@ -119,7 +119,7 @@ class _AuthedFetchRecorder:
     def __init__(self) -> None:
         self.branches: list[str] = []
 
-    def __call__(self, _spec_arg: config.RepoSpec, branch: str) -> MagicMock:
+    def __call__(self, _spec_arg: _config_models.RepoSpec, branch: str) -> MagicMock:
         self.branches.append(branch)
         return _git_result()
 
@@ -130,7 +130,7 @@ class _WorktreeFixture:
 
     git: _GitRecorder
     fetches: _AuthedFetchRecorder
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
 
     def plant_issue_worktree(self) -> Path:
         """Leave a per-issue worktree on disk for the creators to find."""

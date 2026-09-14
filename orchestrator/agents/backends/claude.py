@@ -6,7 +6,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Unpack
 
-from orchestrator import config
 from orchestrator.agents import (
     environment as _agent_environment,
     models as _agent_models,
@@ -14,6 +13,7 @@ from orchestrator.agents import (
     runner as _agent_runner,
     sessions as _agent_sessions,
 )
+from orchestrator.config import settings as config
 
 
 def claude_command(

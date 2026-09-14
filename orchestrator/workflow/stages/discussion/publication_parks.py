@@ -22,7 +22,7 @@ and told why nothing ran this time.
 """
 from __future__ import annotations
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.workflow.stages.discussion import (
     models as _models,
     park_messages as _park_messages,

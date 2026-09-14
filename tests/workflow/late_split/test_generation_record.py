@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 from dataclasses import replace
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.workflow.late_split.formats import InvalidLateValue
 from orchestrator.workflow.late_split.models import (
     MAX_LINEAGE_DEPTH,

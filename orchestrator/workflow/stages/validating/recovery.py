@@ -49,7 +49,7 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
@@ -91,7 +91,7 @@ _RECOVERY_DETAILS = MappingProxyType({
 
 def _recover_failed_push(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
 ) -> str:
@@ -122,7 +122,7 @@ def _recover_failed_push(
 
 def _recover_timed_out_fix(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
 ) -> str:
@@ -239,7 +239,7 @@ def _publish_recovered_fix(
 
 def _try_recover_validating_transient_park(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
 ) -> str:

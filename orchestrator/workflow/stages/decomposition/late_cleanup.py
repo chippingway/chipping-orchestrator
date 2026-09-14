@@ -154,7 +154,7 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.snapshots import namespace as _namespace, refs as _snapshot_refs
 from orchestrator.git.worktrees import cleanup as _worktree_cleanup, naming as _naming, paths as _worktree_paths
 from orchestrator.github import comments as _comments
@@ -301,7 +301,7 @@ class _Pass:
     """
 
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     scan: _ChildScan
@@ -566,7 +566,7 @@ def _ended(scan: _ChildScan, consumer: int) -> bool:
 
 
 def _ours(
-    spec: config.RepoSpec, issue_number: int, branch: str,
+    spec: _config_models.RepoSpec, issue_number: int, branch: str,
 ) -> bool:
     """Whether a recorded target is one of THIS issue's own branches.
 
@@ -590,7 +590,7 @@ def _ours(
 
 def _reclaim_branch(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     generation: LateGeneration,
     branch: str,
@@ -639,7 +639,7 @@ def _reclaim_branch(
 
 
 def _local_gone(
-    spec: config.RepoSpec, issue_number: int, branch: str,
+    spec: _config_models.RepoSpec, issue_number: int, branch: str,
 ) -> bool:
     """Take the local checkout and ref down, and say whether they are gone."""
     _worktree_cleanup._remove_issue_worktree(spec, issue_number)
@@ -1351,7 +1351,7 @@ def _blocking(generation: LateGeneration) -> tuple[str, ...]:
 
 def _settle(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     scan: _ChildScan,
@@ -1385,7 +1385,7 @@ def _settle(
 
 def _settled_for_terminal(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     scan: _ChildScan,

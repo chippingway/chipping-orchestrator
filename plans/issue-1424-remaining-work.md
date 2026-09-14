@@ -8,10 +8,10 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107 paths and
-129 file/rule pairs. The current working implementation has 74 paths and 89 pairs (62 production, 27 test), all
-matching isolated diagnostics. Twenty-six WPS202 pairs and fourteen initializer pairs have been removed without
+129 file/rule pairs. The current working implementation has 73 paths and 87 pairs (60 production, 27 test), all
+matching isolated diagnostics. Twenty-six WPS202 pairs and sixteen initializer pairs have been removed without
 replacement exemptions or raised limits. Remaining work is the entire live set in `.flake8`, including WPS201,
-WPS202, WPS204, WPS214, WPS215, WPS410, and WPS412. The files must stay until that set is empty and validation passes.
+WPS202, WPS204, WPS214, and WPS215. The files must stay until that set is empty and validation passes.
 
 Implemented batches:
 
@@ -43,11 +43,19 @@ Implemented batches:
   probes. All observability initializers now have their import and namespace boundaries checked without exceptions.
   Ruff, configured WPS, and full validation pass with 6,431 passed and 49 skipped.
 
-- Current implementation: retire root metadata exports and the workflow package API; four initializer pairs
+- `8bb2f4d7`: retire root metadata exports and the workflow package API; four initializer pairs
   removed. Version metadata lives on `orchestrator.version`, labels on the state owner, and polling calls the engine
   tick directly. Import boundaries, mock targets, documentation addresses, and root-layout checks follow those owners.
   Ruff and configured WPS pass. The full run passed 6,430 tests and skipped 49; its sole failure was a long line in
   this note, which is corrected and passes the targeted documentation checks.
+
+- Current implementation: move resolved configuration values to `config.settings` and migrate callers, reloads,
+  and patches to that shared holder. Repository types and token resolution are imported from their defining owners.
+  Two initializer pairs removed, completing the removal of all sixteen initializer exclusions. Package checks and
+  development guidance require marker initializers throughout. Two obsolete publisher-only tests were retired;
+  source and namespace checks now cover every package without exceptions.
+  Ruff, configured WPS, and full validation pass with 6,429 passed and 49 skipped. The development skill validates,
+  and the isolated audit matches all 87 remaining complexity pairs.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes
 are historical evidence, not completion of the current zero-exclusion target.

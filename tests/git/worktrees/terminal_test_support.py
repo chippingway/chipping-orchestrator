@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import paths
 from tests.workflow.stages.question.question_real_git_test_support import (
     _git_env,
@@ -23,7 +23,7 @@ REAL_GIT_SLUG = "orch__realgit"
 
 @dataclass(frozen=True)
 class CleanupFixture:
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     target: Path
     branch: str
     worktree: Path

@@ -16,7 +16,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git import locks
 from orchestrator.git.worktrees import paths
 from tests.workflow.stages.question.question_real_git_test_support import (
@@ -36,9 +36,9 @@ BROKEN_REF_CONTENT = "not-a-sha\n"
 WORKTREES_DIR_NAME = "worktrees"
 
 
-def _spec(slug: str, target_root: Path) -> config.RepoSpec:
+def _spec(slug: str, target_root: Path) -> _config_models.RepoSpec:
     """A repo spec on one clone, with the fields the scan reads set."""
-    return config.RepoSpec(
+    return _config_models.RepoSpec(
         slug=slug, target_root=target_root, base_branch=BASE_BRANCH,
     )
 
@@ -53,12 +53,12 @@ def _legacy_branch(issue_number: int) -> str:
     return f"orchestrator/issue-{issue_number}"
 
 
-def _worktrees_root(spec: config.RepoSpec) -> Path:
+def _worktrees_root(spec: _config_models.RepoSpec) -> Path:
     """Where this spec's per-issue checkouts sit inside the world."""
     return paths._repo_worktrees_root(spec)
 
 
-def _block_worktrees_root(spec: config.RepoSpec) -> Path:
+def _block_worktrees_root(spec: _config_models.RepoSpec) -> Path:
     """Put a file where this spec's worktrees root belongs.
 
     Stands in for every root the host will not hand over as a directory:
@@ -125,14 +125,14 @@ class _ArtifactWorld:
     def tag(self, root: Path, name: str) -> None:
         _run_git("tag", name, cwd=root)
 
-    def checkout(self, spec: config.RepoSpec, issue_number: int) -> Path:
+    def checkout(self, spec: _config_models.RepoSpec, issue_number: int) -> Path:
         """Add the issue's worktree where the creators would put it."""
         return self._checkout_at(
             spec, paths._worktree_path(spec, issue_number),
         )
 
     def legacy_checkout(
-        self, spec: config.RepoSpec, issue_number: int,
+        self, spec: _config_models.RepoSpec, issue_number: int,
     ) -> Path:
         """Add the issue's worktree where they put one before namespacing.
 
@@ -144,7 +144,7 @@ class _ArtifactWorld:
             spec, paths._legacy_worktree_path(issue_number),
         )
 
-    def _checkout_at(self, spec: config.RepoSpec, worktree: Path) -> Path:
+    def _checkout_at(self, spec: _config_models.RepoSpec, worktree: Path) -> Path:
         """One detached worktree of this spec's clone, at a named path."""
         worktree.parent.mkdir(parents=True, exist_ok=True)
         _run_git(

@@ -161,15 +161,13 @@ left are declared one by one in `tests/repository/test_layering.py`: three base-
 through the workflow's comment and guard owners, deferred to a call because at module scope they would be a cycle. An
 undeclared hop fails wherever it is written, and a declared one fails if it is bound at module scope after all. The
 launch forms compose each other and are reached from nothing below them at any scope, and no import anywhere is
-relative, because a relative target names its module by position and no layer can be read off it. And a package either
-publishes an explicit `__all__` of its owners' own objects, with nothing else of the package's own left in its
-namespace beside it, or fronts nothing and imports nothing at all — the submodules on a marker package are what other
-modules' imports planted there, not what its initializer loaded, so naming the package costs no owner behind it. That
-second half is read from the initializer's source, because the namespace cannot tell an eager sibling import from
-somebody else's; what an initializer imports from outside the package for its own use is a helper rather than a
-surface, and is held to neither. The config initializer is the remaining publisher, described under
-[`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration), where each
-is also a scoped lint waiver.
+relative, because a relative target names its module by position and no layer can be read off it. Every package
+initializer is a marker that imports and binds nothing. Submodules on its namespace are the objects that other
+modules' imports planted there, so importing the package costs no owner behind it. The source check distinguishes
+those submodules from eager sibling imports, which would look identical in the namespace. Models, services, version
+metadata, and resolved settings are imported from their defining modules; the policy is described under
+[`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration).
+
 
 The test tree mirrors this one, and two more checks hold it there: every package above has a mirrored tests package,
 and every directory the suite collects from carries an initializer of its own, with nothing at the tests root but the

@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.workflow.engine import run_limit as _run_limit
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.engine import (

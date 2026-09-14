@@ -41,7 +41,7 @@ import contextlib
 import logging
 import threading
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import refresh as _base_refresh
 from orchestrator.github.client import GitHubClient
 from orchestrator.scheduler.service import IssueScheduler
@@ -58,7 +58,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 def _run_sequential_tick(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     semaphore_cm: contextlib.AbstractContextManager,
 ) -> None:
     """Process this tick's pollable issues one at a time on the caller thread.
@@ -96,7 +96,7 @@ def _run_sequential_tick(
 
 def _swept_unyielded(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     yielded: set[int],
     semaphore_cm: contextlib.AbstractContextManager,
 ) -> None:
@@ -125,7 +125,7 @@ def _swept_unyielded(
 
 def tick(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     *,
     global_semaphore: threading.BoundedSemaphore | None = None,
     scheduler: IssueScheduler | None = None,

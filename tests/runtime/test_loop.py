@@ -9,8 +9,8 @@ import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
 from orchestrator.agents import processes as _agent_processes
+from orchestrator.config import settings as config
 from orchestrator.runtime import artifacts, loop, self_update, ticks
 from orchestrator.runtime.startup import PollingOptions
 from orchestrator.runtime.state import RuntimeState

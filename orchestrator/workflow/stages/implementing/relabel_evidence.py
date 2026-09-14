@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.discussion.state import _ROUND_SHA
@@ -80,7 +80,7 @@ def _tip_is_uncertified(
 
 
 def _checkout_certified(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     worktree: Path,
     head: str,
     state: PinnedState,

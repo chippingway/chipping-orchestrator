@@ -141,7 +141,7 @@ from dataclasses import replace
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import (
     client as _client,
@@ -242,7 +242,7 @@ _SWEPT_LABELS = frozenset(_issues.CLEANUP_ROUTE_LABELS)
 
 def _reconcile_closed_owner(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
     generation: _late_models.LateGeneration,
@@ -257,7 +257,7 @@ def _reconcile_closed_owner(
 
 
 def _cleanup_settled(
-    gh: _client.GitHubClient, spec: config.RepoSpec, issue_number: int,
+    gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
 ) -> bool:
     """Whether the ending a cleanup pass was routed for is actually over.
 
@@ -370,7 +370,7 @@ def _still_owed(generation: _late_models.LateGeneration) -> bool:
 
 def _record_observed_close(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     *,
     polled: Issue | None = None,
@@ -447,7 +447,7 @@ def _record_observed_close(
 
 def _observed_close_posted(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     *,
     polled: Issue | None = None,
@@ -482,7 +482,7 @@ def _observed_close_posted(
 
 
 def _ending_cycle(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     generation: _late_models.LateGeneration,
 ) -> int | None:
@@ -597,7 +597,7 @@ def _closed_under_a_label(
 
 
 def _owns_a_live_cycle(
-    gh: _client.GitHubClient, spec: config.RepoSpec, issue_number: int,
+    gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
 ) -> bool | None:
     """Whether this issue's record carries a cycle a close would end, or None.
 
@@ -637,7 +637,7 @@ def _owns_a_live_cycle(
 
 def _inherited_close(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
     generation: _late_models.LateGeneration,
@@ -682,7 +682,7 @@ def _inherited_close(
 
 def _latched_close_ends(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
 ) -> bool:
@@ -722,7 +722,7 @@ def _latched_close_ends(
 
 def _refuses_cancelled(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     state: _pinned_state.PinnedState,
@@ -805,7 +805,7 @@ def _refuses_cancelled(
 
 def _retired_close_adopted(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
 ) -> _late_models.LateGeneration | None:
@@ -892,7 +892,7 @@ def _reconstructed(
     )
 
 
-def _parked_ending(spec: config.RepoSpec, issue: Issue) -> bool:
+def _parked_ending(spec: _config_models.RepoSpec, issue: Issue) -> bool:
     """Whether a control label defers everything past the mark.
 
     `backlog` and `paused` park an issue outside the state machine, and the
@@ -963,7 +963,7 @@ def _ends_here(
 
 def _reconciled(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
     generation: _late_models.LateGeneration,
@@ -1084,7 +1084,7 @@ def _pending_children(
 
 def _superseded_branch(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
     generation: _late_models.LateGeneration,

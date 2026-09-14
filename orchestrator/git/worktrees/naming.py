@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import re
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.pinned_state import PinnedState
 
 _SLUG_SAFE_RE = re.compile(r"[^A-Za-z0-9_.-]")
@@ -123,7 +123,7 @@ def _sanitize_branch_segment(slug: str) -> str:
     return f"{sanitized_segment}__h{digest}"
 
 
-def _branch_name(spec: config.RepoSpec, issue_number: int) -> str:
+def _branch_name(spec: _config_models.RepoSpec, issue_number: int) -> str:
     """Per-issue branch name namespaced by the spec's git-ref-safe slug.
 
     Two RepoSpecs that share the same `target_root` (a single local clone
@@ -157,7 +157,7 @@ def _legacy_branch_name(issue_number: int) -> str:
 
 
 def _issue_branch_names(
-    spec: config.RepoSpec, issue_number: int,
+    spec: _config_models.RepoSpec, issue_number: int,
 ) -> tuple[str, ...]:
     """Every branch name this orchestrator could have published this issue on.
 
@@ -179,7 +179,7 @@ def _issue_branch_names(
 
 
 def _resolve_branch_name(
-    state: PinnedState, spec: config.RepoSpec, issue_number: int,
+    state: PinnedState, spec: _config_models.RepoSpec, issue_number: int,
 ) -> str:
     """Branch to use for this issue, preferring an already-pinned value.
 

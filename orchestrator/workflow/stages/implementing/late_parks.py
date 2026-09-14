@@ -52,7 +52,7 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.github import (
     client as _client,

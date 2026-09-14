@@ -24,7 +24,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from tests.git.auth_session_test_support import _SESSIONS
 
 GIT = "git"
@@ -53,7 +53,7 @@ PLUMBING_LOG = "orchestrator.git_plumbing"
 class RealRemote:
     """One disposable repository pair and the two commits in it."""
 
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     clone: Path
     remote: Path
     sha: str
@@ -143,7 +143,7 @@ def _prepared_pair(
     )
     _git("push", QUIET, str(remote), f"HEAD:refs/heads/{BASE_BRANCH}", cwd=clone)
     return RealRemote(
-        spec=config.RepoSpec(
+        spec=_config_models.RepoSpec(
             # A pair sharing an existing clone is the SECOND repository of a
             # shared `target_root`, so it takes the other slug: the whole
             # point of that shape is two repositories in one ref store.

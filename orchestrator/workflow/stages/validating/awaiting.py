@@ -35,8 +35,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import settings as config
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import comments as _comments, prompts as _prompts

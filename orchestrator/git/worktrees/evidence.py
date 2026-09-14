@@ -57,7 +57,7 @@ import subprocess
 from collections.abc import Iterable
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands, locks
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming, probes
@@ -125,7 +125,7 @@ def _hardened_read(
 
 
 def _clone_read(
-    spec: config.RepoSpec, *args: str,
+    spec: _config_models.RepoSpec, *args: str,
 ) -> subprocess.CompletedProcess | None:
     """The same read against the clone, under the lock its refs move behind.
 
@@ -170,7 +170,7 @@ def _resolved_tip(
     return BranchTip(answer=ProbeAnswer.CONFIRMED, sha=tip_sha)
 
 
-def _local_branch_tip(spec: config.RepoSpec, branch: str) -> BranchTip:
+def _local_branch_tip(spec: _config_models.RepoSpec, branch: str) -> BranchTip:
     """The commit one local branch in this clone stands on.
 
     The commit rather than a count of what the branch is ahead by, because
@@ -213,7 +213,7 @@ def _checkout_tip(worktree: Path) -> BranchTip:
     )
 
 
-def _published_tip(spec: config.RepoSpec, branch: str) -> BranchTip:
+def _published_tip(spec: _config_models.RepoSpec, branch: str) -> BranchTip:
     """What the REMOTE says one branch is at, ignoring every local ref.
 
     The evidence a reclaim is entitled to lean on, and the reason it is not
@@ -261,7 +261,7 @@ def _published_tip(spec: config.RepoSpec, branch: str) -> BranchTip:
 
 
 def _base_contains(
-    spec: config.RepoSpec, base: BranchTip, revision: str,
+    spec: _config_models.RepoSpec, base: BranchTip, revision: str,
 ) -> ProbeAnswer:
     """Whether the base the remote named already carries `revision`.
 
@@ -433,7 +433,7 @@ def _last_touched(paths_touched: Iterable[Path]) -> float | None:
     return newest
 
 
-def _registered_worktrees(spec: config.RepoSpec) -> int | None:
+def _registered_worktrees(spec: _config_models.RepoSpec) -> int | None:
     """How many linked worktrees this clone keeps administrative entries for.
 
     The count the listing beside this is checked against. Every linked worktree
@@ -462,7 +462,7 @@ def _registered_worktrees(spec: config.RepoSpec) -> int | None:
         return None
 
 
-def _checked_out_branches(spec: config.RepoSpec) -> frozenset[str] | None:
+def _checked_out_branches(spec: _config_models.RepoSpec) -> frozenset[str] | None:
     """Every branch a worktree of this clone still has checked out, or None.
 
     The one thing `update-ref -d` gives up in exchange for its commit pin.
@@ -516,7 +516,7 @@ def _checked_out_branches(spec: config.RepoSpec) -> frozenset[str] | None:
 
 
 def _all_worktrees_accounted(
-    spec: config.RepoSpec, reported: list[str], registered: int | None,
+    spec: _config_models.RepoSpec, reported: list[str], registered: int | None,
 ) -> bool:
     """Whether the listing named every worktree this clone has an entry for.
 
@@ -588,7 +588,7 @@ def _quiet_checkout(worktree: Path, since: float) -> ProbeAnswer:
     return ProbeAnswer.CONFIRMED
 
 
-def _shared_repository(spec: config.RepoSpec, worktree: Path) -> ProbeAnswer:
+def _shared_repository(spec: _config_models.RepoSpec, worktree: Path) -> ProbeAnswer:
     """Whether this checkout is a worktree of the configured clone.
 
     A directory sitting at the path this issue's checkout belongs at is not
@@ -643,7 +643,7 @@ def _head_ref(worktree: Path) -> tuple[ProbeAnswer, str]:
 
 
 def _head_is_own_branch(
-    spec: config.RepoSpec, issue_number: int, worktree: Path,
+    spec: _config_models.RepoSpec, issue_number: int, worktree: Path,
 ) -> ProbeAnswer:
     """Whether this checkout's HEAD is on a branch this issue publishes under.
 
@@ -661,7 +661,7 @@ def _head_is_own_branch(
 
 
 def _checkout_identity(
-    spec: config.RepoSpec, issue_number: int, worktree: Path,
+    spec: _config_models.RepoSpec, issue_number: int, worktree: Path,
 ) -> ProbeAnswer:
     """Whether this checkout is the one this issue's own creator made.
 

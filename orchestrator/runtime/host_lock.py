@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 from typing import TextIO
 
-from orchestrator import config
+from orchestrator.config import settings as config
 
 log = logging.getLogger("orchestrator")
 

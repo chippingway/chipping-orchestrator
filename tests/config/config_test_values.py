@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Protocol and environment values shared by configuration tests."""
 
-_CONFIG_MODULE = "orchestrator.config"
+_CONFIG_MODULE = "orchestrator.config.settings"
 _MODELS_MODULE = "orchestrator.config.models"
 _REPOSITORIES_MODULE = "orchestrator.config.repositories"
 _SKIP_DOTENV_ENV = "ORCHESTRATOR_SKIP_DOTENV"

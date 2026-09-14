@@ -53,8 +53,8 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -65,13 +65,13 @@ class _DiscussionRun:
     """The stable inputs one discussion-stage tick is driven by."""
 
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
 
     @classmethod
     def start(
-        cls, gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+        cls, gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
     ) -> _DiscussionRun:
         return cls(gh=gh, spec=spec, issue=issue, state=gh.read_pinned_state(issue))
 

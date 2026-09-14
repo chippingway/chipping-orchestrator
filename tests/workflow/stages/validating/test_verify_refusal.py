@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.verification.models import VerifyResult
 from tests.workflow.fixtures import (
     LABEL_DOCUMENTING,

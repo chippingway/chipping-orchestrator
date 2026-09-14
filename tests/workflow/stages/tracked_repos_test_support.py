@@ -7,8 +7,8 @@ import contextlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.decomposition import run as _decomposing
 from orchestrator.workflow.stages.implementing import handler as _implementing, resume as _implementing_resume
@@ -52,7 +52,7 @@ _RESUME_WATERMARK = 51000
 _DOCUMENTATION_WATERMARK = 6000
 _DOCUMENTATION_REPLY_ID = 6100
 
-_OTHER_SPEC = config.RepoSpec(
+_OTHER_SPEC = _config_models.RepoSpec(
     slug=_OTHER_REPO_SLUG,
     target_root=Path("/srv/sibling-checkout"),
     base_branch="develop",

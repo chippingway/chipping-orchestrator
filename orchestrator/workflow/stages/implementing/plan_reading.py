@@ -30,7 +30,7 @@ from dataclasses import dataclass
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     anchoring as _anchoring,
     naming as _naming,
@@ -131,7 +131,7 @@ def _read_plan_pr(
 
 
 def _inherited_tip(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     reviewed: _ReviewedPlan,

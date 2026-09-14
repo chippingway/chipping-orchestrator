@@ -33,7 +33,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -106,7 +106,7 @@ def _recorded_pr_is_the_plan(
 
 
 def _recorded_pr_holds_the_tick(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """True when the PR this issue records is why nothing else may run.
 
@@ -162,7 +162,7 @@ def _recorded_pr_holds_the_tick(
 
 
 def _unfinished_discussion_holds_the_tick(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """Screen a crashed `discussion` before any terminal can answer for it.
 
@@ -194,7 +194,7 @@ def _unfinished_discussion_holds_the_tick(
 
 
 def _implementing_preflight(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """Everything asked before the recorded PR can be ruled on, in order.
 
@@ -219,7 +219,7 @@ def _implementing_preflight(
 
 
 def _terminal_or_relabel_holds(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """The rest of the preflight: the closed-issue terminal, then the relabel.
 
@@ -265,7 +265,7 @@ def _terminal_or_relabel_holds(
 
 
 def _handle_detected_implementing_drift(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     new_hash = _engine_drift._detect_user_content_change(gh, issue, state)
     return new_hash is not None and _drift._handle_user_content_drift(
@@ -273,7 +273,7 @@ def _handle_detected_implementing_drift(
     )
 
 
-def _handle_implementing(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_implementing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     state = gh.read_pinned_state(issue)
     # A retry-cap park whose sentence was never said, first of all: the park
     # routes this tick to a resume or to nothing, and neither road passes the

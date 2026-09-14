@@ -60,7 +60,7 @@ from enum import StrEnum
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import authored_by_us
 from orchestrator.github.pinned_state import PinnedState

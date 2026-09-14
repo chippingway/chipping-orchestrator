@@ -51,7 +51,7 @@ could act on.
 """
 from __future__ import annotations
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.base_sync import persistence, snapshot
 from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoveryContext,

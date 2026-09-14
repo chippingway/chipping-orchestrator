@@ -67,7 +67,7 @@ from typing import Any
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming, terminal as _worktree_terminal
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
@@ -169,7 +169,7 @@ def _pull_request_facts(gh: GitHubClient, number: int) -> _LinkedPullRequest:
 
 def _terminal_context(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     pull_request: Any,
@@ -186,7 +186,7 @@ def _terminal_context(
 
 
 def _finalize_if_pr_merged(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """Flip the issue to `done` when its linked PR has already merged.
 
@@ -220,7 +220,7 @@ def _finalize_if_pr_merged(
 
 def _pr_terminal_stops_the_tick(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     linked: _LinkedPullRequest | None = None,
@@ -296,7 +296,7 @@ def _finalized_pr_terminal(
 @dataclass(frozen=True)
 class _ReviewTerminalContext:
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     pr: Any
@@ -492,7 +492,7 @@ def _emit_closed_pr_rejection(context: _ReviewTerminalContext) -> None:
 
 
 def _finalize_if_issue_closed(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """Flip a closed-but-not-merged issue to `rejected`.
 

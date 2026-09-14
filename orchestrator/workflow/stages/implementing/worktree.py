@@ -21,7 +21,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     naming as _naming,
@@ -31,7 +31,7 @@ from orchestrator.github.pinned_state import PinnedState
 
 
 def _ensure_resume_worktree(
-    spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> Path:
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if worktree.exists():

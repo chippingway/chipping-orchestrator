@@ -54,7 +54,7 @@ import logging
 from enum import Enum
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, locks, ref_transport
 from orchestrator.git.snapshots import mirrors as _mirrors, namespace
 
@@ -96,7 +96,7 @@ _RECLAIMABLE = frozenset((
 
 
 def create_snapshot_ref(
-    spec: config.RepoSpec, worktree: Path, *, ref: str, sha: str,
+    spec: _config_models.RepoSpec, worktree: Path, *, ref: str, sha: str,
 ) -> SnapshotOutcome:
     """Preserve one exact commit under `ref`, or say why it was not.
 
@@ -133,7 +133,7 @@ def create_snapshot_ref(
 
 
 def prove_snapshot_ref(
-    spec: config.RepoSpec, worktree: Path, *, ref: str, sha: str,
+    spec: _config_models.RepoSpec, worktree: Path, *, ref: str, sha: str,
 ) -> SnapshotOutcome:
     """Fetch the snapshot back and prove it resolves here to `sha`.
 
@@ -175,7 +175,7 @@ def prove_snapshot_ref(
 
 
 def delete_snapshot_ref(
-    spec: config.RepoSpec, worktree: Path, *, ref: str, sha: str,
+    spec: _config_models.RepoSpec, worktree: Path, *, ref: str, sha: str,
 ) -> SnapshotOutcome:
     """Reclaim one snapshot ref, treating an absent one as already reclaimed.
 
@@ -227,7 +227,7 @@ def delete_snapshot_ref(
 
 
 def observed_snapshot_ref(
-    spec: config.RepoSpec, worktree: Path, *, ref: str, sha: str,
+    spec: _config_models.RepoSpec, worktree: Path, *, ref: str, sha: str,
 ) -> SnapshotOutcome:
     """What the remote holds under one snapshot ref, writing nothing.
 
@@ -268,7 +268,7 @@ def observed_snapshot_ref(
 
 
 def _taken_from_remote(
-    spec: config.RepoSpec, worktree: Path, ref: str, sha: str,
+    spec: _config_models.RepoSpec, worktree: Path, ref: str, sha: str,
 ) -> SnapshotOutcome:
     """Ask the remote to let go of the one ref this generation preserved."""
     deleted = ref_transport._delete_remote_ref(

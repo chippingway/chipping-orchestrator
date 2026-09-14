@@ -19,7 +19,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments
@@ -44,7 +44,7 @@ _SETTLED_NOTICE = (
 
 
 def _route_disabled_to_implementing(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> bool:
     """DECOMPOSE kill-switch bailout.
 
@@ -117,7 +117,7 @@ def _route_disabled_to_implementing(
 
 
 def _hand_on_to_implementing(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> None:
     """Run the implementing tick this relabel hands the issue to.
 
@@ -148,7 +148,7 @@ def _hand_on_to_implementing(
 
 
 def _settled_candidate_owns_the_tick(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """Hand a candidate the gate has finished with back to publication.
 

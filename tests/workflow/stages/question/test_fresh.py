@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.workflow.engine import retry_budget as _retry_budget
 from tests.workflow.fixtures import (
     _TEST_SPEC,

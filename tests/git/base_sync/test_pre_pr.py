@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import pre_pr
 from tests.git.base_sync.sync_test_support import _git_result, _patch_base_sync
 
@@ -25,7 +25,7 @@ CONFLICTED_STDOUT = "src/feature.py\n\ntests/foo.py\n"
 REBASE_MERGE_DIR = "rebase-merge"
 REBASE_APPLY_DIR = "rebase-apply"
 
-_SPEC = config.RepoSpec(
+_SPEC = _config_models.RepoSpec(
     slug=SLUG,
     target_root=Path("/tmp/pre-pr-target"),
     base_branch=BASE_BRANCH,

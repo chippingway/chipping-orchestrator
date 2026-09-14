@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import NamedTuple, TypedDict
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.observability.usage.metrics import UsageMetrics
 
 

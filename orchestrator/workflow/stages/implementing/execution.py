@@ -27,8 +27,8 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -51,7 +51,7 @@ log = logging.getLogger("orchestrator.workflow")
 @dataclass(frozen=True)
 class _DevResumeContext:
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     followup_text: str

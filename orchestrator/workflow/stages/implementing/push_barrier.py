@@ -40,7 +40,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.stages.discussion.state import (
@@ -59,7 +59,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 def _ended_before_the_push(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
     approved: _models._ApprovedWork,

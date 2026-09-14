@@ -15,7 +15,7 @@ import unittest
 from dataclasses import replace
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.implementing import (

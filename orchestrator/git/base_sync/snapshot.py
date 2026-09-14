@@ -13,7 +13,7 @@ head it never saw.
 """
 from __future__ import annotations
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.base_sync import attempts, persistence
 from orchestrator.git.base_sync.models import (

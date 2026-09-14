@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import terminals as _terminals
 from orchestrator.workflow.stages.conflicts import models as _models, routing as _routing, transitions as _transitions
@@ -36,7 +36,7 @@ from orchestrator.workflow.state import WorkflowLabel
 
 
 def _handle_resolving_conflict(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
 ) -> None:
     """Drive an unmergeable PR back to mergeable.
 

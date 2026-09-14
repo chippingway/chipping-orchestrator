@@ -22,7 +22,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands
 
 _CONVENTIONAL_TYPES = (
@@ -42,7 +42,7 @@ _PREFIXED_RE = re.compile(r"^[a-z][a-z0-9-]*(?:\([^)]+\))?!?:\s+\S")
 _PREFIX_TOKEN_RE = re.compile(r"^([a-z][a-z0-9-]*)(?:\([^)]+\))?!?:\s+\S")
 
 
-def _first_commit_subject(spec: config.RepoSpec, worktree: Path) -> str:
+def _first_commit_subject(spec: _config_models.RepoSpec, worktree: Path) -> str:
     """Subject line of the oldest commit in `origin/<base>..HEAD`, or ''.
 
     Used by `_on_commits` to derive a PR title from what the agent actually
@@ -83,7 +83,7 @@ def _subject_prefix(subject: str) -> str | None:
 
 
 def _recent_base_subjects(
-    spec: config.RepoSpec, worktree: Path, limit: int = 30
+    spec: _config_models.RepoSpec, worktree: Path, limit: int = 30
 ) -> list[str]:
     """Subjects of the most recent non-merge base-branch commits (newest
     first), or `[]` on git error.
@@ -108,7 +108,7 @@ def _recent_base_subjects(
 
 
 def _infer_subject_prefix(
-    spec: config.RepoSpec, worktree: Path, issue: Issue
+    spec: _config_models.RepoSpec, worktree: Path, issue: Issue
 ) -> str:
     """Fallback `<type>` prefix for an orchestrator-synthesized subject.
 

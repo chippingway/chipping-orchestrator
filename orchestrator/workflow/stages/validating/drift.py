@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
@@ -47,7 +47,7 @@ from orchestrator.workflow.stages.validating import (
 
 
 def _run_validating_drift(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> _drift_models._ValidatingDriftRun:
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if not worktree.exists():
@@ -80,7 +80,7 @@ def _defer_validating_drift(state: PinnedState) -> bool:
 
 def _finish_validating_drift(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     run: _drift_models._ValidatingDriftRun,
@@ -104,7 +104,7 @@ def _finish_validating_drift(
 
 
 def _resume_dev_on_validating_drift(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> bool:
     """Resume the dev session when a human edited the issue title/body while the
     reviewer was running.

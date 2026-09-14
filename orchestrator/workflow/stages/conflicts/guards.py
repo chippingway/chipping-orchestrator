@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport as _branch_transport, commands as _git_commands
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github.pinned_state import PinnedState
@@ -60,7 +60,7 @@ def _pr_head_orchestrator_produced(state: PinnedState, pr) -> bool:
     return bool(head) and head == state.get("docs_checked_sha")
 
 
-def _already_rebased_onto_base(spec: config.RepoSpec, wt: Path) -> bool:
+def _already_rebased_onto_base(spec: _config_models.RepoSpec, wt: Path) -> bool:
     """True when the worktree HEAD already sits on top of `<remote>/<base>`.
 
     Re-fetches base first (the ahead/behind check that calls this runs

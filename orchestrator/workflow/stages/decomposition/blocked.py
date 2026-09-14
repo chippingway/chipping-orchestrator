@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, guards as _guards, usage as _usage
@@ -30,7 +30,7 @@ from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.state import WorkflowLabel
 
 
-def _handle_ready(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_ready(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     """`ready` is the entry point for an auto-created child or for a parent
     whose decomposer voted `single`. Both cases need the same pickup-state
     seeding the legacy `_handle_pickup` did before flipping to
@@ -111,7 +111,7 @@ def _complete_blocked_parent(
     gh.write_pinned_state(issue, state)
 
 
-def _handle_blocked(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_blocked(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     """Poll children to decide whether the parent unblocks (or one of the
     children unblocks).
 

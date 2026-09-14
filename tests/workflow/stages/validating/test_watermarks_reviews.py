@@ -6,7 +6,7 @@ import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,

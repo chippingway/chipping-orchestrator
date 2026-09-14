@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
@@ -44,7 +44,7 @@ from orchestrator.workflow.stages.implementing import (
 
 
 def _handle_pre_session_drift(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if _worktree_creation._has_new_commits(spec, worktree):
@@ -73,7 +73,7 @@ def _handle_pre_session_drift(
 
 
 def _recover_quiet_implementer_timeout(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     if state.get(_state._PARK_REASON) != _state._AGENT_TIMEOUT:
         return False
@@ -91,7 +91,7 @@ def _recover_quiet_implementer_timeout(
 
 
 def _prepare_awaiting_dev_run(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> _models._PreparedDevRun | None:
     if _recover_quiet_implementer_timeout(gh, spec, issue, state):
         return None

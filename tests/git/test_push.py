@@ -8,7 +8,7 @@ import contextlib
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import credentials as _config_credentials
 from orchestrator.git import branch_transport
 from tests.git.token_transport_test_support import (
     FAKE_TOKEN,
@@ -64,7 +64,7 @@ def _patched_push(run_results: list):
     """Serve one result per subprocess: transport probe, ls-remote, push."""
     run_mock = MagicMock(side_effect=run_results)
     with (
-        patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+        patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
         patch(SUBPROCESS_RUN, run_mock),
     ):
         yield run_mock
@@ -190,7 +190,7 @@ class PushBranchTokenTest(unittest.TestCase):
         token_resolver = _TokenResolver()
 
         with (
-            patch.object(config, TOKEN_RESOLVER, token_resolver),
+            patch.object(_config_credentials, TOKEN_RESOLVER, token_resolver),
             patch(SUBPROCESS_RUN, run_mock),
         ):
             self.assertTrue(
@@ -223,7 +223,7 @@ class PushBranchTokenTest(unittest.TestCase):
         run_mock = MagicMock()
 
         with (
-            patch.object(config, TOKEN_RESOLVER, return_value=""),
+            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=""),
             patch(SUBPROCESS_RUN, run_mock),
             self.assertLogs(branch_transport.log, level=ERROR_LEVEL) as logs,
         ):
@@ -276,7 +276,7 @@ class PushBranchRefusalTest(unittest.TestCase):
             _temp_git_repo_with_local_config(
                 [(HTTP_PROXY_KEY, "http://evil.example:8080")],
             ) as repo,
-            patch.object(config, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
+            patch.object(_config_credentials, TOKEN_RESOLVER, return_value=FAKE_TOKEN),
             self.assertLogs(branch_transport.log, level=ERROR_LEVEL) as logs,
         ):
             ok = branch_transport._push_branch(_spec(), repo, ISSUE_BRANCH)

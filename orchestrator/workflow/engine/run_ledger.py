@@ -56,7 +56,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import PinnedState
 
 # The ceiling in force on THIS issue, where the issue carries one of its own.

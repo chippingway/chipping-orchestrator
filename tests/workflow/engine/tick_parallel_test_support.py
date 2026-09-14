@@ -8,7 +8,7 @@ import threading
 import unittest
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from tests.support import fakes as _fakes
 from tests.workflow import fixtures as _helpers
 
@@ -39,8 +39,8 @@ _FANOUT_ISSUE_NUMBER = 99
 _FAMILY_CHILD_ISSUE_NUMBER = 20
 
 
-def _spec(parallel_limit: int) -> config.RepoSpec:
-    return config.RepoSpec(
+def _spec(parallel_limit: int) -> _config_models.RepoSpec:
+    return _config_models.RepoSpec(
         slug="acme/widget",
         target_root=Path("/tmp/orchestrator-test-target-root"),
         base_branch="main",

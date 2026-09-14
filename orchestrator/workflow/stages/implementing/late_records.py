@@ -25,7 +25,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
@@ -176,7 +176,7 @@ class _Gate:
     """
 
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     worktree: Path
@@ -393,7 +393,7 @@ _REFUSED = _GateVerdict(held=True, refused=True)
 
 def _gate(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,

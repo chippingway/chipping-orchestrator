@@ -33,7 +33,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, drift as _drift, usage as _usage
@@ -42,7 +42,7 @@ from orchestrator.workflow.state import WorkflowLabel
 log = logging.getLogger("orchestrator.workflow")
 
 
-def _pickup_author_allowed(spec: config.RepoSpec, issue: Issue) -> bool:
+def _pickup_author_allowed(spec: _config_models.RepoSpec, issue: Issue) -> bool:
     # Author allowlist: when configured, silently skip unlabeled issues from
     # anyone outside the list so random users can't burn agent budget on a
     # public repo. Maintainers can still drive an outsider's issue manually
@@ -70,7 +70,7 @@ def _record_pickup_comment(state: PinnedState, pickup) -> None:
 
 
 def _start_decomposing(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> None:
     # The handler is reached through a call-time import: the stage tree imports
     # this subpackage, so binding it at module scope would point that edge back
@@ -93,7 +93,7 @@ def _start_decomposing(
 
 
 def _start_implementing(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> None:
     # Legacy path with DECOMPOSE=off: skip decomposition entirely and route
     # the unlabeled issue straight to implementing, exactly as the
@@ -122,7 +122,7 @@ def _start_implementing(
     _handle_implementing(gh, spec, issue)
 
 
-def _handle_pickup(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_pickup(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     if not _pickup_author_allowed(spec, issue):
         return
     state = PinnedState()

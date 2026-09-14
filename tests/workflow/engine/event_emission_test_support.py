@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.support import fakes as _fakes
 from tests.workflow import fixtures as _helpers
 from tests.workflow.engine import event_values as _events

@@ -41,7 +41,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.workflow.engine import comments as _comments, messages as _messages
 from orchestrator.workflow.engine.comments import _SECTION_SEP
 from orchestrator.workflow.stages.decomposition.validation import _MAX_CHILDREN
@@ -85,10 +85,10 @@ _CONTINUE_RETRY_PROMPT = (
 
 
 def _build_implement_prompt(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     comments_text: str,
-    specs: list[config.RepoSpec],
+    specs: list[_config_models.RepoSpec],
 ) -> str:
     body = issue.body or _NO_BODY
     convo = comments_text or _NO_PRIOR_COMMENTS
@@ -110,10 +110,10 @@ def _build_implement_prompt(
 
 
 def _build_fresh_respawn_preamble(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     comments_text: str,
-    specs: list[config.RepoSpec],
+    specs: list[_config_models.RepoSpec],
 ) -> str:
     """Re-grounding header prepended to a FRESH dev spawn that REPLACES a
     retired or poisoned session mid-issue (proactive rotation, silent-park
@@ -148,10 +148,10 @@ def _build_fresh_respawn_preamble(
 
 
 def _build_review_prompt(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     comments_text: str,
-    specs: list[config.RepoSpec],
+    specs: list[_config_models.RepoSpec],
     dev_backend: str = "agent",
 ) -> str:
     body = issue.body or _NO_BODY
@@ -182,10 +182,10 @@ def _build_review_prompt(
 
 
 def _build_documentation_prompt(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     comments_text: str,
-    specs: list[config.RepoSpec],
+    specs: list[_config_models.RepoSpec],
 ) -> str:
     """Prompt for the documentation pass that runs as the final-docs
     handoff between reviewer approval and `in_review`.
@@ -281,10 +281,10 @@ def _build_conflict_resolution_prompt(
 
 
 def _build_question_prompt(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     comments_text: str,
-    specs: list[config.RepoSpec],
+    specs: list[_config_models.RepoSpec],
 ) -> str:
     """Compose the read-only prompt used by the `question` stage.
 
@@ -348,10 +348,10 @@ def _build_question_followup_prompt(comments: list) -> str:
 
 
 def _build_discussion_prompt(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     comments_text: str,
-    specs: list[config.RepoSpec],
+    specs: list[_config_models.RepoSpec],
     plan_path: str,
 ) -> str:
     """Compose the full-context prompt used by the `discussion` stage.
@@ -546,10 +546,10 @@ def _build_pr_comment_followup(comments: list) -> str:
 
 
 def _build_decompose_prompt(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     comments_text: str,
-    specs: list[config.RepoSpec],
+    specs: list[_config_models.RepoSpec],
 ) -> str:
     body = issue.body or _NO_BODY
     convo = comments_text or _NO_PRIOR_COMMENTS

@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import naming as _naming
 
 # The `issue-<n>` tail every name below ends in, anchored whole and with no
@@ -25,7 +25,7 @@ from orchestrator.git.worktrees import naming as _naming
 _ISSUE_SEGMENT_RE = re.compile(r"issue-([1-9][0-9]{0,17})")
 
 
-def _repo_worktrees_root(spec: config.RepoSpec) -> Path:
+def _repo_worktrees_root(spec: _config_models.RepoSpec) -> Path:
     """Per-repo subdirectory under WORKTREES_DIR for this spec.
 
     Two specs with the same issue number must not collide on disk, so the
@@ -35,7 +35,7 @@ def _repo_worktrees_root(spec: config.RepoSpec) -> Path:
     return config.WORKTREES_DIR / _naming._sanitize_slug(spec.slug)
 
 
-def _worktree_path(spec: config.RepoSpec, issue_number: int) -> Path:
+def _worktree_path(spec: _config_models.RepoSpec, issue_number: int) -> Path:
     return _repo_worktrees_root(spec) / f"issue-{issue_number}"
 
 
@@ -54,7 +54,7 @@ def _legacy_worktree_path(issue_number: int) -> Path:
 
 
 def _issue_worktree_paths(
-    spec: config.RepoSpec, issue_number: int,
+    spec: _config_models.RepoSpec, issue_number: int,
 ) -> tuple[Path, ...]:
     """Every path this orchestrator could have checked one issue out at.
 

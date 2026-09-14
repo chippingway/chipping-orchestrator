@@ -43,7 +43,7 @@ import logging
 import subprocess
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands, credentials
 
 # The channel is named for the git-plumbing domain rather than for this
@@ -99,7 +99,7 @@ def _remote_ref_listing(
 
 
 def _remote_ref_names(
-    spec: config.RepoSpec, worktree: Path, *, pattern: str,
+    spec: _config_models.RepoSpec, worktree: Path, *, pattern: str,
 ) -> tuple[str, ...] | None:
     """Ask the REMOTE which refs it carries under one pattern.
 

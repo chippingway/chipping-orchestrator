@@ -106,7 +106,7 @@ _FORK_REPO = "somebody-else/orchestrator"
 
 # The setting an install turns the measurement off with, which is the one road
 # out of the gate that never reaches the candidate question.
-_DECOMPOSE_SWITCH = "orchestrator.config.DECOMPOSE"
+_DECOMPOSE_SWITCH = "orchestrator.config.settings.DECOMPOSE"
 
 # This very repository, spelled the way an operator types a setting rather
 # than the way GitHub answers: the same repository, and the one shape an

@@ -22,8 +22,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import settings as config
 from orchestrator.workflow.stages.documenting import handler as _documenting
 from tests.support.fakes import FakePR, FakePRRef
 from tests.workflow import fixtures as _support

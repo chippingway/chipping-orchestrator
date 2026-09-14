@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards, usage as _usage

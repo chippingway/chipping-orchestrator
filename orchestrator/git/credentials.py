@@ -37,7 +37,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import credentials as _config_credentials, models as _config_models, settings as config
 from orchestrator.git import commands
 
 # The channel is named for the git-plumbing domain rather than for this
@@ -77,9 +77,9 @@ def _scrubbed(reported: str, token: str) -> str:
     return (reported or "").replace(token, _REDACTED)
 
 
-def _resolved_git_token(spec: config.RepoSpec, operation: str) -> str | None:
+def _resolved_git_token(spec: _config_models.RepoSpec, operation: str) -> str | None:
     """Resolve a per-repository token and log an operation-specific error."""
-    token = config._resolve_github_token(spec.slug)
+    token = _config_credentials.resolve_github_token(spec.slug)
     if token:
         return token
     log.error(
@@ -115,7 +115,7 @@ def _git_auth_env(
 
 @contextmanager
 def _git_auth_session(
-    spec: config.RepoSpec, token: str, *, include_identity: bool = False,
+    spec: _config_models.RepoSpec, token: str, *, include_identity: bool = False,
 ) -> Iterator[_GitAuthSession]:
     """Keep a hardened askpass script alive for one authenticated operation."""
     with tempfile.TemporaryDirectory(prefix="orch-askpass-") as temp_dir:

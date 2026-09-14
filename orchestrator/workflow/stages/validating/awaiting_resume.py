@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -77,7 +77,7 @@ def _resume_validating_awaiting_dev(context: _models._AwaitingValidation) -> str
 
 
 def _handle_validating_awaiting_human(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> str:
     """Route an awaiting-human `validating` tick after a park.
 

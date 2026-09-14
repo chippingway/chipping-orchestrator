@@ -12,7 +12,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 
 # The channel is named for the worktree-lifecycle domain rather than for this
 # module's path: operators filter the rendered `orchestrator.worktree_lifecycle`
@@ -23,10 +23,10 @@ log = logging.getLogger("orchestrator.worktree_lifecycle")
 # The specs on each clone a scan reads, keyed by the path their spellings
 # agree on: one group is one ref store, and everyone in it is a claimant to
 # what that store holds.
-CloneGroups = dict[Path, tuple[config.RepoSpec, ...]]
+CloneGroups = dict[Path, tuple[_config_models.RepoSpec, ...]]
 
 
-def _resolved_root(spec: config.RepoSpec) -> Path | None:
+def _resolved_root(spec: _config_models.RepoSpec) -> Path | None:
     """The clone this spec configures, as the one path its spellings agree on.
 
     `None` when the path cannot be resolved at all, which is a failure worth
@@ -57,7 +57,7 @@ def _resolved_root(spec: config.RepoSpec) -> Path | None:
 
 
 def _specs_by_clone(
-    specs: Sequence[config.RepoSpec],
+    specs: Sequence[_config_models.RepoSpec],
 ) -> tuple[CloneGroups, tuple[str, ...]]:
     """The specs grouped by the clone they name, and whose path did not resolve.
 

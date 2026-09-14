@@ -15,7 +15,7 @@ import threading
 from pathlib import Path
 from unittest import mock
 
-from orchestrator.config import RepoSpec
+from orchestrator.config.models import RepoSpec
 
 ALPHA_REPO = "alpha/one"
 BETA_REPO = "beta/two"

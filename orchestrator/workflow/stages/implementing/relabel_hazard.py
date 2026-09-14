@@ -30,7 +30,7 @@ from dataclasses import dataclass
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
     naming as _naming,
@@ -56,7 +56,7 @@ class _ReadOnlyRelabelHazard:
 
 
 def _uncertified_commits(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     reviewed: _ReviewedPlan,
@@ -99,7 +99,7 @@ def _uncertified_commits(
 
 
 def _read_only_relabel_hazard(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     reviewed: _ReviewedPlan,
@@ -157,7 +157,7 @@ def _unfinished_publication_triggers(state: PinnedState) -> tuple[str, ...]:
 
 
 def _checkout_triggers(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     state: PinnedState,
     reviewed: _ReviewedPlan,

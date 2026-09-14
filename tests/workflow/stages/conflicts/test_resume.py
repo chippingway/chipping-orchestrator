@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git import commands as _git_commands
 from orchestrator.git.base_sync import pre_pr as _base_sync_pre_pr
 from tests.support.fakes import FakeComment, FakeUser

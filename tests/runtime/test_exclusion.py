@@ -27,7 +27,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.runtime import exclusion, host_lock
 from tests.runtime import exclusion_test_support as _support
 

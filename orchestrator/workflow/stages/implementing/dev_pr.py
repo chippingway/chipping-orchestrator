@@ -30,8 +30,8 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models
 from orchestrator.git.publication import titles as _titles
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import comments as _comments
@@ -75,7 +75,7 @@ def _format_pr_agent_message(
     return f"{head}\n\n{_state._PR_BODY_TRUNCATION_MARKER}"
 
 
-def _derive_pr_title(spec: config.RepoSpec, issue: Issue, wt: Path) -> str:
+def _derive_pr_title(spec: _config_models.RepoSpec, issue: Issue, wt: Path) -> str:
     """PR title for a freshly opened dev PR.
 
     Prefers the first commit's conventional subject; when that carries no
@@ -121,7 +121,7 @@ def _build_pr_body(
 
 def _reuse_or_open_pr(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
     work: _models._PRWork,

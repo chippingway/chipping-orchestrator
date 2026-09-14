@@ -28,7 +28,7 @@ from dataclasses import replace as _replace
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.client import GitHubClient
@@ -60,7 +60,7 @@ def _park_dev_fix_timeout(
 
 
 def _publishable_dev_fix(
-    spec: config.RepoSpec, issue: Issue, state: PinnedState, run: _models._DevFixRun,
+    spec: _config_models.RepoSpec, issue: Issue, state: PinnedState, run: _models._DevFixRun,
 ) -> _models._DevFixRun | None:
     """The run a fix publishes, carrying the head it was decided on, or None.
 
@@ -102,7 +102,7 @@ def _publishable_dev_fix(
 
 def _publish_dev_fix(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     run: _models._DevFixRun,
@@ -174,7 +174,7 @@ def _publish_dev_fix(
 
 def _dispose_dev_fix_result(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     run: _models._DevFixRun,
@@ -193,7 +193,7 @@ def _dispose_dev_fix_result(
 
 def _handle_dev_fix_result(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     *context_args,
     **fields,

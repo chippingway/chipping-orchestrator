@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands
 from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, namespace, refs
 from tests.git.snapshots.snapshot_test_support import real_remote
@@ -116,9 +116,9 @@ class BoundedRepositoryTest(unittest.TestCase):
             self.assertIsNone(_mirrored(remote))
 
 
-def _spec_for(slug: str) -> config.RepoSpec:
+def _spec_for(slug: str) -> _config_models.RepoSpec:
     """A spec naming one repository, for the local name it produces."""
-    return config.RepoSpec(
+    return _config_models.RepoSpec(
         slug=slug, target_root=Path("/tmp"), base_branch="main",
     )
 

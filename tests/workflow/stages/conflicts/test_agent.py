@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.workflow.fixtures import (
     _FAKE_WT,
     _TEST_SPEC,

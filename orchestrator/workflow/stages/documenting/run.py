@@ -32,8 +32,8 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import settings as config
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification import probes as _verification_probes

@@ -23,7 +23,7 @@ import contextlib
 import os
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import paths
 from tests.git.auth_session_test_support import _SESSIONS
 from tests.git.worktrees.artifact_test_support import (
@@ -66,7 +66,7 @@ class _CandidateWorld(_ArtifactWorld):
         self._serving = contextlib.ExitStack()
         test_case.addCleanup(self._serving.close)
 
-    def serve(self, spec: config.RepoSpec) -> Path:
+    def serve(self, spec: _config_models.RepoSpec) -> Path:
         """Give this repository a remote it has already pushed its base to.
 
         The authenticated transport is pointed at that bare repository for the
@@ -77,7 +77,7 @@ class _CandidateWorld(_ArtifactWorld):
         self.remote = self._served(spec, REMOTE_DIR)
         return self.remote
 
-    def serve_beside(self, spec: config.RepoSpec, name: str) -> Path:
+    def serve_beside(self, spec: _config_models.RepoSpec, name: str) -> Path:
         """Give a second repository sharing this clone a remote of its own.
 
         A remote is the one thing two `REPOS` entries over a single checkout do
@@ -91,7 +91,7 @@ class _CandidateWorld(_ArtifactWorld):
         """
         return self._served(spec, name)
 
-    def unreachable(self, spec: config.RepoSpec) -> Path:
+    def unreachable(self, spec: _config_models.RepoSpec) -> Path:
         """Point this repository's transport at a remote that is not there.
 
         What an `ls-remote` that establishes nothing looks like without
@@ -158,7 +158,7 @@ class _CandidateWorld(_ArtifactWorld):
         )
 
     def attached_checkout(
-        self, spec: config.RepoSpec, issue_number: int, branch: str,
+        self, spec: _config_models.RepoSpec, issue_number: int, branch: str,
     ) -> Path:
         """Add the issue's worktree on the branch its creator leaves it on."""
         return self.checkout_at(
@@ -166,7 +166,7 @@ class _CandidateWorld(_ArtifactWorld):
         )
 
     def checkout_at(
-        self, spec: config.RepoSpec, worktree: Path, branch: str,
+        self, spec: _config_models.RepoSpec, worktree: Path, branch: str,
     ) -> Path:
         """Add a worktree of this clone at a named path, on a named branch.
 
@@ -182,7 +182,7 @@ class _CandidateWorld(_ArtifactWorld):
         )
         return worktree
 
-    def _served(self, spec: config.RepoSpec, name: str) -> Path:
+    def _served(self, spec: _config_models.RepoSpec, name: str) -> Path:
         """One bare repository, wired to this repository's authenticated calls."""
         remote = self.path(name)
         remote.mkdir()
@@ -301,7 +301,7 @@ def _settle_checkout(worktree: Path, when: float) -> None:
             os.utime(touched, (when, when))
 
 
-def _foreign_checkout(spec: config.RepoSpec, issue_number: int) -> Path:
+def _foreign_checkout(spec: _config_models.RepoSpec, issue_number: int) -> Path:
     """Put a repository of somebody else's where the checkout belongs."""
     worktree = paths._worktree_path(spec, issue_number)
     worktree.mkdir(parents=True)

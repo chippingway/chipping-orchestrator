@@ -25,9 +25,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from orchestrator import cli, config
-from orchestrator.runtime import logs, shutdown, startup
-from orchestrator.runtime.state import RuntimeState
+from orchestrator import cli
+from orchestrator.config import settings as config
+from orchestrator.runtime import logs, shutdown, startup, state as _runtime_state
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import tick as _engine_tick
 from tests.runtime import (
@@ -50,10 +50,10 @@ class StateFactory:
     """`RuntimeState` stand-in that keeps the state a run created."""
 
     def __init__(self) -> None:
-        self.created: list[RuntimeState] = []
+        self.created: list[_runtime_state.RuntimeState] = []
 
-    def __call__(self) -> RuntimeState:
-        state = RuntimeState()
+    def __call__(self) -> _runtime_state.RuntimeState:
+        state = _runtime_state.RuntimeState()
         self.created.append(state)
         return state
 
@@ -84,7 +84,7 @@ class ComposedRun:
         self.on_tick = None
 
     @property
-    def state(self) -> RuntimeState:
+    def state(self) -> _runtime_state.RuntimeState:
         return self.states.created[-1]
 
     @property

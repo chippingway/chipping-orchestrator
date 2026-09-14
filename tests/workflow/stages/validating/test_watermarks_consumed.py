@@ -6,8 +6,8 @@ import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
+from orchestrator.config import settings as config
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.implementing import resume as _implementing_resume
 from tests.support.fakes import (

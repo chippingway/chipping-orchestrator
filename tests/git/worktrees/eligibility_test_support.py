@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees.candidates import IssueArtifacts
 from orchestrator.git.worktrees.models import Retention
 from tests.git.worktrees.artifact_test_support import BASE_BRANCH
@@ -108,7 +108,7 @@ def _pull_request(
 
 
 def _candidate(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int = ISSUE_NUMBER,
     *,
     worktree: Path | None = None,

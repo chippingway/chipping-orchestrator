@@ -29,8 +29,8 @@ from typing import Any
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
@@ -138,7 +138,7 @@ _resume_dev_with_text.__signature__ = _DEV_RESUME_SIGNATURE
 
 
 def _resume_developer_on_human_reply(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
     *,
     pause_guard: bool = False,
 ) -> tuple[Path, AgentResult, bool] | None:

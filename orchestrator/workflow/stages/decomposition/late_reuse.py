@@ -123,7 +123,7 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, refs as _snapshot_refs
 from orchestrator.github import client as _client, comments as _comments, pinned_state as _pinned_state
 from orchestrator.workflow.engine import guards as _guards
@@ -227,7 +227,7 @@ _VERDICT_PARKS = MappingProxyType({
 
 def _refuses_reuse(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
 ) -> bool:
@@ -285,7 +285,7 @@ def _refuses_reuse(
 
 def _refuses_unrecorded(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
 ) -> bool:
@@ -344,7 +344,7 @@ def _refuses_unrecorded(
 
 def _unrecorded_verdict(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     claimed: _lineage.LateAncestry,
 ) -> tuple[_Reuse, _lineage.LateAncestry | None]:
@@ -472,7 +472,7 @@ def _parked(
 
 def _verdict(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     ancestry: _lineage.LateAncestry,
 ) -> _Reuse:
@@ -517,7 +517,7 @@ def _verdict(
 
 
 def _asked_verdict(
-    spec: config.RepoSpec, ancestry: _lineage.LateAncestry,
+    spec: _config_models.RepoSpec, ancestry: _lineage.LateAncestry,
 ) -> _Reuse:
     """What the remote says about the ref one whole pointer names.
 
@@ -583,7 +583,7 @@ def _receipt_verdict(
 
 
 def _mirrored(
-    spec: config.RepoSpec, ancestry: _lineage.LateAncestry,
+    spec: _config_models.RepoSpec, ancestry: _lineage.LateAncestry,
 ) -> bool:
     """Whether this host still holds this child's own candidate, asked locally.
 

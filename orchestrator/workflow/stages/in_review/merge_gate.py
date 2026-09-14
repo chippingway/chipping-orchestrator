@@ -23,7 +23,7 @@ itself is filtered by the id ledger instead, which needs no watermark to move.
 """
 from __future__ import annotations
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, guards as _guards
 from orchestrator.workflow.stages.in_review import models as _models, watermarks as _watermarks

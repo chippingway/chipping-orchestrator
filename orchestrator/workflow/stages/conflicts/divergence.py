@@ -37,7 +37,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git import commands as _git_commands
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.workflow.stages.conflicts import (
@@ -417,7 +417,7 @@ def _parked_unpinnable_recovery(
     return True
 
 
-def _base_ref(spec: config.RepoSpec) -> str:
+def _base_ref(spec: _config_models.RepoSpec) -> str:
     """The remote-tracking ref the behind-base probe counts against."""
     return f"{spec.remote_name}/{spec.base_branch}"
 
