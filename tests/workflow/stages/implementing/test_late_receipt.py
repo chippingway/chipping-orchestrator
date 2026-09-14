@@ -35,25 +35,13 @@ from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
     publication as _publication,
 )
-from tests.support.fakes import FakePR, FakePRRef, FakePRRepo
 from tests.workflow.fixtures import (
     LABEL_VALIDATING,
     MEASURED_CANDIDATE_SHA,
-    SHA_LENGTH,
-    _issue_branch,
 )
 from tests.workflow.interleaving import _RacesPastTheStep, _RacesTheStep
-from tests.workflow.stages.implementing import late_gate_test_support as support
+from tests.workflow.stages.implementing import late_gate_test_support as support, late_receipt_case as _receipt_case
 
-_KEY_PUBLISHED_SHA = "implementing_published_sha"
-_KEY_PR_NUMBER = "pr_number"
-# The pull request the receipt itself names, written with it by the push that
-# landed. `pr_number` is the relabel's write, which is the one this window is
-# missing, so this is the only identity a recovery has that is not a search.
-_KEY_PUBLISHED_PR = "implementing_published_pr"
-# The head that push replaced, the third member. An initial publication froze
-# none and records none, so it is absent rather than damaged there.
-_KEY_PUBLISHED_LEASE = "implementing_published_lease"
 # What a proven-delivery attempt makes durable BEFORE it pushes, and what a
 # tick dying in that window leaves behind: the commit named as owed a push,
 # with no lease beside it -- the head it would have been pinned to was the
@@ -63,20 +51,6 @@ _KEY_APPROVED_SHA = "late_approved_sha"
 # The other record that names a commit and says nothing about where it went:
 # an adjudication's verdict that the change ships as one change.
 _KEY_EXEMPT_SHA = "late_exempt_sha"
-
-# The pull request that note was written about, and the branch it is on.
-_PR_NUMBER = 812
-_BRANCH = _issue_branch(support.GATE_ISSUE_NUMBER)
-
-# Where the remote is standing instead: a commit of the right shape that no
-# record on these seeds names, which is what "the head has moved" looks like
-# from the issue's side.
-_MOVED_HEAD = "e" * SHA_LENGTH
-
-# The branch a pull request nobody opened for this issue is on: the shape a
-# record whose `branch` and `pr_number` disagree leaves, and the one that
-# would have the seam push where nothing has published.
-_ANOTHER_BRANCH = f"{_BRANCH}-elsewhere"
 
 _VALIDATING = (support.GATE_ISSUE_NUMBER, LABEL_VALIDATING)
 
@@ -92,14 +66,6 @@ _STANDING_EXACTLY_ON = "standing_exactly_on"
 # on another worker can end the publication in.
 _PUBLICATION_INTENT = "_publication_intent"
 
-# What a pull request reads as once somebody has ended it.
-_CLOSED = "closed"
-
-# A receipt outside this domain's object-id vocabulary: what a hand edit or a
-# half-written crash leaves, and what every late commit field reads back as an
-# absence rather than as the claim it is.
-_MALFORMED_RECEIPT = "not-a-sha"
-
 # Somebody else's copy of this repository: where a fork's head lives, which is
 # the only fact that tells its pull request from one of this issue's own.
 _FORK_REPO = "somebody-else/orchestrator"
@@ -113,108 +79,14 @@ _DECOMPOSE_SWITCH = "orchestrator.config.settings.DECOMPOSE"
 # exact comparison reads as a stranger's.
 _SHOUTED_REPO = "ChippingWay/Orchestrator"
 
-# What a branch this stage has pushed before carries: the note naming the
-# commit it sent, the pull request that push opened, and the branch both are
-# about. All three, because the remote reading behind them is what tells work
-# this issue delivered from a tip somebody else moved the branch to.
-# The receipt group's three members, in the order a refusal names them.
-# `_record_publication` puts all three keys down on every receipt, `null`
-# included, so presence is a term of its own and a fixture writes the group
-# as a whole rather than a member at a time.
-_RECEIPT_MEMBERS = (
-    _KEY_PUBLISHED_SHA, _KEY_PUBLISHED_LEASE, _KEY_PUBLISHED_PR,
-)
 
-_PUBLISHED_BY_THIS_STAGE = MappingProxyType({
-    _KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
-    # `null`, which is what an initial publication records for the head it
-    # froze none of -- and the key goes down all the same, since the three
-    # members are one write.
-    _KEY_PUBLISHED_LEASE: None,
-    _KEY_PUBLISHED_PR: _PR_NUMBER,
-    _KEY_PR_NUMBER: _PR_NUMBER,
-    "branch": _BRANCH,
-})
-
-
-class _ReceiptCase(support._GateCase):
-    """An issue whose branch this stage has pushed before."""
-
-    def _stand_the_pull_request_on(
-        self, head: str, branch: str = _BRANCH, repo: str = "",
-    ) -> None:
-        """Put this issue's open pull request on `head`, or take it away.
-
-        `branch` is what the pull request's own head names, which a case about
-        a record disagreeing with itself moves off the branch the seam would
-        push -- the one shape that would have the answer license a push onto a
-        branch nothing has published.
-
-        `repo` moves the head into somebody else's copy of this repository,
-        which is the shape that agrees on every other term: a fork carries the
-        same ref names over the same commits.
-        """
-        if not head:
-            return
-        opened = FakePR(
-            number=_PR_NUMBER,
-            head_branch=branch,
-            head=FakePRRef(
-                sha=head, ref=branch, repo=FakePRRepo(full_name=repo),
-            ),
-        )
-        self.github.add_pr(opened)
-        self.github.existing_open_pr[branch] = opened
-
-    def _oversized(self):
-        """One gate run over a candidate no count would ever let through."""
-        return self._run_gate(added_lines=support.OVERSIZED_ADDITIONS)
-
-    def _seeding(self, group: dict) -> None:
-        """A fresh case whose receipt group is exactly `group`.
-
-        The members are written from the group rather than merged over a
-        whole one, because an OMITTED key is one of the shapes: a group the
-        write here always fills and the comment does not is a hand edit, and
-        a fixture that could not express it would leave that rule untested.
-        """
-        self.setUp()
-        self._stand_the_pull_request_on(MEASURED_CANDIDATE_SHA)
-        self._seed(**{
-            member: held
-            for member, held in _PUBLISHED_BY_THIS_STAGE.items()
-            if member not in _RECEIPT_MEMBERS
-        }, **group)
-
-    def _receipt_group(self) -> dict:
-        """Whichever members of the receipt group the comment carries now."""
-        pinned = self._pinned()
-        return {
-            member: pinned[member] for member in _RECEIPT_MEMBERS
-            if member in pinned
-        }
-
-    def _seeded(self, described: str) -> None:
-        """One record whose receipt names a publication nothing can show."""
-        standing, branch, recorded = _UNPROVABLE[described]
-        self.setUp()
-        self._stand_the_pull_request_on(standing, branch=branch)
-        if described == "one somebody ended":
-            self.github.get_pr(_PR_NUMBER).state = _CLOSED
-        self._seed(**{
-            **dict.fromkeys(_RECEIPT_MEMBERS),
-            _KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
-            **recorded,
-        })
-
-
-class DeliveredReceiptTest(_ReceiptCase, unittest.TestCase):
+class DeliveredReceiptTest(_receipt_case._ReceiptCase, unittest.TestCase):
     """The window the note exists for, proved rather than assumed."""
 
     def setUp(self) -> None:
         super().setUp()
         self._stand_the_pull_request_on(MEASURED_CANDIDATE_SHA)
-        self._seed(**_PUBLISHED_BY_THIS_STAGE)
+        self._seed(**_receipt_case._PUBLISHED_BY_THIS_STAGE)
 
     def test_a_proved_receipt_finishes_up(self) -> None:
         # Read from the far end: this stage pushed the commit, the pull
@@ -226,7 +98,7 @@ class DeliveredReceiptTest(_ReceiptCase, unittest.TestCase):
         self._assert_unmeasured(mocks)
         self.assertIn(_VALIDATING, self.github.label_history)
         self.assertEqual(self.github.opened_prs, [])
-        self.assertEqual(self._pinned()[_KEY_PR_NUMBER], _PR_NUMBER)
+        self.assertEqual(self._pinned()[_receipt_case._KEY_PR_NUMBER], _receipt_case._PR_NUMBER)
 
     def test_the_push_is_leased_to_that_commit(self) -> None:
         # Left to the transport's own reading, a tip somebody moved in the
@@ -238,10 +110,10 @@ class DeliveredReceiptTest(_ReceiptCase, unittest.TestCase):
 
         self.assertEqual(pushed.kwargs[_LEASE], MEASURED_CANDIDATE_SHA)
         self.assertEqual(pushed.kwargs[_REVISION], MEASURED_CANDIDATE_SHA)
-        self.assertEqual(pushed.args[2], _BRANCH)
+        self.assertEqual(pushed.args[2], _receipt_case._BRANCH)
 
 
-class DeliveredWindowRaceTest(_ReceiptCase, unittest.TestCase):
+class DeliveredWindowRaceTest(_receipt_case._ReceiptCase, unittest.TestCase):
     """What another poll can do between the proof and the bookkeeping.
 
     The gate reads the publication once and everything past that line spends
@@ -255,7 +127,7 @@ class DeliveredWindowRaceTest(_ReceiptCase, unittest.TestCase):
     def setUp(self) -> None:
         super().setUp()
         self._stand_the_pull_request_on(MEASURED_CANDIDATE_SHA)
-        self._seed(**_PUBLISHED_BY_THIS_STAGE)
+        self._seed(**_receipt_case._PUBLISHED_BY_THIS_STAGE)
 
     def test_one_closing_before_the_push_sends_none(self) -> None:
         # The barrier the push itself owes, raced into the window it exists
@@ -319,40 +191,16 @@ class DeliveredWindowRaceTest(_ReceiptCase, unittest.TestCase):
         self.assertEqual(self.github.opened_prs, [])
         self.assertNotIn(_VALIDATING, self.github.label_history)
         self.assertEqual(
-            self._pinned()[_KEY_PUBLISHED_SHA], MEASURED_CANDIDATE_SHA,
+            self._pinned()[_receipt_case._KEY_PUBLISHED_SHA], MEASURED_CANDIDATE_SHA,
         )
 
     def _closes_it(self) -> None:
         """Close the pull request the proof named, as another poll would."""
-        self.github.get_pr(_PR_NUMBER).state = _CLOSED
+        self.github.get_pr(_receipt_case._PR_NUMBER).state = _receipt_case._CLOSED
 
     def _moves_it(self) -> None:
         """Push to the branch under the tick, as another author would."""
-        self.github.get_pr(_PR_NUMBER).head.sha = _MOVED_HEAD
-
-
-# Every way the publication a receipt names can fail to be shown, each named
-# by what the pinned comment and the remote disagree about.
-_UNPROVABLE = MappingProxyType({
-    "one this host cannot read": ("", _BRANCH, _PUBLISHED_BY_THIS_STAGE),
-    "a lease no call here froze": (
-        MEASURED_CANDIDATE_SHA, _BRANCH,
-        {**_PUBLISHED_BY_THIS_STAGE, _KEY_PUBLISHED_LEASE: _MOVED_HEAD},
-    ),
-    "one the branch moved off": (
-        _MOVED_HEAD, _BRANCH, _PUBLISHED_BY_THIS_STAGE,
-    ),
-    "one open somewhere else": (
-        MEASURED_CANDIDATE_SHA, _ANOTHER_BRANCH, _PUBLISHED_BY_THIS_STAGE,
-    ),
-    "one somebody ended": (
-        MEASURED_CANDIDATE_SHA, _BRANCH, _PUBLISHED_BY_THIS_STAGE,
-    ),
-    "a receipt nothing can read": (
-        MEASURED_CANDIDATE_SHA, _BRANCH,
-        {**_PUBLISHED_BY_THIS_STAGE, _KEY_PUBLISHED_SHA: _MALFORMED_RECEIPT},
-    ),
-})
+        self.github.get_pr(_receipt_case._PR_NUMBER).head.sha = _receipt_case._MOVED_HEAD
 
 # A number outside this domain's identity vocabulary, which is what a hand
 # edit leaves where the pull request belongs.
@@ -374,54 +222,54 @@ _MALFORMED_NUMBER = "not-a-number"
 # publication froze no head and records `null`.
 _DAMAGED_GROUPS = MappingProxyType({
     "a commit nothing can read": {
-        _KEY_PUBLISHED_SHA: _MALFORMED_RECEIPT,
-        _KEY_PUBLISHED_LEASE: None,
-        _KEY_PUBLISHED_PR: _PR_NUMBER,
+        _receipt_case._KEY_PUBLISHED_SHA: _receipt_case._MALFORMED_RECEIPT,
+        _receipt_case._KEY_PUBLISHED_LEASE: None,
+        _receipt_case._KEY_PUBLISHED_PR: _receipt_case._PR_NUMBER,
     },
     "a lease nothing can read": {
-        _KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
-        _KEY_PUBLISHED_LEASE: _MALFORMED_RECEIPT,
-        _KEY_PUBLISHED_PR: _PR_NUMBER,
+        _receipt_case._KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
+        _receipt_case._KEY_PUBLISHED_LEASE: _receipt_case._MALFORMED_RECEIPT,
+        _receipt_case._KEY_PUBLISHED_PR: _receipt_case._PR_NUMBER,
     },
     "a number nothing can read": {
-        _KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
-        _KEY_PUBLISHED_LEASE: None,
-        _KEY_PUBLISHED_PR: _MALFORMED_NUMBER,
+        _receipt_case._KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
+        _receipt_case._KEY_PUBLISHED_LEASE: None,
+        _receipt_case._KEY_PUBLISHED_PR: _MALFORMED_NUMBER,
     },
     "a commit key that is gone": {
-        _KEY_PUBLISHED_LEASE: None, _KEY_PUBLISHED_PR: _PR_NUMBER,
+        _receipt_case._KEY_PUBLISHED_LEASE: None, _receipt_case._KEY_PUBLISHED_PR: _receipt_case._PR_NUMBER,
     },
     "a lease key that is gone": {
-        _KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
-        _KEY_PUBLISHED_PR: _PR_NUMBER,
+        _receipt_case._KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
+        _receipt_case._KEY_PUBLISHED_PR: _receipt_case._PR_NUMBER,
     },
     "a number key that is gone": {
-        _KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
-        _KEY_PUBLISHED_LEASE: None,
+        _receipt_case._KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
+        _receipt_case._KEY_PUBLISHED_LEASE: None,
     },
     "a lease orphaned by a cleared commit": {
-        _KEY_PUBLISHED_SHA: None,
-        _KEY_PUBLISHED_LEASE: _MOVED_HEAD,
-        _KEY_PUBLISHED_PR: None,
+        _receipt_case._KEY_PUBLISHED_SHA: None,
+        _receipt_case._KEY_PUBLISHED_LEASE: _receipt_case._MOVED_HEAD,
+        _receipt_case._KEY_PUBLISHED_PR: None,
     },
     "a number orphaned by a cleared commit": {
-        _KEY_PUBLISHED_SHA: None,
-        _KEY_PUBLISHED_LEASE: None,
-        _KEY_PUBLISHED_PR: _PR_NUMBER,
+        _receipt_case._KEY_PUBLISHED_SHA: None,
+        _receipt_case._KEY_PUBLISHED_LEASE: None,
+        _receipt_case._KEY_PUBLISHED_PR: _receipt_case._PR_NUMBER,
     },
     # An EARLIER commit with no number beside it, which is the shape the road
     # that reads a receipt against the candidate never sees: the receipt names
     # some other object id, so nothing below would meet the record at all
     # before the push wrote over it.
     "no publication named at all": {
-        _KEY_PUBLISHED_SHA: _MOVED_HEAD,
-        _KEY_PUBLISHED_LEASE: None,
-        _KEY_PUBLISHED_PR: None,
+        _receipt_case._KEY_PUBLISHED_SHA: _receipt_case._MOVED_HEAD,
+        _receipt_case._KEY_PUBLISHED_LEASE: None,
+        _receipt_case._KEY_PUBLISHED_PR: None,
     },
     "no publication named, spelled empty": {
-        _KEY_PUBLISHED_SHA: _MOVED_HEAD,
-        _KEY_PUBLISHED_LEASE: None,
-        _KEY_PUBLISHED_PR: "",
+        _receipt_case._KEY_PUBLISHED_SHA: _receipt_case._MOVED_HEAD,
+        _receipt_case._KEY_PUBLISHED_LEASE: None,
+        _receipt_case._KEY_PUBLISHED_PR: "",
     },
 })
 
@@ -432,7 +280,7 @@ _DAMAGED_GROUPS = MappingProxyType({
 _FALSY_MEMBERS = (False, 0, [], {})
 
 
-class RecordedPullRequestRaceTest(_ReceiptCase, unittest.TestCase):
+class RecordedPullRequestRaceTest(_receipt_case._ReceiptCase, unittest.TestCase):
     """The pull request an ordinary publication would REUSE, ending mid-tick.
 
     Nothing here was proved by the gate: the record names a pull request this
@@ -447,8 +295,8 @@ class RecordedPullRequestRaceTest(_ReceiptCase, unittest.TestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self._stand_the_pull_request_on(_MOVED_HEAD)
-        self._seed(pr_number=_PR_NUMBER, branch=_BRANCH)
+        self._stand_the_pull_request_on(_receipt_case._MOVED_HEAD)
+        self._seed(pr_number=_receipt_case._PR_NUMBER, branch=_receipt_case._BRANCH)
 
     def test_an_ending_before_the_push_opens_none(self) -> None:
         # Every state a reuse may not find, raced into the window the barrier
@@ -469,7 +317,7 @@ class RecordedPullRequestRaceTest(_ReceiptCase, unittest.TestCase):
                 self._assert_held(mocks)
                 self.assertNotIn(_VALIDATING, self.github.label_history)
                 self.assertEqual(
-                    self._pinned()["pr_number"], _PR_NUMBER,
+                    self._pinned()["pr_number"], _receipt_case._PR_NUMBER,
                 )
 
     def test_one_still_open_publishes_as_ever(self) -> None:
@@ -491,18 +339,18 @@ class RecordedPullRequestRaceTest(_ReceiptCase, unittest.TestCase):
             return self._run_gate(added_lines=support.SMALL_ADDITIONS)
 
     def _closes_the_recorded_pr(self) -> None:
-        self.github.get_pr(_PR_NUMBER).state = _CLOSED
+        self.github.get_pr(_receipt_case._PR_NUMBER).state = _receipt_case._CLOSED
 
     def _merges_the_recorded_pr(self) -> None:
-        merged = self.github.get_pr(_PR_NUMBER)
+        merged = self.github.get_pr(_receipt_case._PR_NUMBER)
         merged.merged = True
-        merged.state = _CLOSED
+        merged.state = _receipt_case._CLOSED
 
     def _loses_the_recorded_pr(self) -> None:
-        self.github.pulls.pop(_PR_NUMBER, None)
+        self.github.pulls.pop(_receipt_case._PR_NUMBER, None)
 
 
-class UnprovableReceiptTest(_ReceiptCase, unittest.TestCase):
+class UnprovableReceiptTest(_receipt_case._ReceiptCase, unittest.TestCase):
     """Every record the note stands beside that proves nothing at all.
 
     Held fail-CLOSED rather than measured, and the size of the candidate is
@@ -518,7 +366,7 @@ class UnprovableReceiptTest(_ReceiptCase, unittest.TestCase):
         # ceiling would wave straight through. No pull request recorded at
         # all, one this host cannot read, one the branch has moved off, one
         # open where this seam would never push, and one somebody closed.
-        for described in _UNPROVABLE:
+        for described in _receipt_case._UNPROVABLE:
             with self.subTest(record=described):
                 self._seeded(described)
 
@@ -541,8 +389,8 @@ class UnprovableReceiptTest(_ReceiptCase, unittest.TestCase):
         self.assertEqual(
             pinned[support.PARK_REASON], support.PARK_MEASUREMENT_FAILED,
         )
-        self.assertEqual(pinned[_KEY_PUBLISHED_SHA], MEASURED_CANDIDATE_SHA)
-        self.assertEqual(pinned[_KEY_PR_NUMBER], _PR_NUMBER)
+        self.assertEqual(pinned[_receipt_case._KEY_PUBLISHED_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertEqual(pinned[_receipt_case._KEY_PR_NUMBER], _receipt_case._PR_NUMBER)
 
     def test_an_oversized_one_is_held_the_same_way(self) -> None:
         # The same answer on the road that would have been held anyway, so the
@@ -564,7 +412,7 @@ class UnprovableReceiptTest(_ReceiptCase, unittest.TestCase):
         self._stand_the_pull_request_on(
             MEASURED_CANDIDATE_SHA, repo=_SHOUTED_REPO,
         )
-        self._seed(**_PUBLISHED_BY_THIS_STAGE)
+        self._seed(**_receipt_case._PUBLISHED_BY_THIS_STAGE)
 
         mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
 
@@ -582,7 +430,7 @@ class UnprovableReceiptTest(_ReceiptCase, unittest.TestCase):
         self._stand_the_pull_request_on(
             MEASURED_CANDIDATE_SHA, repo=_FORK_REPO,
         )
-        self._seed(**_PUBLISHED_BY_THIS_STAGE)
+        self._seed(**_receipt_case._PUBLISHED_BY_THIS_STAGE)
 
         mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
 
@@ -596,7 +444,7 @@ class UnprovableReceiptTest(_ReceiptCase, unittest.TestCase):
         # commit to would wave the candidate past. Nothing here claims a
         # publication, so nothing is held back either.
         self._stand_the_pull_request_on(MEASURED_CANDIDATE_SHA)
-        self._seed(pr_number=_PR_NUMBER, branch=_BRANCH)
+        self._seed(pr_number=_receipt_case._PR_NUMBER, branch=_receipt_case._BRANCH)
 
         mocks = self._oversized()
 
@@ -604,7 +452,7 @@ class UnprovableReceiptTest(_ReceiptCase, unittest.TestCase):
         self._assert_held(mocks)
 
 
-class ReceiptIdentityTest(_ReceiptCase, unittest.TestCase):
+class ReceiptIdentityTest(_receipt_case._ReceiptCase, unittest.TestCase):
     """Which pull request the receipt is about, and what happens with none.
 
     `pr_number` is the relabel's write, and the relabel is exactly what this
@@ -626,7 +474,7 @@ class ReceiptIdentityTest(_ReceiptCase, unittest.TestCase):
         # place to look that is not a search.
         for described, identity in (
             ("names none", None),
-            ("names one nothing can read", _MALFORMED_RECEIPT),
+            ("names one nothing can read", _receipt_case._MALFORMED_RECEIPT),
         ):
             with self.subTest(receipt=described):
                 self._receipt_naming(identity)
@@ -643,7 +491,7 @@ class ReceiptIdentityTest(_ReceiptCase, unittest.TestCase):
         # repository, the branch, the head -- and only the identity the
         # receipt carries says it is somebody else's publication.
         self._receipt_naming(None)
-        self.github.get_pr(_PR_NUMBER).state = _CLOSED
+        self.github.get_pr(_receipt_case._PR_NUMBER).state = _receipt_case._CLOSED
         self._stand_the_pull_request_on(MEASURED_CANDIDATE_SHA)
 
         mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
@@ -657,9 +505,9 @@ class ReceiptIdentityTest(_ReceiptCase, unittest.TestCase):
         # would be trusting exactly the write this window proves is missing.
         self._receipt_naming(None)
         self._seed(**{
-            _KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
-            _KEY_PR_NUMBER: _PR_NUMBER,
-            "branch": _BRANCH,
+            _receipt_case._KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
+            _receipt_case._KEY_PR_NUMBER: _receipt_case._PR_NUMBER,
+            "branch": _receipt_case._BRANCH,
         })
 
         mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
@@ -672,11 +520,11 @@ class ReceiptIdentityTest(_ReceiptCase, unittest.TestCase):
         self.setUp()
         self._stand_the_pull_request_on(MEASURED_CANDIDATE_SHA)
         self._seed(**{
-            **_PUBLISHED_BY_THIS_STAGE, _KEY_PUBLISHED_PR: identity,
+            **_receipt_case._PUBLISHED_BY_THIS_STAGE, _receipt_case._KEY_PUBLISHED_PR: identity,
         })
 
 
-class CollidingRecordTest(_ReceiptCase, unittest.TestCase):
+class CollidingRecordTest(_receipt_case._ReceiptCase, unittest.TestCase):
     """A decision naming the same commit does not answer for where it went.
 
     An exemption says a human ruled the change one change; an approval says
@@ -697,8 +545,8 @@ class CollidingRecordTest(_ReceiptCase, unittest.TestCase):
         # unleased -- the lease it would have used was the proof -- and the
         # branch lookup behind it hands the work to whatever it finds.
         for described, standing, branch in (
-            ("moved off the commit", _MOVED_HEAD, _BRANCH),
-            ("open somewhere else", MEASURED_CANDIDATE_SHA, _ANOTHER_BRANCH),
+            ("moved off the commit", _receipt_case._MOVED_HEAD, _receipt_case._BRANCH),
+            ("open somewhere else", MEASURED_CANDIDATE_SHA, _receipt_case._ANOTHER_BRANCH),
         ):
             with self.subTest(pull_request=described):
                 self._collided(_KEY_APPROVED_SHA, standing, branch)
@@ -713,8 +561,8 @@ class CollidingRecordTest(_ReceiptCase, unittest.TestCase):
         # proof exists for: an adjudicated commit whose publication cannot be
         # shown is one nothing may republish blind either.
         for described, standing, branch in (
-            ("moved off the commit", _MOVED_HEAD, _BRANCH),
-            ("open somewhere else", MEASURED_CANDIDATE_SHA, _ANOTHER_BRANCH),
+            ("moved off the commit", _receipt_case._MOVED_HEAD, _receipt_case._BRANCH),
+            ("open somewhere else", MEASURED_CANDIDATE_SHA, _receipt_case._ANOTHER_BRANCH),
         ):
             with self.subTest(pull_request=described):
                 self._collided(_KEY_EXEMPT_SHA, standing, branch)
@@ -729,7 +577,7 @@ class CollidingRecordTest(_ReceiptCase, unittest.TestCase):
         self.setUp()
         self._stand_the_pull_request_on(standing, branch=branch)
         self._seed(**{
-            **_PUBLISHED_BY_THIS_STAGE,
+            **_receipt_case._PUBLISHED_BY_THIS_STAGE,
             key: MEASURED_CANDIDATE_SHA,
         })
 
@@ -737,12 +585,12 @@ class CollidingRecordTest(_ReceiptCase, unittest.TestCase):
         """The park spent nothing: every record is there for the repair."""
         pinned = self._pinned()
         self.assertEqual(pinned[key], MEASURED_CANDIDATE_SHA)
-        self.assertEqual(pinned[_KEY_PUBLISHED_SHA], MEASURED_CANDIDATE_SHA)
-        self.assertEqual(pinned[_KEY_PR_NUMBER], _PR_NUMBER)
+        self.assertEqual(pinned[_receipt_case._KEY_PUBLISHED_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertEqual(pinned[_receipt_case._KEY_PR_NUMBER], _receipt_case._PR_NUMBER)
         self.assertNotIn(_VALIDATING, self.github.label_history)
 
 
-class DamagedReceiptTest(_ReceiptCase, unittest.TestCase):
+class DamagedReceiptTest(_receipt_case._ReceiptCase, unittest.TestCase):
     """What the receipt GROUP can hold, and which shapes claim a publication.
 
     Three fields written in one call and cleared in one call, so a group that
@@ -779,9 +627,9 @@ class DamagedReceiptTest(_ReceiptCase, unittest.TestCase):
         for damaged in _FALSY_MEMBERS:
             with self.subTest(receipt=repr(damaged)):
                 group = {
-                    _KEY_PUBLISHED_SHA: damaged,
-                    _KEY_PUBLISHED_LEASE: None,
-                    _KEY_PUBLISHED_PR: _PR_NUMBER,
+                    _receipt_case._KEY_PUBLISHED_SHA: damaged,
+                    _receipt_case._KEY_PUBLISHED_LEASE: None,
+                    _receipt_case._KEY_PUBLISHED_PR: _receipt_case._PR_NUMBER,
                 }
                 self._seeding(group)
 
@@ -818,8 +666,8 @@ class DamagedReceiptTest(_ReceiptCase, unittest.TestCase):
         self._run_gate(added_lines=support.SMALL_ADDITIONS)
 
         said = self.github.posted_comments[-1][1]
-        self.assertIn(_KEY_PUBLISHED_SHA, said)
-        self.assertIn(_KEY_PUBLISHED_PR, said)
+        self.assertIn(_receipt_case._KEY_PUBLISHED_SHA, said)
+        self.assertIn(_receipt_case._KEY_PUBLISHED_PR, said)
         self.assertNotIn("commit again so the candidate is measured", said)
 
     def test_a_cleared_group_is_not_damage(self) -> None:
@@ -829,7 +677,7 @@ class DamagedReceiptTest(_ReceiptCase, unittest.TestCase):
         # nothing to be held to.
         for absent in (None, ""):
             with self.subTest(receipt=repr(absent)):
-                self._seeding(dict.fromkeys(_RECEIPT_MEMBERS, absent))
+                self._seeding(dict.fromkeys(_receipt_case._RECEIPT_MEMBERS, absent))
 
                 mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
 

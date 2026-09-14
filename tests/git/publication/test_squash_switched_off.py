@@ -38,12 +38,8 @@ from tests.git.publication.squash_gate_support import (
     SQUASH_PR_NUMBER,
     PublicationSeed,
 )
-from tests.git.publication.squash_recovery_support import (
-    MOVED_HEAD,
-    SQUASH_ON_APPROVAL,
-    SquashRecoveryMixin,
-    _CommitsWhileThePullRequestIsRead,
-)
+from tests.git.publication.squash_race_doubles import _CommitsWhileThePullRequestIsRead
+from tests.git.publication.squash_recovery_support import MOVED_HEAD, SQUASH_ON_APPROVAL, SquashRecoveryMixin
 from tests.git.publication.test_squash_gate import (
     CLOSED,
     PAST_THE_CEILING,

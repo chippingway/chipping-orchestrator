@@ -26,12 +26,12 @@ from orchestrator.git.measurement.models import (
     MeasurementFailure,
 )
 from tests.workflow.patch_models import _agent
+from tests.workflow.stages.conflicts import round_record_support as _round_records
 from tests.workflow.stages.conflicts.conflicts_test_support import (
     RESOLVED_HEAD_SHA,
     _ResolvingConflictMixin,
 )
 
-CONFLICT_ISSUE = 200
 CONFLICT_FILE = "a.py"
 BEFORE_HEAD = "be40e5ba" * 5
 MERGED_HEAD = RESOLVED_HEAD_SHA
@@ -48,20 +48,13 @@ PUSH_BRANCH = "_push_branch"
 
 LABEL_DECOMPOSING = "workflow:decomposing"
 LABEL_VALIDATING = "workflow:validating"
-
-CONFLICT_ROUND = "conflict_round"
 REVIEW_ROUND = "review_round"
 RESOLVED_AT = "last_conflict_resolved_at"
-SETTLED_OUTCOME = "conflict_settled_outcome"
-SETTLED_SHA = "conflict_settled_sha"
 
 AGENT_RESOLVED = "agent_resolved"
 BASE_REBASED_CLEAN = "base_rebased_clean"
 RECOVERED_PUSH = "recovered_push"
 DRIFT_RESOLVED = "drift_resolved"
-
-OUTCOME = "outcome"
-SHA = "sha"
 
 # The head an interrupted tick left on the branch and never pushed.
 RECOVERED_HEAD = "1ec04e5e" * 5
@@ -88,30 +81,6 @@ BEHIND_BASE = "2\n"
 BASE_UP_TO_DATE = "base_up_to_date"
 
 
-def _rounds_of(github) -> list[dict]:
-    """Every `conflict_round` increment this run recorded."""
-    return [
-        event for event in github.recorded_events
-        if event["event"] == CONFLICT_ROUND
-    ]
-
-
-def _outcomes_of(github) -> list[str]:
-    """What each recorded round says put the branch where it is."""
-    return [round_[OUTCOME] for round_ in _rounds_of(github)]
-
-
-def _receipt_of(github) -> tuple:
-    """The round a hold left for a later tick, as the pair it is written as."""
-    pinned = github.pinned_data(CONFLICT_ISSUE)
-    return (pinned.get(SETTLED_OUTCOME), pinned.get(SETTLED_SHA))
-
-
-def _settlements_of(github) -> list[tuple]:
-    """The same, with the head each round was recorded against."""
-    return [(round_[OUTCOME], round_[SHA]) for round_ in _rounds_of(github)]
-
-
 class ResolvingConflictHeldRoundTest(
     unittest.TestCase, _ResolvingConflictMixin,
 ):
@@ -126,16 +95,16 @@ class ResolvingConflictHeldRoundTest(
         github, mocks = self._held_agent_resolution()
 
         mocks[PUSH_BRANCH].assert_not_called()
-        self.assertIn((CONFLICT_ISSUE, LABEL_DECOMPOSING), github.label_history)
-        self.assertEqual(_receipt_of(github), (AGENT_RESOLVED, MERGED_HEAD))
+        self.assertIn((_round_records.CONFLICT_ISSUE, LABEL_DECOMPOSING), github.label_history)
+        self.assertEqual(_round_records._receipt_of(github), (AGENT_RESOLVED, MERGED_HEAD))
         pinned = self._pinned(github)
         # Nothing is counted yet: the tail that counts is the one the resumed
         # tick runs, and counting here as well would spend the round twice.
-        self.assertEqual(pinned.get(CONFLICT_ROUND), 0)
+        self.assertEqual(pinned.get(_round_records.CONFLICT_ROUND), 0)
         self.assertNotIn(RESOLVED_AT, pinned)
         # And nothing is emitted either: a tail of the sink that saw a round
         # here would attribute one to a push that never went out.
-        self.assertEqual(_rounds_of(github), [])
+        self.assertEqual(_round_records._rounds_of(github), [])
 
     def test_a_held_recovered_push_names_its_round(self) -> None:
         # The recovered push completes a round of its own when the branch it
@@ -146,9 +115,9 @@ class ResolvingConflictHeldRoundTest(
         github, mocks = self._held_recovered_push()
 
         mocks[PUSH_BRANCH].assert_not_called()
-        self.assertIn((CONFLICT_ISSUE, LABEL_DECOMPOSING), github.label_history)
+        self.assertIn((_round_records.CONFLICT_ISSUE, LABEL_DECOMPOSING), github.label_history)
         self.assertEqual(
-            _receipt_of(github), (RECOVERED_PUSH, RECOVERED_HEAD),
+            _round_records._receipt_of(github), (RECOVERED_PUSH, RECOVERED_HEAD),
         )
 
     def test_a_held_preamble_push_names_no_round(self) -> None:
@@ -159,7 +128,7 @@ class ResolvingConflictHeldRoundTest(
         github = self._held_recovered_push(behind=BEHIND_BASE)[0]
 
         pinned = self._pinned(github)
-        self.assertIsNone(pinned.get(SETTLED_OUTCOME))
+        self.assertIsNone(pinned.get(_round_records.SETTLED_OUTCOME))
 
     def _held_recovered_push(self, *, behind: str = ON_BASE):
         """One recovered push the gate measures past the ceiling."""
@@ -208,7 +177,7 @@ class ResolvingConflictSettledRoundTest(
         github = self._resumed(AGENT_RESOLVED)
 
         self.assertEqual(
-            _settlements_of(github), [(AGENT_RESOLVED, MERGED_HEAD)],
+            _round_records._settlements_of(github), [(AGENT_RESOLVED, MERGED_HEAD)],
         )
         self.assertIn(RESOLVED_AT, self._pinned(github))
 
@@ -219,12 +188,12 @@ class ResolvingConflictSettledRoundTest(
 
         mocks[RUN_AGENT].assert_not_called()
         mocks[PUSH_BRANCH].assert_not_called()
-        self.assertIn((CONFLICT_ISSUE, LABEL_VALIDATING), github.label_history)
+        self.assertIn((_round_records.CONFLICT_ISSUE, LABEL_VALIDATING), github.label_history)
         pinned = self._pinned(github)
-        self.assertEqual(pinned.get(CONFLICT_ROUND), 1)
+        self.assertEqual(pinned.get(_round_records.CONFLICT_ROUND), 1)
         self.assertEqual(pinned.get(REVIEW_ROUND), 0)
         # The receipt is paid, so a later tick finds nothing to finish twice.
-        self.assertEqual(_receipt_of(github), (None, None))
+        self.assertEqual(_round_records._receipt_of(github), (None, None))
 
     def test_a_settled_recovery_keeps_its_outcome(self) -> None:
         # End to end for the third seam: the recovered push is held, the
@@ -237,7 +206,7 @@ class ResolvingConflictSettledRoundTest(
         github = self._resumed(RECOVERED_PUSH)
 
         self.assertEqual(
-            _settlements_of(github), [(RECOVERED_PUSH, MERGED_HEAD)],
+            _round_records._settlements_of(github), [(RECOVERED_PUSH, MERGED_HEAD)],
         )
         self.assertIn(RESOLVED_AT, self._pinned(github))
 
@@ -247,7 +216,7 @@ class ResolvingConflictSettledRoundTest(
         # and only the record says which of them put it there.
         github = self._resumed(BASE_REBASED_CLEAN)
 
-        self.assertEqual(_outcomes_of(github), [BASE_REBASED_CLEAN])
+        self.assertEqual(_round_records._outcomes_of(github), [BASE_REBASED_CLEAN])
 
     def test_an_unpublished_round_waits(self) -> None:
         # The receipt alone cannot say the commit reached the remote: a
@@ -264,9 +233,9 @@ class ResolvingConflictSettledRoundTest(
             push_branch=True,
         )
 
-        self.assertEqual(_outcomes_of(github), [RECOVERED_PUSH])
+        self.assertEqual(_round_records._outcomes_of(github), [RECOVERED_PUSH])
         self.assertIsNone(
-            self._pinned(github).get(SETTLED_OUTCOME),
+            self._pinned(github).get(_round_records.SETTLED_OUTCOME),
         )
 
     def _resumed(self, outcome: str, *, reported: bool = False):
@@ -280,8 +249,8 @@ class ResolvingConflictSettledRoundTest(
     def _settled(self, outcome: str):
         """The pinned comment a held round and its adjudication left behind."""
         return self._seed(extra_state={
-            SETTLED_OUTCOME: outcome,
-            SETTLED_SHA: MERGED_HEAD,
+            _round_records.SETTLED_OUTCOME: outcome,
+            _round_records.SETTLED_SHA: MERGED_HEAD,
         })[:2]
 
 
@@ -339,15 +308,15 @@ class ResolvingConflictSettledProofTest(
         for settled in (NOT_A_COMMIT, UNNAMED_HEAD):
             with self.subTest(settled=settled):
                 github, issue = self._seed(extra_state={
-                    SETTLED_OUTCOME: AGENT_RESOLVED, SETTLED_SHA: settled,
+                    _round_records.SETTLED_OUTCOME: AGENT_RESOLVED, _round_records.SETTLED_SHA: settled,
                 })[:2]
 
                 self._run_with_merge(
                     github, issue, head_shas=[MERGED_HEAD, MERGED_HEAD],
                 )
 
-                self.assertNotIn(AGENT_RESOLVED, _outcomes_of(github))
-                self.assertIn(BASE_UP_TO_DATE, _outcomes_of(github))
+                self.assertNotIn(AGENT_RESOLVED, _round_records._outcomes_of(github))
+                self.assertIn(BASE_UP_TO_DATE, _round_records._outcomes_of(github))
 
     _settled = ResolvingConflictSettledRoundTest._settled
 
@@ -359,7 +328,7 @@ class ResolvingConflictSettledProofTest(
         `validating` a round it says a settled resolution earned when the
         branch is not standing on that resolution.
         """
-        self.assertNotIn(AGENT_RESOLVED, _outcomes_of(github))
+        self.assertNotIn(AGENT_RESOLVED, _round_records._outcomes_of(github))
 
 
 class ResolvingConflictBodyEditRoundTest(
@@ -382,9 +351,9 @@ class ResolvingConflictBodyEditRoundTest(
         github, mocks = self._held_body_edit()
 
         mocks[PUSH_BRANCH].assert_not_called()
-        self.assertIn((CONFLICT_ISSUE, LABEL_DECOMPOSING), github.label_history)
-        self.assertEqual(_receipt_of(github), (DRIFT_RESOLVED, MERGED_HEAD))
-        self.assertEqual(self._pinned(github).get(CONFLICT_ROUND), 0)
+        self.assertIn((_round_records.CONFLICT_ISSUE, LABEL_DECOMPOSING), github.label_history)
+        self.assertEqual(_round_records._receipt_of(github), (DRIFT_RESOLVED, MERGED_HEAD))
+        self.assertEqual(self._pinned(github).get(_round_records.CONFLICT_ROUND), 0)
 
     def test_a_settled_body_edit_keeps_its_outcome(self) -> None:
         # End to end: the adjudication publishes the commit and hands the
@@ -394,12 +363,12 @@ class ResolvingConflictBodyEditRoundTest(
         github = self._held_body_edit()[0]
 
         self._run_with_merge(
-            github, github.get_issue(CONFLICT_ISSUE),
+            github, github.get_issue(_round_records.CONFLICT_ISSUE),
             head_shas=[MERGED_HEAD, MERGED_HEAD],
         )
 
         self.assertEqual(
-            _settlements_of(github), [(DRIFT_RESOLVED, MERGED_HEAD)],
+            _round_records._settlements_of(github), [(DRIFT_RESOLVED, MERGED_HEAD)],
         )
         self.assertIn(RESOLVED_AT, self._pinned(github))
 
@@ -415,19 +384,19 @@ class ResolvingConflictBodyEditRoundTest(
         github = self._settled_and_edited()
 
         mocks = self._run_with_merge(
-            github, github.get_issue(CONFLICT_ISSUE),
+            github, github.get_issue(_round_records.CONFLICT_ISSUE),
             head_shas=[MERGED_HEAD, EDITED_HEAD],
         )[0]
 
         self.assertEqual(
-            _settlements_of(github), [(AGENT_RESOLVED, MERGED_HEAD)],
+            _round_records._settlements_of(github), [(AGENT_RESOLVED, MERGED_HEAD)],
         )
         mocks[RUN_AGENT].assert_not_called()
-        self.assertIn((CONFLICT_ISSUE, LABEL_VALIDATING), github.label_history)
+        self.assertIn((_round_records.CONFLICT_ISSUE, LABEL_VALIDATING), github.label_history)
         # Paid rather than replaced: the slot is empty because the round in it
         # was counted, not because a later resume overwrote it.
         self.assertIsNone(
-            self._pinned(github).get(SETTLED_OUTCOME),
+            self._pinned(github).get(_round_records.SETTLED_OUTCOME),
         )
 
     def test_a_deferred_body_edit_is_not_consumed(self) -> None:
@@ -439,7 +408,7 @@ class ResolvingConflictBodyEditRoundTest(
         baseline = self._pinned(github)["user_content_hash"]
 
         self._run_with_merge(
-            github, github.get_issue(CONFLICT_ISSUE),
+            github, github.get_issue(_round_records.CONFLICT_ISSUE),
             head_shas=[MERGED_HEAD, MERGED_HEAD],
         )
 
@@ -453,7 +422,7 @@ class ResolvingConflictBodyEditRoundTest(
         github = self._edited()
         with patch.object(config, MAX_ADDED_LINES, CEILING):
             return github, self._run_with_merge(
-                github, github.get_issue(CONFLICT_ISSUE),
+                github, github.get_issue(_round_records.CONFLICT_ISSUE),
                 head_shas=[BEFORE_HEAD, MERGED_HEAD],
                 push_branch=True,
                 added_lines=PAST_THE_CEILING,
@@ -465,7 +434,7 @@ class ResolvingConflictBodyEditRoundTest(
     def _settled_and_edited(self):
         """A round the settlement published, and a body edit on top of it."""
         return self._edited(**{
-            SETTLED_OUTCOME: AGENT_RESOLVED, SETTLED_SHA: MERGED_HEAD,
+            _round_records.SETTLED_OUTCOME: AGENT_RESOLVED, _round_records.SETTLED_SHA: MERGED_HEAD,
         })
 
     def _edited(self, **extra_state):

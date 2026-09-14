@@ -19,14 +19,13 @@ from __future__ import annotations
 import unittest
 
 from tests.git.publication import squash_git_support as squash_support
+from tests.git.publication.squash_race_doubles import RACED_FILE, _RacesTheRecord
 from tests.git.publication.squash_recovery_support import (
     APPROVED_COMMITS,
     BRANCH_INTACT,
     BRANCH_UNKNOWN,
     KEY_COLLAPSE_HEAD,
-    RACED_FILE,
     SquashRecoveryMixin,
-    _RacesTheRecord,
 )
 
 

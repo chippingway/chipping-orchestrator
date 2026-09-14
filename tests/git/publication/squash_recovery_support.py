@@ -24,9 +24,12 @@ from orchestrator.workflow.late_split import collapses as _collapses
 from orchestrator.workflow.stages.implementing import (
     late_records as _late_records,
 )
-from tests.git.publication import squash_git_support as squash_support
+from tests.git.publication import (
+    squash_crash_doubles as _squash_crashes,
+    squash_git_support as squash_support,
+    squash_race_doubles as _squash_races,
+)
 from tests.git.publication.squash_gate_support import (
-    SQUASH_PR_NUMBER,
     PublicationSeed,
     _squash_gate,
 )
@@ -74,10 +77,6 @@ SQUASH_ON_APPROVAL = "SQUASH_ON_APPROVAL"
 # what keeps the entry from proving the tree for itself.
 DECOMPOSE = "DECOMPOSE"
 
-# The client call every durable record of a tick goes through, which is what a
-# case standing in for a dead process replaces.
-PINNED_WRITE = "write_pinned_state"
-
 # The seam a squash makes its commit through, which is the boundary between a
 # branch nobody rewrote and one collapsed but never published.
 SQUASH_COMMIT_HELPER = "_create_squash_commit"
@@ -85,8 +84,6 @@ SQUASH_COMMIT_HELPER = "_create_squash_commit"
 # The hardened git call the reset runs through, and the reset itself: the
 # boundary between the record of a rewrite and the rewrite.
 HARDENED_GIT_HELPER = "_git_hardened"
-
-SOFT_RESET = ("reset", "--soft")
 
 # The record one collapse leaves, read back by a case that has to say whether
 # a crash left it standing.
@@ -101,9 +98,6 @@ KEY_COLLAPSE_COUNT = _collapses.LATE_COLLAPSE_COUNT
 KEY_RECEIPT_SHA = "implementing_published_sha"
 
 KEY_APPROVED_SHA = "late_approved_sha"
-
-# The keywords a gated push is named and pinned by.
-REVISION = "revision"
 
 LEASE = "force_with_lease"
 
@@ -125,174 +119,6 @@ MOVED_HEAD = "cafe1234" * 5
 # A whole object id no repository in these fixtures holds, which is what a
 # hand-edited or foreign record's head reads back as.
 ABSENT_HEAD = "0123abcd" * 5
-
-# What something else writes into the worktree while the collapse is being
-# recorded, which a `--soft` reset and the commit behind it would carry.
-RACED_FILE = "raced.txt"
-
-
-class _Interrupted(RuntimeError):
-    """The process dying at the seam a case is about."""
-
-
-class _CrashesAfterTheCommit:
-    """A squash that collapses the branch and never reaches the gate.
-
-    The narrowest boundary the rewrite has, and the one nothing durable
-    survives: the record of the collapse is on the comment, the branch is one
-    commit, and no approval, no permission, and no receipt names it.
-    """
-
-    def __init__(self) -> None:
-        # Bound before the seam is replaced, so making the commit does not
-        # re-enter the double standing in for it.
-        self._commits = _rewrite._create_squash_commit
-
-    def __call__(self, worktree, message):
-        self._commits(worktree, message)
-        raise _Interrupted("died after the squash commit")
-
-
-class _CrashesBeforeTheCommit:
-    """A branch rewound onto its base and never committed again.
-
-    The seam between the two halves of the rewrite, and the one that leaves
-    neither: HEAD is the base, every collapsed change is staged in the index,
-    and the record still says a squash is outstanding.
-    """
-
-    def __call__(self, worktree, message):
-        raise _Interrupted("died between the reset and the commit")
-
-
-class _CrashesBeforeTheReset:
-    """A squash whose record is durable and whose rewrite never ran.
-
-    Hung on the hardened git call rather than on a call count, because the
-    soft reset is the first destructive step and every other hardened call the
-    run makes is one this crash has to leave alone.
-    """
-
-    def __init__(self) -> None:
-        self._runs = _rewrite.commands._git_hardened
-
-    def __call__(self, *argv, **options):
-        if argv[:2] == SOFT_RESET:
-            raise _Interrupted("died before the reset")
-        return self._runs(*argv, **options)
-
-
-class _RacesTheRecord:
-    """A worktree something writes to while the collapse is being recorded.
-
-    The one window every other reading in the squash is taken outside of: the
-    entry proved the tree and the head, and the record that follows is a
-    REQUEST, so the worktree is writable for the whole of it. What arrives
-    there is committed by the reset and the commit behind it, since a squash
-    takes the index rather than the plan.
-    """
-
-    def __init__(self, fixture, gate, *, commits: bool = False) -> None:
-        self._fixture = fixture
-        self._commits = commits
-        self._writes = gate.gh.write_pinned_state
-        self._gate = gate
-
-    def __call__(self, issue, state):
-        written = self._writes(issue, state)
-        (self._fixture.work / RACED_FILE).write_text("staged mid-write\n")
-        squash_support.run_git("add", ".", cwd=self._fixture.work)
-        if self._commits:
-            squash_support.run_git(
-                "commit", "-m", "stray: not the plan",
-                cwd=self._fixture.work,
-                env_extra=squash_support.author_env(),
-            )
-        return written
-
-    def held(self):
-        """Write to the worktree on every durable write of one run."""
-        return mock.patch.object(self._gate.gh, PINNED_WRITE, self)
-
-
-class _CommitsWhileThePullRequestIsRead:
-    """A commit that lands while the publication is being read.
-
-    The other window a request opens, and the one the road with no push at all
-    is left holding: the entry's pull-request read is a request like any
-    other, so the worktree is writable for the whole of it. What arrives there
-    is a commit no reviewer approved, on a checkout this road reports as
-    standing on the head it planned over.
-    """
-
-    def __init__(self, fixture, gate) -> None:
-        self.read = False
-        self._fixture = fixture
-        self._gate = gate
-        self._reads = gate.gh.get_pr
-
-    def __call__(self, number):
-        # Once, and before the answer: a case is about the window, not about
-        # every reading a tick happens to take through the same seam.
-        if not self.read:
-            self.read = True
-            self._fixture._commits_over(2)
-        return self._reads(number)
-
-    def held(self):
-        """Commit over the worktree on this run's first publication read."""
-        return mock.patch.object(self._gate.gh, "get_pr", self)
-
-
-class _CrashesAfterThePush:
-    """A push that lands on the pull request and a receipt that never does.
-
-    The far side of the window, and the one no local note can tell from the
-    near side: the remote carries the rewrite and the comment does not say so.
-    """
-
-    def __init__(self, fixture, gate) -> None:
-        self.landed = False
-        self._fixture = fixture
-        self._gate = gate
-        self._writes = gate.gh.write_pinned_state
-
-    def pushes(self, *_argv, **options) -> bool:
-        """Move the pull request onto the commit this push was named for."""
-        self._gate.gh.get_pr(SQUASH_PR_NUMBER).head.sha = (
-            options.get(REVISION) or self._fixture._head_sha()
-        )
-        self.landed = True
-        return True
-
-    def writes(self, issue, state):
-        """Take every write up to the receipt the landed push earns."""
-        if self.landed:
-            raise _Interrupted("died before the receipt")
-        return self._writes(issue, state)
-
-    def held(self):
-        """Refuse the receipt this run's push earns, for its duration."""
-        return mock.patch.object(self._gate.gh, PINNED_WRITE, self.writes)
-
-
-class _LandsOnTheRemote:
-    """A push that succeeds and moves the pull request onto what it sent."""
-
-    def __init__(self, fixture, gate) -> None:
-        self._fixture = fixture
-        self._gate = gate
-
-    def __call__(self, *_argv, **options) -> bool:
-        self._gate.gh.get_pr(SQUASH_PR_NUMBER).head.sha = (
-            options.get(REVISION) or self._fixture._head_sha()
-        )
-        return True
-
-
-def _dies_before_the_push(*_argv, **_options):
-    """A process that ends between the gate's approval and the request."""
-    raise _Interrupted("died before the push")
 
 
 class _SquashTickMixin:
@@ -327,7 +153,7 @@ class _SquashTickMixin:
 
     def _publishes(self, gate):
         """A push that lands and moves the pull request onto what it sent."""
-        return _LandsOnTheRemote(self, gate)
+        return _squash_races._LandsOnTheRemote(self, gate)
 
     def _pinned(self, gate) -> dict:
         """The pinned comment as the client durably holds it."""
@@ -393,33 +219,33 @@ class _SquashCrashMixin:
     def _crashes_after_the_commit(self, gate) -> None:
         """Collapse the branch, then die before anything is measured."""
         with mock.patch.object(
-            _rewrite, SQUASH_COMMIT_HELPER, _CrashesAfterTheCommit(),
-        ), self.assertRaises(_Interrupted):
+            _rewrite, SQUASH_COMMIT_HELPER, _squash_crashes._CrashesAfterTheCommit(),
+        ), self.assertRaises(_squash_crashes._Interrupted):
             self._squashes(gate)
 
     def _crashes_before_the_commit(self, gate) -> None:
         """Rewind the branch onto its base and die before committing it."""
         with mock.patch.object(
-            _rewrite, SQUASH_COMMIT_HELPER, _CrashesBeforeTheCommit(),
-        ), self.assertRaises(_Interrupted):
+            _rewrite, SQUASH_COMMIT_HELPER, _squash_crashes._CrashesBeforeTheCommit(),
+        ), self.assertRaises(_squash_crashes._Interrupted):
             self._squashes(gate)
 
     def _crashes_before_the_reset(self, gate) -> None:
         """Record the collapse, then die before the branch is rewritten."""
         with mock.patch.object(
-            _rewrite.commands, HARDENED_GIT_HELPER, _CrashesBeforeTheReset(),
-        ), self.assertRaises(_Interrupted):
+            _rewrite.commands, HARDENED_GIT_HELPER, _squash_crashes._CrashesBeforeTheReset(),
+        ), self.assertRaises(_squash_crashes._Interrupted):
             self._squashes(gate)
 
     def _crashes_before_the_push(self, gate) -> None:
         """Measure and approve the collapse, then die before it goes out."""
-        with self.assertRaises(_Interrupted):
-            self._squashes(gate, push_result=_dies_before_the_push)
+        with self.assertRaises(_squash_crashes._Interrupted):
+            self._squashes(gate, push_result=_squash_crashes._dies_before_the_push)
 
     def _crashes_after_the_push(self, gate) -> None:
         """Land the push, then die before the receipt that accounts for it."""
-        crash = _CrashesAfterThePush(self, gate)
-        with crash.held(), self.assertRaises(_Interrupted):
+        crash = _squash_crashes._CrashesAfterThePush(self, gate)
+        with crash.held(), self.assertRaises(_squash_crashes._Interrupted):
             self._squashes(gate, push_result=crash.pushes)
 
 
