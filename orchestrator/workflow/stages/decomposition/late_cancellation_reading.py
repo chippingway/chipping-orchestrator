@@ -12,7 +12,7 @@ from orchestrator.workflow.late_split import (
     restart as _restart,
 )
 from orchestrator.workflow.stages.decomposition import (
-    late_cleanup as _late_cleanup,
+    late_cleanup_reading as _late_cleanup_reading,
 )
 
 _PLAN_PR = _late_models.LateResourceKind.PLAN_PR
@@ -59,7 +59,7 @@ def _held_pull_request(generation: _late_models.LateGeneration) -> int | None:
     pull request acted on again forever. What holds the terminal in that case
     is the opaque ledger itself, which the reclamation owner already reports.
     """
-    if _late_cleanup._unwritable(generation) or _unprovable_hold(generation):
+    if _late_cleanup_reading._unwritable(generation) or _unprovable_hold(generation):
         return None
     return generation.plan_pr_number
 
@@ -97,7 +97,7 @@ def _owed_plan_pr(generation: _late_models.LateGeneration) -> tuple[str, ...]:
     Empty while the RESOURCE ledger is opaque only because the reclamation
     owner already blocks on that outright, and its answer names it.
     """
-    if _late_cleanup._unwritable(generation):
+    if _late_cleanup_reading._unwritable(generation):
         return ()
     owed = tuple(
         _OWED_PLAN_PR.format(entry.target)
@@ -122,7 +122,7 @@ def _outstanding(generation: _late_models.LateGeneration) -> tuple[str, ...]:
     a list of names. Whether anything at all is still owed is the wider
     question `_unsettled` asks.
     """
-    return _late_cleanup._blocking(generation) + _owed_plan_pr(generation)
+    return _late_cleanup_reading._blocking(generation) + _owed_plan_pr(generation)
 
 
 def _unsettled(generation: _late_models.LateGeneration) -> bool:

@@ -692,51 +692,26 @@ workflow/                   marker package for state, engine, and stage owners
       late_transaction.py   prepare the snapshot and children, announce the split, supersede its publication, and retire
                             onto the umbrella; owner and publication barriers surround every externally visible step,
                             including the branch reclamation left for cleanup when the supersession is undone
-      late_cleanup.py       what a split still owes a remote once its children are running, with the latch asked
-                            between every obligation it settles, between the fresh consumer proof and the ref
-                            delete it authorizes, between that delete and the receipts behind it, and between
-                            every two of those receipts, since each is a comment on somebody ELSE's issue -- a cancelled cycle settles by the same rules and tells its
-                            consumers nothing -- reported and written
-                            back only where a state actually MOVED -- so a remote that goes on refusing one delete
-                            costs a request per visit rather than a record and a comment write per visit, while the
-                            log goes on naming what is held: the fresh per-consumer
-                            scan every rule here is proved against (a read that fails keeps its own ref and stops
-                            nothing else), the branch obligations in every state but reconciled and the refs still
-                            held, the refusal -- taken immediately in front of the delete, since the snapshot rule
-                            beside it may spend a probe first -- to delete a branch at all while the pull request
-                            it was superseded under is open again, nothing attempted, nothing recorded failed, the
-                            entry left owed and the terminal held, that same pull request asked about once more by
-                            the settlement the terminal waits on, which is the hold no ledger carries -- a
-                            reclamation that FINISHED owes nothing, so a branch restored and a change reopened
-                            after it would find every entry settled and `done` free to fire over them -- and
-                            nothing written back for it, since nothing is owed and an entry saying so would send a
-                            later pass to delete a branch a human put back, the exact-name check a branch and a snapshot ref each have to
-                            pass before anything is deleted by it, the rule that decides whether a ref's recorded consumers have all
-                            ended -- read off each consumer's issue state, since a reopen keeps the terminal label,
-                            and whether the list names all of them read off the record's phase, since a child is
-                            created before it is recorded, with a PRE-SPLIT phase corroborated against the ledgers
-                            and against the count the transaction writes ahead of its first create -- which is what
-                            upgrades a record an earlier binary rewound, and what tells a `splitting` loop that
-                            finished from one still running, since the phase is written beside every child
-                            recorded, with a SEALED register answering ahead of that count, since a cancelled loop
-                            can never reach one -- beside the claim that no longer rewinds a transaction boundary
-                            at all -- the
-                            two deletes, the branch one taking the remote ref, the checkout, and the local
-                            ref and proving all three gone, the snapshot one ordered on the record before it is
-                            carried out and then re-proved against consumers read past that write (and retried past
-                            the proof only for a ref one read-only ask shows the remote no longer has, with a
-                            raising transport read as the refusal it is), the receipt every child cut from a
-                            reclaimed ref is left by a LIVE split -- one comment, marked with this owner, cycle, and
-                            generation so it is said once, proved against the child's own thread with the latch
-                            asked between that reading and the comment it authorizes, never a write to that
-                            child's own pinned state, and left
-                            unsaid entirely by a cancelled cycle, which owes its children nothing -- with the entry
-                            left `reclaiming` for a consumer it could not reach -- the one write that records any of
-                            it, the settle both callers share, what may not be left behind (everything
-                            unreconciled, an opaque ledger and a damaged identity included), and the question the
-                            umbrella's terminal asks before it closes -- and that a park for a rejected or
-                            hand-closed child asks on its way out, since both of those ended the consumer they
-                            name and nothing else revisits an open umbrella
+      late_cleanup_state.py pass and reclamation values, obligation updates, and the shared close barrier that
+                            persists cancellation once while retaining the current generation and its debts
+      late_cleanup_reading.py
+                            owed branches, held snapshots, opaque-ledger refusal, fresh consumer scans, and exact
+                            generation-derived snapshot ownership; unreadable consumers retain their refs
+      late_cleanup_proof.py prove the complete consumer ledger from its recorded phase, count, or cancellation seal,
+                            then require every consumer to be freshly known closed before reclaiming its snapshot
+      late_branch_reclamation.py
+                            delete only this issue's superseded branch and verify both local branch and checkout teardown;
+                            either remote or local refusal leaves the obligation failed
+      late_consumer_release.py
+                            deliver cycle-bound snapshot reclamation receipts once per child, checking closure around
+                            every thread read and post; an unreachable child keeps delivery outstanding
+      late_snapshot_reclamation.py
+                            persist reclamation intent, refresh the consumer proof, and delete the exact snapshot;
+                            recover missing refs and interrupted receipts without recreating or repointing the ref
+      late_reclamation.py   select owed work, apply close and publication barriers, and retain attempted and changed
+                            entries separately so unchanged failures require no pinned-state rewrite
+      late_cleanup.py       settle and report attempts, persist changed entries, and hold the umbrella terminal until
+                            every obligation and the superseded publication settle; opaque uncorrelated debts stay held
       late_reuse_reading.py snapshot reuse verdicts from the owner's reclamation receipt, corroborated ancestry,
                             trusted local mirror, and exact remote ref; unreadable evidence defers the dispatch
       late_reuse.py         hold or park the child before its label handler runs, distinguishing reclaimed and repointed

@@ -25,7 +25,9 @@ from orchestrator.workflow.late_split.models import (
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     activation as _activation,
-    late_cleanup as _late_cleanup,
+    late_branch_reclamation as _late_branch_reclamation,
+    late_cleanup_reading as _late_cleanup_reading,
+    late_cleanup_state as _late_cleanup_state,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
     late_park_state as _late_park_state,
@@ -144,14 +146,14 @@ def _reclaimed_branch(context: _LateContext, branch: str) -> None:
     merely untidy: the per-tick base refresh treats it as a pre-PR checkout and
     accretes merges onto a branch nobody will publish.
     """
-    context.generation = _late_cleanup._reclaim_branch(
+    context.generation = _late_branch_reclamation._reclaim_branch(
         context.gh,
         context.spec,
         context.issue.number,
         context.generation,
         branch,
     )
-    deleted = branch not in _late_cleanup._owed_branches(context.generation)
+    deleted = branch not in _late_cleanup_reading._owed_branches(context.generation)
     if not deleted:
         _late_outcome._emit_failure(context, LateFailure.BRANCH_CLEANUP_FAILED)
     _late_park_state._persist(context)
@@ -188,7 +190,7 @@ def _settled_generation(
     its work handed to children anyway. It costs no live adjudication: what
     pins `workflow:decomposing` is the measurement, and that is what goes.
     """
-    owed = _late_cleanup._record_branch_obligation(generation, branch)
+    owed = _late_cleanup_state._record_branch_obligation(generation, branch)
     return LateGeneration(
         cycle_id=owed.cycle_id,
         generation=owed.generation,

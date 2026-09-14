@@ -26,6 +26,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_cancellation_reading as _late_cancellation_reading,
     late_cancellation_state as _late_cancellation_state,
     late_cleanup as _late_cleanup,
+    late_cleanup_reading as _late_cleanup_reading,
+    late_cleanup_state as _late_cleanup_state,
 )
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 
@@ -99,7 +101,7 @@ def _children_discharged(
         return generation
     discharged = generation
     for target in pending:
-        discharged = _late_cleanup._recorded(
+        discharged = _late_cleanup_state._recorded(
             discharged, _late_models.LateResourceKind.CHILD, target,
             _late_models.LateResourceState.RECONCILED,
         )
@@ -111,7 +113,7 @@ def _pending_children(
     generation: _late_models.LateGeneration,
 ) -> tuple[str, ...]:
     """The child receipts this record has not yet said it owes nothing on."""
-    if _late_cleanup._unwritable(generation):
+    if _late_cleanup_reading._unwritable(generation):
         return ()
     return tuple(
         entry.target
@@ -171,7 +173,7 @@ def _superseded_branch(
     """
     if not generation.links_announced:
         return generation
-    if _late_cleanup._unwritable(generation) or _names_a_branch(generation):
+    if _late_cleanup_reading._unwritable(generation) or _names_a_branch(generation):
         return generation
     if _late_cancellation_reading._owed_plan_pr(generation):
         log.warning(
@@ -186,7 +188,7 @@ def _superseded_branch(
         "the write that records the branch it superseded; taking %r on as "
         "owed rather than retiring over it", issue.number, branch,
     )
-    owed = _late_cleanup._recorded(
+    owed = _late_cleanup_state._recorded(
         generation, _BRANCH, branch, _late_models.LateResourceState.PENDING,
     )
     _late_cancellation_state._persisted(gh, issue, state, owed)
@@ -212,6 +214,6 @@ def _proof_scan(
     taken only where its answer can change one, which is what keeps a sweep
     over a repository's closed owners affordable.
     """
-    if not _late_cleanup._held_snapshots(generation):
+    if not _late_cleanup_reading._held_snapshots(generation):
         return _ChildScan([], {}, {})
-    return _late_cleanup._consumer_scan(gh, issue, generation)
+    return _late_cleanup_reading._consumer_scan(gh, issue, generation)

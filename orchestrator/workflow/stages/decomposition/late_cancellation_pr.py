@@ -23,6 +23,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_cancellation_reading as _late_cancellation_reading,
     late_cancellation_state as _late_cancellation_state,
     late_cleanup as _late_cleanup,
+    late_cleanup_state as _late_cleanup_state,
     late_hold_release as _late_hold_release,
 )
 from orchestrator.workflow.state import (
@@ -136,7 +137,7 @@ def _plan_pr_settled(
     settled = _late_cancellation_reading._plan_pr_entry(released, str(number))
     if settled is not None and settled.resource_state == reached:
         return released
-    recorded = _late_cleanup._recorded(
+    recorded = _late_cleanup_state._recorded(
         released, _late_cancellation_reading._PLAN_PR, str(number), reached,
     )
     _late_cancellation_state._persisted(gh, issue, state, recorded)

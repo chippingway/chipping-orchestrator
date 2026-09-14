@@ -22,6 +22,14 @@ _PARENT = "orchestrator.workflow.stages"
 _BLOCKED = "blocked"
 
 _OWNERS = (
+    "late_cleanup_state",
+    "late_cleanup_reading",
+    "late_cleanup_proof",
+    "late_branch_reclamation",
+    "late_consumer_release",
+    "late_snapshot_reclamation",
+    "late_reclamation",
+
     "late_cancellation_reading",
     "late_cancellation_state",
     "late_close_reading",

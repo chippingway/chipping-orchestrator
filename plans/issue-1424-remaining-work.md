@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 10 paths and 13 pairs (13 production, 0
-test), all matching isolated diagnostics. One hundred sixteen pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 9 paths and 11 pairs (11 production, 0
+test), all matching isolated diagnostics. One hundred eighteen pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201 and WPS202. The files must stay until that set is empty and
 validation passes.
@@ -180,13 +180,21 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 14 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate cancellation obligations and state, observed-close readings and receipts,
+- `0dfa5f71`: separate cancellation obligations and state, observed-close readings and receipts,
   held-publication cleanup, remaining resource reconciliation, and terminal proof. One production WPS202 pair
   removed. Cleanup calls the independent cancellation-state owner directly, and the dispatcher's deferred
   observation lookups name their defining owners. Of 207 compared function/method bodies and 175 whole
   definitions, six production differences preserve those owner lookups and one test difference moves its
   crash hook. The corrected focused run passes 1,646 tests.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 13 remaining production
+  pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate cleanup state and readings, consumer-ledger proof, branch reclamation,
+  consumer receipts, snapshot reclamation, and attempted-result accounting. Two production pairs removed,
+  completing removal of every decomposition-stage exclusion. Of 130 compared function/method bodies and
+  90 whole definitions, all production bodies match; one test difference moves its reopen hook to the
+  snapshot-reclamation owner. All 1,646 focused tests pass.
+  Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 11 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes

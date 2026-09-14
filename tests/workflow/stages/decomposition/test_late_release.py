@@ -28,7 +28,7 @@ from unittest.mock import patch
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.workflow.late_split.models import LateResourceState
 from orchestrator.workflow.stages.decomposition import (
-    late_cleanup as _late_cleanup,
+    late_snapshot_reclamation as _late_snapshot_reclamation,
 )
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import late_cleanup_support as _support
@@ -51,7 +51,7 @@ _ANCESTRY_SHA = "late_ancestry_snapshot_sha"
 _PARKED = "awaiting_human"
 
 # The decision-recording step, captured before any case replaces it.
-_REAL_ORDERED = _late_cleanup._ordered
+_REAL_ORDERED = _late_snapshot_reclamation._ordered
 
 def _reclaiming():
     """An umbrella whose branch is settled and whose ref is about to go."""
@@ -108,7 +108,7 @@ class _ReleaseCase(_PatchedWorkflowMixin):
         for a human to act during.
         """
         return patch.object(
-            _late_cleanup, "_ordered", partial(self._order_then_reopen, seeded),
+            _late_snapshot_reclamation, "_ordered", partial(self._order_then_reopen, seeded),
         )
 
     def told(self, seeded) -> list:
