@@ -16,7 +16,10 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.workflow.engine import retry_budget as _retry_budget
+from orchestrator.workflow.engine import (
+    retry_park_state as _retry_park_state,
+    retry_values as _retry_values,
+)
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
     late_park_delivery as _late_park_delivery,
@@ -41,7 +44,7 @@ def _park(context: _LateContext, message: str, *, reason: str) -> None:
 
 
 def _park_on_spent_budget(
-    context: _LateContext, decision: _retry_budget.RetryDecision,
+    context: _LateContext, decision: _retry_values.RetryDecision,
 ) -> None:
     """Stop this adjudication on a per-issue budget it cannot spend.
 
@@ -69,10 +72,10 @@ def _park_on_spent_budget(
     made on and the window it was made in, and an operator comparing two
     parked issues is owed the same words on both.
     """
-    context.state.set(_retry_budget.RETRY_CAP_STAGE, decision.stage)
+    context.state.set(_retry_values.RETRY_CAP_STAGE, decision.stage)
     _park(
         context,
-        _retry_budget._cap_message(decision),
+        _retry_park_state._cap_message(decision),
         reason=_late_park_state.PARK_RETRY_CAP,
     )
 

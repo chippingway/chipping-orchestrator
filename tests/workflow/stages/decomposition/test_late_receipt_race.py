@@ -20,7 +20,11 @@ import unittest
 from dataclasses import replace
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import observations as _observations
+from orchestrator.workflow.engine import (
+    observation_receipts as _observation_receipts,
+    observations as _observations,
+    retiring_cycles as _retiring_cycles,
+)
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
@@ -210,7 +214,7 @@ class RetirementHandoffTest(ObservedCloseCase, unittest.TestCase):
         self._fresh_process()
 
     def test_a_close_before_the_exit_is_reported(self) -> None:
-        window = _observations.retiring(
+        window = _retiring_cycles.retiring(
             _TEST_SLUG, LATE_ISSUE_NUMBER, CYCLE_ID,
         )
 
@@ -223,7 +227,7 @@ class RetirementHandoffTest(ObservedCloseCase, unittest.TestCase):
         # The other side of the same instant: past the exit the record has no
         # cycle and no window, so the reading is one the poll drops rather
         # than one this worker owes anything.
-        window = _observations.retiring(
+        window = _retiring_cycles.retiring(
             _TEST_SLUG, LATE_ISSUE_NUMBER, CYCLE_ID,
         )
 
@@ -238,7 +242,7 @@ class RetirementHandoffTest(ObservedCloseCase, unittest.TestCase):
         # An umbrella the initial decomposer made retires nothing, and
         # advertising an identity that is not there would have a poll keep a
         # reading against a cycle nothing could correlate it to.
-        window = _observations.retiring(_TEST_SLUG, LATE_ISSUE_NUMBER, 0)
+        window = _retiring_cycles.retiring(_TEST_SLUG, LATE_ISSUE_NUMBER, 0)
 
         with window.held():
             self._latch_close(_TEST_SLUG, LATE_ISSUE_NUMBER)
@@ -248,7 +252,7 @@ class RetirementHandoffTest(ObservedCloseCase, unittest.TestCase):
 
     def _advertised(self):
         """The cycle a retirement is advertising on this owner right now."""
-        return _observations.cycle_being_retired(
+        return _retiring_cycles.cycle_being_retired(
             _TEST_SLUG, LATE_ISSUE_NUMBER,
         )
 
@@ -268,7 +272,7 @@ class ReopenedScanClaimTest(_ReceiptCase, unittest.TestCase):
         with self.assertLogs(_WORKFLOW_LOG):
             self._recorded()
 
-        with _observations.scanning_receipt(
+        with _observation_receipts.scanning_receipt(
             _TEST_SLUG, LATE_ISSUE_NUMBER,
         ) as claimed:
             self.assertTrue(claimed)
@@ -278,14 +282,14 @@ class ReopenedScanClaimTest(_ReceiptCase, unittest.TestCase):
         # nothing has been added to is not walked again every tick.
         self._already_walked()
 
-        with _observations.scanning_receipt(
+        with _observation_receipts.scanning_receipt(
             _TEST_SLUG, LATE_ISSUE_NUMBER,
         ) as claimed:
             self.assertFalse(claimed)
 
     def _already_walked(self) -> None:
         """Take the one walk this process owes, finding nothing on it."""
-        with _observations.scanning_receipt(
+        with _observation_receipts.scanning_receipt(
             _TEST_SLUG, LATE_ISSUE_NUMBER,
         ) as claimed:
             self.assertTrue(claimed)

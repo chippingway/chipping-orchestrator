@@ -9,7 +9,7 @@ from typing import Any
 
 from orchestrator.workflow.engine import (
     run_ledger_values as _run_ledger_values,
-    run_limit as _run_limit,
+    run_limit_values as _run_limit_values,
 )
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import lifetime_ticks as _lifetime_ticks
@@ -132,7 +132,7 @@ class Walk:
     def parked(self) -> bool:
         """Whether the issue is durably stopped on its spent ledger."""
         return bool(self.pinned.get(KEY_AWAITING_HUMAN)) and (
-            self.pinned.get(KEY_PARK_REASON) == _run_limit.PARK_AGENT_RUN_LIMIT
+            self.pinned.get(KEY_PARK_REASON) == _run_limit_values.PARK_AGENT_RUN_LIMIT
         )
 
     @property

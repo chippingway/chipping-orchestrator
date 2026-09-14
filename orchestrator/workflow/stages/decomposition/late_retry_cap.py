@@ -49,6 +49,10 @@ from orchestrator.github.comments import filter_trusted
 from orchestrator.workflow.engine import (
     messages as _messages,
     retry_budget as _retry_budget,
+    retry_ledger as _retry_ledger,
+    retry_notices as _retry_notices,
+    retry_park_state as _retry_park_state,
+    retry_values as _retry_values,
 )
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
@@ -95,7 +99,7 @@ def _park_owns_the_tick(context: _LateContext) -> bool:
     refusing is one an operator reads as an adjudication that stopped for no
     reason.
     """
-    if not _retry_budget._park_stands(context.state):
+    if not _retry_park_state._park_stands(context.state):
         return False
     if _park_is_explained(context):
         if _continuation_is_bought(context):
@@ -107,9 +111,9 @@ def _park_owns_the_tick(context: _LateContext) -> bool:
             "another attempt",
             context.issue.number,
         )
-    _retry_budget._emit_phase(
+    _retry_notices._emit_phase(
         context.gh, context.issue, context.state,
-        _retry_budget.RetryCapPhase.STANDING,
+        _retry_values.RetryCapPhase.STANDING,
     )
     return True
 
@@ -132,7 +136,7 @@ def _charge_fresh_spawn(context: _LateContext) -> bool:
     and it writes the generation this tick reached in the same breath, so the
     record and the reason the record stopped moving land together.
     """
-    decision = _retry_budget._consume_retry_slot(
+    decision = _retry_ledger._consume_retry_slot(
         context.state, stage=_DECOMPOSING_STAGE,
     )
     if decision.allowed:
@@ -169,7 +173,7 @@ def _park_is_explained(context: _LateContext) -> bool:
     obligation on either field holds the tick, and whichever owner owes it
     says it on a later one.
     """
-    owed = _late_notice._owed_notice(context) or _retry_budget._owed_notice(
+    owed = _late_notice._owed_notice(context) or _retry_park_state._owed_notice(
         context.state,
     )
     if owed is None:

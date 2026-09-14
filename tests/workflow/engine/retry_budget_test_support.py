@@ -12,7 +12,12 @@ from unittest.mock import patch
 
 from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import retry_budget as _retry_budget
+from orchestrator.workflow.engine import (
+    retry_budget as _retry_budget,
+    retry_ledger as _retry_ledger,
+    retry_park_state as _retry_park_state,
+    retry_values as _retry_values,
+)
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import LABEL_IMPLEMENTING
 
@@ -51,9 +56,9 @@ BOT_LOGIN = "orchestrator"
 
 OUTSIDER = "stranger"
 
-CONTINUED = _retry_budget.RETRY_CAP_CONTINUED
+CONTINUED = _retry_values.RETRY_CAP_CONTINUED
 
-_RETRY_CAP_STAGE = _retry_budget.RETRY_CAP_STAGE
+_RETRY_CAP_STAGE = _retry_values.RETRY_CAP_STAGE
 
 
 def state_with(**fields) -> PinnedState:
@@ -69,7 +74,7 @@ def parked_state(**fields) -> PinnedState:
     """
     standing = {
         AWAITING_HUMAN: True,
-        PARK_REASON: _retry_budget.PARK_RETRY_CAP,
+        PARK_REASON: _retry_values.PARK_RETRY_CAP,
         _RETRY_CAP_STAGE: STAGE,
         RETRY_COUNT: CAP,
     }
@@ -79,7 +84,7 @@ def parked_state(**fields) -> PinnedState:
 def decide(state: PinnedState, *, stage: str = STAGE, cap: int = CAP):
     """One gate call under a pinned cap, so no env override reaches it."""
     with patch.object(config, "MAX_RETRIES_PER_DAY", cap):
-        return _retry_budget._consume_retry_slot(state, stage=stage)
+        return _retry_ledger._consume_retry_slot(state, stage=stage)
 
 
 def staged_park(
@@ -104,7 +109,7 @@ def issue_and_client(*comments):
 
 
 def owed(state: PinnedState) -> str | None:
-    return _retry_budget._owed_notice(state)
+    return _retry_park_state._owed_notice(state)
 
 
 def phases(gh) -> list:

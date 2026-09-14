@@ -25,7 +25,12 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import observations
+from orchestrator.workflow.engine import (
+    observation_receipts as _observation_receipts,
+    observation_state as _observation_state,
+    observations,
+    publication_holds as _publication_holds,
+)
 from tests.workflow.observation_support import ObservedCloseCase
 
 _SLUG = "acme/widget"
@@ -69,7 +74,7 @@ class DeferredSettlementRaceTest(ObservedCloseCase, unittest.TestCase):
 
     def setUp(self) -> None:
         self._fresh_process()
-        observations.claim_publication(_SLUG, _ISSUE)
+        _publication_holds.claim_publication(_SLUG, _ISSUE)
         observations.settle_close(_SLUG, _ISSUE)
 
     def test_a_close_latched_in_the_gap_survives(self) -> None:
@@ -87,29 +92,29 @@ class DeferredSettlementRaceTest(ObservedCloseCase, unittest.TestCase):
         # receipt onto a thread that already carries one.
         self._released_while(self._polls)
 
-        self.assertIsNone(observations.claim_receipt_post(_SLUG, _ISSUE))
+        self.assertIsNone(_observation_receipts.claim_receipt_post(_SLUG, _ISSUE))
 
     def test_nothing_arriving_still_settles(self) -> None:
         # The other side, so the critical section is about the gap rather
         # than about the postponed settlement having stopped landing: with no
         # poll in it, the drop the hold recorded is taken as the hold goes.
-        observations.release_publication(_SLUG, _ISSUE)
+        _publication_holds.release_publication(_SLUG, _ISSUE)
 
         self.assertFalse(observations.close_observed(_SLUG, _ISSUE))
 
     def _polls(self) -> None:
         """One poll observing a close of its own, receipt and all."""
         observations.observe_close(_SLUG, _ISSUE)
-        observations.receipt_written(
-            observations.claim_receipt_post(_SLUG, _ISSUE),
+        _observation_receipts.receipt_written(
+            _observation_receipts.claim_receipt_post(_SLUG, _ISSUE),
         )
 
     def _released_while(self, races) -> None:
         """Give the hold back, with that poll landing at the first release."""
         with patch.object(
-            observations, _LOCK, _RacesTheFirstRelease(threading.Lock(), races),
+            _observation_state, _LOCK, _RacesTheFirstRelease(threading.Lock(), races),
         ):
-            observations.release_publication(_SLUG, _ISSUE)
+            _publication_holds.release_publication(_SLUG, _ISSUE)
 
 
 if __name__ == "__main__":

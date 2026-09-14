@@ -8,10 +8,11 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 44 paths and 49 pairs (49 production, 0
-test), all matching isolated diagnostics. Eighty pairs are removed without replacement exemptions or raised
-limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`, including
-WPS201, WPS202, WPS204, WPS214, and WPS215. The files must stay until that set is empty and validation passes.
+paths and 129 file/rule pairs. The current working implementation has 41 paths and 45 pairs (45 production, 0
+test), all matching isolated diagnostics. Eighty-four pairs are removed without replacement exemptions or
+raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
+including WPS201, WPS202, WPS204, WPS214, and WPS215. The files must stay until that set is empty and
+validation passes.
 
 Implemented batches:
 
@@ -85,13 +86,21 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 57 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate trusted prompt context, requirement hashing, shared instructions,
+- `edc1ab2a`: separate trusted prompt context, requirement hashing, shared instructions,
   conversation and decomposition prompts; invocation requests, exit reporting, and issue usage totals; budget
   models and payload fields, charge persistence, and ledger models and readers. Eight production pairs removed.
   All 520 compared definitions retain their bodies after resolving owner imports, including prompt text and
   event payloads. The corrected focused run passes 647 tests, and module inventories and documentation follow
   the defining owners.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 49 remaining production
+  pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate retry decisions, charges, park state, and notice delivery; lifetime-limit
+  values and park state; close-observation registries, receipt claims, retirement windows, and publication holds.
+  Four production pairs removed. Of 314 compared definitions, all production bodies match, and the three test
+  differences are only mock-owner updates. All observation paths share one lock and registry set. The focused
+  run passes 1,656 tests; documentation and the fresh-process fixture follow the defining owners.
+  Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 45 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes

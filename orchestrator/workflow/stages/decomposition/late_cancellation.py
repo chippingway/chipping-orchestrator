@@ -150,7 +150,12 @@ from orchestrator.github import (
     labels as _labels,
     pinned_state as _pinned_state,
 )
-from orchestrator.workflow.engine import observations as _observations, usage as _usage
+from orchestrator.workflow.engine import (
+    observation_receipts as _observation_receipts,
+    observations as _observations,
+    retiring_cycles as _retiring_cycles,
+    usage as _usage,
+)
 from orchestrator.workflow.late_split import (
     endings as _endings,
     events as _events,
@@ -426,7 +431,7 @@ def _record_observed_close(
     fetching the same one again, which is the whole of what asking at poll
     time costs over asking at the end of a pass: one pinned read.
     """
-    claim = _observations.claim_receipt_post(spec.slug, issue_number)
+    claim = _observation_receipts.claim_receipt_post(spec.slug, issue_number)
     if claim is None:
         return _owns_a_live_cycle(gh, spec, issue_number) is not False
     try:
@@ -439,9 +444,9 @@ def _record_observed_close(
             "before then would lose it",
             spec.slug, issue_number,
         )
-        _observations.release_receipt_post(claim)
+        _observation_receipts.release_receipt_post(claim)
         return True
-    _observations.receipt_written(claim)
+    _observation_receipts.receipt_written(claim)
     return cycle is not None
 
 
@@ -508,7 +513,7 @@ def _ending_cycle(
         return None
     if generation.is_present:
         return generation.cycle_id
-    return _observations.cycle_being_retired(spec.slug, issue_number)
+    return _retiring_cycles.cycle_being_retired(spec.slug, issue_number)
 
 
 def _observed_close_marker(issue_number: int, cycle_id: int) -> str:
@@ -666,7 +671,7 @@ def _inherited_close(
     """
     if generation.cancelled:
         return generation
-    with _observations.scanning_receipt(spec.slug, issue.number) as claimed:
+    with _observation_receipts.scanning_receipt(spec.slug, issue.number) as claimed:
         if not claimed:
             return generation
         marker = _observed_close_marker(issue.number, generation.cycle_id)
@@ -842,7 +847,7 @@ def _retired_close_adopted(
     retired = _endings.read_retired_cycle(state)
     if retired is None:
         return None
-    with _observations.scanning_receipt(spec.slug, issue.number) as claimed:
+    with _observation_receipts.scanning_receipt(spec.slug, issue.number) as claimed:
         if not claimed:
             return None
         marker = _observed_close_marker(issue.number, retired)

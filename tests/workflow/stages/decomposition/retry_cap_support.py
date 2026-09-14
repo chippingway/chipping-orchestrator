@@ -12,7 +12,7 @@ from __future__ import annotations
 from types import MappingProxyType
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import retry_budget as _retry_budget
+from orchestrator.workflow.engine import retry_values as _retry_values
 from orchestrator.workflow.stages.decomposition.models import (
     _DecomposerSession,
 )
@@ -93,7 +93,7 @@ KEY_RETRY_CAP_NOTICE = "retry_cap_notice"
 
 KEY_RETRY_CAP_STAGE = "retry_cap_stage"
 
-KEY_CONTINUED = _retry_budget.RETRY_CAP_CONTINUED
+KEY_CONTINUED = _retry_values.RETRY_CAP_CONTINUED
 
 KEY_LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 

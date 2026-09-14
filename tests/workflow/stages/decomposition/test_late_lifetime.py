@@ -24,7 +24,7 @@ from orchestrator.config import settings as config
 from orchestrator.workflow.engine import (
     dispatch as _dispatch,
     run_ledger_values as _run_ledger_values,
-    run_limit as _run_limit,
+    run_limit_values as _run_limit_values,
 )
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition.late_models import (
@@ -121,7 +121,7 @@ class RepeatedAdjudicationTest(unittest.TestCase):
         )
         self.assertTrue(pinned.get(KEY_AWAITING_HUMAN))
         self.assertEqual(
-            pinned.get(KEY_PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
+            pinned.get(KEY_PARK_REASON), _run_limit_values.PARK_AGENT_RUN_LIMIT,
         )
         self.assertEqual(len(self._notices()), 1)
 
@@ -195,7 +195,7 @@ class RestartedCycleTest(
         pinned = self._pinned()
         self.assertTrue(pinned.get(KEY_AWAITING_HUMAN))
         self.assertEqual(
-            pinned.get(KEY_PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
+            pinned.get(KEY_PARK_REASON), _run_limit_values.PARK_AGENT_RUN_LIMIT,
         )
 
     def _spent_ledger(self) -> dict:

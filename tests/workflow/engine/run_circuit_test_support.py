@@ -19,7 +19,7 @@ from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     run_charge_state as _run_charge_state,
-    run_limit as _run_limit,
+    run_limit_values as _run_limit_values,
     run_requests as _run_requests,
     usage as _usage,
 )
@@ -59,7 +59,7 @@ STARTED = "started"
 
 RUN_LIMIT_EVENT = "agent_run_limit"
 
-PARK_AGENT_RUN_LIMIT = _run_limit.PARK_AGENT_RUN_LIMIT
+PARK_AGENT_RUN_LIMIT = _run_limit_values.PARK_AGENT_RUN_LIMIT
 
 EVENT_AGENT_SPAWN = "agent_spawn"
 

@@ -20,7 +20,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import retry_budget as _retry_budget
+from orchestrator.workflow.engine import retry_values as _retry_values
 from tests.support.fakes import (
     FakeComment,
     FakeLabel,
@@ -60,7 +60,7 @@ GUIDANCE = "split it by module"
 
 STAGE_DECOMPOSING = "decomposing"
 
-PARK_RETRY_CAP = _retry_budget.PARK_RETRY_CAP
+PARK_RETRY_CAP = _retry_values.PARK_RETRY_CAP
 
 RETRY_CAP_EVENT = "retry_cap"
 
@@ -91,14 +91,14 @@ ANSWER_ID = PARK_NOTICE_ID + 2
 
 KEY_LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 
-KEY_RETRY_CAP_STAGE = _retry_budget.RETRY_CAP_STAGE
+KEY_RETRY_CAP_STAGE = _retry_values.RETRY_CAP_STAGE
 
 # The shared owner's own notice field. A park this mode took never writes it;
 # one the shared parking form took under this label does, and the late hold
 # has to read it as an obligation of exactly the same standing.
-KEY_RETRY_CAP_NOTICE = _retry_budget.RETRY_CAP_NOTICE
+KEY_RETRY_CAP_NOTICE = _retry_values.RETRY_CAP_NOTICE
 
-KEY_CONTINUED = _retry_budget.RETRY_CAP_CONTINUED
+KEY_CONTINUED = _retry_values.RETRY_CAP_CONTINUED
 
 # A reply with no fenced block at all: the one completed run that parks for a
 # reason a later attempt supersedes, which is how a case reaches the gate a

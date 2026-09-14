@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import observations
+from orchestrator.workflow.engine import retiring_cycles as _retiring_cycles
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import refused_submit_support as _support
 from tests.workflow.engine.refused_submit_support import Retiring, Scheduler
@@ -64,7 +64,7 @@ class RetirementInFlightTest(ObservedCloseCase, unittest.TestCase):
 
     def _retired_under_a_worker(self, github: FakeGitHubClient) -> None:
         """Refuse this tick's submit against a record mid-retirement."""
-        retiring = observations.retiring(_support.SPEC.slug, _support.OWNER_NUMBER, _support.CYCLE_ID)
+        retiring = _retiring_cycles.retiring(_support.SPEC.slug, _support.OWNER_NUMBER, _support.CYCLE_ID)
         with self.assertLogs(_support.WORKFLOW_LOG), retiring.held(), patch.object(
             github, _support.PINNED_READ, side_effect=Retiring(github),
         ):

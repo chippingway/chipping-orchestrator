@@ -16,7 +16,7 @@ import unittest
 
 from orchestrator.workflow.engine import (
     run_ledger_values as _run_ledger_values,
-    run_limit as _run_limit,
+    run_limit_values as _run_limit_values,
 )
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
@@ -70,7 +70,7 @@ class SpentLedgerLateAdjudicationTest(unittest.TestCase):
         pinned = self.github.pinned_data(LATE_ISSUE_NUMBER)
         self.assertTrue(pinned.get(KEY_AWAITING_HUMAN))
         self.assertEqual(
-            pinned.get(KEY_PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
+            pinned.get(KEY_PARK_REASON), _run_limit_values.PARK_AGENT_RUN_LIMIT,
         )
         self.assertEqual(pinned.get(_run_ledger_values.AGENT_RUNS_USED), _ALLOWANCE)
 

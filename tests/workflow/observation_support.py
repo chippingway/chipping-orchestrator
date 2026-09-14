@@ -24,12 +24,12 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import observations as _observations
+from orchestrator.workflow.engine import observation_state as _observation_state, observations as _observations
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
 )
 
-# Every registry the observations owner keeps, with the empty container a new
+# Every registry the shared observation-state owner keeps, with the empty container a new
 # process starts each one on: two of them count rather than merely hold, so a
 # case that replaced them all with sets would be testing a record production
 # cannot produce.
@@ -60,7 +60,7 @@ class ObservedCloseCase:
     def _fresh_process(self) -> None:
         """Replace every registry with the one a new process starts on."""
         for held, empty in _REGISTRIES:
-            replaced = patch.object(_observations, held, empty())
+            replaced = patch.object(_observation_state, held, empty())
             replaced.start()
             self.addCleanup(replaced.stop)
 

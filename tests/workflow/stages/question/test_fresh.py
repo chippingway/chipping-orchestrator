@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import retry_budget as _retry_budget
+from orchestrator.workflow.engine import retry_ledger as _retry_ledger
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     KEY_AWAITING_HUMAN,
@@ -208,7 +208,7 @@ class HandleQuestionFreshRunTest(unittest.TestCase, _QuestionWorkflowMixin):
         # since the agent does no codegen and a wedged conversation does
         # not threaten an issue's daily spawn allowance.
         gh, issue = _seed_question(1, body=QUESTION_TEXT)
-        with patch.object(_retry_budget, "_consume_retry_slot") as cb:
+        with patch.object(_retry_ledger, "_consume_retry_slot") as cb:
             self._run_question(
                 gh,
                 issue,

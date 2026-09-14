@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import retry_budget as _retry_budget
+from orchestrator.workflow.engine import retry_ledger as _retry_ledger
 from orchestrator.workflow.late_split.models import (
     LateFailure,
     LateGeneration,
@@ -266,7 +266,7 @@ class SpawnPersistenceTest(LateCase, unittest.TestCase):
                 with patch.object(
                     config, "MAX_RETRIES_PER_DAY", BOUNDED_CAP,
                 ):
-                    _retry_budget._consume_retry_slot(
+                    _retry_ledger._consume_retry_slot(
                         state, stage=STAGE_DECOMPOSING,
                     )
 

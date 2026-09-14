@@ -140,8 +140,11 @@ from orchestrator.observability.analytics.recording import events as _recording_
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import (
     observations,
+    publication_holds as _publication_holds,
     run_grant as _run_grant,
     run_limit as _run_limit,
+    run_limit_state as _run_limit_state,
+    run_limit_values as _run_limit_values,
     terminals as _terminals,
 )
 from orchestrator.workflow.state import WorkflowLabel, stage_name
@@ -468,7 +471,7 @@ def _run_limit_holds_the_tick(
     a park nobody can see going on refusing is one an operator reads as a
     workflow that stopped for no reason.
     """
-    if not _run_limit._park_stands(state) or ended:
+    if not _run_limit_state._park_stands(state) or ended:
         return False
     if _run_grant._lifts_the_park(gh, issue, state):
         return False
@@ -478,7 +481,7 @@ def _run_limit_holds_the_tick(
         spec.slug, issue.number,
     )
     _run_limit._replay_owed_notice(gh, issue, state)
-    _run_limit._emit_phase(gh, issue, _run_limit.RunLimitPhase.STANDING)
+    _run_limit._emit_phase(gh, issue, _run_limit_values.RunLimitPhase.STANDING)
     return True
 
 
@@ -500,7 +503,7 @@ def _spent_work_has_ended(
     was enumerated is one this tick was routed on the strength of. The PULL
     REQUEST behind it is the half the object cannot show.
     """
-    if not _run_limit._park_stands(state):
+    if not _run_limit_state._park_stands(state):
         return False
     if observed_closed or issue_is_closed(issue):
         return True
@@ -947,7 +950,7 @@ def _process_issue(
         # which is the one thing a poll drops a reading on. The drop is
         # postponed rather than refused: `observations` takes it again as the
         # window closes.
-        with observations.publishing(spec.slug, issue.number):
+        with _publication_holds.publishing(spec.slug, issue.number):
             _route_issue_to_handler(gh, spec, issue, label, reading=reading)
     except Exception:
         evaluation_result = "error"
@@ -1461,7 +1464,7 @@ def _submit_scheduler_fanout_issues(
         # because a worker has it -- which is exactly when its own reading
         # must not be dropped. Given back by the task, or below if the submit
         # was refused and no task will run.
-        observations.claim_publication(spec.slug, issue_number)
+        _publication_holds.claim_publication(spec.slug, issue_number)
         submitted = scheduler.submit(
             spec.slug,
             issue_number,
@@ -1483,7 +1486,7 @@ def _submit_scheduler_fanout_issues(
         )
         if submitted:
             continue
-        observations.release_publication(spec.slug, issue_number)
+        _publication_holds.release_publication(spec.slug, issue_number)
         _refused_submit(
             gh, spec, issue_number,
             cleanup_only=cleanup_only,
@@ -1515,7 +1518,7 @@ def _releases_the_claim(
     """
     with contextlib.ExitStack() as given_back:
         given_back.callback(
-            observations.release_publication, repo_slug, issue_number,
+            _publication_holds.release_publication, repo_slug, issue_number,
         )
         task()
 

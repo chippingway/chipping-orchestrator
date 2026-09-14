@@ -155,32 +155,19 @@ workflow/                   marker package for state, engine, and stage owners
                             that licensed the build, so it is carved out on `workflow:implementing` and nowhere
                             else -- `discussion` itself drains the same pull request through its own terminal)
                             -- and the timed dispatch
-    observations.py         the closes a poll saw and could hand to no worker: the process-wide latch the run
-                            holding the issue asks before every step the remote keeps (a close and a reopen inside
-                            one of its own steps is the reading GitHub cannot give back), the settle a pass that
-                            RAN takes -- which moves the per-owner generation with it -- the claim one receipt is
-                            posted under, and the memo the attempt that landed a durable receipt writes against
-                            the generation it was claimed at -- so a refused post is retried by the next poll
-                            rather than lost, two polls in the check/post gap post once, and a settlement landing
-                            mid-post leaves no memo to suppress the NEXT reading's receipt, and a receipt that
-                            LANDS owes the thread walk again -- the window a worker
-                            retiring a cycle holds across its own write, which is what
-                            keeps a poll from calling a reading spent against a record whose cycle identity has
-                            just come off, is the only place that cycle can still be read, and decides what it
-                            observed as it CLOSES, under the lock that closes it, so no interval is left between
-                            the answer and the exit for a poll to latch a close in; the HOLD a worker has on an
-                            issue, under which a settle is postponed rather than taken -- the drop rule reads
-                            "nothing to end" off the late cycle, and every publication the push barriers guard
-                            carries none, so without it a poll would drop the very reading a worker is about to ask
-                            for -- taken where the CLAIM is, which is the scheduler admitting the submit rather
-                            than wherever the worker first reads something, since the queue, the refetch and the
-                            label checks all sit in between and a poll refused in there is refused precisely
-                            because a worker has the issue; counted, so the dispatch's own hold over its handler
-                            nests inside the claim's and the sequential path has that one alone; and the drop taken
-                            again as the last hold goes, so nothing is held over an issue somebody reopens; and the
-                            once-per-owner-per-process claim that bounds the thread scan recovering an observation
-                            a DEAD process was holding, held for the length of the walk and handed back where it
-                            raised
+    observation_state.py    the process-local close, receipt, scan, retirement, publication, and deferred-settlement
+                            registries behind one lock; settlement advances the owner generation and clears its latch
+                            and receipt memo atomically
+    observations.py         latch, read, enumerate, and settle observed closes; settlement is deferred while a
+                            publication holds the owner, so a record read cannot erase a close a running worker still
+                            owes
+    observation_receipts.py generation-scoped exclusive receipt-post claims and landed memos; bounded thread scans
+                            release on failure and reopen when a receipt lands, so a failed or stale attempt suppresses
+                            no later receipt
+    retiring_cycles.py      the held cycle id across a retirement write and its final barrier; exit removes the marker
+                            and reports the close observed inside the window under the same lock
+    publication_holds.py    counted holds taken when a worker is admitted and nested around handler execution; only the
+                            final release settles a deferred close, preserving the reading through queueing and refetch
     content_hash.py         the user-content hash and filters for pinned records, orchestrator output, bots, untrusted
                             authors, and whole-comment operator commands; the legacy bare-continue mode recognizes an
                             existing baseline
@@ -215,17 +202,17 @@ workflow/                   marker package for state, engine, and stage owners
                             describe the confirmed plan artifact and the commit its stage verifies
     decomposition_prompts.py the decomposition prompt with the validator-owned child limit, and the bounded
                             single-decision comment that carries manifest notes into implementation
-    retry_budget.py         the per-issue daily spawn budget every stage's gate is decided by: the decision it
-                            answers and posts nothing for, the parking form that composes the tail around it for
-                            the stages whose park carries nothing of their own,
-                            the durable `retry_cap` park and the stage that ran out,
-                            the sentence that park owes the thread until the thread is shown to carry it -- and the
-                            replay that says it at stage entry, since a park routes the tick past the gate that
-                            took it -- the one bounded renewal, whether an attempt it granted is still owed, which
-                            is what tells a stage's other roads to an agent to stand down for the gate, and the
-                            four audit phases over them. The late adjudication is decided by the same gate and
-                            renewed by the same step, and owns its park's delivery itself, since what a refusal
-                            leaves standing there is a generation's whole record
+    retry_values.py         daily-retry decisions, notice phases, pinned keys, and the bounded continuation and
+                            rolling-window constants
+    retry_ledger.py         daily slot consumption, window expiry, and the remaining granted attempt; a standing
+                            retry-cap park refuses even when time or configuration would otherwise reopen the budget
+    retry_park_state.py     the durable retry-cap park, its recorded stage, and the exact notice still owed to the
+                            thread; settling the sentence grants no launch
+    retry_notices.py        bot-authored notice reconciliation, delivery, watermark advancement, and audit phases; an
+                            unreadable thread keeps the notice owed and says nothing
+    retry_budget.py         the shared charge-or-park form, persist-before-post ordering, stage-entry notice replay, and
+                            the one bounded continuation; late adjudication uses the same ledger and owns its
+                            generation-specific park
     run_budget_models.py    the four durable budget-event phases, refusal vocabulary, and the logical launch identity
                             used to correlate a charge
     run_budget_fields.py    the complete ledger payload, explicit unlimited remainder, reservation id combining a
@@ -267,17 +254,14 @@ workflow/                   marker package for state, engine, and stage owners
     run_ledger.py           ledger snapshots and the reserve/start/settle mutations; used counts remain monotonic,
                             settlement clears only reservation fields, and PROJECTED_KEYS retains the allowance and
                             count across state projection
-    run_limit.py            what a spent lifetime ledger leaves: the durable `agent_run_limit` park, the sentence it
-                            owes the thread scoped to the exhaustion that minted it -- the allowance in force and
-                            the runs spent against it, so a notice quoting numbers the issue has moved off is
-                            replaced rather than said -- the persist-before-post composition that takes the park and
-                            says it once, the reconciliation that reads a bot-authored notice back off the thread
-                            before repeating it, the replay the dispatcher's hold makes when nothing ever said it,
-                            and the five audit phases over them -- the two the command beside it ends on included.
-                            The moment the park is TAKEN goes to the shared budget stream instead, once per park and
-                            on the write that makes it durable, carrying the launch the ceiling stopped.
-                            Nothing here decides an issue is out: the ledger reading is handed in, so the park
-                            quotes the numbers the refusal was made on
+    run_limit_values.py     the lifetime-limit notice record, the allowance and spent count it explains, the audit
+                            phases, and the pinned park fields
+    run_limit_state.py      the standing lifetime-limit park and its owed sentence; changed ledger coordinates replace
+                            the notice, and settlement clears the sentence without lifting the park or changing the
+                            charge
+    run_limit.py            persist a supplied exhaustion reading before its budget event and notice, reconcile
+                            bot-authored delivery, and replay the sentence still owed; this owner grants and spends no
+                            additional run
     terminals.py            the merged, rejected, and human-closed arcs, the stamp / receipt / label / write tail they
                             share, and the entry-time finalizers. The stages carrying no PR-state arc of their own
                             ask for both pull-request endings off ONE guarded reading -- a merge, and a close
