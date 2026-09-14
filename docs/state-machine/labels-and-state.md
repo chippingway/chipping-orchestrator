@@ -2660,7 +2660,7 @@ rather than preserving.
   candidate is a coincidence the proof may not spend, since the fresh receipt behind the push clears the very field
   that said which attempt the record was about. The repository is asked because a fork carries these ref names over
   these commits and would otherwise agree on
-  everything else, asked through `github/identity.py` against the name GitHub uses and matched case-insensitively, so
+  everything else, asked through `github/client.py` against the name GitHub uses and matched case-insensitively, so
   a setting typed in another casing is not read as a stranger's. A receipt GROUP this build cannot read whole is asked
   apart from that comparison and refused first — from either seam, since the three are one record — because every late
   field is read fail-closed and a hand-edited one comes back as no receipt: published over, the push writes a fresh

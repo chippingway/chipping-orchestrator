@@ -13,10 +13,8 @@ from dataclasses import replace
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split.models import (
-    LatePhase,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup as _late_cleanup,
 )

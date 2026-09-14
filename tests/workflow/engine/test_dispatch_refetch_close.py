@@ -25,7 +25,8 @@ from unittest.mock import patch
 
 from orchestrator.workflow.engine import dispatch
 from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.phases import LatePhase
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import LABEL_UMBRELLA
 from tests.workflow.observation_support import ObservedCloseCase, receipt_for

@@ -33,7 +33,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator.git.worktrees import naming as _naming
-from orchestrator.github import pull_requests as _pull_requests
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.workflow.late_split import payloads as _payloads
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
@@ -197,7 +197,7 @@ def _reconciled_pr(context: _LateContext) -> bool:
         base=context.spec.base_branch,
         head_sha=context.generation.candidate_sha,
     )
-    if carrying is _pull_requests.PR_LOOKUP_UNREADABLE:
+    if carrying is _pr_reads.PR_LOOKUP_UNREADABLE:
         return _late_proof._unreconciled(context, _LOOKUP_FAILED_PARK)
     if carrying is None:
         return _dropped_settled_pr(context)

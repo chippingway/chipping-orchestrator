@@ -31,7 +31,7 @@ from enum import StrEnum
 from typing import Any
 
 from orchestrator.workflow.late_split import formats as _formats
-from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
 
 
 def as_count(raw: Any) -> int | None:

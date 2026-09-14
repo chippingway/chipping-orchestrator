@@ -99,10 +99,8 @@ from orchestrator.config import models as _config_models
 from orchestrator.workflow.engine import prompt_context as _prompt_context
 from orchestrator.workflow.engine.prompt_context import _SECTION_SEP
 from orchestrator.workflow.late_split.events import LateVerdictCategory
-from orchestrator.workflow.late_split.models import (
-    MAX_LINEAGE_DEPTH,
-    LateGeneration,
-)
+from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import late_budget as _budget
 from orchestrator.workflow.stages.decomposition.late_reply import _SPLIT_BLOCKER
 from orchestrator.workflow.stages.decomposition.validation import _MAX_CHILDREN

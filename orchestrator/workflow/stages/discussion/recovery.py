@@ -31,7 +31,7 @@ import logging
 
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.github import pull_requests as _pull_requests
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.workflow.stages.discussion import (
     artifact as _artifact,
     models as _models,
@@ -164,7 +164,7 @@ def _settle_moved_marker(
     it leaves behind.
     """
     landed = _settled_prs._settled_plan_pr(run, artifact, in_flight)
-    if landed is _pull_requests.PR_LOOKUP_UNREADABLE:
+    if landed is _pr_reads.PR_LOOKUP_UNREADABLE:
         log.warning(
             "issue=#%s holding a publication in flight on %s: GitHub could "
             "not say whether it is already on a pull request",

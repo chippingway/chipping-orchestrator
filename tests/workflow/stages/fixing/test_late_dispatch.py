@@ -20,6 +20,7 @@ from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow import state as _workflow_state
 from orchestrator.workflow.engine import dispatch as _dispatch
+from orchestrator.workflow.late_split import phases as _late_phases
 from tests.support.fakes import FakeGitHubClient, FakePRRef, make_issue
 from tests.workflow.fixtures import (
     _TEST_SPEC,
@@ -83,9 +84,9 @@ PUBLISHING_LABELS = (
 # The boundaries a split's own transaction leaves a record standing at once
 # its candidate has been committed to becoming children.
 SETTLED_SPLIT_PHASES = (
-    support.LatePhase.SPLITTING,
-    support.LatePhase.SUPERSEDING,
-    support.LatePhase.CLEANING_UP,
+    _late_phases.LatePhase.SPLITTING,
+    _late_phases.LatePhase.SUPERSEDING,
+    _late_phases.LatePhase.CLEANING_UP,
 )
 
 # The ordered register that split wrote down as it created them, which the
@@ -433,7 +434,7 @@ class SettledSplitRecordTest(unittest.TestCase, _FrozenPairMixin):
         self.assertFalse(pinned[AWAITING_HUMAN])
         self.assertIsNone(pinned[PARK_REASON])
 
-    def _settled(self, *, phase=support.LatePhase.CLEANING_UP, parked=False):
+    def _settled(self, *, phase=_late_phases.LatePhase.CLEANING_UP, parked=False):
         """The record a split's retirement leaves, on the label it hands to.
 
         The measurement gone, the publication group and the ordered child

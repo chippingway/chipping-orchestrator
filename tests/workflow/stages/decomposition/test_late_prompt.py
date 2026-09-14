@@ -8,7 +8,7 @@ import re
 import unittest
 
 from orchestrator.workflow.late_split.events import LateVerdictCategory
-from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
 from orchestrator.workflow.stages.decomposition import (
     late_budget as _budget,
     late_prompt as _prompt,

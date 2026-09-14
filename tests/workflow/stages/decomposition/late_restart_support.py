@@ -21,14 +21,8 @@ from unittest.mock import Mock, patch
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import dispatch as _dispatch
-from orchestrator.workflow.late_split import endings as _endings, state as _late_state
-from orchestrator.workflow.late_split.models import (
-    LateGeneration,
-    LatePhase,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split import endings as _endings, phases as _late_phases, state as _late_state
+from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
 )
@@ -104,7 +98,7 @@ EVENT_LATE_FAILURE = "late_failure"
 # an operator is looking at when they decide to authorize a fresh attempt.
 CANCELLED = replace(
     late_generation(resources=()).cancel(CANCELLED_AT),
-    phase=LatePhase.CANCELLING,
+    phase=_late_phases.LatePhase.CANCELLING,
 )
 
 # One pinned key from every family a restart drops: the sessions, the pull

@@ -35,10 +35,11 @@ from orchestrator.workflow.late_split import (
     identity as _identity,
     lineage as _lineage,
     payloads as _payloads,
+    phases as _late_phases,
     rewrites as _rewrites,
     validation as _late_validation,
 )
-from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
+from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -479,7 +480,7 @@ def _identified(gate: _Gate, recorded: LateGeneration) -> LateGeneration:
         current_issue=gate.issue.number,
         lineage_depth=depth,
         scope=recorded.scope or ancestry.scope,
-        phase=LatePhase.MEASURING,
+        phase=_late_phases.LatePhase.MEASURING,
     ))
 
 

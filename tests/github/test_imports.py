@@ -29,6 +29,8 @@ _MODULES = (
     "orchestrator.github.labels",
     "orchestrator.github.pinned_state",
     "orchestrator.github.pull_requests",
+    "orchestrator.github.pull_request_reads",
+    "orchestrator.github.pull_request_retirement",
     "orchestrator.github.reviews",
 )
 

@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator.git.worktrees.models import Retention, RetentionReason
-from orchestrator.github import pull_requests as github_pull_requests
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.github.client import GitHubClient
 
 # The channel is named for the worktree-lifecycle domain rather than for this
@@ -87,7 +87,7 @@ def _carrying_pull_request(
     that is not open.
     """
     accounted = gh.find_pr_for_commit(branch=branch, head_sha=head_sha)
-    if accounted is github_pull_requests.PR_LOOKUP_UNREADABLE:
+    if accounted is _pr_reads.PR_LOOKUP_UNREADABLE:
         return (Retention(
             RetentionReason.PULL_REQUEST_UNREADABLE, branch,
         ),)

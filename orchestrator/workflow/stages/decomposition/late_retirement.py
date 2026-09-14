@@ -18,11 +18,11 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import (
     LateFailure,
     LateGeneration,
-    LatePhase,
     LateResource,
     LateResourceKind,
     LateResourceState,
 )
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     activation as _activation,
     late_cleanup as _late_cleanup,

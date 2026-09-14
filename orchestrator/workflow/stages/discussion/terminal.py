@@ -54,7 +54,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator.git.worktrees import naming as _naming
-from orchestrator.github import pull_requests as _pull_requests
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.github.issues import (
     _ISSUE_STATE_CLOSED,
     _ISSUE_STATE_OPEN,
@@ -133,7 +133,7 @@ def _finalize_closed_discussion(run: _models._DiscussionRun) -> bool:
     """
     branch = _plan_branch(run)
     plan_pr = _interrupted_plan_pr(run, branch)
-    if plan_pr is _pull_requests.PR_LOOKUP_UNREADABLE:
+    if plan_pr is _pr_reads.PR_LOOKUP_UNREADABLE:
         log.warning(
             "issue=#%s holding a closed discussion: GitHub could not say "
             "whether its unfinished publication is on a pull request",

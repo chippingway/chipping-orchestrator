@@ -29,7 +29,7 @@ from __future__ import annotations
 
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.github import pull_requests as _pull_requests
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.workflow.stages.discussion import (
     artifact as _artifact,
     models as _models,
@@ -111,7 +111,7 @@ def _plan_pr_by_commit(
         base=run.spec.base_branch,
         head_sha=commit,
     )
-    if plan_pr is _pull_requests.PR_LOOKUP_UNREADABLE:
+    if plan_pr is _pr_reads.PR_LOOKUP_UNREADABLE:
         return plan_pr
     if plan_pr is None or run.gh.pr_state(plan_pr) not in wanted_states:
         return None
@@ -182,7 +182,7 @@ def _plan_pr_overtaken(
         base=run.spec.base_branch,
         head_sha=commit,
     )
-    if plan_pr is _pull_requests.PR_LOOKUP_UNREADABLE:
+    if plan_pr is _pr_reads.PR_LOOKUP_UNREADABLE:
         return plan_pr
     if plan_pr is None or run.gh.pr_state(plan_pr) != _OPEN_PR_STATE:
         return None

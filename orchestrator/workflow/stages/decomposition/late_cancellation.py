@@ -161,6 +161,7 @@ from orchestrator.workflow.late_split import (
     events as _events,
     lineage as _lineage,
     models as _late_models,
+    phases as _late_phases,
     restart as _restart,
     state as _late_state,
     telemetry as _telemetry,
@@ -893,7 +894,7 @@ def _reconstructed(
         current_issue=issue.number,
         root_issue=ancestry.root_issue or issue.number,
         lineage_depth=ancestry.lineage_depth,
-        phase=_late_models.LatePhase.CLEANING_UP,
+        phase=_late_phases.LatePhase.CLEANING_UP,
     )
 
 
@@ -1193,7 +1194,7 @@ def _marked(
     )
     cancelled = replace(
         generation.cancel(_usage._now_iso()),
-        phase=_late_models.LatePhase.CANCELLING,
+        phase=_late_phases.LatePhase.CANCELLING,
         owner_check_pending=False,
     )
     _persisted(gh, issue, state, cancelled)

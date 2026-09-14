@@ -15,11 +15,8 @@ import unittest
 from dataclasses import replace
 from unittest.mock import patch
 
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LatePhase,
-    LateVerdict,
-)
+from orchestrator.workflow.late_split.models import LateFailure, LateVerdict
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_owner as _late_owner,
 )

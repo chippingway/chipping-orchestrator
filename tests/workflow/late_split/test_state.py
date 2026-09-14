@@ -11,7 +11,8 @@ from types import MappingProxyType
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import formats as _formats, state as _late_state
-from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.late_split import generation_test_support as _support
 

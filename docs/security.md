@@ -639,7 +639,7 @@ carries — so the publication side proves the record against the remote rather 
   force-pushed onto a branch nothing could confirm.
 - **A fork cannot answer for one of this repository's publications.** A fork carries this repository's ref names over
   this repository's commits, so a pull request opened from one agrees on the branch and the head together. Every reader
-  that freezes or proves a publication therefore asks `github/identity.py` whether the head repository is this one —
+  that freezes or proves a publication therefore asks `github/client.py` whether the head repository is this one —
   against the name GitHub itself uses, matched case-insensitively, so neither a fork nor a setting an operator typed in
   another casing decides the question. The same qualification the artifact pass makes on the reclamation side
   ([Scheduled artifact reclamation](#scheduled-artifact-reclamation)), made where the effect is a push rather than a

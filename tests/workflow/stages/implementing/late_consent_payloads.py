@@ -19,7 +19,8 @@ from orchestrator.github.pinned_state import (
     PinnedState,
 )
 from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.implementing import (
     late_consent as _consent,
     late_records as _records,

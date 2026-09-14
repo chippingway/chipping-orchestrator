@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 from github import GithubException
 
 from orchestrator.config import credentials as _config_credentials
-from orchestrator.github import client as _client
+from orchestrator.github import labels as _label_cache
 from orchestrator.github.client import GitHubClient
 
 _BOT = "orchestrator-bot"
@@ -207,7 +207,7 @@ class CachedLabelTest(unittest.TestCase):
             gh._cached_label(_LEGACY_LABEL, throttle_absent=True),
         )
         repo.add_label(_LEGACY_LABEL)
-        gh._closed_sweeps += _client._ABSENT_LABEL_RETRY_SWEEPS
+        gh._closed_sweeps += _label_cache._ABSENT_LABEL_RETRY_SWEEPS
         reappeared = gh._cached_label(_LEGACY_LABEL, throttle_absent=True)
 
         self.assertEqual(reappeared.name, _LEGACY_LABEL)

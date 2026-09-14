@@ -40,11 +40,8 @@ from orchestrator.workflow.late_split import (
     formats as _formats,
     telemetry as _telemetry,
 )
-from orchestrator.workflow.late_split.models import (
-    IN_FLIGHT_PHASES,
-    LateFailure,
-    LatePhase,
-)
+from orchestrator.workflow.late_split.models import LateFailure
+from orchestrator.workflow.late_split.phases import IN_FLIGHT_PHASES, LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     late_parks as _late_parks,

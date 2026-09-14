@@ -16,10 +16,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import Mock
 
-from orchestrator.workflow.late_split.models import (
-    LatePhase,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import late_cleanup_support as _support

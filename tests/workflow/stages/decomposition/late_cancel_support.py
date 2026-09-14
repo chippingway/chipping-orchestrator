@@ -15,10 +15,8 @@ from __future__ import annotations
 from dataclasses import replace
 
 from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import (
-    LatePhase,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import late_hold as _late_hold
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import _PatchedWorkflowMixin

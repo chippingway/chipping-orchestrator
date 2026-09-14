@@ -68,28 +68,13 @@ Resolved process values live in `orchestrator.config.settings`. Importing or rel
 `environment` resolver and binds fresh values, while callers retain the same module object for attribute reads
 and patches. Repository types live in `config.models`, and token resolution in `config.credentials`.
 
-`orchestrator/github/pull_requests.py` (`WPS214`) is the shape the entries fronting no package take: one owner for
-one subject, carrying more of something than the rule admits because the subject does. Which subject that is, and why
-splitting it would cost more than the count does, is stated on the module itself rather than here, which is where a
-retained entry's reason belongs. What this page settles is only the kind of reason it has to be.
+The remaining exclusions are temporary exact-path complexity entries. Refactors separate responsibilities and
+move callers, mocks, and ownership documentation together. A split must satisfy the default limits in every
+resulting module; it cannot add an exclusion, an inline suppression, or a raised complexity limit.
 
-That is the whole policy an entry has to meet: the diagnostic has to be what an architectural invariant this
-repository holds costs — one owner per subject or a support module seeding one stage's scenarios — rather than
-what a module that outgrew itself costs. A module that merely got long is
-split, not waived. And a split that lands may not hand its halves an entry of their own: an exemption that moves into
-a new module is the boundary not having been found, so the original entry stays where it was, with its invariant said
-out loud on the owner that carries it, until a split arrives that needs neither.
-
-Each entry names an exact path and the exact codes that path reports, never a glob and never a code the path is
-already clean under, so a neighbouring file and a future one stay held to the rule; no WPS suppression is spelled in
-the source, so [`../../.flake8`](../../.flake8) is the one place the exempt set is read from. And the ceilings
-themselves are left where the rules ship them — the single raised setting there answers for how a sorted tree spells
-its reads rather than for any file under it — so widening a limit is never how one file is answered for.
-
-The list is audited against the diagnostics rather than carried forward. `flake8 --isolated --select=<codes>
-orchestrator tests` reports what each waived rule would say with the entries gone, and every entry has to answer one
-of those lines. An entry with no line behind it is a refactor that has already landed, and is deleted rather than left
-standing as a permission the tree no longer needs.
+Each entry names only the rules its exact path still reports. `flake8 --isolated --select=WPS orchestrator tests`
+checks the remaining set without configuration: every diagnostic must match a configured pair, and every
+configured pair must match a diagnostic. Delete an entry when its owner meets the limits.
 
 The rule set is Ruff's own. `[tool.ruff.lint]` in [`../../pyproject.toml`](../../pyproject.toml) declares no `select`,
 so what `ruff check orchestrator tests` enforces is whatever the `ruff` resolved in [`../../uv.lock`](../../uv.lock)

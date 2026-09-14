@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 from github import GithubException
 
 from orchestrator.config import settings as config
-from orchestrator.github import client as _client
+from orchestrator.github import labels as _label_cache
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issue_polling import SWEEP_LOOKUPS
 from orchestrator.workflow.state import WorkflowLabel
@@ -175,7 +175,7 @@ class LegacyClosedSweepTest(unittest.TestCase):
         # expiring after a third of the sweeps at `N=3`, and before the very
         # next one at any `N` past the window itself.
         polls_per_sweep = 3
-        sweeps = _client._ABSENT_LABEL_RETRY_SWEEPS
+        sweeps = _label_cache._ABSENT_LABEL_RETRY_SWEEPS
         client = _absent_legacy_fixture()
 
         with patch.object(
@@ -191,7 +191,7 @@ class LegacyClosedSweepTest(unittest.TestCase):
         # One sweep past the window the question is asked again, so a label
         # re-applied by hand is picked up rather than written off.
         polls_per_sweep = 3
-        sweeps = _client._ABSENT_LABEL_RETRY_SWEEPS + 1
+        sweeps = _label_cache._ABSENT_LABEL_RETRY_SWEEPS + 1
         client = _absent_legacy_fixture()
 
         with patch.object(

@@ -19,7 +19,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import observations as _observations
-from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
+from orchestrator.workflow.late_split import models as _late_models, phases as _late_phases
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup as _late_cleanup,
     parents as _parents,
@@ -167,11 +167,11 @@ class _LatchingChildThread:
         return patch.object(self._child, _CHILD_THREAD, self)
 
 
-def _consuming_both() -> LateGeneration:
+def _consuming_both() -> _late_models.LateGeneration:
     """A live generation whose ref two children were cut from."""
     return late_generation(
         threshold=None, additions=None, resources=(),
-        phase=LatePhase.CLEANING_UP,
+        phase=_late_phases.LatePhase.CLEANING_UP,
     ).with_consumers(_SIBLINGS)
 
 
