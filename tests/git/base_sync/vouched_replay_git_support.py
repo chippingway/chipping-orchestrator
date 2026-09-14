@@ -10,7 +10,11 @@ production selector reaches that route, so `recover` enters it directly.
 """
 from __future__ import annotations
 
-from orchestrator.git.base_sync import attempts, models, recovery
+from orchestrator.git.base_sync import (
+    attempt_records as _attempt_records,
+    models,
+    replay_recovery as _replay_recovery,
+)
 from tests.git.base_sync import recovery_git_support as fixtures
 
 KEY_PENDING_REWRITE_SHA = "pending_auto_base_rebase_rewrite_sha"
@@ -46,7 +50,7 @@ class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
     def recover(self, label: str = fixtures.LABEL) -> bool:
         """Run the vouched-replay route over the issue as it now reads."""
         state = self.gh.read_pinned_state(self.issue)
-        return recovery._recover_vouched_replay_context(
+        return _replay_recovery._recover_vouched_replay_context(
             models._AutoRebaseRecoveryContext(
                 gh=self.gh,
                 spec=self.spec,
@@ -56,7 +60,7 @@ class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
                 pr_number=fixtures.PR_NUMBER,
                 label=label,
                 pending_pre_rebase_sha=self.anchor,
-                pending_rewrite=attempts._pending_rewrite(state),
+                pending_rewrite=_attempt_records._pending_rewrite(state),
             ),
         )
 
@@ -120,24 +124,18 @@ class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
         state.set(KEY_PENDING_ANNOUNCED_SHA, announced)
         self.gh.write_pinned_state(self.issue, state)
 
-    def forget_the_rewrite_record(self) -> None:
-        """Drop the whole record of the attempt, terms and replay together.
+    def forget_the_rewrite_record(self, *, head_only: bool = False) -> None:
+        """Drop a replay's head alone, or the whole record of its attempt.
 
-        The comment an older binary left, which claims nothing about the
-        attempt at all -- and the state every divergent checkout nothing here
-        made looks like.
+        Keeping the terms seeds the crash between git returning and its head
+        being recorded. Dropping all members seeds an anchor-only comment.
         """
-        self._forgets(_REWRITE_RECORD_KEYS)
+        keys = (KEY_PENDING_REWRITE_SHA,) if head_only else _REWRITE_RECORD_KEYS
+        state = self.gh.read_pinned_state(self.issue)
+        for key in keys:
+            state.set(key, None)
+        self.gh.write_pinned_state(self.issue, state)
 
-    def forget_the_replay_head(self) -> None:
-        """Drop the head alone, leaving the terms the anchor went down with.
-
-        The window between `git rebase` returning and the write that names
-        what it produced. The terms are still there because they are written
-        before git is allowed to touch the branch; the head is not, because it
-        cannot exist until git hands it back.
-        """
-        self._forgets((KEY_PENDING_REWRITE_SHA,))
 
     def divergence_from_remote(self) -> tuple[int, int]:
         """Ahead and behind as git counts this branch against the tracking ref.
@@ -154,10 +152,3 @@ class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
             cwd=self.work,
         ).split()
         return int(counted[1]), int(counted[0])
-
-    def _forgets(self, keys: tuple[str, ...]) -> None:
-        """Blank these members of the attempt record, durably."""
-        state = self.gh.read_pinned_state(self.issue)
-        for key in keys:
-            state.set(key, None)
-        self.gh.write_pinned_state(self.issue, state)

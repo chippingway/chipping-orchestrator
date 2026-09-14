@@ -1673,7 +1673,7 @@ such pushes and no others:
   [`workflow:resolving_conflict`'s content updates](#content-updates-onto-the-pull-request-this-stage-already-has)
   are made of;
 - the base-sync auto rebase `git/base_sync/publication._publish_auto_rebase` and its own crash recovery
-  `git/base_sync/recovery._retry_recovery_push`, both of which reach the gate through
+  `git/base_sync/recovery_push._retry_recovery_push`, both of which reach the gate through
   `base_sync/publication._gated_publication()` so the sync layer keeps its call-time hop upward. The recovery is the
   one caller that can enter `permit_only`, and only from its DORMANT vouched-replay route, which no production
   selector reaches yet: for the replay of an adjudicated commit it is finishing a publication rather than deciding

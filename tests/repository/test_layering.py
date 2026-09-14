@@ -138,16 +138,11 @@ _CALL_TIME_HOPS = MappingProxyType({
     f"{_BASE_SYNC}.publication": (
         _COMMENTS, _LATE_PUSH, _LATE_RECORDS, _LATE_ENTRY,
     ),
-    f"{_BASE_SYNC}.recovery": (_LATE_ENTRY,),
+    f"{_BASE_SYNC}.recovery_push": (_LATE_ENTRY,),
     f"{_BASE_SYNC}.recovery_notices": (_COMMENTS,),
-    f"{_BASE_SYNC}.transfers": (
-        _EXEMPTION,
-        _LATE_OVERFLOW,
-        f"{PACKAGE}.workflow.stages.implementing.late_parks",
-        _LATE_RECORDS,
-        _LATE_TRANSFER,
-        _REWRITES,
-        _REWRITE_VALUES,
+    f"{_BASE_SYNC}.transfers": (_EXEMPTION, _REWRITES, _REWRITE_VALUES),
+    f"{_BASE_SYNC}.transfer_permits": (
+        _LATE_OVERFLOW, _LATE_RECORDS, _LATE_TRANSFER, _LATE_ENTRY,
     ),
     f"{_BASE_SYNC}.transfer_values": (_REWRITE_VALUES,),
     f"{_BASE_SYNC}.transfer_evidence": (_EXEMPTION, _REWRITE_VALUES),

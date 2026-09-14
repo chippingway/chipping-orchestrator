@@ -7,7 +7,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.base_sync import outcomes, persistence, snapshot
+from orchestrator.git.base_sync import outcomes, persistence, recovery_notices as _recovery_notices, snapshot
 from tests.git.base_sync import base_sync_helpers as fixtures
 
 FINALIZE_HELPER = "_finalize_recovered_rebase"
@@ -29,8 +29,8 @@ REBASE_AGAIN_PHRASE = "rebasing once more"
 DIRTY_FILES = ("scratch.txt", "notes.md")
 
 NOTICE_BUILDERS = (
-    outcomes._already_published_recovery_notice,
-    outcomes._pushed_recovery_notice,
+    _recovery_notices._already_published_recovery_notice,
+    _recovery_notices._pushed_recovery_notice,
 )
 
 
@@ -96,13 +96,13 @@ class RecoveryNoticeTest(unittest.TestCase):
 
         self.assertIn(
             ALREADY_PUBLISHED,
-            outcomes._already_published_recovery_notice(
+            _recovery_notices._already_published_recovery_notice(
                 context, fixtures.RECOVERED_SHA,
             ),
         )
         self.assertIn(
             "pushed the recovered head",
-            outcomes._pushed_recovery_notice(context, fixtures.RECOVERED_SHA),
+            _recovery_notices._pushed_recovery_notice(context, fixtures.RECOVERED_SHA),
         )
 
 

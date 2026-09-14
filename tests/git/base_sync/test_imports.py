@@ -48,6 +48,15 @@ _ATTEMPTS_OWNER = "orchestrator.git.base_sync.attempts"
 _TRANSFERS_OWNER = "orchestrator.git.base_sync.transfers"
 
 _OWNERS = (
+    "orchestrator.git.base_sync.recovery_push",
+    "orchestrator.git.base_sync.replay_checkout_parks",
+    "orchestrator.git.base_sync.replay_cleanup",
+    "orchestrator.git.base_sync.replay_evidence",
+    "orchestrator.git.base_sync.replay_publication_parks",
+    "orchestrator.git.base_sync.replay_recovery",
+    "orchestrator.git.base_sync.replay_refusals",
+    "orchestrator.git.base_sync.replay_transfer_parks",
+    "orchestrator.git.base_sync.transfer_permits",
     "orchestrator.git.base_sync.transfer_values",
     "orchestrator.git.base_sync.transfer_evidence",
     "orchestrator.git.base_sync.transfer_attempts",

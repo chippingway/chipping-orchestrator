@@ -14,7 +14,7 @@ from orchestrator.git.base_sync.models import (
 from orchestrator.git.base_sync.state import (
     log,
 )
-from orchestrator.workflow.state import stage_name
+from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 
 def _post_recovered_rebase_notice(
@@ -51,4 +51,62 @@ def _emit_recovered_rebase_event(
         method=method,
         review_round=0,
         retry_count=context.state.get("retry_count"),
+    )
+
+# How much of an object id a human reads in a park message: enough to name the
+# commit in a thread, and short enough to stay readable in a sentence.
+_SHORT_SHA = 8
+
+
+def _short(sha: str) -> str:
+    """One commit as an operator reads it in a park message or a log line."""
+    return (sha or "")[:_SHORT_SHA]
+
+
+def _already_published_recovery_notice(
+    context: _AutoRebaseRecoveryContext,
+    local_head: str,
+) -> str:
+    """Format the notice for a recovery push that landed before restart."""
+    short_head = local_head[:8]
+    notice = (
+        f":mag: Recovered an interrupted auto-rebase for PR "
+        f"#{context.pr_number}; the new head `{short_head}` was "
+        "already published before the orchestrator restart."
+    )
+    if context.behind == 0:
+        return (
+            notice
+            + f" Routing `{context.label}` -> `{WorkflowLabel.VALIDATING}`"
+            " so the reviewer re-runs against the rewritten branch."
+        )
+    return (
+        notice
+        + f" Base advanced again by {context.behind} commit(s)"
+        " since the interrupted rebase; rebasing once more before "
+        f"routing to `{WorkflowLabel.VALIDATING}`."
+    )
+
+
+def _pushed_recovery_notice(
+    context: _AutoRebaseRecoveryContext,
+    local_head: str,
+) -> str:
+    """Format the notice for a recovery push reissued this tick."""
+    short_head = local_head[:8]
+    notice = (
+        f":mag: Recovered an interrupted auto-rebase for PR "
+        f"#{context.pr_number}; pushed the recovered head "
+        f"`{short_head}`."
+    )
+    if context.behind == 0:
+        return (
+            f"{notice} Routing `{context.label}` -> "
+            f"`{WorkflowLabel.VALIDATING}`."
+        )
+    return (
+        notice
+        + f" Base advanced again by {context.behind} commit(s) "
+        "since the interrupted rebase; rebasing once more before "
+        f"routing to `{WorkflowLabel.VALIDATING}`."
     )

@@ -29,9 +29,16 @@ from orchestrator.git.measurement import (
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
+    exemption_reading as _exemption_reading,
+    rewrite_reading as _rewrite_reading,
+    rewrite_values as _rewrite_values,
     rewrites as _rewrites,
 )
-from orchestrator.workflow.stages.implementing import late_parks as _parks
+from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
+    late_publication_state as _late_publication_state,
+)
 from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.refresh_test_support import _patched
@@ -72,16 +79,11 @@ class _AdjudicatedRecoveryCase(VouchedReplayGitFixtureMixin, unittest.TestCase):
             self, _measurement_commits, "_freeze_base_commit",
             MagicMock(return_value=FrozenCommit(sha=self.replayed_base)),
         )
-        self.accepted_digest = self._contributes(
-            self.accepted_base, self.anchor,
-        )
+        self.accepted_digest = _fingerprint._fingerprint_contribution(
+            self.work, self.accepted_base, self.anchor,
+        ).digest
         self._adjudicate()
 
-    def _contributes(self, base_sha: str, candidate_sha: str) -> str:
-        """What one pair really contributes, read off the objects themselves."""
-        return _fingerprint._fingerprint_contribution(
-            self.work, base_sha, candidate_sha,
-        ).digest
 
     def _adjudicate(self) -> None:
         """Record the verdict a settled `single` left on the anchor."""
@@ -106,8 +108,8 @@ class _AdjudicatedRecoveryCase(VouchedReplayGitFixtureMixin, unittest.TestCase):
         because the grant makes them in one durable statement.
         """
         state = self._state()
-        rewrite = _rewrites.LateRewrite(
-            kind=_rewrites.LateRewriteKind.AUTO_CLEAN_REBASE,
+        rewrite = _rewrite_values.LateRewrite(
+            kind=_rewrite_values.LateRewriteKind.AUTO_CLEAN_REBASE,
             from_sha=self.anchor,
             from_base_sha=self.accepted_base,
             to_sha=self.recovered,
@@ -119,23 +121,12 @@ class _AdjudicatedRecoveryCase(VouchedReplayGitFixtureMixin, unittest.TestCase):
         _rewrites.record_rewrite_authorization(
             state, rewrite, self.accepted_digest,
         )
-        _parks._approve(
+        _late_approval_state._approve(
             state, self.recovered, self.anchor,
-            _parks.LateApprovalBasis.UNMEASURED,
+            _late_approval_reading.LateApprovalBasis.UNMEASURED,
         )
         self.gh.write_pinned_state(self.gh._issues[fixtures.ISSUE], state)
 
-    def _resumes(self) -> bool:
-        """The tick after the crash, and whether the route owned it.
-
-        What has to be proved is not only that the push goes out: a route that
-        owns the tick is what tells its caller the tick is OVER, so nothing
-        behind it rebases the branch a second time or spawns anything over it.
-        The replay the crash left is already on the advanced base, so the
-        context this enters on counts nothing behind it -- which is what lets
-        the route hand the reviewer the issue rather than a second rebase.
-        """
-        return self.recover()
 
     def _state(self):
         return self.gh.read_pinned_state(self.gh._issues[fixtures.ISSUE])
@@ -154,13 +145,13 @@ class _AdjudicatedRecoveryCase(VouchedReplayGitFixtureMixin, unittest.TestCase):
             self.recovered,
         )
         durable = self._state()
-        self.assertTrue(_exemption.is_exempt(durable, self.recovered))
+        self.assertTrue(_exemption_reading.is_exempt(durable, self.recovered))
         self.assertEqual(
-            _rewrites.read_rewrite_authorization(durable).phase,
-            _rewrites.LateRewritePhase.PUBLISHED,
+            _rewrite_reading.read_rewrite_authorization(durable).phase,
+            _rewrite_values.LateRewritePhase.PUBLISHED,
         )
         self.assertEqual(
-            _exemption.read_semantic_identity(durable).base_sha,
+            _exemption_reading.read_semantic_identity(durable).base_sha,
             self.replayed_base,
         )
 
@@ -182,7 +173,7 @@ class CrashBeforeTheGrantTest(_AdjudicatedRecoveryCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.resumed = self._resumes()
+        self.resumed = self.recover()
 
     def test_the_re_derived_evidence_earns_the_permit(self) -> None:
         # Nothing on the comment named a rewrite, so the evidence is rebuilt
@@ -207,7 +198,7 @@ class CrashAfterTheGrantTest(_AdjudicatedRecoveryCase):
     def setUp(self) -> None:
         super().setUp()
         self._grants()
-        self.resumed = self._resumes()
+        self.resumed = self.recover()
 
     def test_a_standing_permission_is_spent(self) -> None:
         # The record IS the evidence here, re-asked in full rather than
@@ -218,9 +209,9 @@ class CrashAfterTheGrantTest(_AdjudicatedRecoveryCase):
 
     def test_the_debt_the_grant_left_is_paid(self) -> None:
         durable = self._state()
-        self.assertEqual(_parks._approved_commit(durable), "")
+        self.assertEqual(_late_approval_reading._approved_commit(durable), "")
         self.assertEqual(
-            _parks._publication_from(
+            _late_publication_state._publication_from(
                 durable, self.anchor, fixtures.PR_NUMBER,
             ),
             self.recovered,
@@ -246,10 +237,10 @@ class CrashAtTheGrantTest(_AdjudicatedRecoveryCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.forget_the_replay_head()
+        self.forget_the_rewrite_record(head_only=True)
         self._grants()
         self.counted = self.divergence_from_remote()
-        self.resumed = self._resumes()
+        self.resumed = self.recover()
 
     def test_the_grant_this_route_left_vouches(self) -> None:
         # Cross-bound to the anchor it is leased against, the publication the
@@ -277,7 +268,7 @@ class UndoneRebaseTest(_AdjudicatedRecoveryCase):
         super().setUp()
         self._grants()
         self.roll_back_to_the_anchor()
-        self.resumed = self._resumes()
+        self.resumed = self.recover()
 
     def test_the_rollback_is_finished_not_restarted(self) -> None:
         # HEAD equalling the anchor is the shortcut only for an attempt that
@@ -298,11 +289,11 @@ class UndoneRebaseTest(_AdjudicatedRecoveryCase):
         # no branch has, and the permission that will never be spent on it,
         # ride out on.
         durable = self._state()
-        self.assertEqual(_parks._approved_commit(durable), "")
-        self.assertFalse(_rewrites.carries_rewrite_authorization(durable))
+        self.assertEqual(_late_approval_reading._approved_commit(durable), "")
+        self.assertFalse(_rewrite_reading.carries_rewrite_authorization(durable))
         # The grant moved nothing, so the verdict is still where the
         # adjudication put it.
-        self.assertTrue(_exemption.is_exempt(durable, self.anchor))
+        self.assertTrue(_exemption_reading.is_exempt(durable, self.anchor))
 
     def test_a_human_is_asked_what_undid_it(self) -> None:
         pinned = self.gh.pinned_data(fixtures.ISSUE)
@@ -328,7 +319,7 @@ class RefusedPermitTest(_AdjudicatedRecoveryCase):
         )
         self.gh.write_pinned_state(self.gh._issues[fixtures.ISSUE], state)
 
-        self.assertTrue(self._resumes())
+        self.assertTrue(self.recover())
 
         self.assertEqual(self.push.leases, [])
         self.assertEqual(fixtures.head_sha(self.work), self.anchor)
