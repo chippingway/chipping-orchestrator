@@ -1200,7 +1200,7 @@ workflow/                   marker package for state, engine, and stage owners
                             record covers -- would leave it standing on an issue that has moved to `validating`,
                             read there as somebody's fresh feedback. Written down rather than applied on the way
                             out, since the write that moves the label is the last one this stage makes on the
-                            issue, and `late_parks` spends it there. Consumed to what that reading LOOKED at and
+                            issue, and `late_park_state` spends it there. Consumed to what that reading LOOKED at and
                             no further, and never on a call that published nothing -- the gate's own reading can
                             have held the park over guidance written between the two readings, and that reply has
                             to still be there for the poll that acts on it -- so every road that puts the park
@@ -1457,67 +1457,47 @@ workflow/                   marker package for state, engine, and stage owners
       late_freeze_guards.py reject missing measurement fields and foreign identities before a retained pair is used;
                             an unfinished base permits only that field to remain absent, preserving its original ceiling
       late_freeze.py        prove the candidate, freeze or recover its exact base, and account for failed base reads;
-                            reconciliation refuses checkout drift, and retained bases are recovered by object identity
+                            refuse a head differing from the caller's commit or a reconciling tick's record, and
+                            recover retained bases by object identity
       late_evidence.py      what a recovery proves before it acts: the checkout, both recorded objects, a
                             head that is still the candidate, and a head that is still the commit an approval
                             owes a publication for -- proved ahead of every spawn
       late_verdict_retirement.py
                             retire the generation inside the observation window; a close before or inside its write
                             leaves a durable cancelled cycle for cleanup, including reinstatement after retirement
-      late_verdict_debt.py  keep unmeasured candidate, lease, basis, and route spends together; stage debt for a transfer's
-                            coordinated write or persist it before publication, and drop superseded approvals
+      late_verdict_debt.py  keep unmeasured candidate, lease, basis, and route spends together; stage debt with a
+                            transfer or persist it before publication, drop superseded approvals, and spend the
+                            caller's owed fields before routing
       late_verdict.py       approve accepted or authorized work, route oversized work with its unpublished notice,
                             retire answered parks, and coordinate generation retirement with route and publication debt
-      late_parks.py         the approval group -- the commit a publication is owed, the head it is pinned to, and
-                            the bounded basis saying which owner granted it, so a later reader tells this gate's
-                            own count from a debt an operator's gesture is behind rather than inferring it from
-                            the records standing beside them; the two bases that gesture IS behind are named as
-                            one group, since what a reader decides is whether a debt has to be revalidated
-                            rather than which owner granted it, and the one write the implementing seam mints a
-                            debt through, so the publication and the guard that refuses a moved checkout leave
-                            one debt rather than two. That write never INVENTS grounds: an approval already
-                            standing for the very commit is carried as it reads, an unknown one included, since
-                            promoting a legacy record to `unmeasured` would turn "fall back to the exemption"
-                            into debt this workflow owns and nobody would revalidate; and where none stands the
-                            grounds come off the exemption CLAIM -- presence rather than readability, so a field
-                            a hand edit truncated still leaves the adjudication's debt -- falling to
-                            `unmeasured` only on an issue carrying no such field at all -- plus
-                            the one park shape every unreadable reading takes, worded on the side of publication it
-                            was taken on, the typed failure both sinks carry under the stage the reading happened in
-                            -- carrying the step that stopped and the line it wrote wherever the refusal was a
-                            reading, and the family alone where it was a record nobody may act on --
-                            the bounded quiet retry the two TRANSPORT steps get instead -- the miss counted on the
-                            record and written before anything is reported or said, since a fresh process remembers no
-                            miss, with the park taken only past the bound; the announce-once guard every refusal of a
-                            typed step passes through, holding a tick that finds a park already standing over THE
-                            SAME PAIR, still latched, and stopping at the step that park's own notice named -- the
-                            member recorded by the roads that announce and by no other, so a quiet miss cannot pass
-                            for a notice and a base that comes back -- which is not the last step a reading can stop
-                            at -- cannot unsay one -- silent to the thread alone,
-                            since the typed failure still reaches both sinks and a base id the remote finally named
-                            is written even there, with a refusal stopping somewhere else announced once instead and
-                            taking that member's place, and the notice itself naming the member and the line an
-                            operator acts on it by with whatever the failing step said for itself carried up beside
-                            it -- a park standing over
-                            some other pair retired inside the write that records that pair rather than obeyed, since
-                            nothing on the comment says which commit a park was taken over and a resumed developer's
-                            fresh commit owes its own bound, the count ended by a base that was reached and both it
-                            and the member ended by a reading that landed -- the
-                            bare continue that re-reads rather than re-runs, the measurement park a reading that
-                            SETTLED retires -- latch and all, since a reconciliation has no run behind it to clear the
-                            flag, and from the verdict rather than from the gate's door, since entering the gate is
-                            not answering the question the park was taken for -- and that park ALONE, since the
-                            authorization park beside it waits on a person and no reading answers a person: a road
-                            that lost the base and is counting a quiet retry would unpark an issue whose operator
-                            never replied, and the exemption nobody stands behind would publish on the next poll,
-                            so it has a retirement of its own that only a publication under it reaches -- the same
-                            measurement park retired on a record
-                            whose split has already become children, where no reading is owed and nothing about it is
-                            a human's to answer, and the commits a publication is read by: the one an approval owes a
-                            push for with the head it is pinned to, and the one this stage made. The boundary an
-                            authorization handoff staged is spent from here too: `late_rollback` records it and
-                            the write that moves the label out of this stage consumes it, and this is the one
-                            owner both of those can reach
+      late_approval_reading.py
+                            whole candidate/lease/basis approval reads and explicit operator-backed bases; damaged
+                            and legacy bases remain distinct from known permissions
+      late_approval_state.py
+                            coordinated approval writes, preservation of an existing candidate's basis, and debt
+                            retirement together with its owed route spends
+      late_publication_state.py
+                            exact commit, lease, and PR receipt reads and writes; the recorded issue pointer stays
+                            distinct, and recovery receipts must match the attempt's head and publication
+      late_receipt_damage.py
+                            whole-receipt validation, distinguishing absent or empty records from missing members,
+                            unparseable claims, and nonempty receipts lacking a commit or publication
+      late_measurement_state.py
+                            notice ownership and quiet transport-retry coordinates, including held parks; reaching
+                            the base clears misses and a completed measurement also clears its failure
+      late_park_retirement.py
+                            targeted retirement of measurement, authorization, and settled-split parks, and explicit
+                            supersession of the current wait; unrelated park reasons remain standing
+      late_park_state.py    persist generations and route spends, retire a measurement park bound to another candidate,
+                            and consume a held authorization's command watermark monotonically
+      late_park_notices.py  operational failure descriptions, stage-attributed events, and measurement park notices;
+                            the failure is emitted before the wait is recorded
+      late_measurement_reply.py
+                            trusted bare-continue batches reserved for the active measurement park; mixed feedback
+                            stays with its stage and the current reason and wait must agree
+      late_parks.py         quiet transport retries and announce-once measurement failure handling; changed frozen bases
+                            remain durable during a quiet repeat, and a different failure earns its own notice;
+                            an unreadable candidate retains its resolved object id for recovery
       publication.py        the push -- named against the commit the gate decided and pinned to the head the
                             answer that admitted it was about: a published approval's frozen head where there is
                             one, and the CANDIDATE itself where the gate admitted it because its pull request is

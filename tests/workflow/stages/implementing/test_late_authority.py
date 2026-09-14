@@ -22,7 +22,9 @@ from types import MappingProxyType
 
 from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FingerprintFailure
-from orchestrator.workflow.stages.implementing import late_parks as _parks
+from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+)
 from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     SHA_LENGTH,
@@ -59,12 +61,12 @@ _LEGACY_DEBT = MappingProxyType({_KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA})
 # gate's own count at or below the ceiling records.
 _ADJUDICATION_DEBT = MappingProxyType({
     **_LEGACY_DEBT,
-    _KEY_APPROVED_BASIS: str(_parks.LateApprovalBasis.ADJUDICATION),
+    _KEY_APPROVED_BASIS: str(_late_approval_reading.LateApprovalBasis.ADJUDICATION),
 })
 
 _READING_DEBT = MappingProxyType({
     **_LEGACY_DEBT,
-    _KEY_APPROVED_BASIS: str(_parks.LateApprovalBasis.READING),
+    _KEY_APPROVED_BASIS: str(_late_approval_reading.LateApprovalBasis.READING),
 })
 
 # The two shapes a debt an operator's gesture is behind arrives in, which are
@@ -249,7 +251,7 @@ class UnauthorizedDebtTest(legacy._LegacyExemptionCase, unittest.TestCase):
         # publish an oversized change nothing can show the grounds for.
         self._seed_legacy(**{
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
-            _KEY_APPROVED_BASIS: str(_parks.LateApprovalBasis.AUTHORIZATION),
+            _KEY_APPROVED_BASIS: str(_late_approval_reading.LateApprovalBasis.AUTHORIZATION),
         })
 
         mocks = self._run_gate(added_lines=support.OVERSIZED_ADDITIONS)
@@ -270,7 +272,7 @@ class UnauthorizedDebtTest(legacy._LegacyExemptionCase, unittest.TestCase):
 
         self.assertEqual(
             recorded.pinned[_KEY_APPROVED_BASIS],
-            str(_parks.LateApprovalBasis.AUTHORIZATION),
+            str(_late_approval_reading.LateApprovalBasis.AUTHORIZATION),
         )
 
     def test_a_gate_owned_approval_still_bypasses(self) -> None:

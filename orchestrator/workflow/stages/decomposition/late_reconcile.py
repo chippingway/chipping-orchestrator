@@ -46,7 +46,7 @@ from orchestrator.workflow.stages.decomposition import (
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 from orchestrator.workflow.stages.implementing import (
-    late_parks as _gate_parks,
+    late_receipt_damage as _late_receipt_damage,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -295,7 +295,7 @@ def _reconciled_receipt(context: _LateContext) -> bool:
     the damaged group all stand for the retry once a human has repaired the
     record.
     """
-    damaged = _gate_parks._damaged_receipt(context.state)
+    damaged = _late_receipt_damage._damaged_receipt(context.state)
     if not damaged:
         return True
     log.error(

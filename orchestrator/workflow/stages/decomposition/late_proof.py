@@ -38,7 +38,10 @@ from orchestrator.workflow.stages.decomposition import (
     late_parks as _late_parks,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
-from orchestrator.workflow.stages.implementing import late_parks as _gate_parks
+from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_publication_state as _late_publication_state,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -124,8 +127,8 @@ def _this_settlements_own_push(context: _LateContext) -> str:
     """
     candidate = context.generation.candidate_sha
     vouched = (
-        _gate_parks._approved_commit(context.state),
-        _gate_parks._publication_from(
+        _late_approval_reading._approved_commit(context.state),
+        _late_publication_state._publication_from(
             context.state,
             context.generation.published_sha,
             context.generation.published_pr_number,

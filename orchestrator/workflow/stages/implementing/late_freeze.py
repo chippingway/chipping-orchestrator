@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Prove the candidate and freeze or recover the exact base used for measurement.
 
-A reconciling tick cannot adopt a checkout changed during its own work.
+A candidate must match the commit its caller named, and a reconciling tick
+cannot adopt a checkout changed during its own work.
 A retained base is recovered by object identity rather than replaced with
 a fresh remote reading.
 """
@@ -11,15 +12,21 @@ from __future__ import annotations
 import logging
 
 from orchestrator.config import settings as config
-from orchestrator.git.measurement import commits as _measurement_commits
+from orchestrator.git.measurement import (
+    commits as _measurement_commits,
+)
 from orchestrator.git.measurement.models import (
     FrozenCommit,
     MeasurementFailure,
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_freeze_guards as _late_freeze_guards,
     late_gate_models as _late_gate_models,
+    late_measurement_state as _late_measurement_state,
+    late_park_notices as _late_park_notices,
+    late_park_state as _late_park_state,
     late_parks as _parks,
     late_records as _records,
 )
@@ -109,7 +116,7 @@ def _outside_the_gate(
     """
     if config.DECOMPOSE or recorded.candidate_sha:
         return False
-    return not gate.answering and not _parks._approved_commit(gate.state)
+    return not gate.answering and not _late_approval_reading._approved_commit(gate.state)
 
 
 def _reconciled_candidate(
@@ -239,8 +246,8 @@ def _frozen_pair(
     if not base.is_frozen:
         _parks._lost_reading(gate, minted, base.failure, base.detail)
         return None
-    reached = _parks._reached(minted)
-    _parks._persisted(gate, reached)
+    reached = _late_measurement_state._reached(minted)
+    _late_park_state._persisted(gate, reached)
     return reached
 
 
@@ -304,8 +311,76 @@ def _reached_base(
     pair that never lost a reading would otherwise pay a pinned write on every
     tick for a field it does not carry.
     """
-    reached = _parks._reached(recorded)
+    reached = _late_measurement_state._reached(recorded)
     if reached == recorded:
         return recorded
-    _parks._persisted(gate, reached)
+    _late_park_state._persisted(gate, reached)
     return reached
+
+# Why a candidate skips the measurement, spelled as the log line reads it.
+# What a checkout standing somewhere other than the commit its caller named
+# is reported and parked as.
+_MOVED_OFF_THE_CALLER = (
+    "the commit handed to it was `{named}` and its checkout stands on "
+    "`{head}`"
+)
+
+
+_MOVED_OFF_THE_CALLER_PARK = (
+    "{mentions} this stage read `{named}` as the commit it was about to "
+    "publish, and the checkout it would publish from stands on `{head}`. "
+    "Something committed over the worktree between the two readings, so the "
+    "two are not one candidate -- measured and pushed as it stands, this "
+    "issue would put `{head}` on the pull request while recording `{named}` "
+    "as what it published. Nothing was pushed and nothing was recorded. "
+    "Reconcile the worktree with what landed and the next tick reads it "
+    "afresh."
+)
+
+
+def _moved_off_the_caller(
+    gate: _late_gate_models._Gate, recorded: LateGeneration, candidate_sha: str,
+) -> bool:
+    """Refuse a checkout that is not the commit its caller named.
+
+    The caller read a head for itself -- the commit its docs pass made, the
+    one its squash collapsed to, the resolution it just committed -- and this
+    owner proves the checkout's head again, because everything past here is a
+    claim about one object id and a caller's word is not a proof. Between the
+    two reads the worktree is writable, so a commit landing in that window is
+    a DIFFERENT candidate: measured here, pushed here, and recorded here,
+    while the caller goes on to stamp the id it read as the one it published.
+
+    So the two are made one decision. Asked before anything is persisted or
+    pushed, because that is the whole point: a refusal after the freeze leaves
+    a record about the wrong commit, and one after the push leaves the wrong
+    commit on the pull request.
+
+    A recovery names one for the same reason a run does, and proves it for a
+    sharper one: no developer ran, so the reading that licensed the recovery
+    is about a commit a previous tick recorded, and a head that moved between
+    that proof and this one is not a fresh candidate to measure in its place.
+    It is a commit an operator's authorization does not cover, published on
+    its own count while the record names another.
+
+    Silent where the caller named nothing -- a bounce over a checkout it did
+    not just write -- and where the two agree, which is every ordinary tick.
+    """
+    if not gate.candidate or gate.candidate == candidate_sha:
+        return False
+    log.error(
+        "issue=#%d was handed %s to publish and its checkout stands on %s; "
+        "refusing to measure a candidate its caller never read",
+        gate.issue.number, gate.candidate, candidate_sha,
+    )
+    return _late_park_notices._parked(
+        gate, _records._named(gate, recorded, candidate_sha),
+        _MOVED_OFF_THE_CALLER.format(
+            named=gate.candidate, head=candidate_sha,
+        ),
+        _MOVED_OFF_THE_CALLER_PARK.format(
+            mentions=config.HITL_MENTIONS,
+            named=gate.candidate,
+            head=candidate_sha,
+        ),
+    )

@@ -94,7 +94,9 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_overflow as _overflow,
-    late_parks as _parks,
+    late_park_notices as _late_park_notices,
+    late_publication_state as _late_publication_state,
+    late_receipt_damage as _late_receipt_damage,
     late_records as _records,
 )
 
@@ -285,13 +287,13 @@ def _delivered_before_the_relabel(
     """
     if gate.entry is not None:
         return _Delivered()
-    if _parks._published_commit(gate.state) != candidate_sha:
+    if _late_publication_state._published_commit(gate.state) != candidate_sha:
         return _Delivered()
-    lease = _parks._published_lease(gate.state)
+    lease = _late_publication_state._published_lease(gate.state)
     if lease:
         return _Delivered(refusal=_UNSCOPED_LEASE.format(lease=lease))
     return _proved_against(
-        gate, _parks._published_pull_request(gate.state), candidate_sha,
+        gate, _late_publication_state._published_pull_request(gate.state), candidate_sha,
     )
 
 
@@ -408,7 +410,7 @@ def _receipt_answers_alone(
     if entry.published_sha != candidate_sha:
         return False
     return bool(entry.pr_number) and (
-        _parks._published_pull_request(gate.state) == entry.pr_number
+        _late_publication_state._published_pull_request(gate.state) == entry.pr_number
     )
 
 
@@ -437,7 +439,7 @@ def _holds_a_damaged_receipt(gate: _late_gate_models._Gate) -> bool:
     Silent for every record that reads back whole, which is every ordinary
     tick, and for an issue that never published at all.
     """
-    damaged = _parks._damaged_receipt(gate.state)
+    damaged = _late_receipt_damage._damaged_receipt(gate.state)
     if not damaged:
         return False
     refusal = _DAMAGED_RECEIPT.format(field=damaged)
@@ -447,7 +449,7 @@ def _holds_a_damaged_receipt(gate: _late_gate_models._Gate) -> bool:
         "publication it cannot name",
         gate.issue.number, refusal,
     )
-    return _parks._parked(
+    return _late_park_notices._parked(
         gate,
         _records._reportable(
             gate, _late_state.read_late_generation(gate.state),
@@ -526,7 +528,7 @@ def _holds_an_unprovable_receipt(
         "stage has already pushed",
         gate.issue.number, candidate_sha, delivered.refusal,
     )
-    return _parks._parked(
+    return _late_park_notices._parked(
         gate,
         _records._reportable(
             gate, _late_state.read_late_generation(gate.state),

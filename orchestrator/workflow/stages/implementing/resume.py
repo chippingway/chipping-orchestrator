@@ -42,7 +42,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.implementing import (
     execution as _execution,
     late_command as _late_command,
-    late_parks as _late_parks,
+    late_measurement_reply as _late_measurement_reply,
     resume_request as _resume_request,
     state as _state,
 )
@@ -224,7 +224,7 @@ def _resume_developer_on_human_reply(
     # is the read the measurement park's own road takes: reserved off a
     # narrower one, this tick would defer what that road then refuses, and the
     # two would hand the same thread back and forth forever.
-    if _late_parks._reserved_for_the_measurement_park(fresh_batch, state):
+    if _late_measurement_reply._reserved_for_the_measurement_park(fresh_batch, state):
         return None
     new_comments = [seen for seen in fresh_batch if seen.id not in ours]
     if new_comments and _late_command._reserved_for_the_park(

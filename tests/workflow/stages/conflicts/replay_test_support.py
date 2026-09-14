@@ -29,7 +29,10 @@ from orchestrator.workflow.late_split import (
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.conflicts import state as _state
-from orchestrator.workflow.stages.implementing import late_parks as _parks
+from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
+)
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.authorization import _authorize
 from tests.workflow.repo_values import (
@@ -157,9 +160,9 @@ def granted_state() -> dict:
     _rewrites.record_rewrite_authorization(
         state, GRANTED_REPLAY, CONTRIBUTION_DIGEST,
     )
-    _parks._approve(
+    _late_approval_state._approve(
         state, REPLAYED_HEAD, ADJUDICATED_HEAD,
-        _parks.LateApprovalBasis.UNMEASURED,
+        _late_approval_reading.LateApprovalBasis.UNMEASURED,
     )
     return state.data
 

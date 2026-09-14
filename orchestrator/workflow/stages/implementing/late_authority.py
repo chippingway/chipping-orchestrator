@@ -69,8 +69,8 @@ from orchestrator.workflow.late_split import (
     overrides as _overrides,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -275,13 +275,13 @@ def _unauthorized_debt(gate: _late_gate_models._Gate, candidate_sha: str) -> boo
     would otherwise have turned on. An issue carrying no exemption field at
     all is that other thing, and its approval is the gate's own.
     """
-    basis = _parks._approved_basis(gate.state)
+    basis = _late_approval_reading._approved_basis(gate.state)
     if basis:
         return (
-            basis in _parks.AUTHORIZED_BASES
+            basis in _late_approval_reading.AUTHORIZED_BASES
             and not _publishes_on_an_exemption(gate, candidate_sha)
         )
-    if _parks._unreadable_basis(gate.state):
+    if _late_approval_reading._unreadable_basis(gate.state):
         return not _publishes_on_an_exemption(gate, candidate_sha)
     if _exemption_reading.is_exempt(gate.state, candidate_sha):
         return not _publishes_on_an_exemption(gate, candidate_sha)

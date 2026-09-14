@@ -25,15 +25,17 @@ last is held by the loader itself rather than by a check.
 - **Over every scope, declared per module.** A base sync runs in the git layer but reports to the
   issue it was started for: `base_sync/conflicts.py`, `base_sync/recovery_notices.py`, and `base_sync/publication.py`
   reach `workflow/engine/comments.py`; `persistence` reaches `workflow/engine/guards.py` and
-  `workflow/stages/implementing/late_parks.py`, to drop the debt the size gate recorded when a refused push sends
-  the branch back to where it started; `base_sync/attempt_records.py` reaches `workflow/late_split/formats.py`, for the
+  `workflow/stages/implementing/late_approval_reading.py` and `late_approval_state.py`, to read and drop the debt
+  the size gate recorded when a refused push sends the branch back to where it started;
+  `base_sync/attempt_records.py` reaches `workflow/late_split/formats.py`, for the
   shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
   refuses; the base-sync transfer owners read the higher-layer records only inside their calls:
   `transfers.py` reads `workflow/late_split/exemption_reading.py`, `rewrite_reading.py`, and `rewrite_values.py`;
   `transfer_values.py` reads the phase value, `transfer_evidence.py` reads the exemption and rewrite value,
   `transfer_attempts.py` reads the exemption, and `transfer_publication.py` reads
-  `workflow/stages/implementing/late_parks.py` for the publication debt and receipt. `transfers.py` also loads the publication permit and frozen entry
-  through `late_overflow.py`, `late_records.py`, and `late_transfer.py`. Base-sync `publication` also reads
+  `workflow/stages/implementing/late_approval_reading.py` and `late_publication_state.py` for the debt and
+  receipt. `transfers.py` also loads the publication permit and frozen entry through `late_overflow.py`,
+  `late_records.py`, and `late_transfer.py`. Base-sync `publication` also reads
   `workflow/stages/implementing/late_push.py` and `late_records.py` — the gated push the rebase it is about to
   force-push goes through, since a base that moved changes what the branch adds to it and a pull request may not be
   grown past the ceiling by a refresh either. Both base-sync `publication` and `recovery` load the frozen `_Entered`

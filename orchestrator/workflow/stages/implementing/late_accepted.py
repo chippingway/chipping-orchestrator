@@ -19,9 +19,10 @@ from pathlib import Path
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
     late_publication as _publication_gate,
+    late_publication_state as _late_publication_state,
     late_push as _push,
 )
 
@@ -93,8 +94,8 @@ def _publishes_approved(gate: _late_gate_models._Gate, branch: str) -> bool:
     one granted for the commit in hand is left where it stands for the tick
     that re-asks it.
     """
-    approved = _parks._approved_commit(gate.state)
-    lease = _parks._approved_lease(gate.state)
+    approved = _late_approval_reading._approved_commit(gate.state)
+    lease = _late_approval_reading._approved_lease(gate.state)
     if not approved or not lease or not _standing_on(gate.worktree, approved):
         return False
     published = _publication_gate._PublishedCandidate(
@@ -106,7 +107,7 @@ def _publishes_approved(gate: _late_gate_models._Gate, branch: str) -> bool:
         # onto: this road freezes no entry, so there is nothing else for the
         # write to read one off, and a receipt without it leaves the next
         # recovery with a branch to search rather than a number to prove.
-        pull_request=_parks._recorded_pull_request(gate.state),
+        pull_request=_late_publication_state._recorded_pull_request(gate.state),
     )
     if _publication_gate._publication_ended(gate):
         return False

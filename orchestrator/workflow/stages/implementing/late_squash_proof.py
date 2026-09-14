@@ -17,8 +17,10 @@ from orchestrator.workflow.late_split import (
     state as _late_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
+    late_park_notices as _late_park_notices,
+    late_publication_state as _late_publication_state,
     late_records as _records,
 )
 
@@ -115,8 +117,8 @@ def _named_by(state, squashed: str) -> bool:
     still names the head it replaced.
     """
     named = (
-        _parks._published_commit(state),
-        _parks._approved_commit(state),
+        _late_publication_state._published_commit(state),
+        _late_approval_reading._approved_commit(state),
         _late_state.read_late_generation(state).candidate_sha,
     )
     return bool(squashed) and squashed in named
@@ -156,7 +158,7 @@ def _refuses_the_squash(gate: _late_gate_models._Gate, refusal: str) -> bool:
         "checkout nobody squashed to the pull request",
         gate.issue.number, refusal,
     )
-    _parks._parked(
+    _late_park_notices._parked(
         gate, _records._reportable(gate, _late_state.read_late_generation(
             gate.state,
         )),
@@ -196,7 +198,7 @@ def _leased_head(
     """
     if _already_published(
         gate.state, recorded.head, squashed,
-        _parks._recorded_pull_request(gate.state),
+        _late_publication_state._recorded_pull_request(gate.state),
     ):
         return squashed
     return recorded.head
@@ -224,6 +226,6 @@ def _already_published(
     the commit, so a reset would take the checkout off it and the count the
     handoff still owes a notice would go with the record.
     """
-    return _parks._publication_from(
+    return _late_publication_state._publication_from(
         state, replaced, pull_request,
     ) == squashed

@@ -20,8 +20,8 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
     checkout_recovery as _checkout_recovery,
+    late_approval_reading as _late_approval_reading,
     late_command as _late_command,
-    late_parks as _late_parks,
     late_rollback as _rollback,
     state as _state,
 )
@@ -155,7 +155,7 @@ def _nothing_to_answer(
     """
     if read.answer is not None:
         return False
-    if _late_parks._approved_commit(state):
+    if _late_approval_reading._approved_commit(state):
         return False
     return not state.get(_state._HELD_RECEIPT)
 

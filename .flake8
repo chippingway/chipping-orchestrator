@@ -1,10 +1,9 @@
 [flake8]
-# Temporary exact-path complexity exclusions; remove each as its owner is split.
-# No replacement exclusions or raised limits. See docs/configuration/operations.md.
+# WPS uses its default rules and limits, without exclusions.
+# See docs/configuration/operations.md.
 per-file-ignores =
     orchestrator/git/base_sync/outcomes.py:WPS202,WPS204
     orchestrator/git/base_sync/recovery.py:WPS202
-    orchestrator/workflow/stages/implementing/late_parks.py:WPS202
     tests/git/base_sync/vouched_replay_git_support.py:WPS214
     tests/git/base_sync/test_recovery_authorization.py:WPS214
     tests/git/base_sync/test_transfers.py:WPS214

@@ -75,8 +75,10 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
     late_gate_models as _late_gate_models,
-    late_parks as _parks,
+    late_park_notices as _late_park_notices,
+    late_publication_state as _late_publication_state,
     late_records as _records,
     state as _state,
 )
@@ -305,9 +307,9 @@ def _this_issues_own(
     one publication and no other.
     """
     recorded = _late_state.read_late_generation(gate.state)
-    receipt = _parks._publication_from(gate.state, entered.head, number)
+    receipt = _late_publication_state._publication_from(gate.state, entered.head, number)
     return frozenset(filter(None, (
-        _parks._approved_commit(gate.state),
+        _late_approval_reading._approved_commit(gate.state),
         recorded.candidate_sha,
         receipt if receipt == entered.candidate else "",
     )))
@@ -637,7 +639,7 @@ def _refused_entry(
         "it already has (%s); refusing to push a candidate nobody measured",
         gate.issue.number, entry.refusal,
     )
-    return _parks._parked(
+    return _late_park_notices._parked(
         gate, _records._reportable(gate, recorded), entry.refusal,
         _ENTRY_PARK.format(
             mentions=config.HITL_MENTIONS,
@@ -686,7 +688,7 @@ def _moved_publication(
         "(%s); refusing to measure or push against it",
         gate.issue.number, disagreement,
     )
-    return _parks._parked(
+    return _late_park_notices._parked(
         gate, _records._reportable(gate, recorded), _MOVED_HEAD,
         _MOVED_PUBLICATION_PARK.format(
             mentions=config.HITL_MENTIONS, disagreement=disagreement,

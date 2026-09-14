@@ -23,7 +23,8 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
-    late_parks as _late_parks,
+    late_approval_reading as _late_approval_reading,
+    late_park_state as _late_park_state,
     models as _models,
     parks as _parks,
     session_read as _session_read,
@@ -225,8 +226,8 @@ def _inherited_floor(state: PinnedState) -> str:
     if baseline:
         return str(baseline)
     return (
-        _late_parks._recorded_candidate(state)
-        or _late_parks._approved_commit(state)
+        _late_park_state._recorded_candidate(state)
+        or _late_approval_reading._approved_commit(state)
     )
 
 

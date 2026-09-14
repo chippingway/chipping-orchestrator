@@ -176,12 +176,13 @@ def _forgets_the_reset(
     # gate sits in the workflow layer above this package, and binding it at
     # module load would make every git-side import pay for the stage tree.
     from orchestrator.workflow.stages.implementing import (
-        late_parks,
+        late_approval_reading as _late_approval_reading,
+        late_approval_state as _late_approval_state,
         late_records,
         late_transfer,
     )
-    if late_parks._approved_commit(context.state) != reset_sha:
-        late_parks._forget_approval(context.state)
+    if _late_approval_reading._approved_commit(context.state) != reset_sha:
+        _late_approval_state._forget_approval(context.state)
     late_transfer._abandoned_authorization(
         late_records._gate(
             context.gh, context.spec, context.issue, context.state,

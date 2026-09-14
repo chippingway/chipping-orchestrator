@@ -19,7 +19,8 @@ from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
     checkout_recovery as _checkout_recovery,
     late_evidence as _late_evidence,
-    late_parks as _late_parks,
+    late_measurement_reply as _late_measurement_reply,
+    late_park_state as _late_park_state,
     models as _models,
     session_read as _session_read,
     state as _state,
@@ -63,7 +64,7 @@ def _try_recover_late_measurement_park(
     which is safe only because every one of them is a bare continue: nothing
     with words in it is dropped here.
     """
-    replies = _late_parks._answers_the_measurement_park(gh, issue, state)
+    replies = _late_measurement_reply._answers_the_measurement_park(gh, issue, state)
     if not replies:
         return False
     state.set(
@@ -93,7 +94,7 @@ def _try_recover_late_measurement_park(
     )
     _candidate_recovery._publish_committed_work(
         gh, spec, issue, state, _models._RecoveredWork(
-            agent_result, wt, _late_parks._recorded_candidate(state),
+            agent_result, wt, _late_park_state._recorded_candidate(state),
         ),
     )
     gh.write_pinned_state(issue, state)

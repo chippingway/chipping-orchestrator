@@ -616,8 +616,9 @@ The keys that matter for the state machine fall into a few groups:
   ahead of the generic continue
   classifier, since a content-free `/orchestrator continue` on it means "take the reading again" rather than the
   guidance a park needing a real answer would be refused for. While it stands, a fresh batch of nothing but bare
-  continues is that road's alone (`late_parks._reserved_for_the_measurement_park`), and both roads behind it hand
-  the whole tick back rather than spending one: each reads the thread again after the road above it returned, so a
+  continues is that road's alone (`late_measurement_reply._reserved_for_the_measurement_park`), and both roads
+  behind it hand the whole tick back rather than spending one: each reads the thread again after the road above
+  it returned, so a
   command landing in either window is in its batch and in nobody else's — refused and consumed past its own refusal
   by the classifier, or fed to a developer as guidance by the resume. Deferred entire, the next poll reads the same
   batch and re-measures the pair on it. The reservation is asked of the trusted read before the orchestrator's own
@@ -822,7 +823,7 @@ The keys that matter for the state machine fall into a few groups:
 
   Asking here does not settle it, and the commit is CARRIED for that reason. The gate reads the head again for
   itself, and the worktree is writable between the two readings — so the proved commit is named on the recovered
-  work handed to the seam, and `late_gate._moved_off_the_caller` holds that second read to it, refusing before
+  work handed to the seam, and `late_freeze._moved_off_the_caller` holds that second read to it, refusing before
   anything is persisted or pushed. Every recovery road names the commit it proved, since none of them has a
   developer behind it: the reading that licensed each is about a commit a previous tick recorded, so a head that
   moved mid-tick is not fresh work to measure in its place. On this park the refusal is one more seam outcome that
@@ -844,13 +845,14 @@ The keys that matter for the state machine fall into a few groups:
   `late_held_authorization_park` itself: the write that moves the label out of implementing spends it, so a record
   still carrying it is a call that published nothing.
 
-  The same rule decides which parks a road may retire at all. A reading answers the park a READING was owed, so
-  `late_parks._retire_spent_park` ends `late_measurement_failed` and nothing else; this park waits on a person,
-  and no reading anybody takes answers a person, so it comes off only where a publication under it actually
-  happens — `late_parks._retire_authorized_park`, called past every refusal on both of the gate's answers that
-  publish without asking anybody: every road that skips the reading altogether, which under a standing park means a
-  commit an override now covers or the bookkeeping owed for one its own pull request already stands on, and a fresh
-  count the ceiling lets through, which says no person was ever needed for a change this size.
+  The same rule decides which parks a road may retire at all. A reading answers the park a READING was owed,
+  so `late_park_retirement._retire_spent_park` ends `late_measurement_failed` and nothing else; this park
+  waits on a person, and no reading anybody takes answers a person, so it comes off only where a publication
+  under it actually happens — `late_park_retirement._retire_authorized_park`, called past every refusal on
+  both of the gate's answers that publish without asking anybody: every road that skips the reading
+  altogether, which under a standing park means a commit an override now covers or the bookkeeping owed for
+  one its own pull request already stands on, and a fresh count the ceiling lets through, which says no person
+  was ever needed for a change this size.
 
   Where the publication does happen, that same reading is what **spends** the command. `late_consent` consumes the
   reply in the write that records an authorization from it, but two of the gate's roads publish without reading the
@@ -2324,8 +2326,9 @@ rather than preserving.
   pull request, and every member through the fail-closed reader that answers a hand edit as the absence — with the
   debt beside it asked as well, and asked by PRESENCE: an approval still standing over a receipted commit is a write
   that did not land whole, and so is one this build cannot read back whole, which `_unreadable_approval` on the
-  [`late_parks`](../../orchestrator/workflow/stages/implementing/late_parks.py) owner tells from the group of nulls
-  the write that pays a debt leaves. Anything else parks with the anchor left pinned and a human settles the comment.
+  [`late_approval_reading`](../../orchestrator/workflow/stages/implementing/late_approval_reading.py) owner
+  tells from the group of nulls the write that pays a debt leaves. Anything else parks with the anchor left pinned
+  and a human settles the comment.
   And whether the record says a replay reached a remote that no longer has it, which a *settled* transfer says
   outright and a whole receipt says for a replay no permit ever licensed: the head they rolled back to is the very
   head a retry would lease its force-push against, so the lease would be satisfied and the rollback would be gone.

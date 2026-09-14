@@ -19,7 +19,8 @@ from unittest.mock import patch
 from orchestrator.config import settings as config
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.implementing import (
-    late_parks as _parks,
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
     state as _state,
 )
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_VALIDATING
@@ -106,13 +107,13 @@ class AuthorizedPublicationTest(
         # pushes; this one says a person did, which is a permission that has
         # to still be readable when the debt is spent.
         self._reply(_consent_payloads.AUTHORIZE)
-        granting = _RemembersTheBasis(_parks._approve)
+        granting = _RemembersTheBasis(_late_approval_state._approve)
 
-        with patch.object(_parks, _APPROVE, granting):
+        with patch.object(_late_approval_state, _APPROVE, granting):
             self._run_tick()
 
         self.assertEqual(
-            granting.on, [_parks.LateApprovalBasis.AUTHORIZATION],
+            granting.on, [_late_approval_reading.LateApprovalBasis.AUTHORIZATION],
         )
 
     def test_a_retry_keeps_the_terms_it_was_given(self) -> None:
