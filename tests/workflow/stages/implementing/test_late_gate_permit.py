@@ -18,7 +18,8 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_gate as _gate,
-    late_records as _records,
+    late_gate_models as _late_gate_models,
+    late_gate_permission as _late_gate_permission,
     late_transfer as _transfer,
     late_verdict as _verdict_owner,
 )
@@ -39,7 +40,7 @@ class PermitOnlyGateTest(unittest.TestCase):
     """One question, no fallbacks, and the caller owns a refusal."""
 
     def setUp(self) -> None:
-        self.gate = _records._Gate(
+        self.gate = _late_gate_models._Gate(
             gh=FakeGitHubClient(),
             spec=_TEST_SPEC,
             issue=make_issue(GATE_ISSUE_NUMBER),
@@ -52,12 +53,12 @@ class PermitOnlyGateTest(unittest.TestCase):
     def test_a_refused_permit_measures_nothing(self) -> None:
         with patch.object(
             _transfer, "_carried_over", return_value="",
-        ), patch.object(_gate, "_needs_no_measuring") as never:
+        ), patch.object(_late_gate_permission, "_needs_no_measuring") as never:
             verdict = self._decides()
 
             never.assert_not_called()
 
-        self.assertIs(verdict, _records._REFUSED)
+        self.assertIs(verdict, _late_gate_models._REFUSED)
         self.assertTrue(verdict.held)
 
     def test_a_granted_permit_publishes_on_it_alone(self) -> None:
@@ -73,7 +74,7 @@ class PermitOnlyGateTest(unittest.TestCase):
         self.assertEqual(entered.permitted_sha, MEASURED_CANDIDATE_SHA)
         self.assertEqual(entered.candidate_sha, MEASURED_CANDIDATE_SHA)
 
-    def _decides(self) -> _records._GateVerdict:
+    def _decides(self) -> _late_gate_models._GateVerdict:
         return _gate._decided(
             self.gate, LateGeneration(), MEASURED_CANDIDATE_SHA,
         )

@@ -15,6 +15,9 @@ from orchestrator.git.base_sync import (
     outcomes,
     persistence,
     recovery,
+    recovery_push as _recovery_push,
+    replay_cleanup as _replay_cleanup,
+    replay_recovery as _replay_recovery,
     snapshot,
 )
 from orchestrator.git.verification import status as _worktree_status
@@ -41,14 +44,14 @@ PUSH_BRANCH = "_push_branch"
 DIRTY_FILES = "_worktree_dirty_files"
 
 # Every road of the dormant vouched-replay route a running selector could
-# reach it through, on the `recovery` owner they live on.
-_VOUCHED_ROADS = (
-    "_recover_vouched_replay_context",
-    "_answers_an_ineligible_label",
-    "_finish_an_unmoved_head",
-    "_route_vouched_snapshot",
-    "_route_an_unpublished_head",
-)
+# reach it through, with each defining owner as the patch target.
+_VOUCHED_ROADS = MappingProxyType({
+    "_recover_vouched_replay_context": _replay_recovery,
+    "_answers_an_ineligible_label": _replay_cleanup,
+    "_finish_an_unmoved_head": _replay_cleanup,
+    "_route_vouched_snapshot": _replay_recovery,
+    "_route_an_unpublished_head": _replay_recovery,
+})
 
 # A changed head strictly ahead of the remote it was compared against, which
 # is the one comparison the running route reissues a push over.
@@ -76,7 +79,7 @@ ANSWERS = (
     (outcomes, ALREADY_PUBLISHED),
     (outcomes, UNKNOWN_COMPARISON),
     (outcomes, DIVERGED),
-    (recovery, RETRY_PUSH),
+    (_recovery_push, RETRY_PUSH),
 )
 
 # Each completed comparison and the single answer it selects. The ahead-only
@@ -326,8 +329,8 @@ class RecoveryRouteTest(unittest.TestCase):
         unmoved = fixtures._snapshot(local_head=fixtures.PRE_REBASE_SHA)
         with contextlib.ExitStack() as stack:
             for name, road in dormant.items():
-                stack.enter_context(patch.object(recovery, name, road))
-            stack.enter_context(patch.object(recovery, RETRY_PUSH, retried))
+                stack.enter_context(patch.object(_VOUCHED_ROADS[name], name, road))
+            stack.enter_context(patch.object(_recovery_push, RETRY_PUSH, retried))
             stack.enter_context(_routed(**{
                 CLEAR_INELIGIBLE: _handled(),
                 CLEAR_UNCHANGED: MagicMock(return_value=False),
@@ -392,7 +395,7 @@ class RetryRecoveryPushTest(unittest.TestCase):
         finalize = _handled()
 
         with self._push_patches(push=push, finalize=finalize):
-            pushed = recovery._retry_recovery_push(
+            pushed = _recovery_push._retry_recovery_push(
                 context, fixtures._snapshot(ahead=1),
             )
 
@@ -427,7 +430,7 @@ class RetryRecoveryPushTest(unittest.TestCase):
         finalize = _handled()
 
         with self._push_patches(push=push, finalize=finalize):
-            recovery._retry_recovery_push(
+            _recovery_push._retry_recovery_push(
                 context, fixtures._snapshot(ahead=1),
             )
 
@@ -448,7 +451,7 @@ class RetryRecoveryPushTest(unittest.TestCase):
         _gate_candidates(self, MOVED_CHECKOUT_SHA)
 
         with self._push_patches(push=push, finalize=finalize):
-            handled = recovery._retry_recovery_push(
+            handled = _recovery_push._retry_recovery_push(
                 fixtures._recovery_context(), fixtures._snapshot(ahead=1),
             )
 
@@ -461,7 +464,7 @@ class RetryRecoveryPushTest(unittest.TestCase):
         park = _handled()
 
         with self._push_patches(push=push, dirty=LEFTOVERS), patch.object(outcomes, "_park_dirty_recovery", park):
-            parked = recovery._retry_recovery_push(
+            parked = _recovery_push._retry_recovery_push(
                 fixtures._recovery_context(), fixtures._snapshot(ahead=1),
             )
 
@@ -478,7 +481,7 @@ class RetryRecoveryPushTest(unittest.TestCase):
         with self._push_patches(
             push=MagicMock(return_value=False), finalize=finalize,
         ), patch.object(outcomes, "_park_failed_recovery_push", park):
-            parked = recovery._retry_recovery_push(
+            parked = _recovery_push._retry_recovery_push(
                 fixtures._recovery_context(), fixtures._snapshot(ahead=1),
             )
 

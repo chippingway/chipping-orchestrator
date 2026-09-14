@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.stages.implementing import late_parks as _parks
+from orchestrator.workflow.stages.implementing import (
+    late_approval_reading as _late_approval_reading,
+    late_approval_state as _late_approval_state,
+)
 from tests.git.base_sync import recovery_git_support as fixtures
 from tests.git.base_sync.recovery_git_support import RecoveryGitFixtureMixin
 from tests.git.base_sync.vouched_replay_git_support import (
@@ -159,12 +162,12 @@ class VouchedReplayRealGitTest(
         # stands only where a push had landed. The remote being back on the
         # anchor is that publication rolled back -- reissuing the push would
         # overwrite it and announce the same rebase a second time.
-        self._assert_announcement_parks(self.recovered)
+        _assert_announcement_parks(self, self.recovered)
 
     def test_a_mark_naming_another_head_is_reset_too(self) -> None:
         # A checkpoint something took apart says the route got that far and
         # nothing more; read as an absence it costs the same second notice.
-        self._assert_announcement_parks(self.anchor)
+        _assert_announcement_parks(self, self.anchor)
 
     def test_its_own_relabel_then_a_rollback_resets(self) -> None:
         # The finish pushed, announced, and relabelled to `validating` before
@@ -189,9 +192,9 @@ class VouchedReplayRealGitTest(
         # Pushed past, the replay goes out and the gate's write replaces the
         # only record of a push somebody else is owed.
         state = self.gh.read_pinned_state(self.issue)
-        _parks._approve(
+        _late_approval_state._approve(
             state, MISSING_COMMIT, self.anchor,
-            _parks.LateApprovalBasis.UNMEASURED,
+            _late_approval_reading.LateApprovalBasis.UNMEASURED,
         )
         self.gh.write_pinned_state(self.issue, state)
 
@@ -201,15 +204,16 @@ class VouchedReplayRealGitTest(
         self.assertEqual(self.push.leases, [])
         self._assert_parked(PARK_FAILED)
 
-    def _assert_announcement_parks(self, announced: str) -> None:
-        self.announce_a_finish(announced)
 
-        recovered = self.recover()
+def _assert_announcement_parks(case, announced: str) -> None:
+    case.announce_a_finish(announced)
 
-        self.assertTrue(recovered)
-        self.assertEqual(self.push.leases, [])
-        self.assertEqual(self._remote_head(), self.anchor)
-        self._assert_parked(fixtures.PARK_PUSH_FAILED)
+    recovered = case.recover()
+
+    case.assertTrue(recovered)
+    case.assertEqual(case.push.leases, [])
+    case.assertEqual(case._remote_head(), case.anchor)
+    case._assert_parked(fixtures.PARK_PUSH_FAILED)
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import persistence, recovery
+from orchestrator.git.base_sync import persistence, recovery_push as _recovery_push
 from orchestrator.git.verification import status as _worktree_status
 from tests.git.base_sync import (
     base_sync_helpers as fixtures,
@@ -82,7 +82,7 @@ class SwitchedOffRecoveryPushTest(unittest.TestCase):
         push = MagicMock(return_value=True)
 
         with _gate_switched_off(counted), self._push_patches(push):
-            pushed = recovery._retry_recovery_push(
+            pushed = _recovery_push._retry_recovery_push(
                 fixtures._recovery_context(), fixtures._snapshot(ahead=1),
             )
 

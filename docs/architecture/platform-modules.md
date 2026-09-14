@@ -34,11 +34,13 @@ last is held by the loader itself rather than by a check.
   `transfer_values.py` reads the phase value, `transfer_evidence.py` reads the exemption and rewrite value,
   `transfer_attempts.py` reads the exemption, and `transfer_publication.py` reads
   `workflow/stages/implementing/late_approval_reading.py` and `late_publication_state.py` for the debt and
-  receipt. `transfers.py` also loads the publication permit and frozen entry through `late_overflow.py`,
-  `late_records.py`, and `late_transfer.py`. Base-sync `publication` also reads
+  receipt and rejects debts belonging to another attempt. `transfer_permits.py` loads the publication permit and
+  frozen entry through `late_overflow.py`, `late_records.py`, `late_transfer.py`, and `late_gate_models.py`.
+  Base-sync `publication` also reads
   `workflow/stages/implementing/late_push.py` and `late_records.py` — the gated push the rebase it is about to
   force-push goes through, since a base that moved changes what the branch adds to it and a pull request may not be
-  grown past the ceiling by a refresh either. Both base-sync `publication` and `recovery` load the frozen `_Entered`
+    grown past the ceiling by a refresh either. Both base-sync `publication` and `recovery_push` load the frozen
+  `_Entered`
   value from `late_gate_models.py` inside that call. `publication/rewrite.py` reaches `late_rewrite.py` to enter
   a squash on its existing publication and publish through the size gate. Its reset and push steps also load
   `late_collapse_state.py` and `late_squash_proof.py`; `publication/resume.py` reads both, and `squash.py` and
@@ -151,7 +153,8 @@ orchestrator/
                         when the filesystem refuses the line
     host_lock.py        the artifact lock's descriptor operations and interruptible acquisition wait. Only
                         contention is retried; other lock errors report that the host cannot be coordinated on
-    exclusion.py        which process on this host may take the artifacts: one `host_lock.py` claim under `WORKTREES_DIR`,
+      exclusion.py        which process on this host may take the artifacts: one `host_lock.py` claim under
+  `WORKTREES_DIR`,
                         held shared for a polling run's whole life and exclusively for as long as any pass acts --
                         including a polling run's own pass, which hands its presence over and takes it back, so a
                         second daemon cannot be submitting while this one deletes. A pass never waits for it and a
@@ -220,7 +223,8 @@ orchestrator/
                         and leave the rest of the record as visible issue text, and with that escape stood down for a
                         payload it would put past the limit, since the record is what a later tick reads while the
                         escape only decides how the comment LOOKS, and a write refused for a rendering takes whatever
-                        park, notice or outcome it was carrying with it -- and the length GitHub takes, its parser -- which identifies a state-only comment whatever payload it carries
+                          park, notice or outcome it was carrying with it -- and the length GitHub takes, its parser
+  -- which identifies a state-only comment whatever payload it carries
                         and keeps the one carrying no readable state, whether it would not parse or parsed
                         into anything but an object, apart from an issue that recorded nothing, since both read
                         back as `{}` -- and the comment watermarks beside it, whose thread read tells the pinned
@@ -348,7 +352,8 @@ orchestrator/
                         clear that ends an auto-rebase attempt. Both publication and recovery record their
                         announcement while the anchor still stands and before relabeling
       attempt_records.py
-                        validate interrupted replay evidence as absent, in flight, or damaged, sharing the replay
+                          validate interrupted replay terms and head as absent, declared, recorded, or damaged,
+  sharing the replay
                         field group with the lifecycle clear. Commit validation uses the late domain's format
                         reader through a call-time import
       publication.py    the post-rebase checks, the size gate the rebase passes before it publishes -- reached
@@ -372,50 +377,52 @@ orchestrator/
                         whole debt and receipt proofs for recovered publication and rollback; an unreadable approval
                         or a receipt for another head or PR cannot prove this attempt settled
       transfers.py      classify the exact attempt's missing, unrecorded, outstanding, settled, or unvouched handoff,
-                        and require a published rotation to agree with the issue's current exemption. Its permit ask
-                        and outstanding-transfer reading serve the dormant vouched-replay recovery; no production
-                        selector activates that recovery route
+                        and require a published rotation to agree with the issue's current exemption. Its outstanding
+                        transfer reading passes over settled history when deciding whether an attempt can be cleared
+      transfer_permits.py
+                        freeze the current publication entry and ask its transfer permit ahead of a recovered push;
+                        the dormant replay route requires the same permit again inside the publication gate
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
                         with
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals
       snapshot.py       the branch fetch, the local / remote head reads and divergence counts, and the abort an
                         unreadable one takes
-      recovery.py       the order a crash recovery asks its questions in, and the dirty-guarded reissued push,
-                        measured by the same gate and named against the head this recovery verified against the
-                        remote: one an earlier tick rebased and never pushed is a head nothing has read against
-                        the base it now sits on, and one something moved since is not the head the finalize
-                        behind the push records. Beside that route, and DORMANT -- no production selector reaches
-                        `_recover_vouched_replay_context` -- the vouched-replay route. A checkout the pull request
-                        is NOT standing on is classified by the pair of SHAs the attempt recorded rather than by
-                        the divergence counts -- a replay is behind its own publication, so the counts read the
-                        canonical pre-push recovery as an out-of-band update -- and by how far the transfer beside
-                        them got. Ahead of all of it the terms the attempt recorded are held to the publication
-                        this tick holds, forgiving only the `validating` relabel a finish makes beside a mark
-                        naming the head in hand. Where a verdict is being carried the permit is the whole of what
-                        may let the push out: it is asked ahead of the gate, the gate is told the same, and the
-                        rotation is read back afterwards -- and the permission that ask persists is itself what
-                        vouches for the checkout on the tick after a crash between it and the push. An issue
-                        relabelled off the refresh-driven set and a checkout back ON the anchor are answered by
-                        what the attempt left. The reissued push takes the transfer and the permit-only switch as
-                        arguments the running route never passes
-      outcomes.py       the already-published, unknown-comparison, diverged, dirty, and failed-push answers, beside
-                        the parks only the dormant vouched-replay route reaches: a record nobody can vouch for, an
-                        attempt record that disowns the checkout, a permit that refuses, a replay in flight no
-                        verdict can prove, a remote rolled back off a replay the record says it carried, a finish's
-                        announcement over a remote that has lost the publication it describes, and a branch put
-                        back on its anchor with the attempt's records still standing, whose reset moves nothing and
-                        is taken for the bookkeeping it carries out. Three of them leave HEAD alone: a push that
-                        landed with the route behind it unfinished, an attempt made for a publication this issue no
-                        longer records, and an issue relabelled out from under an attempt that left something a
-                        clear would strand, the last taken once rather than on every poll under the wrong label
+      recovery.py       the running crash-recovery coordinator: clear an ineligible label, hand back an unmoved
+                        checkout, recognize a published head, then check divergence before retrying. Its keyword
+                        adapter binds the caller's arguments into the recovery context
+      recovery_push.py  the shared dirty-guarded retry, bound to the exact verified checkout. Ordinary recovery uses
+                        the measured gate; dormant replay recovery may require a transfer permit before and inside
+                        the gate, then verify that the verdict rotated before finalizing the push
+      replay_recovery.py
+                        the dormant record-based coordinator; no production selector enters it. Label and unmoved
+                        cleanup precede comparison, a published head precedes retry checks, and proven replay evidence
+                        precedes the divergence fallback
+      replay_cleanup.py the clear-or-park decision for an ineligible label or a checkout back on the anchor. Records
+                        that describe a replay, announcement, or unspent transfer prevent a silent clear
+      replay_evidence.py
+                        pure readings tying the checkout and recorded publication to this attempt, including the
+                        grant-vouched window before a replay head was recorded and the finish's own relabel
+      replay_refusals.py the ordered preflight before a dormant replay retry: foreign publication, announcement,
+                        rollback, unvouched transfer, and unclaimed checkout. Every refusal stays ahead of publication
+      outcomes.py       ordinary recovery's already-published, unknown-comparison, diverged, dirty, and failed-push
+                        answers; successful notices are formatted by recovery_notices
+      replay_transfer_parks.py
+                        permit and transfer refusals: reset an unlicensed replay through the guarded rollback, or
+                        retain a push that landed without the verdict's rotation for human reconciliation
+      replay_checkout_parks.py
+                        guarded rollback for unrecorded work, an out-of-band remote rollback, an announced publication
+                        the remote lost, or an undone rebase whose abandoned bookkeeping must be retired
+      replay_publication_parks.py
+                        keep the checkout and pinned evidence when the issue's publication or label changed; a
+                        stranded park is recorded once so repeated ticks do not advance the reply watermark
       persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the
                         approved commit -- and the recovery finalization that orders notice delivery, the
                         durable announcement checkpoint, routing, and the final state write
       recovery_notices.py
-                        the PR notice and audit event a recovery publishes before its announcement checkpoint;
-                        a failed comment is reported while the recovered publication can still be recorded
+                        format and deliver the successful recovery notices and audit event before the announcement
+                        checkpoint; a failed comment is reported while the recovered publication can still be recorded
       models.py         the frozen contexts, requests, snapshots, and decisions
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
@@ -450,7 +457,8 @@ orchestrator/
       rewrite.py        the soft reset, the orchestrator-identity commit, the gated publication of the commit it
                         just made -- measured, then named against it and pinned to the head the entry froze, with
                         the plan's pre-squash head and merge base handed over beside it, since a rewrite of the
-                        exact commit an authorized settlement accepted may carry that exemption over and both ends of both
+                          exact commit an authorized settlement accepted may carry that exemption over and both ends
+  of both
                         contributions are what says so -- and
                         the rollback a post-reset failure takes -- the ref and the index, never the working tree,
                         since a squash has the same tree as the head it replaces and the only thing taking the
@@ -470,7 +478,8 @@ orchestrator/
                         the receipt dated to this attempt is asked beside it for the road that read no remote at
                         all. Neither can fire on a fresh squash, whose entry was frozen before the commit
                         existed. The approval the gate wrote before the push, and the permission a transfer
-                        held, are records a reset is SUPPOSED to drop, so neither is asked there. A HELD candidate is spared that rollback only
+                          held, are records a reset is SUPPOSED to drop, so neither is asked there. A HELD candidate
+  is spared that rollback only
                         where the squash is somebody's: a
                         live record naming it -- oversized, or a pair still owed its count -- already on the remote,
                         named by the approval as a push this issue still owes -- a reset there leaves the
@@ -499,7 +508,8 @@ orchestrator/
                         work committed over the collapse is work nobody here made and squashing afresh would
                         force-push it onto the pull request as history a reviewer approved. The two are still
                         told apart in the notice, since a recorded head still REACHABLE has the approved commits
-                        under the stray work and one the branch REPLACED has them only in the reflog. A collapse that landed locally, one the
+                          under the stray work and one the branch REPLACED has them only in the reflog. A collapse
+  that landed locally, one the
                         gate authorized, one the remote already carries, and one whose handoff never finished are
                         all finished through the same leased publication -- entered on the head the record names,
                         or on the rewritten commit itself where a receipt dates that tip to this attempt, so an
@@ -837,8 +847,13 @@ off a facade:
   `runtime/exclusion.py`, it claims the host against processes no scheduler hold can see.
 - `base_sync/` — `models` and `state` carry only data. On the sync side `refresh` calls `refresh_selection` before
   `pre_pr` and `pr`, `refresh_selection` asks `frozen` alone, `pr` asks `eligibility`, `startup`, and `publication` in
-  that order, and `guards` ends in `persistence`. On the recovery side `recovery` calls `snapshot`, `outcomes`, and
-  `persistence`. `attempts` is under both: it owns the record one rebase attempt leaves of itself, and every owner
+    that order, and `guards` ends in `persistence`. On the running recovery side `recovery` calls `snapshot`,
+  `outcomes`, and
+  `recovery_push`. The dormant `replay_recovery` coordinator uses `replay_cleanup` before comparison, then
+  `replay_refusals` and `replay_evidence` before selecting that shared push. Its refusal owners separate checkout
+  rollback, publication identity, and transfer accounting. `recovery_push` coordinates the gate and `persistence`
+    finalization, and `transfer_permits` freezes the entry for the permit it re-asks. `attempts` is under both: it
+  owns the record one rebase attempt leaves of itself, and every owner
   that writes a member of that record or ends it calls through it rather than spelling a key of its own.
   `attempt_records` owns interrupted-replay validation; `recovery_notices` delivers the notice and audit event in
   the order `persistence` coordinates with its checkpoint and routing. `transfer_evidence` assembles the rewrite

@@ -1296,7 +1296,7 @@ The keys that matter for the state machine fall into a few groups:
   **What is live today is the record; the decisions above are built and DORMANT.** Every write and the clear are on
   the running roads: the terms and the anchor go down before `git rebase`, the replay goes down before the dirty
   check, both finishes mark what they announced, and every ending drops the group. The readings — the three answers,
-  the presence test on the mark — are consulted only by `recovery._recover_vouched_replay_context`, which no
+  the presence test on the mark — are consulted only by `replay_recovery._recover_vouched_replay_context`, which no
   production selector reaches, so an interrupted attempt is still recovered on the anchor and the divergence counts
   alone, and a crash between an announcement and its relabel still costs the stream a second `base_rebased` and the
   pull request a second notice. What that route decides on them is fixed all the same. An unpublished checkout is
@@ -2311,7 +2311,7 @@ rather than preserving.
   naming another commit or another lease, or one this build cannot read back whole. The refresh's freeze lets an
   approval leased to the anchor through as this attempt's own work, so that debt has to be held to the replay here
   rather than measured past and overwritten. Only *unrecorded* is
-  handed evidence this owner made, and that asymmetry is the safety rule: a grant replaces the whole group rather
+  handed freshly reconstructed evidence, and that asymmetry is the safety rule: a grant replaces the whole group rather
   than adding beside it, so assembling a claim over one already standing would repair a record nobody checked under
   the authority of the transfer being decided. A *settled* record whose `late_rewrite_to_sha` is this attempt's own
   anchor is passed over rather than refused — it is the PREVIOUS rotation, which is never cleared and whose lease
@@ -2336,7 +2336,8 @@ rather than preserving.
   head a retry would lease its force-push against, so the lease would be satisfied and the rollback would be gone.
   **None of these readings is on a running road yet; the recovery that decides on them is built and DORMANT.** The
   publisher's own evidence is — it is what the size gate is handed on every exempt rebase — but the classification,
-  the re-derivation, and the rollback answer are consulted only by `recovery._recover_vouched_replay_context`, which
+  the re-derivation, and the rollback answer are consulted only by `replay_recovery._recover_vouched_replay_context`,
+  which
   no production selector reaches, and the accounting by nothing at all, so an interrupted transfer is still recovered
   on the anchor and the divergence counts alone. On that route a checkout the pull request is not standing on is
   classified off the pair of SHAs the attempt recorded — the anchor the remote must still be on, the replay the

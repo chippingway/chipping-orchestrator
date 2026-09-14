@@ -8,7 +8,9 @@ workflow record imports remain deferred to the reads that require them.
 """
 from __future__ import annotations
 
-from orchestrator.git.base_sync import transfer_values as _transfer_values
+from orchestrator.git.base_sync import (
+    transfer_values as _transfer_values,
+)
 from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoveryContext,
 )
@@ -197,4 +199,40 @@ def _receipted_publication(context: _AutoRebaseRecoveryContext) -> str:
     from orchestrator.workflow.stages.implementing import late_publication_state as _late_publication_state
     return _late_publication_state._publication_from(
         context.state, context.pending_pre_rebase_sha, context.pr_number,
+    )
+
+
+def _foreign_debt(
+    context: _AutoRebaseRecoveryContext, local_head: str,
+) -> bool:
+    """Whether a debt with no permission beside it is somebody else's.
+
+    Asked only once no permission stands, because a permission and its debt
+    are one grant and the reader above already holds each to the other. What
+    is left is the debt on its own, and it has one honest shape: the approval
+    the ordinary gate records for THIS replay before its push -- the commit on
+    this checkout, leased to this attempt's anchor, and readable whole. That
+    is exactly the record the refresh's freeze sets aside for its own
+    interrupted work, which is why an approval leased to the anchor reaches a
+    recovery at all.
+
+    Anything else that reaches one is a claim the freeze let through on its
+    lease alone. A debt naming another commit says a push is owed for work
+    this checkout is not, and one whose basis or lease cannot be read cannot
+    say what it is. Read as no transfer, the replay is measured and
+    force-pushed and the gate's own write replaces that debt with one of its
+    own -- overwriting the only account of the push it recorded.
+    """
+    # Lazy for the reason every upward reach in this package is: the debt
+    # sits in the workflow layer above it.
+    from orchestrator.workflow.stages.implementing import late_approval_reading as _late_approval_reading
+    if _late_approval_reading._unreadable_approval(context.state):
+        return True
+    owed = _late_approval_reading._approved_commit(context.state)
+    if not owed:
+        return False
+    if owed != local_head:
+        return True
+    return _late_approval_reading._approved_lease(context.state) != (
+        context.pending_pre_rebase_sha
     )

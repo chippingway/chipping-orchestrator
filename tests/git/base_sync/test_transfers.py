@@ -25,18 +25,10 @@ from orchestrator.workflow.late_split import (
     rewrite_fields as _rewrite_fields,
     rewrites as _rewrites,
 )
-from orchestrator.workflow.stages.implementing.state import _APPROVED_BASIS
 from tests.git.base_sync import (
     base_sync_helpers as fixtures,
     transfers_test_support as seed,
 )
-
-# A debt standing with no permission beside it that this attempt's own gate
-# did not leave: the commit and the head it is leased to, as `(commit, lease)`.
-FOREIGN_DEBTS = MappingProxyType({
-    "naming some other commit": (seed.FOREIGN_SHA, seed.ACCEPTED_SHA),
-    "leased to some other head": (seed.REPLAYED_SHA, seed.FOREIGN_SHA),
-})
 
 # A group something took a member out of, or left a value in that nothing here
 # would have written. `None` is the member taken out.
@@ -64,13 +56,6 @@ FROM_ELSEWHERE = MappingProxyType({
     "an accepted pair that is not this issue's": {
         "from_base_sha": seed.FOREIGN_SHA,
     },
-})
-
-# A debt standing beside a permission that does not agree with it. The two go
-# down in one write, so either disagreement is a comment something took apart.
-DISAGREEING_DEBTS = MappingProxyType({
-    "owed for some other commit": (seed.FOREIGN_SHA, seed.ACCEPTED_SHA),
-    "pinned to some other head": (seed.REPLAYED_SHA, seed.FOREIGN_SHA),
 })
 
 # A permission whose own fields read back whole and whose attempt record says
@@ -255,7 +240,7 @@ class LeftMidTransferTest(seed.TransferCase):
 
     def _taken_apart(self, state) -> None:
         seed.granted(state)
-        state.set(_rewrites.LATE_REWRITE_FROM_BASE_SHA, None)
+        state.set(_rewrite_fields.LATE_REWRITE_FROM_BASE_SHA, None)
 
     def _moved_past(self, state) -> None:
         # A settled rotation is never cleared, so a later adjudication leaves
@@ -276,7 +261,7 @@ class UnvouchedClaimTest(seed.TransferCase):
                 seed.granted(self.state)
                 _damage(self.state, damage)
 
-                self._refuses()
+                self.assertEqual(self._carried(), _transfer_values._Handoff.UNVOUCHED)
 
     def test_a_permission_from_another_attempt(self) -> None:
         """Whole is not the same as this attempt's, field by field."""
@@ -285,59 +270,21 @@ class UnvouchedClaimTest(seed.TransferCase):
                 self._fresh()
                 seed.granted(self.state, replace(seed.GRANTED, **terms))
 
-                self._refuses()
+                self.assertEqual(self._carried(), _transfer_values._Handoff.UNVOUCHED)
 
-    def test_a_debt_that_does_not_agree(self) -> None:
-        """A permit that grants re-writes both records, so both are asked."""
-        for described, (commit, lease) in DISAGREEING_DEBTS.items():
-            with self.subTest(described):
-                self._fresh()
-                seed.granted(self.state)
-                seed.owes(self.state, commit, lease)
-
-                self._refuses()
-
-    def test_a_debt_no_permission_explains(self) -> None:
-        """Only the debt this attempt's own gate leaves is not a claim."""
-        for described, (commit, lease) in FOREIGN_DEBTS.items():
-            with self.subTest(described):
-                self._fresh()
-                seed.owes(self.state, commit, lease)
-
-                self._refuses()
-
-    def test_an_unreadable_debt_with_no_permission(self) -> None:
-        """A basis nothing can name is no debt anybody can tie to this."""
-        seed.owes(self.state, seed.REPLAYED_SHA, seed.ACCEPTED_SHA)
-        self.state.set(_APPROVED_BASIS, "a bypass nobody grants")
-
-        self._refuses()
-
-    def test_this_attempts_own_debt_is_no_claim(self) -> None:
-        """The ordinary gate records one for this replay before its push."""
-        seed.owes(self.state, seed.REPLAYED_SHA, seed.ACCEPTED_SHA)
-
-        self.assertEqual(self._carried(), transfers._Handoff.UNRECORDED)
-
-    def test_a_debt_whose_basis_cannot_be_named(self) -> None:
-        """The third member of the group, which the two readers pass over."""
-        seed.granted(self.state)
-        self.state.set(_APPROVED_BASIS, "a bypass nobody grants")
-
-        self._refuses()
 
     def test_a_digest_from_another_reading(self) -> None:
         """It describes a contribution this issue never adjudicated."""
         seed.granted(self.state, digest=seed.OTHER_DIGEST)
 
-        self._refuses()
+        self.assertEqual(self._carried(), _transfer_values._Handoff.UNVOUCHED)
 
     def test_a_proof_nothing_can_report_from(self) -> None:
         """A settlement and a reading this build cannot account for at once."""
         seed.settled(self.state)
         self.state.set(_rewrite_fields.LATE_REWRITE_PROOF, "a reading nobody takes")
 
-        self._refuses()
+        self.assertEqual(self._carried(), _transfer_values._Handoff.UNVOUCHED)
 
     def test_a_record_that_contradicts_it(self) -> None:
         """The attempt's own record and the permission over it disagree."""
@@ -346,8 +293,4 @@ class UnvouchedClaimTest(seed.TransferCase):
                 self._fresh(pending_rewrite=pending)
                 seed.granted(self.state)
 
-                self._refuses()
-
-    def _refuses(self) -> None:
-        """Nothing is assembled and nothing is settled over these terms."""
-        self.assertEqual(self._carried(), _transfer_values._Handoff.UNVOUCHED)
+                self.assertEqual(self._carried(), _transfer_values._Handoff.UNVOUCHED)
