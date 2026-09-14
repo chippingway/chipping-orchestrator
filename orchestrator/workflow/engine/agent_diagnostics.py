@@ -19,7 +19,7 @@ block reads the same as the last-message body it is appended under.
 """
 from __future__ import annotations
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.config import credentials as _credentials
 from orchestrator.workflow.engine import messages as _messages
 

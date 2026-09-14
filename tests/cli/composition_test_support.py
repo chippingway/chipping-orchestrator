@@ -28,7 +28,7 @@ from unittest.mock import patch
 from orchestrator import cli, config, workflow
 from orchestrator.runtime import logs, shutdown, startup
 from orchestrator.runtime.state import RuntimeState
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from tests.runtime import (
     polling_scheduler_probes as _probes,
     polling_signal_probes as _signal_probes,

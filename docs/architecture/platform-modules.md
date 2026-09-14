@@ -41,9 +41,9 @@ last is held by the loader itself rather than by a check.
   that needs it. The same check declares them per module: an undeclared hop fails wherever it is written, and one of
   these fails if it is bound at module scope after all — where it would be a cycle, since the workflow imports base
   sync back.
-- **Package surfaces.** `github/`, `agents/`, and `scheduler/` publish a narrow `__all__` of their owners' own
-  objects and nothing else; `runtime/`, `skills/`, `git/`, and every `git/` subpackage publish nothing at all, so
-  naming one costs no owner behind it. `config/` is the deliberate exception: its initializer binds each resolved
+- **Package surfaces.** `github/`, `agents/`, `scheduler/`, `runtime/`, `skills/`, `git/`, and every `git/` subpackage
+  have marker initializers. Callers import their defining modules, so naming a package costs no owner behind it.
+  `config/` still binds each resolved
   setting as a module attribute, which is the reload and patch target every caller reads one through. Each package's
   own tests hold its surface — a `test_imports.py` in the domains, `tests/config/test_surface.py` for the settings
   module — and `tests/repository/test_package_exports.py` holds the publish-or-front-nothing rule over the tree.
@@ -63,8 +63,8 @@ last is held by the loader itself rather than by a check.
   or the listing a call actually takes stayed the owner's, and a copy of the hardening beside the streamed runner
   would be free to lose a protection the two runners it was taken from still have.
 - **One road to a process.** The `agents/` chain is reached at one point from above and one per hop below it: only
-  `workflow/engine/usage.py` calls `run_agent`, and the initializer republishing it as the package API is the one
-  other module that names it at all; only `runner.py` names `codex.run_codex` / `claude.run_claude`; and only the two
+  `workflow/engine/usage.py` names and calls `runner.run_agent`; only `runner.py` names
+  `codex.run_codex` / `claude.run_claude`; and only the two
   backends name `processes.run_subprocess`. That is what makes the lifetime agent-run charge taken around that single
   call a charge every role pays, since a second caller anywhere would be runs nothing counts.
   `tests/repository/test_agent_spawn_boundary.py` reads the whole chain off the source, counting a reference rather
@@ -168,7 +168,7 @@ orchestrator/
                         agent stderr diagnostics, and the trajectory writer mask with
     models.py           the `RepoSpec` / `RepoEnvEntry` repository-config types
     repositories.py     `REPOS` entry parsing, validation, and default-spec construction
-  github/               publishes `GitHubClient` and `PinnedState`
+  github/               marker package; callers name `client.GitHubClient` and `pinned_state.PinnedState`
     client.py           the authenticated client over the mixin chain: PyGithub setup, the worker-thread clone, and
                         the cached label reads with their confirmed-absent retry window and the one line a sweep's
                         absent legacy spellings are reported in
@@ -246,7 +246,7 @@ orchestrator/
                         search is a request and a caller that proved the pull request a moment earlier may not put one
                         between its proof and the write
     reviews.py          current-head review aggregation: approval verdicts and unread-feedback watermarks
-  agents/               publishes the run models, `run_agent`, and `terminate_all_running`
+  agents/               marker package; callers name the model, runner, and process owners
     models.py           the agent result, run-option, and subprocess-result models
     environment.py      credential filtering and the injected git identity
     session_ids.py      the backend-agnostic session-id walk: a UUID-shaped value at a known key, anywhere in
@@ -269,7 +269,7 @@ orchestrator/
     backends/
       codex.py          Codex command construction, scratch output, and execution
       claude.py         Claude command construction and execution
-  scheduler/            publishes `IssueScheduler` and `SubmissionRequest`
+  scheduler/            marker package; callers name `service.IssueScheduler` and `models.SubmissionRequest`
     models.py           the typed submission, the historical `submit` binding, and field normalization
     service.py          the concrete scheduler: the caps, the tracked claims, the family mutex, dispatch, and
                         shutdown, plus the reversible maintenance barrier -- both admission paths closed, the

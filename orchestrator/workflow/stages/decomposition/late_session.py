@@ -81,7 +81,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from orchestrator import config
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     comments as _comments,

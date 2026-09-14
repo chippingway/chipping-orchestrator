@@ -83,7 +83,7 @@ class VerifyCommandMutationTest(
         self.assertIn("BUILD_LOG_LINE", run.output)
 
     def test_running_command_registered_for_shutdown(self) -> None:
-        # The shutdown sweep (`agents.terminate_all_running`) only reaches
+        # The shutdown sweep (`agents.processes.terminate_all_running`) only reaches
         # process groups registered in `processes._running_procs`. A verify
         # command must be registered for the lifetime of its run -- otherwise
         # the watchdog's `os._exit` leaves a slow command running and

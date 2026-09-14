@@ -4,7 +4,7 @@
 
 import json
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 
 _SESSION_ID = "sess"
 

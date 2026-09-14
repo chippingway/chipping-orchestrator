@@ -8,7 +8,8 @@ import inspect
 import unittest
 from unittest.mock import MagicMock
 
-from orchestrator.scheduler import IssueScheduler, SubmissionRequest
+from orchestrator.scheduler.models import SubmissionRequest
+from orchestrator.scheduler.service import IssueScheduler
 
 _REPO_SLUG = "owner/repo"
 _ISSUE_NUMBER = 7

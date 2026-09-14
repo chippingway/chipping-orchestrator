@@ -62,23 +62,8 @@ binds its results at import time (so a reload re-runs resolution) and publishes 
 explicit `__all__` there. Every entry in that file is an exact-path scope like this one; WPS complexity
 limits retain their defaults.
 
-The agents package adds a second scope: `orchestrator/agents/__init__.py` (`WPS412`, `WPS410`) is the API an agent run
-is driven through. It re-exports the model types, the runner owner's `run_agent`, and the process owner's
-`terminate_all_running`, and publishes that narrow public surface through an explicit `__all__` (`WPS410`); `run_agent`
-reaches the `agents.backends` command modules (`codex`, `claude`) directly at dispatch time, so nothing private is
-published above them. `WPS412` is waived for that import-time logic.
-
-The github package adds a third scope: `orchestrator/github/__init__.py` (`WPS412`, `WPS410`) re-exports the composed
-`GitHubClient` and the pinned durable-state model from their owner modules and publishes that narrow public surface
-through an explicit `__all__` (`WPS410`); every other GitHub surface — labels, events, issues, pull requests, reviews,
-checks — is imported from its owner directly, so nothing private is published above them. `WPS412` is waived for that
-import-time logic.
-
-The scheduler package adds a fourth scope: `orchestrator/scheduler/__init__.py` (`WPS412`, `WPS410`) re-exports the
-concrete `IssueScheduler` from the `service` owner and the caller-facing `SubmissionRequest` from the `models` owner,
-and publishes that narrow public surface through an explicit `__all__` (`WPS410`); the layers the scheduler is composed
-from stay private to `service`, so nothing private is published above them. `WPS412` is waived for that import-time
-logic.
+The agent, GitHub, and scheduler packages have marker initializers. Callers import their models and services
+from the defining modules, and their former initializer exclusions have been removed.
 
 The workflow package adds another: `orchestrator/workflow/__init__.py` (`WPS412`, `WPS410`) is the package API. It
 re-exports five names from the `state` owner beside it — the `WorkflowLabel` / `ControlLabel` vocabularies, the
@@ -90,16 +75,16 @@ and a submodule import runs the initializer first, so an engine import here woul
 they are still initializing. `WPS412` is waived for that import-time logic. Two more scopes are the `observability/`
 publishers — the usage parsers and the analytics recorders — waived on the same grounds.
 
-The eighth scope fronts no owner at all: `orchestrator/__init__.py` (`WPS412`, `WPS410`) is the whole of the
+The root scope fronts no owner at all: `orchestrator/__init__.py` (`WPS412`, `WPS410`) is the whole of the
 root package. It declares the distribution version and the explicit `__all__` naming it and binds nothing else, so
 `import orchestrator` costs that module and no owner behind it. Both names are module-level metadata (`WPS410`) and
 both assignments read as logic in an initializer (`WPS412`), so each rule is waived there.
 
-Those eight are the whole publishing set: every other initializer in the tree imports nothing at all, so naming one of
+Those five are the remaining publishing set. Every other initializer imports nothing at all, so naming one of
 those packages loads no owner behind it and the submodules that show up on it are what other modules' imports planted.
 `tests/repository/test_package_exports.py` reads each initializer's source for that half — an eager sibling import is
 invisible in the namespace, which holds the same submodule either way — and compares the packages carrying an
-`__all__` against the list above, so a ninth publisher is a deliberate edit here and a scope in
+`__all__` against the list above, so a new publisher requires a deliberate change to the declared set and a scope in
 [`../../.flake8`](../../.flake8) rather than a silent widening of what a package answers for.
 
 `orchestrator/github/pull_requests.py` (`WPS214`) is the shape the entries fronting no package take: one owner for

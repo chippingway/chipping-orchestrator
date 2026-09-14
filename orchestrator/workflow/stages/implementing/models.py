@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 
 
 @dataclass(frozen=True)

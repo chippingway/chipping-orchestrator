@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 from unittest.mock import MagicMock
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow.repo_values import (
     _FAKE_WT,

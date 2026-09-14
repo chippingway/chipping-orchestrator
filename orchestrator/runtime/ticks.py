@@ -18,7 +18,7 @@ from orchestrator.config import RepoSpec
 from orchestrator.github.client import GitHubClient
 from orchestrator.runtime.startup import RepoClients
 from orchestrator.runtime.state import RuntimeState
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 
 log = logging.getLogger("orchestrator")
 

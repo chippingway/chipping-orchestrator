@@ -14,7 +14,7 @@ import time
 import unittest
 from functools import partial
 
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler import barrier_helpers as _support
 from tests.scheduler.barrier_helpers import _BarrierTestCase, _HeldClaim
 

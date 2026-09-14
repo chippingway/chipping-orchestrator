@@ -54,7 +54,7 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState

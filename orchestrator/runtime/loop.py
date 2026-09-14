@@ -26,11 +26,12 @@ import logging
 import time
 from collections.abc import Iterator
 
-from orchestrator import agents, config
+from orchestrator import config
+from orchestrator.agents import processes as _agent_processes
 from orchestrator.runtime import artifacts, self_update, ticks
 from orchestrator.runtime.startup import PollingOptions, RepoClients
 from orchestrator.runtime.state import RuntimeState
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 
 log = logging.getLogger("orchestrator")
 
@@ -82,7 +83,7 @@ def drive_polling(
 def drain_scheduler(state: RuntimeState, scheduler: IssueScheduler) -> None:
     """Stop child groups when signaled, then wait for every worker."""
     if state.received_signal is not None:
-        agents.terminate_all_running()
+        _agent_processes.terminate_all_running()
     scheduler.shutdown(wait=True)
     state.active_scheduler = None
     state.shutdown_complete.set()

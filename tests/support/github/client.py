@@ -56,7 +56,7 @@ class _PullClient(_PullViews, _PullServices):
 
 
 class FakeGitHubClient(_IssueClient, _PullClient, _CommentIdAllocator):
-    """In-memory stand-in for orchestrator.github.GitHubClient."""
+    """In-memory stand-in for orchestrator.github.client.GitHubClient."""
 
     def __init__(
         self,

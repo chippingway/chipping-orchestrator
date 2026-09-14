@@ -1,6 +1,6 @@
 # Usage parser
 
-Pure-Python helpers that decode the JSONL stdout `agents.AgentResult` carries into a `UsageMetrics` dataclass —
+Pure-Python helpers that decode the JSONL stdout `agents.models.AgentResult` carries into a `UsageMetrics` dataclass —
 backend, distinct model(s), turn count, input / output / cached / cache-read / cache-write token totals, `cost_usd`, and
 a `cost_source` tag of `reported` / `estimated` / `unknown-price` / `no-usage`. No external dependency: the parser is
 jq-free.
@@ -35,8 +35,8 @@ live caller names the owner it is typed by, and no flat module sits beside the p
 groups assistant frames by `message.id` so the final-frame usage wins (claude streams partial counts on intermediate
 frames), and sums per-model. `parse_codex_usage(stdout, fallback_model=None)` consumes codex `--json` events and treats
 usage as cumulative across the session: the *last* non-zero usage record is the authoritative total.
-`parse_agent_usage(backend, stdout, fallback_model=None)` dispatches by backend string the same way `agents.run_agent`
-does.
+`parse_agent_usage(backend, stdout, fallback_model=None)` dispatches by backend string the same way
+`agents.runner.run_agent` does.
 
 **Cost precedence.** A `total_cost_usd` reported by the CLI itself always wins (`cost_source="reported"`); otherwise the
 parser walks first-party Anthropic / OpenAI price tables baked into the module and produces an estimate (`"estimated"`).

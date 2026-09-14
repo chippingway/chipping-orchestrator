@@ -156,7 +156,7 @@ class ReviewerAnchorReconstructionTest(
         self.assertEqual(_reconstruct_pending_fix_batch(gh, issue, pr, state), [])
 
     def test_id_set_prefers_list_rejects_bool_max(self) -> None:
-        from orchestrator.github import PinnedState
+        from orchestrator.github.pinned_state import PinnedState
 
         # Full list present -> used verbatim (the max id is ignored).
         state = PinnedState(data={ID_LIST_KEY: [3, 1, 2], MAX_ID_KEY: 9})
@@ -174,7 +174,7 @@ class ReviewerAnchorReconstructionTest(
         )
 
     def test_clear_bookmarks_clears_batch_id_lists(self) -> None:
-        from orchestrator.github import PinnedState
+        from orchestrator.github.pinned_state import PinnedState
 
         state = PinnedState(
             data={

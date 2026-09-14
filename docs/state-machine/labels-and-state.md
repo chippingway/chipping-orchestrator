@@ -1668,7 +1668,7 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   worth, so the shape is also read off the source rather than only driven:
   [`tests/repository/test_agent_spawn_boundary.py`](../../tests/repository/test_agent_spawn_boundary.py) holds the
   whole chain — `run_subprocess` named only by the two backends, `run_claude` / `run_codex` named only by the runner
-  that dispatches between them, and `run_agent` named only by the agents facade that republishes it and the tracked
+  that dispatches between them, and `run_agent` named only by the tracked
   boundary that calls it — and holds that call to `_run_agent_tracked` itself, with the circuit asked on a line above
   it. A reference counts rather than a call, because a spawn bound into a variable is invoked where its name is no
   longer written.

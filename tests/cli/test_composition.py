@@ -8,7 +8,8 @@ import signal
 import unittest
 from unittest.mock import patch
 
-from orchestrator import agents, config
+from orchestrator import config
+from orchestrator.agents import processes as _agent_processes
 from orchestrator.runtime import loop, shutdown
 from tests.cli.composition_test_support import composed_run
 from tests.runtime import polling_test_support as _support
@@ -121,7 +122,7 @@ class ComposedExitTest(unittest.TestCase):
                 signal.SIGINT,
                 None,
             )
-            with patch.object(agents, _TERMINATE_ATTR) as terminated:
+            with patch.object(_agent_processes, _TERMINATE_ATTR) as terminated:
                 exit_code = run.main()
 
                 terminated.assert_called_once_with()
@@ -138,7 +139,7 @@ class ComposedExitTest(unittest.TestCase):
         # The non-signal paths (`--once` finishing, a self-modifying-merge
         # restart) keep the "let in-flight work finish" drain.
         with composed_run([_support.REPO]) as run:
-            with patch.object(agents, _TERMINATE_ATTR) as terminated:
+            with patch.object(_agent_processes, _TERMINATE_ATTR) as terminated:
                 exit_code = run.main()
 
                 terminated.assert_not_called()

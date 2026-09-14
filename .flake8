@@ -5,9 +5,6 @@
 per-file-ignores =
     orchestrator/__init__.py:WPS412,WPS410
     orchestrator/config/__init__.py:WPS412,WPS410
-    orchestrator/agents/__init__.py:WPS412,WPS410
-    orchestrator/github/__init__.py:WPS412,WPS410
-    orchestrator/scheduler/__init__.py:WPS412,WPS410
     orchestrator/workflow/__init__.py:WPS412,WPS410
     orchestrator/observability/usage/__init__.py:WPS412,WPS410
     orchestrator/observability/analytics/recording/__init__.py:WPS412,WPS410

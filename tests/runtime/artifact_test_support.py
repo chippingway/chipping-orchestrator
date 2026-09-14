@@ -25,7 +25,7 @@ from orchestrator.git.worktrees.candidates import CandidateLayout, IssueArtifact
 from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceReason, MaintenanceResult
 from orchestrator.runtime.exclusion import ExclusiveHost
 from orchestrator.runtime.state import RuntimeState
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from tests.runtime import polling_test_support as _support
 
 CANDIDATES_ATTR = "_maintenance_candidates"

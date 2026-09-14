@@ -15,7 +15,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git.worktrees import creation as _worktree_creation
-from orchestrator.github import PinnedState
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.usage.metrics import UsageMetrics
 from orchestrator.workflow.engine import drift as _drift, usage as engine_usage
 from orchestrator.workflow.stages.implementing import resume as _resume

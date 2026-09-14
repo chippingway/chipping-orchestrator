@@ -7,7 +7,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from orchestrator.github import PinnedState
+from orchestrator.github.pinned_state import PinnedState
 from tests.support.fakes import FakeGitHubClient, FakePR
 from tests.workflow.repo_values import (
     _FAKE_WT,

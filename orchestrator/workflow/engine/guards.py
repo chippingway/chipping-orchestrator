@@ -34,7 +34,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState

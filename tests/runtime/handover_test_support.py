@@ -26,7 +26,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.runtime import exclusion, host_lock
-from orchestrator.scheduler import IssueScheduler
+from orchestrator.scheduler.service import IssueScheduler
 from tests.runtime import polling_test_support as _support
 
 _WORKTREES_ATTR = "WORKTREES_DIR"

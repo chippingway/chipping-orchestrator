@@ -11,7 +11,7 @@ from __future__ import annotations
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState

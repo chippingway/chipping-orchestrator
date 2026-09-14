@@ -193,7 +193,7 @@ class PruneWithRetentionLoggingTest(unittest.TestCase):
         # at all. The polling-loop tests verify the wrapper is called once
         # per tick; this verifies that calling it cannot mutate pinned
         # state through any client method.
-        from orchestrator.github import GitHubClient
+        from orchestrator.github.client import GitHubClient
 
         with tempfile.TemporaryDirectory(prefix="analytics-retention-") as td:
             path = Path(td) / "analytics.jsonl"

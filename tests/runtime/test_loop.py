@@ -9,7 +9,8 @@ import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator import agents, config
+from orchestrator import config
+from orchestrator.agents import processes as _agent_processes
 from orchestrator.runtime import artifacts, loop, self_update, ticks
 from orchestrator.runtime.startup import PollingOptions
 from orchestrator.runtime.state import RuntimeState
@@ -243,7 +244,7 @@ class SchedulerDrainTest(unittest.TestCase):
         scheduler = MagicMock()
         state.active_scheduler = scheduler
 
-        with patch.object(agents, _TERMINATE_ATTR) as terminated:
+        with patch.object(_agent_processes, _TERMINATE_ATTR) as terminated:
             loop.drain_scheduler(state, scheduler)
 
             terminated.assert_not_called()
@@ -256,7 +257,7 @@ class SchedulerDrainTest(unittest.TestCase):
         state = RuntimeState(received_signal=signal.SIGTERM)
         scheduler = MagicMock()
 
-        with patch.object(agents, _TERMINATE_ATTR) as terminated:
+        with patch.object(_agent_processes, _TERMINATE_ATTR) as terminated:
             loop.drain_scheduler(state, scheduler)
 
             terminated.assert_called_once_with()

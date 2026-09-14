@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from orchestrator.agents import AgentResult
+    from orchestrator.agents.models import AgentResult
 
 
 ISSUE_FIELD = "issue"

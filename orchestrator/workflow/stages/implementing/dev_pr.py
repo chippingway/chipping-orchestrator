@@ -31,7 +31,7 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.agents import AgentResult
+from orchestrator.agents.models import AgentResult
 from orchestrator.git.publication import titles as _titles
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import comments as _comments

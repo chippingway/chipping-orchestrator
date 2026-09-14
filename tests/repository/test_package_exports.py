@@ -33,17 +33,11 @@ from tests.repository.layout_test_support import (
 
 _ANALYTICS = f"{PACKAGE}.observability.analytics"
 
-# The packages a caller reaches a family through. The root publishes the
-# distribution version; `agents`, `github`, `scheduler`, and `workflow` publish
-# the API their domain is driven through; `config` publishes every resolved
-# setting; and the two observability publishers front the usage parsers and the
-# analytics recorders a producer appends with.
+# The remaining package surfaces: version, resolved settings, workflow,
+# usage parsing, and analytics recording. Other initializers bind no owner.
 _PUBLISHERS = frozenset((
     PACKAGE,
-    f"{PACKAGE}.agents",
     f"{PACKAGE}.config",
-    f"{PACKAGE}.github",
-    f"{PACKAGE}.scheduler",
     f"{PACKAGE}.workflow",
     f"{_ANALYTICS}.recording",
     f"{PACKAGE}.observability.usage",
