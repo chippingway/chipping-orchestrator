@@ -21,12 +21,8 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 )
 from tests.workflow.fixtures import _iso_hours_ago
 from tests.workflow.stages.decomposition import late_retry_cap_support as _support
-from tests.workflow.stages.decomposition.late_content_support import (
-    EDITED_BODY,
-    HUMAN,
-    OUTSIDER,
-    PARK_NOTICE_ID,
-)
+from tests.workflow.stages.decomposition.late_content_replies import HUMAN, PARK_NOTICE_ID
+from tests.workflow.stages.decomposition.late_content_support import EDITED_BODY, OUTSIDER
 from tests.workflow.stages.decomposition.late_retry_cap_support import (
     LateRetryCapCase,
     PausedDuringRun,

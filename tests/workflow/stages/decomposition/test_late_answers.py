@@ -7,14 +7,13 @@ from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
-from tests.workflow.stages.decomposition import late_content_support as _support
-from tests.workflow.stages.decomposition.late_content_support import LateContentCase
-from tests.workflow.stages.decomposition.late_test_support import (
-    KEYS,
-    OTHER_SHA,
-    SINGLE_REPLY,
-    late_block,
+from tests.workflow.stages.decomposition import (
+    late_content_replies as _content_replies,
+    late_content_support as _support,
 )
+from tests.workflow.stages.decomposition.late_content_support import LateContentCase
+from tests.workflow.stages.decomposition.late_reply_support import late_block
+from tests.workflow.stages.decomposition.late_test_support import KEYS, OTHER_SHA, SINGLE_REPLY
 
 NEEDS_GUIDANCE = "needs your actual guidance"
 
@@ -32,7 +31,7 @@ class RecordedQuestionTest(LateContentCase):
 
     def test_a_real_answer_drops_the_record(self) -> None:
         self._seed(**_support.ASKED_STATE)
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
 
         outcome, spawn = self._run(SINGLE_REPLY)
 
@@ -49,7 +48,7 @@ class RecordedQuestionTest(LateContentCase):
         # continue it: a fresh run would have to be told what it had asked
         # before it could be told the answer.
         self._seed(**_support.ASKED_STATE)
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
 
         _outcome, spawn = self._run()
 
@@ -63,7 +62,7 @@ class RecordedQuestionTest(LateContentCase):
         self._seed(**{
             **_support.ASKED_STATE, KEYS.source_sha: OTHER_SHA,
         })
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
 
         _outcome, spawn = self._run()
 
@@ -76,7 +75,7 @@ class RecordedQuestionTest(LateContentCase):
         # because its REASON matches the one just answered would leave that
         # second question recorded, durable, and never said out loud.
         self._seed(**_support.ASKED_STATE)
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
 
         outcome, _spawn = self._run(SECOND_QUESTION_REPLY)
 
@@ -93,7 +92,7 @@ class RecordedQuestionTest(LateContentCase):
         # letting it through would record a `single` nobody decided. The
         # command is consumed, so the refusal is not re-posted every tick.
         self._seed(**_support.ASKED_STATE)
-        _support.reply(self.issue, _support.BARE_CONTINUE)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
 
         outcome, spawn = self._run()
         self._run()
@@ -115,7 +114,7 @@ class RecordedQuestionTest(LateContentCase):
         self._seed(**_support.ASKED_STATE)
         self.issue.title = _support.EDITED_TITLE
         self._run()
-        _support.reply(self.issue, _support.BARE_CONTINUE)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
 
         outcome, spawn = self._run(SINGLE_REPLY)
 
@@ -129,7 +128,7 @@ class RecordedQuestionTest(LateContentCase):
         # A baseline covers what the issue already said, so a comment the
         # adjudication was frozen beside cannot reopen the question it asked
         # -- the recorded outcome is reused instead of re-earned.
-        self._seed(comments=(_support.guidance_comment(),), **_support.ASKED_STATE)
+        self._seed(comments=(_content_replies.guidance_comment(),), **_support.ASKED_STATE)
 
         outcome, spawn = self._run()
 

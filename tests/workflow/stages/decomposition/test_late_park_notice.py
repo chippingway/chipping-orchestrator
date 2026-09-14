@@ -27,6 +27,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from orchestrator.workflow.stages.decomposition.late_notice import PARK_NOTICE
+from tests.workflow.stages.decomposition.late_content_replies import reply
 from tests.workflow.stages.decomposition.late_content_support import (
     EDITED_TITLE,
     PARK_CONTENT_DRIFT,
@@ -34,7 +35,6 @@ from tests.workflow.stages.decomposition.late_content_support import (
     PARK_REVISION_DIRTY,
     LateContentCase,
     RefusedComment,
-    reply,
 )
 from tests.workflow.stages.decomposition.late_revision_support import (
     DEV_PIN,

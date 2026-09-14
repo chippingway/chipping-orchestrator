@@ -14,7 +14,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from tests.support.fakes import FakeLabel
-from tests.workflow.stages.decomposition import late_test_support as _support
+from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     LateCase,
     agent_reply,
@@ -29,7 +29,7 @@ SPLIT_CHILDREN = 2
 # be able to tell apart.
 FIRST_UNPARSED = "no fenced block at all, just prose."
 
-SECOND_UNPARSED = f"```{_support.LATE_FENCE}\nnot json\n```"
+SECOND_UNPARSED = f"```{_reply_support.LATE_FENCE}\nnot json\n```"
 
 PARK_UNPARSED = "late_manifest_invalid"
 
@@ -126,7 +126,7 @@ class DeclinedRunTest(LateCase, unittest.TestCase):
         outcome, _ = self._adjudicate(agent_reply(_support.NO_BLOCK_REPLY))
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
-        self.assertIn(_support.LATE_FENCE, self.github.posted_comments[-1][1])
+        self.assertIn(_reply_support.LATE_FENCE, self.github.posted_comments[-1][1])
         self.assertNotIn(_support.KEYS.verdict, self._pinned())
 
 

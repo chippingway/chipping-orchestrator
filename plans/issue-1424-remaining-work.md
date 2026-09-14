@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, the sixteen package initializer 
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107 paths and
-129 file/rule pairs. The current working implementation has 88 paths and 110 pairs (76 production, 34 test), all
-matching isolated diagnostics. Nineteen WPS202 pairs have been removed without replacement exemptions or raised
+129 file/rule pairs. The current working implementation has 81 paths and 103 pairs (76 production, 27 test), all
+matching isolated diagnostics. Twenty-six WPS202 pairs have been removed without replacement exemptions or raised
 limits. Remaining work is the entire live set in `.flake8`, including WPS201, WPS202, WPS204, WPS214, WPS215,
 WPS410, and WPS412. The files must stay until that set is empty and the full validation passes.
 
@@ -24,9 +24,14 @@ Implemented batches:
   record readers and recovery notices. Five pairs removed. Owner, layering, and patch inventories follow each move.
   Ruff, configured WPS, and the full suite pass with 6,431 passed and 49 skipped.
 
-- Current implementation: separate pull-request records, late-event and exemption fixtures, circuit checkpoints,
+- `715c687e`: separate pull-request records, late-event and exemption fixtures, circuit checkpoints,
   run-limit state seeds, and agent output frames; seven test pairs removed. All 6,480 collected identities remain
   unchanged, 895 focused tests pass, and full validation passes with 6,431 passed and 49 skipped.
+
+- Current implementation: separate budget emissions, grant and exhaustion case setup, lifetime scenarios and
+  comments, git-reading and publication doubles, and late-split comment/reply builders; seven test pairs removed.
+  All 6,480 collected identities remain unchanged. Ruff, configured WPS, and full validation pass with 6,431 passed
+  and 49 skipped.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes
 are historical evidence, not completion of the current zero-exclusion target.

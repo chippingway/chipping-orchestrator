@@ -19,6 +19,7 @@ from orchestrator.workflow.engine import run_limit as _run_limit
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.engine import (
     run_budget_test_support as budget,
+    run_limit_case as _limit_case,
     run_limit_seeds as _limit_seeds,
     run_limit_test_support as support,
 )
@@ -133,21 +134,7 @@ class ParkStagingTest(unittest.TestCase):
                 )
 
 
-class _ParkCase(unittest.TestCase):
-    """One issue the spent-ledger park is taken on, and the ledger it reads."""
-
-    def setUp(self) -> None:
-        client, issue = support.issue_and_client()
-        self.gh = client
-        self.issue = issue
-
-    def _park(self, state) -> None:
-        _run_limit._park_exhausted(
-            self.gh, self.issue, state, _limit_seeds.ledger(), support.LAUNCH,
-        )
-
-
-class ParkExhaustedTest(_ParkCase):
+class ParkExhaustedTest(_limit_case._ParkCase):
     """The composition: persist the whole park, then say it once."""
 
     def test_the_park_is_durable_before_a_word_of_it(self) -> None:
@@ -223,7 +210,7 @@ class ParkExhaustedTest(_ParkCase):
         self.assertEqual(support.phases(self.gh), [])
 
 
-class ParkRecordTest(_ParkCase):
+class ParkRecordTest(_limit_case._ParkCase):
     """What the shared budget stream is told about a lifetime ending.
 
     Once per park, on the write that makes it durable: a park is met again by

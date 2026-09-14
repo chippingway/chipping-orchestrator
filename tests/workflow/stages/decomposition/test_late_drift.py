@@ -9,7 +9,10 @@ from orchestrator import config
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
-from tests.workflow.stages.decomposition import late_content_support as _support
+from tests.workflow.stages.decomposition import (
+    late_content_replies as _content_replies,
+    late_content_support as _support,
+)
 from tests.workflow.stages.decomposition.late_content_support import LateContentCase
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
@@ -25,7 +28,7 @@ class ContentBaselineTest(LateContentCase):
     """The first tick of an adjudication records what it was frozen on."""
 
     def test_the_baseline_is_taken_and_run_carries_on(self) -> None:
-        self._seed(baseline=False, comments=(_support.guidance_comment(),))
+        self._seed(baseline=False, comments=(_content_replies.guidance_comment(),))
 
         outcome, spawn = self._run()
 
@@ -34,7 +37,7 @@ class ContentBaselineTest(LateContentCase):
         pinned = self._pinned()
         self.assertTrue(pinned[_support.KEY_TITLE_BODY_HASH])
         self.assertTrue(pinned[_support.KEY_COMMENT_HASH])
-        self.assertEqual(pinned[_support.KEY_COMMENT_WATERMARK], _support.guidance_comment().id)
+        self.assertEqual(pinned[_support.KEY_COMMENT_WATERMARK], _content_replies.guidance_comment().id)
 
 
 class TitleBodyDriftTest(LateContentCase):
@@ -73,7 +76,7 @@ class TitleBodyDriftTest(LateContentCase):
         # human comes back to decide what the edit meant.
         self._seed_with_plan_pr()
         self.issue.title = _support.EDITED_TITLE
-        self.issue.comments.append(_support.guidance_comment())
+        self.issue.comments.append(_content_replies.guidance_comment())
 
         outcome, spawn = self._run()
 
@@ -89,11 +92,11 @@ class TitleBodyDriftTest(LateContentCase):
         # again once they have read the notice IS an answer.
         self._seed_with_plan_pr()
         self.issue.title = _support.EDITED_TITLE
-        self.issue.comments.append(_support.guidance_comment())
+        self.issue.comments.append(_content_replies.guidance_comment())
         self._run()
 
         stale, held = self._run()
-        _support.reply(self.issue, _support.BARE_CONTINUE)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
         answered, resumed = self._run()
 
         self.assertEqual(stale.disposition, _LateDisposition.PARKED)
@@ -111,7 +114,7 @@ class TitleBodyDriftTest(LateContentCase):
             ("no reply", ()),
             (
                 "an outsider's continue",
-                (_support.human_comment(_support.SECOND_ID, _support.BARE_CONTINUE, login=_support.OUTSIDER),),
+                (_content_replies.human_comment(_support.SECOND_ID, _support.BARE_CONTINUE, login=_support.OUTSIDER),),
             ),
         ):
             with self.subTest(reply=label):
@@ -120,7 +123,7 @@ class TitleBodyDriftTest(LateContentCase):
                 self.issue.comments.extend(replies)
                 writes = self.github.write_state_calls
 
-                with patch.object(config, ALLOWED_AUTHORS, (_support.HUMAN,)):
+                with patch.object(config, ALLOWED_AUTHORS, (_content_replies.HUMAN,)):
                     outcome, spawn = self._run()
 
                 self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
@@ -154,7 +157,7 @@ class CertifiedCandidateTest(LateContentCase):
     def test_a_continue_rebaselines_and_resumes(self) -> None:
         self._seed(**_support.DRIFT_PARKED)
         self.issue.title = _support.EDITED_TITLE
-        certificate = _support.reply(self.issue, _support.BARE_CONTINUE)
+        certificate = _content_replies.reply(self.issue, _support.BARE_CONTINUE)
 
         outcome, spawn = self._run()
 
@@ -170,7 +173,7 @@ class CertifiedCandidateTest(LateContentCase):
         # cannot park the same candidate twice.
         self._seed(**_support.DRIFT_PARKED)
         self.issue.title = _support.EDITED_TITLE
-        _support.reply(self.issue, _support.BARE_CONTINUE)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
         self._run()
 
         outcome, spawn = self._run()

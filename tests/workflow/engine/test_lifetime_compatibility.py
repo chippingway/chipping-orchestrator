@@ -19,7 +19,11 @@ from orchestrator.workflow.engine import (
     run_ledger as _run_ledger,
     run_limit as _run_limit,
 )
-from tests.workflow.engine import lifetime_journeys as journeys, lifetime_test_support as support
+from tests.workflow.engine import (
+    lifetime_journeys as journeys,
+    lifetime_models as _lifetime_models,
+    lifetime_test_support as support,
+)
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     KEY_AWAITING_HUMAN,
@@ -40,7 +44,7 @@ _RECEIPT_PREFIX = ":receipt:"
 # How many runs an issue that predates the ledger has already spent on the
 # meter the usage accounting has always kept. One short of the allowance, so
 # what the walk under it buys is a single run and not a fresh lifetime.
-_LEGACY_SPEND = support.ALLOWANCE - 1
+_LEGACY_SPEND = _lifetime_models.ALLOWANCE - 1
 
 
 class LegacyMeterTest(unittest.TestCase, _PatchedWorkflowMixin):
@@ -57,11 +61,11 @@ class LegacyMeterTest(unittest.TestCase, _PatchedWorkflowMixin):
             ),
         )
 
-        self.assertEqual(walked.total, support.ALLOWANCE - _LEGACY_SPEND)
-        self.assertEqual(walked.spent, support.ALLOWANCE)
+        self.assertEqual(walked.total, _lifetime_models.ALLOWANCE - _LEGACY_SPEND)
+        self.assertEqual(walked.spent, _lifetime_models.ALLOWANCE)
         self.assertTrue(walked.parked)
         self.assertIn(
-            f"({support.ALLOWANCE}/{support.ALLOWANCE} runs)",
+            f"({_lifetime_models.ALLOWANCE}/{_lifetime_models.ALLOWANCE} runs)",
             walked.notices[0],
         )
 
@@ -89,11 +93,11 @@ class StageCapOrderTest(unittest.TestCase, _PatchedWorkflowMixin):
             self,
             replace(journey, legs=(capped,)),
             1,
-            seeded_on=support.seeded(journey, used=support.ALLOWANCE),
+            seeded_on=support.seeded(journey, used=_lifetime_models.ALLOWANCE),
         )
 
         self.assertEqual(walked.total, 0)
-        self.assertEqual(walked.spent, support.ALLOWANCE)
+        self.assertEqual(walked.spent, _lifetime_models.ALLOWANCE)
         self.assertNotIn(_run_ledger.AGENT_RUN_RESERVATION, walked.pinned)
         self.assertEqual(walked.pinned.get(KEY_PARK_REASON), _REVIEW_CAP)
 
@@ -114,7 +118,7 @@ class TerminalReceiptTest(unittest.TestCase, _PatchedWorkflowMixin):
         self._drain(walked)
 
         self.assertIn(
-            f"this issue: {support.ALLOWANCE} agent runs",
+            f"this issue: {_lifetime_models.ALLOWANCE} agent runs",
             self._receipt(walked),
         )
         self.assertIn(
@@ -122,28 +126,28 @@ class TerminalReceiptTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
         self._assert_ledger_untouched(walked)
 
-    def _assert_ledger_untouched(self, walked: support.Walk) -> None:
+    def _assert_ledger_untouched(self, walked: _lifetime_models.Walk) -> None:
         """The counts and the park the ending was handed, still there."""
         pinned = walked.pinned
         self.assertEqual(
-            pinned.get(_run_ledger.AGENT_RUNS_USED), support.ALLOWANCE,
+            pinned.get(_run_ledger.AGENT_RUNS_USED), _lifetime_models.ALLOWANCE,
         )
         self.assertEqual(
-            pinned.get(_run_ledger.AGENT_RUN_ALLOWANCE), support.ALLOWANCE,
+            pinned.get(_run_ledger.AGENT_RUN_ALLOWANCE), _lifetime_models.ALLOWANCE,
         )
         self.assertTrue(pinned.get(KEY_AWAITING_HUMAN))
         self.assertEqual(
             pinned.get(KEY_PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
         )
 
-    def _merge_and_close(self, walked: support.Walk) -> None:
+    def _merge_and_close(self, walked: _lifetime_models.Walk) -> None:
         """The ending a human reaches for an issue that ran out of runs."""
         merged = walked.github.get_pr(support.PR_NUMBER)
         merged.merged = True
         merged.state = "closed"
         walked.issue.closed = True
 
-    def _drain(self, walked: support.Walk) -> None:
+    def _drain(self, walked: _lifetime_models.Walk) -> None:
         """One more tick, on the label the walk left the issue wearing."""
         self._run(
             lambda: _dispatch._route_issue_to_handler(
@@ -155,7 +159,7 @@ class TerminalReceiptTest(unittest.TestCase, _PatchedWorkflowMixin):
             run_agent=_agent(last_message="never asked"),
         )
 
-    def _receipt(self, walked: support.Walk) -> str:
+    def _receipt(self, walked: _lifetime_models.Walk) -> str:
         """The one comment a terminal posts about what the issue spent."""
         receipts = [
             body

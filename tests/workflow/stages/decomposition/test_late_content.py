@@ -14,7 +14,10 @@ from orchestrator.workflow.stages.decomposition import (
     late_content as _late_content,
 )
 from tests.support.fakes import make_issue
-from tests.workflow.stages.decomposition import late_content_support as _support
+from tests.workflow.stages.decomposition import (
+    late_content_replies as _content_replies,
+    late_content_support as _support,
+)
 from tests.workflow.stages.decomposition.late_test_support import (
     CANDIDATE_SHA,
     LATE_ISSUE_NUMBER,
@@ -62,7 +65,7 @@ class FingerprintTest(unittest.TestCase):
         # The pinned reader accepts a fingerprint only at its exact digest
         # length, so a value this owner produced has to satisfy that reader or
         # it reads back absent and every later tick re-baselines.
-        signal = _signal(_issue(comments=[_support.guidance_comment()]), late_generation())
+        signal = _signal(_issue(comments=[_content_replies.guidance_comment()]), late_generation())
         for digest in (
             signal.fingerprint.title_body_hash,
             signal.fingerprint.comment_hash,
@@ -85,8 +88,8 @@ class FingerprintTest(unittest.TestCase):
 
     def test_comment_order_is_part_of_the_digest(self) -> None:
         posted = [
-            _support.guidance_comment(),
-            _support.human_comment(_support.SECOND_ID, _support.OTHER_GUIDANCE),
+            _content_replies.guidance_comment(),
+            _content_replies.human_comment(_support.SECOND_ID, _support.OTHER_GUIDANCE),
         ]
         forward = _signal(_issue(comments=posted), late_generation())
         backward = _signal(
@@ -105,33 +108,33 @@ class CountedThreadTest(unittest.TestCase):
         # on a tick where the human's requirements did not move: an outsider
         # on a public repo, a third-party bot posting structurally, and the
         # orchestrator's own comment carrying its marker.
-        alone = _signal(_issue(comments=[_support.guidance_comment()]), late_generation())
+        alone = _signal(_issue(comments=[_content_replies.guidance_comment()]), late_generation())
         noisy = _issue(comments=[
-            _support.guidance_comment(),
-            _support.human_comment(_support.SECOND_ID, "drive-by", login=_support.OUTSIDER),
-            _support.human_comment(
+            _content_replies.guidance_comment(),
+            _content_replies.human_comment(_support.SECOND_ID, "drive-by", login=_support.OUTSIDER),
+            _content_replies.human_comment(
                 _support.SECOND_ID + 1, "weekly bump",
                 login=BOT_LOGIN, user_type=BOT_TYPE,
             ),
-            _support.human_comment(
+            _content_replies.human_comment(
                 _support.SECOND_ID + 2,
                 _engine_comments._with_orch_marker(":robot: parked"),
             ),
         ])
 
-        with patch.object(config, ALLOWED_AUTHORS, (_support.HUMAN,)):
+        with patch.object(config, ALLOWED_AUTHORS, (_content_replies.HUMAN,)):
             signal = _signal(noisy, late_generation())
 
         self.assertEqual(
             signal.fingerprint.comment_hash, alone.fingerprint.comment_hash,
         )
-        self.assertEqual(signal.fingerprint.comment_watermark_id, _support.GUIDANCE_ID)
-        self.assertEqual([quoted.id for quoted in signal.guidance], [_support.GUIDANCE_ID])
+        self.assertEqual(signal.fingerprint.comment_watermark_id, _content_replies.GUIDANCE_ID)
+        self.assertEqual([quoted.id for quoted in signal.guidance], [_content_replies.GUIDANCE_ID])
 
     def test_a_comment_with_no_usable_id_is_dropped(self) -> None:
         # The watermark is the only thing that ever consumes a comment, so one
         # it cannot name would arrive as fresh guidance on every tick forever.
-        unnamed = _support.guidance_comment()
+        unnamed = _content_replies.guidance_comment()
         unnamed.id = None
 
         signal = _signal(_issue(comments=[unnamed]), late_generation())
@@ -142,8 +145,8 @@ class CountedThreadTest(unittest.TestCase):
     def test_orchestrator_ids_come_from_the_state(self) -> None:
         # A legacy comment posted before the marker existed is filtered by id,
         # which lives on the pinned state this reader is handed.
-        issue = _issue(comments=[_support.human_comment(_support.GUIDANCE_ID, ":robot: picked up")])
-        tracked = PinnedState(data={TRACKED_IDS: [_support.GUIDANCE_ID]})
+        issue = _issue(comments=[_content_replies.human_comment(_content_replies.GUIDANCE_ID, ":robot: picked up")])
+        tracked = PinnedState(data={TRACKED_IDS: [_content_replies.GUIDANCE_ID]})
 
         self.assertEqual(_signal(issue, late_generation(), tracked).guidance, ())
         self.assertEqual(len(_signal(issue, late_generation()).guidance), 1)
@@ -162,7 +165,7 @@ class DriftReadingTest(unittest.TestCase):
         self.assertTrue(signal.drifted)
 
     def test_its_own_content_reads_unchanged(self) -> None:
-        issue, generation = _frozen([_support.guidance_comment()])
+        issue, generation = _frozen([_content_replies.guidance_comment()])
 
         signal = _signal(issue, generation)
 
@@ -186,7 +189,7 @@ class DriftReadingTest(unittest.TestCase):
         # It moves no comment id at all, so the watermark cannot see it and
         # there is no new comment to read the change out of -- which is why
         # the counted prefix is digested rather than trusted to the watermark.
-        counted = _support.guidance_comment()
+        counted = _content_replies.guidance_comment()
         issue, generation = _frozen([counted])
         counted.body = _support.OTHER_GUIDANCE
 
@@ -198,21 +201,21 @@ class DriftReadingTest(unittest.TestCase):
 
     def test_a_new_trusted_comment_is_guidance(self) -> None:
         issue, generation = _frozen()
-        issue.comments.append(_support.guidance_comment())
+        issue.comments.append(_content_replies.guidance_comment())
 
         signal = _signal(issue, generation)
 
         self.assertFalse(signal.drifted)
         self.assertEqual(
-            [quoted.body for quoted in signal.guidance], [_support.GUIDANCE_BODY],
+            [quoted.body for quoted in signal.guidance], [_content_replies.GUIDANCE_BODY],
         )
-        self.assertEqual(signal.fingerprint.comment_watermark_id, _support.GUIDANCE_ID)
+        self.assertEqual(signal.fingerprint.comment_watermark_id, _content_replies.GUIDANCE_ID)
 
     def test_the_watermark_never_falls_back(self) -> None:
         # A deleted comment must not lower it: everything between the new
         # maximum and the old one has already been read and answered.
-        deleted = _support.human_comment(_support.SECOND_ID, _support.OTHER_GUIDANCE)
-        issue, generation = _frozen([_support.guidance_comment(), deleted])
+        deleted = _content_replies.human_comment(_support.SECOND_ID, _support.OTHER_GUIDANCE)
+        issue, generation = _frozen([_content_replies.guidance_comment(), deleted])
         issue.comments.remove(deleted)
 
         signal = _signal(issue, generation)
@@ -236,11 +239,11 @@ class ReportedClassificationTest(unittest.TestCase):
             (_support.BARE_CONTINUE, (0, True, None)),
             (_support.CONTINUE_WITH_GUIDANCE, (1, False, None)),
             (EMPTY_BODY, (0, False, None)),
-            (_support.authorization(), (0, False, CANDIDATE_SHA)),
+            (_content_replies.authorization(), (0, False, CANDIDATE_SHA)),
         ):
             with self.subTest(comment=body):
                 issue, generation = _frozen()
-                issue.comments.append(_support.human_comment(_support.CONTINUE_ID, body))
+                issue.comments.append(_content_replies.human_comment(_support.CONTINUE_ID, body))
 
                 signal = _signal(issue, generation)
 

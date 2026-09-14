@@ -16,6 +16,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from tests.workflow.stages.decomposition import (
+    late_content_replies as _content_replies,
     late_content_support as _support,
     late_revision_support as _stage_support,
 )
@@ -63,7 +64,7 @@ class DeveloperResumeTest(RevisionCase):
 
         _outcome, spawn = self._revise()
 
-        self.assertIn(_support.GUIDANCE_BODY, spawn.call_args.args[1])
+        self.assertIn(_content_replies.GUIDANCE_BODY, spawn.call_args.args[1])
 
     def test_the_edited_issue_is_shown_beside_it(self) -> None:
         # A resume is exactly the case that cannot see an edit: the replayed
@@ -197,7 +198,7 @@ class RolledOverHoldTest(RevisionCase):
 
     def test_the_next_tick_re_marks_and_spawns(self) -> None:
         self._seed_with_plan_pr(**_stage_support.DEV_PIN)
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
         revised, _resumed = self._revise(measurement=_stage_support.REMEASURED_OVERSIZED)
 
         adjudicated, spawn = self._adjudicate_revised()
@@ -212,7 +213,7 @@ class RolledOverHoldTest(RevisionCase):
         # The hold is the cycle's, so an advanced generation asks for the same
         # body it already wrote: one edit for the whole rollover.
         self._seed_with_plan_pr(**_stage_support.DEV_PIN)
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
         self._revise(measurement=_stage_support.REMEASURED_OVERSIZED)
         held = self.plan_pr.body
 
@@ -238,7 +239,7 @@ class StalledRevisionTest(RevisionCase):
 
     def test_a_continue_remeasures_without_a_spawn(self) -> None:
         self._seed(**_support.REVISION_PARKED, **_stage_support.DEV_PIN)
-        _support.reply(self.issue, _support.BARE_CONTINUE)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
 
         outcome, spawn = self._revise()
 
@@ -250,7 +251,7 @@ class StalledRevisionTest(RevisionCase):
 
     def test_a_still_dirty_tree_repeats_no_notice(self) -> None:
         self._seed(**_support.REVISION_PARKED, **_stage_support.DEV_PIN)
-        _support.reply(self.issue, _support.BARE_CONTINUE)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
         self._revise(seed=WorktreeSeed(head=_support.REVISED_SHA, dirty=_stage_support.DIRTY_TREE))
         posted = len(self._bodies())
 
@@ -273,7 +274,7 @@ class StalledRevisionTest(RevisionCase):
 
     def test_guidance_runs_the_developer_again(self) -> None:
         self._seed(**_support.REVISION_PARKED, **_stage_support.DEV_PIN)
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
 
         outcome, spawn = self._revise()
 
@@ -285,7 +286,7 @@ class StalledRevisionTest(RevisionCase):
         # for. Absorbing it into the baseline would consume an instruction
         # without acting on it and then reuse a verdict nobody re-earned.
         self._seed(**_support.DRIFT_PARKED, **_stage_support.DEV_PIN)
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
 
         outcome, spawn = self._revise()
 
@@ -304,7 +305,7 @@ class UnparkedGuidanceTest(RevisionCase):
         # change. Folding it into the baseline would consume a human's
         # instruction without acting on it.
         self._seed(**_stage_support.DEV_PIN)
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
 
         revised, resumed = self._revise()
 
@@ -317,7 +318,7 @@ class UnparkedGuidanceTest(RevisionCase):
         # different is exactly the one that must not stand: the re-measured
         # candidate advances the generation, so the old answer stops applying.
         self._seed(**_support.RECORDED_SINGLE, **_stage_support.DEV_PIN)
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
 
         revised, resumed = self._revise()
 
@@ -331,7 +332,7 @@ class UnparkedGuidanceTest(RevisionCase):
         # The one reply that lands here with nothing to answer: no park was
         # waiting on it and no candidate needs certifying.
         self._seed(**_support.RECORDED_SINGLE, **_stage_support.DEV_PIN)
-        _support.reply(self.issue, _support.BARE_CONTINUE)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
 
         reused, resumed = self._revise()
 

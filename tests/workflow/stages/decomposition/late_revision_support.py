@@ -21,6 +21,7 @@ from orchestrator.git.measurement.models import (
     MeasurementFailure,
 )
 from tests.support.fakes import FakeLabel
+from tests.workflow.stages.decomposition.late_content_replies import reply
 from tests.workflow.stages.decomposition.late_content_support import (
     DRIFT_PARKED,
     EDITED_TITLE,
@@ -28,7 +29,6 @@ from tests.workflow.stages.decomposition.late_content_support import (
     REVISED_BASE_SHA,
     REVISED_SHA,
     LateContentCase,
-    reply,
 )
 from tests.workflow.stages.decomposition.late_run_support import (
     WorktreeSeed,

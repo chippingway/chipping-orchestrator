@@ -30,7 +30,11 @@ from orchestrator.workflow.late_split import overrides as _overrides
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
-from tests.workflow.stages.decomposition import late_content_support as _support, late_test_support as _stage_support
+from tests.workflow.stages.decomposition import (
+    late_content_replies as _content_replies,
+    late_content_support as _support,
+    late_test_support as _stage_support,
+)
 from tests.workflow.stages.decomposition.late_content_support import LateContentCase
 from tests.workflow.stages.decomposition.late_published_support import (
     published_generation,
@@ -141,7 +145,7 @@ class _AuthorizeCase(LateContentCase):
 
     def _command(self, named: str = _stage_support.CANDIDATE_SHA):
         """Post the authorization as a reply to the park's own notice."""
-        return _support.reply(self.issue, _support.authorization(named))
+        return _content_replies.reply(self.issue, _content_replies.authorization(named))
 
     def _tick(self, **run_fields):
         """Run one adjudication, keeping the spawn for the caller to assert."""
@@ -257,7 +261,7 @@ class RefusedAuthorizationTest(_AuthorizeCase):
         for named in _NOT_THE_CANDIDATE:
             with self.subTest(named=named):
                 self.setUp()
-                _support.reply(self.issue, _support.authorization(named).strip())
+                _content_replies.reply(self.issue, _content_replies.authorization(named).strip())
 
                 outcome = self._tick()
 
@@ -271,7 +275,7 @@ class RefusedAuthorizationTest(_AuthorizeCase):
                 self.assertIn(_stage_support.CANDIDATE_SHA, said)
 
     def test_a_bare_continue_is_refused(self) -> None:
-        _support.reply(self.issue, _support.BARE_CONTINUE)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
 
         outcome = self._tick()
 
@@ -359,11 +363,11 @@ class UnauthorizedReplyTest(_AuthorizeCase):
         # The allowlist is applied where the thread is read, so an outsider's
         # comment is not in the reading this owner is handed at all: it is not
         # a command, not guidance, and not something to answer.
-        self.issue.comments.append(_support.human_comment(
-            OUTSIDER_COMMENT_ID, _support.authorization(), login=_support.OUTSIDER,
+        self.issue.comments.append(_content_replies.human_comment(
+            OUTSIDER_COMMENT_ID, _content_replies.authorization(), login=_support.OUTSIDER,
         ))
 
-        with patch.object(config, ALLOWED_AUTHORS, (_support.HUMAN,)):
+        with patch.object(config, ALLOWED_AUTHORS, (_content_replies.HUMAN,)):
             outcome = self._tick()
 
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
@@ -374,7 +378,7 @@ class UnauthorizedReplyTest(_AuthorizeCase):
         # A command posted below the park's own notice was written before the
         # question was put, so it is not an answer to it.
         self.issue.comments.append(
-            _support.human_comment(EARLY_COMMENT_ID, _support.authorization()),
+            _content_replies.human_comment(EARLY_COMMENT_ID, _content_replies.authorization()),
         )
 
         outcome = self._tick()
@@ -386,7 +390,7 @@ class UnauthorizedReplyTest(_AuthorizeCase):
         # Not the whole comment, so not the command: those are words about the
         # change, and words about the change reopen the work rather than
         # publishing it.
-        _support.reply(self.issue, f"{_support.authorization()}\n\nbut drop the retry loop")
+        _content_replies.reply(self.issue, f"{_content_replies.authorization()}\n\nbut drop the retry loop")
 
         self._assert_reopened_the_work()
 
@@ -394,7 +398,7 @@ class UnauthorizedReplyTest(_AuthorizeCase):
         # Two comments saying opposite things. The safe reading of a human who
         # wrote both is the one that publishes nothing.
         self._command()
-        _support.reply(self.issue, "take the migration out of this one")
+        _content_replies.reply(self.issue, "take the migration out of this one")
 
         self._assert_reopened_the_work()
 
@@ -577,7 +581,7 @@ class ReplacedAnswerTest(_AuthorizeCase):
         self.assertEqual(
             self._pinned().get(_stage_support.KEYS.park_reason), _support.PARK_CONTENT_DRIFT,
         )
-        _support.reply(self.issue, _support.BARE_CONTINUE)
+        _content_replies.reply(self.issue, _support.BARE_CONTINUE)
 
         outcome = self._tick(reply=_stage_support.SINGLE_REPLY)
 
@@ -599,7 +603,7 @@ class ReplacedAnswerTest(_AuthorizeCase):
         self.github.seed_state(
             self.issue.number, **{**self._pinned(), **DEV_PIN},
         )
-        _support.reply(self.issue)
+        _content_replies.reply(self.issue)
 
         revised = self._tick(
             reply=DEV_ACK,

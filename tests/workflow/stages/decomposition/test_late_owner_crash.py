@@ -29,10 +29,8 @@ from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
 from tests.workflow.stages.decomposition import late_settlement_support as _support
-from tests.workflow.stages.decomposition.late_content_support import (
-    PARK_REVISION_DIRTY,
-    reply,
-)
+from tests.workflow.stages.decomposition.late_content_replies import reply
+from tests.workflow.stages.decomposition.late_content_support import PARK_REVISION_DIRTY
 from tests.workflow.stages.decomposition.late_revision_support import (
     DEV_PIN,
     DIRTY_TREE,

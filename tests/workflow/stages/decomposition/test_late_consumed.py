@@ -14,6 +14,7 @@ from __future__ import annotations
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )
+from tests.workflow.stages.decomposition.late_content_replies import reply
 from tests.workflow.stages.decomposition.late_content_support import (
     ASKED_STATE,
     BARE_CONTINUE,
@@ -22,7 +23,6 @@ from tests.workflow.stages.decomposition.late_content_support import (
     KEY_COMMENT_WATERMARK,
     KEY_LAST_ACTION_COMMENT_ID,
     REVISION_PARKED,
-    reply,
 )
 from tests.workflow.stages.decomposition.late_revision_support import (
     DEV_PIN,

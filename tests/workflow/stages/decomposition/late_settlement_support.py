@@ -46,7 +46,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 )
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.fixtures import _TEST_SPEC
-from tests.workflow.stages.decomposition import late_test_support as _support
+from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     LateCase,
     WorktreeSeed,
@@ -92,7 +92,7 @@ QUESTION_RUN = agent_reply(_support.QUESTION_REPLY)
 TIMEOUT_RUN = agent_reply("", timed_out=True)
 UNPARSED_RUN = agent_reply(_support.NO_BLOCK_REPLY)
 _TOO_LONG_TO_RECORD = "q" * _late_session.MAX_RECORDED_BODY
-UNRECORDABLE_RUN = agent_reply(_support.late_block(
+UNRECORDABLE_RUN = agent_reply(_reply_support.late_block(
     '{"decision": "question", "category": "unsafe_split", '
     '"question": "' + _TOO_LONG_TO_RECORD + '"}'
 ))

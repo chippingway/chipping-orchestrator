@@ -14,7 +14,7 @@ from orchestrator.workflow.stages.decomposition import (
 from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
 from orchestrator.workflow.stages.decomposition.late_reply import _SPLIT_BLOCKER
 from tests.workflow.fixtures import _manifest as _initial_block
-from tests.workflow.stages.decomposition import late_test_support as _support
+from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 
 SINGLE_PAYLOAD = '{"decision": "single", "rationale": "fits"}'
 
@@ -32,18 +32,18 @@ _REFUSED_REPLIES = (
     ("no block at all", "the late decomposer decided single", "no outcome"),
     ("two blocks", f"{_support.SINGLE_REPLY}\n{_support.SINGLE_REPLY}", "exactly one"),
     ("prose after", f"{_support.SINGLE_REPLY}\nand one more thought", "final block"),
-    ("not json", _support.late_block("{decision: single}"), "invalid JSON"),
-    ("not an object", _support.late_block('["single"]'), "not a JSON object"),
-    ("no decision", _support.late_block("{}"), "decision must be"),
-    ("unknown decision", _support.late_block('{"decision": "maybe"}'), "decision must"),
+    ("not json", _reply_support.late_block("{decision: single}"), "invalid JSON"),
+    ("not an object", _reply_support.late_block('["single"]'), "not a JSON object"),
+    ("no decision", _reply_support.late_block("{}"), "decision must be"),
+    ("unknown decision", _reply_support.late_block('{"decision": "maybe"}'), "decision must"),
     (
         "split with no children",
-        _support.late_block('{"decision": "split", "children": []}'),
+        _reply_support.late_block('{"decision": "split", "children": []}'),
         "non-empty children",
     ),
     (
         "split with a cycle",
-        _support.late_block(
+        _reply_support.late_block(
             '{"decision": "split", "children": ['
             '{"title": "A", "body": "a", "depends_on": [1]},'
             '{"title": "B", "body": "b", "depends_on": [0]}]}'
@@ -52,39 +52,39 @@ _REFUSED_REPLIES = (
     ),
     (
         "question with nothing asked",
-        _support.late_block('{"decision": "question", "category": "unsafe_split"}'),
+        _reply_support.late_block('{"decision": "question", "category": "unsafe_split"}'),
         "non-empty question",
     ),
     (
         "a single with no explanation",
-        _support.late_block(SINGLE_PAYLOAD),
+        _reply_support.late_block(SINGLE_PAYLOAD),
         f"requires a non-empty {_SPLIT_BLOCKER}",
     ),
     (
         "a single explained with whitespace",
-        _support.late_block(f'{{"decision": "single", "{_SPLIT_BLOCKER}": "  "}}'),
+        _reply_support.late_block(f'{{"decision": "single", "{_SPLIT_BLOCKER}": "  "}}'),
         f"requires a non-empty {_SPLIT_BLOCKER}",
     ),
     (
         "a single explained with something that is not text",
-        _support.late_block(f'{{"decision": "single", "{_SPLIT_BLOCKER}": [1, 2]}}'),
+        _reply_support.late_block(f'{{"decision": "single", "{_SPLIT_BLOCKER}": [1, 2]}}'),
         "no safe split of this work is available",
     ),
     (
         "a child with no budget",
-        _support.split_reply_of(None),
+        _reply_support.split_reply_of(None),
         f"child 0 needs an `{ESTIMATE}`",
     ),
     (
         "a budget that is a string",
-        _support.split_reply_of("300"),
+        _reply_support.split_reply_of("300"),
         f"child 0 needs an `{ESTIMATE}`",
     ),
-    ("a budget that is a bool", _support.split_reply_of(True), "child 0 needs"),
-    ("a budget of nothing", _support.split_reply_of(_support.FIRST_ESTIMATE, 0), "child 1 needs"),
+    ("a budget that is a bool", _reply_support.split_reply_of(True), "child 0 needs"),
+    ("a budget of nothing", _reply_support.split_reply_of(_support.FIRST_ESTIMATE, 0), "child 1 needs"),
     (
         "a budget at the ceiling",
-        _support.split_reply_of(_support.THRESHOLD),
+        _reply_support.split_reply_of(_support.THRESHOLD),
         f"is not below the {_support.THRESHOLD}-line ceiling",
     ),
 )
@@ -176,7 +176,7 @@ class LateReplyTest(unittest.TestCase):
         for declared, expected in cases:
             with self.subTest(declared=declared):
                 adjudication, error = _late_reply._parse_late_reply(
-                    _support.late_block(
+                    _reply_support.late_block(
                         '{"decision": "question", '
                         f'{declared}"question": "which half?"}}'
                     ),
@@ -187,7 +187,7 @@ class LateReplyTest(unittest.TestCase):
 
     def test_an_absent_category_stays_absent(self) -> None:
         adjudication, error = _late_reply._parse_late_reply(
-            _support.late_block(LATE_SINGLE_PAYLOAD), _support.THRESHOLD,
+            _reply_support.late_block(LATE_SINGLE_PAYLOAD), _support.THRESHOLD,
         )
 
         self.assertIsNone(error)
@@ -226,14 +226,14 @@ class LateBudgetTest(unittest.TestCase):
         # refuses a child that declared no budget at all, since a missing one
         # is a protocol failure whatever the bound is.
         oversized, refusal = _late_reply._parse_late_reply(
-            _support.split_reply_of(_support.THRESHOLD * 2), None,
+            _reply_support.split_reply_of(_support.THRESHOLD * 2), None,
         )
 
         self.assertIsNone(refusal)
         self.assertEqual(oversized.child_count, 1)
 
         unsized, error = _late_reply._parse_late_reply(
-            _support.split_reply_of(None), None,
+            _reply_support.split_reply_of(None), None,
         )
 
         self.assertIsNone(unsized)

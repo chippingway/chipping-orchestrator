@@ -26,10 +26,8 @@ from tests.workflow.stages.decomposition import late_retry_cap_support as _suppo
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
 )
-from tests.workflow.stages.decomposition.late_content_support import (
-    PARK_NOTICE_ID,
-    late_issue,
-)
+from tests.workflow.stages.decomposition.late_content_replies import PARK_NOTICE_ID
+from tests.workflow.stages.decomposition.late_content_support import late_issue
 from tests.workflow.stages.decomposition.late_test_support import (
     KEYS,
     LATE_ISSUE_NUMBER,
