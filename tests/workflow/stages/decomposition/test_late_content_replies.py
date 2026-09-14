@@ -15,17 +15,7 @@ import unittest
 from orchestrator.workflow.stages.decomposition import (
     late_content_replies as _replies,
 )
-from tests.workflow.stages.decomposition.late_content_support import (
-    BARE_CONTINUE,
-    CONTINUE_ID,
-    CONTINUE_WITH_GUIDANCE,
-    GUIDANCE_BODY,
-    GUIDANCE_ID,
-    REVISED_SHA,
-    SECOND_ID,
-    authorization,
-    human_comment,
-)
+from tests.workflow.stages.decomposition import late_content_support as _support
 from tests.workflow.stages.decomposition.late_test_support import CANDIDATE_SHA
 
 EMPTY_BODY = "   \n "
@@ -46,16 +36,16 @@ class GuidanceClassificationTest(unittest.TestCase):
         # whole comment then, and a body with nothing in it says nothing a
         # developer could revise against.
         for body, classified in (
-            (GUIDANCE_BODY, True),
-            (BARE_CONTINUE, False),
-            (authorization(), False),
-            (CONTINUE_WITH_GUIDANCE, True),
-            (f"{authorization()}\n\nbut drop the retry loop", True),
+            (_support.GUIDANCE_BODY, True),
+            (_support.BARE_CONTINUE, False),
+            (_support.authorization(), False),
+            (_support.CONTINUE_WITH_GUIDANCE, True),
+            (f"{_support.authorization()}\n\nbut drop the retry loop", True),
             (EMPTY_BODY, False),
         ):
             with self.subTest(body=body):
                 self.assertEqual(
-                    _replies._is_guidance(human_comment(GUIDANCE_ID, body)),
+                    _replies._is_guidance(_support.human_comment(_support.GUIDANCE_ID, body)),
                     classified,
                 )
 
@@ -68,12 +58,12 @@ class AuthorizationReadingTest(unittest.TestCase):
         # twice meant the second: a corrected commit below a mistyped one is
         # the request, not the line it corrects.
         read = _replies._authorization([
-            human_comment(GUIDANCE_ID, authorization(CANDIDATE_SHA)),
-            human_comment(SECOND_ID, authorization(REVISED_SHA)),
+            _support.human_comment(_support.GUIDANCE_ID, _support.authorization(CANDIDATE_SHA)),
+            _support.human_comment(_support.SECOND_ID, _support.authorization(_support.REVISED_SHA)),
         ])
 
-        self.assertEqual(read.candidate_sha, REVISED_SHA)
-        self.assertEqual(read.comment_id, SECOND_ID)
+        self.assertEqual(read.candidate_sha, _support.REVISED_SHA)
+        self.assertEqual(read.comment_id, _support.SECOND_ID)
 
     def test_a_malformed_argument_is_carried(self) -> None:
         # The refusal this earns is the authorizing owner's to say, and it
@@ -82,11 +72,11 @@ class AuthorizationReadingTest(unittest.TestCase):
         for named in (MALFORMED_SHA, ""):
             with self.subTest(named=named):
                 read = _replies._authorization([
-                    human_comment(CONTINUE_ID, authorization(named).strip()),
+                    _support.human_comment(_support.CONTINUE_ID, _support.authorization(named).strip()),
                 ])
 
                 self.assertEqual(read.candidate_sha, named)
-                self.assertEqual(read.comment_id, CONTINUE_ID)
+                self.assertEqual(read.comment_id, _support.CONTINUE_ID)
 
     def test_what_is_not_the_command_reads_as_none(self) -> None:
         # The last of these is the one the record could not survive: a bypass
@@ -95,10 +85,10 @@ class AuthorizationReadingTest(unittest.TestCase):
         # rather than recorded against a comment that cannot be named.
         for fresh in (
             [],
-            [human_comment(GUIDANCE_ID, GUIDANCE_BODY)],
-            [human_comment(CONTINUE_ID, BARE_CONTINUE)],
-            [human_comment(SECOND_ID, f"please run {authorization()} now")],
-            [human_comment(UNNAMEABLE_ID, authorization())],
+            [_support.human_comment(_support.GUIDANCE_ID, _support.GUIDANCE_BODY)],
+            [_support.human_comment(_support.CONTINUE_ID, _support.BARE_CONTINUE)],
+            [_support.human_comment(_support.SECOND_ID, f"please run {_support.authorization()} now")],
+            [_support.human_comment(UNNAMEABLE_ID, _support.authorization())],
         ):
             with self.subTest(fresh=[quoted.id for quoted in fresh]):
                 self.assertIsNone(_replies._authorization(fresh))

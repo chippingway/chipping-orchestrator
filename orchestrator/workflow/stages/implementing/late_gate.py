@@ -153,8 +153,8 @@ from orchestrator.workflow.stages.implementing import (
     late_records as _records,
     late_transfer as _transfer,
     late_verdict as _verdict_owner,
-    models as _models,
 )
+from orchestrator.workflow.stages.implementing.models import _AgentWork, _RecoveredWork
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -192,7 +192,7 @@ def _holds_committed_work(
     spec: config.RepoSpec,
     issue: Issue,
     state: PinnedState,
-    work: _models._AgentWork,
+    work: _AgentWork,
 ) -> _records._GateVerdict:
     """Whether the size gate keeps this committed candidate unpublished.
 
@@ -211,7 +211,7 @@ def _holds_committed_work(
     mid-flight, and a crash between the count and the label costs a label
     write rather than another reading of the same diff.
     """
-    recovering = isinstance(work, _models._RecoveredWork)
+    recovering = isinstance(work, _RecoveredWork)
     return _holds_candidate(_records._Gate(
         gh=gh, spec=spec, issue=issue, state=state, worktree=work.worktree,
         reconciling=recovering,

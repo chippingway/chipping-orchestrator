@@ -31,6 +31,10 @@ from tests.workflow.interleaving import _RacesPastTheStep
 from tests.workflow.stages.implementing import (
     plan_handoff_test_support as support,
 )
+from tests.workflow.stages.implementing.read_only_relabel_test_support import (
+    HEAD_AFTER_COMMIT,
+    HEAD_BEFORE_ROUND,
+)
 
 # The step this whole module is about: the one guarded reading of the recorded
 # pull request. A case hangs its transition on the far side of it, which is
@@ -63,7 +67,7 @@ class PlanTransitionRaceTest(support._HandoffTickMixin, unittest.TestCase):
         # design document with no developer having run.
         github, issue = support._seed_accepted_handoff(
             _RACE_ISSUE_NUMBER,
-            head_sha=support.HEAD_AFTER_COMMIT,
+            head_sha=HEAD_AFTER_COMMIT,
             merged=False,
         )
 
@@ -91,11 +95,11 @@ class PlanTransitionRaceTest(support._HandoffTickMixin, unittest.TestCase):
                 issue,
                 unpushed_branch=_issue_branch(_RACE_ISSUE_NUMBER),
                 has_new_commits=True,
-                branch_tip_sha=support.HEAD_BEFORE_ROUND,
+                branch_tip_sha=HEAD_BEFORE_ROUND,
                 head_shas=(
-                    support.HEAD_BEFORE_ROUND,
-                    support.HEAD_BEFORE_ROUND,
-                    support.HEAD_AFTER_COMMIT,
+                    HEAD_BEFORE_ROUND,
+                    HEAD_BEFORE_ROUND,
+                    HEAD_AFTER_COMMIT,
                 ),
             )
 

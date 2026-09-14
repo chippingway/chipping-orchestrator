@@ -22,20 +22,10 @@ from orchestrator import config
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.stages.implementing import late_parks as _parks
 from tests.support.fakes import FakePR, FakePRRef
-from tests.workflow.fixtures import (
-    LABEL_DECOMPOSING,
-    LABEL_VALIDATING,
-    MEASURED_BASE_SHA,
-    MEASURED_CANDIDATE_SHA,
-    SHA_LENGTH,
-    _agent,
-    _analytics_records,
-    _authorized_exemption,
-    _issue_branch,
-)
+from tests.workflow import fixtures as _fixtures
 from tests.workflow.stages.implementing import late_gate_test_support as support
 
-_OTHER_SHA = "d" * SHA_LENGTH
+_OTHER_SHA = "d" * _fixtures.SHA_LENGTH
 _KEY_APPROVED_SHA = "late_approved_sha"
 # The stage's own receipt, which admits a commit the remote already carries
 # without a reading -- and which leaves this seam's debt to the publication.
@@ -53,7 +43,7 @@ _KEY_BRANCH = "branch"
 # The pull request this stage's own push opened, which the receipt beside it
 # is only evidence for while the remote still agrees.
 _DELIVERED_PR_NUMBER = 812
-_DECOMPOSING = (support.GATE_ISSUE_NUMBER, LABEL_DECOMPOSING)
+_DECOMPOSING = (support.GATE_ISSUE_NUMBER, _fixtures.LABEL_DECOMPOSING)
 _STAGE_IMPLEMENTING = "implementing"
 _DECOMPOSE = "DECOMPOSE"
 _CANDIDATE_MOVED = "late_candidate_moved"
@@ -65,7 +55,7 @@ _PUBLISHED_SHA = "late_published_sha"
 # A checkout that answers the gate with the measured commit and the
 # publication with a descendant: the race the handoff refuses.
 _MOVING_HEAD = (
-    FrozenCommit(sha=MEASURED_CANDIDATE_SHA),
+    FrozenCommit(sha=_fixtures.MEASURED_CANDIDATE_SHA),
     FrozenCommit(sha=_OTHER_SHA),
 )
 
@@ -74,7 +64,7 @@ _MOVING_HEAD = (
 # gate sees the issue at all, so the descendant is the third answer rather
 # than the second.
 _RECONCILED_THEN_MOVING = (
-    FrozenCommit(sha=MEASURED_CANDIDATE_SHA),
+    FrozenCommit(sha=_fixtures.MEASURED_CANDIDATE_SHA),
     *_MOVING_HEAD,
 )
 
@@ -94,7 +84,7 @@ class LateGateVerdictTest(support._GateCase, unittest.TestCase):
         self._assert_published(mocks)
         self.assertEqual(len(self.github.opened_prs), 1)
         self.assertIn(
-            (support.GATE_ISSUE_NUMBER, LABEL_VALIDATING),
+            (support.GATE_ISSUE_NUMBER, _fixtures.LABEL_VALIDATING),
             self.github.label_history,
         )
         pinned = self._pinned()
@@ -148,7 +138,7 @@ class LateGateVerdictTest(support._GateCase, unittest.TestCase):
         notice = self.github.posted_comments[-1][1]
         self.assertIn(str(support.OVERSIZED_ADDITIONS), notice)
         self.assertIn(str(config.MAX_ADDED_LINES), notice)
-        self.assertIn(MEASURED_CANDIDATE_SHA, notice)
+        self.assertIn(_fixtures.MEASURED_CANDIDATE_SHA, notice)
 
     def test_a_candidate_at_the_ceiling_publishes(self) -> None:
         # Strictly past, so the trigger cannot move by one line when the
@@ -194,17 +184,17 @@ class LateGatePushTest(support._GateCase, unittest.TestCase):
 
         self.assertEqual(
             mocks[support.PUSH_BRANCH].call_args.kwargs["revision"],
-            MEASURED_CANDIDATE_SHA,
+            _fixtures.MEASURED_CANDIDATE_SHA,
         )
 
     def test_the_exempt_commit_is_pushed(self) -> None:
-        self._seed(**_authorized_exemption())
+        self._seed(**_fixtures._authorized_exemption())
 
         mocks = self._run_gate()
 
         self.assertEqual(
             mocks[support.PUSH_BRANCH].call_args.kwargs["revision"],
-            MEASURED_CANDIDATE_SHA,
+            _fixtures.MEASURED_CANDIDATE_SHA,
         )
 
     def test_a_moved_checkout_publishes_nothing(self) -> None:
@@ -233,7 +223,7 @@ class LateGatePushTest(support._GateCase, unittest.TestCase):
         # guard below finds a head matching what the gate just decided, so
         # nothing downstream catches it. The approval a reading or a human
         # stood behind would be gone, for a commit neither ever saw.
-        self._seed(**{_KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA})
+        self._seed(**{_KEY_APPROVED_SHA: _fixtures.MEASURED_CANDIDATE_SHA})
 
         mocks = self._run_gate(
             added_lines=support.SMALL_ADDITIONS,
@@ -244,7 +234,7 @@ class LateGatePushTest(support._GateCase, unittest.TestCase):
         self.assertEqual(self.github.label_history, [])
         pinned = self._pinned()
         self.assertTrue(pinned[support.AWAITING_HUMAN])
-        self.assertEqual(pinned[_KEY_APPROVED_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertEqual(pinned[_KEY_APPROVED_SHA], _fixtures.MEASURED_CANDIDATE_SHA)
 
     def test_a_moved_checkout_says_both_commits(self) -> None:
         self._run_gate(
@@ -253,7 +243,7 @@ class LateGatePushTest(support._GateCase, unittest.TestCase):
         )
 
         notice = self.github.posted_comments[-1][1]
-        self.assertIn(MEASURED_CANDIDATE_SHA, notice)
+        self.assertIn(_fixtures.MEASURED_CANDIDATE_SHA, notice)
         self.assertIn(_OTHER_SHA, notice)
 
     def test_an_unmeasured_branch_is_named_too(self) -> None:
@@ -268,7 +258,7 @@ class LateGatePushTest(support._GateCase, unittest.TestCase):
         self._assert_unmeasured(mocks)
         self.assertEqual(
             mocks[support.PUSH_BRANCH].call_args.kwargs["revision"],
-            MEASURED_CANDIDATE_SHA,
+            _fixtures.MEASURED_CANDIDATE_SHA,
         )
 
 
@@ -300,7 +290,7 @@ class MovedCheckoutDebtTest(support._GateCase, unittest.TestCase):
         self._assert_held(mocks)
         pinned = self._pinned()
         self.assertEqual(pinned[support.PARK_REASON], _CANDIDATE_MOVED)
-        self.assertEqual(pinned[_KEY_APPROVED_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertEqual(pinned[_KEY_APPROVED_SHA], _fixtures.MEASURED_CANDIDATE_SHA)
         self.assertEqual(
             pinned[_KEY_APPROVED_BASIS],
             str(_parks.LateApprovalBasis.UNMEASURED),
@@ -314,8 +304,8 @@ class MovedCheckoutDebtTest(support._GateCase, unittest.TestCase):
         # would publish an adjudicated commit without anything revalidating
         # the operator authorization behind it.
         self._seed(**{
-            **_authorized_exemption(),
-            _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+            **_fixtures._authorized_exemption(),
+            _KEY_APPROVED_SHA: _fixtures.MEASURED_CANDIDATE_SHA,
         })
 
         self._run_gate(
@@ -325,7 +315,7 @@ class MovedCheckoutDebtTest(support._GateCase, unittest.TestCase):
 
         pinned = self._pinned()
         self.assertEqual(pinned[support.PARK_REASON], _CANDIDATE_MOVED)
-        self.assertEqual(pinned[_KEY_APPROVED_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertEqual(pinned[_KEY_APPROVED_SHA], _fixtures.MEASURED_CANDIDATE_SHA)
         self.assertIsNone(pinned[_KEY_APPROVED_BASIS])
 
     def test_a_restored_checkout_publishes_on_it(self) -> None:
@@ -354,16 +344,16 @@ class MovedCheckoutDebtTest(support._GateCase, unittest.TestCase):
         own the note says what was PUSHED and nothing about where it went or
         whether it is still there.
         """
-        branch = _issue_branch(support.GATE_ISSUE_NUMBER)
+        branch = _fixtures._issue_branch(support.GATE_ISSUE_NUMBER)
         opened = FakePR(
             number=_DELIVERED_PR_NUMBER,
             head_branch=branch,
-            head=FakePRRef(sha=MEASURED_CANDIDATE_SHA, ref=branch),
+            head=FakePRRef(sha=_fixtures.MEASURED_CANDIDATE_SHA, ref=branch),
         )
         self.github.add_pr(opened)
         self.github.existing_open_pr[branch] = opened
         self._seed(**{
-            _KEY_RECEIPT_SHA: MEASURED_CANDIDATE_SHA,
+            _KEY_RECEIPT_SHA: _fixtures.MEASURED_CANDIDATE_SHA,
             # Written with it and `null`, as an initial publication records
             # it: that push froze no head to be pinned to, and the key still
             # goes down -- the three are one write.
@@ -392,7 +382,7 @@ class LateGateTelemetryTest(support._GateCase, unittest.TestCase):
                 analytics_log_path=log_path,
             )
             recorded = [
-                record for record in _analytics_records(log_path)
+                record for record in _fixtures._analytics_records(log_path)
                 if record.get("event") == support.EVENT_LATE_MEASUREMENT
             ]
 
@@ -402,8 +392,8 @@ class LateGateTelemetryTest(support._GateCase, unittest.TestCase):
     def _assert_record(self, record: dict, additions: int) -> None:
         self.assertEqual(record["stage"], _STAGE_IMPLEMENTING)
         self.assertEqual(record["issue"], support.GATE_ISSUE_NUMBER)
-        self.assertEqual(record["source_sha"], MEASURED_CANDIDATE_SHA)
-        self.assertEqual(record["base_sha"], MEASURED_BASE_SHA)
+        self.assertEqual(record["source_sha"], _fixtures.MEASURED_CANDIDATE_SHA)
+        self.assertEqual(record["base_sha"], _fixtures.MEASURED_BASE_SHA)
         self.assertEqual(record["additions"], additions)
         self.assertEqual(record["threshold"], config.MAX_ADDED_LINES)
         self.assertEqual(record["cycle_id"], 1)
@@ -450,7 +440,7 @@ class LateGateExemptionTest(support._ParkedRetryCase, unittest.TestCase):
         # same ceiling and adjudicate it again, forever.
         for runs_left, ledger in support.LEDGERS.items():
             with self.subTest(runs_left=runs_left):
-                self._seed(**{**_authorized_exemption(), **ledger})
+                self._seed(**{**_fixtures._authorized_exemption(), **ledger})
 
                 mocks = self._run_gate()
 
@@ -462,7 +452,7 @@ class LateGateExemptionTest(support._ParkedRetryCase, unittest.TestCase):
         for runs_left, ledger in support.LEDGERS.items():
             with self.subTest(runs_left=runs_left):
                 self._seed(**{
-                    **_authorized_exemption(_OTHER_SHA), **ledger,
+                    **_fixtures._authorized_exemption(_OTHER_SHA), **ledger,
                 })
 
                 mocks = self._run_gate(
@@ -486,15 +476,15 @@ class LateGateExemptionTest(support._ParkedRetryCase, unittest.TestCase):
             support.LAST_ACTION_COMMENT_ID: support.PRIOR_ACTION_COMMENT_ID,
             "dev_agent": "codex",
             "dev_session_id": support.DEV_SESSION,
-            **_authorized_exemption(),
+            **_fixtures._authorized_exemption(),
             **support.recorded_generation(candidate_sha=_OTHER_SHA),
         })
         self._reply("put it back on the commit we already agreed")
         return self._run_gate(
-            run_agent=_agent(
+            run_agent=_fixtures._agent(
                 session_id=support.DEV_SESSION, last_message="reset",
             ),
-            head_shas=(_OTHER_SHA, MEASURED_CANDIDATE_SHA),
+            head_shas=(_OTHER_SHA, _fixtures.MEASURED_CANDIDATE_SHA),
         )
 
 
@@ -538,7 +528,7 @@ class LateGateSwitchTest(support._GateCase, unittest.TestCase):
             self._run_gate(push_branch=False)
 
         pinned = self._pinned()
-        self.assertEqual(pinned[_KEY_APPROVED_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertEqual(pinned[_KEY_APPROVED_SHA], _fixtures.MEASURED_CANDIDATE_SHA)
         self.assertEqual(
             pinned[_KEY_APPROVED_BASIS],
             str(_parks.LateApprovalBasis.UNMEASURED),
