@@ -8,14 +8,9 @@ from dataclasses import replace
 
 from orchestrator.config import settings as config
 from orchestrator.workflow.late_split.formats import InvalidLateValue
-from orchestrator.workflow.late_split.models import (
-    MAX_LINEAGE_DEPTH,
-    LateGeneration,
-    LatePhase,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.phases import LatePhase
 from tests.workflow.late_split import generation_test_support as _support
 
 _BRANCH = "orchestrator/issue-1"

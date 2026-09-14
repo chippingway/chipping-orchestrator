@@ -98,11 +98,8 @@ import logging
 from dataclasses import replace
 
 from orchestrator.workflow.engine import comments as _comments, observations as _observations, usage as _usage
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateGeneration,
-    LatePhase,
-)
+from orchestrator.workflow.late_split.models import LateFailure, LateGeneration
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
     late_outcome as _late_outcome,

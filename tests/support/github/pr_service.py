@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from orchestrator.github import pull_requests as _pull_requests
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.github.pinned_state import PINNED_STATE_MARKER
 from tests.support.github.model_helpers import _review_has_feedback
 from tests.support.github.models import FakeComment, FakeLabel, FakeUser
@@ -146,7 +146,7 @@ class _PullStatusService:
         candidate at all.
         """
         if branch in self.unreadable_pr_lookups:
-            return _pull_requests.PR_LOOKUP_UNREADABLE
+            return _pr_reads.PR_LOOKUP_UNREADABLE
         unreadable = False
         for pull_request in self.pulls.values():
             carries = self._pr_carries(pull_request, branch, head_sha, base)
@@ -154,7 +154,7 @@ class _PullStatusService:
                 return pull_request
             unreadable = unreadable or carries is None
         if unreadable:
-            return _pull_requests.PR_LOOKUP_UNREADABLE
+            return _pr_reads.PR_LOOKUP_UNREADABLE
         return None
 
     def merge_pr(

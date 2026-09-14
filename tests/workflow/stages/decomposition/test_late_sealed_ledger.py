@@ -26,13 +26,8 @@ from __future__ import annotations
 import unittest
 from dataclasses import replace
 
-from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import (
-    LatePhase,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split import phases as _late_phases, state as _late_state
+from orchestrator.workflow.late_split.models import LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_children as _late_children,
     late_models as _late_models,
@@ -199,7 +194,7 @@ class ResumedWalkSealsNothingTest(
     def _resumed(self):
         """A cancelled cycle, and the resumed walk its loop stopped on."""
         cancelled = replace(
-            self.generation.cancel(_CANCELLED_AT), phase=LatePhase.CANCELLING,
+            self.generation.cancel(_CANCELLED_AT), phase=_late_phases.LatePhase.CANCELLING,
         )
         context = _late_models._LateContext(
             gh=self.github,
@@ -282,7 +277,7 @@ class SecondCycleAfterASealedOneTest(_SweptOwnerCase, unittest.TestCase):
         _late_state.write_late_generation(state, replace(
             self.generation.cancel(_CANCELLED_AT),
             cycle_id=_NEXT_CYCLE,
-            phase=LatePhase.SPLITTING,
+            phase=_late_phases.LatePhase.SPLITTING,
             resources=(),
             consumers=(),
             split_children=(),

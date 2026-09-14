@@ -5,15 +5,15 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.github import labels, pull_requests
+from orchestrator.github import labels, pull_request_reads as _pr_reads
 from orchestrator.github.aliases import StaticMethodAlias
 from orchestrator.github.client import GitHubClient
 
 _STATIC_HELPERS = (
     ("workflow_label", labels.workflow_label),
-    ("pr_has_label", pull_requests.pr_has_label),
-    ("pr_state", pull_requests.pr_state),
-    ("pr_is_mergeable", pull_requests.pr_is_mergeable),
+    ("pr_has_label", _pr_reads.pr_has_label),
+    ("pr_state", _pr_reads.pr_state),
+    ("pr_is_mergeable", _pr_reads.pr_is_mergeable),
 )
 
 

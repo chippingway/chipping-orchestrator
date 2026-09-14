@@ -1,50 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The typed vocabularies a late generation is described by, and its record.
+"""Frozen late-generation records, resource values, and immutable updates.
 
-Every value a late field can hold is spelled once here, because each of them
-is durable: a phase, a verdict, a typed failure, and a ledger entry's kind and
-state are written into the pinned comment and read back by a later tick, so a
-renamed member is a migration rather than a refactor. They are `StrEnum`
-members for the same reason the workflow labels are -- a member IS its wire
-string, so the pinned JSON, the audit payload, and a comparison against a
-plain string all read the same value.
-
-`LateGeneration` is the whole record one generation is reconciled from, held
-frozen because every field on it is evidence: the SHAs a reconciliation is
-allowed to act on, the measurement a verdict answers, and the resources the
-remote still owes are what a crashed tick reads back instead of re-deriving
-from a moving branch. The transforms that need to change one -- recording an
-obligation, recording a consumer, moving the boundary it stands at, and
-cancelling -- return a new record rather than mutating this one, so a caller
-cannot half-apply a change it then fails to persist.
-
-The boundary move is also where one invariant of the phase vocabulary lives
-rather than in the owners that write it. A record may move forwards freely
-and may never move BACKWARDS out of a transaction that has begun: every retry
-above a split names a boundary of its own, and in the window where a child
-exists and nothing records it the phase is the only account of what happened.
-Leaving that to each writer would mean every future one had to know.
-
-The lineage cap is here rather than beside a caller because it is the record's
-own invariant: `MAX_LINEAGE_DEPTH` bounds how deep automatic splitting may go,
-and a depth at or past it (a hand-edited pinned comment included) reads as
-"may not split" rather than as an error to recover from. A depth that is not
-known at all is the same answer: it is `None` rather than 0, because a
-generation whose depth could not be read is not a root, and a damaged field on
-a lineage already at the bound must not read back as one free to split again.
-
-The publication provenance is additive inside an additive record, and the
-absence of it is the answer rather than a gap: a generation that says nothing
-about how it was entered was entered BEFORE the work was published, which is
-what every record written without the group describes, so no pinned comment
-has to be migrated to say it. What the group carries when it is there is what
-a pre-publication entry has no need of and a post-publication one could never
-re-derive -- the stage the gate took the issue out of, the pull request the
-work already has, and the head that pull request was left standing on. All
-three are frozen for the reason every other late field is: the branch moves,
-the label the gate replaced is gone, and a reconciliation that re-read either
-would act on whatever the issue has become since.
+Verdict, failure, and resource vocabularies preserve their pinned JSON wire
+values. The phase owner defines transaction boundaries, and the reading
+base owns the predicates over the frozen evidence. Updates return a new
+record, refuse opaque-ledger rewrites, and preserve the first cancellation
+stamp and the boundary at which that cancellation was observed.
 """
 from __future__ import annotations
 
@@ -52,18 +14,15 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from orchestrator.git.measurement.models import MeasurementFailure
-from orchestrator.workflow.late_split import formats as _formats
+from orchestrator.workflow.late_split import (
+    formats as _formats,
+    generation_reading as _generation_reading,
+    phases as _late_phases,
+)
 from orchestrator.workflow.state import (
     WorkflowLabel,
     publishes_onto_a_pull_request,
 )
-
-# How deep automatic splitting may go. The root issue of a lineage is depth 0,
-# so a generation may only split while its own depth is strictly below this:
-# the deepest child a split can create sits exactly at the bound and must
-# resolve as one change or ask a human. It is a safety invariant, not a knob,
-# which is why no configuration reads it.
-MAX_LINEAGE_DEPTH = 3
 
 # How long a resource target may be. It is never recorded -- only digested
 # into an identifier -- but a ref, a branch, or an issue number that does not
@@ -73,64 +32,6 @@ MAX_RESOURCE_TARGET = 512
 # What a caller is told when it tries to update a ledger the write would not
 # carry its update into. Spelled once because both transforms refuse alike.
 _OPAQUE_LEDGER = "{0} cannot be updated while the ledger is opaque"
-
-
-class LatePhase(StrEnum):
-    """The reconciliation boundary a generation last reached.
-
-    Each member names a step that persists before it acts, so a tick that
-    crashed mid-step reads the phase back and reconciles the same step rather
-    than starting a new one.
-    """
-
-    MEASURING = "measuring"
-    HOLDING_PLAN_PR = "holding_plan_pr"
-    ADJUDICATING = "adjudicating"
-    OWNER_CHECK = "owner_check"
-    SNAPSHOTTING = "snapshotting"
-    SPLITTING = "splitting"
-    SUPERSEDING = "superseding"
-    CLEANING_UP = "cleaning_up"
-    CANCELLING = "cancelling"
-    RESTARTING = "restarting"
-
-
-# The boundaries a split TRANSACTION owns. A record standing at one of them
-# has begun creating children and may be mid-loop, and that is the only thing
-# saying so in the window where nothing is recorded yet -- a child is created
-# before the write that records it, so the ledger is empty and the phase is
-# the whole evidence.
-IN_FLIGHT_PHASES = frozenset((
-    LatePhase.SNAPSHOTTING,
-    LatePhase.SPLITTING,
-    LatePhase.SUPERSEDING,
-))
-
-# The boundaries at which the candidate has been committed to becoming
-# children: every boundary the transaction owns past the ref it cuts, and the
-# tail its retirement leaves the record standing at. Assembled from the set
-# above rather than listed again, so a boundary that transaction gains is one
-# this reading gains with it.
-#
-# `snapshotting` is the one taken out, and taking it out costs nothing. A
-# record standing there still carries the measurement that sent it to the
-# adjudication -- the retirement is what drops that -- and a transaction
-# retried from there over a split that really did create children carries the
-# register, which answers on its own.
-_PAST_THE_SNAPSHOT = (
-    IN_FLIGHT_PHASES | frozenset((LatePhase.CLEANING_UP,))
-) - frozenset((LatePhase.SNAPSHOTTING,))
-
-# The boundaries that come before a transaction. Every retry above one -- the
-# hold reconciled on each tick, the spawn, the owner read a completion
-# claims -- writes one of these, and writing it over an in-flight boundary is
-# the rewind `at_phase` refuses.
-_BEFORE_TRANSACTION = frozenset((
-    LatePhase.MEASURING,
-    LatePhase.HOLDING_PLAN_PR,
-    LatePhase.ADJUDICATING,
-    LatePhase.OWNER_CHECK,
-))
 
 
 class LateVerdict(StrEnum):
@@ -212,7 +113,7 @@ class LateResource:
 
 
 @dataclass(frozen=True)
-class LateGeneration:
+class LateGeneration(_generation_reading._GenerationReading):
     """One late generation's whole durable record.
 
     An issue that never entered the late gate reads back as this record's
@@ -304,7 +205,7 @@ class LateGeneration:
     additions: int | None = None
     measurement_miss_count: int = 0
     measurement_failure: MeasurementFailure | None = None
-    phase: LatePhase | None = None
+    phase: _late_phases.LatePhase | None = None
     title_body_hash: str | None = None
     comment_hash: str | None = None
     comment_watermark_id: int | None = None
@@ -324,110 +225,11 @@ class LateGeneration:
     owner_check_pending: bool = False
     cancelled: bool = False
     cancelled_at: str | None = None
-    cancelled_phase: LatePhase | None = None
+    cancelled_phase: _late_phases.LatePhase | None = None
     restart_pending: bool = False
     restart_target: str | None = None
     restart_cycle_id: int | None = None
     restart_predecessor: int | None = None
-
-    @property
-    def is_present(self) -> bool:
-        """Whether a late cycle was ever recorded on this issue."""
-        return self.cycle_id > 0
-
-    @property
-    def is_oversized(self) -> bool:
-        """Whether the measurement is strictly past the threshold it named.
-
-        Strictly: a candidate exactly at the configured value is accepted, so
-        the trigger cannot move by one line when the threshold is retuned. An
-        unmeasured generation is not oversized -- a missing measurement is a
-        typed failure to reconcile, never a small candidate.
-        """
-        if self.threshold is None or self.additions is None:
-            return False
-        return self.additions > self.threshold
-
-    @property
-    def may_split(self) -> bool:
-        """Whether this generation is allowed to create another one.
-
-        Read fail-closed, so every depth that is not a real one below the
-        bound refuses the split rather than unlocking a generation the cap
-        exists to forbid: a depth at or past the bound, a negative one, one
-        that is not a whole number at all, and an unknown one -- which is what
-        a damaged or missing field on a recorded cycle reads back as -- all
-        answer False.
-        """
-        if not _formats.whole_number(self.lineage_depth):
-            return False
-        return 0 <= self.lineage_depth < MAX_LINEAGE_DEPTH
-
-    @property
-    def has_opaque_ledger(self) -> bool:
-        """Whether an external obligation here is one this binary cannot type.
-
-        The one answer a reclamation may not read past: an unknown consumer or
-        an unknown resource is still an obligation, so nothing may treat the
-        cleanup as complete or the snapshot as reclaimable while this holds.
-        """
-        return (
-            self.opaque_resources is not None
-            or self.opaque_consumers is not None
-        )
-
-    @property
-    def split_has_settled(self) -> bool:
-        """Whether this record's candidate has been made into children.
-
-        Two readings of one fact, because either can be the only one there.
-        The register is what the transaction writes down as it creates them
-        and what the retirement keeps -- it is what says which child owns
-        which slice of the manifest -- while the phase is what answers in the
-        window before the first of those writes lands, which is the window
-        `IN_FLIGHT_PHASES` exists for.
-
-        What it buys the readers behind it is the difference between a
-        candidate nobody counted and one nobody needs to. A settled split
-        drops the measurement, because a record still answering "oversized"
-        pins `workflow:decomposing` and would put the umbrella label back on
-        every tick, and keeps the publication group, because the umbrella
-        re-asks it in front of every child it releases and every branch it
-        deletes. A group with no number beside it is otherwise exactly the
-        shape of a tick that died between the freeze and the diff.
-        """
-        return bool(self.split_children) or self.phase in _PAST_THE_SNAPSHOT
-
-    @property
-    def has_publication_context(self) -> bool:
-        """Whether a post-publication entry carries what it is reconciled by.
-
-        The flag is not that answer on its own. Every field beside it is read
-        fail-closed, so a hand-edited or older pinned comment can leave the
-        marker standing with the stage, the pull request, or the head it named
-        gone -- and none of the three can be recovered from anywhere else: the
-        label the adjudication runs under has replaced the one it came from by
-        the time anything asks, the hold beside it names a pull request only
-        because this group named one first, and the head is a commit the
-        branch has already moved off. A group
-        that cannot say all three says nothing an entry is reconciled from.
-
-        The stage is asked what it IS as well as whether it is there, and by
-        the same predicate the entry was frozen under: only the five states
-        that push onto a pull request the remote already carries. A record
-        naming any other -- `ready`, `blocked`, `umbrella`, or the
-        `implementing` seam whose own push is what OPENS the pull request --
-        describes a publication this workflow never enters one on, so reading
-        it back as context would let a reconciliation measure and push a
-        candidate no post-publication stage ever committed. Written that way
-        it is refused; read back that way it is no context at all, which is
-        the same answer a pre-publication record gives.
-        """
-        if not self.post_publication:
-            return False
-        if not publishes_onto_a_pull_request(self.source_stage):
-            return False
-        return bool(self.published_pr_number and self.published_sha)
 
     def with_resource(self, resource: LateResource) -> LateGeneration:
         """Return this record with one external obligation recorded.
@@ -546,7 +348,7 @@ class LateGeneration:
             published_sha=published_sha,
         )
 
-    def at_phase(self, phase: LatePhase) -> LateGeneration:
+    def at_phase(self, phase: _late_phases.LatePhase) -> LateGeneration:
         """Return this record standing at one reconciliation boundary.
 
         Ordinarily whatever the step that reached it says. The one move
@@ -567,7 +369,7 @@ class LateGeneration:
         beside the stamp. Nor is a fresh generation, which starts over at
         `measuring` by advancing the counter rather than by moving this one.
         """
-        if phase in _BEFORE_TRANSACTION and self.phase in IN_FLIGHT_PHASES:
+        if phase in _late_phases._BEFORE_TRANSACTION and self.phase in _late_phases.IN_FLIGHT_PHASES:
             return self
         return replace(self, phase=phase)
 

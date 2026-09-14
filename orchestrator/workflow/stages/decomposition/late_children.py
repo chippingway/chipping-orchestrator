@@ -78,15 +78,14 @@ from github.Issue import Issue
 from orchestrator.git.snapshots import mirrors as _snapshot_mirrors
 from orchestrator.github import comments as _github_comments, issues as _github_issues
 from orchestrator.workflow.engine import usage as _usage
-from orchestrator.workflow.late_split import formats as _formats, identity as _identity, lineage as _lineage
-from orchestrator.workflow.late_split.models import (
-    MAX_LINEAGE_DEPTH,
-    LateFailure,
-    LatePhase,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
+from orchestrator.workflow.late_split import (
+    formats as _formats,
+    generation_reading as _generation_reading,
+    identity as _identity,
+    lineage as _lineage,
+    phases as _late_phases,
 )
+from orchestrator.workflow.late_split.models import LateFailure, LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_budget as _budget,
     late_outcome as _late_outcome,
@@ -444,7 +443,7 @@ def _prepared(context: _LateContext, manifest: tuple) -> None:
     context.state.set(_EXPECTED_CHILDREN, len(manifest))
     context.state.set(_state._UMBRELLA, True)
     context.generation = replace(
-        context.generation, phase=LatePhase.SPLITTING,
+        context.generation, phase=_late_phases.LatePhase.SPLITTING,
     )
     _late_park_state._persist(context)
 
@@ -642,7 +641,7 @@ def _recorded(
         return False
     recorded = walk.recorded_numbers()
     context.generation = replace(
-        owed.with_split_children(recorded), phase=LatePhase.SPLITTING,
+        owed.with_split_children(recorded), phase=_late_phases.LatePhase.SPLITTING,
     )
     # The stage's own list is written FROM the register rather than appended
     # to, so an earlier decomposition's children and dependency graph are
@@ -812,7 +811,7 @@ def _child_body(
             remote=context.spec.remote_name,
             root=generation.root_issue,
             depth=_identity.child_lineage_depth(generation.lineage_depth),
-            bound=MAX_LINEAGE_DEPTH,
+            bound=_generation_reading.MAX_LINEAGE_DEPTH,
             cycle=generation.cycle_id,
             generation=generation.generation,
         ),

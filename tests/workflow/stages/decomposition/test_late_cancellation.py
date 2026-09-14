@@ -18,10 +18,8 @@ from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import (
-    LatePhase,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.phases import LatePhase
 from tests.workflow.stages.decomposition import late_cleanup_support as _support
 from tests.workflow.stages.decomposition.late_cancel_support import (
     ClosedOwnerCase,

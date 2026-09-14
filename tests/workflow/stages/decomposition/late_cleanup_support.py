@@ -15,12 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 
 from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
-from orchestrator.workflow.late_split.models import (
-    LatePhase,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import late_sweep as _late_sweep, umbrella as _umbrella
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from tests.support.fakes import FakeGitHubClient, make_issue

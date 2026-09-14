@@ -32,7 +32,7 @@ import logging
 
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.github import pull_requests as _pull_requests
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.workflow.stages.discussion import (
     artifact as _artifact,
     models as _models,
@@ -134,7 +134,7 @@ def _publish_plan(
     holding its session id only in memory would come back unattributable.
     """
     landed = _settled_prs._settled_plan_pr(run, artifact, artifact.head_sha)
-    if landed is _pull_requests.PR_LOOKUP_UNREADABLE:
+    if landed is _pr_reads.PR_LOOKUP_UNREADABLE:
         _hold_unreadable_plan_pr(run, artifact)
         return
     if landed is not None:

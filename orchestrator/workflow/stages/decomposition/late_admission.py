@@ -9,11 +9,8 @@ so no hold or spawn runs over a record or frozen pair this host cannot prove.
 """
 from __future__ import annotations
 
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateGeneration,
-    LatePhase,
-)
+from orchestrator.workflow.late_split.models import LateFailure, LateGeneration
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_evidence as _late_evidence,
     late_hold as _late_hold,

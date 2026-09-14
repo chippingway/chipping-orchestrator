@@ -51,11 +51,9 @@ from types import MappingProxyType
 from typing import Any
 
 from orchestrator.workflow.late_split import events as _events, formats as _formats, restart as _restart
-from orchestrator.workflow.late_split.models import (
-    MAX_LINEAGE_DEPTH,
-    LateGeneration,
-    LatePhase,
-)
+from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.state import WorkflowLabel
 
 # The identity a record is joined by, and the smallest value each may take. A

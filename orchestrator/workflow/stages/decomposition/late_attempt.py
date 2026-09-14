@@ -9,9 +9,7 @@ restore the unspent counters before cancellation can write them.
 from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split.models import (
-    LatePhase,
-)
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_owner as _late_owner,
     late_park_state as _late_park_state,

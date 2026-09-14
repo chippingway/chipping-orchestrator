@@ -8,7 +8,10 @@ from unittest.mock import MagicMock
 
 from github import GithubException
 
-from orchestrator.github import pull_requests as _pull_requests
+from orchestrator.github import (
+    pull_request_reads as _pr_reads,
+    pull_requests as _pull_requests,
+)
 from orchestrator.github.client import GitHubClient
 from tests.support.github.models import FakeLabel
 from tests.support.github.pull_request_models import FakePR
@@ -78,7 +81,7 @@ class StatelessPrStatusTest(unittest.TestCase):
                     state=github_state,
                 )
                 self.assertEqual(
-                    _pull_requests.pr_state(pull_request),
+                    _pr_reads.pr_state(pull_request),
                     expected,
                 )
 
@@ -88,16 +91,16 @@ class StatelessPrStatusTest(unittest.TestCase):
             labels=[FakeLabel("Workflow:Community_Contribution")],
         )
         self.assertTrue(
-            _pull_requests.pr_has_label(pull_request, _LABEL_NAME),
+            _pr_reads.pr_has_label(pull_request, _LABEL_NAME),
         )
 
     def test_absent_label_is_false(self) -> None:
         pull_request = FakePR(number=_PR_NUMBER, labels=[FakeLabel("workflow:ready")])
         self.assertFalse(
-            _pull_requests.pr_has_label(pull_request, _LABEL_NAME),
+            _pr_reads.pr_has_label(pull_request, _LABEL_NAME),
         )
         self.assertFalse(
-            _pull_requests.pr_has_label(
+            _pr_reads.pr_has_label(
                 FakePR(number=_PR_NUMBER),
                 _LABEL_NAME,
             ),
@@ -111,13 +114,13 @@ class PrIsMergeableTest(unittest.TestCase):
         pull_request = _RefreshingPR()
         pull_request.mergeable = False
 
-        self.assertFalse(_pull_requests.pr_is_mergeable(pull_request))
+        self.assertFalse(_pr_reads.pr_is_mergeable(pull_request))
         self.assertEqual(pull_request.update_calls, 0)
 
     def test_null_field_refreshes_once(self) -> None:
         pull_request = _RefreshingPR()
 
-        self.assertTrue(_pull_requests.pr_is_mergeable(pull_request))
+        self.assertTrue(_pr_reads.pr_is_mergeable(pull_request))
         self.assertEqual(pull_request.update_calls, 1)
 
     def test_refresh_failure_reports_unknown(self) -> None:
@@ -131,7 +134,7 @@ class PrIsMergeableTest(unittest.TestCase):
             ),
         )
 
-        self.assertIsNone(_pull_requests.pr_is_mergeable(pull_request))
+        self.assertIsNone(_pr_reads.pr_is_mergeable(pull_request))
         self.assertEqual(pull_request.update_calls, 1)
 
 

@@ -18,8 +18,8 @@ from orchestrator.config import settings as config
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
-from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
-from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
+from orchestrator.workflow.late_split import lineage as _lineage, phases as _late_phases, state as _late_state
+from orchestrator.workflow.late_split.models import LateGeneration
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -145,7 +145,7 @@ def recorded_generation(*, dropping: str = "", **overrides) -> dict:
             "candidate_sha": MEASURED_CANDIDATE_SHA,
             "base_sha": MEASURED_BASE_SHA,
             "threshold": GATE_THRESHOLD,
-            "phase": LatePhase.MEASURING,
+            "phase": _late_phases.LatePhase.MEASURING,
             **overrides,
         }),
     )

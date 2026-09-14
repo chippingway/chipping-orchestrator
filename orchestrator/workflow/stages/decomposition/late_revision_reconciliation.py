@@ -73,9 +73,10 @@ from orchestrator.workflow.engine import comments as _comments, messages as _mes
 from orchestrator.workflow.late_split import (
     events as _events,
     overrides as _overrides,
+    phases as _late_phases,
     telemetry as _telemetry,
 )
-from orchestrator.workflow.late_split.models import LateFailure, LatePhase
+from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
     late_owner as _late_owner,
@@ -249,7 +250,7 @@ def _remeasured(
         base_sha=measured.base_sha,
         threshold=config.MAX_ADDED_LINES,
         additions=measured.additions,
-        phase=LatePhase.MEASURING,
+        phase=_late_phases.LatePhase.MEASURING,
         # The split transaction's own receipts belong to the generation that
         # wrote them and go with it. They are positional and one-shot: an
         # ordered child register carried forward would have a new manifest

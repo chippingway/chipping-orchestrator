@@ -16,10 +16,8 @@ from dataclasses import replace
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
-from orchestrator.workflow.late_split.models import (
-    MAX_LINEAGE_DEPTH,
-    LateGeneration,
-)
+from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )

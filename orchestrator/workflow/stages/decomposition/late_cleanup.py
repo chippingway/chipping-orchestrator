@@ -172,11 +172,11 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.late_split.models import (
     LateFailure,
     LateGeneration,
-    LatePhase,
     LateResource,
     LateResourceKind,
     LateResourceState,
 )
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_publication as _late_publication,
     state as _state,

@@ -17,12 +17,8 @@ from unittest.mock import MagicMock
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.workflow.late_split import restart as _restart, state as _late_state
-from orchestrator.workflow.late_split.models import (
-    LatePhase,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.phases import LatePhase
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import late_cleanup_support as _support
 from tests.workflow.stages.decomposition.late_cleanup_support import OwnerSeed, RecordedDelete

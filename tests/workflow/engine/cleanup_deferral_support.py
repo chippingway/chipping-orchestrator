@@ -15,14 +15,8 @@ from unittest.mock import Mock, patch
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.skills import catalog
 from orchestrator.workflow.engine import dispatch as _dispatch, tick as _tick
-from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import (
-    LateGeneration,
-    LatePhase,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split import phases as _late_phases, state as _late_state
+from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.engine.dispatch_scheduler_test_support import (
     REPO_SLUG,
@@ -228,7 +222,7 @@ def _owner_holding_a_ref() -> FakeGitHubClient:
         root_issue=OWNER_NUMBER,
         current_issue=OWNER_NUMBER,
         candidate_sha=CANDIDATE_SHA,
-        phase=LatePhase.SNAPSHOTTING,
+        phase=_late_phases.LatePhase.SNAPSHOTTING,
     ).with_resource(LateResource(
         kind=LateResourceKind.SNAPSHOT_REF,
         target=OWNER_REF,

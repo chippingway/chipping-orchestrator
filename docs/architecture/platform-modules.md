@@ -168,9 +168,9 @@ orchestrator/
     models.py           the `RepoSpec` / `RepoEnvEntry` repository-config types
     repositories.py     `REPOS` entry parsing, validation, and default-spec construction
   github/               marker package; callers name `client.GitHubClient` and `pinned_state.PinnedState`
-    client.py           the authenticated client over the mixin chain: PyGithub setup, the worker-thread clone, and
-                        the cached label reads with their confirmed-absent retry window and the one line a sweep's
-                        absent legacy spellings are reported in
+    client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records, and canonical
+                        repository identity; ownership checks use GitHub's repository name case-insensitively and
+                        reject a head with no repository
     aliases.py          the descriptor a stateless helper is bound onto the client with, so class, instance, and
                         module access all answer alike
     checks.py           status / check-run normalization, failure-before-pending folding, and the fail-closed check
@@ -206,18 +206,9 @@ orchestrator/
                         comment is authenticated under, so a name a collaborator applied by hand is not a
                         write of this orchestrator's; control labels are excluded, and no account, no
                         evidence, and an unreadable walk all answer alike
-    identity.py         which repository a client speaks for, and whether a pull-request head belongs to it --
-                        one question with three callers, all of them refusing a publication on it: the size
-                        gate's entry freeze, the delivery proof behind a publication receipt, and the
-                        settlement's reconciliation. None can answer from the pull request alone, since a fork
-                        carries this repository's ref names over its commits and agrees on the branch and the
-                        head together. Answered from the repository OBJECT rather than the configured slug, so
-                        the name is the one GitHub uses and the one a park quotes back, and compared
-                        case-INSENSITIVELY on top of that: owner and repository names are case-insensitive
-                        there, so a setting an operator typed in another casing cannot make this repository's
-                        own publication read as a stranger's. A head naming no repository -- a deleted fork --
-                        answers no
-    labels.py           the label vocabulary and bootstrap specs, and the in-place rename of a pre-namespace label
+    labels.py           label vocabulary, bootstrap specs, in-place legacy-label renames, and cached reads; confirmed
+                        absences expire after a bounded number of closed sweeps, request failures stay retryable,
+                        and each sweep reports only the absent legacy spellings it observed
     pinned_state.py     the pinned durable-state model, the comment body it is written as -- with the wrapper's own
                         terminator escaped in the SERIALIZED payload and never in the value, since a recorded
                         explanation or a preserved pull-request body carrying `-->` would close that comment early
@@ -236,14 +227,15 @@ orchestrator/
                         value nothing can act on into an absence, so a caller asking whether the record CLAIMS
                         something could not otherwise tell an issue that never wrote a field from one whose
                         field a hand edit truncated
-    pull_requests.py    PR lookup by open state, by commit, and when GitHub could not be asked at all -- either
-                        search narrowed to one base for a caller choosing the thread it would push onto, or asked of
-                        every base by one asking only whether anybody is still standing on this branch -- plus
-                        creation, comments, body, labels, SHA-pinned merge, remote-branch delete, and the
-                        supersession that says once on a thread of ours that this change is not to be merged and then
-                        closes it -- taking that "already said" answer from the caller where it has one, since the
-                        search is a request and a caller that proved the pull request a moment earlier may not put one
-                        between its proof and the write
+    pull_request_reads.py
+                        PR status, open and commit-pinned lookup, branch enumeration, and unreadable-publication
+                        evidence; a caller choosing its publication thread can narrow to a base, while a caller
+                        proving any publication leaves the base unrestricted
+    pull_request_retirement.py
+                        idempotent supersession notices followed by closure; an authenticated marker read can travel
+                        from the caller so no extra request intervenes between its final proof and the write
+    pull_requests.py    PR creation, comments, body edits, labels, SHA-pinned merge, and remote-branch deletion;
+                        the mutation mixin includes the read and retirement owners in the client's inheritance chain
     reviews.py          current-head review aggregation: approval verdicts and unread-feedback watermarks
   agents/               marker package; callers name the model, runner, and process owners
     models.py           the agent result, run-option, and subprocess-result models

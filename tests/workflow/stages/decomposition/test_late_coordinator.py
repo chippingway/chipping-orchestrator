@@ -8,12 +8,7 @@ from unittest.mock import patch
 
 from orchestrator.config import settings as config
 from orchestrator.workflow.engine import retry_ledger as _retry_ledger
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateGeneration,
-    LatePhase,
-    LateVerdict,
-)
+from orchestrator.workflow.late_split import models as _late_models, phases as _late_phases
 from orchestrator.workflow.stages.decomposition import (
     late_attempt as _late_attempt,
     late_session as _late_session,
@@ -46,7 +41,7 @@ GRANTED = 1
 # never entered the gate, one measured under its ceiling, and a cancelled
 # cycle, which is cleanup-only.
 _NOT_LATE_CASES = (
-    ("never entered the gate", LateGeneration()),
+    ("never entered the gate", _late_models.LateGeneration()),
     ("measured under its ceiling", _support.late_generation(
         additions=_support.UNDERSIZED_ADDITIONS,
     )),
@@ -147,7 +142,7 @@ class HoldBeforeSpawnTest(LateCase, unittest.TestCase):
         spawn.assert_not_called()
         self.assertTrue(self._pinned().get(_support.KEYS.awaiting))
         self.assertEqual(
-            self._pinned().get(_support.KEYS.phase), LatePhase.HOLDING_PLAN_PR,
+            self._pinned().get(_support.KEYS.phase), _late_phases.LatePhase.HOLDING_PLAN_PR,
         )
         # The gate still precedes the pre-spawn write, so a run that never
         # happened leaves no record claiming it did.
@@ -199,7 +194,7 @@ class HoldBeforeSpawnTest(LateCase, unittest.TestCase):
         recorded = self._events_named(_support.EVENT_LATE_FAILURE)
         self.assertEqual(len(recorded), 1)
         self.assertEqual(
-            recorded[0].get("failure"), LateFailure.PLAN_PR_HOLD_FAILED,
+            recorded[0].get("failure"), _late_models.LateFailure.PLAN_PR_HOLD_FAILED,
         )
         self.assertEqual(recorded[0].get("stage"), STAGE_DECOMPOSING)
 
@@ -231,7 +226,7 @@ class SpawnPersistenceTest(LateCase, unittest.TestCase):
         )
         self.assertEqual(recorded.get(_support.KEYS.source_sha), _support.CANDIDATE_SHA)
         self.assertEqual(recorded.get(_support.KEYS.run_generation), 1)
-        self.assertEqual(recorded.get(_support.KEYS.phase), LatePhase.ADJUDICATING)
+        self.assertEqual(recorded.get(_support.KEYS.phase), _late_phases.LatePhase.ADJUDICATING)
         self.assertNotIn(_support.KEYS.verdict, recorded)
         # The identity is durable before the agent starts; the retry slot it
         # holds is not, so a run this tick then declines costs nothing.
@@ -322,7 +317,7 @@ class SpawnPersistenceTest(LateCase, unittest.TestCase):
         self.assertEqual(outcome.run.source_sha, _support.CANDIDATE_SHA)
         # Rebuilt from the record, so the caller acts on the same answer the
         # first tick got rather than on a second run's.
-        self.assertEqual(outcome.adjudication.verdict, LateVerdict.SPLIT)
+        self.assertEqual(outcome.adjudication.verdict, _late_models.LateVerdict.SPLIT)
 
 
 class FrozenEvidenceTest(unittest.TestCase):

@@ -11,7 +11,7 @@ neither is said until the read comes back open.
 """
 from __future__ import annotations
 
-from orchestrator.workflow.late_split.models import LatePhase
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,
 )

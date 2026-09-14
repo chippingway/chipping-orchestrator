@@ -31,7 +31,8 @@ from orchestrator.workflow.late_split import (
     events as _events,
     state as _late_state,
 )
-from orchestrator.workflow.late_split.models import LateGeneration, LatePhase
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.implementing import (
     late_authority as _authority,
     late_consent as _consent,

@@ -300,15 +300,13 @@ workflow/                   marker package for state, engine, and stage owners
                             diagnostic into what that last predicate accepts, so the one free-text field a record
                             carries is bounded by the rule that guards it, and the one refusal every owner raises
                             over any of them
-    models.py               the phase / verdict / failure / resource vocabularies, the boundaries a split
-                            transaction owns among them, the frozen generation record with the transforms that
-                            return a new one -- including the boundary move that refuses to rewind out of one of
-                            those, which is the rule every retry above the transaction is held to, the record of
-                            a reading that did NOT happen, which is on the generation because a fresh process
-                            remembers no miss and is scoped to the frozen pair beside it, and the
-                            post-publication entry no record carries unless it can name the stage, the pull
-                            request, and the head at once, the answer that tells a candidate already made into
-                            children from one nobody counted -- and the lineage bound it is read against
+    phases.py               durable phase vocabulary and the in-flight, settled-split, and pre-transaction boundaries
+    generation_reading.py   read-only generation predicates: presence, measured size, bounded lineage, opaque ledgers,
+                            settled children, and complete post-publication provenance; the lineage cap is a fixed
+                            safety invariant, and unreadable depth cannot unlock another split
+    models.py               verdict, failure, and resource vocabularies, resource records, and the frozen generation
+                            with immutable updates; updates retain cancellation provenance, refuse opaque-ledger
+                            rewrites, and prevent rewinding an in-flight transaction
     identity.py             the monotonic cycle and generation identities, the child depth the bound still allows,
                             the two local content fingerprints a scope edit and a trusted answer are told apart by,
                             and the bounded name-free print one ledger entry is reported under

@@ -29,7 +29,7 @@ from unittest.mock import MagicMock
 
 from github import GithubException
 
-from orchestrator.github import pull_requests as _pull_requests
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.github.client import GitHubClient
 
 _PR_NUMBER = 7
@@ -152,7 +152,7 @@ class CommitPinnedLookupTest(_LookupTestCase):
             _CommitListPR(error=_server_error()),
         ])
 
-        self.assertIs(self._lookup(), _pull_requests.PR_LOOKUP_UNREADABLE)
+        self.assertIs(self._lookup(), _pr_reads.PR_LOOKUP_UNREADABLE)
 
     def test_a_match_outranks_an_unreadable_pr(self) -> None:
         # One pull request nobody could read says nothing about another that
@@ -176,7 +176,7 @@ class PrEnumerationFailureTest(_LookupTestCase):
         # write that would have persisted the session it was made under.
         self.gh.repo.get_pulls.side_effect = _server_error()
 
-        self.assertIs(self._lookup(), _pull_requests.PR_LOOKUP_UNREADABLE)
+        self.assertIs(self._lookup(), _pr_reads.PR_LOOKUP_UNREADABLE)
 
     def test_a_failing_page_is_not_a_miss(self) -> None:
         # The same failure one page in: the pull requests already walked did
@@ -186,7 +186,7 @@ class PrEnumerationFailureTest(_LookupTestCase):
             _CommitListPR(commit_shas=(_MOVED_HEAD_SHA,)),
         )
 
-        self.assertIs(self._lookup(), _pull_requests.PR_LOOKUP_UNREADABLE)
+        self.assertIs(self._lookup(), _pr_reads.PR_LOOKUP_UNREADABLE)
 
     def test_a_match_before_a_failing_page_stands(self) -> None:
         # A match is returned where it is found, so a page that fails after it

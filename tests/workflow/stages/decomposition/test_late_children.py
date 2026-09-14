@@ -7,7 +7,7 @@ import unittest
 from dataclasses import replace
 from types import MappingProxyType
 
-from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH
+from orchestrator.workflow.late_split.generation_reading import MAX_LINEAGE_DEPTH
 from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
 from orchestrator.workflow.stages.decomposition.late_models import (
     _LateDisposition,

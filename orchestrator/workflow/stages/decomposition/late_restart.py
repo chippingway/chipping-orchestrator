@@ -119,15 +119,12 @@ from orchestrator.workflow.late_split import (
     endings as _endings,
     events as _events,
     lineage as _lineage,
+    phases as _late_phases,
     restart as _restart,
     state as _late_state,
     telemetry as _telemetry,
 )
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateGeneration,
-    LatePhase,
-)
+from orchestrator.workflow.late_split.models import LateFailure, LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
 )
@@ -379,7 +376,7 @@ def _begun(
     )
     if begun == generation:
         return generation
-    begun = begun.at_phase(LatePhase.RESTARTING)
+    begun = begun.at_phase(_late_phases.LatePhase.RESTARTING)
     _persisted(gh, issue, state, begun)
     _telemetry.emit_late_event(
         gh,
