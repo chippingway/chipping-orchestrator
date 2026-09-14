@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107 paths and
-129 file/rule pairs. The current working implementation has 73 paths and 87 pairs (60 production, 27 test), all
-matching isolated diagnostics. Twenty-six WPS202 pairs and sixteen initializer pairs have been removed without
+129 file/rule pairs. The current working implementation has 70 paths and 84 pairs (57 production, 27 test), all
+matching isolated diagnostics. Twenty-nine WPS202 pairs and sixteen initializer pairs have been removed without
 replacement exemptions or raised limits. Remaining work is the entire live set in `.flake8`, including WPS201,
 WPS202, WPS204, WPS214, and WPS215. The files must stay until that set is empty and validation passes.
 
@@ -49,13 +49,20 @@ Implemented batches:
   Ruff and configured WPS pass. The full run passed 6,430 tests and skipped 49; its sole failure was a long line in
   this note, which is corrected and passes the targeted documentation checks.
 
-- Current implementation: move resolved configuration values to `config.settings` and migrate callers, reloads,
+- `6f24b0ba`: move resolved configuration values to `config.settings` and migrate callers, reloads,
   and patches to that shared holder. Repository types and token resolution are imported from their defining owners.
   Two initializer pairs removed, completing the removal of all sixteen initializer exclusions. Package checks and
   development guidance require marker initializers throughout. Two obsolete publisher-only tests were retired;
   source and namespace checks now cover every package without exceptions.
   Ruff, configured WPS, and full validation pass with 6,429 passed and 49 skipped. The development skill validates,
   and the isolated audit matches all 87 remaining complexity pairs.
+
+- Current implementation: separate hardened worktree reads, tip proofs, activity evidence, and complete checkout
+  listings; checkout and branch retention proofs; maintenance guards and commit-pinned removal steps. The existing
+  maintenance-result owner constructs outcomes. Three production WPS202 pairs removed. Production function bodies
+  and operator log channels are preserved, and owner inventories and patch targets follow every move.
+  Ruff, configured WPS, and full validation pass with 6,429 passed and 49 skipped. All 84 remaining pairs match
+  isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes
 are historical evidence, not completion of the current zero-exclusion target.

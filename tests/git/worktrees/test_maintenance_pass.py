@@ -24,6 +24,8 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git.worktrees import (
+    activity_evidence as _activity_evidence,
+    checkout_listing as _checkout_listing,
     eligibility,
     maintenance,
     maintenance_results as _maintenance_results,
@@ -319,7 +321,7 @@ class CheckedOutBranchTest(_support._MaintenanceTestCase):
         self.landed()
 
         with patch.object(
-            maintenance.evidence, "_checked_out_branches", return_value=None,
+            _checkout_listing, "_checked_out_branches", return_value=None,
         ):
             swept = self.only_result()
 
@@ -414,7 +416,7 @@ class GuardedCandidateTest(_support._MaintenanceTestCase):
         # could time is not one to delete on the strength of the reads that
         # did answer.
         with patch.object(
-            maintenance.evidence,
+            _activity_evidence,
             "_quiet_checkout",
             return_value=ProbeAnswer.UNREADABLE,
         ):
@@ -876,7 +878,7 @@ class OutcomeVocabularyTest(unittest.TestCase):
 
     def test_every_reason_has_an_outcome(self) -> None:
         self.assertEqual(
-            frozenset(maintenance._OUTCOMES),
+            frozenset(_maintenance_results._OUTCOMES),
             frozenset(_maintenance_results.MaintenanceReason),
         )
 

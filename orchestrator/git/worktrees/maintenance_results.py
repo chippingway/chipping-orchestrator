@@ -10,8 +10,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from types import MappingProxyType
 
-from orchestrator.git.worktrees import candidates as _candidates
+from orchestrator.git.worktrees import (
+    candidates as _candidates,
+    models as _models,
+)
 from orchestrator.git.worktrees.models import Retention
 
 
@@ -106,3 +110,38 @@ class MaintenanceResult:
     reason: MaintenanceReason
     subject: str = ""
     retentions: tuple[Retention, ...] = ()
+
+# Which outcome each reason is, fixed here so the two fields of a result
+# cannot disagree. A retention is the pass declining to act, a failure is a
+# step that ran and was refused, and the one reason that cleans is the one
+# that reached the end of the teardown.
+_OUTCOMES = MappingProxyType({
+    MaintenanceReason.RECLAIMED: MaintenanceOutcome.CLEANED,
+    MaintenanceReason.UNPROVEN: MaintenanceOutcome.RETAINED,
+    MaintenanceReason.RECENT_ACTIVITY: MaintenanceOutcome.RETAINED,
+    MaintenanceReason.ACTIVITY_UNREADABLE: MaintenanceOutcome.RETAINED,
+    MaintenanceReason.ACTIVE_CLAIM: MaintenanceOutcome.RETAINED,
+    MaintenanceReason.CLAIM_UNREADABLE: MaintenanceOutcome.RETAINED,
+    MaintenanceReason.TIP_MOVED: MaintenanceOutcome.RETAINED,
+    MaintenanceReason.TIP_UNREADABLE: MaintenanceOutcome.RETAINED,
+    MaintenanceReason.BRANCH_CHECKED_OUT: MaintenanceOutcome.RETAINED,
+    MaintenanceReason.WORKTREE_REMOVAL_FAILED: MaintenanceOutcome.FAILED,
+    MaintenanceReason.REMOTE_DELETE_FAILED: MaintenanceOutcome.FAILED,
+    MaintenanceReason.LOCAL_DELETE_FAILED: MaintenanceOutcome.FAILED,
+})
+
+
+def _answered(
+    candidate: _candidates.MaintenanceCandidate,
+    reason: MaintenanceReason,
+    subject: str = "",
+    retentions: tuple[_models.Retention, ...] = (),
+) -> MaintenanceResult:
+    """One candidate's answer, with the outcome its reason fixes."""
+    return MaintenanceResult(
+        candidate=candidate,
+        outcome=_OUTCOMES[reason],
+        reason=reason,
+        subject=subject,
+        retentions=retentions,
+    )

@@ -22,7 +22,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.worktrees import eligibility, evidence, paths
+from orchestrator.git.worktrees import eligibility, paths, tip_evidence as _tip_evidence
 from orchestrator.git.worktrees.models import (
     BranchTip,
     ProbeAnswer,
@@ -289,7 +289,7 @@ class RemoteGateTest(_CandidateTestCase):
         self.landed()
         self.gh = _github(_terminal_issue(closed=False))
 
-        with patch.object(evidence, "_local_branch_tip") as tipped:
+        with patch.object(_tip_evidence, "_local_branch_tip") as tipped:
             self.classify()
             tipped.assert_not_called()
 
@@ -509,7 +509,7 @@ class BranchTipProofTest(_CandidateTestCase):
         worktree = self.checkout()
 
         with patch.object(
-            evidence, "_published_tip", wraps=evidence._published_tip,
+            _tip_evidence, "_published_tip", wraps=_tip_evidence._published_tip,
         ) as asked:
             verdict = self.classify(
                 worktree=worktree, branches=self.branches,
@@ -591,7 +591,7 @@ class UnreadableReadTest(_CandidateTestCase):
         self.commit()
 
         with patch.object(
-            evidence, "_base_contains", return_value=ProbeAnswer.UNREADABLE,
+            _tip_evidence, "_base_contains", return_value=ProbeAnswer.UNREADABLE,
         ):
             self.assertEqual(
                 self.kept(), (RetentionReason.BASE_UNREADABLE,),
@@ -629,10 +629,10 @@ class UnreadableReadTest(_CandidateTestCase):
         # that separates the two reads: the candidate is measurable and its
         # publication is still unknown.
         self.commit()
-        base = evidence._published_tip(self.spec, BASE_BRANCH)
+        base = _tip_evidence._published_tip(self.spec, BASE_BRANCH)
 
         with patch.object(
-            evidence,
+            _tip_evidence,
             "_published_tip",
             side_effect=lambda _spec, branch: (
                 base if branch == BASE_BRANCH

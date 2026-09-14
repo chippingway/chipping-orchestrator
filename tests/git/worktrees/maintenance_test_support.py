@@ -32,6 +32,7 @@ from orchestrator.git.worktrees import (
     branch_probes,
     discovery,
     maintenance,
+    maintenance_guards as _maintenance_guards,
     paths,
     probes,
     remote_inventory as _remote_inventory,
@@ -54,7 +55,7 @@ from tests.git.worktrees.eligibility_test_support import ISSUE_NUMBER, _github
 
 # Far enough back that the pass's own quiet period has passed for a checkout,
 # derived from that period rather than written out so the two cannot drift.
-SETTLED_SECONDS = 2 * maintenance._QUIET_PERIOD_SECONDS
+SETTLED_SECONDS = 2 * _maintenance_guards._QUIET_PERIOD_SECONDS
 
 # The second bare repository and the second clone a multi-repository case
 # builds, named apart from the world's own so both can stand at once.

@@ -121,7 +121,7 @@ def _case(
             ),
             layout=layout,
         ),
-        outcome=maintenance._OUTCOMES[reason],
+        outcome=_maintenance_results._OUTCOMES[reason],
         reason=reason,
         subject=subject,
     )

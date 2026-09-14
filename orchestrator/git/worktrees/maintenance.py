@@ -1,55 +1,24 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The bounded pass that spends a classification on a finished issue's artifacts.
+"""A bounded maintenance pass over classified artifact candidates.
 
-The one place in this domain that deletes something nobody asked it to delete.
-Everything under it is a reading -- the discovery in ``discovery``, the
-classification in ``eligibility``, the fail-closed probes in ``evidence``,
-``claims``, and ``commit_claims`` -- and this module is where those readings
-are turned into three mutations and one answer per candidate.
-
-What it does NOT touch is as much of its contract as what it does. No workflow
-label is written, no pinned state, no comment, and no agent session is started
-or stopped: an issue that has ended keeps every record of how it ended, and a
-host tidying its own disk must not be able to change what GitHub says happened.
-The artifacts are the whole of what this pass owns.
-
-Every gate in front of the mutation fails closed, and they are asked cheapest
-first. Whether something is running for this issue right now is asked of an
-injected guard, because the answer lives in the process the pass runs beside --
-the scheduler holding a claim, a worker mid-tick -- and this layer may not
-reach up into the workflow to find it. Then the classification, which is where
-the issue's own ending, the pull requests still standing on the branches, and
-every reading of the artifacts are established. Then, last and only for a
-candidate everything else cleared, whether the checkout has been touched
-lately: a tree nobody proved is not one whose modification time says anything.
-
-The mutations are ordered by what git allows and by what a failed pass has to
-leave behind. The checkout goes first because a branch checked out somewhere
-cannot be deleted. Each branch is then taken on the remote before the clone,
-so a remote delete that fails leaves the local ref standing -- and a local ref
-is what makes the candidate discoverable again, where a remote-only artifact
-would be found only by the next listing of the remote. A pass that stops leaves
-everything it had not reached exactly where it was; nothing is written down,
-because the discovery that found the candidate once finds what is left of it
-again. That is what makes an interrupted pass cost nothing to resume and a
-repeated one report the parts already gone as done.
-"""
+Claims, eligibility, recent activity, and continuation are checked in order.
+Checkout and branch removal owners spend the same proven tips immediately
+before each mutation, stopping the candidate at the first refusal. Results
+record that ordered outcome without retaining a retry queue between passes."""
 from __future__ import annotations
 
 import logging
-import time
-from collections.abc import Callable, Iterable
-from pathlib import Path
-from types import MappingProxyType
+from collections.abc import Iterable
 
 from orchestrator.git.worktrees import (
+    branch_removal as _branch_removal,
     candidates as _candidates,
+    checkout_removal as _checkout_removal,
     eligibility,
-    evidence,
+    maintenance_guards as _maintenance_guards,
     maintenance_results as _maintenance_results,
     models as _models,
-    reclaim,
 )
 from orchestrator.github.client import GitHubClient
 
@@ -58,120 +27,6 @@ from orchestrator.github.client import GitHubClient
 # prefix and attach handlers to it, so every artifact this pass takes or
 # refuses to take reports where their filters already point.
 log = logging.getLogger("orchestrator.worktree_lifecycle")
-
-# Whether anything is currently running for one repository's issue, asked as
-# the scheduler's own question is spelled: the repository slug and the issue
-# number, and nothing about the artifacts. Injected rather than imported
-# because the answer belongs to the process this pass runs beside, and this
-# layer may not reach up into the workflow that owns it.
-ActivityGuard = Callable[[str, int], bool]
-
-# Whether this pass may still act at all, asked with nothing in hand: it is
-# about the process rather than about a candidate. Injected for the same reason
-# the activity guard is -- what ends a pass early is a signal this layer never
-# sees and a hold it did not take.
-#
-# Asked twice per candidate, and both places are boundaries a pass can stop on
-# without leaving a teardown half spent: before the candidate is looked at, and
-# again as the last thing before the first mutation. The second is what makes
-# the first worth anything, since everything expensive happens in between --
-# the issue, the pull requests, the remote, every reading the deletions are
-# pinned to -- and a signal that landed in the middle of all that would
-# otherwise be answered by going ahead and deleting.
-ContinuationGuard = Callable[[], bool]
-
-# How long a checkout is left alone after the last thing that touched it. An
-# hour is longer than any tick and any agent run's gap between writes, and
-# short enough that a host finishing its day's work has its disk back the same
-# day. It is a constant rather than a setting because it is a safety margin
-# around a deletion, not a knob an operator tunes: what a shorter one buys is
-# the chance to delete a tree somebody is standing in.
-_QUIET_PERIOD_SECONDS = 3600
-
-# Which outcome each reason is, fixed here so the two fields of a result
-# cannot disagree. A retention is the pass declining to act, a failure is a
-# step that ran and was refused, and the one reason that cleans is the one
-# that reached the end of the teardown.
-_OUTCOMES = MappingProxyType({
-    _maintenance_results.MaintenanceReason.RECLAIMED: _maintenance_results.MaintenanceOutcome.CLEANED,
-    _maintenance_results.MaintenanceReason.UNPROVEN: _maintenance_results.MaintenanceOutcome.RETAINED,
-    _maintenance_results.MaintenanceReason.RECENT_ACTIVITY: _maintenance_results.MaintenanceOutcome.RETAINED,
-    _maintenance_results.MaintenanceReason.ACTIVITY_UNREADABLE: _maintenance_results.MaintenanceOutcome.RETAINED,
-    _maintenance_results.MaintenanceReason.ACTIVE_CLAIM: _maintenance_results.MaintenanceOutcome.RETAINED,
-    _maintenance_results.MaintenanceReason.CLAIM_UNREADABLE: _maintenance_results.MaintenanceOutcome.RETAINED,
-    _maintenance_results.MaintenanceReason.TIP_MOVED: _maintenance_results.MaintenanceOutcome.RETAINED,
-    _maintenance_results.MaintenanceReason.TIP_UNREADABLE: _maintenance_results.MaintenanceOutcome.RETAINED,
-    _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT: _maintenance_results.MaintenanceOutcome.RETAINED,
-    _maintenance_results.MaintenanceReason.WORKTREE_REMOVAL_FAILED: _maintenance_results.MaintenanceOutcome.FAILED,
-    _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED: _maintenance_results.MaintenanceOutcome.FAILED,
-    _maintenance_results.MaintenanceReason.LOCAL_DELETE_FAILED: _maintenance_results.MaintenanceOutcome.FAILED,
-})
-
-
-def _answered(
-    candidate: _candidates.MaintenanceCandidate,
-    reason: _maintenance_results.MaintenanceReason,
-    subject: str = "",
-    retentions: tuple[_models.Retention, ...] = (),
-) -> _maintenance_results.MaintenanceResult:
-    """One candidate's answer, with the outcome its reason fixes."""
-    return _maintenance_results.MaintenanceResult(
-        candidate=candidate,
-        outcome=_OUTCOMES[reason],
-        reason=reason,
-        subject=subject,
-        retentions=retentions,
-    )
-
-
-def _claim_reason(
-    artifacts: _candidates.IssueArtifacts, claimed: ActivityGuard,
-) -> _maintenance_results.MaintenanceReason | None:
-    """Whether something is running for this issue, or could not be asked.
-
-    First of the gates, because it is the only one that costs nothing and the
-    only one whose answer can change under the pass: an issue a worker picks up
-    while the classification is being taken is one whose artifacts are about to
-    be written in.
-
-    The boundary is total. The guard belongs to the caller, so what it does
-    when it fails is not something this module can know -- and an exception out
-    of one candidate's guard would otherwise end the pass for every candidate
-    behind it.
-    """
-    try:
-        active = claimed(artifacts.spec.slug, artifacts.issue_number)
-    except Exception:
-        log.warning(
-            "issue=#%d could not be asked whether anything is running for it; "
-            "leaving its artifacts alone",
-            artifacts.issue_number, exc_info=True,
-        )
-        return _maintenance_results.MaintenanceReason.CLAIM_UNREADABLE
-    return _maintenance_results.MaintenanceReason.ACTIVE_CLAIM if active else None
-
-
-def _activity_reason(
-    artifacts: _candidates.IssueArtifacts,
-) -> tuple[_maintenance_results.MaintenanceReason | None, str]:
-    """Whether this candidate's checkouts have been left alone long enough.
-
-    Asked of every checkout the issue holds, since an issue that was in flight
-    when slug namespacing landed can be sitting in two of them and either one
-    is a tree somebody may still be standing in. A branch has no tree to be
-    disturbed, so a candidate with no checkout has nothing to ask.
-
-    Asked last, because a modification time is only worth reading about a tree
-    that has already been established as this issue's own.
-    """
-    since = time.time() - _QUIET_PERIOD_SECONDS
-    for worktree in artifacts.worktrees:
-        quiet = evidence._quiet_checkout(worktree, since)
-        if quiet is _models.ProbeAnswer.REFUTED:
-            return _maintenance_results.MaintenanceReason.RECENT_ACTIVITY, str(worktree)
-        if quiet is _models.ProbeAnswer.UNREADABLE:
-            return _maintenance_results.MaintenanceReason.ACTIVITY_UNREADABLE, str(worktree)
-    return None, ""
 
 
 def _kept_subject(verdict: _models.ArtifactVerdict) -> str:
@@ -189,209 +44,24 @@ def _cleared_tips(proven: tuple[_models.ProvenTip, ...]) -> dict[str, str]:
     return {tip.subject: tip.sha for tip in proven}
 
 
-def _checkout_stop(
-    worktree: Path, proven: str | None,
-) -> _maintenance_results.MaintenanceReason | None:
-    """Whether the checkout is still standing on the commit that was cleared.
-
-    The last reading before the tree comes down, and it is about the commit
-    rather than the tree: a linked worktree holds its HEAD and reflog on its
-    own, so removing it takes whatever that HEAD names -- and between the proof
-    and here, an agent committing moves it to something nobody cleared.
-
-    A candidate with no proof for its checkout is refused rather than removed.
-    An eligible verdict always carries one, so reaching this means the two
-    halves disagree, and the only safe reading of that is that nothing was
-    established.
-    """
-    tip = evidence._checkout_tip(worktree)
-    if proven is None or tip.answer is not _models.ProbeAnswer.CONFIRMED:
-        return _maintenance_results.MaintenanceReason.TIP_UNREADABLE
-    if tip.sha != proven:
-        return _maintenance_results.MaintenanceReason.TIP_MOVED
-    return None
-
-
-def _take_checkouts(
-    candidate: _candidates.MaintenanceCandidate, cleared: dict[str, str],
-) -> _maintenance_results.MaintenanceResult | None:
-    """Take every checkout of this candidate down, or say where the pass stops.
-
-    None is the step being done -- every tree removed, or none of them there in
-    the first place -- and a result is the pass ending on one of them. They all
-    run before any branch because git refuses to delete a branch a worktree
-    still has checked out, so a pass that took the branches first would leave
-    the trees standing and the branches beside them undeletable.
-
-    Both layouts are taken, in the order the scan reported them. An issue that
-    was in flight when slug namespacing landed can be sitting in the flat
-    checkout it started in and the per-repository one the next tick made, and a
-    pass that took only one of them would report the issue cleaned with a tree
-    still on disk that nothing would ever discover again.
-    """
-    for worktree in candidate.artifacts.worktrees:
-        stopped = _take_checkout(candidate, worktree, cleared)
-        if stopped is not None:
-            return stopped
-    return None
-
-
-def _take_checkout(
-    candidate: _candidates.MaintenanceCandidate,
-    worktree: Path,
-    cleared: dict[str, str],
-) -> _maintenance_results.MaintenanceResult | None:
-    """Take one checkout down, or say why the pass stops on it."""
-    stopped = _checkout_stop(worktree, cleared.get(str(worktree)))
-    if stopped is not None:
-        return _answered(candidate, stopped, str(worktree))
-    removed = reclaim._remove_recognized_worktree(
-        candidate.artifacts.spec, worktree,
-    )
-    if removed:
-        return None
-    return _answered(
-        candidate, _maintenance_results.MaintenanceReason.WORKTREE_REMOVAL_FAILED, str(worktree),
-    )
-
-
-def _take_remote_branch(
-    candidate: _candidates.MaintenanceCandidate, branch: str, proven: str,
-) -> _maintenance_results.MaintenanceResult | None:
-    """Take one branch off the remote, or say why the pass stops here.
-
-    The remote is asked what it carries before the delete is sent, so the three
-    answers stay apart: a branch that is not there is a step already done -- the
-    ordinary shape of a merged pull request's head -- a branch at another commit
-    is a push nobody here cleared, and a reading that failed is not permission
-    to delete anything.
-
-    The delete itself is leased to the same commit, so the answer above is not
-    what the deletion rests on: between this read and that push the branch can
-    move again, and the remote is what refuses it then.
-    """
-    spec = candidate.artifacts.spec
-    published = evidence._published_tip(spec, branch)
-    if published.answer is _models.ProbeAnswer.UNREADABLE:
-        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_UNREADABLE, branch)
-    if published.answer is _models.ProbeAnswer.REFUTED:
-        return None
-    if published.sha != proven:
-        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_MOVED, branch)
-    if reclaim._delete_remote_branch_at(spec, branch, proven):
-        return None
-    return _answered(candidate, _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED, branch)
-
-
-def _take_local_branch(
-    candidate: _candidates.MaintenanceCandidate, branch: str, proven: str,
-) -> _maintenance_results.MaintenanceResult | None:
-    """Take one branch out of the clone, or say why the pass stops here.
-
-    Reached only once the remote's copy is gone, which is what keeps a failed
-    pass discoverable: the local ref is the cheapest thing the next discovery
-    finds, so it is the last artifact of a candidate to go.
-
-    A branch the clone no longer has is a step already done. Anything else is
-    put to the pinned delete, which refuses the branch that has moved -- the
-    reading here only decides whether there is a deletion to attempt at all.
-    """
-    spec = candidate.artifacts.spec
-    tip = evidence._local_branch_tip(spec, branch)
-    if tip.answer is _models.ProbeAnswer.REFUTED:
-        return None
-    if tip.answer is _models.ProbeAnswer.UNREADABLE:
-        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_UNREADABLE, branch)
-    if tip.sha != proven:
-        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_MOVED, branch)
-    if reclaim._delete_local_ref_at(spec, branch, proven):
-        return None
-    return _answered(candidate, _maintenance_results.MaintenanceReason.LOCAL_DELETE_FAILED, branch)
-
-
-def _take_branches(
-    candidate: _candidates.MaintenanceCandidate, cleared: dict[str, str],
-) -> _maintenance_results.MaintenanceResult | None:
-    """Take every cleared branch of this candidate, in the order it was named.
-
-    Each branch goes remote-side first and then locally, rather than every
-    remote and then every local, so a candidate carrying both layouts leaves
-    one whole branch behind rather than two half-taken ones when a pass stops.
-
-    A branch nothing cleared ENDS the pass rather than being passed over. It
-    is a branch the discovery named and the classification found on neither
-    host, so nothing about it was established -- and a name that is gone at one
-    reading can be back at the next, pushed by a run this pass never saw. The
-    candidate is kept, which costs one more pass of an artifact that has really
-    gone: the next discovery does not name it, and that pass reports the rest
-    cleaned.
-
-    Which branches some tree of this clone is still standing on is read once
-    here, after every checkout of this candidate has come down and before any
-    branch goes. It is read at all because the plumbing delete does not ask:
-    `branch -D` refuses a branch a worktree is on and `update-ref -d` takes it
-    without a word, leaving that tree holding a HEAD nothing resolves. The
-    trees that can be on it are not only this candidate's -- an operator's own
-    `worktree add` is on the branch just as squarely, and so is a checkout this
-    scan could not attribute.
-
-    The first stop ends the candidate. What is left is exactly what the next
-    discovery finds, and going on past a refusal would spend deletions on a
-    host that has just said it is not in the state anybody read.
-    """
-    standing = evidence._checked_out_branches(candidate.artifacts.spec)
-    for branch in candidate.artifacts.branches:
-        stopped = _take_branch(candidate, branch, cleared, standing)
-        if stopped is not None:
-            return stopped
-    return None
-
-
-def _take_branch(
-    candidate: _candidates.MaintenanceCandidate,
-    branch: str,
-    cleared: dict[str, str],
-    standing: frozenset[str] | None,
-) -> _maintenance_results.MaintenanceResult | None:
-    """Take one branch off both hosts, or say why the pass stops on it.
-
-    A listing that could not be taken keeps the branch, as every unread
-    question here does: without it nothing establishes that no tree is standing
-    on the ref about to be deleted.
-    """
-    proven = cleared.get(branch)
-    if proven is None:
-        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_UNREADABLE, branch)
-    if standing is None:
-        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_UNREADABLE, branch)
-    if branch in standing:
-        return _answered(
-            candidate, _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT, branch,
-        )
-    return (
-        _take_remote_branch(candidate, branch, proven)
-        or _take_local_branch(candidate, branch, proven)
-    )
-
-
 def _reclaimed(
     candidate: _candidates.MaintenanceCandidate, proven: tuple[_models.ProvenTip, ...],
 ) -> _maintenance_results.MaintenanceResult:
     """Run the whole teardown for one cleared candidate, and say where it got to."""
     cleared = _cleared_tips(proven)
     stopped = (
-        _take_checkouts(candidate, cleared)
-        or _take_branches(candidate, cleared)
+        _checkout_removal._take_checkouts(candidate, cleared)
+        or _branch_removal._take_branches(candidate, cleared)
     )
-    return stopped or _answered(candidate, _maintenance_results.MaintenanceReason.RECLAIMED)
+    return stopped or _maintenance_results._answered(candidate, _maintenance_results.MaintenanceReason.RECLAIMED)
 
 
 def _maintained_candidate(
     gh: GitHubClient,
     candidate: _candidates.MaintenanceCandidate,
     *,
-    claimed: ActivityGuard,
-    going: ContinuationGuard,
+    claimed: _maintenance_guards.ActivityGuard,
+    going: _maintenance_guards.ContinuationGuard,
 ) -> _maintenance_results.MaintenanceResult | None:
     """Decide about one candidate, and act on it if everything clears it.
 
@@ -415,49 +85,31 @@ def _maintained_candidate(
     it cannot, and buy microseconds of earlier exit for it.
     """
     artifacts = candidate.artifacts
-    active = _claim_reason(artifacts, claimed)
+    active = _maintenance_guards._claim_reason(artifacts, claimed)
     if active is not None:
-        return _answered(candidate, active, f"#{artifacts.issue_number}")
+        return _maintenance_results._answered(candidate, active, f"#{artifacts.issue_number}")
     verdict = eligibility._classify_artifacts(gh, artifacts)
     if not verdict.eligible:
-        return _answered(
+        return _maintenance_results._answered(
             candidate,
             _maintenance_results.MaintenanceReason.UNPROVEN,
             _kept_subject(verdict),
             verdict.retentions,
         )
-    quiet, disturbed = _activity_reason(artifacts)
+    quiet, disturbed = _maintenance_guards._activity_reason(artifacts)
     if quiet is not None:
-        return _answered(candidate, quiet, disturbed)
-    if _stopped(going):
+        return _maintenance_results._answered(candidate, quiet, disturbed)
+    if _maintenance_guards._stopped(going):
         return None
     return _reclaimed(candidate, verdict.proven)
-
-
-def _stopped(going: ContinuationGuard) -> bool:
-    """Whether the pass may no longer act, with an unread answer meaning no.
-
-    Fails closed like every gate in front of a deletion here, and behind a
-    total boundary for the reason every injected question carries one: the
-    predicate is the caller's, so what it does when it fails is not something
-    this module can weigh against the mutations behind it.
-    """
-    try:
-        return not going()
-    except Exception:
-        log.warning(
-            "could not be asked whether the maintenance pass may go on; "
-            "stopping it here", exc_info=True,
-        )
-        return True
 
 
 def _maintained_candidates(
     gh: GitHubClient,
     candidates: Iterable[_candidates.MaintenanceCandidate],
     *,
-    claimed: ActivityGuard,
-    going: ContinuationGuard,
+    claimed: _maintenance_guards.ActivityGuard,
+    going: _maintenance_guards.ContinuationGuard,
 ) -> tuple[_maintenance_results.MaintenanceResult, ...]:
     """Run the pass over every candidate of ONE repository, in its order.
 
@@ -488,7 +140,7 @@ def _maintained_candidates(
     """
     answers: list[_maintenance_results.MaintenanceResult] = []
     for candidate in candidates:
-        answered = None if _stopped(going) else _maintained_candidate(
+        answered = None if _maintenance_guards._stopped(going) else _maintained_candidate(
             gh, candidate, claimed=claimed, going=going,
         )
         if answered is None:
