@@ -28,13 +28,12 @@ last is held by the loader itself rather than by a check.
   `workflow/stages/implementing/late_parks.py`, to drop the debt the size gate recorded when a refused push sends
   the branch back to where it started; `base_sync/attempt_records.py` reaches `workflow/late_split/formats.py`, for the
   shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
-  refuses; `base_sync/transfers.py` reaches `workflow/late_split/exemption_reading.py`, `rewrite_reading.py`, and
-  `rewrite_values.py` plus
-  `workflow/stages/implementing/late_parks.py`, because the evidence one exemption transfer is decided on is spread
-  over the exemption, the permission, the debt written with it, and the receipt, and every one of those is a pinned
-  record a layer above this package -- and `late_overflow.py`, `late_records.py`, and `late_transfer.py` besides, since
-  it also ASKS that permit ahead of the gated push a recovery makes, over an entry frozen through the same owner every
-  other publication freezes one through; and `publication` also
+  refuses; the base-sync transfer owners read the higher-layer records only inside their calls:
+  `transfers.py` reads `workflow/late_split/exemption_reading.py`, `rewrite_reading.py`, and `rewrite_values.py`;
+  `transfer_values.py` reads the phase value, `transfer_evidence.py` reads the exemption and rewrite value,
+  `transfer_attempts.py` reads the exemption, and `transfer_publication.py` reads
+  `workflow/stages/implementing/late_parks.py` for the publication debt and receipt. `transfers.py` also loads the publication permit and frozen entry
+  through `late_overflow.py`, `late_records.py`, and `late_transfer.py`. Base-sync `publication` also reads
   `workflow/stages/implementing/late_push.py` and `late_records.py` — the gated push the rebase it is about to
   force-push goes through, since a base that moved changes what the branch adds to it and a pull request may not be
   grown past the ceiling by a refresh either. Both base-sync `publication` and `recovery` load the frozen `_Entered`
@@ -356,26 +355,24 @@ orchestrator/
                         gate's own refuses rather than publishing one commit while the notice, the event, and the
                         `validating` route name another -- the lease-pinned force-push, and what an accepted push
                         writes. The rewrite evidence it hands that gate beside the candidate is assembled by
-                        `transfers` rather than here, since the tick that makes the rewrite is not the only one
+                        `transfer_evidence`, since the tick that makes the rewrite is not the only one
                         that needs it
-      transfers.py      what a rebase replaced, and how far the transfer of the exemption over it got. The evidence
-                        a permit is granted on: the pair the pinned record already holds, the pair the replay
-                        produced -- over a base frozen from what the REMOTE says the branch is at, never off the
-                        local ref the rebase named, which any worktree sharing the store can repoint after this
-                        tick's fetch -- and the pull request, stage, and pre-rebase anchor the push is made against,
-                        taken from the interrupted attempt's own record where a caller hands one in and empty where
-                        either pair cannot be shown. Beside it the closed set of answers a tick coming back to a
-                        crash is decided on -- no transfer, a replay no permission was written for, one still
-                        outstanding, one already settled, and a claim nobody can check, a debt no permission
-                        explains among them -- with the evidence re-derived for the first of those alone, the
-                        accounting a road that publishes nothing new owes, the rollback a receipt beside a remote
-                        that has moved describes, the permit itself asked ahead of a recovery's gated push rather
-                        than through it, since the gate answers a refusal by measuring, and whether a permission
-                        still says a push is owed, for a road walking away from an attempt -- which passes over a
-                        group the exemption has moved past exactly as the classification does, so a settled
-                        rotation a later adjudication left behind is history rather than a push owed. Only the publisher's
-                        own assembly is on a running road; everything else is consulted by the dormant
-                        vouched-replay route in `recovery` alone, and the accounting by nothing yet
+      transfer_values.py
+                        the bounded transfer handoff vocabulary and settled-phase reading, loaded lazily from the
+                        workflow record when needed
+      transfer_evidence.py
+                        rebase contribution and publication evidence over the remote-frozen base; recovery requires
+                        the pending attempt to vouch for its actual checkout before reconstructing a grant
+      transfer_attempts.py
+                        agreement between the authorization's lease, pending publication, and adjudicated pair;
+                        settled permissions name the rewritten pair and outstanding ones name the accepted pair
+      transfer_publication.py
+                        whole debt and receipt proofs for recovered publication and rollback; an unreadable approval
+                        or a receipt for another head or PR cannot prove this attempt settled
+      transfers.py      classify the exact attempt's missing, unrecorded, outstanding, settled, or unvouched handoff,
+                        and require a published rotation to agree with the issue's current exemption. Its permit ask
+                        and outstanding-transfer reading serve the dormant vouched-replay recovery; no production
+                        selector activates that recovery route
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
                         with
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals
@@ -842,8 +839,8 @@ off a facade:
   `persistence`. `attempts` is under both: it owns the record one rebase attempt leaves of itself, and every owner
   that writes a member of that record or ends it calls through it rather than spelling a key of its own.
   `attempt_records` owns interrupted-replay validation; `recovery_notices` delivers the notice and audit event in
-  the order `persistence` coordinates with its checkpoint and routing. `transfers`
-  sits beside it on the same terms — it owns what a rebase replaced and how far the transfer of an exemption over it
-  got, `publication` calls it for the evidence the size gate is handed, and nothing else reaches it yet. The three
+  the order `persistence` coordinates with its checkpoint and routing. `transfer_evidence` assembles the rewrite
+  the publisher or recovery hands to the size gate. `transfers` classifies the interrupted permission through
+  `transfer_attempts` and `transfer_publication`, using the bounded handoff values in `transfer_values`. The three
   keyword-call adapters — the PR sync, the conflict route, and the crash recovery — still take the argument lists
   their callers spell and normalize each into the typed context entry point beside it.

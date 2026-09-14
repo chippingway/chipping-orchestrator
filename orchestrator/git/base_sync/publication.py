@@ -30,7 +30,7 @@ is what a base advance that changed the contribution has to get.
 """
 from __future__ import annotations
 
-from orchestrator.git.base_sync import attempts, guards, transfers
+from orchestrator.git.base_sync import attempts, guards, transfer_evidence as _transfer_evidence
 from orchestrator.git.base_sync.models import _AutoRebaseContext
 from orchestrator.git.base_sync.state import _REVIEW_ROUND, log
 from orchestrator.git.verification import probes, status as _worktree_status
@@ -202,7 +202,7 @@ def _publish_auto_rebase(
             # adjudication accepted is recognized as the same contribution
             # rather than measured past the same ceiling and adjudicated a
             # second time with a pull request already open over it.
-            rewrite=transfers._rewritten_by_the_rebase(
+            rewrite=_transfer_evidence._rewritten_by_the_rebase(
                 context, before_sha, after_sha,
             ),
         ),

@@ -14,7 +14,7 @@ from orchestrator.workflow.stages.implementing import (
     late_authority as _authority,
     late_delivery as _delivery,
     late_parks as _parks,
-    late_transfer as _transfer,
+    late_transfer_reading as _late_transfer_reading,
 )
 from orchestrator.workflow.stages.implementing.late_gate_models import _Gate
 
@@ -84,7 +84,7 @@ def _approved_on_a_reading(
         return False
     if _authority._unauthorized_debt(gate, candidate_sha):
         return False
-    return not _transfer._licensed_by_a_permit(gate.state)
+    return not _late_transfer_reading._licensed_by_a_permit(gate.state)
 
 
 def _already_decided(

@@ -48,6 +48,11 @@ _ATTEMPTS_OWNER = "orchestrator.git.base_sync.attempts"
 _TRANSFERS_OWNER = "orchestrator.git.base_sync.transfers"
 
 _OWNERS = (
+    "orchestrator.git.base_sync.transfer_values",
+    "orchestrator.git.base_sync.transfer_evidence",
+    "orchestrator.git.base_sync.transfer_attempts",
+    "orchestrator.git.base_sync.transfer_publication",
+
     "orchestrator.git.base_sync.attempt_records",
     "orchestrator.git.base_sync.recovery_notices",
     _MODELS_OWNER, _PRE_PR_OWNER, _REFRESH_OWNER, _REFRESH_SELECTION_OWNER,

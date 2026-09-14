@@ -18,7 +18,7 @@ import unittest
 from dataclasses import replace
 from types import MappingProxyType
 
-from orchestrator.git.base_sync import transfers
+from orchestrator.git.base_sync import transfer_values as _transfer_values, transfers
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
     exemption_reading as _exemption_reading,
@@ -112,7 +112,7 @@ class UncarriedVerdictTest(unittest.TestCase):
 
         self.assertEqual(
             transfers._carried_by(context, seed.REPLAYED_SHA),
-            transfers._Handoff.NOTHING,
+            _transfer_values._Handoff.NOTHING,
         )
 
     def test_a_legacy_exemption_still_carries(self) -> None:
@@ -127,7 +127,7 @@ class UncarriedVerdictTest(unittest.TestCase):
 
         self.assertEqual(
             transfers._carried_by(context, seed.REPLAYED_SHA),
-            transfers._Handoff.UNRECORDED,
+            _transfer_values._Handoff.UNRECORDED,
         )
 
 
@@ -136,19 +136,19 @@ class HandoffWindowTest(seed.TransferCase):
 
     def test_an_exemption_alone_is_unrecorded(self) -> None:
         """A grant the crash came before leaves the record to be rebuilt."""
-        self.assertEqual(self._carried(), transfers._Handoff.UNRECORDED)
+        self.assertEqual(self._carried(), _transfer_values._Handoff.UNRECORDED)
 
     def test_a_permission_and_its_debt_stand(self) -> None:
         """A grant that landed and a push that did not owes the receipt."""
         seed.granted(self.state)
 
-        self.assertEqual(self._carried(), transfers._Handoff.OUTSTANDING)
+        self.assertEqual(self._carried(), _transfer_values._Handoff.OUTSTANDING)
 
     def test_a_receipted_permission_is_over(self) -> None:
         """A settled transfer leaves a recovery nothing left to move."""
         seed.settled(self.state)
 
-        self.assertEqual(self._carried(), transfers._Handoff.SETTLED)
+        self.assertEqual(self._carried(), _transfer_values._Handoff.SETTLED)
 
     def test_a_permission_binds_without_a_record(self) -> None:
         """A comment from before that record existed still carries a claim.
@@ -160,7 +160,7 @@ class HandoffWindowTest(seed.TransferCase):
         self._fresh(pending_rewrite=seed.ABSENT)
         seed.granted(self.state)
 
-        self.assertEqual(self._carried(), transfers._Handoff.OUTSTANDING)
+        self.assertEqual(self._carried(), _transfer_values._Handoff.OUTSTANDING)
 
     def test_a_permission_binds_before_the_replay(self) -> None:
         """The window before that write leaves no terms to cross-bind to.
@@ -172,7 +172,7 @@ class HandoffWindowTest(seed.TransferCase):
         self._fresh(pending_rewrite=seed.DECLARED)
         seed.granted(self.state)
 
-        self.assertEqual(self._carried(), transfers._Handoff.OUTSTANDING)
+        self.assertEqual(self._carried(), _transfer_values._Handoff.OUTSTANDING)
 
 
 class PriorRotationTest(seed.TransferCase):
@@ -187,13 +187,13 @@ class PriorRotationTest(seed.TransferCase):
         """
         self._rotated_before(seed.ACCEPTED_SHA)
 
-        self.assertEqual(self._carried(), transfers._Handoff.UNRECORDED)
+        self.assertEqual(self._carried(), _transfer_values._Handoff.UNRECORDED)
 
     def test_a_rotation_elsewhere_is_passed_over(self) -> None:
         """The head in hand is not the commit that record is about."""
         self._rotated_before(fixtures.MOVED_PR_HEAD_SHA)
 
-        self.assertEqual(self._carried(), transfers._Handoff.UNRECORDED)
+        self.assertEqual(self._carried(), _transfer_values._Handoff.UNRECORDED)
 
     def test_a_rotation_a_newer_verdict_moved_past(self) -> None:
         """A settled group is history once the exemption has moved past it.
@@ -221,7 +221,7 @@ class PriorRotationTest(seed.TransferCase):
 
         self.assertEqual(
             self._carried(seed.NEWER_REPLAY_SHA),
-            transfers._Handoff.UNRECORDED,
+            _transfer_values._Handoff.UNRECORDED,
         )
 
     def _rotated_before(self, onto: str) -> None:
@@ -350,4 +350,4 @@ class UnvouchedClaimTest(seed.TransferCase):
 
     def _refuses(self) -> None:
         """Nothing is assembled and nothing is settled over these terms."""
-        self.assertEqual(self._carried(), transfers._Handoff.UNVOUCHED)
+        self.assertEqual(self._carried(), _transfer_values._Handoff.UNVOUCHED)
