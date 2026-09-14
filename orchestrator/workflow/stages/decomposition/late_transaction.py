@@ -131,7 +131,7 @@ from orchestrator.workflow.late_split.models import (
     LateResourceState,
 )
 from orchestrator.workflow.stages.decomposition import (
-    late_hold as _late_hold,
+    late_hold_release as _late_hold_release,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
     late_park_state as _late_park_state,
@@ -553,7 +553,7 @@ def _released_hold(context: _LateContext) -> bool:
     which pull request to close is the record beside it, and that says so with
     or without a notice on it.
     """
-    release = _late_hold._release_hold(
+    release = _late_hold_release._release_hold(
         context.gh, context.issue, context.generation,
     )
     context.generation = release.generation

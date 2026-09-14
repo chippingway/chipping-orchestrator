@@ -33,8 +33,9 @@ from unittest.mock import MagicMock, patch
 from orchestrator.git.measurement.models import FingerprintFailure
 from orchestrator.workflow.late_split import models as _late_models, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
-    late_hold as _late_hold,
+    late_hold_text as _late_hold_text,
     late_owner as _late_owner,
+    late_owner_reading as _late_owner_reading,
     late_result_models as _late_result_models,
     late_run_reading as _late_run_reading,
     late_session as _late_session,
@@ -168,6 +169,11 @@ HUMAN_REWRITE = "I rewrote this while it was held."
 OWNER_READ = "_owner_state"
 OWNER_GUARD = "_guarded_owner"
 
+_OWNER_SEAMS = MappingProxyType({
+    OWNER_READ: _late_owner_reading,
+    OWNER_GUARD: _late_owner,
+})
+
 # A shape GitHub could answer with that names no state at all. Reading it as
 # open would publish on the strength of a read that established nothing.
 STATELESS_OWNER = MagicMock(closed=False, state="")
@@ -213,7 +219,7 @@ def killed_at(seam: str):
     decides whether the obligation is part of the write that recorded the
     result or something the step after it adds.
     """
-    with patch.object(_late_owner, seam, side_effect=KeyboardInterrupt):
+    with patch.object(_OWNER_SEAMS[seam], seam, side_effect=KeyboardInterrupt):
         yield
 
 
@@ -345,5 +351,5 @@ class HeldPlanPrCase(GuardedLateCase):
             **{_support.KEY_PLAN_PATH: _support.PLAN_PATH},
         )
         self.plan_pr = _support.seed_plan_pr(
-            self.github, body=_late_hold._hold_body(self.generation),
+            self.github, body=_late_hold_text._hold_body(self.generation),
         )

@@ -22,7 +22,7 @@ from types import MappingProxyType
 from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_children as _late_children,
-    late_hold as _late_hold,
+    late_hold_text as _late_hold_text,
     late_transaction as _late_transaction,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -228,7 +228,7 @@ class HeldPlanPrSplitCase(LateSplitCase):
             self.issue.number, **self._pinned(), pr_number=_support.PLAN_PR_NUMBER,
         )
         self.plan_pr = _support.seed_plan_pr(
-            self.github, body=_late_hold._hold_body(self.generation),
+            self.github, body=_late_hold_text._hold_body(self.generation),
         )
 
 

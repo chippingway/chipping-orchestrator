@@ -27,7 +27,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.stages.decomposition import (
-    late_hold as _late_hold,
+    late_hold_text as _late_hold_text,
     late_park_state as _late_park_state,
     late_retirement as _late_retirement,
     late_transaction as _late_transaction,
@@ -269,7 +269,7 @@ class PublishedSupersessionRefusalTest(
             outcome = self._transact(generation=held)
 
         self._assert_left_alone(outcome)
-        self.assertEqual(self.published_pr.body, _late_hold._hold_body(held))
+        self.assertEqual(self.published_pr.body, _late_hold_text._hold_body(held))
 
     def test_a_refused_supersession_parks(self) -> None:
         # The proof passed and the close itself did not land.

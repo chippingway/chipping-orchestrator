@@ -7,8 +7,8 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.workflow.stages.decomposition import (
+    late_hold_release as _late_hold_release,
     late_park_state as _late_park_state,
-    late_transaction as _late_transaction,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _HeldPrHold
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
@@ -157,7 +157,7 @@ class SupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
         # request raises from a read as readily as from a write, and the
         # children are already live by then.
         released = patch.object(
-            _late_transaction._late_hold,
+            _late_hold_release,
             "_release_hold",
             return_value=_HeldPrHold(generation=self.generation),
         )

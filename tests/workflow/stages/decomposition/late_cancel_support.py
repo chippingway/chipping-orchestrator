@@ -17,7 +17,7 @@ from dataclasses import replace
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.late_split.models import LateResourceState
 from orchestrator.workflow.late_split.phases import LatePhase
-from orchestrator.workflow.stages.decomposition import late_hold as _late_hold
+from orchestrator.workflow.stages.decomposition import late_hold_text as _late_hold_text
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition.late_cleanup_support import (
@@ -86,7 +86,7 @@ class ClosedOwnerCase(_PatchedWorkflowMixin):
         )
         _late_state.write_late_generation(state, holding)
         github.seed_state(PARENT_NUMBER, **state.data)
-        pr_fields.setdefault("body", _late_hold._hold_body(holding))
+        pr_fields.setdefault("body", _late_hold_text._hold_body(holding))
         seed_plan_pr(github, **pr_fields)
 
     def _swept(self, seeded: SeededUmbrella, *sweep_args, **answers):

@@ -14,7 +14,11 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator.workflow.stages.decomposition import late_hold as _late_hold
+from orchestrator.workflow.stages.decomposition import (
+    late_hold as _late_hold,
+    late_hold_release as _late_hold_release,
+    late_hold_text as _late_hold_text,
+)
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.stages.decomposition import late_test_support as _support
@@ -207,13 +211,13 @@ class PublishedHoldBoundaryTest(_PublishedHoldCase):
             plan_pr_head=_support.PUBLISHED_HEAD_SHA,
             plan_pr_body=_support.PLAN_PR_BODY,
         )
-        self.published_pr.body = _late_hold._unpublished_hold_body(held)
+        self.published_pr.body = _late_hold_text._unpublished_hold_body(held)
 
         hold = self._reconcile(held)
 
         self.assertTrue(hold.held)
         self.assertFalse(hold.displaced)
-        self.assertEqual(self.published_pr.body, _late_hold._hold_body(held))
+        self.assertEqual(self.published_pr.body, _late_hold_text._hold_body(held))
 
     def test_the_release_restores_its_body(self) -> None:
         # The same release the plan side runs, on the pull request this cycle
@@ -222,7 +226,7 @@ class PublishedHoldBoundaryTest(_PublishedHoldCase):
         published_body = self.published_pr.body
         first = self._reconcile()
 
-        release = _late_hold._release_hold(
+        release = _late_hold_release._release_hold(
             self.github, self.issue, first.generation,
         )
 
@@ -242,7 +246,7 @@ class PublishedHoldBoundaryTest(_PublishedHoldCase):
             plan_pr_head=self.plan_pr.head.sha,
             plan_pr_body=_support.PLAN_PR_BODY,
         )
-        self.plan_pr.body = _late_hold._unpublished_hold_body(held)
+        self.plan_pr.body = _late_hold_text._unpublished_hold_body(held)
         return held
 
 
@@ -312,7 +316,7 @@ class PublishedHoldBeforeSpawnTest(_PublishedHoldCase):
             plan_pr_head=plan_pr.head.sha,
             plan_pr_body=_support.PLAN_PR_BODY,
         )
-        plan_pr.body = _late_hold._unpublished_hold_body(held)
+        plan_pr.body = _late_hold_text._unpublished_hold_body(held)
         self.github.seed_state(
             _support.LATE_ISSUE_NUMBER,
             **{
