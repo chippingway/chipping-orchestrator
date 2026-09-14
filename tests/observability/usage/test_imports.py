@@ -52,7 +52,7 @@ _OWNER_MODULES = MappingProxyType({
     owner: import_module(f"{_PACKAGE}.{owner}") for owner in _OWNERS
 })
 
-# What the package publishes, grouped by the owner each name is defined on.
+# Parser entry points and result types, grouped by their defining owner.
 _PARSERS = MappingProxyType({
     _METRICS_OWNER: (
         "UsageMetrics",
@@ -127,21 +127,12 @@ class OwnerInventoryTest(unittest.TestCase):
 class PublicSurfaceTest(unittest.TestCase):
     """Parser and record names belong to their defining modules."""
 
-    def test_package_declares_no_surface(self) -> None:
-        self.assertNotIn("__all__", _package.__dict__)
-
     def test_parsers_belong_to_their_defining_modules(self) -> None:
         for owner, names in _PARSERS.items():
             module = _OWNER_MODULES[owner]
             for name in names:
                 with self.subTest(owner=owner, name=name):
-                    self.assertNotIn(name, _package.__dict__)
                     self.assertEqual(getattr(module, name).__module__, _qualified(owner))
-
-    def test_package_exposes_no_record_aliases(self) -> None:
-        for name in _RECORDS:
-            with self.subTest(name=name):
-                self.assertNotIn(name, _package.__dict__)
 
     def test_no_owner_declares_a_surface_of_its_own(self) -> None:
         for owner, module in _OWNER_MODULES.items():

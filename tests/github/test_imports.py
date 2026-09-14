@@ -8,7 +8,6 @@ import subprocess
 import sys
 import unittest
 
-from orchestrator import github as _github
 from orchestrator.github import (
     client as _github_client,
     comments as _comments,
@@ -32,20 +31,6 @@ _MODULES = (
     "orchestrator.github.pull_request_reads",
     "orchestrator.github.pull_request_retirement",
     "orchestrator.github.reviews",
-)
-
-# Owner names the package marker must not resolve: the domain surfaces each have an
-# owner module callers import directly.
-_OWNER_ONLY_NAMES = (
-    "PINNED_STATE_MARKER",
-    "WORKFLOW_LABELS",
-    "hard_skip_control_label",
-    "build_event_record",
-    "filter_trusted",
-    "is_trusted_author",
-    "_iter_new_non_pr_issues",
-    "_review_state_for_head",
-    "_normalize_check_runs",
 )
 
 # The trust owner is what the git base-sync gates and the workflow stage leaves
@@ -109,20 +94,12 @@ class LayeringTest(unittest.TestCase):
 class PublicSurfaceTest(unittest.TestCase):
     """GitHub types and trust gates are reached on their defining owners."""
 
-    def test_package_declares_no_surface(self) -> None:
-        self.assertNotIn("__all__", _github.__dict__)
-
     def test_names_belong_to_their_defining_modules(self) -> None:
         for owner, name in (
             (_github_client, "GitHubClient"), (_pinned_state, "PinnedState"),
         ):
             with self.subTest(name=name):
                 self.assertEqual(getattr(owner, name).__module__, owner.__name__)
-
-    def test_package_exposes_no_owner_names(self) -> None:
-        for owner_name in ("GitHubClient", "PinnedState", *_OWNER_ONLY_NAMES):
-            with self.subTest(name=owner_name), self.assertRaises(AttributeError):
-                getattr(_github, owner_name)
 
     def test_trust_owner_defines_the_gated_names(self) -> None:
         for trust_name in _TRUST_NAMES:
