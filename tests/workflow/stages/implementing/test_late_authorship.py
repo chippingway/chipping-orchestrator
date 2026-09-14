@@ -28,7 +28,9 @@ from orchestrator.workflow.stages.implementing import (
     state as _state,
 )
 from tests.workflow.stages.implementing import (
-    late_consent_test_support as support,
+    late_consent_case as _consent_case,
+    late_consent_crashes as _consent_crashes,
+    late_consent_payloads as _consent_payloads,
 )
 
 _CLEAN_TREE = _WorktreeStatus(readable=True)
@@ -61,12 +63,12 @@ _ONE_MORE_THING = " and one more thing"
 _MISSING_WORKTREE = Path("/tmp/orchestrator-test-late-authorship-gone")
 
 
-class _SaidCase(support._ParkedCase):
+class _SaidCase(_consent_case._ParkedCase):
     """One park, and the sentences a handoff into the seam says on it."""
 
     def _attributed(self) -> list:
         """Every comment id this issue's record claims the orchestrator wrote."""
-        return self._pinned().get(support.ORCHESTRATOR_IDS) or []
+        return self._pinned().get(_consent_payloads.ORCHESTRATOR_IDS) or []
 
     def _strands(self, body: str = _REFUSAL) -> int:
         """Say one thing the way the seam does, and lose the write past it.
@@ -80,7 +82,7 @@ class _SaidCase(support._ParkedCase):
         said = "{body}\n\n{receipt}".format(
             body=body,
             receipt=_authorship._PUBLICATION_RECEIPT.format(
-                issue=support.ISSUE_NUMBER, proof=secret,
+                issue=_consent_payloads.ISSUE_NUMBER, proof=secret,
             ),
         )
         committed = self._state()
@@ -125,7 +127,7 @@ class _SaidCase(support._ParkedCase):
         this issue does not have.
         """
         for mocks in ticks:
-            mocks[support.PUSH_BRANCH].assert_not_called()
+            mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
         self.assertEqual(self.github.label_history, [])
 
     def _deletes(self, comment_id: int) -> None:
@@ -144,8 +146,8 @@ class SeamRecordsWhatItSaysTest(_SaidCase, unittest.TestCase):
     """
 
     def test_one_sentence_is_recorded_once(self) -> None:
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
 
         self._run_tick(tree_states=(_CLEAN_TREE, _DIRTY_TREE))
 
@@ -158,8 +160,8 @@ class SeamRecordsWhatItSaysTest(_SaidCase, unittest.TestCase):
         # workflow, and the ledger is a bounded list: a second entry buys
         # nothing and costs a slot, so older notices of ours would fall out of
         # it sooner and reach a developer as somebody's guidance.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
 
         self._run_tick(tree_states=_DIRTIED_AFTER_THE_PUSH)
 
@@ -170,8 +172,8 @@ class SeamRecordsWhatItSaysTest(_SaidCase, unittest.TestCase):
     def test_nothing_is_left_outstanding(self) -> None:
         # The receipt covers one API call and is dropped by the write that
         # ends it, so a run that finished owes the record nothing.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
 
         self._run_tick(tree_states=(_CLEAN_TREE, _DIRTY_TREE))
 
@@ -182,13 +184,13 @@ class SeamRecordsWhatItSaysTest(_SaidCase, unittest.TestCase):
         # it layer: a comment posted through the seam's client and then
         # through the owner that posts every one of them is recorded twice
         # unless recording is idempotent.
-        self._seed(**support.measured_pair())
+        self._seed(**_consent_payloads.measured_pair())
         state = self._state()
-        _comments._track_orchestrator_comment(state, support.ISSUE_NUMBER)
-        _comments._track_orchestrator_comment(state, support.ISSUE_NUMBER)
+        _comments._track_orchestrator_comment(state, _consent_payloads.ISSUE_NUMBER)
+        _comments._track_orchestrator_comment(state, _consent_payloads.ISSUE_NUMBER)
 
         self.assertEqual(
-            state.get(support.ORCHESTRATOR_IDS), [support.ISSUE_NUMBER],
+            state.get(_consent_payloads.ORCHESTRATOR_IDS), [_consent_payloads.ISSUE_NUMBER],
         )
 
     def _sentences(self) -> list:
@@ -211,55 +213,55 @@ class LostWriteLedgerRepairTest(_SaidCase, unittest.TestCase):
     """
 
     def test_a_stranded_sentence_is_ledgered(self) -> None:
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE_ANOTHER)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
         said = self._strands()
 
         mocks = self._run_tick()
 
         self.assertEqual(self._attributed(), [said])
         self.assertIsNone(self._pinned()[_state._HELD_PUBLICATION])
-        mocks[support.RUN_AGENT].assert_not_called()
+        mocks[_consent_payloads.RUN_AGENT].assert_not_called()
 
     def test_the_repair_moves_no_watermark(self) -> None:
         # A watermark moved to our sentence crosses everything under it, so an
         # operator who read the notice and wrote the corrected command before
         # this poll ran would have it consumed unread and never acted on.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE_ANOTHER)
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
+        self._reply(_consent_payloads.AUTHORIZE)
         self._strands()
 
         self._run_tick()
 
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
 
     def test_the_next_poll_acts_on_the_correction(self) -> None:
         # What repairing the ledger is for, across a restart: our own prose is
         # out of the reading, so the operator's corrected command is the last
         # fresh word again and the poll after the repair publishes on it.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE_ANOTHER)
-        corrected = self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
+        corrected = self._reply(_consent_payloads.AUTHORIZE)
         self._strands()
         self._run_tick()
 
         mocks = self._run_tick()
 
-        mocks[support.PUSH_BRANCH].assert_called_once()
-        mocks[support.RUN_AGENT].assert_not_called()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
+        mocks[_consent_payloads.RUN_AGENT].assert_not_called()
         self.assertEqual(
-            self._pinned()[support.KEY_OVERRIDE_COMMENT_ID], corrected,
+            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], corrected,
         )
 
     def test_only_the_earliest_answer_is_ledgered(self) -> None:
         # A copy can only follow what it copies, so where the thread carries
         # two comments saying our sentence, ours is the earlier. Claiming the
         # later one as well would be claiming a comment we did not post.
-        self._seed(**support.measured_pair())
+        self._seed(**_consent_payloads.measured_pair())
         said = self._strands()
         copied = self._replays(said)
 
@@ -279,9 +281,9 @@ class LostWriteLedgerRepairTest(_SaidCase, unittest.TestCase):
                     secrets.token_hex(_authorship._PROOF_BYTES), _REFUSAL,
                 ),
             ],
-            **support.measured_pair(),
+            **_consent_payloads.measured_pair(),
         })
-        spoken = self._reply(support.GUIDANCE)
+        spoken = self._reply(_consent_payloads.GUIDANCE)
 
         self._run_tick()
         self.assertIsNone(self._pinned()[_state._HELD_PUBLICATION])
@@ -289,7 +291,7 @@ class LostWriteLedgerRepairTest(_SaidCase, unittest.TestCase):
         mocks = self._run_tick()
 
         self.assertNotIn(spoken, self._attributed())
-        mocks[support.RUN_AGENT].assert_called_once()
+        mocks[_consent_payloads.RUN_AGENT].assert_called_once()
         self.assertGreaterEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID], spoken,
         )
@@ -308,8 +310,8 @@ class RestartedParkNoticeTest(_SaidCase, unittest.TestCase):
     def setUp(self) -> None:
         super().setUp()
         self._seed(**{
-            _state._HELD_RECEIPT: support.PARK_RECEIPT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.PARK_RECEIPT,
+            **_consent_payloads.measured_pair(),
         })
         self._crash_saying_the_notice()
 
@@ -320,11 +322,11 @@ class RestartedParkNoticeTest(_SaidCase, unittest.TestCase):
         polls = [self._run_tick() for _ in range(3)]
 
         for mocks in polls:
-            mocks[support.RUN_AGENT].assert_not_called()
-            mocks[support.PUSH_BRANCH].assert_not_called()
+            mocks[_consent_payloads.RUN_AGENT].assert_not_called()
+            mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
 
     def test_the_notice_is_ledgered_once(self) -> None:
@@ -355,12 +357,12 @@ class RestartedParkNoticeTest(_SaidCase, unittest.TestCase):
             self._owes_the_notice_again()
             self._crash_saying_the_notice()
             mocks = self._run_tick()
-            mocks[support.RUN_AGENT].assert_not_called()
+            mocks[_consent_payloads.RUN_AGENT].assert_not_called()
 
         self.assertEqual(self._attributed(), self._sentences())
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
 
     def _owes_the_notice_again(self) -> None:
@@ -371,9 +373,9 @@ class RestartedParkNoticeTest(_SaidCase, unittest.TestCase):
         throw away every sentence the polls before it recorded.
         """
         owing = self._state()
-        owing.set(_state._HELD_RECEIPT, support.PARK_RECEIPT)
+        owing.set(_state._HELD_RECEIPT, _consent_payloads.PARK_RECEIPT)
         owing.set(
-            _state._LAST_ACTION_COMMENT_ID, support.PRIOR_ACTION_COMMENT_ID,
+            _state._LAST_ACTION_COMMENT_ID, _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
         owing.set(_state._AWAITING_HUMAN, True)
         owing.set(
@@ -390,10 +392,10 @@ class RestartedParkNoticeTest(_SaidCase, unittest.TestCase):
         """
         with (
             patch.object(
-                self.github, support.WRITE_PINNED_STATE,
-                side_effect=support.DiesPastTheNotice(self.github),
+                self.github, _consent_payloads.WRITE_PINNED_STATE,
+                side_effect=_consent_crashes.DiesPastTheNotice(self.github),
             ),
-            self.assertRaises(support.CrashedTick),
+            self.assertRaises(_consent_crashes.CrashedTick),
         ):
             self._run_tick()
 
@@ -420,8 +422,8 @@ class SentenceBoundReceiptTest(_SaidCase, unittest.TestCase):
         for described, gone in (("standing", False), ("deleted", True)):
             with self.subTest(ours=described):
                 self.setUp()
-                self._seed(**support.measured_pair())
-                self._reply(support.AUTHORIZE)
+                self._seed(**_consent_payloads.measured_pair())
+                self._reply(_consent_payloads.AUTHORIZE)
                 retracted = self._answered_and_maybe_deleted(gone)
 
                 self._assert_published_nothing(
@@ -434,8 +436,8 @@ class SentenceBoundReceiptTest(_SaidCase, unittest.TestCase):
         # keeps it out of the ledger is order: a copy can only follow what it
         # copies. Their comment stays a human's word, and their edit of it
         # into a retraction is read as one.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
         said = self._strands()
         copied = self._replays(said)
         self._run_tick()
@@ -444,14 +446,14 @@ class SentenceBoundReceiptTest(_SaidCase, unittest.TestCase):
         mocks = self._run_tick()
 
         self.assertNotIn(copied, self._attributed())
-        mocks[support.PUSH_BRANCH].assert_not_called()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
         self.assertEqual(self.github.label_history, [])
 
     def test_an_edited_sentence_answers_nothing(self) -> None:
         # A body changed after we said it is no longer the sentence the record
         # committed to -- ours or anybody's -- so nothing is claimed, which
         # costs a resume against our own words rather than a retraction.
-        self._seed(**support.measured_pair())
+        self._seed(**_consent_payloads.measured_pair())
         said = self._strands()
         self._edits(said, into=self._comment(said).body + _ONE_MORE_THING)
 
@@ -470,13 +472,13 @@ class SentenceBoundReceiptTest(_SaidCase, unittest.TestCase):
             secrets.token_hex(_authorship._PROOF_BYTES), _REFUSAL,
         )
         self._seed(**{
-            _state._HELD_PUBLICATION: [digest], **support.measured_pair(),
+            _state._HELD_PUBLICATION: [digest], **_consent_payloads.measured_pair(),
         })
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
         for described, written in (
             ("the digest itself", digest),
             ("the digest in our own receipt", _authorship._PUBLICATION_RECEIPT.format(
-                issue=support.ISSUE_NUMBER, proof=digest,
+                issue=_consent_payloads.ISSUE_NUMBER, proof=digest,
             )),
         ):
             with self.subTest(quoted=described):
@@ -496,9 +498,9 @@ class SentenceBoundReceiptTest(_SaidCase, unittest.TestCase):
         # the pinned comment, under our own login and below almost everything
         # else. The record is dropped from the reading rather than answered.
         self._seed(**{
-            _state._HELD_RECEIPT: support.PARK_RECEIPT,
-            **support.AT_THE_LIMIT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.PARK_RECEIPT,
+            **_consent_payloads.AT_THE_LIMIT,
+            **_consent_payloads.measured_pair(),
         })
         recorded = self._pin_the_record()
 

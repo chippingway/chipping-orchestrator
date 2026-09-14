@@ -28,7 +28,9 @@ from orchestrator.workflow.stages.implementing import (
 )
 from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA
 from tests.workflow.stages.implementing import (
-    late_consent_test_support as support,
+    late_consent_case as _consent_case,
+    late_consent_crashes as _consent_crashes,
+    late_consent_payloads as _consent_payloads,
 )
 
 _PUBLISH_COMMITTED_WORK = "_publish_committed_work"
@@ -64,10 +66,10 @@ class _ReadsTheRecordAndDies:
         entering = self._case._pinned()
         self.park.append(entering.get(_state._HELD_PARK))
         self.owed.append(entering.get(_state._HELD_PUBLICATION))
-        raise support.CrashedTick
+        raise _consent_crashes.CrashedTick
 
 
-class SeamCrashRollbackTest(support._ParkedCase, unittest.TestCase):
+class SeamCrashRollbackTest(_consent_case._ParkedCase, unittest.TestCase):
     """A process that dies between the seam's own writes and the rollback.
 
     The seam records an authorization, takes the park off and consumes the
@@ -89,7 +91,7 @@ class SeamCrashRollbackTest(support._ParkedCase, unittest.TestCase):
         self.assertEqual(entered.park, [{
             _state._AWAITING_HUMAN: True,
             _state._PARK_REASON: _command.PARK_UNAUTHORIZED_EXEMPTION,
-            _state._LAST_ACTION_COMMENT_ID: support.PRIOR_ACTION_COMMENT_ID,
+            _state._LAST_ACTION_COMMENT_ID: _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         }])
         self.assertEqual(len(entered.owed), 1)
         self.assertEqual(len(entered.owed[0]), 1)
@@ -113,7 +115,7 @@ class SeamCrashRollbackTest(support._ParkedCase, unittest.TestCase):
         )
         self.assertEqual(
             pinned[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
         self.assertIsNone(pinned[_state._HELD_PARK])
         self.assertIsNotNone(
@@ -130,7 +132,7 @@ class SeamCrashRollbackTest(support._ParkedCase, unittest.TestCase):
         self.assertFalse(pinned[_state._AWAITING_HUMAN])
         self.assertGreater(
             pinned[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
 
     def test_a_restore_owing_no_sentence_still_lands(self) -> None:
@@ -144,10 +146,10 @@ class SeamCrashRollbackTest(support._ParkedCase, unittest.TestCase):
                 _state._PARK_REASON:
                     _command.PARK_UNAUTHORIZED_EXEMPTION,
                 _state._LAST_ACTION_COMMENT_ID:
-                    support.PRIOR_ACTION_COMMENT_ID,
+                    _consent_payloads.PRIOR_ACTION_COMMENT_ID,
             },
             _state._LAST_ACTION_COMMENT_ID: _CONSUMED_PAST_THE_COMMAND,
-            **support.measured_pair(),
+            **_consent_payloads.measured_pair(),
         })
 
         self._run_tick()
@@ -156,37 +158,37 @@ class SeamCrashRollbackTest(support._ParkedCase, unittest.TestCase):
         self.assertTrue(pinned[_state._AWAITING_HUMAN])
         self.assertEqual(
             pinned[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
         self.assertIsNone(pinned[_state._HELD_PARK])
 
     def _enters_the_seam(self) -> _ReadsTheRecordAndDies:
         """Take one tick to the seam's own door, and say what it found there."""
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
         entered = _ReadsTheRecordAndDies(self)
         with (
             patch.object(_disposition, _PUBLISH_COMMITTED_WORK, entered),
-            self.assertRaises(support.CrashedTick),
+            self.assertRaises(_consent_crashes.CrashedTick),
         ):
             self._run_tick()
         return entered
 
     def _crashes_past_the_seam(self) -> None:
         """Record the authorization, fail the push, and lose the rollback."""
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
         with (
             patch.object(
-                self.github, support.WRITE_PINNED_STATE,
-                side_effect=support.DiesRestoringTheHeldPark(self.github),
+                self.github, _consent_payloads.WRITE_PINNED_STATE,
+                side_effect=_consent_crashes.DiesRestoringTheHeldPark(self.github),
             ),
-            self.assertRaises(support.CrashedTick),
+            self.assertRaises(_consent_crashes.CrashedTick),
         ):
             self._run_tick(push_branch=False)
 
 
-class PublishedHandoffCrashTest(support._ParkedCase, unittest.TestCase):
+class PublishedHandoffCrashTest(_consent_case._ParkedCase, unittest.TestCase):
     """What a crash past the relabel leaves of a handoff that published.
 
     The one outcome this park is never put back from, and the one window
@@ -226,7 +228,7 @@ class PublishedHandoffCrashTest(support._ParkedCase, unittest.TestCase):
         # `validating` issue -- read there as fresh feedback, and paid for
         # with the developer run this whole road exists to avoid.
         commanded = self._crashes_past_the_relabel(
-            added_lines=support.SMALL_ADDITIONS,
+            added_lines=_consent_payloads.SMALL_ADDITIONS,
         )
 
         self.assertGreaterEqual(
@@ -239,8 +241,8 @@ class PublishedHandoffCrashTest(support._ParkedCase, unittest.TestCase):
         # recognizes the commit as decided and pushes it without a reading of
         # its own -- and the command it publishes on is consumed by the same
         # write that moves the label rather than by the one after it.
-        self._seed(**support.measured_pair())
-        commanded = self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
 
         self._dies_past_the_relabel()
@@ -251,8 +253,8 @@ class PublishedHandoffCrashTest(support._ParkedCase, unittest.TestCase):
 
     def _crashes_past_the_relabel(self, **run_options) -> int:
         """Publish a parked candidate, and lose every write past the relabel."""
-        self._seed(**support.measured_pair())
-        commanded = self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
         self._dies_past_the_relabel(**run_options)
         return commanded
 
@@ -260,10 +262,10 @@ class PublishedHandoffCrashTest(support._ParkedCase, unittest.TestCase):
         """Run one tick whose first write past the label move never lands."""
         with (
             patch.object(
-                self.github, support.WRITE_PINNED_STATE,
-                side_effect=support.DiesPastTheRelabel(self.github),
+                self.github, _consent_payloads.WRITE_PINNED_STATE,
+                side_effect=_consent_crashes.DiesPastTheRelabel(self.github),
             ),
-            self.assertRaises(support.CrashedTick),
+            self.assertRaises(_consent_crashes.CrashedTick),
         ):
             self._run_tick(**run_options)
 
@@ -285,7 +287,7 @@ class _ClearsTheParkAndPublishesNothing:
         state.set(_state._LAST_ACTION_COMMENT_ID, _CONSUMED_PAST_THE_COMMAND)
 
 
-class HeldSeamOutcomeTest(support._ParkedCase, unittest.TestCase):
+class HeldSeamOutcomeTest(_consent_case._ParkedCase, unittest.TestCase):
     """What a call that published nothing leaves, however it left the record.
 
     The one fact the rollback reads is whether the write that moves the label
@@ -297,8 +299,8 @@ class HeldSeamOutcomeTest(support._ParkedCase, unittest.TestCase):
     """
 
     def test_a_cleared_latch_is_not_a_publication(self) -> None:
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
 
         with patch.object(
             _disposition, _PUBLISH_COMMITTED_WORK,
@@ -314,7 +316,7 @@ class HeldSeamOutcomeTest(support._ParkedCase, unittest.TestCase):
         )
         self.assertEqual(
             pinned[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
         self.assertIsNone(pinned[_state._HELD_COMMAND])
         self.assertIsNotNone(
@@ -338,16 +340,16 @@ class HeldSeamOutcomeTest(support._ParkedCase, unittest.TestCase):
         # unpublished for as long as the issue lives, with nobody asked for
         # anything and nothing left to ask.
         self._seed(**{
-            _state._HELD_RECEIPT: support.PARK_RECEIPT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.PARK_RECEIPT,
+            **_consent_payloads.measured_pair(),
         })
         self._run_tick(added_lines=_UNDER_THE_CEILING, push_branch=False)
 
         mocks = self._run_tick(added_lines=_UNDER_THE_CEILING)
 
-        mocks[support.RUN_AGENT].assert_not_called()
+        mocks[_consent_payloads.RUN_AGENT].assert_not_called()
         self.assertEqual(
-            mocks[support.PUSH_BRANCH].call_args.kwargs[_REVISION],
+            mocks[_consent_payloads.PUSH_BRANCH].call_args.kwargs[_REVISION],
             MEASURED_CANDIDATE_SHA,
         )
 

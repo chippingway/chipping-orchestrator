@@ -61,7 +61,3 @@ per-file-ignores =
     tests/git/base_sync/test_transfers.py:WPS214
     tests/git/base_sync/test_recovery_real_git.py:WPS214
     tests/git/base_sync/test_recovery_transfer.py:WPS201,WPS202,WPS214
-    tests/workflow/stages/implementing/test_late_transfer.py:WPS202
-    tests/workflow/stages/implementing/late_transfer_test_support.py:WPS202
-    tests/workflow/stages/implementing/late_consent_test_support.py:WPS201,WPS202,WPS214
-    tests/workflow/stages/implementing/test_late_gate_retry.py:WPS202

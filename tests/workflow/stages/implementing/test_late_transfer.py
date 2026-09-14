@@ -4,190 +4,28 @@
 from __future__ import annotations
 
 import unittest
-from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.git.measurement.models import (
-    FingerprintFailure,
     FrozenCommit,
     MeasurementFailure,
 )
-from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
-    overrides as _overrides,
     rewrites as _rewrites,
 )
 from orchestrator.workflow.stages.implementing import (
-    late_gate as _gate,
-    late_parks as _parks,
     late_transfer as _transfer,
     state as _state,
 )
-from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.observation_support import ObservedCloseCase
 from tests.workflow.stages.implementing import (
+    late_transfer_case as _transfer_case,
+    late_transfer_payloads as _transfer_payloads,
     late_transfer_test_support as _support,
 )
 
-# Every way a group already on the comment claims the commit this issue
-# exempts and cannot show what it claims. A value of None is the field being
-# absent -- a crash between two halves of one write -- and anything else is a
-# value nothing here would have written.
-_STANDING_CLAIMS = MappingProxyType({
-    "a partial one": {_rewrites.LATE_REWRITE_FROM_BASE_SHA: None},
-    "one that names no rewritten commit": {
-        _rewrites.LATE_REWRITE_TO_SHA: None,
-    },
-    "one at a phase this build does not write": {
-        _rewrites.LATE_REWRITE_PHASE: "reverted",
-    },
-    "one for a kind this build does not authorize": {
-        _rewrites.LATE_REWRITE_KIND: "amend",
-    },
-    "one for a kind the recorded stage does not make": {
-        _rewrites.LATE_REWRITE_KIND: str(_rewrites.LateRewriteKind.CONFLICT_REBASE),
-    },
-    "one with a hand-edited accepted commit": {
-        _rewrites.LATE_REWRITE_FROM_SHA: _support.ACCEPTED_SHA[:7],
-    },
-})
 
-_DIRTY_PATH = "orchestrator/x.py"
-
-# Every way the issue this transfer would be granted on is not the one the
-# rewrite was entered on, offered through the labels a fresh fetch reads back.
-_MOVED_ISSUES = MappingProxyType({
-    "one an operator paused": (str(_support.SOURCE_STAGE), "paused"),
-    "one an operator sent back to the backlog": (
-        str(_support.SOURCE_STAGE), "backlog",
-    ),
-    "one a relabel moved to another stage": (str(WorkflowLabel.FIXING),),
-    "one carrying no workflow label at all": (),
-})
-
-# A commit the checkout resolved and this host cannot peel, which is what work
-# made on another host reads back as.
-_UNPEELABLE_HEAD = FrozenCommit(
-    sha=_support.REWRITTEN_SHA, failure=MeasurementFailure.CANDIDATE_ABSENT,
-)
-
-# Every way the evidence itself fails to describe a rewrite this build may
-# authorize, offered through the record the squash hands in.
-_UNUSABLE_EVIDENCE = MappingProxyType({
-    "an unknown rewrite kind": {"kind": "amend"},
-    "no rewrite kind at all": {"kind": None},
-    "a kind the recorded stage does not make": {
-        "kind": _rewrites.LateRewriteKind.CONFLICT_REBASE,
-    },
-    "an abbreviated accepted commit": {"from_sha": _support.ACCEPTED_SHA[:7]},
-    "an accepted base that is prose": {"from_base_sha": "the merge base"},
-    "a rewritten base that is not a commit": {"to_base_sha": 7},
-    "a pull request that is not an identity": {"pr_number": 0},
-    "a stage no publication is entered from": {
-        "source_stage": WorkflowLabel.READY,
-    },
-    "a lease that is no object id": {"lease": _support.ACCEPTED_SHA[:8]},
-})
-
-# Every way the publication the rewrite claims is not the one this call froze.
-_DISAGREEING_PUBLICATIONS = MappingProxyType({
-    "an entry that refused": _support.entry(refusal="the tree is dirty"),
-    "another pull request": _support.entry(pr_number=_support.PR_NUMBER + 1),
-    "another stage": _support.entry(stage=WorkflowLabel.IN_REVIEW),
-    "a remote that moved off the lease": _support.entry(
-        published_sha=_support.STRANGER_SHA,
-    ),
-})
-
-# A reading that established nothing names no paths -- which is what a clean
-# tree names too, and why the probe answers on `readable` as well.
-_UNPUBLISHABLE_TREES = MappingProxyType({
-    "one carrying something loose": _WorktreeStatus(
-        readable=True, paths=(_DIRTY_PATH,),
-    ),
-    "one nothing could read": _WorktreeStatus(readable=False),
-})
-
-_MOVED_CHECKOUTS = MappingProxyType({
-    "a head that moved": _support.STRANGER_SHA,
-    "a head this host cannot peel": _UNPEELABLE_HEAD,
-})
-
-# Every rewrite this build authorizes, with a stage that really makes it. The
-# base a rewritten contribution is read over is proved the same way for each,
-# so the rule is exercised over every road an exemption can travel rather than
-# over the one the fixture happens to describe.
-_SUPPORTED_REWRITES = MappingProxyType({
-    _rewrites.LateRewriteKind.SQUASH: WorkflowLabel.VALIDATING,
-    _rewrites.LateRewriteKind.CONFLICT_REBASE: WorkflowLabel.RESOLVING_CONFLICT,
-    _rewrites.LateRewriteKind.AUTO_CLEAN_REBASE: WorkflowLabel.IN_REVIEW,
-})
-
-# Every way the two contributions are not one contribution.
-_UNEQUAL_CONTRIBUTIONS = MappingProxyType({
-    "an accepted pair whose content is gone": {
-        _support.ACCEPTED_SHA: FingerprintFailure.CONTENT_ABSENT,
-    },
-    "a rewritten pair whose base is gone": {
-        _support.REWRITTEN_SHA: FingerprintFailure.BASE_ABSENT,
-    },
-    "an accepted pair the record does not describe": {
-        _support.ACCEPTED_SHA: _support.OTHER_DIGEST,
-    },
-    "a rewrite that picked something up": {_support.REWRITTEN_SHA: _support.OTHER_DIGEST},
-})
-
-
-class _TransferCase(ObservedCloseCase):
-    """One squash of an accepted commit, asked for a permit."""
-
-    def setUp(self) -> None:
-        super().setUp()
-        self._fresh_process()
-        self.reading = _support.readings(self)
-        self._adjudicated()
-
-    def _adjudicated(self, **overrides) -> None:
-        """Seed the pinned comment a settled `single` verdict leaves."""
-        seeded = _support.adjudicated(**overrides)
-        self.github = seeded.github
-        self.issue = seeded.issue
-        self.state = seeded.state
-
-    def _carried(self, **gate_overrides) -> str:
-        """What the gate is told about this rewrite once the permit is asked."""
-        gate = _support.gate(
-            self.github, self.issue, self.state, **gate_overrides,
-        )
-        return _transfer._carried_over(gate, _support.REWRITTEN_SHA)
-
-    def _claimed(self, damage: dict) -> None:
-        """Leave an authorization already standing on the comment.
-
-        Written the way a real one is and then damaged the way a real one gets
-        damaged: a group that never round-tripped would be a shape this domain
-        cannot produce, and the reader would refuse it for the wrong reason.
-        """
-        _rewrites.record_rewrite_authorization(
-            self.state, _support.rewrite(), _support.ACCEPTED_DIGEST,
-        )
-        for key, written in damage.items():
-            if written is None:
-                self.state.data.pop(key, None)
-            else:
-                self.state.data[key] = written
-        self.github.write_pinned_state(self.issue, self.state)
-
-    def _assert_untouched(self) -> None:
-        """The exemption is where the adjudication left it, and alone."""
-        self.assertTrue(_exemption.is_exempt(self.state, _support.ACCEPTED_SHA))
-        pinned = self.github.pinned_data(self.issue.number)
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.ACCEPTED_SHA)
-        self.assertFalse(_rewrites.carries_rewrite_authorization(self.state))
-
-
-class GrantedTransferTest(_TransferCase, unittest.TestCase):
+class GrantedTransferTest(_transfer_case._TransferCase, unittest.TestCase):
     """The permit, and everything one durable write puts down for it."""
 
     def test_an_equivalent_rewrite_earns_the_permit(self) -> None:
@@ -198,8 +36,8 @@ class GrantedTransferTest(_TransferCase, unittest.TestCase):
         carried = self._carried()
 
         self.assertEqual(carried, _transfer._CARRIED_OVER)
-        self.assertTrue(_exemption.is_exempt(self.state, _support.ACCEPTED_SHA))
-        self.assertFalse(_exemption.is_exempt(self.state, _support.REWRITTEN_SHA))
+        self.assertTrue(_exemption.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA))
+        self.assertFalse(_exemption.is_exempt(self.state, _transfer_payloads.REWRITTEN_SHA))
 
     def test_the_grant_is_durable_before_the_push(self) -> None:
         # The write happens inside the permit rather than behind the push, so
@@ -208,7 +46,7 @@ class GrantedTransferTest(_TransferCase, unittest.TestCase):
         self._carried()
 
         pinned = self.github.pinned_data(self.issue.number)
-        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _support.ACCEPTED_SHA)
+        self.assertEqual(pinned[_exemption.LATE_EXEMPT_SHA], _transfer_payloads.ACCEPTED_SHA)
         self.assertEqual(
             pinned[_rewrites.LATE_REWRITE_PHASE],
             str(_rewrites.LateRewritePhase.AUTHORIZED),
@@ -221,20 +59,20 @@ class GrantedTransferTest(_TransferCase, unittest.TestCase):
         self._carried()
 
         identity = _exemption.read_semantic_identity(self.state)
-        self.assertEqual(identity.candidate_sha, _support.ACCEPTED_SHA)
-        self.assertEqual(identity.base_sha, _support.MERGE_BASE_SHA)
-        self.assertEqual(identity.fingerprint, _support.ACCEPTED_DIGEST)
+        self.assertEqual(identity.candidate_sha, _transfer_payloads.ACCEPTED_SHA)
+        self.assertEqual(identity.base_sha, _transfer_payloads.MERGE_BASE_SHA)
+        self.assertEqual(identity.fingerprint, _transfer_payloads.ACCEPTED_DIGEST)
 
     def test_the_authorization_records_the_grant(self) -> None:
         self._carried()
 
         authorization = _rewrites.read_rewrite_authorization(self.state)
         self.assertEqual(authorization.rewrite, _support.rewrite())
-        self.assertEqual(authorization.fingerprint, _support.ACCEPTED_DIGEST)
+        self.assertEqual(authorization.fingerprint, _transfer_payloads.ACCEPTED_DIGEST)
         # The commit that was collapsed and the head the push is pinned to are
         # two facts, and the record keeps them apart.
-        self.assertEqual(authorization.rewrite.from_sha, _support.ACCEPTED_SHA)
-        self.assertEqual(authorization.rewrite.lease, _support.LEASED_SHA)
+        self.assertEqual(authorization.rewrite.from_sha, _transfer_payloads.ACCEPTED_SHA)
+        self.assertEqual(authorization.rewrite.lease, _transfer_payloads.LEASED_SHA)
 
     def test_the_debt_rides_the_grants_own_write(self) -> None:
         # The crash boundary the grant opens. A rewrite has already replaced
@@ -251,12 +89,12 @@ class GrantedTransferTest(_TransferCase, unittest.TestCase):
             recorded.assert_called_once()
 
         pinned = self.github.pinned_data(self.issue.number)
-        self.assertEqual(pinned[_state._APPROVED_SHA], _support.REWRITTEN_SHA)
-        self.assertEqual(pinned[_state._APPROVED_LEASE], _support.LEASED_SHA)
+        self.assertEqual(pinned[_state._APPROVED_SHA], _transfer_payloads.REWRITTEN_SHA)
+        self.assertEqual(pinned[_state._APPROVED_LEASE], _transfer_payloads.LEASED_SHA)
         self.assertIn(_rewrites.LATE_REWRITE_PHASE, pinned)
 
 
-class RefusedEvidenceTest(_TransferCase, unittest.TestCase):
+class RefusedEvidenceTest(_transfer_case._TransferCase, unittest.TestCase):
     """Refusals the record and the evidence answer on their own.
 
     None of them is a park: the exemption stays exactly where the adjudication
@@ -267,7 +105,7 @@ class RefusedEvidenceTest(_TransferCase, unittest.TestCase):
     def test_another_candidate_is_refused(self) -> None:
         gate = _support.gate(self.github, self.issue, self.state)
 
-        self.assertEqual(_transfer._carried_over(gate, _support.STRANGER_SHA), "")
+        self.assertEqual(_transfer._carried_over(gate, _transfer_payloads.STRANGER_SHA), "")
         self._assert_untouched()
 
     def test_a_push_with_no_rewrite_is_refused(self) -> None:
@@ -280,7 +118,7 @@ class RefusedEvidenceTest(_TransferCase, unittest.TestCase):
         # The exemption names one commit and only it, so a squash of work
         # nobody adjudicated carries nothing -- which is the ordinary case.
         carried = self._carried(rewrite=_support.rewrite(
-            from_sha=_support.STRANGER_SHA,
+            from_sha=_transfer_payloads.STRANGER_SHA,
         ))
 
         self.assertEqual(carried, "")
@@ -315,13 +153,13 @@ class RefusedEvidenceTest(_TransferCase, unittest.TestCase):
         # parses whole and would license this grant. The digest is the one
         # term the OBJECTS answer, so it is re-taken between the pair the
         # record names and held to what that record says.
-        self._adjudicated(authorized=_support.OTHER_DIGEST)
+        self._adjudicated(authorized=_transfer_payloads.OTHER_DIGEST)
 
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
 
     def test_unusable_evidence_refuses(self) -> None:
-        for described, overrides in _UNUSABLE_EVIDENCE.items():
+        for described, overrides in _transfer_case._UNUSABLE_EVIDENCE.items():
             with self.subTest(evidence=described):
                 self._adjudicated()
 
@@ -331,7 +169,7 @@ class RefusedEvidenceTest(_TransferCase, unittest.TestCase):
                 self._assert_untouched()
 
 
-class RefusedProvenanceTest(_TransferCase, unittest.TestCase):
+class RefusedProvenanceTest(_transfer_case._TransferCase, unittest.TestCase):
     """Refusals about which record the permit would be granted under.
 
     The two ends of one rule: the exemption's own record has to prove itself
@@ -344,7 +182,7 @@ class RefusedProvenanceTest(_TransferCase, unittest.TestCase):
         # over, so a whole object id naming some other commit is the record
         # failing to prove itself rather than a field nothing ever reads: the
         # digest it carries describes a pair this issue never adjudicated.
-        self._adjudicated(base=_support.STRANGER_SHA)
+        self._adjudicated(base=_transfer_payloads.STRANGER_SHA)
 
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
@@ -355,7 +193,7 @@ class RefusedProvenanceTest(_TransferCase, unittest.TestCase):
         # rewrite of a contribution nobody adjudicated, whatever the record
         # beside it says.
         carried = self._carried(rewrite=_support.rewrite(
-            from_base_sha=_support.STRANGER_SHA,
+            from_base_sha=_transfer_payloads.STRANGER_SHA,
         ))
 
         self.assertEqual(carried, "")
@@ -365,20 +203,20 @@ class RefusedProvenanceTest(_TransferCase, unittest.TestCase):
         # A grant REPLACES the authorization group rather than adding to it,
         # so a claim about the commit this issue exempts that this build
         # cannot read back is evidence a transfer may not overwrite to repair.
-        for described, damage in _STANDING_CLAIMS.items():
+        for described, damage in _transfer_case._STANDING_CLAIMS.items():
             with self.subTest(claim=described):
                 self._adjudicated()
                 self._claimed(damage)
 
                 self.assertEqual(self._carried(), "")
-                self.assertTrue(_exemption.is_exempt(self.state, _support.ACCEPTED_SHA))
+                self.assertTrue(_exemption.is_exempt(self.state, _transfer_payloads.ACCEPTED_SHA))
 
     def test_a_claim_for_another_commit_is_replaced(self) -> None:
         # The one group that is not a claim about anything this transfer is
         # doing: a later exemption moved past it, so the end its phase binds
         # to names a commit nothing exempts. Read as a claim it would refuse
         # every transfer this issue could ever earn again.
-        self._claimed({_rewrites.LATE_REWRITE_FROM_SHA: _support.STRANGER_SHA})
+        self._claimed({_rewrites.LATE_REWRITE_FROM_SHA: _transfer_payloads.STRANGER_SHA})
 
         self.assertEqual(self._carried(), _transfer._CARRIED_OVER)
         self.assertEqual(
@@ -387,7 +225,7 @@ class RefusedProvenanceTest(_TransferCase, unittest.TestCase):
         )
 
 
-class ProvenBaseTest(_TransferCase, unittest.TestCase):
+class ProvenBaseTest(_transfer_case._TransferCase, unittest.TestCase):
     """What the base branch the rewritten contribution sits over has to be.
 
     The end the two digests cannot speak for. Their equality says the rewrite
@@ -401,7 +239,7 @@ class ProvenBaseTest(_TransferCase, unittest.TestCase):
         # The proof is one question the permit asks of every road an exemption
         # can travel, so each authorized kind is held to it and each one still
         # earns the permit over a base the branch really carries.
-        for kind, stage in _SUPPORTED_REWRITES.items():
+        for kind, stage in _transfer_case._SUPPORTED_REWRITES.items():
             with self.subTest(rewrite=str(kind)):
                 made = self._entered_from(kind, stage)
 
@@ -413,10 +251,10 @@ class ProvenBaseTest(_TransferCase, unittest.TestCase):
         # taken against it names whatever that ref was pointed at. Held to the
         # branch the remote really carries, the rewrite falls through to the
         # ordinary cumulative gate on every road it could have travelled.
-        for kind, stage in _SUPPORTED_REWRITES.items():
+        for kind, stage in _transfer_case._SUPPORTED_REWRITES.items():
             with self.subTest(rewrite=str(kind)):
                 made = self._entered_from(kind, stage)
-                self.reading.carried.discard(_support.MERGE_BASE_SHA)
+                self.reading.carried.discard(_transfer_payloads.MERGE_BASE_SHA)
 
                 self.assertEqual(self._carried(**made), "")
                 self._assert_untouched()
@@ -446,11 +284,11 @@ class ProvenBaseTest(_TransferCase, unittest.TestCase):
         }
 
 
-class RefusedPublicationTest(_TransferCase, unittest.TestCase):
+class RefusedPublicationTest(_transfer_case._TransferCase, unittest.TestCase):
     """Refusals about which publication the rewrite was made against."""
 
     def test_an_unfrozen_publication_refuses(self) -> None:
-        for described, entry in _DISAGREEING_PUBLICATIONS.items():
+        for described, entry in _transfer_case._DISAGREEING_PUBLICATIONS.items():
             with self.subTest(publication=described):
                 self._adjudicated()
 
@@ -466,13 +304,13 @@ class RefusedPublicationTest(_TransferCase, unittest.TestCase):
     def test_a_replaced_pull_request_refuses(self) -> None:
         # The entry proves the pull request was read, not that it is still the
         # one this issue's work belongs to.
-        self.state.set(_state._PR_NUMBER, _support.PR_NUMBER + 1)
+        self.state.set(_state._PR_NUMBER, _transfer_payloads.PR_NUMBER + 1)
 
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
 
 
-class RefusedCheckoutTest(_TransferCase, unittest.TestCase):
+class RefusedCheckoutTest(_transfer_case._TransferCase, unittest.TestCase):
     """Refusals the two local git reads answer.
 
     What a push would publish, and whether the objects the evidence names are
@@ -481,7 +319,7 @@ class RefusedCheckoutTest(_TransferCase, unittest.TestCase):
     """
 
     def test_an_unpublishable_tree_refuses(self) -> None:
-        for described, status in _UNPUBLISHABLE_TREES.items():
+        for described, status in _transfer_case._UNPUBLISHABLE_TREES.items():
             with self.subTest(tree=described):
                 self._adjudicated()
                 self.reading.tree = status
@@ -490,7 +328,7 @@ class RefusedCheckoutTest(_TransferCase, unittest.TestCase):
                 self._assert_untouched()
 
     def test_a_checkout_that_moved_refuses(self) -> None:
-        for described, head in _MOVED_CHECKOUTS.items():
+        for described, head in _transfer_case._MOVED_CHECKOUTS.items():
             with self.subTest(checkout=described):
                 self._adjudicated()
                 self.reading.stands_on(head)
@@ -506,15 +344,19 @@ class RefusedCheckoutTest(_TransferCase, unittest.TestCase):
         # one -- so a whole-looking id this repository does not hold would
         # otherwise carry a permit on evidence nobody can produce.
         self.assertNotIn(
-            _support.LEASED_SHA, (_support.ACCEPTED_SHA, _support.REWRITTEN_SHA, _support.MERGE_BASE_SHA),
+            _transfer_payloads.LEASED_SHA,
+            (
+                _transfer_payloads.ACCEPTED_SHA, _transfer_payloads.REWRITTEN_SHA,
+                _transfer_payloads.MERGE_BASE_SHA,
+            ),
         )
-        self.reading.absent.add(_support.LEASED_SHA)
+        self.reading.absent.add(_transfer_payloads.LEASED_SHA)
 
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
 
 
-class RefusedReadingTest(_TransferCase, unittest.TestCase):
+class RefusedReadingTest(_transfer_case._TransferCase, unittest.TestCase):
     """Refusals the owner read and the fingerprints answer."""
 
     def test_a_closed_owner_refuses(self) -> None:
@@ -532,7 +374,7 @@ class RefusedReadingTest(_TransferCase, unittest.TestCase):
         # reading but this one -- and a permit granted under either would push
         # onto a pull request whose stage no longer owns the branch, or carry
         # on where an operator said stop.
-        for described, labels in _MOVED_ISSUES.items():
+        for described, labels in _transfer_case._MOVED_ISSUES.items():
             with self.subTest(issue=described):
                 self._adjudicated(labels=labels)
 
@@ -542,7 +384,7 @@ class RefusedReadingTest(_TransferCase, unittest.TestCase):
     def test_a_latched_close_refuses(self) -> None:
         # A close a poll observed while this worker holds the issue is one no
         # request of this tick's would ever show.
-        self._latch_close(_support.SPEC.slug, self.issue.number)
+        self._latch_close(_transfer_payloads.SPEC.slug, self.issue.number)
 
         self.assertEqual(self._carried(), "")
         self._assert_untouched()
@@ -558,347 +400,10 @@ class RefusedReadingTest(_TransferCase, unittest.TestCase):
         self._assert_untouched()
 
     def test_contributions_that_are_not_one_refuse(self) -> None:
-        for described, digests in _UNEQUAL_CONTRIBUTIONS.items():
+        for described, digests in _transfer_case._UNEQUAL_CONTRIBUTIONS.items():
             with self.subTest(contribution=described):
                 self._adjudicated()
                 self.reading.digests = digests
 
                 self.assertEqual(self._carried(), "")
                 self._assert_untouched()
-
-
-class _RecoveryCase(_TransferCase):
-    """The comment a crash between the grant and its push leaves behind."""
-
-    def setUp(self) -> None:
-        super().setUp()
-        self._carried()
-        self.recovery = _support.gate(
-            self.github, self.issue, self.state, rewrite=None,
-        )
-
-    def _re_asked(self) -> str:
-        """What the permit answers when the recovery asks it again."""
-        return _transfer._carried_over(self.recovery, _support.REWRITTEN_SHA)
-
-    def _bypasses(self, candidate: str = _support.REWRITTEN_SHA) -> bool:
-        """Whether the approval alone would carry this commit past the gate."""
-        return _gate._approved_on_a_reading(self.recovery, candidate)
-
-    def _recovered(self, damage: dict) -> None:
-        """That comment, with one field of the permission moved or gone."""
-        for key, written in damage.items():
-            if written is None:
-                self.state.data.pop(key, None)
-            else:
-                self.state.data[key] = written
-        self.github.write_pinned_state(self.issue, self.state)
-
-
-class RecoveredTransferTest(_RecoveryCase, unittest.TestCase):
-    """What the tick after a crash between the grant and its push may do.
-
-    The permission and the debt went down together, so the recovery finds a
-    commit an approval owes a push for and a record saying what that push may
-    carry over. The debt alone would license the push by object id, and the
-    terms the permit was granted on -- a pull request, a stage, a record, two
-    fingerprints -- can each stop being true in between. So the permit is
-    re-asked over the record itself rather than assumed, and the gate defers
-    to it rather than answering on the approval.
-    """
-
-    def test_the_record_supplies_the_evidence(self) -> None:
-        # The recovery has no plan behind it and no rewrite to describe, so
-        # both pairs, the publication, and the lease come off the permission
-        # the grant left -- and every question is asked again over them.
-        carried = self._re_asked()
-
-        self.assertEqual(carried, _transfer._CARRIED_OVER)
-        self.assertEqual(
-            _transfer._outstanding_rewrite(self.state, _support.REWRITTEN_SHA),
-            _support.rewrite(),
-        )
-
-    def test_a_permit_defers_the_approved_bypass(self) -> None:
-        # The gate skips the reading for a commit an approval owes a push
-        # for. Not this one: what licensed it was a permit, so the bypass
-        # waits on the permit answering again.
-        self.assertEqual(
-            _parks._approved_commit(self.state), _support.REWRITTEN_SHA,
-        )
-        self.assertTrue(
-            _transfer._licensed_by_a_permit(self.state),
-        )
-        self.assertFalse(self._bypasses())
-
-    def test_an_ordinary_approval_still_bypasses(self) -> None:
-        # Every approval but a permit's is the gate's own earlier reading,
-        # brought back by a crash, and it answers exactly as it always did.
-        _rewrites.clear_rewrite_authorization(self.state)
-
-        self.assertTrue(self._bypasses())
-
-    def test_an_unreadable_published_record_defers(self) -> None:
-        # `published` is recognized only from a record this build can vouch
-        # for entirely. Announced over fields nothing else here understands,
-        # it would say the transfer is over and the approval beside it would
-        # be spent on an object id with neither the permit nor a reading
-        # behind it.
-        for described, damage in _STANDING_CLAIMS.items():
-            with self.subTest(claim=described):
-                self._recovered({
-                    **damage,
-                    _rewrites.LATE_REWRITE_PHASE: str(
-                        _rewrites.LateRewritePhase.PUBLISHED,
-                    ),
-                })
-
-                self.assertTrue(
-                    _transfer._licensed_by_a_permit(self.state),
-                )
-                self.assertFalse(self._bypasses())
-
-    def test_a_published_record_bound_away_defers(self) -> None:
-        # The phase-bound end of a `published` record is the rewritten commit,
-        # and it has to BE the one this issue exempts. Bound to any other, the
-        # record has not been shown to describe a transfer that is over.
-        self._recovered({
-            _rewrites.LATE_REWRITE_PHASE: str(
-                _rewrites.LateRewritePhase.PUBLISHED,
-            ),
-            _rewrites.LATE_REWRITE_TO_SHA: _support.FOREIGN_SHA,
-        })
-
-        self.assertTrue(_transfer._licensed_by_a_permit(self.state))
-        self.assertFalse(self._bypasses())
-
-    def test_a_spent_permission_bypasses_again(self) -> None:
-        # A transfer that settled leaves its record behind for good. Read as a
-        # standing claim it would send every later approval this issue earns
-        # back through a measurement, which is the re-decision the bypass
-        # exists to prevent.
-        _support.spent(self.state)
-        _parks._approve(
-            self.state, _support.STRANGER_SHA, _support.LEASED_SHA,
-            _parks.LateApprovalBasis.READING,
-        )
-
-        self.assertFalse(_transfer._licensed_by_a_permit(self.state))
-        self.assertTrue(self._bypasses(_support.STRANGER_SHA))
-
-    def test_a_permission_for_another_commit_defers(self) -> None:
-        # The permission and the debt go down in one write for one commit, so
-        # an approval standing beside an OUTSTANDING permission that names
-        # some other commit is a comment disagreeing with itself. Compared
-        # against the commit the record names, a hand-edited target would make
-        # the permit invisible and the approval would look like any other.
-        self.state.data[_rewrites.LATE_REWRITE_TO_SHA] = _support.FOREIGN_SHA
-
-        self.assertTrue(_transfer._licensed_by_a_permit(self.state))
-        self.assertFalse(self._bypasses())
-        self.assertEqual(self._re_asked(), "")
-
-
-class RevalidatedRecoveryTest(_RecoveryCase, unittest.TestCase):
-    """Every way the terms a permit was granted on stopped being true.
-
-    Each leaves an approval standing over a rewrite nothing revalidated, and
-    each has to fall back to the ordinary cumulative gate rather than ride the
-    debt's bare object id to the remote.
-    """
-
-    def test_a_legacy_authorization_is_revalidated(self) -> None:
-        # The restart road asked over a comment whose operator authorization
-        # is gone -- an older binary's record, or one a hand edit left. The
-        # permission the grant wrote still names the rewrite, but the
-        # exemption it would move licenses nothing without a human behind it,
-        # so the permit refuses on the re-ask and the ordinary cumulative gate
-        # measures the rewrite.
-        _overrides.clear_publication_override(self.state)
-        self.github.write_pinned_state(self.issue, self.state)
-
-        self.assertEqual(self._re_asked(), "")
-        self.assertFalse(self._bypasses())
-
-    def test_a_stale_authorization_is_revalidated(self) -> None:
-        # The same on a record that still reads whole and no longer describes
-        # what is here: the digest is the one term the objects answer, so a
-        # group somebody edited between the grant and this poll takes the
-        # bypass down with it rather than riding the debt's object id out.
-        self._recovered({
-            _overrides.LATE_OVERRIDE_FINGERPRINT: _support.OTHER_DIGEST,
-        })
-
-        self.assertEqual(self._re_asked(), "")
-        self.assertFalse(self._bypasses())
-
-    def test_a_malformed_permission_is_measured(self) -> None:
-        # The record the recovery would rebuild its evidence from is one this
-        # build cannot read, so there is nothing to re-ask the permit over --
-        # and the approval may not answer for it either, or an oversized
-        # rewrite nothing revalidated would be pushed.
-        for described, damage in _STANDING_CLAIMS.items():
-            with self.subTest(claim=described):
-                self._recovered(damage)
-
-                self.assertEqual(self._re_asked(), "")
-                self.assertFalse(self._bypasses())
-
-    def test_a_disagreeing_digest_is_measured(self) -> None:
-        # The digest the permission recorded is what it says it was granted
-        # over. One that disagrees with the contribution actually here is a
-        # record somebody edited or one taken under other rules, and a grant
-        # that carried on would write this reading's digest over it -- a
-        # repair of evidence nobody checked, under the authority of the
-        # transfer being decided. So the permit refuses and the record stands.
-        self._recovered({_rewrites.LATE_REWRITE_FINGERPRINT: _support.OTHER_DIGEST})
-
-        self.assertEqual(self._re_asked(), "")
-        authorized = _rewrites.read_rewrite_authorization(
-            self.github.read_pinned_state(self.issue),
-        )
-        self.assertEqual(authorized.fingerprint, _support.OTHER_DIGEST)
-        self.assertEqual(
-            authorized.phase, _rewrites.LateRewritePhase.AUTHORIZED,
-        )
-
-    def test_a_replaced_publication_is_measured(self) -> None:
-        # The permission names the pull request and the stage the rewrite was
-        # made against. Repointed or relabelled since, the push it licensed is
-        # one nothing may make unmeasured.
-        self.state.set(_state._PR_NUMBER, _support.PR_NUMBER + 1)
-
-        self.assertEqual(self._re_asked(), "")
-
-    def test_a_relabelled_issue_is_measured(self) -> None:
-        self.issue.labels.clear()
-        self.issue.labels.append(_support.FakeLabel(str(WorkflowLabel.FIXING)))
-
-        self.assertEqual(self._re_asked(), "")
-
-
-class LostReceiptRecoveryTest(_RecoveryCase, unittest.TestCase):
-    """The tick after a push that landed and a receipt that did not.
-
-    The remote carries the rewritten commit and the comment still says a push
-    is owed for it, so the recovery has to recognize its own landed push
-    rather than read the pull request as one somebody moved -- refused there,
-    it would remeasure a squash the pull request already has and route an
-    oversized one back into adjudication with the work already published.
-    """
-
-    def setUp(self) -> None:
-        super().setUp()
-        self.landed = _support.gate(
-            self.github,
-            self.issue,
-            self.state,
-            rewrite=None,
-            entry=_support.entry(published_sha=_support.REWRITTEN_SHA),
-        )
-
-    def test_the_permit_recognizes_its_own_push(self) -> None:
-        carried = _transfer._carried_over(self.landed, _support.REWRITTEN_SHA)
-
-        self.assertEqual(carried, _transfer._CARRIED_OVER)
-
-    def test_a_spent_permission_reads_it_as_moved(self) -> None:
-        # Past the receipt the same head is an ordinary moved remote again:
-        # nothing is outstanding for it to be this permit's own push.
-        _support.spent(self.state)
-
-        self.assertFalse(
-            _transfer._standing_where_the_permit_left_it(
-                self.landed, _support.rewrite(),
-            ),
-        )
-        self.assertEqual(
-            _transfer._carried_over(self.landed, _support.REWRITTEN_SHA), "",
-        )
-
-    def test_a_stranger_is_still_a_moved_remote(self) -> None:
-        moved = _support.gate(
-            self.github,
-            self.issue,
-            self.state,
-            rewrite=None,
-            entry=_support.entry(published_sha=_support.FOREIGN_SHA),
-        )
-
-        self.assertEqual(_transfer._carried_over(moved, _support.REWRITTEN_SHA), "")
-
-
-class AbandonedAuthorizationTest(_TransferCase, unittest.TestCase):
-    """What a rollback owes when the push a permission licensed is refused."""
-
-    def setUp(self) -> None:
-        super().setUp()
-        self._carried()
-        self.gate = _support.gate(self.github, self.issue, self.state)
-
-    def test_a_rollback_drops_the_permission(self) -> None:
-        # Both heads a rewrite can be put back onto. A squash collapses the
-        # accepted commit itself, so the reset lands on the commit the
-        # exemption never left. A base rebase reads the pre-rebase anchor for
-        # itself and goes back to THAT, which is the accepted commit only
-        # while the branch was standing exactly on it -- and the equality of
-        # the two contributions never said that it was. Either way the object
-        # the permission was granted for is on no branch, and it goes with it.
-        for restored in (_support.ACCEPTED_SHA, _support.LEASED_SHA):
-            with self.subTest(restored=restored):
-                self._carried()
-
-                self.assertTrue(
-                    _transfer._abandoned_authorization(self.gate, restored),
-                )
-
-                self.assertTrue(
-                    _exemption.is_exempt(self.state, _support.ACCEPTED_SHA),
-                )
-                identity = _exemption.read_semantic_identity(self.state)
-                self.assertEqual(identity.candidate_sha, _support.ACCEPTED_SHA)
-                self.assertEqual(identity.fingerprint, _support.ACCEPTED_DIGEST)
-                self.assertFalse(
-                    _rewrites.carries_rewrite_authorization(self.state),
-                )
-
-    def test_a_published_transfer_is_not_dropped(self) -> None:
-        # Past the receipt the pull request carries the rewritten commit and
-        # the exemption has already moved onto it, so there is no permission
-        # left outstanding and nothing here to take back.
-        _support.spent(self.state)
-
-        self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, _support.ACCEPTED_SHA),
-        )
-
-        self.assertTrue(_exemption.is_exempt(self.state, _support.REWRITTEN_SHA))
-
-    def test_another_reset_drops_nothing(self) -> None:
-        self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, _support.STRANGER_SHA),
-        )
-
-        self.assertTrue(
-            _rewrites.carries_rewrite_authorization(self.state),
-        )
-
-    def test_a_damaged_authorization_is_not_dropped(self) -> None:
-        # Dropping a permission nobody can check would throw away the only
-        # account of how the exemption came to name what it names.
-        self.state.data.pop(_rewrites.LATE_REWRITE_FROM_BASE_SHA)
-
-        self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, _support.ACCEPTED_SHA),
-        )
-
-        self.assertTrue(
-            _rewrites.carries_rewrite_authorization(self.state),
-        )
-
-    def test_no_permission_drops_nothing(self) -> None:
-        _rewrites.clear_rewrite_authorization(self.state)
-
-        self.assertFalse(
-            _transfer._abandoned_authorization(self.gate, _support.ACCEPTED_SHA),
-        )

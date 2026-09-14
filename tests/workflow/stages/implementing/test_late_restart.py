@@ -22,6 +22,8 @@ from orchestrator.workflow.stages.implementing import (
 )
 from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA
 from tests.workflow.stages.implementing import (
+    late_consent_crashes as _consent_crashes,
+    late_consent_payloads as _consent_payloads,
     late_consent_test_support as support,
 )
 
@@ -48,13 +50,13 @@ class RestartedParkTest(support._ConsentCase, unittest.TestCase):
         # made is one nothing can ever read.
         self._seed(parked=False)
         self._crashes_past_the_notice()
-        commanded = self._reply(support.AUTHORIZE)
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
 
         self.assertTrue(self._authorizes())
 
         self.assertEqual(self._said(), 1)
         self.assertEqual(
-            self._pinned()[support.KEY_OVERRIDE_COMMENT_ID], commanded,
+            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded,
         )
 
     def test_the_park_outlives_the_lost_write(self) -> None:
@@ -77,7 +79,7 @@ class RestartedParkTest(support._ConsentCase, unittest.TestCase):
         # park read as announced because it is standing would never ask it.
         self._seed(parked=False)
         with (
-            patch.object(_guards, support.PARK_AWAITING_HUMAN, side_effect=_Silence),
+            patch.object(_guards, _consent_payloads.PARK_AWAITING_HUMAN, side_effect=_Silence),
             self.assertRaises(_Silence),
         ):
             self._authorizes()
@@ -93,24 +95,24 @@ class RestartedParkTest(support._ConsentCase, unittest.TestCase):
         # never ask it. Dropped by the write past the post, so the poll after
         # this one is quiet again.
         self._seed(**{
-            _state._HELD_RECEIPT: support.PARK_RECEIPT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.PARK_RECEIPT,
+            **_consent_payloads.measured_pair(),
         })
 
         self.assertFalse(self._authorizes())
 
         self.assertEqual(self._said(), 1)
-        self.assertIn(support.AUTHORIZE, self.github.posted_comments[0][1])
+        self.assertIn(_consent_payloads.AUTHORIZE, self.github.posted_comments[0][1])
         self.assertIsNone(self._pinned()[_state._HELD_RECEIPT])
 
     def _crashes_past_the_notice(self) -> None:
         """Take the park, say it, and lose the write that recorded saying it."""
         with (
             patch.object(
-                self.github, support.WRITE_PINNED_STATE,
-                side_effect=support.DiesPastTheNotice(self.github),
+                self.github, _consent_payloads.WRITE_PINNED_STATE,
+                side_effect=_consent_crashes.DiesPastTheNotice(self.github),
             ),
-            self.assertRaises(support.CrashedTick),
+            self.assertRaises(_consent_crashes.CrashedTick),
         ):
             self._authorizes()
 
@@ -142,7 +144,7 @@ class StrandedSentenceTest(support._ConsentCase, unittest.TestCase):
         # watermark past everything under it, so the reply an operator wrote
         # between the two ticks would be consumed unread.
         self._crashes_past_our_sentence(parked=False)
-        spoke = self._reply(support.GUIDANCE)
+        spoke = self._reply(_consent_payloads.GUIDANCE)
 
         self.assertTrue(self._holds())
 
@@ -155,18 +157,18 @@ class StrandedSentenceTest(support._ConsentCase, unittest.TestCase):
         # The same window on the other sentence this owner words. Its receipt
         # is scoped to the reply it answers, so the poll after re-reads a
         # command already answered and must not answer it twice.
-        self._reply(support.AUTHORIZE_ANOTHER)
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
         self._crashes_past_our_sentence()
 
         self.assertTrue(self._holds())
 
         self.assertEqual(self._said(), 1)
-        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
+        self.assertNotIn(_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
 
     def test_the_park_outlives_a_stranded_refusal(self) -> None:
         # A command this park may not act on leaves it exactly where it was,
         # crash or no crash.
-        self._reply(support.AUTHORIZE_ANOTHER)
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
         self._crashes_past_our_sentence()
 
         self._holds()
@@ -178,12 +180,12 @@ class StrandedSentenceTest(support._ConsentCase, unittest.TestCase):
         # as somebody's word, which is no command, so the park holds -- and
         # the operator's next command is the last fresh reply and publishes.
         self._crashes_past_our_sentence(parked=False)
-        commanded = self._reply(support.AUTHORIZE)
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
 
         self.assertFalse(self._holds())
 
         self.assertEqual(
-            self._pinned()[support.KEY_OVERRIDE_COMMENT_ID], commanded,
+            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded,
         )
 
 
@@ -204,18 +206,18 @@ class ReceiptEvidenceTest(support._ConsentCase, unittest.TestCase):
         # the authorization beneath it becomes the last word and publishes on
         # consent that had been withdrawn.
         self._seed(**{
-            _state._HELD_RECEIPT: support.PARK_RECEIPT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.PARK_RECEIPT,
+            **_consent_payloads.measured_pair(),
         })
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
         self._reply(
-            f"actually, hold off\n\n{support.PARK_RECEIPT}",
+            f"actually, hold off\n\n{_consent_payloads.PARK_RECEIPT}",
             author=self.github._bot_login,
         )
 
         self.assertTrue(self._holds())
 
-        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
+        self.assertNotIn(_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
         self._assert_still_parked()
 
     def test_an_unsaid_sentence_is_still_owed(self) -> None:
@@ -223,8 +225,8 @@ class ReceiptEvidenceTest(support._ConsentCase, unittest.TestCase):
         # thread, which is the only thing the record can still be holding, so
         # the road that owes it says it.
         self._seed(**{
-            _state._HELD_RECEIPT: support.PARK_RECEIPT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.PARK_RECEIPT,
+            **_consent_payloads.measured_pair(),
         })
 
         self.assertTrue(self._holds())
@@ -240,17 +242,17 @@ class ReceiptEvidenceTest(support._ConsentCase, unittest.TestCase):
         # a notice a dying tick recorded and never said reads as already said,
         # and the human waiting on the park is told nothing at all.
         self._seed(**{
-            _state._HELD_RECEIPT: support.PARK_RECEIPT,
-            **support.AT_THE_LIMIT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.PARK_RECEIPT,
+            **_consent_payloads.AT_THE_LIMIT,
+            **_consent_payloads.measured_pair(),
         })
         pinned = self._pin_the_record()
-        self.assertIn(support.PARK_RECEIPT, self._body_of(pinned))
+        self.assertIn(_consent_payloads.PARK_RECEIPT, self._body_of(pinned))
 
         self.assertTrue(self._holds())
 
         self.assertEqual(self._said(), 1)
-        self.assertIn(support.AUTHORIZE, self.github.posted_comments[0][1])
+        self.assertIn(_consent_payloads.AUTHORIZE, self.github.posted_comments[0][1])
         self.assertIsNone(self._pinned()[_state._HELD_RECEIPT])
 
     def test_the_record_silences_no_refusal(self) -> None:
@@ -258,14 +260,14 @@ class ReceiptEvidenceTest(support._ConsentCase, unittest.TestCase):
         # the command is consumed with no answer on the thread at all -- so
         # the operator is left with a park that never says why their command
         # changed nothing.
-        answered = self._reply(support.AUTHORIZE_ANOTHER)
+        answered = self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
         self._seed(**{
-            _state._HELD_RECEIPT: support.refusal_receipt(answered),
-            **support.AT_THE_LIMIT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.refusal_receipt(answered),
+            **_consent_payloads.AT_THE_LIMIT,
+            **_consent_payloads.measured_pair(),
         })
         pinned = self._pin_the_record()
-        self.assertIn(support.refusal_receipt(answered), self._body_of(pinned))
+        self.assertIn(_consent_payloads.refusal_receipt(answered), self._body_of(pinned))
 
         self.assertTrue(self._holds())
 
@@ -280,11 +282,11 @@ class ReceiptEvidenceTest(support._ConsentCase, unittest.TestCase):
         # outsider from suppressing a sentence a human is owed by pasting a
         # string anybody can read off the thread.
         self._seed(**{
-            _state._HELD_RECEIPT: support.PARK_RECEIPT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.PARK_RECEIPT,
+            **_consent_payloads.measured_pair(),
         })
         self._reply(
-            f"is this it?\n\n{support.PARK_RECEIPT}", author=support.OUTSIDER,
+            f"is this it?\n\n{_consent_payloads.PARK_RECEIPT}", author=_consent_payloads.OUTSIDER,
         )
 
         self.assertTrue(self._holds())
