@@ -22,6 +22,12 @@ _PARENT = "orchestrator.workflow.stages"
 _HANDLER_OWNER = "handler"
 
 _OWNERS = (
+    "late_gate_permission",
+    "late_collapse_state",
+    "late_squash_proof",
+    "late_verdict_retirement",
+    "late_verdict_debt",
+
     "late_command_reading",
     "late_freeze_guards",
 

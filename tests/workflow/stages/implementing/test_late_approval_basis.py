@@ -22,7 +22,7 @@ from orchestrator.workflow.stages.implementing import (
     late_parks as _parks,
     late_publication as _publication,
     late_push as _push,
-    late_verdict as _verdict,
+    late_verdict_debt as _late_verdict_debt,
     state as _state,
 )
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -335,7 +335,7 @@ class UnmeasuredDebtBasisTest(unittest.TestCase):
     def test_it_records_the_unmeasured_basis(self) -> None:
         gate = _gate(PinnedState(data={}))
 
-        staged = _verdict._stages_unmeasured_debt(
+        staged = _late_verdict_debt._stages_unmeasured_debt(
             gate, MEASURED_CANDIDATE_SHA, _LEASE_SHA,
         )
 
@@ -351,7 +351,7 @@ class UnmeasuredDebtBasisTest(unittest.TestCase):
         # operator's gesture is behind as one this workflow granted itself.
         gate = _gate(_approved(_parks.LateApprovalBasis.ADJUDICATION))
 
-        staged = _verdict._stages_unmeasured_debt(
+        staged = _late_verdict_debt._stages_unmeasured_debt(
             gate, MEASURED_CANDIDATE_SHA, _LEASE_SHA,
         )
 

@@ -42,7 +42,7 @@ from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
     late_parks as _parks,
     late_records as _records,
-    late_verdict as _verdict_owner,
+    late_verdict_debt as _late_verdict_debt,
     state as _state,
 )
 
@@ -250,7 +250,7 @@ def _unentered(
     """
     revision = verdict.candidate_sha or _checkout_head(gate)
     if not verdict.held:
-        _verdict_owner._owed_by_an_unmeasured_push(
+        _late_verdict_debt._owed_by_an_unmeasured_push(
             gate, revision, entered.head, verdict.basis,
         )
     return _PublishedCandidate(

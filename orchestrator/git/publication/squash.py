@@ -329,11 +329,13 @@ def _rewrites_the_branch(
     in that window is collapsed into the squash and force-pushed as work a
     reviewer approved, with nothing between it and the pull request.
     """
+    from orchestrator.workflow.stages.implementing import late_collapse_state
+
     gated = rewrite._gated_rewrite()
     entry = gated._entered_rewrite(gate, plan.original_head)
     if not entry.is_frozen:
         return rewrite._squash_failure(entry.refusal)
-    unrecorded = gated._records_the_collapse(
+    unrecorded = late_collapse_state._records_the_collapse(
         gate,
         head=plan.original_head,
         base_sha=plan.base_sha,
@@ -379,10 +381,12 @@ def _raced_the_record(
     either place would be inventing one: it is unknown, and the reading that
     found it is what the error already says.
     """
+    from orchestrator.workflow.stages.implementing import late_collapse_state
+
     unmoved, refusal = _still_the_planned_checkout(gate, plan.original_head)
     if not refusal:
         return None
-    rewrite._gated_rewrite()._forgets_the_collapse(gate.state)
+    late_collapse_state._forgets_the_collapse(gate.state)
     return models._SquashOutcome(
         error=_RACED_THE_RECORD.format(refusal=refusal),
         standing=(

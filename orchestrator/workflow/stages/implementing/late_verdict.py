@@ -1,19 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a measured candidate earns, and what the record owes on the way.
+"""Settle the size verdict, approve accepted work, or route oversized work to adjudication.
 
-Three endings and the retirement they share. A candidate at or below the
-ceiling publishes, one past it is held under the adjudication label, and a
-record the publication is going past is dropped -- durably, before the effects
-it licenses, because the write that ends a generation has to land ahead of the
-label that hands the issue on.
-
-Which leaves a gap the same write has to fill. Between a retirement and the
-push it licenses there is committed work on the branch and, without this,
-nothing on the issue saying which commit it is -- so the commit a publication
-is owed goes down beside the retirement and is spent by the handoff that
-carries it. An adjudication takes it back off: a candidate being decomposed is
-one nobody is publishing yet.
+Measured and unmeasured verdicts retire their answered parks, account for
+route spends, and coordinate generation retirement with publication debt.
+Routing records the unpublished candidate before its notice and relabel.
 """
 from __future__ import annotations
 
@@ -22,22 +13,18 @@ from dataclasses import replace
 
 from orchestrator.workflow.engine import (
     comments as _comments,
-    observations as _observations,
-    retiring_cycles as _retiring_cycles,
-    usage as _usage,
 )
 from orchestrator.workflow.late_split import (
-    endings as _endings,
-    events as _events,
     state as _late_state,
 )
 from orchestrator.workflow.late_split.models import LateGeneration
-from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.implementing import (
     late_authority as _authority,
     late_consent as _consent,
     late_gate_models as _late_gate_models,
     late_parks as _parks,
+    late_verdict_debt as _late_verdict_debt,
+    late_verdict_retirement as _late_verdict_retirement,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -172,10 +159,10 @@ def _accepted(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool
     _parks._approve(
         gate.state,
         generation.candidate_sha,
-        _frozen_lease(gate),
+        _late_verdict_debt._frozen_lease(gate),
         _parks.LateApprovalBasis.READING,
     )
-    return _retired(gate, generation, _late_state.read_late_spends(gate.state))
+    return _late_verdict_retirement._retired(gate, generation, _late_state.read_late_spends(gate.state))
 
 
 def _authorized(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
@@ -209,201 +196,10 @@ def _authorized(gate: _late_gate_models._Gate, generation: LateGeneration) -> bo
     _parks._approve(
         gate.state,
         generation.candidate_sha,
-        _frozen_lease(gate),
+        _late_verdict_debt._frozen_lease(gate),
         _parks.LateApprovalBasis.AUTHORIZATION,
     )
-    return _retired(gate, generation, _late_state.read_late_spends(gate.state))
-
-
-def _frozen_lease(gate: _late_gate_models._Gate) -> str:
-    """The head an approval on the published side is pinned to.
-
-    The retirement below takes the generation -- and the head it froze -- off
-    the record, and the push it licenses has not run yet. If that push fails,
-    the retry has an approved commit and no reason to measure again, so
-    without this the only head left to pin to is whatever the pull request has
-    become since: a head somebody moved in between would be adopted as the
-    lease and force-overwritten. Carried past the retirement, the retry pins
-    to what was frozen and git refuses instead.
-
-    Empty for a call taken before anything was published, which is what makes
-    the implementing seam's push take its own reading of the remote exactly as
-    it always did.
-    """
-    if gate.entry is None:
-        return ""
-    return gate.entry.published_sha
-
-
-def _supersedes_approval(gate: _late_gate_models._Gate, candidate_sha: str) -> None:
-    """Drop an approval this publication is going past.
-
-    An approval names one commit and says that commit is owed a push. A tick
-    publishing a DIFFERENT one has moved past the debt rather than paid it: a
-    developer resumed on a human's guidance committed again, or an exemption
-    one step over named some other commit, and the branch will not carry the
-    approved commit as its tip. Left standing it would freeze this branch out
-    of the ordinary base refresh for as long as the issue lives and park every
-    later tick asking for a checkout back for work nobody is going to push.
-
-    An approval naming the commit in hand is left exactly where it is: it is
-    still owed, and the handoff that carries it is what spends it -- so a
-    publication that parks instead comes back to a record that still says
-    which commit the issue is waiting on.
-    """
-    approved = _parks._approved_commit(gate.state)
-    if not approved or approved == candidate_sha:
-        return
-    log.info(
-        "issue=#%d is publishing %s and no longer owes a push for approved "
-        "commit %s; dropping it rather than holding the branch for work "
-        "nothing is going to publish",
-        gate.issue.number, candidate_sha or "a candidate it did not name",
-        approved,
-    )
-    _parks._forget_approval(gate.state)
-
-
-def _superseded(gate: _late_gate_models._Gate, recorded: LateGeneration) -> bool:
-    """Drop a record this publication is going past, and publish without it.
-
-    Two roads reach it and they are the same fact. With the switch off a fresh
-    candidate does not enter the gate, so the record it supersedes describes a
-    commit nothing is going to publish. And an exemption is the same shape one
-    step over: the commit an authorized settlement accepted publishes without being
-    measured, so a generation recorded over some OTHER candidate is a record
-    about work this issue has moved past.
-
-    Leaving either would freeze the branch out of the ordinary base refresh
-    for as long as the issue lives, and carry a live-looking cycle into the
-    stages that close the issue -- where the guard that ends one on a close
-    reads it as still running. An issue that never entered the gate has
-    nothing to drop and is left exactly as it was.
-
-    True is a close that ended the cycle instead, which the caller reads the
-    same way `_accepted` does: nothing is published.
-    """
-    if not recorded.is_present:
-        return False
-    log.info(
-        "issue=#%d is publishing past recorded candidate %s without measuring "
-        "it; retiring cycle %d rather than leaving it over work nobody is "
-        "publishing",
-        gate.issue.number, recorded.candidate_sha, recorded.cycle_id,
-    )
-    return _retired(gate, recorded)
-
-
-def _retired(
-    gate: _late_gate_models._Gate, generation: LateGeneration, owed: tuple = (),
-) -> bool:
-    """Drop this generation durably, BEFORE the publication it licenses.
-
-    The write is the point, and it is one the caller cannot defer. What
-    follows a retirement is `_on_commits`, which pushes a branch, opens a pull
-    request, and moves the label to `workflow:validating` -- and the pinned
-    write that would have carried the retirement comes after all of it. A tick
-    that died in that window would leave a published pull request under
-    `validating` over a generation that still says `measuring`: the branch
-    frozen out of the base refresh for good, and a close on that issue read by
-    the cancellation guard as a live cycle to end.
-
-    So the record is dropped first and the effects follow it. The cost is one
-    pinned write per candidate that publishes; what it buys is that no window
-    exists in which the issue has moved on and its record has not.
-
-    True is the answer that stops the publication: a close ended this cycle
-    instead, so nothing may be pushed, opened, or handed to review on an issue
-    nobody wants. It is asked in the two places a retirement can lose one. The
-    latch is one -- a poll observed the close and could hand the reading to no
-    worker, so no request of this tick's would show it. The retirement WRITE
-    is the other and the subtler: it takes the cycle identity off the record,
-    and everything that decides what a close is worth reads that identity, so
-    a poll landing inside it finds an issue with nothing to end and drops the
-    observation. The window advertises the cycle for exactly as long as the
-    write runs, and what it saw is decided as it closes -- under the lock that
-    closes it, so no interval is left for a reading to arrive unreported.
-
-    A reading the window caught is answered by putting the generation BACK.
-    It is still in this call's own memory, which is what makes that possible:
-    it goes back exactly as it was and is cancelled from there, so what the
-    ending reads is the cycle that actually ran rather than a refusal with no
-    record under it. There is nothing to take back either -- the retirement
-    runs ahead of every effect it licenses, so nothing has been published.
-    """
-    if _cancelled(gate, generation):
-        return True
-    retiring = _retiring_cycles.retiring(
-        gate.spec.slug, gate.issue.number, generation.cycle_id,
-    )
-    with retiring.held():
-        _late_state.clear_late_generation(gate.state)
-        _endings.record_retired_cycle(gate.state, generation.cycle_id)
-        # What an APPROVAL still owes its route, put back inside the same
-        # write that dropped the generation carrying it. Empty for every
-        # other retirement: a superseded or adjudicated generation's
-        # obligations belong to a candidate nothing is going to publish.
-        _late_state.write_late_spends(gate.state, owed)
-        gate.gh.write_pinned_state(gate.issue, gate.state)
-    if not retiring.observed:
-        return False
-    log.warning(
-        "repo=%s issue=#%d was observed closed inside the write retiring "
-        "cycle %d; putting it back so the cancellation has something to end",
-        gate.spec.slug, gate.issue.number, generation.cycle_id,
-    )
-    _marked(gate, generation)
-    return True
-
-
-def _cancelled(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
-    """End this cycle where a close is already latched against the issue.
-
-    Asked before the retirement rather than after, because the retirement is
-    what makes the reading unanswerable: once the identity is off the record
-    there is no cycle for the ending to be entered from, and the receipt a
-    poll left on the thread has nothing to be adopted against.
-
-    The mark is durable before it is reported, and it is the same mark the
-    adjudication's own barriers write -- the cleanup that settles a cancelled
-    cycle reads this record and cannot tell which barrier put it there.
-    """
-    if not generation.is_present or generation.cancelled:
-        return False
-    if not _observations.close_observed(gate.spec.slug, gate.issue.number):
-        return False
-    log.warning(
-        "repo=%s issue=#%d was observed closed as its measured candidate was "
-        "about to publish; ending cycle %d rather than pushing a branch and "
-        "opening a pull request on an issue nobody wants",
-        gate.spec.slug, gate.issue.number, generation.cycle_id,
-    )
-    _marked(gate, generation)
-    return True
-
-
-def _marked(gate: _late_gate_models._Gate, generation: LateGeneration) -> None:
-    """Record this cycle cancelled, then report it, in that order.
-
-    Nothing is owed a publication on a cancelled cycle, so the commit an
-    approval had recorded goes with it -- including one this very call is
-    reinstating a generation over. Left standing it would freeze the branch
-    out of the base refresh for as long as the issue lives and park a later
-    tick asking for a checkout back for work nobody is going to push.
-    """
-    cancelled = replace(
-        generation.cancel(_usage._now_iso()),
-        phase=LatePhase.CANCELLING,
-        owner_check_pending=False,
-    )
-    _parks._forget_approval(gate.state)
-    _late_state.write_late_generation(gate.state, cancelled)
-    _endings.clear_retired_cycle(gate.state)
-    gate.gh.write_pinned_state(gate.issue, gate.state)
-    _parks._emit(
-        gate, cancelled,
-        _events.LateEvent(family=_events.LateEventFamily.CANCELLATION),
-    )
+    return _late_verdict_retirement._retired(gate, generation, _late_state.read_late_spends(gate.state))
 
 
 def _routed(gate: _late_gate_models._Gate, generation: LateGeneration) -> bool:
@@ -512,115 +308,14 @@ def _unmeasured_verdict(
     since or open a second pull request where this one closed since.
     """
     _parks._retire_spent_park(gate.state)
-    _supersedes_approval(gate, admitted.candidate_sha)
-    if _superseded(gate, recorded):
+    _late_verdict_debt._supersedes_approval(gate, admitted.candidate_sha)
+    if _late_verdict_retirement._superseded(gate, recorded):
         return _late_gate_models._HELD
     _parks._retire_authorized_park(gate.state)
-    _owed_by_an_unmeasured_push(
-        gate, admitted.candidate_sha, _frozen_lease(gate), admitted.basis,
+    _late_verdict_debt._owed_by_an_unmeasured_push(
+        gate, admitted.candidate_sha, _late_verdict_debt._frozen_lease(gate), admitted.basis,
     )
     return replace(admitted, held=False)
-
-
-def _owed_by_an_unmeasured_push(
-    gate: _late_gate_models._Gate, candidate_sha: str, lease: str, basis: str = "",
-) -> None:
-    """Name the commit an unmeasured publication owes a push for, durably.
-
-    The measured road records this beside its retirement, and a candidate that
-    skipped the reading owes it just as much: nothing was frozen for it, so
-    past this call the only account of the work is the commit on the branch.
-    A tick that died between here and the push comes back to an issue with no
-    generation, no debt, and a pull request that may or may not have received
-    it -- and the stage below runs from there, spawning an agent over work
-    nobody can say is unpublished.
-
-    Recorded, the reconciliation ahead of every handler finds the debt first,
-    republishes the same commit against the same head, and closes what the
-    route owed in the receipt's own write -- so the stage behind it runs over
-    the world the dead tick would have handed it.
-
-    What the route still owes rides the same write, because the recovery has
-    no run behind it to re-derive a reviewer round, a consumed fix batch, or a
-    docs receipt from. The debt and the obligations are spent together by the
-    push that pays them.
-
-    A debt this issue ALREADY carries for the commit is left exactly as it
-    is. It was granted by an earlier tick against a head that tick froze, and
-    the head read now is precisely the move its lease exists to refuse -- so
-    re-leasing it here would repair a half-written approval by pinning it to
-    the present, which is the one substitution the refusal behind it forbids.
-    An approval naming some other commit is gone by this point, dropped by the
-    supersession a line above.
-
-    Written only where the push will MOVE the publication. A pull request
-    already standing on the commit has nothing to receive, so there is no
-    window to survive -- and a debt written there would be paid by a
-    republication that closes a round the tick which really published it
-    already closed. A call taken before anything was published names no head
-    at all, and the initial publication owns that window itself.
-
-    The lease is handed IN rather than read off the entry, because the entry
-    is not the only road to one. Where the switch keeps a candidate out of the
-    gate nothing freezes a publication, and the head the push is pinned to is
-    the CALLER's own reading of the remote -- so the debt is recorded against
-    that instead. What the switch decides is the measurement; the account of
-    what a push is putting where is not its to turn off.
-    """
-    if _stages_unmeasured_debt(gate, candidate_sha, lease, basis):
-        gate.gh.write_pinned_state(gate.issue, gate.state)
-
-
-def _stages_unmeasured_debt(
-    gate: _late_gate_models._Gate, candidate_sha: str, lease: str, basis: str = "",
-) -> bool:
-    """Put the debt an unmeasured push owes in memory, and say whether it did.
-
-    The rule above without the write, so an owner that has its OWN write to
-    make can carry the debt out on it rather than one behind it. The two are
-    not interchangeable orderings of the same thing: a record that LICENSES a
-    rewritten commit to publish is the account of what the branch carries, and
-    the debt is the account of where it has still to go -- split
-    across two writes, a process dying between them comes back to a branch the
-    record explains and no debt naming the push it is still owed, and the
-    reconciliation that would have finished it never runs.
-
-    Answering rather than writing is also what keeps the caller's write
-    honest: an owner that staged nothing has nothing of this to make durable
-    and says so, instead of spending a request on a comment it did not change.
-
-    What the debt RESTS on is handed DOWN from the answer that admitted the
-    candidate rather than re-derived here, and that difference is the whole of
-    it. A commit an exemption and an authorization both vouch for leaves a
-    debt that may be spent only while that authorization can still be read --
-    but proving one is a git reading, and a second reading is a second chance
-    to fail. Re-asked here, a store that stopped answering between the gate's
-    proof and this write would record an operator's bypass as ordinary
-    unmeasured debt, and the tick after a crash would spend it without asking
-    anyone. Handed down, the record says what the gate actually decided on.
-
-    A road that carried nothing records the ordinary unmeasured basis, and so
-    does a value from outside this build's own vocabulary: what a caller
-    cannot name is not a claim the record may carry. That is every other road
-    here -- a rewrite permit, a supersession the switch let past, a receipt
-    the remote already carries -- each a record this workflow made for itself
-    and re-derives on the next tick.
-    """
-    if _parks._approved_commit(gate.state) == candidate_sha:
-        return False
-    if not lease or lease == candidate_sha:
-        return False
-    log.info(
-        "issue=#%d is publishing unmeasured candidate %s onto a pull request "
-        "standing at %s; recording the debt before the push that pays it",
-        gate.issue.number, candidate_sha, lease,
-    )
-    admitted = _parks.LateApprovalBasis.UNMEASURED
-    if basis in tuple(_parks.LateApprovalBasis):
-        admitted = _parks.LateApprovalBasis(basis)
-    _parks._approve(gate.state, candidate_sha, lease, admitted)
-    _late_state.write_late_spends(gate.state, gate.spends.fields)
-    return True
 
 
 def _spent(gate: _late_gate_models._Gate) -> None:
