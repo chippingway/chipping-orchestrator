@@ -21,6 +21,7 @@ from orchestrator.workflow.stages.decomposition.late_models import (
 )
 from tests.support.fakes import LazyPullRequest
 from tests.workflow.fixtures import LABEL_DECOMPOSING
+from tests.workflow.stages.decomposition import late_test_support as _late_support
 from tests.workflow.stages.decomposition.late_published_support import (
     published_generation,
     seed_published_pr,
@@ -31,19 +32,6 @@ from tests.workflow.stages.decomposition.late_settlement_support import (
     PARK_PR_UNRECONCILED,
     SINGLE_RUN,
     GuardedLateCase,
-)
-from tests.workflow.stages.decomposition.late_test_support import (
-    CANDIDATE_SHA,
-    FOREIGN_BRANCH,
-    FORK_REPO,
-    KEYS,
-    OTHER_SHA,
-    PUBLISHED_BRANCH,
-    PUBLISHED_HEAD_SHA,
-    PUBLISHED_PR_NUMBER,
-    PUBLISHED_SOURCE_STAGE,
-    PUBLISHED_SOURCE_STAGES,
-    generation_state,
 )
 
 EDIT_PR_BODY = "edit_pr_body"
@@ -64,12 +52,12 @@ ACCEPTED_NOTICE = "authorized to publish unsplit"
 
 # What a settled generation leaves behind on the pinned comment: none of it.
 _RETIRED_KEYS = (
-    KEYS.candidate_sha,
-    KEYS.base_sha,
-    KEYS.phase,
-    KEYS.plan_pr_number,
-    KEYS.plan_pr_body,
-    KEYS.resources,
+    _late_support.KEYS.candidate_sha,
+    _late_support.KEYS.base_sha,
+    _late_support.KEYS.phase,
+    _late_support.KEYS.plan_pr_number,
+    _late_support.KEYS.plan_pr_body,
+    _late_support.KEYS.resources,
 )
 
 
@@ -81,12 +69,12 @@ class _PublishedVerdictMixin:
         if published:
             seed_published_pr(self.github)
         self.github.seed_state(self.issue.number, **{
-            **generation_state(published_generation()),
-            KEYS.verdict: "single",
-            KEYS.run_cycle_id: published_generation().cycle_id,
-            KEYS.run_generation: published_generation().generation,
-            KEYS.source_sha: CANDIDATE_SHA,
-            KEYS.exempt_sha: CANDIDATE_SHA,
+            **_late_support.generation_state(published_generation()),
+            _late_support.KEYS.verdict: "single",
+            _late_support.KEYS.run_cycle_id: published_generation().cycle_id,
+            _late_support.KEYS.run_generation: published_generation().generation,
+            _late_support.KEYS.source_sha: _late_support.CANDIDATE_SHA,
+            _late_support.KEYS.exempt_sha: _late_support.CANDIDATE_SHA,
         })
 
     def _label(self):
@@ -110,7 +98,7 @@ class _PublishedVerdictMixin:
         itself.
         """
         self.github.add_pr(LazyPullRequest(
-            self.github.get_pr(PUBLISHED_PR_NUMBER), failing=failing,
+            self.github.get_pr(_late_support.PUBLISHED_PR_NUMBER), failing=failing,
         ))
 
     def _seed_published(self, *, stage=None, **pr_fields) -> None:
@@ -130,8 +118,8 @@ class _PublishedVerdictMixin:
         )
         self.github.seed_state(
             self.issue.number,
-            branch=PUBLISHED_BRANCH,
-            **generation_state(entered),
+            branch=_late_support.PUBLISHED_BRANCH,
+            **_late_support.generation_state(entered),
         )
 
     def _assert_unpublished(self, outcome) -> None:
@@ -139,8 +127,8 @@ class _PublishedVerdictMixin:
         self.assertNotEqual(outcome.disposition, _LateDisposition.SETTLED)
         self.assertEqual(self._label(), LABEL_DECOMPOSING)
         pinned = self._pinned()
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_PR_UNRECONCILED)
-        self.assertEqual(pinned.get(KEYS.candidate_sha), CANDIDATE_SHA)
+        self.assertEqual(pinned.get(_late_support.KEYS.park_reason), PARK_PR_UNRECONCILED)
+        self.assertEqual(pinned.get(_late_support.KEYS.candidate_sha), _late_support.CANDIDATE_SHA)
 
 
 class PublishedSingleReconciliationTest(
@@ -164,9 +152,9 @@ class PublishedSingleReconciliationTest(
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
         pinned = self._pinned()
-        self.assertEqual(pinned.get(PR_NUMBER), PUBLISHED_PR_NUMBER)
-        self.assertIsNone(pinned.get(KEYS.approved_sha))
-        self.assertIsNone(pinned.get(KEYS.approved_lease))
+        self.assertEqual(pinned.get(PR_NUMBER), _late_support.PUBLISHED_PR_NUMBER)
+        self.assertIsNone(pinned.get(_late_support.KEYS.approved_sha))
+        self.assertIsNone(pinned.get(_late_support.KEYS.approved_lease))
 
     def test_it_continues_at_the_stage_it_came_from(self) -> None:
         # The stage the gate took the issue out of is the only owner of the
@@ -178,13 +166,13 @@ class PublishedSingleReconciliationTest(
 
         self._settle()
 
-        self.assertEqual(self._label(), PUBLISHED_SOURCE_STAGE)
+        self.assertEqual(self._label(), _late_support.PUBLISHED_SOURCE_STAGE)
 
     def test_every_source_stage_is_continued_at(self) -> None:
         # The five states the gate can take an issue out of are the five it
         # can put one back into, and each is the only owner of the completion
         # its candidate still owes.
-        for stage in PUBLISHED_SOURCE_STAGES:
+        for stage in _late_support.PUBLISHED_SOURCE_STAGES:
             with self.subTest(stage=stage):
                 self.setUp()
                 self._seed_published(stage=stage)
@@ -203,18 +191,18 @@ class PublishedSingleReconciliationTest(
             self._settle()
         # The push landed before the label write died, so the pull request is
         # standing on the accepted candidate when the retry looks.
-        self.github.get_pr(PUBLISHED_PR_NUMBER).head.sha = CANDIDATE_SHA
+        self.github.get_pr(_late_support.PUBLISHED_PR_NUMBER).head.sha = _late_support.CANDIDATE_SHA
 
         outcome = self._settle(worktree=WorktreeSeed(push=False))
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
-        self.assertEqual(self._label(), PUBLISHED_SOURCE_STAGE)
+        self.assertEqual(self._label(), _late_support.PUBLISHED_SOURCE_STAGE)
         pinned = self._pinned()
         # Nothing is owed: pushing again would be a second push of a commit
         # that is already there, and a debt on the record freezes this branch
         # out of the base refresh for the rest of the issue's life.
-        self.assertIsNone(pinned.get(KEYS.approved_sha))
-        self.assertIsNone(pinned.get(KEYS.approved_lease))
+        self.assertIsNone(pinned.get(_late_support.KEYS.approved_sha))
+        self.assertIsNone(pinned.get(_late_support.KEYS.approved_lease))
 
     def test_the_receipt_names_the_publication(self) -> None:
         # The accepted-settlement write. This road freezes no entry, so the
@@ -226,8 +214,8 @@ class PublishedSingleReconciliationTest(
         self._settle()
 
         pinned = self._pinned()
-        self.assertEqual(pinned[KEYS.receipt_sha], CANDIDATE_SHA)
-        self.assertEqual(pinned[KEYS.receipt_pr], PUBLISHED_PR_NUMBER)
+        self.assertEqual(pinned[_late_support.KEYS.receipt_sha], _late_support.CANDIDATE_SHA)
+        self.assertEqual(pinned[_late_support.KEYS.receipt_pr], _late_support.PUBLISHED_PR_NUMBER)
 
     def test_a_push_that_missed_keeps_the_verdict(self) -> None:
         # A refused push here is usually the lease doing its job. The verdict
@@ -240,9 +228,9 @@ class PublishedSingleReconciliationTest(
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(self._label(), LABEL_DECOMPOSING)
         pinned = self._pinned()
-        self.assertEqual(pinned.get(KEYS.approved_sha), CANDIDATE_SHA)
-        self.assertEqual(pinned.get(KEYS.approved_lease), PUBLISHED_HEAD_SHA)
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_PR_UNRECONCILED)
+        self.assertEqual(pinned.get(_late_support.KEYS.approved_sha), _late_support.CANDIDATE_SHA)
+        self.assertEqual(pinned.get(_late_support.KEYS.approved_lease), _late_support.PUBLISHED_HEAD_SHA)
+        self.assertEqual(pinned.get(_late_support.KEYS.park_reason), PARK_PR_UNRECONCILED)
 
     def test_a_settled_publication_is_refused(self) -> None:
         # Dropping the number here -- what a pre-publication verdict rightly
@@ -277,7 +265,7 @@ class PublishedCheckoutProofTest(
         # review, a squash, and a merge with nobody having read it, even
         # though the push itself names the accepted id.
         for mutation in (
-            WorktreeSeed(head=OTHER_SHA),
+            WorktreeSeed(head=_late_support.OTHER_SHA),
             WorktreeSeed(dirty=("scratch.txt",)),
         ):
             with self.subTest(mutation=mutation):
@@ -296,7 +284,7 @@ class PublishedCheckoutProofTest(
         # works from that -- the reviewer reads a head ahead of the pushed
         # branch as unpublished work, the squash rewrites what is on it.
         for mutation in (
-            WorktreeSeed(head_after_push=OTHER_SHA),
+            WorktreeSeed(head_after_push=_late_support.OTHER_SHA),
             WorktreeSeed(dirty_after_push=("scratch.txt",)),
         ):
             with self.subTest(mutation=mutation):
@@ -314,7 +302,7 @@ class PublishedCheckoutProofTest(
         # commit is on the pull request either way; what may not be handed on
         # is a checkout carrying loose edits or an unmeasured descendant.
         for mutation in (
-            WorktreeSeed(head=OTHER_SHA),
+            WorktreeSeed(head=_late_support.OTHER_SHA),
             WorktreeSeed(dirty=("scratch.txt",)),
         ):
             with self.subTest(mutation=mutation):
@@ -330,7 +318,7 @@ class PublishedCheckoutProofTest(
         self._seed_published()
         with patch.object(self.github, SET_WORKFLOW_LABEL, _CRASHES), self.assertRaises(RuntimeError):
             self._settle()
-        self.github.get_pr(PUBLISHED_PR_NUMBER).head.sha = CANDIDATE_SHA
+        self.github.get_pr(_late_support.PUBLISHED_PR_NUMBER).head.sha = _late_support.CANDIDATE_SHA
 
 
 # One whole receipt group, and the three ways it stops being one. A member
@@ -340,25 +328,25 @@ class PublishedCheckoutProofTest(
 # member whose KEY has gone is the third, and only presence tells it from the
 # `null` an initial publication writes for the head it froze none of.
 _WHOLE_RECEIPT = MappingProxyType({
-    KEYS.receipt_sha: CANDIDATE_SHA,
-    KEYS.receipt_lease: PUBLISHED_HEAD_SHA,
-    KEYS.receipt_pr: PUBLISHED_PR_NUMBER,
+    _late_support.KEYS.receipt_sha: _late_support.CANDIDATE_SHA,
+    _late_support.KEYS.receipt_lease: _late_support.PUBLISHED_HEAD_SHA,
+    _late_support.KEYS.receipt_pr: _late_support.PUBLISHED_PR_NUMBER,
 })
 
 _DAMAGED_GROUPS = (
     (
         "a member nothing can read",
-        {**_WHOLE_RECEIPT, KEYS.receipt_pr: "not-a-number"},
+        {**_WHOLE_RECEIPT, _late_support.KEYS.receipt_pr: "not-a-number"},
     ),
     (
         "no publication named at all",
-        {**_WHOLE_RECEIPT, KEYS.receipt_pr: None},
+        {**_WHOLE_RECEIPT, _late_support.KEYS.receipt_pr: None},
     ),
     (
         "a member whose key is gone",
         {
             member: held for member, held in _WHOLE_RECEIPT.items()
-            if member != KEYS.receipt_lease
+            if member != _late_support.KEYS.receipt_lease
         },
     ),
 )
@@ -404,7 +392,7 @@ class PublishedVerdictRefusalTest(
     def test_a_moved_publication_is_refused(self) -> None:
         # Something pushed to it during the adjudication, so what the verdict
         # was taken over is not what the branch would come to.
-        self._seed_published(head=OTHER_SHA)
+        self._seed_published(head=_late_support.OTHER_SHA)
 
         outcome = self._settle()
 
@@ -416,7 +404,7 @@ class PublishedVerdictRefusalTest(
         # frozen head both match while the pull request is one this issue
         # never made. Accepted, the settlement would push this repository's
         # branch and hand the reviewer somebody else's change.
-        self._seed_published(head_repo=FORK_REPO)
+        self._seed_published(head_repo=_late_support.FORK_REPO)
 
         outcome = self._settle()
 
@@ -429,7 +417,7 @@ class PublishedVerdictRefusalTest(
         # other check here -- so waved through, the push would grow a branch
         # that pull request never carried while the handoff named it as the
         # change the accepted candidate is in.
-        self._seed_published(head_branch=FOREIGN_BRANCH)
+        self._seed_published(head_branch=_late_support.FOREIGN_BRANCH)
 
         outcome = self._settle()
 
@@ -441,15 +429,15 @@ class PublishedVerdictRefusalTest(
         # for itself rather than being pinned to a frozen head.
         self._settle()
 
-        self.assertIsNone(self._pinned().get(KEYS.approved_lease))
+        self.assertIsNone(self._pinned().get(_late_support.KEYS.approved_lease))
 
     def _assert_unreleased(self, outcome) -> None:
         """Nothing handed on, and the hold left for the next tick to retry."""
         self.assertNotEqual(outcome.disposition, _LateDisposition.SETTLED)
         self.assertEqual(self._label(), LABEL_DECOMPOSING)
         pinned = self._pinned()
-        self.assertEqual(pinned.get(KEYS.park_reason), PARK_HOLD_FAILED)
-        self.assertEqual(pinned.get(KEYS.candidate_sha), CANDIDATE_SHA)
+        self.assertEqual(pinned.get(_late_support.KEYS.park_reason), PARK_HOLD_FAILED)
+        self.assertEqual(pinned.get(_late_support.KEYS.candidate_sha), _late_support.CANDIDATE_SHA)
 
 
 class DamagedReceiptGroupTest(
@@ -476,7 +464,7 @@ class DamagedReceiptGroupTest(
         for described, group in _DAMAGED_GROUPS:
             with self.subTest(group=described):
                 self.setUp()
-                self._seed_published(head=CANDIDATE_SHA)
+                self._seed_published(head=_late_support.CANDIDATE_SHA)
                 self.github.seed_state(
                     self.issue.number, **{**self._pinned(), **group},
                 )
@@ -488,7 +476,7 @@ class DamagedReceiptGroupTest(
 
     def _receipt_group(self) -> dict:
         """Whatever of the receipt group the comment carries now."""
-        members = (KEYS.receipt_sha, KEYS.receipt_lease, KEYS.receipt_pr)
+        members = (_late_support.KEYS.receipt_sha, _late_support.KEYS.receipt_lease, _late_support.KEYS.receipt_pr)
         return {
             member: held for member, held in self._pinned().items()
             if member in members
@@ -515,7 +503,7 @@ class PublishedOwnPushTest(
         # pushed its own commit -- put it there. Read as this settlement's own
         # push landing, the record is retired and the issue handed on over a
         # publication nobody proved.
-        self._seed_published(head=CANDIDATE_SHA)
+        self._seed_published(head=_late_support.CANDIDATE_SHA)
 
         outcome = self._settle()
 
@@ -529,14 +517,14 @@ class PublishedOwnPushTest(
         # receipt to THIS settlement is the head it replaced, which has to be
         # the head the verdict was measured over: an earlier attempt's names
         # another, and one written before the pair was recorded names none.
-        for lease in (OTHER_SHA, None):
+        for lease in (_late_support.OTHER_SHA, None):
             with self.subTest(lease=lease):
                 self.setUp()
-                self._seed_published(head=CANDIDATE_SHA)
+                self._seed_published(head=_late_support.CANDIDATE_SHA)
                 self.github.seed_state(self.issue.number, **{
                     **self._pinned(),
                     **_WHOLE_RECEIPT,
-                    KEYS.receipt_lease: lease,
+                    _late_support.KEYS.receipt_lease: lease,
                 })
 
                 outcome = self._settle()
@@ -553,18 +541,18 @@ class PublishedOwnPushTest(
         # to any publication may not license a carve-out from the refusal that
         # catches somebody else's branch move.
         for described, identity in (
-            ("another pull request", PUBLISHED_PR_NUMBER + 1),
+            ("another pull request", _late_support.PUBLISHED_PR_NUMBER + 1),
             ("none at all", None),
             ("one nothing can read", "not-a-number"),
         ):
             with self.subTest(receipt=described):
                 self.setUp()
-                self._seed_published(head=CANDIDATE_SHA)
+                self._seed_published(head=_late_support.CANDIDATE_SHA)
                 self.github.seed_state(self.issue.number, **{
                     **self._pinned(),
-                    KEYS.receipt_sha: CANDIDATE_SHA,
-                    KEYS.receipt_lease: PUBLISHED_HEAD_SHA,
-                    KEYS.receipt_pr: identity,
+                    _late_support.KEYS.receipt_sha: _late_support.CANDIDATE_SHA,
+                    _late_support.KEYS.receipt_lease: _late_support.PUBLISHED_HEAD_SHA,
+                    _late_support.KEYS.receipt_pr: identity,
                 })
 
                 outcome = self._settle()
@@ -576,15 +564,15 @@ class PublishedOwnPushTest(
         # carve-out exists for: the receipt says this workflow pushed exactly
         # that commit, so the pull request is standing where this issue put
         # it and what is left to finish is the label and the retirement.
-        self._seed_published(head=CANDIDATE_SHA)
+        self._seed_published(head=_late_support.CANDIDATE_SHA)
         self.github.seed_state(self.issue.number, **{
             **self._pinned(),
-            KEYS.receipt_sha: CANDIDATE_SHA,
-            KEYS.receipt_lease: PUBLISHED_HEAD_SHA,
-            KEYS.receipt_pr: PUBLISHED_PR_NUMBER,
+            _late_support.KEYS.receipt_sha: _late_support.CANDIDATE_SHA,
+            _late_support.KEYS.receipt_lease: _late_support.PUBLISHED_HEAD_SHA,
+            _late_support.KEYS.receipt_pr: _late_support.PUBLISHED_PR_NUMBER,
         })
 
         outcome = self._settle(worktree=WorktreeSeed(push=False))
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
-        self.assertEqual(self._label(), PUBLISHED_SOURCE_STAGE)
+        self.assertEqual(self._label(), _late_support.PUBLISHED_SOURCE_STAGE)
