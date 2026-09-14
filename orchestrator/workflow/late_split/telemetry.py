@@ -47,7 +47,7 @@ import logging
 from typing import Any
 
 from orchestrator.github.client import GitHubClient
-from orchestrator.observability.analytics import recording
+from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.workflow import state as _workflow_state
 from orchestrator.workflow.late_split import (
     events as _events,
@@ -194,8 +194,8 @@ def _emit_analytics(
     payload: dict[str, Any],
 ) -> None:
     try:
-        recording.append_record(
-            recording.build_record(
+        _recording_events.append_record(
+            _recording_events.build_record(
                 repo=getattr(gh, "_repo_slug", None) or "",
                 issue=issue_number,
                 event=family,

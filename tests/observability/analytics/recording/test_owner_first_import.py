@@ -38,7 +38,7 @@ import os
 os.environ["ORCHESTRATOR_SKIP_DOTENV"] = "1"
 os.environ["ANALYTICS_LOG_PATH"] = {path!r}
 
-from orchestrator.observability.analytics import recording as owner
+from orchestrator.observability.analytics.recording import events as owner
 
 failures = []
 if "orchestrator.config" in sys.modules:
@@ -46,23 +46,24 @@ if "orchestrator.config" in sys.modules:
 
 import orchestrator.skills.catalog as producer
 
-if producer.recording is not owner:
-    failures.append("the producer no longer holds the canonical package")
+if producer._recording_events is not owner:
+    failures.append("the producer no longer holds the defining module")
 
 # A patch aimed at the canonical owner has to reach the call the producer
 # makes, which is the whole point of it holding that object.
 intercepted = []
+record_catalog = owner.record_repo_skill_catalog
 owner.record_repo_skill_catalog = lambda **fields: intercepted.append(fields)
-producer.recording.record_repo_skill_catalog(
+producer._recording_events.record_repo_skill_catalog(
     repo={repo!r}, base_branch="main", remote_name="origin", skills_available=[],
 )
 if len(intercepted) != 1:
     failures.append("a patch on the canonical owner missed the producer")
-del owner.record_repo_skill_catalog
+owner.record_repo_skill_catalog = record_catalog
 
 # Unpatched, the producer's own reference writes through the sink the knob
 # names -- which is what resolving the settings holder inside the call buys.
-producer.recording.record_stage_enter(
+producer._recording_events.record_stage_enter(
     repo={repo!r}, issue={issue!r}, stage={stage!r},
 )
 if failures:
@@ -81,7 +82,7 @@ import threading
 os.environ["ORCHESTRATOR_SKIP_DOTENV"] = "1"
 os.environ["ANALYTICS_LOG_PATH"] = {path!r}
 
-from orchestrator.observability.analytics.recording import (
+from orchestrator.observability.analytics.recording.events import (
     append_record,
     build_record,
 )
@@ -119,7 +120,7 @@ if not appended.is_set():
 
 class OwnerFirstImportTest(unittest.TestCase):
     """A producer that names only the recorders keeps a working, patchable
-    package -- and an append taken off it keeps the sink lock the prune takes.
+    owner -- and an append taken off it keeps the sink lock the prune takes.
     """
 
     def test_recorders_import_clean_and_still_write(self) -> None:

@@ -53,7 +53,7 @@ _OWNER_MODULES = MappingProxyType({
 })
 
 # What the package publishes, grouped by the owner each name is defined on.
-_PUBLISHED = MappingProxyType({
+_PARSERS = MappingProxyType({
     _METRICS_OWNER: (
         "UsageMetrics",
         "parse_agent_usage",
@@ -125,54 +125,34 @@ class OwnerInventoryTest(unittest.TestCase):
 
 
 class PublicSurfaceTest(unittest.TestCase):
-    """The package publishes a narrow, accurate `__all__`."""
+    """Parser and record names belong to their defining modules."""
 
-    def test_published_surface_is_the_declared_one(self) -> None:
-        declared = set(_RECORDS)
-        for published in _PUBLISHED.values():
-            declared.update(published)
-        self.assertEqual(set(_package.__all__), declared)
-        self.assertEqual(_package.__all__, tuple(sorted(_package.__all__)))
+    def test_package_declares_no_surface(self) -> None:
+        self.assertNotIn("__all__", _package.__dict__)
 
-    def test_published_names_are_the_owners_objects(self) -> None:
-        # The package publishes the owner's own object rather than a wrapper
-        # around it, so the module a name reports is the module that defines
-        # it. The binding is made once, at import: it is the identity that is
-        # shared, not a later rebinding, which is why a test intercepting a
-        # parser patches the module its caller imported.
-        for owner, published in _PUBLISHED.items():
+    def test_parsers_belong_to_their_defining_modules(self) -> None:
+        for owner, names in _PARSERS.items():
             module = _OWNER_MODULES[owner]
-            for name in published:
+            for name in names:
                 with self.subTest(owner=owner, name=name):
-                    self.assertIs(getattr(_package, name), getattr(module, name))
-                    self.assertEqual(
-                        getattr(module, name).__module__, _qualified(owner),
-                    )
+                    self.assertNotIn(name, _package.__dict__)
+                    self.assertEqual(getattr(module, name).__module__, _qualified(owner))
 
-    def test_records_come_from_their_owner(self) -> None:
-        # The trajectory records are published beside the parsers that return
-        # them even though the module defining them is not an entry point.
-        owner = _OWNER_MODULES[_RECORD_OWNER]
+    def test_package_exposes_no_record_aliases(self) -> None:
         for name in _RECORDS:
             with self.subTest(name=name):
-                self.assertIs(getattr(_package, name), getattr(owner, name))
+                self.assertNotIn(name, _package.__dict__)
 
     def test_no_owner_declares_a_surface_of_its_own(self) -> None:
-        # One `__all__` for the package, so a name cannot be published here
-        # and forgotten there.
         for owner, module in _OWNER_MODULES.items():
             with self.subTest(owner=owner):
                 self.assertNotIn("__all__", module.__dict__)
 
     def test_records_report_their_defining_module(self) -> None:
-        # A relocated `__module__` would point a reader at a module whose
-        # source does not define the record it names.
         owner = _OWNER_MODULES[_RECORD_OWNER]
         for name in _RECORDS:
             with self.subTest(name=name):
-                self.assertEqual(
-                    getattr(owner, name).__module__, _qualified(_RECORD_OWNER),
-                )
+                self.assertEqual(getattr(owner, name).__module__, _qualified(_RECORD_OWNER))
 
 
 class LayeringTest(unittest.TestCase):

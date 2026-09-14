@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings, sink as analytics_sink
+from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
 from orchestrator.workflow.engine import usage as engine_usage
 from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
@@ -157,7 +158,7 @@ class TrajectoryRecordingTest(unittest.TestCase):
         gh = FakeGitHubClient()
         record_mock = MagicMock(return_value=None)
         with patch.object(
-            engine_usage.recording, "record_agent_exit", record_mock,
+            _agent_exit_records, "record_agent_exit", record_mock,
         ), patch.object(_agent_runner, _RUN_AGENT_ATTR) as run_mock:
             run_mock.return_value = AgentResult(
                 session_id="s", last_message="", exit_code=0,

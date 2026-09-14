@@ -42,7 +42,7 @@ from tests.runtime import (
     polling_test_support as _support,
 )
 
-_APPEND = "orchestrator.observability.analytics.recording.append_record"
+_APPEND = "orchestrator.observability.analytics.recording.events.append_record"
 _EVENT = "terminal_artifact_cleanup"
 _ENVELOPE = ("event", "issue", "repo", "ts")
 _TIMESTAMP_KEY = "ts"

@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings
+from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
 from orchestrator.workflow.engine import usage as engine_usage
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
@@ -161,7 +162,7 @@ class SkillTriggeredEventTest(unittest.TestCase):
         with (
             patch.object(analytics_settings, _ANALYTICS_PATH_ATTR, None),
             patch.object(
-                engine_usage.recording,
+                _agent_exit_records,
                 "record_agent_exit",
                 return_value=["alpha", "beta"],
             ),

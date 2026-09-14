@@ -23,13 +23,11 @@ guard for the first, and the owner's own tests for each channel of the second, s
   engine, a stage, or an application entry point — the CLI and the runtime loop on one side, the two `streamlit run`
   targets under `apps/` on the other. The dependency runs one way and an entry point composes these owners rather
   than the reverse. That is also what makes every surface safe to truncate, rotate, or delete.
-- **An initializer binds nothing, with two declared exceptions.** Importing one owner must not charge the importer
+- **An initializer binds nothing.** Importing one owner must not charge the importer
   for its siblings: the recording path runs inside every tracked agent run, and a binding would put the query owners
-  and the database driver behind that import. `usage/` and `analytics/recording/` pay that cost deliberately, since
-  each is reached through its package rather than through an owner, and the check that excuses them is keyed on
-  their `__all__`, so a third publisher is a deliberate edit rather than a silent one. What a publisher may charge
-  for beyond its own owners is declared per package: recording buys the analytics configuration, the shared sink,
-  the usage parsers, and the trajectory writers, and nothing else.
+  and the database driver behind that import. Every initializer is a marker, including `usage/` and
+  `analytics/recording/`; callers import the parser or recorder that owns the operation. The recording owners may
+  compose the analytics configuration, shared sink, usage parsers, and trajectory writers, and nothing else.
 - **No second site.** Nothing under the tree carries an export manifest, a resolver hook, or a `.pyi` stub — a
   re-export is the owner's own object, bound once at import, so a lookup lands on the module that defines the name
   rather than on something answering for it. The same check holds the declared package inventory against what is on
@@ -59,8 +57,7 @@ guard for the first, and the owner's own tests for each channel of the second, s
 ## The map
 
 Each line is the responsibility its package holds; which owner inside it decides what is in that module's own
-docstring. A package publishes a surface only where the entry says so — everywhere else the initializer is a marker
-and callers import an owner directly.
+docstring. Every initializer is a marker, and callers import an owner directly.
 
 ```
 orchestrator/
@@ -70,9 +67,9 @@ orchestrator/
                         knobs, the process-wide holder bound over it and the view an adapter reads one back
                         through, the record envelope and locked line both sinks reach disk through, and the by-age
                         prune that bounds each of them
-      recording/        the append side, publishing the six recorders a producer appends through (`__all__`): the
-                        envelope and the append beneath them, and the token, cost, skill, and catalog steps a
-                        finished agent run is summarized by before one of them writes
+      recording/        the append side: `events.py` owns ordinary event recording and `agent_exit.py` composes
+                        the token, cost, skill, catalog, and trajectory steps for a finished agent run; both reach
+                        the shared envelope and sink through their defining owners
       query/            the read side of the Postgres target: the keyword vocabulary a read is called by, the
                         selection it narrows to, what it dials with, and the four families it is answered by — the
                         events table, the day-bucketed rollup above it, the per-run breakdowns whose grouping key
@@ -83,9 +80,9 @@ orchestrator/
                         it, and the transaction shape a run guarantees
       trajectories/     the opt-in per-run reasoning sink: the caps a record is measured against, the redaction and
                         head/tail truncation it passes through, and the fail-open write the whole of it rides
-    usage/              the provider payload parsers, publishing the parser surface and the result types it returns
-                        (`__all__`): token and cost metering, skill evidence, and per-run trajectories, one family
-                        per backend over a shared JSONL vocabulary and the first-party rate tables
+    usage/              provider payload parsers: `metrics.py`, `skills.py`, and `trajectory.py` own token and cost
+                        metering, skill evidence, and per-run trajectories; `trajectory_models.py` owns the timeline
+                        records, over a shared JSONL vocabulary and the first-party rate tables
     dashboard/          the Streamlit analytics page: the visual theme both pages are drawn in, the window and
                         filters one run of it carries, the two waves a load is staged into with the read adapters
                         they are made of, the banners and headline numbers drawn between them, and the panels,

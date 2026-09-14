@@ -31,7 +31,7 @@ the ceiling that stopped one, on both sinks, under the stage and role this
 request names.
 
 Everything after the spawn is fail-open. The record and the trajectory write
-behind it ride guards inside `recording.record_agent_exit`, and the skill
+behind it ride guards inside `recording.agent_exit.record_agent_exit`, and the skill
 emission carries its own here, because none of it is worth a run whose
 `agent_spawn` / `agent_exit` events already fired. An exception out of the
 spawn is the deliberate exception: it propagates, leaving a spawn with no
@@ -68,7 +68,7 @@ from orchestrator.agents import runner as _agent_runner
 from orchestrator.agents.models import AgentResult
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.observability.analytics import recording
+from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
 from orchestrator.observability.usage.metrics import UsageMetrics
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -174,7 +174,7 @@ def _record_tracked_agent_exit(
         review_round=request.review_round,
         retry_count=request.retry_count,
     )
-    return recording.record_agent_exit(
+    return _agent_exit_records.record_agent_exit(
         repo=getattr(gh, "_repo_slug", None) or "",
         issue=issue_number,
         stage=request.stage,

@@ -62,7 +62,7 @@ EVENT_KEY = "event"
 
 # Where the analytics half of a dual emission lands.
 ANALYTICS_APPEND = (
-    "orchestrator.observability.analytics.recording.append_record"
+    "orchestrator.observability.analytics.recording.events.append_record"
 )
 
 

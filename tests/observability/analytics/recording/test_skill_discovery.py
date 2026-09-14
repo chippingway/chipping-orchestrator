@@ -10,9 +10,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator.observability.analytics import (
-    recording,
     settings as analytics_settings,
 )
+from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
+from orchestrator.skills import discovery
 from tests.observability.analytics.analytics_jsonl_helpers import (
     read_records as _read_records,
 )
@@ -223,8 +224,6 @@ class RecordAgentExitCodexSkillDiscoveryTest(unittest.TestCase):
         # `agent_exit` extras alone.
         self.assertNotIn(_SKILL_LEVELS, rec)
         # The offered-tools baseline is backfilled onto the same record.
-        from orchestrator.skills import discovery
-
         self.assertEqual(rec["tools"], list(discovery.discover_codex_tools()))
 
     def test_no_worktree_leaves_codex_available_empty(self) -> None:
@@ -244,8 +243,6 @@ class RecordAgentExitCodexSkillDiscoveryTest(unittest.TestCase):
         self.assertNotIn(_SKILLS_AVAILABLE, base[0])
         self.assertNotIn(_SKILL_LEVELS, base[0])
         self.assertNotIn(_SKILLS_AVAILABLE, traj[0])
-        from orchestrator.skills import discovery
-
         self.assertEqual(traj[0]["tools"], list(discovery.discover_codex_tools()))
 
     def test_claude_offered_set_not_from_discovery(self) -> None:
@@ -264,7 +261,7 @@ class RecordAgentExitCodexSkillDiscoveryTest(unittest.TestCase):
                 patch.object(analytics_settings, _TRAJECTORY_LOG_PATH, None),
                 patch.object(analytics_settings, _TRACK_SKILL_TRIGGERS, True),
             ):
-                recording.record_agent_exit(
+                _agent_exit_records.record_agent_exit(
                     repo=_REPO,
                     issue=AGENT_EXIT_ISSUE_NUMBER,
                     stage=_STAGE_IMPLEMENTING,
@@ -297,7 +294,7 @@ class RecordAgentExitCodexSkillDiscoveryTest(unittest.TestCase):
             patch.object(analytics_settings, _TRAJECTORY_LOG_PATH, t_path),
             patch.object(analytics_settings, _TRACK_SKILL_TRIGGERS, case.track),
         ):
-            recording.record_agent_exit(
+            _agent_exit_records.record_agent_exit(
                 repo=_REPO,
                 issue=AGENT_EXIT_ISSUE_NUMBER,
                 stage="validating",

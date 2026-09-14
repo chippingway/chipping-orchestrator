@@ -72,15 +72,17 @@ illegal write raises — and defines the per-repo `tick` entry point, publishing
 (`WPS410`). `tick` resolves `workflow/engine/tick.py` inside the call rather than binding it at module scope: the
 GitHub and git layers import `workflow/state.py` beside this initializer for the label vocabulary they are typed by,
 and a submodule import runs the initializer first, so an engine import here would route them back into the modules
-they are still initializing. `WPS412` is waived for that import-time logic. Two more scopes are the `observability/`
-publishers — the usage parsers and the analytics recorders — waived on the same grounds.
+they are still initializing. `WPS412` is waived for that import-time logic.
+
+The usage parsers and analytics recorders also have marker initializers. Parser calls name `metrics`, `skills`, or
+`trajectory`; event producers name `recording.events`, and tracked agent exits name `recording.agent_exit`.
 
 The root scope fronts no owner at all: `orchestrator/__init__.py` (`WPS412`, `WPS410`) is the whole of the
 root package. It declares the distribution version and the explicit `__all__` naming it and binds nothing else, so
 `import orchestrator` costs that module and no owner behind it. Both names are module-level metadata (`WPS410`) and
 both assignments read as logic in an initializer (`WPS412`), so each rule is waived there.
 
-Those five are the remaining publishing set. Every other initializer imports nothing at all, so naming one of
+Those three are the remaining publishing set. Every other initializer imports nothing at all, so naming one of
 those packages loads no owner behind it and the submodules that show up on it are what other modules' imports planted.
 `tests/repository/test_package_exports.py` reads each initializer's source for that half — an eager sibling import is
 invisible in the namespace, which holds the same submodule either way — and compares the packages carrying an

@@ -52,7 +52,7 @@ from collections.abc import Iterable
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.git.worktrees.candidates import CandidateLayout
 from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceReason, MaintenanceResult
-from orchestrator.observability.analytics import recording
+from orchestrator.observability.analytics.recording import events as _recording_events
 
 # The channel the pass and its owner already report on, so an operator whose
 # filter is pointed at what happened to a finished issue's artifacts is told
@@ -135,7 +135,7 @@ def _recorded(answer: MaintenanceResult) -> None:
     """
     named = _identity(answer)
     try:
-        recording.append_record(recording.build_record(
+        _recording_events.append_record(_recording_events.build_record(
             repo=answer.candidate.artifacts.spec.slug,
             issue=named,
             event=CLEANUP_EVENT,

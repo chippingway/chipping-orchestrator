@@ -4,8 +4,8 @@
 
 The current user request requires **zero exclusions in `.flake8`**. The retention decisions in the historical
 audit below do not close that goal. The continuation began at `660a0bb6` with 129 pairs across 107 paths; the
-current working implementation removes 32 pairs and leaves 97 pairs across 78 paths. Its remaining
-70 production pairs and 27 test pairs all match isolated diagnostics, with no stale or unmapped pair.
+current working implementation removes 36 pairs and leaves 93 pairs across 76 paths. Its remaining
+66 production pairs and 27 test pairs all match isolated diagnostics, with no stale or unmapped pair.
 
 The detailed batch record and outstanding scope are in `issue-1424-remaining-work.md`. All remaining pairs,
 including the package initializer rules, still require implementation. Both notes remain until every exclusion
@@ -180,8 +180,7 @@ preparation and retirement have their own clean owners. This does not claim that
   WPS410; WPS412. Retain the intentional package API/metadata surface required by the parent.
 - [orchestrator/github/__init__.py](../orchestrator/github/__init__.py)
   WPS410; WPS412. Retain the intentional package API/metadata surface required by the parent.
--
-[orchestrator/observability/analytics/recording/__init__.py](../orchestrator/observability/analytics/recording/__init__.py)
+- [orchestrator/observability/analytics/recording/__init__.py](../orchestrator/observability/analytics/recording/__init__.py)
   WPS410; WPS412. Retain the intentional package API/metadata surface required by the parent.
 - [orchestrator/observability/usage/__init__.py](../orchestrator/observability/usage/__init__.py)
   WPS410; WPS412. Retain the intentional package API/metadata surface required by the parent.
@@ -225,8 +224,7 @@ preparation and retirement have their own clean owners. This does not claim that
   owners.
 - [orchestrator/github/pull_requests.py](../orchestrator/github/pull_requests.py)
   WPS214. Retain. Pull-request lookup, labeling, status helpers, and merge-side mutations.
--
-[orchestrator/observability/usage/trajectory_codex_items.py](../orchestrator/observability/usage/trajectory_codex_items.py)
+- [orchestrator/observability/usage/trajectory_codex_items.py](../orchestrator/observability/usage/trajectory_codex_items.py)
   WPS202. Retain. What one `codex exec --json` stream item normalizes to.
 - [orchestrator/runtime/exclusion.py](../orchestrator/runtime/exclusion.py)
   WPS202. Retain. Which process on this host may take its artifacts, and which one is live.
@@ -269,43 +267,33 @@ preparation and retirement have their own clean owners. This does not claim that
   WPS202. Retain. What a rebase this stage published tells the gate about what it replaced.
 - [orchestrator/workflow/stages/conflicts/transitions.py](../orchestrator/workflow/stages/conflicts/transitions.py)
   WPS202. Retain. The two shapes every state-changing exit of this stage shares.
--
-[orchestrator/workflow/stages/decomposition/late_authorize.py](../orchestrator/workflow/stages/decomposition/late_authorize.py)
+- [orchestrator/workflow/stages/decomposition/late_authorize.py](../orchestrator/workflow/stages/decomposition/late_authorize.py)
   WPS202. Retain. The one decision that publishes an oversized candidate a human has read.
--
-[orchestrator/workflow/stages/decomposition/late_cancellation.py](../orchestrator/workflow/stages/decomposition/late_cancellation.py)
+- [orchestrator/workflow/stages/decomposition/late_cancellation.py](../orchestrator/workflow/stages/decomposition/late_cancellation.py)
   WPS202. Retain. What a late cycle owes once the issue it belongs to is gone.
--
-[orchestrator/workflow/stages/decomposition/late_children.py](../orchestrator/workflow/stages/decomposition/late_children.py)
+- [orchestrator/workflow/stages/decomposition/late_children.py](../orchestrator/workflow/stages/decomposition/late_children.py)
   WPS202. Retain. The children a late split creates, and what each is born knowing.
--
-[orchestrator/workflow/stages/decomposition/late_cleanup.py](../orchestrator/workflow/stages/decomposition/late_cleanup.py)
+- [orchestrator/workflow/stages/decomposition/late_cleanup.py](../orchestrator/workflow/stages/decomposition/late_cleanup.py)
   WPS201; WPS202. Retain. What a split still owes a remote, and the one boundary that can settle it.
--
-[orchestrator/workflow/stages/decomposition/late_guidance.py](../orchestrator/workflow/stages/decomposition/late_guidance.py)
+- [orchestrator/workflow/stages/decomposition/late_guidance.py](../orchestrator/workflow/stages/decomposition/late_guidance.py)
   WPS202. Retain. What the humans have said since the candidate was frozen, and what it earns.
 - [orchestrator/workflow/stages/decomposition/late_hold.py](../orchestrator/workflow/stages/decomposition/late_hold.py)
   WPS202; WPS204. Retain. The cycle-marked hold a pull request wears while adjudication runs.
--
-[orchestrator/workflow/stages/decomposition/late_models.py](../orchestrator/workflow/stages/decomposition/late_models.py)
+- [orchestrator/workflow/stages/decomposition/late_models.py](../orchestrator/workflow/stages/decomposition/late_models.py)
   WPS202. Retain. The carriers one late adjudication hands between its owners.
--
-[orchestrator/workflow/stages/decomposition/late_notice.py](../orchestrator/workflow/stages/decomposition/late_notice.py)
+- [orchestrator/workflow/stages/decomposition/late_notice.py](../orchestrator/workflow/stages/decomposition/late_notice.py)
   WPS202. Retain. The sentence a park owes the issue, until it has actually been said.
 - [orchestrator/workflow/stages/decomposition/late_owner.py][owner-1]
   WPS202. Retain. The fresh read that stands between a finished run and what it earns.
 - [orchestrator/workflow/stages/decomposition/late_reply.py][owner-2]
   WPS202. Retain. One fenced block at the end of a LATE reply, or a reason it is not one.
--
-[orchestrator/workflow/stages/decomposition/late_restart.py](../orchestrator/workflow/stages/decomposition/late_restart.py)
+- [orchestrator/workflow/stages/decomposition/late_restart.py](../orchestrator/workflow/stages/decomposition/late_restart.py)
   WPS202. Retain. The fresh attempt an operator authorizes once a cancelled cycle has ended.
 - [orchestrator/workflow/stages/decomposition/late_reuse.py][owner-3]
   WPS202. Retain. What a child born of a split proves before it starts on what it was cut from.
--
-[orchestrator/workflow/stages/decomposition/late_session.py](../orchestrator/workflow/stages/decomposition/late_session.py)
+- [orchestrator/workflow/stages/decomposition/late_session.py](../orchestrator/workflow/stages/decomposition/late_session.py)
   WPS202. Retain. The late run one issue is locked to: read back, recorded, and spawned.
--
-[orchestrator/workflow/stages/decomposition/late_transaction.py](../orchestrator/workflow/stages/decomposition/late_transaction.py)
+- [orchestrator/workflow/stages/decomposition/late_transaction.py](../orchestrator/workflow/stages/decomposition/late_transaction.py)
   WPS202. Retain. What a guarded split does, in the one order every crash in it is safe in.
 - [orchestrator/workflow/stages/decomposition/split.py](../orchestrator/workflow/stages/decomposition/split.py)
   WPS202. Retain. The order a `split` manifest becomes child issues in, and why it is that order.
@@ -315,11 +303,9 @@ preparation and retirement have their own clean owners. This does not claim that
   WPS202. Retain. What a `split` payload must satisfy before any child issue is created.
 - [orchestrator/workflow/stages/implementing/disposition.py][owner-5]
   WPS202. Retain. What a finished dev run leaves behind, and the timeout's second chance.
--
-[orchestrator/workflow/stages/implementing/late_command.py](../orchestrator/workflow/stages/implementing/late_command.py)
+- [orchestrator/workflow/stages/implementing/late_command.py](../orchestrator/workflow/stages/implementing/late_command.py)
   WPS202. Retain. The one reply a park for an authorization is ever ended by.
--
-[orchestrator/workflow/stages/implementing/late_consent.py](../orchestrator/workflow/stages/implementing/late_consent.py)
+- [orchestrator/workflow/stages/implementing/late_consent.py](../orchestrator/workflow/stages/implementing/late_consent.py)
   WPS202. Retain. The park an adjudicated candidate with nobody behind it waits on.
 - [orchestrator/workflow/stages/implementing/late_freeze.py][owner-6]
   WPS202. Retain. The pair a count is taken over, and what a record has to carry to be one.
@@ -327,17 +313,13 @@ preparation and retirement have their own clean owners. This does not claim that
   WPS202. Retain. The size question a committed candidate answers before it is published.
 - [orchestrator/workflow/stages/implementing/late_parks.py](../orchestrator/workflow/stages/implementing/late_parks.py)
   WPS202. Retain. What a refusal costs, and the two sinks every one of them reaches.
--
-[orchestrator/workflow/stages/implementing/late_records.py](../orchestrator/workflow/stages/implementing/late_records.py)
+- [orchestrator/workflow/stages/implementing/late_records.py](../orchestrator/workflow/stages/implementing/late_records.py)
   WPS202. Retain. What one gate call is about, and the identities its records carry.
--
-[orchestrator/workflow/stages/implementing/late_rewrite.py](../orchestrator/workflow/stages/implementing/late_rewrite.py)
+- [orchestrator/workflow/stages/implementing/late_rewrite.py](../orchestrator/workflow/stages/implementing/late_rewrite.py)
   WPS202. Retain. The push a squash-on-approval makes over the branch it just rewrote.
--
-[orchestrator/workflow/stages/implementing/late_transfer.py](../orchestrator/workflow/stages/implementing/late_transfer.py)
+- [orchestrator/workflow/stages/implementing/late_transfer.py](../orchestrator/workflow/stages/implementing/late_transfer.py)
   WPS202. Retain. Whether a rewrite may carry an adjudicated change onto the commit replacing it.
--
-[orchestrator/workflow/stages/implementing/late_verdict.py](../orchestrator/workflow/stages/implementing/late_verdict.py)
+- [orchestrator/workflow/stages/implementing/late_verdict.py](../orchestrator/workflow/stages/implementing/late_verdict.py)
   WPS202. Retain. What a measured candidate earns, and what the record owes on the way.
 - [orchestrator/workflow/stages/implementing/parks.py](../orchestrator/workflow/stages/implementing/parks.py)
   WPS202. Retain. Why a run that produced no publishable commit stopped, and what that costs.
@@ -395,28 +377,21 @@ preparation and retirement have their own clean owners. This does not claim that
   WPS201. Retain. A conflict-stage replay decided over a real repository and real bytes.
 - [tests/workflow/stages/conflicts/test_settled_round.py](../tests/workflow/stages/conflicts/test_settled_round.py)
   WPS202. Retain. The round a resolution earns when the size gate holds it off the PR.
--
-[tests/workflow/stages/decomposition/late_content_support.py](../tests/workflow/stages/decomposition/late_content_support.py)
+- [tests/workflow/stages/decomposition/late_content_support.py](../tests/workflow/stages/decomposition/late_content_support.py)
   WPS202. Retain. The issue thread the late content, guidance, and revision tests read.
 - [tests/workflow/stages/decomposition/late_test_support.py][owner-7]
   WPS202. Retain. The one oversized candidate the late-mode tests adjudicate.
--
-[tests/workflow/stages/decomposition/test_late_authorize.py](../tests/workflow/stages/decomposition/test_late_authorize.py)
+- [tests/workflow/stages/decomposition/test_late_authorize.py](../tests/workflow/stages/decomposition/test_late_authorize.py)
   WPS201; WPS202; WPS204. Retain. What publishes an oversized candidate a human read, and what does not.
--
-[tests/workflow/stages/decomposition/test_late_cleanup_publication.py](../tests/workflow/stages/decomposition/test_late_cleanup_publication.py)
+- [tests/workflow/stages/decomposition/test_late_cleanup_publication.py](../tests/workflow/stages/decomposition/test_late_cleanup_publication.py)
   WPS201. Retain. The branch a split superseded, and the change that may come back for it.
--
-[tests/workflow/stages/decomposition/test_late_unsplit_notice.py](../tests/workflow/stages/decomposition/test_late_unsplit_notice.py)
+- [tests/workflow/stages/decomposition/test_late_unsplit_notice.py](../tests/workflow/stages/decomposition/test_late_unsplit_notice.py)
   WPS202; WPS204. Retain. The sentence an unsplit park owes, and what it is allowed to name.
--
-[tests/workflow/stages/implementing/late_consent_test_support.py](../tests/workflow/stages/implementing/late_consent_test_support.py)
+- [tests/workflow/stages/implementing/late_consent_test_support.py](../tests/workflow/stages/implementing/late_consent_test_support.py)
   WPS201; WPS202; WPS214. Retain. One adjudicated candidate parked for the person nobody can show.
--
-[tests/workflow/stages/implementing/late_transfer_test_support.py](../tests/workflow/stages/implementing/late_transfer_test_support.py)
+- [tests/workflow/stages/implementing/late_transfer_test_support.py](../tests/workflow/stages/implementing/late_transfer_test_support.py)
   WPS202. Retain. The one rewrite the transfer's tests grant, refuse, or settle a permit for.
--
-[tests/workflow/stages/implementing/test_late_gate_retry.py](../tests/workflow/stages/implementing/test_late_gate_retry.py)
+- [tests/workflow/stages/implementing/test_late_gate_retry.py](../tests/workflow/stages/implementing/test_late_gate_retry.py)
   WPS202. Retain. What a human's reply to a measurement park buys, and what it may not.
 - [tests/workflow/stages/implementing/test_late_receipt.py](../tests/workflow/stages/implementing/test_late_receipt.py)
   WPS202. Retain. One publication-receipt contract is tested against changed PR identity, state, branch, head, and

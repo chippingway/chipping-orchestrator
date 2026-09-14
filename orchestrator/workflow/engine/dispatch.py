@@ -136,7 +136,7 @@ from orchestrator.github.issues import (
 )
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.observability.analytics import recording
+from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import (
     observations,
@@ -954,7 +954,7 @@ def _process_issue(
         raise
     finally:
         duration_s = round(time.monotonic() - start, 3)
-        recording.record_stage_evaluation(
+        _recording_events.record_stage_evaluation(
             repo=getattr(gh, "_repo_slug", None) or "",
             issue=issue.number,
             stage=stage_name(label),

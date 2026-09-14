@@ -21,7 +21,7 @@ import unittest
 from importlib import import_module
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from types import MappingProxyType, ModuleType
+from types import ModuleType
 
 from tests.repository.binding_test_support import module_level_names
 from tests.repository.layout_test_support import (
@@ -31,16 +31,12 @@ from tests.repository.layout_test_support import (
     package_directories,
 )
 
-_ANALYTICS = f"{PACKAGE}.observability.analytics"
-
-# The remaining package surfaces: version, resolved settings, workflow,
-# usage parsing, and analytics recording. Other initializers bind no owner.
+# The remaining package surfaces: version, resolved settings, and workflow.
+# Other initializers bind no owner.
 _PUBLISHERS = frozenset((
     PACKAGE,
     f"{PACKAGE}.config",
     f"{PACKAGE}.workflow",
-    f"{_ANALYTICS}.recording",
-    f"{PACKAGE}.observability.usage",
 ))
 
 # A marker initializer that loads a sibling for everyone who names the package.
@@ -51,12 +47,6 @@ _EAGER_MARKER = '''
 from orchestrator.git import commands
 '''
 
-# The sibling a publisher may hand back a name from: the record envelope both
-# analytics sinks are written through is owned above the recorders that call it,
-# so the recording surface publishes it from there.
-_COMPOSED = MappingProxyType({
-    f"{_ANALYTICS}.recording": f"{_ANALYTICS}.sink",
-})
 
 
 def _packages() -> frozenset[str]:
@@ -189,11 +179,10 @@ class NarrowSurfaceTest(unittest.TestCase):
 
     def test_a_published_name_is_its_owner_s(self) -> None:
         for package in _PUBLISHERS:
-            composed = _COMPOSED.get(package, package)
             for name, owner in _published_definitions(package):
                 with self.subTest(package=package, name=name):
                     self.assertTrue(
-                        owner.startswith((package, composed)),
+                        owner.startswith(package),
                         f"{package} publishes {name} from {owner}",
                     )
 

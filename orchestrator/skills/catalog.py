@@ -4,7 +4,7 @@
 
 Enumerates the skill definitions a configured target repo carries on its
 base ref and appends one `repo_skill_catalog` analytics record per tick
-per spec via `recording.record_repo_skill_catalog`. Producer-side only:
+per spec via `recording.events.record_repo_skill_catalog`. Producer-side only:
 the record lands in the analytics JSONL sink (and, once synced, the
 `extras` JSONB of `analytics_events` -- no DDL), so the consumer /
 dashboard side stays a separate change.
@@ -35,7 +35,7 @@ from collections.abc import Iterable
 
 from orchestrator.config import RepoSpec
 from orchestrator.git.commands import _git
-from orchestrator.observability.analytics import recording
+from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.skills.discovery import (
     _PROJECT_LEVEL,
     _SKILL_FILE,
@@ -152,7 +152,7 @@ def _collect_and_record_catalog(spec: RepoSpec) -> None:
         return
     skills_available, skill_paths = _extract_skill_catalog(paths)
     skill_levels = {name: _PROJECT_LEVEL for name in skills_available}
-    recording.record_repo_skill_catalog(
+    _recording_events.record_repo_skill_catalog(
         repo=spec.slug,
         base_branch=spec.base_branch,
         remote_name=spec.remote_name,
