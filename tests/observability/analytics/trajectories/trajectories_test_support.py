@@ -19,7 +19,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator.agents.models import AgentResult
-from orchestrator.observability.analytics import recording, settings as analytics_settings
+from orchestrator.observability.analytics import settings as analytics_settings
+from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
 from tests.observability.analytics.analytics_reload_helpers import reload_analytics as _reload
 
 ANALYTICS_LOG_PATH = "ANALYTICS_LOG_PATH"
@@ -160,7 +161,7 @@ class RecordAgentExitTrajectorySupport(unittest.TestCase):
             patch.object(analytics_settings, TRAJECTORY_LOG_PATH, case.traj_path),
             patch.object(analytics_settings, TRACK_SKILL_TRIGGERS, case.track),
         ):
-            return recording.record_agent_exit(
+            return _agent_exit_records.record_agent_exit(
                 repo=REPO,
                 issue=AGENT_EXIT_ISSUE_NUMBER,
                 stage=STAGE_IMPLEMENTING,

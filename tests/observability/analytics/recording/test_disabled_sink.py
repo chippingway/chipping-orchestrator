@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config as orchestrator_config
-from orchestrator.observability.analytics import recording
+from orchestrator.observability.analytics.recording import events as _recording_events
 from tests.observability.analytics.analytics_reload_helpers import reload_analytics as _reload
 
 _EVENT_VALUE = 'x'
@@ -24,8 +24,8 @@ _LOG_DIR = "LOG_DIR"
 
 
 def _append_one() -> None:
-    recording.append_record(
-        recording.build_record(repo=_REPO_SHORT, issue=1, event=_EVENT_VALUE),
+    _recording_events.append_record(
+        _recording_events.build_record(repo=_REPO_SHORT, issue=1, event=_EVENT_VALUE),
     )
 
 

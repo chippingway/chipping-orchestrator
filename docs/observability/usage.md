@@ -16,9 +16,9 @@ Where the parser sits in the package tree, and what it is responsible for beside
 [`architecture/observability-modules.md`](../architecture/observability-modules.md); the knobs are in
 [`configuration/observability.md`](../configuration/observability.md).
 
-**Module layout.** The package initializer is the public surface: under a narrow `__all__` it re-exports the nine
-parsers `metrics.py`, `skills.py`, and `trajectory.py` define, a per-backend trio each, plus the six result types they
-hand back — `UsageMetrics` and `SkillTriggers` from the first two, and `AgentTrajectory` / `TrajectoryStep` /
+**Module layout.** Callers import the nine parsers directly from `metrics.py`, `skills.py`, and `trajectory.py`,
+a per-backend trio each. The six result types also come from their defining modules: `UsageMetrics` and
+`SkillTriggers` from the first two, and `AgentTrajectory` / `TrajectoryStep` /
 `SourceItem` / `TurnUsage` from `trajectory_models.py`. Provider payload handling is split behind them: `protocol.py`
 holds the JSONL vocabulary and `event_stream.py` the resilient line decoder, `prices.py` the first-party price tables
 and `model_names.py` the nested model-name lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
@@ -27,9 +27,8 @@ and `model_names.py` the nested model-name lookup, `claude_rows.py` / `claude_su
 `trajectory_claude_stream.py` / `trajectory_claude_turns.py` plus `trajectory_codex.py` and the per-item-type
 `trajectory_codex_items.py` under it the timeline reconstruction. The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
-cost-precedence contracts are defined once. Each published name is bound once at import to its owner's own object, and a
-binding does not follow a later patch, so a test intercepting a parser targets the module its caller imported — every
-live caller names the owner it is typed by, and no flat module sits beside the package to resolve one through.
+cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
+initializer binds nothing, and no flat module sits beside it to resolve a parser through.
 
 **Two parsers, one dispatcher.** `parse_claude_usage(stdout)` consumes claude `--output-format stream-json` events,
 groups assistant frames by `message.id` so the final-frame usage wins (claude streams partial counts on intermediate

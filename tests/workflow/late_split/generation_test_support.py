@@ -34,7 +34,7 @@ REPO = "chippingway/orchestrator"
 # Where the analytics half of a dual emission lands, patched by every test
 # that has to see what a sink was handed.
 ANALYTICS_APPEND = (
-    "orchestrator.observability.analytics.recording.append_record"
+    "orchestrator.observability.analytics.recording.events.append_record"
 )
 CYCLE_ID = 2
 GENERATION_NUMBER = 1

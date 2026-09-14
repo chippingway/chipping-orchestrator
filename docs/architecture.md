@@ -167,7 +167,7 @@ namespace beside it, or fronts nothing and imports nothing at all — the submod
 modules' imports planted there, not what its initializer loaded, so naming the package costs no owner behind it. That
 second half is read from the initializer's source, because the namespace cannot tell an eager sibling import from
 somebody else's; what an initializer imports from outside the package for its own use is a helper rather than a
-surface, and is held to neither. The five that still publish are listed under
+surface, and is held to neither. The three that still publish are listed under
 [`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration), where each
 is also a scoped lint waiver.
 

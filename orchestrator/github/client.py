@@ -21,7 +21,7 @@ from orchestrator.github.checks import GitHubChecksMixin
 from orchestrator.github.identity import GitHubRepositoryIdentityMixin
 from orchestrator.github.labels import GitHubLabelMixin
 from orchestrator.github.reviews import GitHubReviewMixin
-from orchestrator.observability.analytics import recording
+from orchestrator.observability.analytics.recording import events as _recording_events
 
 log = logging.getLogger("orchestrator.github")
 
@@ -207,7 +207,7 @@ class GitHubClient(
             issue_number=issue_number,
             stage=stage,
         )
-        recording.record_stage_enter(
+        _recording_events.record_stage_enter(
             repo=self._repo_slug,
             issue=issue_number,
             stage=stage,

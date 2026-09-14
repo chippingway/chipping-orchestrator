@@ -10,7 +10,7 @@ from orchestrator import config
 from orchestrator.github import events as _events
 from orchestrator.github.comments import carries_own_marker
 from orchestrator.github.pinned_state import PINNED_STATE_MARKER, PinnedState
-from orchestrator.observability.analytics import recording
+from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.workflow.state import (
     WorkflowLabel,
     coerce_workflow_label,
@@ -68,7 +68,7 @@ def _set_workflow_label(
             issue_number=issue.number,
             stage=stage_name(resolved_label),
         )
-        recording.record_stage_enter(
+        _recording_events.record_stage_enter(
             repo=client._repo_slug,
             issue=issue.number,
             stage=stage_name(resolved_label),

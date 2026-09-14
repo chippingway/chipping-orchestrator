@@ -10,8 +10,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator.observability.analytics import recording, retention
+from orchestrator.observability.analytics import retention
+from orchestrator.observability.analytics.recording import events as _recording_events
 from tests.observability.analytics import (
+    analytics_reload_helpers as _reload_helpers,
     retention_test_support as _support,
 )
 from tests.observability.analytics.analytics_jsonl_helpers import (
@@ -19,7 +21,6 @@ from tests.observability.analytics.analytics_jsonl_helpers import (
     timestamp_days_ago as _ts_days_ago,
     write_json_lines as _write_json_lines,
 )
-from tests.observability.analytics.analytics_reload_helpers import reload_analytics as _reload
 
 # The rewrite step's own `os`, named rather than imported: this module wants
 # the owner only as a patch target, and naming it keeps the import list under
@@ -66,7 +67,7 @@ class _PruneAppendRace:
 
     def append(self) -> None:
         self.after_read.wait(timeout=_APPEND_TIMEOUT)
-        recording.append_record(_record(self.timestamp, _APPENDED_ISSUE))
+        _recording_events.append_record(_record(self.timestamp, _APPENDED_ISSUE))
         self.appender_done.set()
 
     def finish(self, thread: threading.Thread) -> None:
@@ -90,7 +91,7 @@ def _issue_numbers(path: Path) -> list[int]:
 
 
 def _reloaded_against(path: Path) -> None:
-    _reload(
+    _reload_helpers.reload_analytics(
         {
             _support.ANALYTICS_LOG_PATH: str(path),
             _support.ANALYTICS_RETENTION_DAYS: _support.DEFAULT_RETENTION,

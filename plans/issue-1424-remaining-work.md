@@ -8,10 +8,10 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107 paths and
-129 file/rule pairs. The current working implementation has 78 paths and 97 pairs (70 production, 27 test), all
-matching isolated diagnostics. Twenty-six WPS202 pairs and six initializer pairs have been removed without replacement
-exemptions or raised limits. Remaining work is the entire live set in `.flake8`, including WPS201, WPS202, WPS204, WPS214, WPS215,
-WPS410, and WPS412. The files must stay until that set is empty and the full validation passes.
+129 file/rule pairs. The current working implementation has 76 paths and 93 pairs (66 production, 27 test), all
+matching isolated diagnostics. Twenty-six WPS202 pairs and ten initializer pairs have been removed without replacement
+exemptions or raised limits. Remaining work is the entire live set in `.flake8`, including WPS201, WPS202, WPS204,
+WPS214, WPS215, WPS410, and WPS412. The files must stay until that set is empty and the full validation passes.
 
 Implemented batches:
 
@@ -33,9 +33,14 @@ Implemented batches:
   All 6,480 collected identities remain unchanged. Ruff, configured WPS, and full validation pass with 6,431 passed
   and 49 skipped.
 
-- Current implementation: retire the agent, GitHub, and scheduler package re-exports and migrate every caller to
+- `a90c41f6`: retire the agent, GitHub, and scheduler package re-exports and migrate every caller to
   its defining module; six initializer pairs removed. Package and spawn-boundary checks now enforce marker-only
   initializers. Decomposer settlement moved to its existing outcome owner to keep the caller within import limits.
+  Ruff, configured WPS, and full validation pass with 6,431 passed and 49 skipped.
+
+- Current implementation: retire the usage-parser and analytics-recording package re-exports; four initializer
+  pairs removed. Producers and parser callers use their defining owners, including mock targets and fresh-process
+  probes. All observability initializers now have their import and namespace boundaries checked without exceptions.
   Ruff, configured WPS, and full validation pass with 6,431 passed and 49 skipped.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes
@@ -409,4 +414,4 @@ configured by the time the final audit runs.
 [inspected-config]:
   https://github.com/chippingway/orchestrator/blob/e3a0b43407fad7c95a46f1300044719dd71ecd42/.flake8
 [inspected-parks]:
-https://github.com/chippingway/orchestrator/blob/e3a0b43407fad7c95a46f1300044719dd71ecd42/orchestrator/workflow/stages/decomposition/late_parks.py
+  https://github.com/chippingway/orchestrator/blob/e3a0b43407fad7c95a46f1300044719dd71ecd42/orchestrator/workflow/stages/decomposition/late_parks.py

@@ -6,7 +6,8 @@ import contextlib
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.observability.analytics import recording, settings as analytics_settings, sink as analytics_sink
+from orchestrator.observability.analytics import settings as analytics_settings, sink as analytics_sink
+from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
 from orchestrator.observability.usage import skills as _usage_skills
 from tests.observability.analytics.analytics_jsonl_helpers import (
     read_records as _read_records,
@@ -61,7 +62,7 @@ class _RecordAgentExitSkillSupport(unittest.TestCase):
             patch.object(analytics_settings, _ANALYTICS_LOG_PATH, path),
             patch.object(analytics_settings, _TRACK_SKILL_TRIGGERS, track),
         ):
-            recording.record_agent_exit(
+            _agent_exit_records.record_agent_exit(
                 repo=_REPO,
                 issue=AGENT_EXIT_ISSUE_NUMBER,
                 stage=_STAGE_IMPLEMENTING,
@@ -93,7 +94,7 @@ class _RecordAgentExitSkillSupport(unittest.TestCase):
             stack.enter_context(patch.object(analytics_settings, _TRACK_SKILL_TRIGGERS, track))
             if parse is not None:
                 stack.enter_context(patch.object(_usage_skills, "parse_agent_skills", parse))
-            return recording.record_agent_exit(
+            return _agent_exit_records.record_agent_exit(
                 repo=_REPO,
                 issue=AGENT_EXIT_ISSUE_NUMBER,
                 stage=_STAGE_IMPLEMENTING,

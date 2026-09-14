@@ -83,7 +83,7 @@ from typing import Any
 from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
-from orchestrator.observability.analytics import recording
+from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.workflow.engine.run_ledger import AgentRunLedger
 from orchestrator.workflow.state import stage_name
 
@@ -369,8 +369,8 @@ def _emit_analytics(
     payload: dict[str, Any],
 ) -> None:
     try:
-        recording.append_record(
-            recording.build_record(
+        _recording_events.append_record(
+            _recording_events.build_record(
                 repo=getattr(gh, "_repo_slug", None) or "",
                 issue=issue_number,
                 event=AGENT_RUN_BUDGET_EVENT,

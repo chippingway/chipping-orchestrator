@@ -45,7 +45,7 @@ _OWNER_MODULES = MappingProxyType({
 # it too; the append that resolves the analytics knob and the three recorders
 # a producer calls directly are `events`; and the family with a sequence to
 # run before it writes is `agent_exit`.
-_PUBLISHED_OWNERS = MappingProxyType({
+_RECORDER_OWNERS = MappingProxyType({
     "append_record": _EVENTS_OWNER,
     "build_record": None,
     "record_agent_exit": _AGENT_EXIT_OWNER,
@@ -54,7 +54,7 @@ _PUBLISHED_OWNERS = MappingProxyType({
     "record_stage_evaluation": _EVENTS_OWNER,
 })
 
-_PUBLISHED = tuple(sorted(_PUBLISHED_OWNERS))
+_RECORDERS = tuple(sorted(_RECORDER_OWNERS))
 
 _SINK = "orchestrator.observability.analytics.sink"
 
@@ -64,10 +64,10 @@ _SINK = "orchestrator.observability.analytics.sink"
 # catalog. Each is checked to reach the owner that defines the recorder it
 # calls, so the write path has one place a record is built.
 _PRODUCERS = (
-    "orchestrator.github.client",
-    "orchestrator.workflow.engine.dispatch",
-    "orchestrator.workflow.engine.usage",
-    "orchestrator.skills.catalog",
+    ("orchestrator.github.client", _EVENTS_OWNER),
+    ("orchestrator.workflow.engine.dispatch", _EVENTS_OWNER),
+    ("orchestrator.workflow.engine.usage", _AGENT_EXIT_OWNER),
+    ("orchestrator.skills.catalog", _EVENTS_OWNER),
 )
 
 # What an owner here is allowed to reach: its siblings, the configuration
@@ -106,37 +106,25 @@ class OwnerInventoryTest(unittest.TestCase):
 
 
 class PublicSurfaceTest(unittest.TestCase):
-    """The package publishes a narrow, accurate `__all__`."""
+    """Recorders belong to their defining owners, and the package is a marker."""
 
-    def test_published_surface_is_the_declared_one(self) -> None:
-        # Declared rather than discovered, so a new public name here is a
-        # deliberate edit: this package is what a producer reaches to append a
-        # record, and an accidental export is a second way to write one.
-        self.assertEqual(_package.__all__, _PUBLISHED)
-        self.assertEqual(_package.__all__, tuple(sorted(_package.__all__)))
-
-    def test_published_names_are_the_owner_s_objects(self) -> None:
-        # The package publishes the owner's own object rather than a wrapper
-        # around it, so the module a name reports is the module that defines
-        # it -- which is where a reader looks for the source.
-        for name, owner in _PUBLISHED_OWNERS.items():
-            defining_module = _SINK if owner is None else _qualified(owner)
+    def test_package_exposes_no_recorder_aliases(self) -> None:
+        self.assertNotIn("__all__", _package.__dict__)
+        for name in _RECORDERS:
             with self.subTest(name=name):
-                self.assertEqual(
-                    getattr(_package, name).__module__, defining_module,
-                )
+                self.assertNotIn(name, _package.__dict__)
+
+    def test_recorders_report_their_defining_module(self) -> None:
+        for name, owner in _RECORDER_OWNERS.items():
+            defining_module = _SINK if owner is None else _qualified(owner)
+            binding_owner = _EVENTS_OWNER if owner is None else owner
+            with self.subTest(name=name):
+                self.assertEqual(getattr(_OWNER_MODULES[binding_owner], name).__module__, defining_module)
 
     def test_events_republishes_the_envelope(self) -> None:
-        # `build_record` is reached on `events` as well as on the package: it
-        # is the import site a producer already names, and the two spellings
-        # have to be the one shared object a trajectory record is built with.
-        self.assertIs(
-            _OWNER_MODULES[_EVENTS_OWNER].build_record, _package.build_record,
-        )
+        self.assertIs(_OWNER_MODULES[_EVENTS_OWNER].build_record, import_module(_SINK).build_record)
 
     def test_no_owner_declares_a_surface_of_its_own(self) -> None:
-        # One `__all__` for the package, so a name cannot be published here
-        # and forgotten there.
         for owner, module in _OWNER_MODULES.items():
             with self.subTest(owner=owner):
                 self.assertNotIn("__all__", module.__dict__)
@@ -160,10 +148,10 @@ class LayeringTest(unittest.TestCase):
                     )
 
     def test_every_producer_names_the_owner(self) -> None:
-        for producer in _PRODUCERS:
+        for producer, owner in _PRODUCERS:
             planted = _imported_orchestrator_modules(producer)
             with self.subTest(producer=producer):
-                self.assertIn(_PACKAGE, planted)
+                self.assertIn(_qualified(owner), planted)
 
 
 if __name__ == "__main__":
