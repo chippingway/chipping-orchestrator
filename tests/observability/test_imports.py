@@ -15,7 +15,6 @@ from tests.observability.observability_test_support import (
     _observability_packages,
     _run_import_probe,
 )
-from tests.repository.binding_test_support import module_level_names
 
 _TESTS_ROOT = Path(__file__).resolve().parents[1]
 
@@ -55,23 +54,6 @@ def _package_chain(package: str) -> frozenset[str]:
     return frozenset(".".join(parts[:depth]) for depth in depths)
 
 
-def _is_own_submodule(package: str, name: str, bound: object) -> bool:
-    """Whether a name binds its own submodule without an alias."""
-    parent, _, leaf = getattr(bound, "__name__", "").rpartition(".")
-    return parent == package and name == leaf
-
-
-def _undeclared_bindings(package: str) -> tuple[str, ...]:
-    """Names an initializer binds that are not its own submodules."""
-    initializer = import_module(package)
-    return tuple(
-        name
-        for name, bound in initializer.__dict__.items()
-        if not name.startswith("__")
-        and not _is_own_submodule(package, name, bound)
-    )
-
-
 def _mirrored_test_package(package: str) -> Path:
     """Initializer of the tests package that mirrors a runtime package."""
     return _TESTS_ROOT.joinpath(*package.split(".")[1:], "__init__.py")
@@ -106,12 +88,6 @@ class LayeringTest(unittest.TestCase):
                     _ROOT_PACKAGE_MODULES | _package_chain(package),
                 )
 
-    def test_initializers_bind_no_owner(self) -> None:
-        for package in _PACKAGES:
-            with self.subTest(package=package):
-                initializer = Path(import_module(package).__file__)
-                self.assertEqual(module_level_names(initializer), frozenset())
-
     def test_no_module_reaches_the_workflow_layer(self) -> None:
         for module in _observability_modules():
             for imported in _imported_orchestrator_modules(module):
@@ -127,27 +103,6 @@ class PackageSurfaceTest(unittest.TestCase):
 
     def test_declared_packages_are_the_ones_on_disk(self) -> None:
         self.assertEqual(_observability_packages(), tuple(sorted(_PACKAGES)))
-
-    def test_initializer_binds_only_submodules(self) -> None:
-        for package in _PACKAGES:
-            with self.subTest(package=package):
-                self.assertEqual(_undeclared_bindings(package), ())
-
-    def test_no_package_declares_a_surface(self) -> None:
-        declaring = frozenset(
-            package for package in _PACKAGES
-            if hasattr(import_module(package), "__all__")
-        )
-        self.assertEqual(declaring, frozenset())
-
-    def test_submodules_are_their_owner_objects(self) -> None:
-        for package in _PACKAGES:
-            initializer = import_module(package)
-            for name, bound in initializer.__dict__.items():
-                if name.startswith("__"):
-                    continue
-                with self.subTest(package=package, name=name):
-                    self.assertIs(bound, import_module(f"{package}.{name}"))
 
     def test_initializer_installs_no_resolver_hook(self) -> None:
         for package in _PACKAGES:

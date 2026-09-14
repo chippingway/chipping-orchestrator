@@ -31,8 +31,8 @@ and push path, and the schema diagram.
 - [`architecture/platform-modules.md`](architecture/platform-modules.md) — the package root, runtime, config, GitHub,
   git, agents, scheduler, and skills owners, the boundaries the suite enforces between them, and the split inside
   `git/`.
-- [`architecture/workflow-modules.md`](architecture/workflow-modules.md) — the `workflow` package API, the engine
-  owners under it, and the per-stage subpackages.
+- [`architecture/workflow-modules.md`](architecture/workflow-modules.md) — the state and transition owners, the
+  engine owners, and the per-stage subpackages.
 - [`architecture/observability-modules.md`](architecture/observability-modules.md) — the analytics, usage, dashboard,
   and trajectory-viewer owners and the two `streamlit run` targets over them, mapped at the package boundary.
 

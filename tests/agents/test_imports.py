@@ -9,7 +9,6 @@ import sys
 import typing
 import unittest
 
-from orchestrator import agents as _agents
 from orchestrator.agents import (
     models as _agent_models,
     processes as _agent_processes,
@@ -86,9 +85,6 @@ class RuntimeAnnotationTest(unittest.TestCase):
 class PublicSurfaceTest(unittest.TestCase):
     """Agent names are reached on the modules that define them."""
 
-    def test_package_declares_no_surface(self) -> None:
-        self.assertNotIn("__all__", _agents.__dict__)
-
     def test_names_belong_to_their_defining_modules(self) -> None:
         owners = (
             (_agent_models, ("AgentResult", "AgentRunOptions", "CodexResult")),
@@ -99,15 +95,3 @@ class PublicSurfaceTest(unittest.TestCase):
             for name in names:
                 with self.subTest(name=name):
                     self.assertEqual(getattr(owner, name).__module__, owner.__name__)
-
-    def test_package_exposes_no_owner_names(self) -> None:
-        for owner_name in (
-            "AgentResult", "AgentRunOptions", "CodexResult", "run_agent",
-            "terminate_all_running", "_run_codex", "_run_claude",
-            "_filter_agent_env", "_agent_env", "parse_session_id",
-            "is_transient_provider_failure", "_claude_last_message",
-            "_claude_command", "_codex_command", "_AgentRunOptionFields",
-            "communicate_bounded", "terminate_process_group",
-        ):
-            with self.subTest(name=owner_name), self.assertRaises(AttributeError):
-                getattr(_agents, owner_name)

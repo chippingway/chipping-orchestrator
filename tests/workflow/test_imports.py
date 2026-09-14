@@ -12,7 +12,7 @@ import unittest
 from importlib.util import find_spec
 
 from orchestrator import workflow as _workflow
-from orchestrator.workflow import engine as _engine, state as _state, transition_guard as _transition_guard
+from orchestrator.workflow import state as _state, transition_guard as _transition_guard
 
 _TICK = "tick"
 
@@ -180,15 +180,6 @@ _FLAT_MODULES = (
     "orchestrator.workflow_messages",
 )
 
-_PUBLIC_SURFACE = (
-    "ControlLabel",
-    "IllegalTransition",
-    "WorkflowLabel",
-    "guard_transition",
-    "is_allowed_transition",
-    _TICK,
-)
-
 # The vocabularies and transition guard retain one defining owner each.
 _STATE_NAMES = ("ControlLabel", "WorkflowLabel")
 
@@ -250,13 +241,9 @@ class CleanProcessImportTest(unittest.TestCase):
 
 
 class PublicSurfaceTest(unittest.TestCase):
-    """The package binds no API; state and engine names live on their owners."""
+    """State, guard, and engine names are defined on their respective owners."""
 
-    def test_package_exposes_no_owner_names(self) -> None:
-        self.assertNotIn("__all__", _workflow.__dict__)
-        for name in _PUBLIC_SURFACE:
-            with self.subTest(name=name):
-                self.assertNotIn(name, _workflow.__dict__)
+    def test_names_belong_to_their_defining_modules(self) -> None:
         for owner, names in ((_state, _STATE_NAMES), (_transition_guard, _GUARD_NAMES)):
             for name in names:
                 with self.subTest(owner=owner.__name__, name=name):
@@ -266,17 +253,6 @@ class PublicSurfaceTest(unittest.TestCase):
         engine_tick = importlib.import_module(_TICK_OWNER)
         self.assertEqual(engine_tick.tick.__module__, _TICK_OWNER)
         self.assertEqual(engine_tick.tick.__name__, _TICK)
-
-    def test_engine_initializer_binds_nothing(self) -> None:
-        for owner in _ENGINE_OWNERS:
-            with self.subTest(owner=owner):
-                imported = importlib.import_module(f"{_engine.__name__}.{owner}")
-                self.assertIs(getattr(_engine, owner), imported)
-        for name, bound in _engine.__dict__.items():
-            if name.startswith("__"):
-                continue
-            with self.subTest(name=name):
-                self.assertEqual(getattr(bound, "__name__", None), f"{_engine.__name__}.{name}")
 
 
 class LoggerChannelTest(unittest.TestCase):

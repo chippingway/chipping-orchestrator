@@ -12,9 +12,10 @@ description: >-
 Reject (or request fixes) if any of these are red:
 
 - `ruff check orchestrator tests`. Common offenders to look for explicitly:
-  - **F401** — unused import on a package initializer. If the import is intended as a re-export, it must
-    be aliased `from X import Y as Y` or listed in that initializer's `__all__`. A bare import will not
-    survive ruff.
+  - **F401** — remove unused bindings and import definitions from their owners. Package initializers are
+    markers and carry no imports or `__all__`. Existing test support re-exports use `... as <name>` only
+    for a name the module never reads itself; their exact paths are declared under `PLC0414` in
+    `[tool.ruff.lint.per-file-ignores]`. `tests/repository/test_reexport_aliases.py` holds that set.
   - **F541** — f-strings without placeholders, typically in newly-added test files.
   - **F841** — unused local in tests.
   - **E402** — import after non-import code.
@@ -41,20 +42,28 @@ For any refactor:
   CHANGES_REQUESTED), retry budgets, and stale-session detection are easy to break by accident during
   a move; verify their call paths survive intact.
 
-## Module boundaries
+## Workflow owners and stage modules
 
-`orchestrator/workflow/__init__.py` is a narrow explicit API — the label vocabularies, the transition guard
-and the predicate under it, the illegal-write exception, and the per-repo `tick`. Confirm:
+Every package initializer is a marker, so callers name defining modules directly. Labels live on
+`workflow/state.py`, label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions.py`, and
+write guards on `workflow/transition_guard.py`. The per-repo tick lives on `workflow/engine/tick.py` and resolved
+process settings on `config/settings.py`. Confirm:
 
-- Nothing new is published there. A helper another module reaches for is imported from the owner that
-  defines it, and a stage-private helper (used inside one stage module — `_bump_in_review_watermarks`,
-  `_seed_legacy_in_review_watermarks`, `_emit_conflict_round_incremented`, etc.) stays private to it.
-- The initializer binds no engine or stage module at import. The GitHub and git layers import
-  `workflow/state.py` beside it, so an engine import there is an import cycle, not a convenience.
+- Initializers bind no engine, stage, model, service, or settings owner. The GitHub and git layers can import
+  the label, reading, graph, and guard owners without loading the engine into their own initialization.
+  `tests/workflow/test_imports.py` checks that direction, and `tests/repository/test_package_exports.py` checks
+  every initializer's source and namespace.
+- Settings reloads and patches target `orchestrator.config.settings`, the same module object all callers retain.
+  Repository types come from `config.models`, and token resolution from `config.credentials`.
 - Stage modules import the owner they borrow from at module scope and call through that alias; flag any
   reintroduced call-time hop through the package initializer.
 - Test patches target the module the call site names. Flag a test that patches anything else — including
   the workflow package — since a mock left there intercepts nothing.
+- Stage-private helpers stay in the stage package that owns them. Shared helpers are read from their defining
+  owner; copying or re-exporting one creates a second patch target that can drift from the running call.
+- Workflow owners declare `log = logging.getLogger("orchestrator.workflow")` with the channel spelled literally;
+  `workflow/transition_guard.py` owns `orchestrator.state_machine`. Operator filters select on those names,
+  and `tests/workflow/test_imports.py` checks them.
 
 ## Test economy and assertion quality
 

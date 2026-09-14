@@ -40,7 +40,7 @@ _OWNER_MODULES = MappingProxyType({
     owner: import_module(f"{_PACKAGE}.{owner}") for owner in _OWNERS
 })
 
-# What the package publishes, paired with the module that defines it. The
+# Recorder entry points, paired with the module that defines them. The
 # envelope is the shared `sink` owner's, because a trajectory record satisfies
 # it too; the append that resolves the analytics knob and the three recorders
 # a producer calls directly are `events`; and the family with a sequence to
@@ -53,8 +53,6 @@ _RECORDER_OWNERS = MappingProxyType({
     "record_stage_enter": _EVENTS_OWNER,
     "record_stage_evaluation": _EVENTS_OWNER,
 })
-
-_RECORDERS = tuple(sorted(_RECORDER_OWNERS))
 
 _SINK = "orchestrator.observability.analytics.sink"
 
@@ -106,13 +104,7 @@ class OwnerInventoryTest(unittest.TestCase):
 
 
 class PublicSurfaceTest(unittest.TestCase):
-    """Recorders belong to their defining owners, and the package is a marker."""
-
-    def test_package_exposes_no_recorder_aliases(self) -> None:
-        self.assertNotIn("__all__", _package.__dict__)
-        for name in _RECORDERS:
-            with self.subTest(name=name):
-                self.assertNotIn(name, _package.__dict__)
+    """Recorders and their shared envelope belong to their defining owners."""
 
     def test_recorders_report_their_defining_module(self) -> None:
         for name, owner in _RECORDER_OWNERS.items():
