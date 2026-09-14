@@ -46,6 +46,7 @@ from orchestrator.workflow.late_split import (
     telemetry as _telemetry,
 )
 from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.publication import PublicationContext
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_records as _records,
@@ -154,8 +155,10 @@ def _reported(
         base_sha=rewrite.to_base_sha,
         phase=None,
     )
-    return carried.with_publication(
-        stage=rewrite.source_stage,
-        pr_number=rewrite.pr_number,
-        published_sha=rewrite.lease,
+    return replace(
+        carried, publication=PublicationContext.enter(
+            stage=rewrite.source_stage,
+            pr_number=rewrite.pr_number,
+            published_sha=rewrite.lease,
+        ),
     )

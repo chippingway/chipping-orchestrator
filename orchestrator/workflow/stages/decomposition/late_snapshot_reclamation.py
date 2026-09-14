@@ -9,16 +9,14 @@ between effects leaves the generation marked and suppresses child notices.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.workflow.late_split import (
     formats as _formats,
 )
-from orchestrator.workflow.late_split.models import (
-    LateGeneration,
-    LateResource,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.obligations import LateResource, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup_proof as _late_cleanup_proof,
     late_cleanup_reading as _late_cleanup_reading,
@@ -208,11 +206,13 @@ def _ordered(
     pass cannot reach still leave the ref recorded as being taken.
     """
     try:
-        decided = generation.with_resource(LateResource(
-            kind=_late_cleanup_reading._SNAPSHOT,
-            target=ref,
-            resource_state=LateResourceState.RECLAIMING,
-        ))
+        decided = replace(
+            generation, obligations=generation.obligations.with_resource(LateResource(
+                kind=_late_cleanup_reading._SNAPSHOT,
+                target=ref,
+                resource_state=LateResourceState.RECLAIMING,
+            )),
+        )
     except _formats.InvalidLateValue:
         log.exception("could not order the reclamation of %r", ref)
         return generation
@@ -230,7 +230,7 @@ def _already_ordered(generation: LateGeneration, ref: str) -> bool:
     """
     return any(
         entry.resource_state in _ORDERED
-        for entry in generation.resources
+        for entry in generation.obligations.resources
         if entry.kind == _late_cleanup_reading._SNAPSHOT and entry.target == ref
     )
 

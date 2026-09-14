@@ -8,16 +8,13 @@ evidence for the next tick to resume the same split without another run.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 
 from orchestrator.workflow.late_split import (
     formats as _formats,
 )
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateFailure
+from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
     late_park_state as _late_park_state,
@@ -93,9 +90,11 @@ def _recorded_resource(
     an exception instead of behind a retry.
     """
     try:
-        context.generation = context.generation.with_resource(LateResource(
-            kind=kind, target=target, resource_state=resource_state,
-        ))
+        context.generation = replace(
+            context.generation, obligations=context.generation.obligations.with_resource(LateResource(
+                kind=kind, target=target, resource_state=resource_state,
+            )),
+        )
     except _formats.InvalidLateValue:
         log.exception(
             "issue=#%d could not record the %s obligation %r",

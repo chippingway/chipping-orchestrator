@@ -356,6 +356,6 @@ def _settled_lease(context: _LateContext) -> str:
     Empty for a pre-publication verdict, whose push has no pull request to be
     pinned to and correctly takes its own reading.
     """
-    if not context.generation.has_publication_context:
+    if not context.generation.publication.is_complete:
         return ""
-    return context.generation.published_sha
+    return context.generation.publication.published_sha

@@ -101,7 +101,7 @@ def _publication_moved(
     be shown to be it.
     """
     head = _payloads.as_hex(reading.head, _formats.COMMIT_LENGTHS)
-    frozen = context.generation.published_sha
+    frozen = context.generation.publication.published_sha
     if head == frozen:
         return ""
     return _late_publication._MOVED_PUBLICATION.format(

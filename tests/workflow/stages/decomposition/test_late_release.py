@@ -26,7 +26,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
-from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_snapshot_reclamation as _late_snapshot_reclamation,
 )

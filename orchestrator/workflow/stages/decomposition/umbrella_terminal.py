@@ -56,10 +56,7 @@ def _retired_cycle(state: PinnedState) -> LateGeneration:
     """
     live = _late_state.read_late_generation(state)
     _late_state.write_late_generation(state, LateGeneration(
-        resources=live.resources,
-        consumers=live.consumers,
-        opaque_resources=live.opaque_resources,
-        opaque_consumers=live.opaque_consumers,
+        obligations=live.obligations,
     ))
     if live.is_present:
         _endings.record_retired_cycle(state, live.cycle_id)
@@ -89,7 +86,7 @@ def _resolution_said(
     itself, so a bounded scan would start above the very comment it looks for.
     """
     generation = _late_state.read_late_generation(state)
-    if not generation.has_publication_context:
+    if not generation.publication.is_complete:
         _comments._post_issue_comment(
             gh, issue, state, _resolution_body(state),
         )

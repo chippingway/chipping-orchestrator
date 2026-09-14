@@ -6,13 +6,8 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.late_split import events as _events, formats as _formats
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-    LateVerdict,
-)
+from orchestrator.workflow.late_split.models import LateFailure, LateVerdict
+from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.late_split.rewrite_values import LateRewriteProof
 from tests.workflow.late_split import event_test_support as _event_support, generation_test_support as _support
 

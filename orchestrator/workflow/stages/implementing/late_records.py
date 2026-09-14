@@ -23,6 +23,7 @@ from orchestrator.workflow.late_split import (
     phases as _late_phases,
 )
 from orchestrator.workflow.late_split.models import LateGeneration
+from orchestrator.workflow.late_split.publication import PublicationContext
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_identity_reading as _late_identity_reading,
@@ -139,12 +140,14 @@ def _entered(gate: _late_gate_models._Gate, generation: LateGeneration) -> LateG
     tick outright -- so the only thing this can be asked to overwrite is a
     group identical to what it holds.
     """
-    if gate.entry is None or generation.has_publication_context:
+    if gate.entry is None or generation.publication.is_complete:
         return generation
-    return generation.with_publication(
-        stage=gate.entry.stage,
-        pr_number=gate.entry.pr_number,
-        published_sha=gate.entry.published_sha,
+    return replace(
+        generation, publication=PublicationContext.enter(
+            stage=gate.entry.stage,
+            pr_number=gate.entry.pr_number,
+            published_sha=gate.entry.published_sha,
+        ),
     )
 
 

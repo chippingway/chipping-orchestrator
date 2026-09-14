@@ -29,8 +29,9 @@ import json
 from typing import Any
 
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
-from orchestrator.workflow.late_split.models import (
+from orchestrator.workflow.late_split.obligations import (
     MAX_RESOURCE_TARGET,
+    LateObligations,
     LateResource,
     LateResourceKind,
     LateResourceState,
@@ -46,6 +47,18 @@ STATE_KEY = "state"
 _ENTRY_KEYS = frozenset((KIND_KEY, TARGET_KEY, STATE_KEY))
 
 _Ledger = tuple[tuple[Any, ...], str | None]
+
+
+def read_obligations(resources: Any, consumers: Any) -> LateObligations:
+    """Read both ledgers with their verbatim copies when typing is lossy."""
+    typed_resources, opaque_resources = read_resources(resources)
+    typed_consumers, opaque_consumers = read_consumers(consumers)
+    return LateObligations(
+        resources=typed_resources,
+        consumers=typed_consumers,
+        opaque_resources=opaque_resources,
+        opaque_consumers=opaque_consumers,
+    )
 
 
 def read_resources(raw: Any) -> _Ledger:

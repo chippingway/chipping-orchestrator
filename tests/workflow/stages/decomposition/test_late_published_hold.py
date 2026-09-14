@@ -130,7 +130,7 @@ class PublishedPrHoldTest(_PublishedHoldCase):
         hold = self._reconcile()
 
         self.assertEqual(hold.generation.plan_pr_head, _support.OTHER_SHA)
-        self.assertEqual(hold.generation.published_sha, _support.PUBLISHED_HEAD_SHA)
+        self.assertEqual(hold.generation.publication.published_sha, _support.PUBLISHED_HEAD_SHA)
         self.assertEqual(
             self._pinned().get(_support.KEYS.published_sha), _support.PUBLISHED_HEAD_SHA,
         )

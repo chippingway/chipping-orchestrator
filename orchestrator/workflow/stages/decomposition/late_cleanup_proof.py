@@ -79,11 +79,11 @@ def _reclaimable(
     question is whether it names all of them -- see `_whole_ledger`. Asked
     first, because every proof below is only as complete as the list it walks.
     """
-    if _late_cleanup_reading._unwritable(generation) or generation.has_opaque_ledger:
+    if _late_cleanup_reading._unwritable(generation) or generation.obligations.is_opaque:
         return False
     if not _whole_ledger(state, generation):
         return False
-    return all(_ended(scan, consumer) for consumer in generation.consumers)
+    return all(_ended(scan, consumer) for consumer in generation.obligations.consumers)
 
 
 def _whole_ledger(state: PinnedState, generation: LateGeneration) -> bool:
@@ -208,7 +208,7 @@ def _split_began(state: PinnedState, generation: LateGeneration) -> bool:
     """
     if state.get(_EXPECTED_CHILDREN) is not None:
         return True
-    return bool(generation.consumers or generation.split_children)
+    return bool(generation.obligations.consumers or generation.split_children)
 
 
 def _accounted_at(generation: LateGeneration) -> LatePhase | None:

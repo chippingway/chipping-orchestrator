@@ -9,7 +9,7 @@ with the cancelled generation.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from github.Issue import Issue
 
@@ -19,14 +19,10 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.late_split import (
     formats as _formats,
+    obligations as _obligations,
     state as _late_state,
 )
-from orchestrator.workflow.late_split.models import (
-    LateGeneration,
-    LateResource,
-    LateResourceKind,
-    LateResourceState,
-)
+from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation_state as _late_cancellation_state,
 )
@@ -35,7 +31,7 @@ from orchestrator.workflow.stages.decomposition.models import _ChildScan
 log = logging.getLogger("orchestrator.workflow")
 
 
-_BRANCH = LateResourceKind.BRANCH
+_BRANCH = _obligations.LateResourceKind.BRANCH
 
 
 @dataclass(frozen=True)
@@ -80,8 +76,8 @@ class _Reclamation:
     """
 
     generation: LateGeneration
-    entries: tuple[LateResource, ...] = ()
-    moved: tuple[LateResource, ...] = ()
+    entries: tuple[_obligations.LateResource, ...] = ()
+    moved: tuple[_obligations.LateResource, ...] = ()
 
     @property
     def attempted(self) -> bool:
@@ -113,15 +109,17 @@ def _observed_close(
 
 def _recorded(
     generation: LateGeneration,
-    kind: LateResourceKind,
+    kind: _obligations.LateResourceKind,
     target: str,
-    settled: LateResourceState,
+    settled: _obligations.LateResourceState,
 ) -> LateGeneration:
     """Move one obligation to the state this pass just established for it."""
     try:
-        return generation.with_resource(LateResource(
-            kind=kind, target=target, resource_state=settled,
-        ))
+        return replace(
+            generation, obligations=generation.obligations.with_resource(_obligations.LateResource(
+                kind=kind, target=target, resource_state=settled,
+            )),
+        )
     except _formats.InvalidLateValue:
         log.exception("could not record the %s obligation %r", kind, target)
         return generation
@@ -136,6 +134,8 @@ def _record_branch_obligation(
     between leaves the obligation for the umbrella above to retry rather than
     a branch nothing on the issue names.
     """
-    return generation.with_resource(LateResource(
-        kind=_BRANCH, target=branch, resource_state=LateResourceState.PENDING,
-    ))
+    return replace(
+        generation, obligations=generation.obligations.with_resource(_obligations.LateResource(
+            kind=_BRANCH, target=branch, resource_state=_obligations.LateResourceState.PENDING,
+        )),
+    )

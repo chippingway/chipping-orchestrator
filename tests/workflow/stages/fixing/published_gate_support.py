@@ -33,7 +33,11 @@ from orchestrator.workflow.engine import (
     issue_processing as _issue_processing,
     stage_targets as _stage_targets,
 )
-from orchestrator.workflow.late_split import phases as _late_phases, state as _late_state
+from orchestrator.workflow.late_split import (
+    phases as _late_phases,
+    publication as _publication_context,
+    state as _late_state,
+)
 from orchestrator.workflow.late_split.models import LateGeneration
 from tests.workflow import fixtures
 
@@ -186,11 +190,12 @@ def recorded_generation(*, stage: str = support.FIXING, **overrides) -> dict:
             "threshold": CEILING,
             "phase": _late_phases.LatePhase.MEASURING,
             **overrides,
-        }).with_publication(
-            stage=stage,
-            pr_number=support.PR_NUMBER,
-            published_sha=support.PR_HEAD_SHA,
-        ),
+            "publication": _publication_context.PublicationContext.enter(
+                stage=stage,
+                pr_number=support.PR_NUMBER,
+                published_sha=support.PR_HEAD_SHA,
+            ),
+        }),
     )
     return recorded.data
 

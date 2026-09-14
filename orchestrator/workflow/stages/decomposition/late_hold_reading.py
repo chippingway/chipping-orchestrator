@@ -68,8 +68,8 @@ def _hold_subject(
         generation.plan_pr_body is not None
     ):
         return generation.plan_pr_number
-    if generation.has_publication_context:
-        return generation.published_pr_number
+    if generation.publication.is_complete:
+        return generation.publication.published_pr_number
     return _payloads.as_identity(state.get(_PR_NUMBER))
 
 
@@ -96,8 +96,8 @@ def _may_be_held(
         generation.plan_pr_body is not None
     ):
         return True
-    if generation.published_pr_number == held_pr.number and (
-        generation.has_publication_context
+    if generation.publication.published_pr_number == held_pr.number and (
+        generation.publication.is_complete
     ):
         return True
     return _plan_provenance(gh, issue, state, held_pr)

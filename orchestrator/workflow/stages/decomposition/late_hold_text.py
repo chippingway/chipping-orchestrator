@@ -57,7 +57,7 @@ def _hold_body(generation: LateGeneration) -> str:
     published a while ago, and telling its author their change is being held
     "before anything is published" describes somebody else's.
     """
-    if generation.has_publication_context:
+    if generation.publication.is_complete:
         return _published_hold_body(generation)
     return _unpublished_hold_body(generation)
 

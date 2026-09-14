@@ -22,7 +22,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import Mock, patch
 
-from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import _PatchedWorkflowMixin
 from tests.workflow.observation_support import ObservedCloseCase, receipt_for

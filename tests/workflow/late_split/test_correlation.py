@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from types import MappingProxyType
 
 from orchestrator.git.measurement.models import MeasurementFailure
@@ -174,7 +175,9 @@ class PublicationCorrelationTest(unittest.TestCase):
         entered = _keyed(_MEASUREMENT, _support.ENTERED_ON_PUBLICATION)
         for apart in _ENTERED_APART:
             with self.subTest(field=min(apart)):
-                elsewhere = {**_support.ENTERED_ON_PUBLICATION, **apart}
+                elsewhere = {
+                    "publication": replace(_support.PUBLICATION_CONTEXT, **apart),
+                }
 
                 self.assertNotEqual(_keyed(_MEASUREMENT, elsewhere), entered)
 

@@ -117,7 +117,7 @@ def _unvouched_verdict(recorded: LateGeneration) -> _Reuse:
     answered nothing at all -- and an answer nobody gave may not release a
     child either.
     """
-    if recorded.opaque_consumers is not None:
+    if recorded.obligations.opaque_consumers is not None:
         return _Reuse.DEFERRED
     if recorded.is_present and not recorded.candidate_sha:
         return _Reuse.DEFERRED

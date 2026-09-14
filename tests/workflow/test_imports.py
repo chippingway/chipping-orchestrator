@@ -94,7 +94,8 @@ _LATE_SPLIT_OWNERS = (
     "rewrite_reading",
 
     "phases",
-    "generation_reading",
+    "obligations",
+    "publication",
     "collapses",
     "encoding",
     "endings",

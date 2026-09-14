@@ -1708,7 +1708,9 @@ generation is cleared AGAINST — a clear that took them would send the authoriz
 adjudication a human already answered; `late_retired_cycle_id` and the two-phase terminal record beside it live on the
 [`endings`](../../orchestrator/workflow/late_split/endings.py) owner. The typed record the
 group round-trips through is `LateGeneration` on the `models` owner beside
-it. A write with no `late_cycle_id` records only what the issue still owes — the two external ledgers, if either
+it, containing frozen `PublicationContext` and `LateObligations` records. The state reader and encoders map those
+components onto the flat pinned keys below. A write with no `late_cycle_id` records only what the issue still owes —
+the two external ledgers, if either
 holds anything — and drops the rest rather than keeping a half-record no audit line or child lineage could be
 correlated to. Every field is read defensively: a hand-edited or older value that cannot be typed reads back as
 absent rather than raising on a tick that has committed work to reconcile. Which reader a field goes through
@@ -1943,10 +1945,10 @@ rather than preserving.
   and the branch its terminal reclaims, both on later ticks — and this group is the only thing left on the issue
   naming which pull request was closed and the head it was closed over, so the walk, the reclamation, and the
   terminal each re-read it before they act. The terminal's retirement drops it last, immediately behind the barrier
-  that asks it one final time. The flag alone proves none of it — `LateGeneration.has_publication_context` holds
+  that asks it one final time. The flag alone proves none of it — `PublicationContext.is_complete` holds
   only while the stage, the pull request, and the head are all readable beside it, so a group a hand edit half-damaged
   reads as context nothing may act on rather than as a publication with no pull request to name, and
-  `LateGeneration.with_publication` refuses to record one that cannot name all three. A restart's fresh cycle keeps
+  `PublicationContext.enter` refuses to record one that cannot name all three. A restart's fresh cycle keeps
   none of the group and needs none: what it puts the issue back into is `decomposing` or `implementing`, which is a
   pre-publication attempt again.
 - **External-resource ledgers.** `late_resources` holds one `{kind, target, state}` entry per obligation the remote is
@@ -1966,7 +1968,7 @@ rather than preserving.
   and `"7"` are not issues anything can ask GitHub about, and neither the reader nor `with_consumers` will convert
   one into a consumer id. Neither ledger is ever *reduced* to what this binary understood: an entry it cannot type, or a
   consumer list it cannot read, is carried through verbatim beside the typed view and written back exactly as it
-  came, and `LateGeneration.has_opaque_ledger` says so — and while it does, `with_resource` and `with_consumers`
+  came, and `LateObligations.is_opaque` says so — and while it does, `with_resource` and `with_consumers`
   refuse an update to that ledger rather than returning a record the next write would silently drop back to the
   verbatim copy. The two are preserved and written **independently**, and the reclamation refuses them
   independently: an untypable entry on `late_resources` means no reclamation can be recorded at all, while one on

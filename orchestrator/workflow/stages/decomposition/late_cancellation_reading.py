@@ -9,13 +9,14 @@ from __future__ import annotations
 
 from orchestrator.workflow.late_split import (
     models as _late_models,
+    obligations as _obligations,
     restart as _restart,
 )
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup_reading as _late_cleanup_reading,
 )
 
-_PLAN_PR = _late_models.LateResourceKind.PLAN_PR
+_PLAN_PR = _obligations.LateResourceKind.PLAN_PR
 
 # How a still-owed held pull request is named in the line that says what a
 # closed owner is waiting on. The ledger's own targets are bare identifiers,
@@ -101,9 +102,9 @@ def _owed_plan_pr(generation: _late_models.LateGeneration) -> tuple[str, ...]:
         return ()
     owed = tuple(
         _OWED_PLAN_PR.format(entry.target)
-        for entry in generation.resources
+        for entry in generation.obligations.resources
         if entry.kind == _PLAN_PR
-        and entry.resource_state != _late_models.LateResourceState.RECONCILED
+        and entry.resource_state != _obligations.LateResourceState.RECONCILED
     )
     if not _unprovable_hold(generation):
         return owed
@@ -149,14 +150,14 @@ def _unsettled(generation: _late_models.LateGeneration) -> bool:
 
 def _plan_pr_entry(
     generation: _late_models.LateGeneration, target: str,
-) -> _late_models.LateResource | None:
+) -> _obligations.LateResource | None:
     """The ledger entry this pass just wrote for the held PR.
 
     None where the update could not be applied at all, which the recording
     helper already logged: there is nothing to report about an obligation the
     record does not carry.
     """
-    for entry in generation.resources:
+    for entry in generation.obligations.resources:
         if entry.kind == _PLAN_PR and entry.target == target:
             return entry
     return None

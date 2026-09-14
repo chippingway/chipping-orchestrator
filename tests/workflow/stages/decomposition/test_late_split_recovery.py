@@ -24,7 +24,8 @@ from dataclasses import replace
 
 from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.workflow.late_split import state as _late_state
-from orchestrator.workflow.late_split.models import (
+from orchestrator.workflow.late_split.obligations import (
+    LateObligations,
     LateResource,
     LateResourceKind,
     LateResourceState,
@@ -215,7 +216,7 @@ class RevisedAfterSnapshotTest(RevisionCase, unittest.TestCase):
     def test_an_opaque_ledger_stops_it_too(self) -> None:
         # An entry this binary could not type may be exactly that obligation.
         rewrite_generation(
-            self.github, self.issue, opaque_resources=OPAQUE_LEDGER,
+            self.github, self.issue, obligations=LateObligations(opaque_resources=OPAQUE_LEDGER),
         )
 
         parked, _spawn = self._revise()
@@ -230,11 +231,11 @@ class RevisedAfterSnapshotTest(RevisionCase, unittest.TestCase):
 
     def _owing(self, owed: LateResourceState) -> None:
         """Record the snapshot obligation a transaction would have written."""
-        rewrite_generation(self.github, self.issue, resources=(LateResource(
+        rewrite_generation(self.github, self.issue, obligations=LateObligations(resources=(LateResource(
             kind=LateResourceKind.SNAPSHOT_REF,
             target=SNAPSHOT_REF,
             resource_state=owed,
-        ),))
+        ),)))
 
 
 class RevisedBeforeChildrenTest(RevisionCase, unittest.TestCase):

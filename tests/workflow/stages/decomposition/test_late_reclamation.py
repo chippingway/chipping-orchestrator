@@ -13,7 +13,7 @@ from dataclasses import replace
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.obligations import LateObligations, LateResourceState
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_cleanup_proof as _late_cleanup_proof,
@@ -359,7 +359,11 @@ class TerminalConsumerTest(unittest.TestCase):
     def test_an_opaque_ledger_keeps_the_ref(self) -> None:
         # An entry this binary could not type is still a consumer, and not
         # one it can ask GitHub about.
-        opaque = replace(_one_consumer(), opaque_consumers=_OPAQUE_CONSUMERS)
+        generation = _one_consumer()
+        opaque = replace(
+            generation,
+            obligations=replace(generation.obligations, opaque_consumers=_OPAQUE_CONSUMERS),
+        )
 
         self.assertFalse(
             _late_cleanup_proof._reclaimable(
@@ -399,7 +403,7 @@ class WholeLedgerRuleTest(unittest.TestCase):
                     _late_cleanup_proof._reclaimable(
                         _UNSTARTED,
                         _support.late_generation(
-                            phase=LatePhase.SPLITTING, consumers=recorded,
+                            phase=LatePhase.SPLITTING, obligations=LateObligations(consumers=recorded),
                         ),
                         _support.scan_of(_support.LABEL_DONE, closed=True),
                     ),
@@ -495,7 +499,8 @@ def _one_consumer():
     """
     return _support.late_generation(
         phase=LatePhase.CLEANING_UP,
-    ).with_consumers((_support.CHILD_NUMBER,))
+        obligations=LateObligations().with_consumers((_support.CHILD_NUMBER,)),
+    )
 
 
 

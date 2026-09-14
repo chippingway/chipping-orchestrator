@@ -96,9 +96,9 @@ def _continues_at(context: _LateContext) -> WorkflowLabel:
     `implementing` is the answer for a candidate nothing had published, which
     is the only other kind: there is no other stage it could have come from.
     """
-    if not context.generation.has_publication_context:
+    if not context.generation.publication.is_complete:
         return WorkflowLabel.IMPLEMENTING
-    return context.generation.source_stage
+    return context.generation.publication.source_stage
 
 
 def _published(context: _LateContext) -> _LateDisposition | None:
@@ -155,10 +155,7 @@ def _published(context: _LateContext) -> _LateDisposition | None:
     )
     with retiring.held():
         context.generation = LateGeneration(
-            resources=live.resources,
-            consumers=live.consumers,
-            opaque_resources=live.opaque_resources,
-            opaque_consumers=live.opaque_consumers,
+            obligations=live.obligations,
         )
         _endings.record_retired_cycle(context.state, live.cycle_id)
         _late_park_state._persist(context)

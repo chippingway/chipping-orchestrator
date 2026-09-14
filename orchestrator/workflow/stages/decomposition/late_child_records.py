@@ -19,7 +19,8 @@ from orchestrator.workflow.late_split import (
     lineage as _lineage,
     phases as _late_phases,
 )
-from orchestrator.workflow.late_split.models import LateFailure, LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split.models import LateFailure
+from orchestrator.workflow.late_split.obligations import LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_child_content as _late_child_content,
     late_outcome as _late_outcome,
@@ -196,7 +197,7 @@ def _recorded(
     """
     walk.plan.record(index, child_issue.number, child)
     try:
-        owed = context.generation.with_consumers(
+        owed = context.generation.obligations.with_consumers(
             (child_issue.number,),
         ).with_resource(LateResource(
             kind=LateResourceKind.CHILD,
@@ -212,7 +213,8 @@ def _recorded(
         return False
     recorded = walk.recorded_numbers()
     context.generation = replace(
-        owed.with_split_children(recorded), phase=_late_phases.LatePhase.SPLITTING,
+        context.generation.with_split_children(recorded),
+        obligations=owed, phase=_late_phases.LatePhase.SPLITTING,
     )
     # The stage's own list is written FROM the register rather than appended
     # to, so an earlier decomposition's children and dependency graph are

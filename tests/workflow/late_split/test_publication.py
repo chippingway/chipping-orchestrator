@@ -7,6 +7,7 @@ import unittest
 from dataclasses import replace
 
 from orchestrator.workflow.late_split.formats import InvalidLateValue
+from orchestrator.workflow.late_split.publication import PublicationContext
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.late_split import generation_test_support as _support
 
@@ -48,7 +49,7 @@ class PublicationEntryTest(unittest.TestCase):
     """What a post-publication entry has to name to be recorded as one."""
 
     def test_an_entry_names_what_was_published(self) -> None:
-        entered = _support.measured_generation().with_publication(
+        entered = PublicationContext.enter(
             **_entered_at(),
         )
 
@@ -58,20 +59,20 @@ class PublicationEntryTest(unittest.TestCase):
             entered.published_pr_number, _support.PUBLISHED_PR_NUMBER,
         )
         self.assertEqual(entered.published_sha, _support.PUBLISHED_SHA)
-        self.assertTrue(entered.has_publication_context)
+        self.assertTrue(entered.is_complete)
 
     def test_saying_nothing_is_pre_publication(self) -> None:
         # The absence is the answer rather than a gap, which is what lets a
         # record written without this group stay valid untouched.
-        recorded = _support.measured_generation()
+        recorded = PublicationContext()
 
         self.assertFalse(recorded.post_publication)
-        self.assertFalse(recorded.has_publication_context)
+        self.assertFalse(recorded.is_complete)
 
     def test_a_stage_is_kept_as_the_state_it_names(self) -> None:
         # The wire spelling a pinned comment holds is the label itself, and
         # what the record keeps is the member a later tick acts on.
-        entered = _support.measured_generation().with_publication(
+        entered = PublicationContext.enter(
             **_entered_at(stage=str(WorkflowLabel.FIXING)),
         )
 
@@ -95,7 +96,7 @@ class PublicationEntryTest(unittest.TestCase):
         )
         for field, damaged in refused:
             with self.subTest(field=field, damaged=damaged), self.assertRaises(InvalidLateValue):
-                _support.measured_generation().with_publication(
+                PublicationContext.enter(
                     **_entered_at(**{field: damaged}),
                 )
 
@@ -107,7 +108,7 @@ class PublicationEntryTest(unittest.TestCase):
         # push a candidate no post-publication stage ever committed.
         for named in _UNPUBLISHED_STAGES:
             with self.subTest(named=named), self.assertRaises(InvalidLateValue):
-                _support.measured_generation().with_publication(
+                PublicationContext.enter(
                     **_entered_at(stage=str(named)),
                 )
 
@@ -116,7 +117,7 @@ class PublicationEntryTest(unittest.TestCase):
         # road onto the pinned comment: an older binary and an operator's edit
         # each leave a whole-LOOKING group behind, and read back as context it
         # would be reconciled and pushed from a stage that publishes nothing.
-        entered = _support.measured_generation().with_publication(
+        entered = PublicationContext.enter(
             **_entered_at(),
         )
         for named in _UNPUBLISHED_STAGES:
@@ -124,7 +125,7 @@ class PublicationEntryTest(unittest.TestCase):
                 damaged = replace(entered, source_stage=named)
 
                 self.assertTrue(damaged.post_publication)
-                self.assertFalse(damaged.has_publication_context)
+                self.assertFalse(damaged.is_complete)
 
     def test_the_marker_alone_names_no_publication(self) -> None:
         # Every field beside the flag is read fail-closed, so a hand-edited
@@ -132,7 +133,7 @@ class PublicationEntryTest(unittest.TestCase):
         # nothing can name, a head no branch is compared against, or a stage
         # nothing could put the issue back into. None of the three can be
         # recovered from anywhere else on the issue.
-        entered = _support.measured_generation().with_publication(
+        entered = PublicationContext.enter(
             **_entered_at(),
         )
         for field, gone in _UNNAMED_CONTEXT:
@@ -140,7 +141,7 @@ class PublicationEntryTest(unittest.TestCase):
                 damaged = replace(entered, **{field: gone})
 
                 self.assertTrue(damaged.post_publication)
-                self.assertFalse(damaged.has_publication_context)
+                self.assertFalse(damaged.is_complete)
 
 
 if __name__ == "__main__":

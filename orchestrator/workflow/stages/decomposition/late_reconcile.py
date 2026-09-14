@@ -188,7 +188,7 @@ def _reconciled_pr(context: _LateContext) -> bool:
     PR is exactly what the ordinary publication reuses -- unless the recorded
     one is settled, which is the pointer that would end the issue.
     """
-    if context.generation.has_publication_context:
+    if context.generation.publication.is_complete:
         return _reconciled_publication(context)
     carrying = context.gh.find_pr_for_commit(
         branch=_naming._resolve_branch_name(
@@ -251,7 +251,7 @@ def _reconciled_publication(context: _LateContext) -> bool:
     if not _reconciled_receipt(context):
         return False
     generation = context.generation
-    number = generation.published_pr_number
+    number = generation.publication.published_pr_number
     reading = _late_publication._read_publication(
         context.gh, context.issue, number,
     )

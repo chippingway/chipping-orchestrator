@@ -99,7 +99,7 @@ def _pushed_where_it_was_measured(context: _LateContext) -> bool:
     whole adjudication, through the push itself, and through the tick that
     died between a landed push and this retry.
     """
-    if not context.generation.has_publication_context:
+    if not context.generation.publication.is_complete:
         return True
     worktree = _worktree_paths._worktree_path(
         context.spec, context.issue.number,
@@ -131,7 +131,7 @@ def _accepted_push_landed(context: _LateContext, worktree) -> bool:
         "issue=#%d could not publish the accepted candidate %s onto PR #%d; "
         "leaving it under adjudication for the retry",
         context.issue.number, context.generation.candidate_sha,
-        context.generation.published_pr_number,
+        context.generation.publication.published_pr_number,
     )
     _late_outcome._emit_failure(context, LateFailure.PR_RECONCILE_FAILED)
     _late_parks._park(

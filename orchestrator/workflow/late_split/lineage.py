@@ -156,7 +156,7 @@ def vouched_lineage(
         return None
     if generation.generation != claimed.generation:
         return None
-    if consumer not in generation.consumers:
+    if consumer not in generation.obligations.consumers:
         return None
     return replace(
         claimed.named_snapshot(), snapshot_sha=generation.candidate_sha,

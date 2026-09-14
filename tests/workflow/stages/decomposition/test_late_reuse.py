@@ -22,7 +22,7 @@ from unittest.mock import Mock
 from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.workflow.engine import issue_processing as _issue_processing
 from orchestrator.workflow.late_split import ancestry as _ancestry
-from orchestrator.workflow.late_split.models import LateResourceState
+from orchestrator.workflow.late_split.obligations import LateResourceState
 from orchestrator.workflow.stages.decomposition import (
     late_reuse as _late_reuse,
 )

@@ -15,9 +15,9 @@ from orchestrator.workflow.late_split import (
     events as _events,
     telemetry as _telemetry,
 )
-from orchestrator.workflow.late_split.models import (
-    LateFailure,
-    LateGeneration,
+from orchestrator.workflow.late_split.models import LateFailure, LateGeneration
+from orchestrator.workflow.late_split.obligations import (
+    LateObligations,
     LateResource,
     LateResourceKind,
     LateResourceState,
@@ -201,12 +201,11 @@ def _settled_generation(
         candidate_sha=owed.candidate_sha,
         base_sha=owed.base_sha,
         phase=LatePhase.CLEANING_UP,
-        post_publication=owed.post_publication,
-        source_stage=owed.source_stage,
-        published_pr_number=owed.published_pr_number,
-        published_sha=owed.published_sha,
-        resources=owed.resources,
-        consumers=owed.consumers,
+        publication=owed.publication,
+        obligations=LateObligations(
+            resources=owed.obligations.resources,
+            consumers=owed.obligations.consumers,
+        ),
         split_children=owed.split_children,
         links_announced=owed.links_announced,
     )

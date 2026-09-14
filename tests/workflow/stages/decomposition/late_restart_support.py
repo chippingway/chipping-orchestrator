@@ -24,8 +24,13 @@ from orchestrator.workflow.engine import (
     issue_processing as _issue_processing,
     stage_targets as _stage_targets,
 )
-from orchestrator.workflow.late_split import endings as _endings, phases as _late_phases, state as _late_state
-from orchestrator.workflow.late_split.models import LateGeneration, LateResource, LateResourceKind, LateResourceState
+from orchestrator.workflow.late_split import (
+    endings as _endings,
+    obligations as _obligations,
+    phases as _late_phases,
+    state as _late_state,
+)
+from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation_terminal as _late_cancellation_terminal,
 )
@@ -100,7 +105,7 @@ EVENT_LATE_FAILURE = "late_failure"
 # A cancelled cycle whose ending reconciled everything it took on: the state
 # an operator is looking at when they decide to authorize a fresh attempt.
 CANCELLED = replace(
-    late_generation(resources=()).cancel(CANCELLED_AT),
+    late_generation(obligations=_obligations.LateObligations(resources=())).cancel(CANCELLED_AT),
     phase=_late_phases.LatePhase.CANCELLING,
 )
 
@@ -179,14 +184,14 @@ KEY_BRANCH = "branch"
 
 
 def owing_cycle(
-    owed: LateResourceState = LateResourceState.PENDING,
+    owed: _obligations.LateResourceState = _obligations.LateResourceState.PENDING,
 ) -> LateGeneration:
     """The same cancellation with one obligation the remote still holds."""
-    return CANCELLED.with_resource(LateResource(
-        kind=LateResourceKind.BRANCH,
+    return replace(CANCELLED, obligations=CANCELLED.obligations.with_resource(_obligations.LateResource(
+        kind=_obligations.LateResourceKind.BRANCH,
         target=SUPERSEDED_BRANCH,
         resource_state=owed,
-    ))
+    )))
 
 
 def owing_child() -> LateGeneration:
@@ -195,11 +200,11 @@ def owing_child() -> LateGeneration:
     The obligation the ENDING's reading walks past -- it lists branches, refs,
     and plan pull requests -- and only the domain's counts.
     """
-    return CANCELLED.with_resource(LateResource(
-        kind=LateResourceKind.CHILD,
+    return replace(CANCELLED, obligations=CANCELLED.obligations.with_resource(_obligations.LateResource(
+        kind=_obligations.LateResourceKind.CHILD,
         target=str(CHILD_NUMBER),
-        resource_state=LateResourceState.PENDING,
-    ))
+        resource_state=_obligations.LateResourceState.PENDING,
+    )))
 
 
 def crashed_ending(case) -> None:

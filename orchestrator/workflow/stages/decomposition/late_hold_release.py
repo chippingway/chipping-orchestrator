@@ -45,9 +45,9 @@ def _stale_hold(generation: LateGeneration) -> bool:
     """
     if generation.plan_pr_number is None or generation.plan_pr_body is None:
         return False
-    if not generation.has_publication_context:
+    if not generation.publication.is_complete:
         return False
-    return generation.published_pr_number != generation.plan_pr_number
+    return generation.publication.published_pr_number != generation.plan_pr_number
 
 
 def _settled_stale_hold(
@@ -75,7 +75,7 @@ def _settled_stale_hold(
         "restoring the first before marking the second",
         issue.number,
         generation.plan_pr_number,
-        generation.published_pr_number,
+        generation.publication.published_pr_number,
     )
     release = _release_hold(gh, issue, generation)
     if release.failed:

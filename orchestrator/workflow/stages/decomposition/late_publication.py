@@ -163,13 +163,13 @@ def _publication_undone(
     callers need is the STATE -- closed, and closed over the head the verdict
     was taken on -- and the close being there has already answered the rest.
     """
-    if not generation.has_publication_context:
+    if not generation.publication.is_complete:
         return ""
-    number = generation.published_pr_number
+    number = generation.publication.published_pr_number
     return _reading_undone(
         number,
         _read_publication(gh, issue, number),
-        generation.published_sha,
+        generation.publication.published_sha,
     )
 
 
