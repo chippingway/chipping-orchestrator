@@ -29,7 +29,7 @@ from dataclasses import replace
 from orchestrator.workflow.late_split import phases as _late_phases, state as _late_state
 from orchestrator.workflow.late_split.models import LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
-    late_children as _late_children,
+    late_child_records as _late_child_records,
     late_models as _late_models,
     late_sweep as _late_sweep,
     models as _models,
@@ -175,7 +175,7 @@ class ResumedWalkSealsNothingTest(
     def test_a_walk_short_of_the_lookup_seals_nothing(self) -> None:
         context, walk = self._resumed()
 
-        _late_children._sealed(context, walk)
+        _late_child_records._sealed(context, walk)
 
         self.assertIsNone(context.state.get(_KEY_SEALED))
 
@@ -187,7 +187,7 @@ class ResumedWalkSealsNothingTest(
         walk.past_the_unrecorded()
 
         with self.assertLogs(_WORKFLOW_LOG):
-            _late_children._sealed(context, walk)
+            _late_child_records._sealed(context, walk)
 
         self.assertTrue(context.state.get(_KEY_SEALED))
 
@@ -203,7 +203,7 @@ class ResumedWalkSealsNothingTest(
             state=self.github.read_pinned_state(self.issue),
             generation=cancelled,
         )
-        walk = _late_children._ChildWalk(
+        walk = _late_child_records._ChildWalk(
             plan=_models._SplitPlan.start(list(CHILDREN), True),
             known=(_KNOWN_CHILD,),
             snapshot_ref=SNAPSHOT_REF,

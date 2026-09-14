@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 13 paths and 16 pairs (16 production, 0
-test), all matching isolated diagnostics. One hundred thirteen pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 11 paths and 14 pairs (14 production, 0
+test), all matching isolated diagnostics. One hundred fifteen pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201 and WPS202. The files must stay until that set is empty and
 validation passes.
@@ -165,12 +165,19 @@ Implemented batches:
   tests pass. Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 20 remaining
   production pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate owner readings and settlement, restart effects and state projection,
+- `4cffe562`: separate owner readings and settlement, restart effects and state projection,
   and pull-request hold text, readings, and restoration. Four production pairs removed, completing removal of
   WPS204 exclusions. Of 341 compared function/method bodies and 196 whole definitions, all production bodies
   match; four test differences move patch targets to the defining owners, including the crash fixture's seam
   map. The initial focused run passed 1,718 tests; the repaired affected cases and documentation checks pass.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 16 remaining production
+  pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate child content, durable walk records, and orphan adoption;
+  separate split notices, supersession state, publication readings, and guarded closure effects. Two production
+  WPS202 pairs removed. Of 150 compared function/method bodies and 87 whole definitions, all production bodies
+  match; nine test differences move crash and race hooks to the defining owners. All 1,110 focused tests pass.
+  Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 14 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes

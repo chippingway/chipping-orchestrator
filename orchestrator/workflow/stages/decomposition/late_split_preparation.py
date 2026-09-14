@@ -17,6 +17,7 @@ from orchestrator.workflow.late_split.models import (
     LateFailure,
 )
 from orchestrator.workflow.stages.decomposition import (
+    late_child_content as _late_child_content,
     late_children as _late_children,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
@@ -179,7 +180,7 @@ def _refused_split(
     )
     if contradicted is not None:
         return _CONTRADICTED_PARK.format(reason=contradicted)
-    forged = _late_children._forged_receipt(children)
+    forged = _late_child_content._forged_receipt(children)
     if forged is not None:
         return _FORGED_RECEIPT_PARK.format(described=forged)
     return None

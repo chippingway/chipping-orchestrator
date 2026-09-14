@@ -30,7 +30,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_hold_text as _late_hold_text,
     late_park_state as _late_park_state,
     late_retirement as _late_retirement,
-    late_transaction as _late_transaction,
+    late_supersession as _late_supersession,
+    late_supersession_reading as _late_supersession_reading,
     parents as _parents,
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
@@ -425,7 +426,7 @@ class PublishedSupersessionRetryTest(PublishedSplitCase, unittest.TestCase):
         with self.assertRaises(KeyboardInterrupt):
             self._transact(
                 generation=self.generation,
-                killed=killed_after(_late_transaction, SUPERSEDED),
+                killed=killed_after(_late_supersession, SUPERSEDED),
             )
 
 
@@ -484,7 +485,7 @@ class PublishedSupersessionRaceTest(PublishedSplitCase, unittest.TestCase):
         # retirement stands in. Waved through, this pass would clear the
         # pointer, let the children loose, and delete the branch behind a
         # pull request that is open and carrying the superseded work.
-        with interleaved_after(_late_transaction, SUPERSEDED, self.reopened), self.assertLogs(level=ERROR):
+        with interleaved_after(_late_supersession, SUPERSEDED, self.reopened), self.assertLogs(level=ERROR):
             outcome = self._transact(generation=self.generation)
 
         self._assert_held_back(outcome)
@@ -502,7 +503,7 @@ class PublishedSupersessionRaceTest(PublishedSplitCase, unittest.TestCase):
 
     def _moved_inside_the_close(self, moved):
         """One pass with the world moving between the proof and the close."""
-        with interleaved_after(_late_transaction, PROVED, moved), self.assertLogs(level=ERROR):
+        with interleaved_after(_late_supersession_reading, PROVED, moved), self.assertLogs(level=ERROR):
             return self._transact(generation=self.generation)
 
     def _assert_held_back(self, outcome) -> None:
@@ -545,7 +546,7 @@ class PublishedRetirementRaceTest(PublishedSplitCase, unittest.TestCase):
         # cannot close. The label lands, because that write is what the window
         # IS. Nothing after it does: the children stay blocked for the
         # umbrella's own walk, and the branch stays on the ledger.
-        with interleaved_after(_late_transaction, HOLDS, self.reopened), self.assertLogs(level=ERROR):
+        with interleaved_after(_late_supersession_reading, HOLDS, self.reopened), self.assertLogs(level=ERROR):
             outcome = self._transact(generation=self.generation)
 
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
