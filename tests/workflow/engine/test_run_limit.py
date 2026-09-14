@@ -19,6 +19,7 @@ from orchestrator.workflow.engine import run_limit as _run_limit
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.engine import (
     run_budget_test_support as budget,
+    run_limit_seeds as _limit_seeds,
     run_limit_test_support as support,
 )
 
@@ -56,42 +57,42 @@ class StandingParkTest(unittest.TestCase):
         # a park something has already taken down, so neither answers here.
         for fields in (
             {},
-            {support.AWAITING_HUMAN: True},
-            {support.PARK_REASON: _run_limit.PARK_AGENT_RUN_LIMIT},
-            {support.AWAITING_HUMAN: True, support.PARK_REASON: "retry_cap"},
+            {_limit_seeds.AWAITING_HUMAN: True},
+            {_limit_seeds.PARK_REASON: _run_limit.PARK_AGENT_RUN_LIMIT},
+            {_limit_seeds.AWAITING_HUMAN: True, _limit_seeds.PARK_REASON: "retry_cap"},
         ):
             with self.subTest(fields=fields):
                 self.assertFalse(
-                    _run_limit._park_stands(support.state_with(**fields)),
+                    _run_limit._park_stands(_limit_seeds.state_with(**fields)),
                 )
 
     def test_the_pair_is_the_park(self) -> None:
-        self.assertTrue(_run_limit._park_stands(support.parked_state()))
+        self.assertTrue(_run_limit._park_stands(_limit_seeds.parked_state()))
 
 
 class ParkStagingTest(unittest.TestCase):
     """The durable half, and the sentence recorded beside it."""
 
     def test_a_first_refusal_stages_park_and_sentence(self) -> None:
-        state = support.state_with()
+        state = _limit_seeds.state_with()
 
-        self.assertTrue(_run_limit._stage_park(state, support.ledger()))
+        self.assertTrue(_run_limit._stage_park(state, _limit_seeds.ledger()))
 
-        self.assertTrue(state.get(support.AWAITING_HUMAN))
+        self.assertTrue(state.get(_limit_seeds.AWAITING_HUMAN))
         self.assertEqual(
-            state.get(support.PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
+            state.get(_limit_seeds.PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
         )
         staged = support.owed(state)
         self.assertEqual(staged.message, support.notice_text())
-        self.assertEqual(staged.allowance, support.ALLOWANCE)
-        self.assertEqual(staged.spent, support.ALLOWANCE)
+        self.assertEqual(staged.allowance, _limit_seeds.ALLOWANCE)
+        self.assertEqual(staged.spent, _limit_seeds.ALLOWANCE)
 
     def test_an_announced_park_owes_nothing_more(self) -> None:
         # The repeat this protocol exists to stop: the ledger is re-read on
         # every tick that reaches a spawn, so nothing else would stop it.
-        state = support.parked_state()
+        state = _limit_seeds.parked_state()
 
-        self.assertFalse(_run_limit._stage_park(state, support.ledger()))
+        self.assertFalse(_run_limit._stage_park(state, _limit_seeds.ledger()))
 
         self.assertNotIn(support.NOTICE, state.data)
 
@@ -99,18 +100,18 @@ class ParkStagingTest(unittest.TestCase):
         # The thread is searched for exactly the text the park recorded, so a
         # sentence reworded between the post and the write that records it
         # would find nothing and be said a second time.
-        state = support.parked_state(owing=True)
+        state = _limit_seeds.parked_state(owing=True)
         state.get(support.NOTICE)[_MESSAGE] = _SENTENCE
 
-        self.assertTrue(_run_limit._stage_park(state, support.ledger()))
+        self.assertTrue(_run_limit._stage_park(state, _limit_seeds.ledger()))
 
         self.assertEqual(support.owed(state).message, _SENTENCE)
 
     def test_another_readings_sentence_is_replaced(self) -> None:
         # It quotes an allowance or a spend the issue has moved off, and a
         # human shown those numbers is being asked about a state that is over.
-        state = support.parked_state(owing=True)
-        widened = support.ledger(allowance=_WIDENED, used=_SPENT_UNDER_IT)
+        state = _limit_seeds.parked_state(owing=True)
+        widened = _limit_seeds.ledger(allowance=_WIDENED, used=_SPENT_UNDER_IT)
 
         self.assertTrue(_run_limit._stage_park(state, widened))
 
@@ -124,11 +125,11 @@ class ParkStagingTest(unittest.TestCase):
         # leave a park that says nothing rather than a tick that raises.
         for recorded in _UNREADABLE_NOTICES:
             with self.subTest(recorded=recorded):
-                state = support.parked_state(**{support.NOTICE: recorded})
+                state = _limit_seeds.parked_state(**{support.NOTICE: recorded})
 
                 self.assertIsNone(support.owed(state))
                 self.assertFalse(
-                    _run_limit._stage_park(state, support.ledger()),
+                    _run_limit._stage_park(state, _limit_seeds.ledger()),
                 )
 
 
@@ -142,7 +143,7 @@ class _ParkCase(unittest.TestCase):
 
     def _park(self, state) -> None:
         _run_limit._park_exhausted(
-            self.gh, self.issue, state, support.ledger(), support.LAUNCH,
+            self.gh, self.issue, state, _limit_seeds.ledger(), support.LAUNCH,
         )
 
 
@@ -153,7 +154,7 @@ class ParkExhaustedTest(_ParkCase):
         # A notice on a thread no pinned state backs is one nothing would
         # reconcile, and the next tick would run the issue again beneath a
         # comment saying it had stopped.
-        state = support.state_with()
+        state = _limit_seeds.state_with()
 
         with (
             patch.object(self.gh, "comment", side_effect=RuntimeError("nope")),
@@ -162,16 +163,16 @@ class ParkExhaustedTest(_ParkCase):
             self._park(state)
 
         recorded = self.gh.pinned_data(support.ISSUE_NUMBER)
-        self.assertTrue(recorded[support.AWAITING_HUMAN])
+        self.assertTrue(recorded[_limit_seeds.AWAITING_HUMAN])
         self.assertEqual(
-            recorded[support.PARK_REASON], _run_limit.PARK_AGENT_RUN_LIMIT,
+            recorded[_limit_seeds.PARK_REASON], _run_limit.PARK_AGENT_RUN_LIMIT,
         )
         self.assertEqual(
             recorded[support.NOTICE][_MESSAGE], support.notice_text(),
         )
 
     def test_a_first_refusal_says_it_once(self) -> None:
-        state = support.state_with()
+        state = _limit_seeds.state_with()
 
         self._park(state)
 
@@ -185,7 +186,7 @@ class ParkExhaustedTest(_ParkCase):
         # A park already standing and already explained is re-taken silently,
         # and recorded as standing so it is not read as a workflow that
         # stopped for no reason.
-        self._park(support.parked_state())
+        self._park(_limit_seeds.parked_state())
 
         self.assertEqual(self.gh.posted_comments, [])
         self.assertEqual(self.gh.write_state_calls, 0)
@@ -199,7 +200,7 @@ class ParkExhaustedTest(_ParkCase):
             body=f"{config.HITL_MENTIONS} {support.notice_text()}",
             user=FakeUser(support.BOT_LOGIN),
         ))
-        state = support.parked_state(owing=True)
+        state = _limit_seeds.parked_state(owing=True)
 
         self._park(state)
 
@@ -210,7 +211,7 @@ class ParkExhaustedTest(_ParkCase):
     def test_an_unreadable_thread_is_said_nothing(self) -> None:
         # The sentence the thread may already carry is exactly the one about
         # to go out, so the park stands and the notice stays owed.
-        state = support.state_with()
+        state = _limit_seeds.state_with()
 
         with patch.object(
             self.gh, "comments_after", side_effect=RuntimeError("502"),
@@ -233,18 +234,18 @@ class ParkRecordTest(_ParkCase):
     def test_the_tick_that_takes_the_park_records_it(self) -> None:
         # The one budget transition a park is: the launch the ceiling turned
         # away, with the reading the refusal was made on under it.
-        self._park(support.state_with())
+        self._park(_limit_seeds.state_with())
 
         recorded = budget.audited(self.gh)[0]
         self.assertEqual(recorded[budget.PHASE], budget.EXHAUSTED)
-        self.assertEqual(recorded[budget.USED], support.ALLOWANCE)
+        self.assertEqual(recorded[budget.USED], _limit_seeds.ALLOWANCE)
         self.assertEqual(recorded[budget.REMAINING], 0)
         self.assertEqual(recorded[budget.REASON], budget.ALLOWANCE_SPENT)
 
     def test_a_park_owing_its_sentence_records_none(self) -> None:
         # The sentence is re-said because the thread was never told, but the
         # lifetime ended on the tick that took the park -- and it ends once.
-        self._park(support.owing_park())
+        self._park(_limit_seeds.owing_park())
 
         self.assertEqual(len(self.gh.posted_comments), 1)
         self.assertEqual(budget.audited(self.gh), [])
@@ -257,7 +258,7 @@ class NoticeDeliveryTest(unittest.TestCase):
         client, issue = support.issue_and_client()
         self.gh = client
         self.issue = issue
-        self.state = support.parked_state(owing=True)
+        self.state = _limit_seeds.parked_state(owing=True)
 
     def test_delivery_says_it_once_and_records_it(self) -> None:
         said = _run_limit._deliver_notice(self.gh, self.issue, self.state)
@@ -267,7 +268,7 @@ class NoticeDeliveryTest(unittest.TestCase):
         # The shared park clears the reason by contract, and the response
         # boundary a reply is measured against moves past the mention.
         self.assertEqual(
-            self.state.get(support.PARK_REASON),
+            self.state.get(_limit_seeds.PARK_REASON),
             _run_limit.PARK_AGENT_RUN_LIMIT,
         )
         self.assertEqual(
@@ -358,7 +359,7 @@ class NoticeReconciliationTest(unittest.TestCase):
         # already on the thread reads as absent unless it says otherwise, and
         # a caller told "absent" posts the duplicate this protocol stops.
         gh, issue = support.issue_and_client()
-        state = support.parked_state(owing=True)
+        state = _limit_seeds.parked_state(owing=True)
 
         with patch.object(gh, "comments_after", side_effect=RuntimeError("502")):
             reading = _run_limit._reconcile_notice(gh, issue, state)
@@ -370,7 +371,7 @@ class NoticeReconciliationTest(unittest.TestCase):
         gh, issue = support.issue_and_client()
 
         reading = _run_limit._reconcile_notice(
-            gh, issue, support.parked_state(),
+            gh, issue, _limit_seeds.parked_state(),
         )
 
         self.assertIs(reading, _run_limit.NoticeReading.SAID)
@@ -378,7 +379,7 @@ class NoticeReconciliationTest(unittest.TestCase):
 
     def _reconcile(self, *comments):
         gh, issue = support.issue_and_client(*comments)
-        state = support.parked_state(owing=True, **{
+        state = _limit_seeds.parked_state(owing=True, **{
             support.LAST_ACTION_COMMENT_ID: support.WATERMARK,
         })
         reading = _run_limit._reconcile_notice(gh, issue, state)
@@ -399,7 +400,7 @@ class NoticeReplayTest(unittest.TestCase):
         self.issue = issue
 
     def test_an_owed_sentence_is_said_and_recorded(self) -> None:
-        state = support.parked_state(owing=True)
+        state = _limit_seeds.parked_state(owing=True)
 
         self.assertTrue(
             _run_limit._replay_owed_notice(self.gh, self.issue, state),
@@ -414,7 +415,7 @@ class NoticeReplayTest(unittest.TestCase):
         self.assertEqual(support.phases(self.gh), [support.DELIVERED])
 
     def test_nothing_owed_and_no_park_replay_nothing(self) -> None:
-        for state in (support.parked_state(), support.state_with()):
+        for state in (_limit_seeds.parked_state(), _limit_seeds.state_with()):
             with self.subTest(state=state.data):
                 self.assertFalse(
                     _run_limit._replay_owed_notice(self.gh, self.issue, state),
@@ -424,7 +425,7 @@ class NoticeReplayTest(unittest.TestCase):
         self.assertEqual(self.gh.write_state_calls, 0)
 
     def test_an_unreadable_thread_is_left_owed(self) -> None:
-        state = support.parked_state(owing=True)
+        state = _limit_seeds.parked_state(owing=True)
 
         with patch.object(
             self.gh, "comments_after", side_effect=RuntimeError("502"),

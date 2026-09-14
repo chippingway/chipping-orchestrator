@@ -12,7 +12,7 @@ from orchestrator.observability.analytics import settings as analytics_settings,
 from orchestrator.observability.usage import metrics as _usage_metrics
 from orchestrator.workflow.engine import usage as engine_usage
 from tests.support.fakes import FakeGitHubClient
-from tests.workflow.engine import usage_test_support as support
+from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
 BACKEND_CODEX = support.BACKEND_CODEX
@@ -22,33 +22,33 @@ STAGE_IMPLEMENTING = support.STAGE_IMPLEMENTING
 ROLE_DEVELOPER = support.ROLE_DEVELOPER
 _ANALYTICS_FILENAME = support._ANALYTICS_FILENAME
 _ANALYTICS_PATH_ATTR = support._ANALYTICS_PATH_ATTR
-_CLAUDE_CACHE_WRITE_TOKENS = support._CLAUDE_CACHE_WRITE_TOKENS
-_CLAUDE_INPUT_TOKENS = support._CLAUDE_INPUT_TOKENS
-_CLAUDE_MODEL = support._CLAUDE_MODEL
-_CLAUDE_OUTPUT_TOKENS = support._CLAUDE_OUTPUT_TOKENS
+_CLAUDE_CACHE_WRITE_TOKENS = _usage_frames._CLAUDE_CACHE_WRITE_TOKENS
+_CLAUDE_INPUT_TOKENS = _usage_frames._CLAUDE_INPUT_TOKENS
+_CLAUDE_MODEL = _usage_frames._CLAUDE_MODEL
+_CLAUDE_OUTPUT_TOKENS = _usage_frames._CLAUDE_OUTPUT_TOKENS
 _CODEX_MODEL = support._CODEX_MODEL
 _DEVELOP_SKILL = support._DEVELOP_SKILL
 _EVENT_KEY = support._EVENT_KEY
 _FAKE_WT = support._FAKE_WT
 _IGNORED_PROMPT = support._IGNORED_PROMPT
-_INPUT_TOKENS_KEY = support._INPUT_TOKENS_KEY
-_OUTPUT_TOKENS_KEY = support._OUTPUT_TOKENS_KEY
+_INPUT_TOKENS_KEY = _usage_frames._INPUT_TOKENS_KEY
+_OUTPUT_TOKENS_KEY = _usage_frames._OUTPUT_TOKENS_KEY
 _REPORTED_COST_USD = support._REPORTED_COST_USD
 _REVIEW_SKILL = support._REVIEW_SKILL
 _RUN_AGENT_ATTR = support._RUN_AGENT_ATTR
 _agent_runner = support.agent_runner
-_SKILL_KEY = support._SKILL_KEY
-_SKILL_OUTPUT_TOKENS = support._SKILL_OUTPUT_TOKENS
+_SKILL_KEY = _usage_frames._SKILL_KEY
+_SKILL_OUTPUT_TOKENS = _usage_frames._SKILL_OUTPUT_TOKENS
 _TRACK_SKILLS_ATTR = support._TRACK_SKILLS_ATTR
 _TRAJECTORY_PATH_ATTR = support._TRAJECTORY_PATH_ATTR
 _USAGE_HELPER_ISSUE_NUMBER = support._USAGE_HELPER_ISSUE_NUMBER
-_USAGE_KEY = support._USAGE_KEY
+_USAGE_KEY = _usage_frames._USAGE_KEY
 _analytics_path = support._analytics_path
 _tracked_budget = support._tracked_budget
 _analytics_records = support._analytics_records
-_claude_stdout = support._claude_stdout
-_claude_stdout_with_skills = support._claude_stdout_with_skills
-_codex_stdout_no_model = support._codex_stdout_no_model
+_claude_stdout = _usage_frames._claude_stdout
+_claude_stdout_with_skills = _usage_frames._claude_stdout_with_skills
+_codex_stdout_no_model = _usage_frames._codex_stdout_no_model
 
 
 def _run_usage(

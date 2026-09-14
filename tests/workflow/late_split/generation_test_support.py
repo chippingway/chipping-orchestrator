@@ -22,17 +22,11 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import events as _events, state as _late_state
 from orchestrator.workflow.late_split.identity import RESOURCE_FINGERPRINT_LENGTH
 from orchestrator.workflow.late_split.models import (
-    LateFailure,
     LateGeneration,
     LatePhase,
     LateResource,
     LateResourceKind,
     LateResourceState,
-    LateVerdict,
-)
-from orchestrator.workflow.late_split.rewrites import (
-    LateRewriteKind,
-    LateRewriteProof,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -138,30 +132,6 @@ def rewritten_state(state: PinnedState) -> PinnedState:
     return state
 
 
-def verdict_event(**fields) -> _events.LateEvent:
-    """One adjudication's verdict, described by whatever it decided."""
-    return _events.LateEvent(family=_events.LateEventFamily.VERDICT, **fields)
-
-
-def cleanup_event(resource: LateResource) -> _events.LateEvent:
-    """One external obligation reconciled, or found still owed."""
-    return _events.LateEvent(
-        family=_events.LateEventFamily.CLEANUP, resource=resource,
-    )
-
-
-def transfer_event(**fields) -> _events.LateEvent:
-    """One exemption carried onto the commit a rewrite produced."""
-    return _events.LateEvent(**{
-        "family": _events.LateEventFamily.TRANSFER,
-        "rewrite_kind": LateRewriteKind.SQUASH,
-        "transfer_proof": LateRewriteProof.PUSHED,
-        "transferred_from_sha": TRANSFERRED_FROM_SHA,
-        "transferred_from_base_sha": TRANSFERRED_FROM_BASE_SHA,
-        **fields,
-    })
-
-
 def transferred_generation(**fields) -> LateGeneration:
     """The generation one transfer record is correlated by.
 
@@ -171,45 +141,6 @@ def transferred_generation(**fields) -> LateGeneration:
     nothing could be attributed to.
     """
     return measured_generation(**{**ENTERED_ON_PUBLICATION, **fields})
-
-
-def every_family() -> tuple:
-    """One valid event per family in the vocabulary, the transfer included."""
-    return (*family_cases(), transfer_event())
-
-
-def family_cases() -> tuple:
-    """One valid event per family whose record reads over any generation.
-
-    The transfer is deliberately not among them: its record is only written
-    past a publication, so a walk that built one over the pre-publication
-    generation beside this would be asserting on a record the contract
-    refuses. `every_family` is what a test covering the vocabulary walks.
-    """
-    cases = [
-        _events.LateEvent(family=_events.LateEventFamily.MEASUREMENT),
-        _events.LateEvent(
-            family=_events.LateEventFamily.VERDICT,
-            verdict=LateVerdict.SPLIT,
-            child_count=CHILD_COUNT,
-        ),
-        _events.LateEvent(
-            family=_events.LateEventFamily.FAILURE,
-            failure=LateFailure.MEASUREMENT_FAILED,
-        ),
-        _events.LateEvent(
-            family=_events.LateEventFamily.SNAPSHOT, resource=SNAPSHOT,
-        ),
-        _events.LateEvent(
-            family=_events.LateEventFamily.CLEANUP, resource=FIRST_CHILD,
-        ),
-        _events.LateEvent(family=_events.LateEventFamily.CANCELLATION),
-        _events.LateEvent(
-            family=_events.LateEventFamily.RESTART,
-            restart_step=_events.LateRestartStep.PENDING,
-        ),
-    ]
-    return tuple(cases)
 
 
 def measured_generation(**fields) -> LateGeneration:

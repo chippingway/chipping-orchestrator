@@ -3,7 +3,7 @@
 """Stateless pull-request helpers exposed by the fake GitHub client."""
 from __future__ import annotations
 
-from tests.support.github.models import FakePR
+from tests.support.github.pull_request_models import FakePR
 
 _STATE_CLOSED = "closed"
 _STATE_OPEN = "open"

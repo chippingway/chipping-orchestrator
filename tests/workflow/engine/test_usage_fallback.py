@@ -10,7 +10,7 @@ from orchestrator.agents import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings
 from orchestrator.workflow.engine import usage as engine_usage
 from tests.support.fakes import FakeGitHubClient
-from tests.workflow.engine import usage_test_support as support
+from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
 BACKEND_CODEX = support.BACKEND_CODEX
@@ -20,7 +20,7 @@ ROLE_DEVELOPER = support.ROLE_DEVELOPER
 _ANALYTICS_FILENAME = support._ANALYTICS_FILENAME
 _ANALYTICS_PATH_ATTR = support._ANALYTICS_PATH_ATTR
 _CLAUDE_FALLBACK_ISSUE_NUMBER = support._CLAUDE_FALLBACK_ISSUE_NUMBER
-_CLAUDE_MODEL = support._CLAUDE_MODEL
+_CLAUDE_MODEL = _usage_frames._CLAUDE_MODEL
 _CODEX_CACHED_TOKENS = support._CODEX_CACHED_TOKENS
 _CODEX_FALLBACK_ISSUE_NUMBER = support._CODEX_FALLBACK_ISSUE_NUMBER
 _CODEX_INPUT_TOKENS = support._CODEX_INPUT_TOKENS
@@ -29,8 +29,8 @@ _CODEX_OUTPUT_TOKENS = support._CODEX_OUTPUT_TOKENS
 _COST_USD_KEY = support._COST_USD_KEY
 _FAKE_WT = support._FAKE_WT
 _IGNORED_PROMPT = support._IGNORED_PROMPT
-_INPUT_TOKENS_KEY = support._INPUT_TOKENS_KEY
-_OUTPUT_TOKENS_KEY = support._OUTPUT_TOKENS_KEY
+_INPUT_TOKENS_KEY = _usage_frames._INPUT_TOKENS_KEY
+_OUTPUT_TOKENS_KEY = _usage_frames._OUTPUT_TOKENS_KEY
 _PatchedWorkflowMixin = support._PatchedWorkflowMixin
 _RUN_AGENT_ATTR = support._RUN_AGENT_ATTR
 _agent_runner = support.agent_runner
@@ -38,8 +38,8 @@ _TRAJECTORY_PATH_ATTR = support._TRAJECTORY_PATH_ATTR
 _analytics_path = support._analytics_path
 _tracked_budget = support._tracked_budget
 _analytics_records = support._analytics_records
-_claude_stdout = support._claude_stdout
-_codex_stdout_no_model = support._codex_stdout_no_model
+_claude_stdout = _usage_frames._claude_stdout
+_codex_stdout_no_model = _usage_frames._codex_stdout_no_model
 
 
 def _assert_codex_fallback_model(

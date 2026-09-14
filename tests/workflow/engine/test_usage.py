@@ -15,7 +15,7 @@ from orchestrator.workflow.stages.validating import (
     watermarks as _validating_watermarks,
 )
 from tests.support.fakes import FakeGitHubClient, FakeIssue, FakePR, make_issue
-from tests.workflow.engine import usage_test_support as support
+from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
 EVENT_AGENT_EXIT = support.EVENT_AGENT_EXIT
 EVENT_AGENT_SPAWN = support.EVENT_AGENT_SPAWN
@@ -31,16 +31,16 @@ TEST_REPO_SLUG = support.TEST_REPO_SLUG
 _AGENT_ROLE_KEY = support._AGENT_ROLE_KEY
 _ANALYTICS_FILENAME = support._ANALYTICS_FILENAME
 _AUDIT_ISSUE_NUMBER = support._AUDIT_ISSUE_NUMBER
-_CLAUDE_CACHE_WRITE_TOKENS = support._CLAUDE_CACHE_WRITE_TOKENS
-_CLAUDE_INPUT_TOKENS = support._CLAUDE_INPUT_TOKENS
-_CLAUDE_MODEL = support._CLAUDE_MODEL
-_CLAUDE_OUTPUT_TOKENS = support._CLAUDE_OUTPUT_TOKENS
+_CLAUDE_CACHE_WRITE_TOKENS = _usage_frames._CLAUDE_CACHE_WRITE_TOKENS
+_CLAUDE_INPUT_TOKENS = _usage_frames._CLAUDE_INPUT_TOKENS
+_CLAUDE_MODEL = _usage_frames._CLAUDE_MODEL
+_CLAUDE_OUTPUT_TOKENS = _usage_frames._CLAUDE_OUTPUT_TOKENS
 _COST_USD_KEY = support._COST_USD_KEY
 _DISABLED_SINK_ISSUE_NUMBER = support._DISABLED_SINK_ISSUE_NUMBER
 _EVENT_KEY = support._EVENT_KEY
 _IMPLEMENTING_ANALYTICS_ISSUE_NUMBER = support._IMPLEMENTING_ANALYTICS_ISSUE_NUMBER
-_INPUT_TOKENS_KEY = support._INPUT_TOKENS_KEY
-_OUTPUT_TOKENS_KEY = support._OUTPUT_TOKENS_KEY
+_INPUT_TOKENS_KEY = _usage_frames._INPUT_TOKENS_KEY
+_OUTPUT_TOKENS_KEY = _usage_frames._OUTPUT_TOKENS_KEY
 _PatchedWorkflowMixin = support._PatchedWorkflowMixin
 _REDACTION_ISSUE_NUMBER = support._REDACTION_ISSUE_NUMBER
 _REPORTED_COST_USD = support._REPORTED_COST_USD
@@ -52,7 +52,7 @@ _TIMEOUT_ISSUE_NUMBER = support._TIMEOUT_ISSUE_NUMBER
 _analytics_path = support._analytics_path
 _analytics_records = support._analytics_records
 _assert_redacted_record = support._assert_redacted_record
-_claude_stdout = support._claude_stdout
+_claude_stdout = _usage_frames._claude_stdout
 
 
 @dataclass(frozen=True)

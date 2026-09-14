@@ -28,6 +28,7 @@ from orchestrator.workflow.engine import (
 from tests.workflow.engine import (
     run_budget_test_support as budget,
     run_grant_test_support as grant,
+    run_limit_seeds as _limit_seeds,
     run_limit_test_support as support,
 )
 
@@ -140,7 +141,7 @@ class _ParkCase(unittest.TestCase):
 
     def _assert_ledger_untouched(self) -> None:
         self.assertNotIn(support.ALLOWANCE_FIELD, self.state.data)
-        self.assertEqual(self.state.get(support.USED_FIELD), support.ALLOWANCE)
+        self.assertEqual(self.state.get(support.USED_FIELD), _limit_seeds.ALLOWANCE)
 
 
 class GrantTest(_ParkCase):
@@ -155,9 +156,9 @@ class GrantTest(_ParkCase):
             recorded[support.ALLOWANCE_FIELD], grant.GRANTED_ALLOWANCE,
         )
         # Nothing here returns a run: what widens is the ceiling.
-        self.assertEqual(recorded[support.USED_FIELD], support.ALLOWANCE)
-        self.assertFalse(recorded[support.AWAITING_HUMAN])
-        self.assertIsNone(recorded[support.PARK_REASON])
+        self.assertEqual(recorded[support.USED_FIELD], _limit_seeds.ALLOWANCE)
+        self.assertFalse(recorded[_limit_seeds.AWAITING_HUMAN])
+        self.assertIsNone(recorded[_limit_seeds.PARK_REASON])
         self.assertEqual(support.phases(self.gh), [support.GRANTED])
 
     def test_the_command_is_said_and_consumed_once(self) -> None:
@@ -217,7 +218,7 @@ class GrantRecordTest(_ParkCase):
         self.assertEqual(recorded[budget.PHASE], budget.EXTENDED)
         self.assertEqual(recorded[budget.ALLOWANCE], grant.GRANTED_ALLOWANCE)
         # Nothing gives a run back, so what the grant bought is what is left.
-        self.assertEqual(recorded[budget.USED], support.ALLOWANCE)
+        self.assertEqual(recorded[budget.USED], _limit_seeds.ALLOWANCE)
         self.assertEqual(recorded[budget.REMAINING], grant.ADDED)
         self.assertNotIn(budget.AGENT_ROLE, recorded)
         self.assertNotIn(budget.RESERVATION_ID, recorded)
@@ -278,7 +279,7 @@ class RefusalTest(_ParkCase):
 
                 self.assertFalse(lifted)
                 self._assert_ledger_untouched()
-                self.assertTrue(self.state.get(support.AWAITING_HUMAN))
+                self.assertTrue(self.state.get(_limit_seeds.AWAITING_HUMAN))
                 self.assertEqual(len(self.gh.posted_comments), 1)
                 self.assertEqual(support.phases(self.gh), [support.REFUSED])
 
@@ -355,8 +356,8 @@ class UnansweredRequestTest(_ParkCase):
         for reason in (None, "retry_cap", "agent_question"):
             with self.subTest(park_reason=reason):
                 parked = grant.spent_state(**{
-                    support.AWAITING_HUMAN: reason is not None,
-                    support.PARK_REASON: reason,
+                    _limit_seeds.AWAITING_HUMAN: reason is not None,
+                    _limit_seeds.PARK_REASON: reason,
                 })
 
                 lifted = self._lift(grant.command(grant.VALID), state=parked)

@@ -11,7 +11,7 @@ from orchestrator.agents import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings
 from orchestrator.workflow.engine import usage as engine_usage
 from tests.support.fakes import FakeGitHubClient
-from tests.workflow.engine import usage_test_support as support
+from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
 BACKEND_CODEX = support.BACKEND_CODEX
@@ -32,14 +32,14 @@ _RUN_AGENT_ATTR = support._RUN_AGENT_ATTR
 _agent_runner = support.agent_runner
 _RaisingOnSkillGitHubClient = support._RaisingOnSkillGitHubClient
 _SKILL_AGENT_ISSUE_NUMBER = support._SKILL_AGENT_ISSUE_NUMBER
-_SKILL_KEY = support._SKILL_KEY
+_SKILL_KEY = _usage_frames._SKILL_KEY
 _SKILL_REUSE_ISSUE_NUMBER = support._SKILL_REUSE_ISSUE_NUMBER
 _STAGE_KEY = support._STAGE_KEY
 _TRACK_SKILLS_ATTR = support._TRACK_SKILLS_ATTR
 _TRAJECTORY_PATH_ATTR = support._TRAJECTORY_PATH_ATTR
-_claude_stdout = support._claude_stdout
+_claude_stdout = _usage_frames._claude_stdout
 _tracked_budget = support._tracked_budget
-_claude_stdout_with_skills = support._claude_stdout_with_skills
+_claude_stdout_with_skills = _usage_frames._claude_stdout_with_skills
 _skill_events = support._skill_events
 
 

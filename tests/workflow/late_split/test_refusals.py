@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 from orchestrator.workflow.late_split import events as _events, formats as _formats, telemetry as _telemetry
 from orchestrator.workflow.late_split.models import LateVerdict
 from tests.support.fakes import FakeGitHubClient
-from tests.workflow.late_split import generation_test_support as _support
+from tests.workflow.late_split import event_test_support as _event_support, generation_test_support as _support
 
 _STAGE = "decomposing"
 _FAMILY_KEY = "family"
@@ -18,7 +18,7 @@ _ERROR = "ERROR"
 _UNNAMED = _formats.UNNAMED
 _ANALYTICS_APPEND = _support.ANALYTICS_APPEND
 
-_VERDICT_EVENT = _support.verdict_event(verdict=LateVerdict.SINGLE)
+_VERDICT_EVENT = _event_support.verdict_event(verdict=LateVerdict.SINGLE)
 # An agent's rationale, naming a path. Offered as a "SHA" the record boundary
 # refuses it, as a family the event contract does -- and this is what the
 # emitter is allowed to say about either afterwards.

@@ -6,7 +6,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from tests.support.github.models import FakeComment, FakeIssue, FakePR
+from tests.support.github.models import FakeComment, FakeIssue
+from tests.support.github.pull_request_models import FakePR
 
 _LabelHistory = list[tuple[int, str | None]]
 _CommentHistory = list[tuple[int, str]]

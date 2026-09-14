@@ -10,7 +10,8 @@ from github import GithubException
 
 from orchestrator.github import pull_requests as _pull_requests
 from orchestrator.github.client import GitHubClient
-from tests.support.github.models import FakeLabel, FakePR
+from tests.support.github.models import FakeLabel
+from tests.support.github.pull_request_models import FakePR
 
 _STATE_OPEN = "open"
 _STATE_CLOSED = "closed"

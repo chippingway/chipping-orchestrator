@@ -15,14 +15,12 @@ from orchestrator.workflow.engine.run_budget import AgentRunLaunch
 from orchestrator.workflow.engine.run_ledger import (
     AGENT_RUN_ALLOWANCE,
     AGENT_RUNS_USED,
-    AgentRunLedger,
 )
 from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.workflow.engine import run_limit_seeds as _limit_seeds
 from tests.workflow.fixtures import LABEL_IMPLEMENTING
 
 ISSUE_NUMBER = 1541
-
-ALLOWANCE = 50
 
 RUN_LIMIT_EVENT = "agent_run_limit"
 
@@ -37,10 +35,6 @@ GRANTED = _run_limit.RunLimitPhase.GRANTED
 REFUSED = _run_limit.RunLimitPhase.REFUSED
 
 WATERMARK = 900
-
-AWAITING_HUMAN = "awaiting_human"
-
-PARK_REASON = "park_reason"
 
 LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 
@@ -65,44 +59,8 @@ LAUNCH = AgentRunLaunch(
 )
 
 
-def ledger(*, allowance: int = ALLOWANCE, used: int | None = None):
-    """One spent ledger, as the reader that refuses a spawn hands it over."""
-    return AgentRunLedger(
-        configured=ALLOWANCE,
-        allowance=allowance,
-        used=allowance if used is None else used,
-        reservation=None,
-    )
-
-
-def state_with(**fields) -> PinnedState:
-    return PinnedState(comment_id=1, data=dict(fields))
-
-
-def parked_state(*, owing: bool = False, **fields) -> PinnedState:
-    """An issue standing on an agent-run-limit park, said or still owed.
-
-    Every field is overridable, including the ones that make the park what it
-    is: what a hand-edited or older pinned comment leaves behind is exactly
-    what the safe defaults are read against.
-    """
-    standing = {
-        AWAITING_HUMAN: True,
-        PARK_REASON: _run_limit.PARK_AGENT_RUN_LIMIT,
-    }
-    parked = state_with(**{**standing, **fields})
-    if owing:
-        _run_limit._owe_notice(parked, ledger())
-    return parked
-
-
-def owing_park() -> PinnedState:
-    """A park already standing whose sentence the thread was never told."""
-    return parked_state(owing=True)
-
-
-def notice_text(*, allowance: int = ALLOWANCE, used: int | None = None) -> str:
-    return _run_limit._limit_message(ledger(allowance=allowance, used=used))
+def notice_text(*, allowance: int = _limit_seeds.ALLOWANCE, used: int | None = None) -> str:
+    return _run_limit._limit_message(_limit_seeds.ledger(allowance=allowance, used=used))
 
 
 def issue_and_client(*comments):
