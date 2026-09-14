@@ -95,7 +95,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.engine.comments import _SECTION_SEP
 from orchestrator.workflow.late_split.events import LateVerdictCategory
@@ -164,11 +164,11 @@ _QUESTION_RULE = (
 
 
 def _build_late_decompose_prompt(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     comments_text: str,
     generation: LateGeneration,
-    specs: list[config.RepoSpec],
+    specs: list[_config_models.RepoSpec],
 ) -> str:
     """Compose the late adjudication prompt for one frozen candidate."""
     body = issue.body or _NO_BODY

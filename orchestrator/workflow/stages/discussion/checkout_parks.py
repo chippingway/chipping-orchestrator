@@ -22,7 +22,7 @@ the dirty one would go looking for changes that were never named.
 """
 from __future__ import annotations
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.stages.discussion import (
     models as _models,

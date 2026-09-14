@@ -15,7 +15,7 @@ class ConfigDiagnosticsTest(unittest.TestCase):
     """
 
     def test_config_error_carries_message_and_code(self) -> None:
-        from orchestrator.config import _config_error
+        from orchestrator.config.settings import _config_error
 
         error_context = self.assertRaises(SystemExit)
         with error_context:
@@ -29,7 +29,7 @@ class ConfigDiagnosticsTest(unittest.TestCase):
         import io
         from contextlib import redirect_stderr, redirect_stdout
 
-        from orchestrator.config import _config_warning
+        from orchestrator.config.settings import _config_warning
 
         out, err = io.StringIO(), io.StringIO()
         with redirect_stdout(out), redirect_stderr(err):

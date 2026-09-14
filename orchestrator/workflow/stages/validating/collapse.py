@@ -69,7 +69,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     naming as _naming,
@@ -99,7 +99,7 @@ _AWAITING_HUMAN = "awaiting_human"
 
 def _recovers_a_recorded_collapse(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
 ) -> bool:
@@ -124,7 +124,7 @@ def _recovers_a_recorded_collapse(
 
 def _finished_collapse(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
 ) -> bool:
@@ -144,7 +144,7 @@ def _finished_collapse(
 
 
 def _checkout_of(
-    spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> Path:
     """The checkout this recovery reads, never one it rebuilt over.
 
@@ -180,7 +180,7 @@ def _checkout_of(
 
 def _held_by_another_park(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
 ) -> bool:

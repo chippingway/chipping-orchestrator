@@ -61,7 +61,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands
 from orchestrator.git.measurement import commits
 from orchestrator.git.measurement.models import (
@@ -160,7 +160,7 @@ _NUL_SEPARATOR = "\0"
 
 
 def _measure_candidate(
-    spec: config.RepoSpec, worktree: Path, revision: str,
+    spec: _config_models.RepoSpec, worktree: Path, revision: str,
 ) -> AdditionMeasurement:
     """Measure what `revision` adds over the frozen remote base, or say why not.
 

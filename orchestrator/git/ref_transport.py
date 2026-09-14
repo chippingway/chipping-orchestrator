@@ -46,7 +46,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands, credentials, locks
 
 # The channel is named for the git-plumbing domain rather than for this
@@ -145,7 +145,7 @@ def _remote_ref_read(
 
 
 def _remote_ref_sha(
-    spec: config.RepoSpec, worktree: Path, ref: str,
+    spec: _config_models.RepoSpec, worktree: Path, ref: str,
 ) -> str | None:
     """Ask the REMOTE what one fully-qualified ref resolves to.
 
@@ -178,7 +178,7 @@ def _remote_ref_sha(
 
 
 def _push_ref(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     worktree: Path,
     *,
     ref: str,
@@ -207,7 +207,7 @@ def _push_ref(
 
 
 def _delete_remote_ref(
-    spec: config.RepoSpec, worktree: Path, *, ref: str, expected: str,
+    spec: _config_models.RepoSpec, worktree: Path, *, ref: str, expected: str,
 ) -> bool:
     """Delete one fully-qualified ref the caller has just read.
 
@@ -226,7 +226,7 @@ def _delete_remote_ref(
 
 
 def _authed_ref_update(
-    spec: config.RepoSpec, worktree: Path, update: _RefUpdate,
+    spec: _config_models.RepoSpec, worktree: Path, update: _RefUpdate,
 ) -> bool:
     """Run one lease-pinned ref update under the whole transport envelope.
 

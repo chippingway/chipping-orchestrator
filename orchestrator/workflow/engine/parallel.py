@@ -36,7 +36,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import (
     dispatch as _dispatch,
@@ -48,7 +48,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 def _drain_family_bucket(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     family_numbers: list[int],
     *,
     semaphore_cm: contextlib.AbstractContextManager,
@@ -78,7 +78,7 @@ def _drain_family_bucket(
 @dataclass(frozen=True)
 class _ParallelTickPlan:
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     partition: _dispatch._PollablePartition
     semaphore_cm: contextlib.AbstractContextManager
 
@@ -131,7 +131,7 @@ class _ParallelTickPlan:
 
 
 def _drain_parallel_futures(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     futures: dict[Any, Any],
     family_sentinel: object,
 ) -> None:
@@ -156,7 +156,7 @@ def _drain_parallel_futures(
 
 def _run_parallel_tick(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     limit: int,
     semaphore_cm: contextlib.AbstractContextManager,
 ) -> None:

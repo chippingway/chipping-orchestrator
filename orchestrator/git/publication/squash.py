@@ -40,7 +40,7 @@ have taken.
 """
 from __future__ import annotations
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement import commits as measurement_commits
 from orchestrator.git.publication import models, planning, resume, rewrite, standing
 from orchestrator.git.verification import status as _worktree_status

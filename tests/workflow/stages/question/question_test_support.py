@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import (
     BACKEND_CLAUDE,

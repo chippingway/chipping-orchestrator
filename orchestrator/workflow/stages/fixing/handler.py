@@ -34,7 +34,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import guards as _guards, terminals as _terminals
@@ -80,7 +80,7 @@ def _park_fixing_without_pr(gh: GitHubClient, issue: Issue, state) -> None:
     gh.write_pinned_state(issue, state)
 
 
-def _fixing_preflight(gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state):
+def _fixing_preflight(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state):
     """Fetch the PR and run the pre-rescan guards shared with
     `_handle_in_review`: PR-state terminals, a closed issue with no
     resolvable PR, and a `fixing` label with no pinned `pr_number`.
@@ -148,7 +148,7 @@ def _fixing_preflight(gh: GitHubClient, spec: config.RepoSpec, issue: Issue, sta
 
 
 def _publish_stranded_fix(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state, spends,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state, spends,
 ) -> _models._StrandedPublication:
     """Push a fix an earlier run committed to the worktree but never published.
 
@@ -213,7 +213,7 @@ def _publish_stranded_fix(
 
 
 def _bounce_without_feedback(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state,
 ) -> None:
     """Drop the route bookkeeping and hand the issue back to `validating`.
 
@@ -252,7 +252,7 @@ def _bounce_without_feedback(
     gh.write_pinned_state(issue, state)
 
 
-def _handle_fixing(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     state = gh.read_pinned_state(issue)
 
     pr = _fixing_preflight(gh, spec, issue, state)

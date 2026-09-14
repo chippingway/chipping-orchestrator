@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import retry_budget as _retry_budget
 from tests.support.fakes import FakeGitHubClient, make_issue

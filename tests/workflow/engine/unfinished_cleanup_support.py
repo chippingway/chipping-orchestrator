@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.snapshots import refs as _snapshot_refs
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,

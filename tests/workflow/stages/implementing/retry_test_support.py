@@ -7,8 +7,8 @@ from __future__ import annotations
 from types import MappingProxyType
 from unittest import mock
 
-from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
+from orchestrator.config import settings as config
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
 from orchestrator.workflow.engine import (

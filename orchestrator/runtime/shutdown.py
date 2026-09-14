@@ -23,8 +23,8 @@ import signal
 import threading
 from typing import Self
 
-from orchestrator import config
 from orchestrator.agents import processes as _agent_processes
+from orchestrator.config import settings as config
 from orchestrator.runtime.state import SIGNAL_EXIT_BASE, RuntimeState
 
 log = logging.getLogger("orchestrator")

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.publication import probes
 from tests.support.replay_repository import ReplayRepositoryMixin, base_tip
 
@@ -70,7 +70,7 @@ class ForkPointRealGitTest(ReplayRepositoryMixin, unittest.TestCase):
     def test_a_base_ref_nothing_fetched_reads_nothing(self) -> None:
         # Not a base of no length: a reading that did not happen at all, which
         # every caller answers with no evidence rather than with a range.
-        unfetched = config.RepoSpec(
+        unfetched = _config_models.RepoSpec(
             slug=self.replay.spec.slug,
             target_root=self.replay.worktree,
             base_branch=UNFETCHED_BASE,

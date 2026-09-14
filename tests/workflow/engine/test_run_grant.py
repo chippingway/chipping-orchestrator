@@ -19,7 +19,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.workflow.engine import (
     run_budget as _run_budget,
     run_grant as _run_grant,

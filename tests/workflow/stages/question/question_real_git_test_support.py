@@ -6,7 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 
 KEY_QUESTION_SESSION_ID = "question_session_id"
 
@@ -172,8 +172,8 @@ def _seed_target_root(td: Path) -> tuple[Path, str]:
     return target, base_sha
 
 
-def _spec_for(target_root: Path) -> config.RepoSpec:
-    return config.RepoSpec(
+def _spec_for(target_root: Path) -> _config_models.RepoSpec:
+    return _config_models.RepoSpec(
         slug="orch/realgit",
         target_root=target_root,
         base_branch="main",

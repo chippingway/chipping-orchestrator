@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 
 
 @dataclass(frozen=True)
@@ -37,7 +37,7 @@ class IssueArtifacts:
     several names for one issue, not several issues.
     """
 
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue_number: int
     worktrees: tuple[Path, ...]
     branches: tuple[str, ...]

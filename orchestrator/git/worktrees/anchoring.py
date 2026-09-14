@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands, locks
 from orchestrator.git.worktrees import paths
 
@@ -19,7 +19,7 @@ log = logging.getLogger("orchestrator.worktree_lifecycle")
 
 
 def _fetch_for_restore(
-    spec: config.RepoSpec, issue_number: int, branch: str,
+    spec: _config_models.RepoSpec, issue_number: int, branch: str,
 ) -> bool:
     """Fetch one ref a checkout may be restored from, saying so when it fails.
 
@@ -38,7 +38,7 @@ def _fetch_for_restore(
 
 
 def _anchor_pr_worktree(
-    spec: config.RepoSpec, issue_number: int, *, branch: str, head_sha: str,
+    spec: _config_models.RepoSpec, issue_number: int, *, branch: str, head_sha: str,
 ) -> str | None:
     """Bring the per-issue branch, and its checkout, onto a PR's own head.
 
@@ -87,7 +87,7 @@ def _anchor_pr_worktree(
 
 
 def _anchor_target(
-    spec: config.RepoSpec, issue_number: int, branch: str, head_sha: str,
+    spec: _config_models.RepoSpec, issue_number: int, branch: str, head_sha: str,
 ) -> str | None:
     """The commit the branch has to end up on, or None when nothing says which.
 
@@ -164,7 +164,7 @@ def _unanchorable_branch_reading(remote_tip: str | None) -> str:
 
 
 def _base_anchor(
-    spec: config.RepoSpec, issue_number: int, branch: str,
+    spec: _config_models.RepoSpec, issue_number: int, branch: str,
 ) -> str | None:
     """The base tip, freshly fetched, as the commit a finished PR ends on.
 
@@ -197,7 +197,7 @@ def _base_anchor(
     return _resolved_commit(spec, base_ref) or None
 
 
-def _resolved_commit(spec: config.RepoSpec, revision: str) -> str:
+def _resolved_commit(spec: _config_models.RepoSpec, revision: str) -> str:
     """The SHA a revision names in the parent clone, or '' when it names none."""
     resolved = commands._git_hardened(
         "rev-parse", "--verify", "--quiet", revision, cwd=spec.target_root,
@@ -208,7 +208,7 @@ def _resolved_commit(spec: config.RepoSpec, revision: str) -> str:
 
 
 def _move_branch_onto(
-    spec: config.RepoSpec, issue_number: int, branch: str, head_sha: str,
+    spec: _config_models.RepoSpec, issue_number: int, branch: str, head_sha: str,
 ) -> bool:
     """Move the branch to `head_sha`, taking its checkout with it.
 

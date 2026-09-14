@@ -35,7 +35,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import paths
 
 # The channel is named for the worktree-lifecycle domain rather than for this
@@ -60,12 +60,12 @@ class CheckoutClaim:
     that happens to be alone.
     """
 
-    owner: config.RepoSpec | None
-    claimants: tuple[config.RepoSpec, ...]
+    owner: _config_models.RepoSpec | None
+    claimants: tuple[_config_models.RepoSpec, ...]
 
 
 def _slugs_by_worktrees_root(
-    specs: Iterable[config.RepoSpec],
+    specs: Iterable[_config_models.RepoSpec],
 ) -> dict[Path, tuple[str, ...]]:
     """Group the configured slugs by the checkout directory each derives."""
     by_root: dict[Path, tuple[str, ...]] = {}
@@ -76,7 +76,7 @@ def _slugs_by_worktrees_root(
 
 
 def _countable_legacy_checkouts(
-    specs: Iterable[config.RepoSpec], found: frozenset[int],
+    specs: Iterable[_config_models.RepoSpec], found: frozenset[int],
 ) -> frozenset[int]:
     """The flat `issue-<n>` directories that are checkouts rather than roots.
 
@@ -95,7 +95,7 @@ def _countable_legacy_checkouts(
 
 def _legacy_checkout_claim(
     clone: Path | None,
-    clones: Mapping[config.RepoSpec, Path | None],
+    clones: Mapping[_config_models.RepoSpec, Path | None],
     subject: str,
 ) -> CheckoutClaim:
     """Who a flat checkout could be a worktree of, and whether that was settled.
@@ -138,7 +138,7 @@ def _legacy_checkout_claim(
 
 
 def _report_unsettled(
-    claimants: tuple[config.RepoSpec, ...], subject: str,
+    claimants: tuple[_config_models.RepoSpec, ...], subject: str,
 ) -> None:
     """Say why a flat checkout was not charged to anybody.
 
@@ -168,7 +168,7 @@ def _report_unsettled(
 
 
 def _colliding_worktree_slugs(
-    specs: Iterable[config.RepoSpec],
+    specs: Iterable[_config_models.RepoSpec],
 ) -> tuple[str, ...]:
     """The slugs whose checkout directory is not theirs alone.
 

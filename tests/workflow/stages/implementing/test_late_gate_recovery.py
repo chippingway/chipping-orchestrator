@@ -18,7 +18,7 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FrozenCommit, MeasurementFailure
 from tests.workflow.fixtures import (
     LABEL_DECOMPOSING,

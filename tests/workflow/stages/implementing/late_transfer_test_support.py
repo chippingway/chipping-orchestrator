@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.measurement.models import (
     AdditionMeasurement,
     ContributionFingerprint,
@@ -86,7 +86,7 @@ OTHER_DIGEST = "f" * DIGEST_LENGTH
 
 WORKTREE = Path("/tmp/orchestrator-test-late-transfer")
 
-SPEC = config.RepoSpec(
+SPEC = _config_models.RepoSpec(
     slug="chippingway/orchestrator",
     target_root=Path("/tmp/orchestrator-test-target-root"),
     base_branch="main",

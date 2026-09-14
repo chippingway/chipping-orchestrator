@@ -28,7 +28,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import drift as _drift, guards as _guards, terminals as _terminals
@@ -132,7 +132,7 @@ def _park_rejected_children(
 
 def _remaining_manually_closed(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     scan: _ChildScan,
     candidates: list[int],
 ) -> list[int]:
@@ -148,7 +148,7 @@ def _remaining_manually_closed(
 
 
 def _park_manually_closed_children(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
     scan: _ChildScan,
 ) -> bool:
     """Park the parent when a child was closed without reaching a terminal
@@ -195,7 +195,7 @@ def _park_manually_closed_children(
 
 def _parked_on_children(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     scan: _ChildScan,
@@ -217,7 +217,7 @@ def _parked_on_children(
 
 def _usable_child_scan(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     children: list,

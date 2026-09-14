@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     candidate_layout as _layouts,
     inventory,
@@ -20,7 +20,7 @@ from orchestrator.git.worktrees import (
 from orchestrator.git.worktrees.candidates import IssueArtifacts, MaintenanceCandidate, MaintenanceScan
 
 # One issue of one repository, as both halves of a discovery key it.
-CandidateKey = tuple[config.RepoSpec, int]
+CandidateKey = tuple[_config_models.RepoSpec, int]
 
 
 def _widened(
@@ -117,7 +117,7 @@ def _keyed_candidate(
 
 
 def _maintenance_candidates(
-    specs: Sequence[config.RepoSpec],
+    specs: Sequence[_config_models.RepoSpec],
 ) -> MaintenanceScan:
     """Every candidate a reclamation may consider, over host and remote.
 

@@ -15,7 +15,7 @@ import contextlib
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import credentials as _config_credentials
 from orchestrator.git import ref_discovery
 from tests.git.token_transport_test_support import (
     FAKE_TOKEN,
@@ -65,7 +65,7 @@ def _token_bearing(run_recorder, token: str = FAKE_TOKEN):
     """Run a listing case with the recorder in place and a token resolved."""
     with (
         patch(SUBPROCESS_RUN, side_effect=run_recorder),
-        patch.object(config, TOKEN_RESOLVER, return_value=token),
+        patch.object(_config_credentials, TOKEN_RESOLVER, return_value=token),
     ):
         yield
 

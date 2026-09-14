@@ -21,7 +21,7 @@ import unittest
 from collections.abc import Sequence
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import discovery, paths, probes
 from orchestrator.git.worktrees.candidates import MaintenanceCandidate
 from tests.git.worktrees.artifact_test_support import (
@@ -56,7 +56,7 @@ class _CloneOfAllBut:
     otherwise send it back to itself.
     """
 
-    def __init__(self, unreadable: config.RepoSpec) -> None:
+    def __init__(self, unreadable: _config_models.RepoSpec) -> None:
         self._unreadable = unreadable
         self._real = probes._checkout_clone
 
@@ -114,7 +114,7 @@ class _DiscoveryTestCase(unittest.TestCase):
             branch or self.branch,
         )
 
-    def sibling_on_this_clone(self) -> config.RepoSpec:
+    def sibling_on_this_clone(self) -> _config_models.RepoSpec:
         """A second configured repository over the very same clone.
 
         A public and a private remote across one checkout, which is the shape
@@ -125,7 +125,7 @@ class _DiscoveryTestCase(unittest.TestCase):
         self.world.serve_beside(sibling, SIBLING_REMOTE_DIR)
         return sibling
 
-    def sibling_on_its_own_clone(self) -> config.RepoSpec:
+    def sibling_on_its_own_clone(self) -> _config_models.RepoSpec:
         """A second configured repository, on a clone and a remote of its own.
 
         What a multi-repo host normally looks like: the entries do not share a
@@ -138,7 +138,7 @@ class _DiscoveryTestCase(unittest.TestCase):
         return sibling
 
     def discovered(
-        self, specs: Sequence[config.RepoSpec] | None = None,
+        self, specs: Sequence[_config_models.RepoSpec] | None = None,
     ) -> tuple[MaintenanceCandidate, ...]:
         """Every candidate the discovery finds on this host and its remote."""
         return discovery._maintenance_candidates(

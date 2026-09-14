@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.publication import models as _publication
 from orchestrator.git.publication.models import _SquashOutcome
 from tests.support.fakes import FakePRRef

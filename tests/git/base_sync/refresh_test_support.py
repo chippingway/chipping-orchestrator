@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import refresh as _base_refresh
 from tests.git.base_sync.sync_test_support import (
     _diverged,
@@ -175,7 +175,7 @@ class _RebaseAnchorRecorder:
 
 class _SyncWorktreeWithBaseFixture:
     def setUp(self) -> None:
-        self.spec = config.RepoSpec(
+        self.spec = _config_models.RepoSpec(
             slug=SLUG,
             target_root=Path("/tmp/refresh-target"),
             base_branch=BASE_BRANCH,

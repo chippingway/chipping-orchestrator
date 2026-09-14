@@ -27,7 +27,7 @@ import contextlib
 from types import MappingProxyType
 from unittest.mock import MagicMock
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.workflow import fixtures as _support
 from tests.workflow.engine.lifetime_models import ALLOWANCE, REFUSED_TICKS, Journey, Leg
 from tests.workflow.engine.lifetime_test_support import BRANCH, DEV_SESSION, PR_NUMBER

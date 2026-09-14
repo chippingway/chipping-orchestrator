@@ -7,8 +7,8 @@ import unittest
 from dataclasses import dataclass
 from unittest.mock import patch
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import settings as config
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.stages.validating import (
     handler as _validating,

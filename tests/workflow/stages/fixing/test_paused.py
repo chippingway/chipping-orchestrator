@@ -15,7 +15,7 @@ import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.labels import PAUSED_LABEL
 from tests.support.fakes import (
     FakeComment,

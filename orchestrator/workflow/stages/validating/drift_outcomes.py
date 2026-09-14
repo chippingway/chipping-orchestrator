@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, messages as _messages
@@ -45,7 +45,7 @@ def _post_drift_ack(
 
 def _dispose_user_content_change_result(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     run: _models._DevFixRun,
@@ -74,7 +74,7 @@ def _dispose_user_content_change_result(
 
 def _post_user_content_change_result(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     *context_args,
     **fields,

@@ -22,7 +22,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.workflow.fixtures import (
     KEY_LAST_ACTION_COMMENT_ID,
     _agent,

@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, call
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import refresh
 from tests.git.base_sync.sync_test_support import _git_result, _patch_base_sync
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -39,7 +39,7 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, str(self.tmpdir), ignore_errors=True)
         self.target_root = self.tmpdir / "target"
         self.target_root.mkdir()
-        self.spec = config.RepoSpec(
+        self.spec = _config_models.RepoSpec(
             slug=SLUG,
             target_root=self.target_root,
             base_branch=BASE_BRANCH,
@@ -111,7 +111,7 @@ class RefreshBaseAndWorktreesTest(unittest.TestCase):
         # `remote_name != origin` falls back to the ambient git
         # credential helper -- which fails under systemd with
         # `terminal prompts disabled`.
-        private_spec = config.RepoSpec(
+        private_spec = _config_models.RepoSpec(
             slug=PRIVATE_SLUG,
             target_root=self.target_root,
             base_branch=PRIVATE_BASE_BRANCH,
@@ -147,7 +147,7 @@ class SyncWorktreeWithBaseTest(unittest.TestCase):
     """The per-worktree gates that end a sync before any rewrite runs."""
 
     def setUp(self) -> None:
-        self.spec = config.RepoSpec(
+        self.spec = _config_models.RepoSpec(
             slug=SLUG,
             target_root=Path("/tmp/refresh-target"),
             base_branch=BASE_BRANCH,

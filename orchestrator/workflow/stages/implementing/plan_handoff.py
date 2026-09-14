@@ -47,7 +47,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     naming as _naming,
     recovery as _worktree_recovery,
@@ -64,7 +64,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 
 def _reconcile_open_plan_handoff(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """Catch an unspent handoff up to its plan PR, or hold the tick on it."""
     baseline = _accepted_handoff_baseline(state)
@@ -100,7 +100,7 @@ def _accepted_handoff_baseline(state: PinnedState) -> str | None:
 
 
 def _handoff_unspent(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     baseline: str,
@@ -131,7 +131,7 @@ def _handoff_unspent(
 
 
 def _readvance_plan_handoff(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """Move an unspent handoff onto whatever the plan PR carries now.
 

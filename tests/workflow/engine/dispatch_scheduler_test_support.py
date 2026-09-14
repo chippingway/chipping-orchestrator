@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.scheduler.service import IssueScheduler
 from orchestrator.workflow.engine import dispatch, tick as _tick
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
@@ -41,8 +41,8 @@ def _patch_process_issue(*args, **kwargs):
 
 
 class _SchedulerWorkflowTest(unittest.TestCase):
-    def _spec(self, parallel_limit: int = 5) -> config.RepoSpec:
-        return config.RepoSpec(
+    def _spec(self, parallel_limit: int = 5) -> _config_models.RepoSpec:
+        return _config_models.RepoSpec(
             slug=REPO_SLUG,
             target_root=TARGET_ROOT,
             base_branch=TEST_BASE_BRANCH,

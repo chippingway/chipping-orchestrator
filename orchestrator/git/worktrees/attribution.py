@@ -35,7 +35,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming, paths
 
 # The channel is named for the worktree-lifecycle domain rather than for this
@@ -54,14 +54,14 @@ _LISTED = ", "
 IssueBranches = dict[int, tuple[str, ...]]
 
 # What one clone's branches say about the repositories sharing it.
-AttributedIssues = dict[config.RepoSpec, IssueBranches]
+AttributedIssues = dict[_config_models.RepoSpec, IssueBranches]
 
 
 def _matching_owners(
     branch: str,
     issue_number: int,
-    specs: tuple[config.RepoSpec, ...],
-) -> tuple[config.RepoSpec, ...]:
+    specs: tuple[_config_models.RepoSpec, ...],
+) -> tuple[_config_models.RepoSpec, ...]:
     """Every spec on this clone whose own derivation produces `branch`.
 
     The current layout carries the publishing spec's ref-safe slug, so it is
@@ -87,8 +87,8 @@ def _matching_owners(
 
 
 def _branch_attribution(
-    branch: str, specs: tuple[config.RepoSpec, ...],
-) -> tuple[config.RepoSpec, int] | None:
+    branch: str, specs: tuple[_config_models.RepoSpec, ...],
+) -> tuple[_config_models.RepoSpec, int] | None:
     """The repository and issue one local branch belongs to, or None.
 
     None covers three different artifacts, deliberately answered the same
@@ -123,7 +123,7 @@ def _branch_attribution(
 
 def _record_attribution(
     owned: AttributedIssues,
-    attribution: tuple[config.RepoSpec, int],
+    attribution: tuple[_config_models.RepoSpec, int],
     branch: str,
 ) -> None:
     """File one attributed branch under the repository and issue it names.
@@ -144,7 +144,7 @@ def _record_attribution(
 
 
 def _attributed_issues(
-    branches: Iterable[str], specs: tuple[config.RepoSpec, ...],
+    branches: Iterable[str], specs: tuple[_config_models.RepoSpec, ...],
 ) -> AttributedIssues:
     """Group one clone's orchestrator branches by repository and issue.
 

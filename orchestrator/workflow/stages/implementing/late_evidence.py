@@ -23,7 +23,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.measurement import (
     commits as _measurement_commits,
     models as _measurement_models,
@@ -101,7 +101,7 @@ _MOVED_HEAD_PARK = (
 
 def _holds_missing_candidate(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,
@@ -148,7 +148,7 @@ def _missing_candidate_park(recorded: LateGeneration) -> str:
 
 def _holds_moved_candidate(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,
@@ -217,7 +217,7 @@ def _moved_head_park(recorded: LateGeneration) -> str:
 
 def _holds_absent_candidate(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,
@@ -258,7 +258,7 @@ def _holds_absent_candidate(
 
 def _holds_absent_base(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     worktree: Path,

@@ -36,8 +36,8 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -164,7 +164,7 @@ def _dev_session_retirement_reason(
 
 
 def _build_dev_spawn_prompt(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     followup_text: str,
     *,

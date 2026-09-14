@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import models
 from tests.git.base_sync.refresh_test_support import GATE_CANDIDATE_SHA
 from tests.support.fakes import (
@@ -53,7 +53,7 @@ RECOVERY_PR_HEAD_SHA = PRE_REBASE_SHA
 # A pull request somebody else pushed to while the recovery was in flight.
 MOVED_PR_HEAD_SHA = "0ec0de11" * 5
 
-SPEC = config.RepoSpec(
+SPEC = _config_models.RepoSpec(
     slug="acme/widget",
     target_root=Path("/tmp/base-sync-owner-target"),
     base_branch="main",

@@ -68,7 +68,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.github import comments as _github_comments
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -123,7 +123,7 @@ def _handle_empty_umbrella(
 
 def _complete_umbrella(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
 ) -> None:
@@ -376,7 +376,7 @@ def _closed_umbrella(issue: Issue) -> None:
 
 def _completed_or_cancelled(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     scan: _models._ChildScan,
@@ -401,7 +401,7 @@ def _completed_or_cancelled(
     _complete_umbrella(gh, spec, issue, state)
 
 
-def _handle_umbrella(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_umbrella(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     """Poll children on an umbrella parent that has no implementation of
     its own.
 
@@ -435,7 +435,7 @@ def _handle_umbrella(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> N
 
 def _acted_on_children(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     scan: _models._ChildScan,

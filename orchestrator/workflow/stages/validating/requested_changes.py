@@ -34,8 +34,8 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents import provider_failures as _provider_failures
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -213,7 +213,7 @@ def _finish_requested_fix(
 
 def _handle_validating_changes_requested(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     decision: _models._ReviewerDecision,

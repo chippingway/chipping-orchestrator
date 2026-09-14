@@ -93,7 +93,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement import fingerprint as _fingerprint
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.comments import carries_own_marker

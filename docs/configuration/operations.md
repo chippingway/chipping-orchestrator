@@ -56,30 +56,17 @@ against the matrix that proves them.
 
 Ruff rules live in [`../../pyproject.toml`](../../pyproject.toml) under `[tool.ruff.lint]`; WPS is selected inline so
 Flake8 does not duplicate Ruff's checks; dev tools are declared in `[dependency-groups]`. The only on-disk Flake8
-config is [`../../.flake8`](../../.flake8), which scopes `WPS412` and `WPS410` per-file ignores to
-`orchestrator/config/__init__.py` because the package initializer deliberately invokes the `environment` resolver and
-binds its results at import time (so a reload re-runs resolution) and publishes its narrow public surface through an
-explicit `__all__` there. Every entry in that file is an exact-path scope like this one; WPS complexity
-limits retain their defaults.
+config is [`../../.flake8`](../../.flake8), which scopes complexity diagnostics to exact paths while their
+owners are split. WPS complexity limits retain their defaults.
 
-The agent, GitHub, and scheduler packages have marker initializers. Callers import their models and services
-from the defining modules, and their former initializer exclusions have been removed.
+Every package initializer is a marker. Callers import models, services, parsers, recorders, and metadata from
+their defining modules. `tests/repository/test_package_exports.py` checks that no initializer declares an
+`__all__` or binds names in its source, and that its namespace contains only submodules imported elsewhere.
+No package initializer has a WPS exclusion.
 
-Workflow labels and transition guards are imported from `workflow.state`, and the tick entry point from
-`workflow.engine.tick`. The workflow initializer is a marker, so importing the vocabulary cannot load the engine.
-
-The usage parsers and analytics recorders also have marker initializers. Parser calls name `metrics`, `skills`, or
-`trajectory`; event producers name `recording.events`, and tracked agent exits name `recording.agent_exit`.
-
-The root initializer is also a marker. Distribution metadata is imported directly from `orchestrator.version`,
-which loads no runtime subsystem.
-
-Only config remains in the publishing set. Every other initializer imports nothing at all, so naming one of
-those packages loads no owner behind it and the submodules that show up on it are what other modules' imports planted.
-`tests/repository/test_package_exports.py` reads each initializer's source for that half — an eager sibling import is
-invisible in the namespace, which holds the same submodule either way — and compares the packages carrying an
-`__all__` against the list above, so a new publisher requires a deliberate change to the declared set and a scope in
-[`../../.flake8`](../../.flake8) rather than a silent widening of what a package answers for.
+Resolved process values live in `orchestrator.config.settings`. Importing or reloading that owner invokes the
+`environment` resolver and binds fresh values, while callers retain the same module object for attribute reads
+and patches. Repository types live in `config.models`, and token resolution in `config.credentials`.
 
 `orchestrator/github/pull_requests.py` (`WPS214`) is the shape the entries fronting no package take: one owner for
 one subject, carrying more of something than the rule admits because the subject does. Which subject that is, and why
@@ -87,8 +74,8 @@ splitting it would cost more than the count does, is stated on the module itself
 retained entry's reason belongs. What this page settles is only the kind of reason it has to be.
 
 That is the whole policy an entry has to meet: the diagnostic has to be what an architectural invariant this
-repository holds costs — one owner per subject, a package initializer publishing a deliberate API, a support module
-seeding one stage's scenarios — rather than what a module that outgrew itself costs. A module that merely got long is
+repository holds costs — one owner per subject or a support module seeding one stage's scenarios — rather than
+what a module that outgrew itself costs. A module that merely got long is
 split, not waived. And a split that lands may not hand its halves an entry of their own: an exemption that moves into
 a new module is the boundary not having been found, so the original entry stays where it was, with its invariant said
 out loud on the owner that carries it, until a split arrives that needs neither.
@@ -186,8 +173,8 @@ only by the lint step beside them.
 `WPS235` uses its default ceiling of eight names per `from ... import` statement. Sorted imports merge all
 reads of one module into one statement, so splitting an oversized read across several statements cannot satisfy
 that limit. Read values through their actual owner, keep explicit type and fixture imports where needed, and
-separate responsibilities when a coordinator needs too many sibling owners. Existing export surfaces preserve
-their names and object identities. Neither `WPS201` nor `WPS235` is relaxed to accommodate a refactor, and no
+separate responsibilities when a coordinator needs too many sibling owners. Callers import defining owners directly.
+Neither `WPS201` nor `WPS235` is relaxed to accommodate a refactor, and no
 facade, dynamic dependency lookup, or replacement exemption substitutes for a direct owner.
 
 The CI workflow declares `permissions: contents: read` so the run's `GITHUB_TOKEN` is read-only and cannot publish

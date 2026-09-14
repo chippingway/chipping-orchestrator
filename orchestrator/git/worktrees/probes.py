@@ -31,7 +31,7 @@ import logging
 from pathlib import Path
 from stat import S_ISDIR
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git import commands
 from orchestrator.git.worktrees import paths
 
@@ -166,7 +166,7 @@ def _checkout_numbers(root: Path) -> frozenset[int] | None:
         return None
 
 
-def _worktree_issue_numbers(spec: config.RepoSpec) -> frozenset[int] | None:
+def _worktree_issue_numbers(spec: _config_models.RepoSpec) -> frozenset[int] | None:
     """Every issue this host still holds a per-repository checkout for."""
     return _checkout_numbers(paths._repo_worktrees_root(spec))
 

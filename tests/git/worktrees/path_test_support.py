@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.pinned_state import PinnedState
 
@@ -25,8 +25,8 @@ SHARED_BRANCH_ISSUE_NUMBER = 15
 PR_NUMBER = 42
 
 
-def _spec(repo_slug: str) -> config.RepoSpec:
-    return config.RepoSpec(
+def _spec(repo_slug: str) -> _config_models.RepoSpec:
+    return _config_models.RepoSpec(
         slug=repo_slug,
         target_root=Path(f"/tmp/{_naming._sanitize_slug(repo_slug)}-target"),
         base_branch=BASE_BRANCH,
@@ -37,8 +37,8 @@ def _branch(repo_slug: str, issue_number: int = 1) -> str:
     return _naming._branch_name(_spec(repo_slug), issue_number)
 
 
-def _migration_spec() -> config.RepoSpec:
-    return config.RepoSpec(
+def _migration_spec() -> _config_models.RepoSpec:
+    return _config_models.RepoSpec(
         slug=MIGRATION_REPO_SLUG,
         target_root=MIGRATION_TARGET_ROOT,
         base_branch=BASE_BRANCH,

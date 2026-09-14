@@ -12,8 +12,8 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
+from orchestrator.config import settings as config
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.usage.metrics import UsageMetrics

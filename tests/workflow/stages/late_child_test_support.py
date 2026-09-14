@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement import additions as _additions
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.stages.decomposition import (

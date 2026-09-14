@@ -12,8 +12,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import settings as config
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import guards as _guards, usage as _usage

@@ -29,7 +29,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from types import MappingProxyType
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 
 BASE_BRANCH = "main"
 REMOTE_NAME = "origin"
@@ -89,7 +89,7 @@ class ReplayedBranch:
     """
 
     worktree: Path
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     accepted: str
     accepted_base: str
     replayed: str
@@ -250,8 +250,8 @@ class ReplayRepositoryMixin:
             "merge-base", f"{REMOTE_NAME}/{BASE_BRANCH}", "HEAD", cwd=worktree,
         ).strip()
 
-    def _spec(self, worktree: Path) -> config.RepoSpec:
-        return config.RepoSpec(
+    def _spec(self, worktree: Path) -> _config_models.RepoSpec:
+        return _config_models.RepoSpec(
             slug="chippingway/orchestrator",
             target_root=worktree,
             base_branch=BASE_BRANCH,

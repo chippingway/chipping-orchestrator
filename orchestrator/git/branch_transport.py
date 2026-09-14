@@ -27,7 +27,7 @@ import logging
 import subprocess
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands, credentials, locks, ref_transport
 
 # The channel is named for the git-plumbing domain rather than for this
@@ -68,7 +68,7 @@ def _failed_fetch(stderr: str) -> subprocess.CompletedProcess:
 
 
 def _authed_fetch(
-    spec: config.RepoSpec, refspec: str, *, cwd: Path
+    spec: _config_models.RepoSpec, refspec: str, *, cwd: Path
 ) -> subprocess.CompletedProcess:
     """Authenticated, hardened `git fetch` -- the same security envelope as
     `_push_branch`.
@@ -154,7 +154,7 @@ def _authed_fetch(
 
 
 def _authed_target_fetch(
-    spec: config.RepoSpec, branch: str
+    spec: _config_models.RepoSpec, branch: str
 ) -> subprocess.CompletedProcess:
     """Authed `git fetch` into `spec.target_root` using the per-spec token.
 
@@ -237,7 +237,7 @@ def _authed_target_fetch(
 
 
 def _remote_branch_tip(
-    spec: config.RepoSpec, worktree: Path, branch: str,
+    spec: _config_models.RepoSpec, worktree: Path, branch: str,
 ) -> str | None:
     """Ask the REMOTE what `branch` is at, ignoring every local ref.
 
@@ -269,7 +269,7 @@ def _remote_branch_tip(
 
 
 def _remote_branch_read(
-    spec: config.RepoSpec, worktree: Path, branch: str,
+    spec: _config_models.RepoSpec, worktree: Path, branch: str,
 ) -> ref_transport._RefRead:
     """The same read, with the one line saying why it established nothing.
 
@@ -343,7 +343,7 @@ def _push_with_auth(
 
 
 def _push_branch(
-    spec: config.RepoSpec, worktree: Path, branch: str,
+    spec: _config_models.RepoSpec, worktree: Path, branch: str,
     *,
     force_with_lease: str | None = None,
     revision: str | None = None,

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.workflow.engine import guards as _guards, retry_budget as _retry_budget
 from orchestrator.workflow.stages.decomposition import late_notice as _late_notice, late_park_state as _late_park_state
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _StagedPark

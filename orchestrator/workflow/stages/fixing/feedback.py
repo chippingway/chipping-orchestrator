@@ -34,7 +34,7 @@ from datetime import UTC, datetime
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
 from orchestrator.workflow.engine import comments as _comments

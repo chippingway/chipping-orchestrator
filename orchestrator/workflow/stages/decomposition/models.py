@@ -14,8 +14,8 @@ from dataclasses import dataclass
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import decomposition as _worktree_decomposition
 
 
@@ -29,7 +29,7 @@ class _DecomposerRunPlan:
 class _DecomposerCleanup:
     """Close one decomposer worktree unless its run requests inspection."""
 
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue_number: int
     run_plan: _DecomposerRunPlan
 

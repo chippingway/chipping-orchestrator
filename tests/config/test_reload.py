@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Configuration package reload and environment-boundary tests."""
+"""Configuration settings reload and environment-boundary tests."""
 
 import importlib
 import os
@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from orchestrator.config import environment
 
-_CONFIG_MODULE = "orchestrator.config"
+_CONFIG_MODULE = "orchestrator.config.settings"
 _HERMETIC = MappingProxyType(
     {
         "ORCHESTRATOR_SKIP_DOTENV": "1",
@@ -24,7 +24,7 @@ _INVALID_AGENT = "gemini"
 
 
 class ConfigReloadTest(unittest.TestCase):
-    """`orchestrator.config` resolves every setting through
+    """`orchestrator.config.settings` resolves every setting through
     `environment._SettingsResolver` as it is imported, so
     `importlib.reload(config)` re-runs the resolver against the current
     environment (re-parsing values and re-running import-time validation)
@@ -36,7 +36,7 @@ class ConfigReloadTest(unittest.TestCase):
         self._config = importlib.import_module(_CONFIG_MODULE)
 
     def tearDown(self) -> None:
-        # Reload in place under the ambient environment so the shared package
+        # Reload in place under the ambient environment so the shared settings
         # object keeps its identity and the values the rest of the suite reads.
         importlib.reload(self._config)
 
@@ -53,8 +53,8 @@ class ConfigReloadTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             self._reload_with({_INVALID_AGENT_ENV: _INVALID_AGENT})
 
-    def test_initializer_binds_resolver_output(self) -> None:
-        # The boundary: the initializer only binds what the resolver returns,
+    def test_settings_bind_resolver_output(self) -> None:
+        # The boundary: the settings owner only binds what the resolver returns,
         # so a config import equals a direct resolver run against the same env.
         override = {_POLL_INTERVAL_ENV: str(_OVERRIDE_POLL_INTERVAL)}
         with patch.dict(os.environ, {**_HERMETIC, **override}, clear=True):

@@ -21,7 +21,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.workflow.fixtures import (
     BASE_TIP_SHA,
     KEY_AWAITING_HUMAN,

@@ -41,12 +41,10 @@ last is held by the loader itself rather than by a check.
   that needs it. The same check declares them per module: an undeclared hop fails wherever it is written, and one of
   these fails if it is bound at module scope after all — where it would be a cycle, since the workflow imports base
   sync back.
-- **Package surfaces.** `github/`, `agents/`, `scheduler/`, `runtime/`, `skills/`, `git/`, and every `git/` subpackage
-  have marker initializers. Callers import their defining modules, so naming a package costs no owner behind it.
-  `config/` still binds each resolved
-  setting as a module attribute, which is the reload and patch target every caller reads one through. Each package's
-  own tests hold its surface — a `test_imports.py` in the domains, `tests/config/test_surface.py` for the settings
-  module — and `tests/repository/test_package_exports.py` holds the publish-or-front-nothing rule over the tree.
+- **Package boundaries.** Every package has a marker initializer. Callers import defining modules, so naming a
+  package costs no owner behind it. `config/settings.py` binds each resolved setting as a module attribute and is
+  the reload and patch target. Package import checks and `tests/config/test_surface.py` hold those boundaries;
+  `tests/repository/test_package_exports.py` checks every initializer's source and namespace.
 - **No second site.** No domain here sits behind a facade. Where a package replaced flat modules — `git/` and four of
   its six subpackages, `runtime/`, `skills/` — its own `test_imports.py` asserts that nothing resolves at the retired
   spelling, that no inventory or resolver hook names one as a target, and that no aggregate over the git domains sits
@@ -100,8 +98,7 @@ last is held by the loader itself rather than by a check.
 
 ## The map
 
-A package line names what its initializer publishes; where it names nothing, the initializer is a marker and callers
-import an owner directly.
+Every package initializer is a marker. The entries below name the defining owners callers import directly.
 
 ```
 orchestrator/
@@ -162,7 +159,8 @@ orchestrator/
                         file and no claim
     self_update.py      the git probes behind the self-restart guard
     shutdown.py         the signal handler, the bounded-drain watchdog, and the forced exit it ends at
-  config/               the resolved settings surface, bound as module attributes
+  config/               configuration owners, imported directly
+    settings.py         resolved settings bound as module attributes, their diagnostic funnel, and default repo specs
     environment.py      the env-value parsers and the `_SettingsResolver` that reads and validates every knob
     _dotenv.py          the non-secret `.env` loader
     credentials.py      process / token-file credential resolution and the secret redactor the verify output, the

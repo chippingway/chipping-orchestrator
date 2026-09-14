@@ -25,7 +25,7 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, ref_transport
 
 GIT_COMMAND = "git"
@@ -226,7 +226,7 @@ class CandidateRepo:
         self.clone = self._tmpdir / "work"
         self.worktree = self._tmpdir / "worktrees" / "issue-1402"
         self._advances = 0
-        self.spec = config.RepoSpec(
+        self.spec = _config_models.RepoSpec(
             slug=REPO_SLUG,
             target_root=self.clone,
             base_branch=BASE_BRANCH,

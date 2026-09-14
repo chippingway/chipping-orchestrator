@@ -11,25 +11,19 @@ from tests.config import config_test_support as _support, config_test_values as 
 
 
 class RepositoryConfigModuleTest(unittest.TestCase):
-    """The repository-entry model lives in ``orchestrator.config.models`` and
-    the REPOS parsing / default-spec construction in
-    ``orchestrator.config.repositories``; ``orchestrator.config`` publishes
-    ``RepoSpec`` and the ``default_repo_specs`` accessor over them, because a
-    caller reading a resolved setting reads the type of one in the same breath.
-    """
+    """Repository types and settings accessors have separate defining owners."""
 
-    def test_repospec_reexported_from_models_module(self) -> None:
-        config = importlib.import_module(_config_cases._CONFIG_MODULE)
-        from orchestrator.config import models
+    def test_repospec_is_owned_by_models(self) -> None:
+        from orchestrator.config import models, settings
 
-        self.assertIs(config.RepoSpec, models.RepoSpec)
-        self.assertEqual(config.RepoSpec.__module__, _config_cases._MODELS_MODULE)
+        self.assertNotIn("RepoSpec", settings.__dict__)
+        self.assertEqual(models.RepoSpec.__module__, _config_cases._MODELS_MODULE)
 
     def test_default_repo_specs_wrapper_on_config(self) -> None:
         config = importlib.import_module(_config_cases._CONFIG_MODULE)
 
         # `config.default_repo_specs` is the narrow wrapper; its module of
-        # record is `orchestrator.config` so `patch.object(config, ...)` keeps
+        # record is `orchestrator.config.settings` so `patch.object(config, ...)` keeps
         # intercepting it.
         self.assertEqual(
             config.default_repo_specs.__module__,

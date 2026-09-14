@@ -77,7 +77,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.stages.discussion import (
     checkout_parks as _checkout_parks,
@@ -167,7 +167,7 @@ def _hold_resume_for_repair(
 
 
 def _handle_discussion(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> None:
     """Open the discussion, answer the humans in it, or wait on them."""
     discussion_run = _DiscussionRun.start(gh, spec, issue)

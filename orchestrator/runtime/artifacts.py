@@ -65,7 +65,7 @@ import collections
 import logging
 import time
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import discovery, maintenance
 from orchestrator.git.worktrees.candidates import MaintenanceCandidate
 from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceResult
@@ -197,7 +197,7 @@ class _Continuing:
 
 def _grouped_candidates(
     clients: RepoClients,
-) -> dict[config.RepoSpec, list[MaintenanceCandidate]]:
+) -> dict[_config_models.RepoSpec, list[MaintenanceCandidate]]:
     """Discover every candidate on this host, split by the repository it is of.
 
     The discovery is taken over every configured spec at once, because
@@ -221,7 +221,7 @@ def _grouped_candidates(
             "artifact maintenance will not answer for %s this pass",
             ", ".join(scan.refused),
         )
-    grouped: dict[config.RepoSpec, list[MaintenanceCandidate]] = (
+    grouped: dict[_config_models.RepoSpec, list[MaintenanceCandidate]] = (
         collections.defaultdict(list)
     )
     for candidate in scan.candidates:

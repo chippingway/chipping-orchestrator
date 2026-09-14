@@ -53,7 +53,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.discussion.state import (
@@ -119,7 +119,7 @@ def _discussion_in_flight(state: PinnedState) -> bool:
 
 
 def _handle_stale_read_only_park(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> bool:
     """Clear a stale conversation-stage park left by a relabel to
     `implementing`, or refuse the relabel when it would ship what that stage's

@@ -9,7 +9,7 @@ back to the legacy single-repo ``REPO`` / ``TARGET_REPO_ROOT`` /
 ``BASE_BRANCH`` / ``REMOTE_NAME`` trio when ``REPOS`` is unset.
 
 The abort-on-invalid and warn-to-stderr diagnostics live in
-``orchestrator.config`` (its single configuration-failure funnel) and are
+``orchestrator.config.settings`` (its single configuration-failure funnel) and are
 injected here as callables, so this module parses without importing config
 back. The data types it produces (``RepoSpec``, ``RepoEnvEntry``) live in
 ``models``.
@@ -22,7 +22,7 @@ from typing import NoReturn
 
 from orchestrator.config.models import RepoEnvEntry, RepoSpec
 
-# Diagnostics injected from ``orchestrator.config`` keep configuration failure
+# Diagnostics injected from ``orchestrator.config.settings`` keep configuration failure
 # policy out of the parsing leaf: ``config_error`` aborts import and
 # ``config_warning`` writes a non-fatal diagnostic to stderr.
 ConfigError = Callable[[str], NoReturn]

@@ -13,7 +13,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
@@ -33,7 +33,7 @@ _AUTHORIZATION_PARK = _late_command.PARK_UNAUTHORIZED_EXEMPTION
 
 
 def _try_recover_unauthorized_exemption_park(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> bool:
     """Republish an adjudicated candidate an operator has now authorized.
 

@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands
 
 
@@ -46,7 +46,7 @@ class _BranchDivergence:
 
     @classmethod
     def taken(
-        cls, spec: config.RepoSpec, worktree: Path, branch: str,
+        cls, spec: _config_models.RepoSpec, worktree: Path, branch: str,
     ) -> _BranchDivergence:
         """Resolve `<remote>/<branch>` once, then count HEAD against it.
 
@@ -60,7 +60,7 @@ class _BranchDivergence:
 
     @classmethod
     def _resolved_tip(
-        cls, spec: config.RepoSpec, worktree: Path, branch: str,
+        cls, spec: _config_models.RepoSpec, worktree: Path, branch: str,
     ) -> str:
         """The commit the fetched remote-tracking ref names, or "".
 
@@ -106,7 +106,7 @@ class _BranchDivergence:
 
 
 def _branch_divergence(
-    spec: config.RepoSpec, worktree: Path, branch: str
+    spec: _config_models.RepoSpec, worktree: Path, branch: str
 ) -> _BranchDivergence:
     """How far HEAD stands from the freshly-fetched `<remote>/<branch>` tip.
 
@@ -116,7 +116,7 @@ def _branch_divergence(
     return _BranchDivergence.taken(spec, worktree, branch)
 
 
-def _fork_point(spec: config.RepoSpec, worktree: Path, revision: str) -> str:
+def _fork_point(spec: _config_models.RepoSpec, worktree: Path, revision: str) -> str:
     """The commit `<remote>/<base>` and one revision last had in common, or "".
 
     The base a contribution is read over. A three-dot range against the base

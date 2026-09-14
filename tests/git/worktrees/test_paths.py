@@ -7,7 +7,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import naming as _naming, paths
 from tests.git.worktrees.path_test_support import (
     ALICE_REPO_SLUG,
@@ -111,12 +111,12 @@ class BranchNameSlugNamespaceTest(unittest.TestCase):
     """
 
     def test_same_number_distinct_slugs_make_branches(self) -> None:
-        spec_a = config.RepoSpec(
+        spec_a = _config_models.RepoSpec(
             slug="geserdugarov/lance-open-source",
             target_root=SHARED_CLONE_ROOT,
             base_branch=BASE_BRANCH,
         )
-        spec_b = config.RepoSpec(
+        spec_b = _config_models.RepoSpec(
             slug="geserdugarov/lance-private",
             target_root=SHARED_CLONE_ROOT,
             base_branch=BASE_BRANCH,

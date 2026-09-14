@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.observability.analytics.recording import events as recording_events
 
 _TEST_REPO_SLUG = "chippingway/orchestrator"
@@ -22,8 +22,8 @@ def _spec(
     target_root: str = "/tmp/orchestrator-skill-catalog-target",
     base_branch: str = _TEST_BASE_BRANCH,
     remote_name: str = _TEST_REMOTE_NAME,
-) -> config.RepoSpec:
-    return config.RepoSpec(
+) -> _config_models.RepoSpec:
+    return _config_models.RepoSpec(
         slug=slug,
         target_root=Path(target_root),
         base_branch=base_branch,

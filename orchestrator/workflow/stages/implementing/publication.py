@@ -41,7 +41,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
@@ -198,7 +198,7 @@ def _recorded_intent(
 
 def _on_commits(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
     approved: _models._ApprovedWork,

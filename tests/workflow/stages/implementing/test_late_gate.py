@@ -18,7 +18,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.stages.implementing import late_parks as _parks
 from tests.support.fakes import FakePR, FakePRRef

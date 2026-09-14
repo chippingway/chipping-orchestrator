@@ -16,7 +16,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.state import WorkflowLabel
@@ -126,7 +126,7 @@ class _AutoRebaseContext:
     """Stable inputs for one refresh-time PR rebase attempt."""
 
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     worktree: Path
@@ -141,7 +141,7 @@ class _AutoRebaseRequest:
     """Legacy refresh arguments before derived synchronization fields."""
 
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     worktree: Path
@@ -168,7 +168,7 @@ class _AutoRebaseRecoveryContext:
     """Stable inputs for finalizing one interrupted auto-rebase."""
 
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     worktree: Path
@@ -220,7 +220,7 @@ class _ConflictRouteContext:
     """Stable inputs for routing an auto-rebase conflict to its handler."""
 
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     pr_number: int

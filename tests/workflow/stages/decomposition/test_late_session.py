@@ -7,7 +7,7 @@ import unittest
 from dataclasses import replace
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
 from orchestrator.workflow.late_split.events import LateVerdictCategory
 from orchestrator.workflow.late_split.models import LateVerdict

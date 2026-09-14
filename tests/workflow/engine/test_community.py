@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.labels import (
     COMMUNITY_CONTRIBUTION_LABEL,
     COMMUNITY_CONTRIBUTION_LABEL_NAMES,

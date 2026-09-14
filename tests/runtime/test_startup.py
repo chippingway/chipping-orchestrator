@@ -10,7 +10,7 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.runtime import startup
 from tests.runtime import polling_test_support as _support
 

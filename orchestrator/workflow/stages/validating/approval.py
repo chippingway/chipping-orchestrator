@@ -50,7 +50,7 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.publication import models as _publication, squash as _squash
 from orchestrator.git.verification import runner as _verify_runner
 from orchestrator.github import (

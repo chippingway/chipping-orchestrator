@@ -48,13 +48,10 @@ Before committing, run each of these and fix what they report:
   `[tool.ruff.lint.per-file-ignores]` and inline `# noqa: <CODE> - <reason>` directives, each naming the rule it
   covers and why, and `tests/repository/test_noqa_directives.py` fails on a bare `# noqa` or a file-wide
   `# ruff: noqa`. Recurring CI breakers:
-  - **F401** (unused import): if the name is meant to be a re-export from a package facade that binds its
-    surface with imports (`orchestrator/agents/`, `github/`, `scheduler/`, `observability/usage/`), alias it with
-    `... as <name>` so ruff treats it as an explicit re-export instead of dead code. A name the initializer
-    lists in `__all__` — how `orchestrator/workflow/` publishes its label and guard surface — is already exempt.
-    Outside an initializer that alias also trips **PLC0414**, so the module has to be one of the exact paths
-    waived under `[tool.ruff.lint.per-file-ignores]` in `pyproject.toml`; alias only a name the module never reads
-    itself, and add the path in the same commit. `tests/repository/test_reexport_aliases.py` fails on anything else.
+  - **F401** (unused import): remove unused bindings and import definitions from their owners. Package
+    initializers are markers and carry no imports or `__all__`. Existing test support re-exports use
+    `... as <name>` only for a name the module never reads itself; their exact paths are declared under
+    `PLC0414` in `[tool.ruff.lint.per-file-ignores]`. `tests/repository/test_reexport_aliases.py` holds that set.
   - **F541** (f-string without placeholders): use a plain string.
   - **F841** (unused local).
   - **E402** (module-level import not at top of file).
@@ -74,16 +71,18 @@ Before committing, run each of these and fix what they report:
   you branched from, and only then call it out in the PR as a baseline failure with the reproduction
   steps. Otherwise fix it.
 
-## The `workflow` package API and the stage modules
+## Workflow owners and stage modules
 
-`orchestrator/workflow/__init__.py` is a narrow explicit API — the two label vocabularies, the
-transition guard and the predicate under it, the `IllegalTransition` an illegal write raises, and the
-per-repo `tick` — and nothing routes through it. Get the boundary right:
+Every package initializer is a marker, so callers name defining modules directly. Labels and transition guards
+live on `workflow/state.py`, the per-repo tick on `workflow/engine/tick.py`, and resolved process settings on
+`config/settings.py`. Get the boundaries right:
 
-- The initializer binds no engine or stage module at import, and `tick` resolves the engine inside the
-  call for that reason. The GitHub and git layers import `workflow/state.py` beside it for the label
-  vocabulary they are typed by, so an engine import at module scope sends them back into the modules
-  they are still initializing — an import cycle, checked by `tests/workflow/test_imports.py`.
+- Initializers bind no engine, stage, model, service, or settings owner. The GitHub and git layers can therefore
+  import `workflow/state.py` without loading the engine back into their own initialization. Clean-process tests in
+  `tests/workflow/test_imports.py` check that direction, and `tests/repository/test_package_exports.py` checks every
+  initializer's source and namespace.
+- Settings reloads and patches target `orchestrator.config.settings`, the same module object all callers retain.
+  Repository types are imported from `config.models`, and token resolution from `config.credentials`.
 - Stage modules import the owner they borrow from at module scope —
   `from orchestrator.git.worktrees import paths as _worktree_paths`,
   `from orchestrator.workflow.engine import guards as _guards` — and call through that alias. Never
@@ -91,10 +90,8 @@ per-repo `tick` — and nothing routes through it. Get the boundary right:
 - Tests patch the owner. `tests/workflow/git_owners.py` records which git module defines each seam
   (`GIT_SEAM_OWNERS`, `seam_patch`) and `tests/workflow/patch_context.py` installs every hermetic mock
   on that table plus the agent runner, raising rather than falling back when a name has no owner.
-- Stage-private helpers (only used inside one stage module — e.g. `_bump_in_review_watermarks`,
-  `_seed_legacy_in_review_watermarks`, `_emit_conflict_round_incremented`) stay private to that stage
-  module, and nothing new joins the package API. What it publishes is an intentional surface, not a
-  blanket.
+- Stage-private helpers stay in the stage package that owns them. Shared helpers are read from their defining
+  owner; copying or re-exporting one creates a second patch target that can drift from the running call.
 - Each owner declares its own `log = logging.getLogger("orchestrator.workflow")` with the channel spelled
   literally (`workflow/state.py` owns `orchestrator.state_machine`). Operator filters select on those names,
   so never derive one from `__name__`; `tests/workflow/test_imports.py` walks the package and checks it.

@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands, locks
 from orchestrator.git.worktrees import paths
 
@@ -24,11 +24,11 @@ from orchestrator.git.worktrees import paths
 log = logging.getLogger("orchestrator.worktree_lifecycle")
 
 
-def _decompose_worktree_path(spec: config.RepoSpec, issue_number: int) -> Path:
+def _decompose_worktree_path(spec: _config_models.RepoSpec, issue_number: int) -> Path:
     return paths._repo_worktrees_root(spec) / f"decompose-{issue_number}"
 
 
-def _ensure_decompose_worktree(spec: config.RepoSpec, issue_number: int) -> Path:
+def _ensure_decompose_worktree(spec: _config_models.RepoSpec, issue_number: int) -> Path:
     """Create the decomposer's worktree fresh from current origin/<base>.
 
     Force-removes any existing decomposer worktree first; the decomposer
@@ -59,7 +59,7 @@ def _ensure_decompose_worktree(spec: config.RepoSpec, issue_number: int) -> Path
         return wt
 
 
-def _run_decompose_worktree_removal(spec: config.RepoSpec, issue_number: int) -> None:
+def _run_decompose_worktree_removal(spec: _config_models.RepoSpec, issue_number: int) -> None:
     """Force-remove the decomposer worktree under the parent lock if present."""
     wt = _decompose_worktree_path(spec, issue_number)
     if wt.exists():
@@ -70,7 +70,7 @@ def _run_decompose_worktree_removal(spec: config.RepoSpec, issue_number: int) ->
             )
 
 
-def _cleanup_decompose_worktree(spec: config.RepoSpec, issue_number: int) -> None:
+def _cleanup_decompose_worktree(spec: _config_models.RepoSpec, issue_number: int) -> None:
     """Remove the decomposer's worktree if it exists.
 
     Called at every `_handle_decomposing` exit except the dirty/commits

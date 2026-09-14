@@ -7,7 +7,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.base_sync import refresh as _base_refresh
 from tests.git.base_sync.park_assertions import (
     _assert_park_state,

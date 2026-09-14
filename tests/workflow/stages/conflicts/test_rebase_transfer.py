@@ -35,7 +35,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.late_split import (
     exemption as _exemption,

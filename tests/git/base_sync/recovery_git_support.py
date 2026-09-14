@@ -26,7 +26,7 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest import mock
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport
 from orchestrator.git.base_sync import recovery
 from tests.git.base_sync.gate_reads_support import _gate_base_reads
@@ -253,7 +253,7 @@ class _RecoveryRepositoryBuilder:
 
     def _seed_issue(self) -> None:
         fixture = self._fixture
-        fixture.spec = config.RepoSpec(
+        fixture.spec = _config_models.RepoSpec(
             slug=SLUG,
             target_root=fixture.work,
             base_branch=BASE_BRANCH,

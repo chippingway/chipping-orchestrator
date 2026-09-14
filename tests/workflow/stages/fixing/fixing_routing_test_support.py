@@ -8,7 +8,7 @@ import pathlib
 import subprocess
 from unittest import mock
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from tests.git.base_sync.gate_reads_support import _gate_reads
 from tests.support import fakes
 from tests.workflow import fixtures, git_owners
@@ -83,7 +83,7 @@ class _FixingConflictFixtureMixin:
     """
 
     def setUp(self) -> None:
-        self.spec = config.RepoSpec(
+        self.spec = _config_models.RepoSpec(
             slug="acme/widget",
             target_root=Path("/tmp/refresh-target-fixing"),
             base_branch="main",

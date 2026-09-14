@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -58,7 +58,7 @@ from orchestrator.workflow.stages.validating import (
 
 def _run_reviewer_round(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     pr_number,
@@ -133,7 +133,7 @@ def _run_reviewer_round(
 
 def _dispatch_reviewer_result(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     reviewer_run: _models._ReviewerRun,

@@ -33,7 +33,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
-from orchestrator.config import RepoSpec
+from orchestrator.config.models import RepoSpec
 from orchestrator.git.commands import _git
 from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.skills.discovery import (

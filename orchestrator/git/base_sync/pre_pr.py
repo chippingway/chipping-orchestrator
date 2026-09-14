@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands as _commands
 from orchestrator.git.base_sync import state as _state
 
@@ -23,7 +23,7 @@ log = _state.log
 
 
 def _rebase_base_into_worktree(
-    spec: config.RepoSpec, worktree: Path
+    spec: _config_models.RepoSpec, worktree: Path
 ) -> tuple[bool, list[str]]:
     """Run `git rebase origin/<base>` in the worktree.
 
@@ -57,7 +57,7 @@ def _rebase_base_into_worktree(
 
 
 def _merge_base_into_worktree(
-    spec: config.RepoSpec, worktree: Path
+    spec: _config_models.RepoSpec, worktree: Path
 ) -> tuple[bool, list[str]]:
     """Compatibility alias for older patches/imports.
 
@@ -92,7 +92,7 @@ def _rebase_in_progress(worktree: Path) -> bool:
 
 
 def _sync_pre_pr_worktree(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     worktree: Path,
     issue_number: int,
     behind: int,

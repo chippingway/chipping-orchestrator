@@ -1,44 +1,36 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Configuration package public surface, and the private API beside it."""
+"""Configuration settings ownership and the package's import boundary."""
 
 import importlib
+import os
+import subprocess
+import sys
 import unittest
 from types import MappingProxyType
 
 from orchestrator.config import credentials, environment
 
-_CONFIG_MODULE = "orchestrator.config"
+_CONFIG_MODULE = "orchestrator.config.settings"
 _HERMETIC = MappingProxyType(
     {
         "ORCHESTRATOR_SKIP_DOTENV": "1",
         "ORCHESTRATOR_TOKEN_FILE": "/tmp/chipping-orchestrator-token-missing",
     }
 )
-# The internal resolver key backing the private `_REPO_SPECS`; the public
-# surface exposes the `default_repo_specs` accessor instead.
+# The resolver's repository list stays behind the settings accessor.
 _INTERNAL_KEYS = frozenset(("REPO_SPECS",))
-_API_NAMES = frozenset(("RepoSpec", "default_repo_specs", "REPO_ROOT"))
-# The package's own API: the diagnostics funnel its leaves are constructed
-# with, the agent-spec parse bound onto that funnel, and the token resolution
-# reached beside the settings here. Private on purpose, so deliberately
-# excluded from `__all__`.
 _INTERNAL_NAMES = (
     "_config_error",
     "_config_warning",
     "_parse_agent_spec",
-    "_resolve_github_token",
 )
-# Names this module must not bind: the `.env` load, the verify-command parse,
-# and the dotenv quote stripping each answer on the leaf that defines them, and
-# a binding here would be a second site in front of that leaf -- one free to
-# drift from it and invisible to a patch aimed at it. They are pinned as absent
-# because nothing else would see one appear: the repository-wide surface check
-# reads a package's public names, and a private name is outside it by design.
 _LEAF_ONLY_NAMES = (
     "_load_dotenv",
     "_parse_verify_commands",
     "_strip_dotenv_quotes",
+    "_resolve_github_token",
+    "RepoSpec",
 )
 
 
@@ -54,75 +46,74 @@ def _resolver_settings():
 
 
 class PublicSurfaceTest(unittest.TestCase):
-    """`orchestrator.config.__all__` is the exact public surface: the
-    `RepoSpec` / `default_repo_specs` / `REPO_ROOT` package API plus every
-    resolver-produced setting, with the internal `REPO_SPECS` list hidden
-    behind the `default_repo_specs` accessor.
-    """
+    """Resolved settings live on their owner without loading via the package."""
 
     def setUp(self) -> None:
         self._config = importlib.import_module(_CONFIG_MODULE)
 
-    def test_all_has_no_duplicates(self) -> None:
-        exported = self._config.__all__
-        self.assertEqual(len(exported), len(set(exported)))
+    def test_package_declares_no_settings(self) -> None:
+        package = importlib.import_module("orchestrator.config")
+        self.assertNotIn("__all__", package.__dict__)
+        for name in (*_resolver_settings(), "REPO_ROOT", "default_repo_specs"):
+            with self.subTest(name=name):
+                self.assertNotIn(name, package.__dict__)
 
-    def test_all_matches_resolver_surface_plus_api(self) -> None:
-        self.assertEqual(
-            set(self._config.__all__),
-            _resolver_settings() | _API_NAMES,
+    def test_values_match_the_resolver_keys(self) -> None:
+        bound = {
+            name for name in self._config.__dict__
+            if name.isupper() and not name.startswith("_")
+        }
+        self.assertEqual(bound, _resolver_settings() | {"REPO_ROOT"})
+
+    def test_accessors_belong_to_settings(self) -> None:
+        for name in (*_INTERNAL_NAMES, "default_repo_specs"):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    getattr(self._config, name).__module__, _CONFIG_MODULE,
+                )
+
+    def test_repo_root_names_the_checkout(self) -> None:
+        self.assertTrue((self._config.REPO_ROOT / "pyproject.toml").is_file())
+        self.assertTrue((self._config.REPO_ROOT / "orchestrator").is_dir())
+
+    def test_package_import_resolves_no_settings(self) -> None:
+        # Invalid settings cannot prevent a caller from importing a config
+        # model or parser: only importing the settings owner resolves them.
+        command = (
+            "import sys; import orchestrator.config; "
+            "print(' '.join(sorted(name for name in sys.modules "
+            "if name.startswith('orchestrator'))))"
         )
-
-    def test_all_names_are_resolvable_attributes(self) -> None:
-        for name in self._config.__all__:
-            self.assertTrue(hasattr(self._config, name), name)
-
-    def test_repo_root_is_exported(self) -> None:
-        # `runtime.self_update` reads `config.REPO_ROOT` at runtime, so it has
-        # to stay part of the exported surface.
-        self.assertIn("REPO_ROOT", self._config.__all__)
-
-    def test_all_lists_only_public_names(self) -> None:
-        # `from orchestrator.config import *` exports exactly `__all__`, so a
-        # surface free of private names keeps the internal API off it.
-        private = [name for name in self._config.__all__ if name.startswith("_")]
-        self.assertEqual(private, [])
+        completed = subprocess.run(
+            [sys.executable, "-c", command],
+            env={**os.environ, **_HERMETIC, "DEV_AGENT": "invalid-agent"},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertEqual(completed.stdout.strip(), "orchestrator orchestrator.config")
 
 
 class InternalApiTest(unittest.TestCase):
-    """The four private names are the package's own API, and stay private.
-
-    Each has a caller that reaches it here rather than on the leaf beneath:
-    the resolver and its leaves are constructed with the diagnostics funnel,
-    the workflow stages re-parse a stored agent spec through the binding over
-    it, and the GitHub client and the push path resolve a repo's token beside
-    the settings this module holds. None is published: `__all__` is what an
-    outside caller is invited onto, and this is not that.
-    """
+    """The settings accessors keep one diagnostic funnel and no leaf aliases."""
 
     def setUp(self) -> None:
         self._config = importlib.import_module(_CONFIG_MODULE)
 
-    def test_internal_names_stay_unexported(self) -> None:
+    def test_internal_names_are_settings_accessors(self) -> None:
         for name in _INTERNAL_NAMES:
             with self.subTest(name=name):
-                self.assertTrue(hasattr(self._config, name))
-                self.assertNotIn(name, self._config.__all__)
+                self.assertTrue(callable(getattr(self._config, name)))
+        self.assertNotIn("__all__", self._config.__dict__)
 
     def test_a_leaf_only_name_is_not_bound_here(self) -> None:
-        # The dotenv and verify-command helpers belong to `_dotenv` and
-        # `environment`, and a caller names the leaf. Binding one on the
-        # package would give the same helper two import sites and two patch
-        # targets, which is the ambiguity the leaves exist to avoid.
         for name in _LEAF_ONLY_NAMES:
             with self.subTest(name=name):
-                self.assertFalse(hasattr(self._config, name))
+                self.assertNotIn(name, self._config.__dict__)
 
-    def test_the_token_resolver_is_the_owner_s(self) -> None:
-        # Bound once at import to the `credentials` function, so a patch here
-        # is what both callers resolve a token through.
-        self.assertIs(
-            self._config._resolve_github_token, credentials.resolve_github_token,
+    def test_token_resolution_belongs_to_credentials(self) -> None:
+        self.assertEqual(
+            credentials.resolve_github_token.__module__, credentials.__name__,
         )
 
     def test_parse_agent_spec_binds_the_error_funnel(self) -> None:

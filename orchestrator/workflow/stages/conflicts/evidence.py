@@ -67,7 +67,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.github.pinned_state import PinnedState
@@ -107,7 +107,7 @@ class _Replayed:
 
 
 def _replayed(
-    spec: config.RepoSpec, worktree: Path, head: str,
+    spec: _config_models.RepoSpec, worktree: Path, head: str,
 ) -> _Replayed:
     """Read the contribution a rebase replaces, while the branch still has it.
 

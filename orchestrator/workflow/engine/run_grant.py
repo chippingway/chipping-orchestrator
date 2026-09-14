@@ -54,7 +54,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import carries_own_marker, filter_trusted
 from orchestrator.github.pinned_state import PinnedState

@@ -29,7 +29,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification import status as _worktree_status
@@ -38,7 +38,7 @@ from orchestrator.github.pinned_state import PinnedState
 
 
 def _stranded_fix_unpushed(
-    spec: config.RepoSpec, wt: Path, state: PinnedState, issue: Issue
+    spec: _config_models.RepoSpec, wt: Path, state: PinnedState, issue: Issue
 ) -> str:
     """The remote head a stranded fix is proved ahead of, or "" where none is.
 

@@ -24,7 +24,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.runtime import exclusion, host_lock
 from orchestrator.scheduler.service import IssueScheduler
 from tests.runtime import polling_test_support as _support

@@ -27,7 +27,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_WRITES,
     KEY_PARK_REASON,

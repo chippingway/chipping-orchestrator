@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.worktrees import branch_probes, probes
 from tests.git.worktrees import artifact_test_support as _support
 from tests.git.worktrees.artifact_test_support import _ArtifactWorld

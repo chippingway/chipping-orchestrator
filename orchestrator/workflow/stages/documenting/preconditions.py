@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
@@ -41,7 +41,7 @@ from orchestrator.workflow.stages.documenting import (
 
 
 def _finalize_documenting_terminal(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> bool:
     """Terminal issue/PR short-circuits before the docs pass runs.
 
@@ -136,7 +136,7 @@ def _refuse_parked_continue_command(
 
 
 def _documenting_preconditions_handled(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
     pr_number,
 ) -> bool:
     """Run the pre-context guards; True when the tick is already resolved.

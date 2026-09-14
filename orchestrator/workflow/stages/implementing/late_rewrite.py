@@ -75,7 +75,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.workflow.late_split import (
     collapses as _collapses,

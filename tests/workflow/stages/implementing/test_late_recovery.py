@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.git.worktrees import paths as _worktree_paths

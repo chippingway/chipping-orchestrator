@@ -59,7 +59,7 @@ from __future__ import annotations
 import logging
 from types import MappingProxyType
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement import fingerprint as _fingerprint
 from orchestrator.workflow.engine import (
     comments as _comments,

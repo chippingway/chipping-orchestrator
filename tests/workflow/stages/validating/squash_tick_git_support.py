@@ -22,7 +22,7 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.observability.analytics import settings as _analytics_settings
 
@@ -74,7 +74,7 @@ class ApprovedCheckout:
     on them is asserting about the repository rather than about a seed.
     """
 
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     branch: str
     path: Path
     accepted: str
@@ -115,7 +115,7 @@ class ApprovedCheckoutMixin:
             self.enterContext(patch.object(
                 _analytics_settings, surface, tmpdir / f"{surface}.jsonl",
             ))
-        spec = config.RepoSpec(
+        spec = _config_models.RepoSpec(
             slug=REPO_SLUG,
             target_root=tmpdir / "target",
             base_branch=BASE_BRANCH,
@@ -134,7 +134,7 @@ class ApprovedCheckoutMixin:
             ).strip(),
         )
 
-    def _seeds_the_base(self, spec: config.RepoSpec, tmpdir: Path) -> None:
+    def _seeds_the_base(self, spec: _config_models.RepoSpec, tmpdir: Path) -> None:
         """A bare remote and the parent clone every worktree is added from."""
         remote = tmpdir / "remote.git"
         subprocess.run(
@@ -149,7 +149,7 @@ class ApprovedCheckoutMixin:
         self._commits(spec.target_root, "initial", "README.md")
         run_git("push", REMOTE_NAME, BASE_BRANCH, cwd=spec.target_root)
 
-    def _seeds_the_branch(self, spec: config.RepoSpec, branch: str) -> None:
+    def _seeds_the_branch(self, spec: _config_models.RepoSpec, branch: str) -> None:
         """The commits a reviewer approved, published and then stepped off.
 
         The parent clone is left on the base so the branch is free for the
@@ -165,7 +165,7 @@ class ApprovedCheckoutMixin:
         run_git("checkout", BASE_BRANCH, cwd=target)
         run_git("fetch", REMOTE_NAME, cwd=target)
 
-    def _adds_the_worktree(self, spec: config.RepoSpec, branch: str) -> Path:
+    def _adds_the_worktree(self, spec: _config_models.RepoSpec, branch: str) -> Path:
         """The per-issue checkout, at the path the stage derives for it."""
         path = _worktree_paths._worktree_path(spec, ISSUE_NUMBER)
         path.parent.mkdir(parents=True, exist_ok=True)

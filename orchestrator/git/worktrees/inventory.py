@@ -12,7 +12,7 @@ from collections.abc import Mapping, Sequence
 from itertools import chain
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     attribution,
     branch_probes,
@@ -26,7 +26,7 @@ from orchestrator.git.worktrees.candidates import ArtifactInventory, IssueArtifa
 
 
 def _held_checkouts(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     checkouts: frozenset[int],
     legacy: frozenset[int],
@@ -51,7 +51,7 @@ def _held_checkouts(
 
 
 def _issue_artifacts(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     checkouts: tuple[frozenset[int], frozenset[int]],
     branched: Mapping[int, tuple[str, ...]],
@@ -71,7 +71,7 @@ def _issue_artifacts(
 
 
 def _spec_inventory(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     branched: Mapping[int, tuple[str, ...]],
     legacy: _legacy_inventory.LegacyCheckouts,
 ) -> ArtifactInventory:
@@ -115,7 +115,7 @@ def _spec_inventory(
 
 
 def _root_inventory(
-    root_specs: tuple[config.RepoSpec, ...],
+    root_specs: tuple[_config_models.RepoSpec, ...],
     refused: frozenset[str],
     legacy: _legacy_inventory.LegacyCheckouts,
 ) -> ArtifactInventory:
@@ -182,7 +182,7 @@ def _merged(
 
 
 def _scanned(
-    configured: tuple[config.RepoSpec, ...], legacy: _legacy_inventory.LegacyCheckouts,
+    configured: tuple[_config_models.RepoSpec, ...], legacy: _legacy_inventory.LegacyCheckouts,
 ) -> ArtifactInventory:
     """The scan proper, once the host-wide flat checkouts have been attributed.
 
@@ -207,7 +207,7 @@ def _scanned(
 
 
 def _local_issue_inventory(
-    specs: Sequence[config.RepoSpec],
+    specs: Sequence[_config_models.RepoSpec],
 ) -> ArtifactInventory:
     """Every issue this host holds an orchestrator-owned artifact for.
 

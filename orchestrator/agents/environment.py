@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import os
 
-from orchestrator import config
+from orchestrator.config import settings as config
 
 _FORBIDDEN_AGENT_ENV = frozenset((
     "GITHUB_TOKEN",

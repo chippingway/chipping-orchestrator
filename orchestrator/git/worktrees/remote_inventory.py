@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import ref_discovery
 from orchestrator.git.worktrees import (
     attribution,
@@ -34,11 +34,11 @@ _REMOTE_BRANCH_PREFIX = "refs/heads/"
 
 # What the remote carries, by the repository that published it and the issue it
 # names: the remote-side counterpart of the clone's own attributed listing.
-PublishedBranches = dict[config.RepoSpec, attribution.IssueBranches]
+PublishedBranches = dict[_config_models.RepoSpec, attribution.IssueBranches]
 
 
 def _remote_orchestrator_branches(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
 ) -> tuple[str, ...] | None:
     """Every branch this repository's remote carries under the owned namespace.
 
@@ -85,7 +85,7 @@ def _remote_orchestrator_branches(
 
 
 def _remote_issue_branches(
-    spec: config.RepoSpec, root_specs: tuple[config.RepoSpec, ...],
+    spec: _config_models.RepoSpec, root_specs: tuple[_config_models.RepoSpec, ...],
 ) -> attribution.IssueBranches | None:
     """Which of this remote's branches belong to this repository, by issue.
 
@@ -108,7 +108,7 @@ def _remote_issue_branches(
 
 
 def _group_published(
-    root_specs: tuple[config.RepoSpec, ...], refused: frozenset[str],
+    root_specs: tuple[_config_models.RepoSpec, ...], refused: frozenset[str],
 ) -> tuple[PublishedBranches, frozenset[str]]:
     """What the remotes of the repositories on one clone carry, and whose would not say.
 
@@ -153,7 +153,7 @@ def _published_branches(
 
 
 def _remote_half(
-    configured: tuple[config.RepoSpec, ...], refused: frozenset[str],
+    configured: tuple[_config_models.RepoSpec, ...], refused: frozenset[str],
 ) -> tuple[PublishedBranches, frozenset[str]]:
     """What every reachable remote carries, and who is left out of the answer.
 

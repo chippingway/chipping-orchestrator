@@ -40,7 +40,7 @@ from enum import Enum
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split.events import LateVerdictCategory
@@ -356,7 +356,7 @@ class _LateContext:
     """
 
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     generation: LateGeneration

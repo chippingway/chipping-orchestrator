@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.measurement.models import (
     FrozenCommit,
@@ -58,7 +58,7 @@ _FETCH_SAID_NOTHING = "the fetch reported no reason"
 
 
 def _freeze_base_commit(
-    spec: config.RepoSpec, worktree: Path,
+    spec: _config_models.RepoSpec, worktree: Path,
 ) -> FrozenCommit:
     """Freeze the exact commit the remote says the base branch is at.
 
@@ -116,7 +116,7 @@ def _freeze_base_commit(
 
 
 def _base_object_present(
-    spec: config.RepoSpec, worktree: Path, base_sha: str,
+    spec: _config_models.RepoSpec, worktree: Path, base_sha: str,
 ) -> _BaseObject:
     """Whether the frozen base is readable here, fetching once if it is not.
 

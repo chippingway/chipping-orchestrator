@@ -23,7 +23,7 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -94,7 +94,7 @@ _ABSENT_CHECKOUT_PARK = (
 
 def _reconciles_published_work(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     label: WorkflowLabel | None,
     state: PinnedState,
@@ -320,7 +320,7 @@ def _unpublished_reconciliation(
 
 def _holds_absent_checkout(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
 ) -> bool:

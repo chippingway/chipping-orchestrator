@@ -20,7 +20,7 @@ from __future__ import annotations
 import unittest
 from types import MappingProxyType
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement.models import FingerprintFailure
 from orchestrator.workflow.stages.implementing import late_parks as _parks
 from tests.workflow.fixtures import (

@@ -9,7 +9,7 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.base_sync import eligibility, recovery
 from orchestrator.git.verification import status as _worktree_status
 from tests.git.base_sync import base_sync_helpers as fixtures

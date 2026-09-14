@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import cleanup, naming as _naming
 from orchestrator.github.client import GitHubClient
 
@@ -24,7 +24,7 @@ log = logging.getLogger("orchestrator.worktree_lifecycle")
 
 
 def _cleanup_question_worktree(
-    spec: config.RepoSpec, issue_number: int, *, branch: str | None = None,
+    spec: _config_models.RepoSpec, issue_number: int, *, branch: str | None = None,
 ) -> None:
     """Tear down the per-issue worktree and local branch after a
     `_handle_question` tick.
@@ -70,7 +70,7 @@ def _cleanup_question_worktree(
 
 def _cleanup_terminal_branch(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     *,
     branch: str | None = None,

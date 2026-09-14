@@ -21,7 +21,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands
 from orchestrator.git.publication import titles
 from orchestrator.git.verification import probes as verification_probes, status as _worktree_status
@@ -53,7 +53,7 @@ class _SquashPlan:
     count: int = 0
 
 
-def _squash_base_sha(spec: config.RepoSpec, worktree: Path) -> str:
+def _squash_base_sha(spec: _config_models.RepoSpec, worktree: Path) -> str:
     """Return the topic branch merge base or raise a preparation error."""
     base_ref = f"{spec.remote_name}/{spec.base_branch}"
     merge_base_result = commands._git(
@@ -114,7 +114,7 @@ def _squash_commit_count(worktree: Path, base_sha: str) -> int:
 
 
 def _squash_message(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     worktree: Path,
     issue: Issue,
     subjects: tuple[str, ...],
@@ -136,7 +136,7 @@ def _squash_message(
 
 
 def _prepare_squash(
-    spec: config.RepoSpec, worktree: Path, issue: Issue,
+    spec: _config_models.RepoSpec, worktree: Path, issue: Issue,
 ) -> _SquashPlan:
     """Collect every precondition before the branch rewrite begins."""
     base_sha = _squash_base_sha(spec, worktree)

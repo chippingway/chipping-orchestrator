@@ -35,7 +35,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from types import MappingProxyType
 
-from orchestrator import config
+from orchestrator.config import settings as config
 
 _GIT_NO_PROMPT_ENV: Mapping[str, str] = MappingProxyType({
     "GIT_TERMINAL_PROMPT": "0",

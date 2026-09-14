@@ -25,7 +25,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
 from tests.workflow.fixtures import (
     KEY_AWAITING_HUMAN,

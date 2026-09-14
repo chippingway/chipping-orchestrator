@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import subprocess
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands, locks
 from orchestrator.git.worktrees import naming as _naming
 
 
 def _branch_has_unpushed_commits(
-    spec: config.RepoSpec, issue_number: int,
+    spec: _config_models.RepoSpec, issue_number: int,
 ) -> str | None:
     """Return the per-issue branch carrying unpushed commits, or None.
 
@@ -77,7 +77,7 @@ def _branch_has_unpushed_commits(
     return None
 
 
-def _branch_tip_sha(spec: config.RepoSpec, branch: str) -> str:
+def _branch_tip_sha(spec: _config_models.RepoSpec, branch: str) -> str:
     """Return the SHA one named local branch points at, or '' if it has none.
 
     The absolute-SHA counterpart to `_branch_has_unpushed_commits`: that probe
@@ -107,7 +107,7 @@ def _branch_tip_sha(spec: config.RepoSpec, branch: str) -> str:
 
 
 def _candidate_issue_branches(
-    spec: config.RepoSpec, issue_number: int,
+    spec: _config_models.RepoSpec, issue_number: int,
 ) -> tuple[str, ...]:
     """Return namespaced then legacy branch candidates without duplicates."""
     namespaced = _naming._branch_name(spec, issue_number)
@@ -118,7 +118,7 @@ def _candidate_issue_branches(
 
 
 def _branch_commit_count(
-    spec: config.RepoSpec, branch: str, base_ref: str,
+    spec: _config_models.RepoSpec, branch: str, base_ref: str,
 ) -> int:
     """Return commits unique to a local branch, or zero on probe failure."""
     local_ref = f"refs/heads/{branch}"

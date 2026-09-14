@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from github import GithubException
 
-from orchestrator import config
+from orchestrator.config import credentials as _config_credentials
 from orchestrator.github import client as _client
 from orchestrator.github.client import GitHubClient
 
@@ -101,7 +101,7 @@ class ClientConstructionTest(unittest.TestCase):
         )
 
     def test_explicit_token_skips_resolution(self) -> None:
-        with patch.object(config, "_resolve_github_token") as resolve:
+        with patch.object(_config_credentials, "resolve_github_token") as resolve:
             client = GitHubClient(token=_TOKEN, repo_slug=_REPO_SLUG)
             resolve.assert_not_called()
 
@@ -113,8 +113,8 @@ class ClientConstructionTest(unittest.TestCase):
     def test_repo_spec_slug_resolves_its_own_token(self) -> None:
         spec = MagicMock(slug=_SPEC_SLUG)
         with patch.object(
-            config,
-            "_resolve_github_token",
+            _config_credentials,
+            "resolve_github_token",
             return_value=_TOKEN,
         ) as resolve:
             client = GitHubClient(repo_slug=_REPO_SLUG, repo_spec=spec)
@@ -126,7 +126,7 @@ class ClientConstructionTest(unittest.TestCase):
         # The message names the token file for the slug being opened, so the
         # operator knows which repository credential is missing.
         with (
-            patch.object(config, "_resolve_github_token", return_value=""),
+            patch.object(_config_credentials, "resolve_github_token", return_value=""),
             self.assertRaisesRegex(RuntimeError, _REPO_SLUG),
         ):
             GitHubClient(repo_slug=_REPO_SLUG)

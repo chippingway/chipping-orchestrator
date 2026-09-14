@@ -45,7 +45,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from tests.support.fakes import FakePR, FakePRRef
 from tests.workflow.fixtures import (
     BASE_TIP_SHA,

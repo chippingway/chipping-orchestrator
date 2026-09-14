@@ -21,7 +21,7 @@ from typing import Any
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 
@@ -35,7 +35,7 @@ class _InReviewContext:
     pinned PR number `_handle_in_review` already validated as present.
     """
     gh: GitHubClient
-    spec: config.RepoSpec
+    spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     pr: Any

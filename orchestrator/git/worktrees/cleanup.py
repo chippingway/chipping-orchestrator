@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import commands, locks
 from orchestrator.git.worktrees import paths
 
@@ -31,7 +31,7 @@ log = logging.getLogger("orchestrator.worktree_lifecycle")
 
 
 def _run_issue_worktree_removal(
-    spec: config.RepoSpec, issue_number: int, log_prefix: str,
+    spec: _config_models.RepoSpec, issue_number: int, log_prefix: str,
 ) -> None:
     """Force-remove one issue worktree under the parent lock, logging a
     non-zero git result."""
@@ -53,7 +53,7 @@ def _run_issue_worktree_removal(
 
 
 def _remove_issue_worktree(
-    spec: config.RepoSpec, issue_number: int, *, log_prefix: str = "",
+    spec: _config_models.RepoSpec, issue_number: int, *, log_prefix: str = "",
 ) -> None:
     """Best-effort removal of one issue worktree under the parent lock."""
     try:
@@ -65,7 +65,7 @@ def _remove_issue_worktree(
 
 
 def _run_local_branch_deletion(
-    spec: config.RepoSpec, issue_number: int, branch: str, log_prefix: str,
+    spec: _config_models.RepoSpec, issue_number: int, branch: str, log_prefix: str,
 ) -> None:
     """Delete one local issue branch under the parent lock (no-op when the
     branch is absent), logging a non-zero git result."""
@@ -90,7 +90,7 @@ def _run_local_branch_deletion(
 
 
 def _delete_local_issue_branch(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     branch: str,
     *,
@@ -108,7 +108,7 @@ def _delete_local_issue_branch(
         )
 
 
-def _local_branch_present(spec: config.RepoSpec, branch: str) -> bool:
+def _local_branch_present(spec: _config_models.RepoSpec, branch: str) -> bool:
     """Whether the local clone still carries `branch`.
 
     The verification half of a teardown a caller has to record. Fail-closed on

@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.workflow.engine import comments
 
 _LANCE_SLUG = "owner/lance"
@@ -27,8 +27,8 @@ _VISIBLE_SIBLING_REPOS = 20
 
 def _spec(
     slug: str, root: str, base: str = "main", remote: str = "origin"
-) -> config.RepoSpec:
-    return config.RepoSpec(
+) -> _config_models.RepoSpec:
+    return _config_models.RepoSpec(
         slug=slug,
         target_root=Path(root),
         base_branch=base,
@@ -37,8 +37,8 @@ def _spec(
 
 
 def _build_context(
-    current: config.RepoSpec,
-    specs: list[config.RepoSpec],
+    current: _config_models.RepoSpec,
+    specs: list[_config_models.RepoSpec],
     *,
     expose: bool = True,
 ) -> str:

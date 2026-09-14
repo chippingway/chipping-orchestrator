@@ -3,7 +3,7 @@
 """Repository and backend values shared by workflow tests."""
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 
 TEST_REPO_SLUG = "chippingway/orchestrator"
 TEST_BASE_BRANCH = "main"
@@ -60,7 +60,7 @@ BACKEND_CLAUDE = "claude"
 BACKEND_CODEX = "codex"
 
 _FAKE_WT = Path("/tmp/orchestrator-test-wt-doesnt-matter")
-_TEST_SPEC = config.RepoSpec(
+_TEST_SPEC = _config_models.RepoSpec(
     slug=TEST_REPO_SLUG,
     target_root=Path("/tmp/orchestrator-test-target-root"),
     base_branch=TEST_BASE_BRANCH,

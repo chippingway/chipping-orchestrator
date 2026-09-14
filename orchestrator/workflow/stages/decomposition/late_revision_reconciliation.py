@@ -66,7 +66,7 @@ import logging
 from dataclasses import replace
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import settings as config
 from orchestrator.git.measurement import additions as _measurement
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.workflow.engine import comments as _comments, messages as _messages

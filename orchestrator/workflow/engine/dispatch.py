@@ -126,7 +126,7 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
     _ISSUE_STATE_CLOSED,
@@ -265,7 +265,7 @@ _POLLED_OPEN = _PollReading()
 
 def _pinned_state_refuses(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     *,
@@ -404,7 +404,7 @@ def _pinned_state_refuses(
 
 def _run_limit_holds_the_tick(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     ended: bool,
@@ -568,7 +568,7 @@ def _recorded_pr_has_ended(
 
 def _record_stops_the_tick(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     state,
@@ -602,7 +602,7 @@ def _record_stops_the_tick(
 
 
 def _greeted_already(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     state: PinnedState,
@@ -641,7 +641,7 @@ def _greeted_already(
 
 def _cycle_stops_the_tick(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     state: PinnedState,
@@ -668,7 +668,7 @@ def _cycle_stops_the_tick(
     )
 
 
-def _parked_past_the_mark(spec: config.RepoSpec, issue: Issue) -> bool:
+def _parked_past_the_mark(spec: _config_models.RepoSpec, issue: Issue) -> bool:
     """Whether a control label the closed reading was let past applies again.
 
     `backlog` / `paused` park an issue outside the state machine, and the one
@@ -712,7 +712,7 @@ def _cleanup_sweep_only(issue: Issue, label: str | None) -> bool:
 
 def _call_handler(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     target: tuple[str, str],
 ) -> None:
@@ -724,7 +724,7 @@ def _call_handler(
 
 def _route_issue_to_handler(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     *,
@@ -789,7 +789,7 @@ def _route_issue_to_handler(
 
 
 def _process_polled_issue(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> None:
     """Dispatch one issue this thread polled and still holds.
 
@@ -876,7 +876,7 @@ def _cleanup_routed(label: str | None, *, closed: bool) -> bool:
 
 
 def _polled_open_owner(
-    gh: GitHubClient, spec: config.RepoSpec, issue_number: int,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
 ) -> None:
     """Refetch an owner the poll read OPEN, and dispatch what comes back.
 
@@ -892,7 +892,7 @@ def _polled_open_owner(
 
 def _polled_ordinary(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     *,
     closed: bool,
@@ -914,7 +914,7 @@ def _polled_ordinary(
 
 def _process_issue(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     *,
     reading: _PollReading = _POLLED_OPEN,
@@ -1061,7 +1061,7 @@ def _drains_in_family_bucket(label: str | None, closed: bool) -> bool:
 
 
 def _read_issue_routing(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> tuple[bool, str | None]:
     """Return ``(skip, label)`` from the issue's control / workflow labels.
 
@@ -1075,7 +1075,7 @@ def _read_issue_routing(
 
 
 def _hard_skipped(
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
     reading: _PollReading,
@@ -1117,7 +1117,7 @@ def _hard_skipped(
 
 
 def _classify_pollable_issue(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> tuple[bool, str | None]:
     """Read one pollable issue's workflow label for the family / fanout split.
 
@@ -1147,7 +1147,7 @@ def _classify_pollable_issue(
 
 def _partition_pollable_issues(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     deferred: frozenset[int] | None = None,
 ) -> _PollablePartition:
     """Split this tick's pollable issues into the family and fanout buckets.
@@ -1185,7 +1185,7 @@ def _partition_pollable_issues(
 def _sorted_pollable(
     builder: _PollablePartitionBuilder,
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
 ) -> None:
     """Classify one yielded issue into the bucket its route names.
@@ -1233,7 +1233,7 @@ def _sorted_pollable(
 
 
 def _recorded_at_poll(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
 ) -> bool:
     """Latch this closed reading and get its durable half written.
 
@@ -1260,7 +1260,7 @@ def _recorded_at_poll(
 @contextlib.contextmanager
 def _refetched_close(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue: Issue,
     reading: _PollReading,
 ):
@@ -1319,7 +1319,7 @@ def _family_bucket_cap_exempt(family_labels: list[str | None]) -> bool:
 
 def _refetch_and_process(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     *,
     semaphore_cm: contextlib.AbstractContextManager | None = None,
@@ -1359,7 +1359,7 @@ def _refetch_and_process(
 
 def _drain_scheduler_family_bucket(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     scheduler: IssueScheduler,
     family_numbers: list[int],
 ) -> None:
@@ -1406,13 +1406,13 @@ def _drain_scheduler_family_bucket(
             )
 
 
-def _scheduler_per_repo_cap(spec: config.RepoSpec) -> int:
+def _scheduler_per_repo_cap(spec: _config_models.RepoSpec) -> int:
     return max(1, int(getattr(spec, "parallel_limit", 1) or 1))
 
 
 def _submit_scheduler_family_bucket(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     scheduler: IssueScheduler,
     partition: _PollablePartition,
     per_repo_cap: int,
@@ -1448,7 +1448,7 @@ def _submit_scheduler_family_bucket(
 
 def _submit_scheduler_fanout_issues(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     scheduler: IssueScheduler,
     partition: _PollablePartition,
     per_repo_cap: int,
@@ -1492,7 +1492,7 @@ def _submit_scheduler_fanout_issues(
 
 
 def _released_after(
-    spec: config.RepoSpec, issue_number: int, task: Callable[[], None],
+    spec: _config_models.RepoSpec, issue_number: int, task: Callable[[], None],
 ) -> Callable[[], None]:
     """The submitted task with the claim's own hold given back behind it.
 
@@ -1522,7 +1522,7 @@ def _releases_the_claim(
 
 def _refused_submit(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     *,
     cleanup_only: bool,
@@ -1555,7 +1555,7 @@ def _refused_submit(
 
 @contextlib.contextmanager
 def _closed_reading(
-    gh: GitHubClient, spec: config.RepoSpec, issue_number: int,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
 ):
     """Hold one closed issue's reading across the pass that would spend it.
 
@@ -1573,7 +1573,7 @@ def _closed_reading(
 
 
 def _kept_closed_reading(
-    gh: GitHubClient, spec: config.RepoSpec, issue_number: int,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
 ) -> None:
     """Hold a closed reading no pass acted on, unless the record says not to.
 
@@ -1602,7 +1602,7 @@ def _kept_closed_reading(
 
 def _fanout_task(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     *,
     reading: _PollReading,
@@ -1638,7 +1638,7 @@ def _fanout_task(
 
 def _closed_ordinary_pass(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     *,
     semaphore_cm: contextlib.AbstractContextManager | None = None,
@@ -1681,7 +1681,7 @@ def _closed_ordinary_pass(
 
 def _swept_for_cleanup(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     *,
     semaphore_cm: contextlib.AbstractContextManager | None = None,
@@ -1711,7 +1711,7 @@ def _swept_for_cleanup(
 
 @contextlib.contextmanager
 def _cleanup_observation(
-    gh: GitHubClient, spec: config.RepoSpec, issue_number: int,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
 ):
     """Hold one cleanup's observation until the pass has actually run it.
 
@@ -1740,7 +1740,7 @@ def _cleanup_observation(
 
 
 def _kept_cleanup_reading(
-    gh: GitHubClient, spec: config.RepoSpec, issue_number: int,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue_number: int,
 ) -> None:
     """Hold a cleanup's reading where nothing else would come back for it.
 
@@ -1765,7 +1765,7 @@ def _kept_cleanup_reading(
 
 def _deferred_cleanup(
     gh: GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     issue_number: int,
     reason: str,
 ) -> None:
@@ -1802,7 +1802,7 @@ def _deferred_cleanup(
 
 
 def _said_deferred(
-    spec: config.RepoSpec, issue_number: int, reason: str,
+    spec: _config_models.RepoSpec, issue_number: int, reason: str,
 ) -> None:
     """Say what was held, so an operator can tell one hold from the other."""
     log.info(
@@ -1814,7 +1814,7 @@ def _said_deferred(
 
 
 def _dispatch_via_scheduler(
-    gh: GitHubClient, spec: config.RepoSpec, scheduler: IssueScheduler,
+    gh: GitHubClient, spec: _config_models.RepoSpec, scheduler: IssueScheduler,
 ) -> None:
     """Enumerate pollable issues this tick and hand work to the scheduler.
 

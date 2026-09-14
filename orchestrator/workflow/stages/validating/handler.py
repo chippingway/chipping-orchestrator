@@ -38,7 +38,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import terminals as _terminals
@@ -52,7 +52,7 @@ from orchestrator.workflow.stages.validating import (
 
 
 def _finalize_validating_terminal(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
 ) -> bool:
     """Terminal short-circuits checked before the reviewer runs; True when one
     fired and the caller must return.
@@ -76,7 +76,7 @@ def _finalize_validating_terminal(
     return _terminals._finalize_if_issue_closed(gh, spec, issue, state)
 
 
-def _handle_validating(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -> None:
+def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
     state = gh.read_pinned_state(issue)
     pr_number = state.get("pr_number")
 

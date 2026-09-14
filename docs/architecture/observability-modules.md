@@ -42,7 +42,8 @@ guard for the first, and the owner's own tests for each channel of the second, s
   wherever it is read. Reading one back is the configuration owner beside them: every adapter resolves a knob off a
   holder inside the call rather than at import, which is what lets a caller settle *which* holder answers — the
   trajectory app hands its page one explicitly, while the analytics page resolves the live one through the
-  configuration owner as it reads. That holder is also the only place a knob is read out of `orchestrator.config`,
+  configuration owner as it reads. That holder is also the only place a knob is read out of
+  `orchestrator.config.settings`,
   for the `LOG_DIR` the default sink lives under, and the parse defers that import to a call so nothing on the
   append path pays for it until a record is written. The one other reach into the configuration layer is not a knob
   at all: the trajectory writer imports the secret redactor inside the write that uses it, so a producer on the

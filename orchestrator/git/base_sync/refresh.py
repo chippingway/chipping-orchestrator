@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport as _branch_transport, commands as _commands
 from orchestrator.git.base_sync import (
     pr as _pr,
@@ -34,7 +34,7 @@ log = _state.log
 
 
 def _worktree_behind_base(
-    spec: config.RepoSpec, worktree: Path, issue_number: int,
+    spec: _config_models.RepoSpec, worktree: Path, issue_number: int,
 ) -> int | None:
     """Return the base lag, or None when the comparison cannot be read."""
     base_ref = f"{spec.remote_name}/{spec.base_branch}"
@@ -55,7 +55,7 @@ def _worktree_behind_base(
 
 
 def _sync_worktree_with_base(
-    gh: _client.GitHubClient, spec: config.RepoSpec, worktree: Path, issue_number: int,
+    gh: _client.GitHubClient, spec: _config_models.RepoSpec, worktree: Path, issue_number: int,
 ) -> None:
     """Bring one per-issue worktree up to date with the configured base.
 
@@ -95,7 +95,7 @@ def _sync_worktree_with_base(
 
 def _sync_discovered_worktree(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     worktree: Path,
     issue_number: int,
     scheduler: IssueScheduler | None,
@@ -120,7 +120,7 @@ def _sync_discovered_worktree(
 
 def _refresh_base_and_worktrees(
     gh: _client.GitHubClient,
-    spec: config.RepoSpec,
+    spec: _config_models.RepoSpec,
     *,
     scheduler: IssueScheduler | None = None,
 ) -> None:

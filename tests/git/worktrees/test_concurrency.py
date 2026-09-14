@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands, locks
 from orchestrator.git.worktrees import creation
 from tests.git.concurrency_test_support import (
@@ -39,8 +39,8 @@ SHARED_ISSUES = (1, 2, 3, 4)
 ISSUE_NUMBERS = tuple(range(1, 7))
 
 
-def _spec(repo_slug: str, target_root: str) -> config.RepoSpec:
-    return config.RepoSpec(
+def _spec(repo_slug: str, target_root: str) -> _config_models.RepoSpec:
+    return _config_models.RepoSpec(
         slug=repo_slug,
         target_root=Path(target_root),
         base_branch=BASE_BRANCH,

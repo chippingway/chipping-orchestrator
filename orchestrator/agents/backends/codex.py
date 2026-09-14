@@ -10,13 +10,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Unpack
 
-from orchestrator import config
 from orchestrator.agents import (
     environment as _agent_environment,
     models as _agent_models,
     processes as _agent_processes,
     runner as _agent_runner,
 )
+from orchestrator.config import settings as config
 
 
 @contextmanager
