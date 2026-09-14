@@ -1345,9 +1345,26 @@ The keys that matter for the state machine fall into a few groups:
   it is never cleared, and read as one it would strand every untouched attempt the issue makes. Its parks read
   `auto_base_rebase_push_failed` where the push, the remote, or an announced publication the remote lost is what
   refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
-  unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand. What no road
-  reads yet is a mark over a remote that KEPT the publication, so a crash between an announcement and its relabel
-  there still costs the stream a second `base_rebased` and the pull request a second notice.
+  unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand.
+  **The post-publication route is built and dormant.** `landed_recovery` answers a head the pull request already
+  carries and `terminal_handoff` an attempt whose pull request is over, both tested directly, while the selector still
+  finalizes a published head as it always has and eligibility still clears only the attempt for a terminal one. Their
+  invariants are what the activation takes on. A landed head is finished only where something the attempt wrote
+  vouches for it — the record naming the head, or, for a replay the permit alone published, a permission bound to this
+  attempt — and only where the comment accounts for it: a foreign publication, a mark naming another head, a tree not
+  provably clean beneath a verdict, a mark beside a permission still outstanding, and a receipt or debt that does not
+  account for the transfer each park with HEAD and the anchor where they stand. An OUTSTANDING permission over a landed
+  head is settled through the leased no-op, entered on the anchor with the permit as its only licence and read back for
+  the rotation, so the exemption, its identity, the receipt, the paid debt, and the settlement proof go down in the push
+  tail's one write; that receipt is leased against the commit itself, and a SETTLED transfer's bound permission is what
+  dates it on a later poll. A settlement whose `late_transfer` record never reached the sinks is reported before any
+  finish, from the proof the comment kept, and the proof is dropped durably behind it, so it is reported once. A mark
+  naming the head in hand owes only the route and the clearing write — no second notice and no second `base_rebased` —
+  spending a released reply, relabelling only where that relabel did not already land, and leaving the route to the
+  rebase a base that advanced again still owes. A pull request that merged or closed over an attempt ends its whole
+  handoff in one write: the attempt and its debt go, a permission whose rewrite is the head the pull request ended on,
+  pushed from this anchor onto that pull request, settles from that head with its receipt, and any other permission is
+  dropped on the rollback's rule.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since
@@ -2391,7 +2408,10 @@ rather than preserving.
   saying so. That drop is the reporting owner's own last step rather than a caller's, because a comment still
   carrying a proof MEANS a report is owed: left standing it would say a settled transfer had never been announced for
   as long as the issue lives. A drop GitHub refuses is logged and walked past — the record has been made and a later
-  tick reading that comment may make it again, which is the safe way round. It is outside the group a reader is
+  tick reading that comment may make it again, which is the safe way round. The reconciliation ahead of every handler
+  is where a lost record is made, since every settled rewrite's crash — the squash, the conflict replay, the base
+  refresh — comes back through it, and a proof standing over a permission, a phase, or a reading nothing can account
+  for is a claim that reconciliation parks once rather than a record it walks past. It is outside the group a reader is
   held to WHOLE because the transfer is settled whether or not it has been reported, and a record short of this member
   is not one to refuse. It is read by PRESENCE all the same: the key standing over a proof this build does not know, a
   phase the settlement never reached, or an authorization it cannot read whole is a comment saying two things at once,
@@ -2399,13 +2419,13 @@ rather than preserving.
   the permission it described, and a fresh grant drops it with the transfer it replaces, since the phase going back to
   `authorized` is what would leave it unreadable beside the new one.
 
-  Its LIFECYCLE is live and so is its presence reading; its REPORT is not. The settlement writes the proof and the
-  reporting owner drops it behind the record it feeds, so a comment carries one only inside that window.
-  `stranded_transfer_proof` is read on the recovery's own road, through the transfer classification above, and
-  `unreported_transfer` only inside it — as the test of whether a proof names a report still owed. Neither is read
-  for the report itself: the classification answers a stranded proof *unvouched*, which is a park rather than a
-  record, so a process lost inside that window still leaves a settled transfer neither sink hears about. What the
-  durable proof buys today is that the fact is there to report from once a reporting road is taught to look.
+  Its LIFECYCLE, its presence reading, and its REPORT are all live. The settlement writes the proof and the reporting
+  owner drops it behind the record it feeds, so a comment carries one only inside that window — and a process lost
+  inside it is answered on the next dispatched tick: `late_reconcile` asks `_reports_a_settled_transfer` ahead of every
+  other answer, which reads `unreported_transfer` and makes the one record still owed before the drop. The presence
+  reading is taken on two roads: that reconciliation's claim check parks once on a proof nothing can report from, and
+  the recovery's transfer classification above answers the same proof *unvouched*. The dormant post-publication and
+  terminal-handoff routes call the same reporter, so wherever a settled transfer is reached it is reported once.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,
   `late_override_fingerprint`, `late_override_fingerprint_format`, `late_override_additions`,
   `late_override_threshold`, and `late_override_comment_id` are the terms an operator authorized one oversized

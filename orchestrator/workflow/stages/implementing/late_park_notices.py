@@ -152,6 +152,16 @@ def _parked(
     return True
 
 
+def _already_parked(gate: _late_gate_models._Gate) -> bool:
+    """Whether the park `_parked` takes is already standing on this comment.
+
+    What an announce-once refusal asks before taking it again: the notice that
+    park posted is already on the thread, and a fresh one every poll would be
+    a mention nobody can answer any faster.
+    """
+    return gate.state.get(_state._PARK_REASON) == _late_measurement_state.PARK_MEASUREMENT_FAILED
+
+
 def _emit(
     gate: _late_gate_models._Gate,
     generation: _late_models.LateGeneration,

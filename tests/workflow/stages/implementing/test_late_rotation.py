@@ -27,6 +27,7 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_push as _push,
+    late_reconcile as _reconcile,
     late_rotation as _rotation,
     late_transfer_telemetry as _telemetry_owner,
     state as _state,
@@ -375,6 +376,60 @@ class ReceiptAndRecordTest(_SettlementCase):
             _rewrite_reading.unreported_transfer(self._durable()),
             _rewrite_values.LateRewriteProof.PUSHED,
         )
+
+    def test_a_lost_record_is_made_on_the_next_poll(self) -> None:
+        # The process dies between the settlement's write and its record. The
+        # reconciliation every later tick opens with makes the record, and the
+        # poll after that finds nothing left to report.
+        with patch.object(
+            _telemetry_owner, REPORTS_THE_TRANSFER, side_effect=RuntimeError("lost"),
+        ), self.assertRaises(RuntimeError):
+            self._publishes(standing=LEASED_SHA, granted=False)
+        self.assertEqual(self._records_of(EVENT_TRANSFER), [])
+
+        for _ in range(2):
+            self.assertFalse(_reconcile._reconciles_published_work(
+                self.github, _transfer_payloads.SPEC, self.issue,
+                _transfer_payloads.SOURCE_STAGE, self._durable(),
+            ))
+
+        self._reported()
+        self.assertIsNone(_rewrite_reading.unreported_transfer(self._durable()))
+
+    def test_an_owed_record_is_made_once(self) -> None:
+        # The settlement's own write kept the proof; the record behind it was
+        # lost. The first ask makes it and drops the proof durably, so a
+        # later poll reading the comment afresh has nothing left to say.
+        _support.granted(self.state)
+        _support.spent(self.state)
+        self.github.write_pinned_state(self.issue, self.state)
+
+        first = _telemetry_owner._reports_a_settled_transfer(
+            _support.gate(self.github, self.issue, self.state),
+        )
+        again = _telemetry_owner._reports_a_settled_transfer(
+            _support.gate(self.github, self.issue, self._durable()),
+        )
+
+        self.assertEqual((first, again), (True, False))
+        self.assertEqual(self._reported()["transfer_proof"], "pushed")
+        self.assertIsNone(_rewrite_reading.unreported_transfer(self._durable()))
+
+    def test_nothing_owed_says_nothing(self) -> None:
+        # A permission still outstanding has settled nothing, and a proof this
+        # build cannot read is damage the recovery parks on, not a record.
+        for described, damaged in (("an outstanding permission", False), ("a damaged proof", True)):
+            with self.subTest(described):
+                self.state = self.github.read_pinned_state(self.issue)
+                _support.granted(self.state)
+                if damaged:
+                    _support.spent(self.state)
+                    self.state.set(_rewrite_fields.LATE_REWRITE_PROOF, "not-a-reading")
+
+                self.assertFalse(_telemetry_owner._reports_a_settled_transfer(
+                    _support.gate(self.github, self.issue, self.state),
+                ))
+                self.assertEqual(self._records_of(EVENT_TRANSFER), [])
 
 
 class SupersededPermissionTest(_SettlementCase):

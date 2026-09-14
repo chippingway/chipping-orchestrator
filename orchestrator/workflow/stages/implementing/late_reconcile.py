@@ -16,6 +16,10 @@ refusal parks. Two states have no reading to take at all, and both stop the
 tick rather than letting the stage carry on over unmeasured, unpushed work: a
 checkout that is not on this host, and a record entered on a stage the issue
 has since left.
+
+Ahead of all of it, this is also where the record a settled transfer never got
+to report is made: every settled rewrite's crash comes back through this seam,
+and no other seam is guaranteed to.
 """
 from __future__ import annotations
 
@@ -36,10 +40,9 @@ from orchestrator.workflow.stages.implementing import (
     late_push as _push,
     late_records as _records,
     late_terminal as _terminal,
-    state as _state,
+    late_transfer_telemetry as _transfer_telemetry,
 )
 from orchestrator.workflow.stages.implementing.late_gate_models import _Entered, _Gate, _Spends
-from orchestrator.workflow.stages.implementing.late_measurement_state import PARK_MEASUREMENT_FAILED
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -168,7 +171,25 @@ def _reconciles_published_work(
     where it is asked, which is behind the three record questions: its
     pull-request half is a request, and the only ticks its answer can change
     are the ones that have something left to reconcile.
+
+    The record a settled TRANSFER never got to report is made here too, ahead
+    of every answer above -- a different debt with a different owner, supplied
+    the one tick guaranteed to come. Every rewrite this workflow settles, the
+    squash an approval earns, the replay a resolved conflict publishes, and the
+    base refresh's own rebase, receipts its push in one write and reports the
+    move behind it, so a process lost between the two leaves a verdict that
+    moved and nothing on either sink saying so. The report drops the proof it
+    was made from durably, so a later poll has nothing left to say. It stops
+    nothing: the move is durable and the receipt already names the commit, so
+    everything behind it runs exactly as it would have. A proof nothing can
+    report from is the damage question's rather than the report's, and parks
+    with the rest of it.
     """
+    gate = _records._gate(
+        gh, spec, issue, state,
+        _worktree_paths._worktree_path(spec, issue.number),
+    )
+    _transfer_telemetry._reports_a_settled_transfer(gate)
     recorded = _late_state.read_late_generation(state)
     damage = _claims._unreadable_record(label, state)
     owed = _debt._owes_a_published_push(label, state)
@@ -186,10 +207,6 @@ def _reconciles_published_work(
         return False
     if _terminal._work_has_ended(gh, issue, state):
         return False
-    gate = _records._gate(
-        gh, spec, issue, state,
-        _worktree_paths._worktree_path(spec, issue.number),
-    )
     if damage:
         return _claims._parks_the_damage(gate, damage)
     if owed:
@@ -367,7 +384,7 @@ def _stranded_reading(
     the record should be dropped. So the refusal owes a human, and owes them
     one notice rather than one per poll.
     """
-    if gate.state.get(_state._PARK_REASON) == PARK_MEASUREMENT_FAILED:
+    if _late_park_notices._already_parked(gate):
         log.warning(
             "issue=#%d still carries a frozen pair entered on %s while it is "
             "on %s; holding the tick without a second notice",
@@ -411,7 +428,7 @@ def _absent_checkout(
     checkout is back the ordinary reading resumes: the measurement park is
     retired by the freeze that re-reads the pair it names.
     """
-    if gate.state.get(_state._PARK_REASON) == PARK_MEASUREMENT_FAILED:
+    if _late_park_notices._already_parked(gate):
         log.warning(
             "issue=#%d still has no checkout at %s for the pair it froze; "
             "holding the tick without a second notice",

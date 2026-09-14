@@ -127,7 +127,7 @@ def _unaccounted_publication(
         if carried == _transfer_values._Handoff.UNVOUCHED:
             return _UNREADABLE_CLAIM
         return _UNSETTLED_CLAIM.format(handoff=carried)
-    if _receipted_publication(context) != local_head:
+    if not _receipted(context, local_head, carried):
         return _UNRECEIPTED.format(
             published=local_head,
             anchor=context.pending_pre_rebase_sha,
@@ -155,6 +155,33 @@ def _unsettled_debt(state: PinnedState) -> str:
         return _DAMAGED_DEBT
     owed = _late_approval_reading._approved_commit(state)
     return _UNPAID.format(owed=owed) if owed else ""
+
+
+def _receipted(
+    context: _AutoRebaseRecoveryContext, local_head: str, carried: _transfer_values._Handoff,
+) -> bool:
+    """Whether a whole receipt dates this landed rewrite to the attempt.
+
+    The receipt this attempt's own push leaves is pinned to the anchor, and
+    every handoff is held to that one. A SETTLED transfer can show one more:
+    the leased no-op's. A push that found the pull request already standing on
+    the rewrite freezes and receipts the head it stood on, so its receipt is
+    leased against the commit itself -- which on its own dates nothing, since
+    a rewind leaves the same shape. What dates it is the permission it
+    settled, called SETTLED only once its lease is this anchor, its commit
+    this head, and its publication this attempt's, so a self-leased receipt
+    onto the same pull request is that settlement's account and no other.
+    """
+    if _receipted_publication(context) == local_head:
+        return True
+    if carried != _transfer_values._Handoff.SETTLED:
+        return False
+    # Lazy for the reason every upward reach in this package is: the receipt
+    # sits in the workflow layer above it.
+    from orchestrator.workflow.stages.implementing import late_publication_state as _late_publication_state
+    return _late_publication_state._publication_from(
+        context.state, local_head, context.pr_number,
+    ) == local_head
 
 
 def _rolled_back_publication(

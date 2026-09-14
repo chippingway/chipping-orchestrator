@@ -36,7 +36,11 @@ import logging
 from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow import transitions as _transitions
-from orchestrator.workflow.late_split import keys as _late_keys, state as _late_state
+from orchestrator.workflow.late_split import (
+    keys as _late_keys,
+    rewrite_reading as _rewrite_reading,
+    state as _late_state,
+)
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
     late_approval_reading as _late_approval_reading,
@@ -166,15 +170,25 @@ _DAMAGED_APPROVAL = (
 )
 
 
+_DAMAGED_TRANSFER = (
+    "the record says a transfer settled and still owes the sinks an account "
+    "of it, and cannot produce one -- the note saying which reading proved "
+    "that push landed stands over a permission, a phase, or a reading nothing "
+    "here can account for"
+)
+
+
 _DAMAGED_RECORD_PARK = (
-    "{mentions} this issue's pinned comment claims a size reading taken over "
-    "a pull request the remote already carries, and {refusal}. None of those "
-    "can be worked out from anywhere else -- the label it names has been "
-    "replaced, the pull request is not the plan one beside it, and the head "
-    "is a commit the branch has moved off -- and the stage may not run over "
-    "the claim either, since it would hand a reviewer a pull request nobody "
-    "can say received the work. Nothing was pushed and nothing was discarded. "
-    "Repair the pinned comment and the next tick reads it again."
+    "{mentions} this issue's pinned comment claims a record taken over a pull "
+    "request the remote already carries, and {refusal}. None of it can be "
+    "worked out from anywhere else -- the label it names has been replaced, "
+    "the pull request is not the plan one beside it, the head is a commit the "
+    "branch has moved off, and which reading proved a push landed is a fact "
+    "about the remote at the moment of that push -- and the stage may not run "
+    "over the claim either, since it would hand a reviewer a pull request "
+    "nobody can say received the work, or carry a verdict nothing here can "
+    "account for. Nothing was pushed and nothing was discarded. Repair the "
+    "pinned comment and the next tick reads it again."
 )
 
 
@@ -188,7 +202,7 @@ def _unreadable_record(
     lease comes back as no approval, and both of those read to the
     reconciliations behind this as an ordinary issue with nothing owed.
 
-    All four claims on the five stages that publish onto a pull request the
+    All five claims on the five stages that publish onto a pull request the
     remote already carries, and they are named off the transition graph's own
     set rather than derived from it. `workflow:implementing` has an edge to
     the adjudication too and is NOT one of them: its approval carries no
@@ -196,23 +210,37 @@ def _unreadable_record(
     request, so a crash between the two leaves exactly the shape this owner
     would otherwise call damaged.
 
-    `workflow:decomposing` is the adjudication's, and it is asked the
-    publication question ALONE. The group is the one piece of evidence that
-    mode cannot re-derive and the one it decides everything by: a settlement
-    reads it to know which pull request the verdict was taken over, which
-    head to pin the push it licenses to, and which stage to hand the issue
-    back to -- so a marker a hand edit took reads as a candidate nothing had
-    published, and the accepted commit is routed to `workflow:implementing`
-    with the frozen evidence retired behind it. The other three are not asked
-    there, and the approval is the reason: a verdict taken before anything
-    was published approves its commit with no head to pin it against, which
-    is exactly the half-written pair this owner calls damage everywhere else.
+    The five are also where every rewrite this workflow settles resumes, which
+    is what puts the transfer's own note among the claims. The note is written
+    by the statement that settles a transfer and dropped by the write behind
+    the record it feeds, so one standing over a permission, a phase, or a
+    reading nothing can account for is a comment saying two things at once --
+    and the report that would make its record reads it as nothing owed, so
+    left unasked the record is never made and the stage runs behind a verdict
+    nobody can account for.
+
+    `workflow:decomposing` is the adjudication's, and it is asked TWO of them.
+    The publication group is the one piece of evidence that mode cannot
+    re-derive and the one it decides everything by: a settlement reads it to
+    know which pull request the verdict was taken over, which head to pin the
+    push it licenses to, and which stage to hand the issue back to -- so a
+    marker a hand edit took reads as a candidate nothing had published, and
+    the accepted commit is routed to `workflow:implementing` with the frozen
+    evidence retired behind it. The transfer note is the other, because a note
+    nothing can report from is damage in any mode: nothing writes an
+    unreadable one, so there is no settlement in flight for a refusal to hold
+    up. The remaining three are not asked there, and the approval is the
+    reason: a verdict taken before anything was published approves its commit
+    with no head to pin it against, which is exactly the half-written pair
+    this owner calls damage everywhere else.
     """
     if label == WorkflowLabel.DECOMPOSING:
-        return _DAMAGED_PUBLICATION if _claims_a_publication(state) else ""
-    if not _transitions.publishes_onto_a_pull_request(label):
+        asked = _ADJUDICATION_CLAIMS
+    elif _transitions.publishes_onto_a_pull_request(label):
+        asked = _CLAIMS
+    else:
         return ""
-    for claims, refusal in _CLAIMS:
+    for claims, refusal in asked:
         if claims(state):
             return refusal
     return ""
@@ -337,13 +365,30 @@ def _claims_an_approval(state: PinnedState) -> bool:
 
 # Every claim a record can make and fail to produce, in the order an operator
 # reads them: the evidence itself, then the publication it was entered on,
-# then the debt it says is owed, then the bookkeeping a hold left behind. Each
-# names what has to be repaired, because the pieces are not interchangeable.
+# then the debt it says is owed, then the bookkeeping a hold left behind, and
+# last the account a settled transfer still owes the sinks. Each names what
+# has to be repaired, because the pieces are not interchangeable.
+#
+# The transfer's own reader answers for the last rather than a question worded
+# here: what "cannot produce it" means for that note is its owner's to say, and
+# spelled twice the two would drift, so this seam would walk past the very
+# state the recovery on the other side of the same window refuses.
 _CLAIMS = (
     (_claims_a_reading, _DAMAGED_EVIDENCE),
     (_claims_a_publication, _DAMAGED_PUBLICATION),
     (_claims_an_approval, _DAMAGED_APPROVAL),
     (_claims_a_spend, _DAMAGED_SPENDS),
+    (_rewrite_reading.stranded_transfer_proof, _DAMAGED_TRANSFER),
+)
+
+
+# The two the adjudication is asked instead. It is mid-way through deciding the
+# reading and the approval, so neither is a claim it has failed to produce; the
+# publication group and the transfer note are records it did not write and
+# cannot repair.
+_ADJUDICATION_CLAIMS = (
+    (_claims_a_publication, _DAMAGED_PUBLICATION),
+    (_rewrite_reading.stranded_transfer_proof, _DAMAGED_TRANSFER),
 )
 
 
@@ -362,7 +407,7 @@ def _parks_the_damage(gate: _late_gate_models._Gate, refusal: str) -> bool:
         )
         return True
     log.error(
-        "issue=#%d records a post-publication reading it cannot produce (%s); "
+        "issue=#%d records a post-publication claim it cannot produce (%s); "
         "refusing to run its stage over a claim nothing can check",
         gate.issue.number, refusal,
     )

@@ -1366,7 +1366,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             can vouch for entirely), since the head it was granted against is gone and what is left
                             is a claim about a push that cannot happen. What it stages is the transition and not
                             what is said about it: the rewrite a verdict moved onto and the reading that proved the
-                            publication ride the answer, and the record is the telemetry owner's below
+                            publication ride the answer, and the record is the telemetry owner's below. A permission
+                            whose rewrite a merged or closed pull request shipped -- pushed from the anchor the
+                            attempt was leased against, onto that pull request -- is settled from the head it ended
+                            on, the same proof a leased no-op buys
       late_transfer_telemetry.py
                             the one record a settled transfer leaves on both sinks -- one `late_transfer` event
                             naming both pairs, the pull request, the rewrite kind, and which reading proved the
@@ -1375,7 +1378,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             Called by `late_push` on the far side of the write `late_rotation` stages into rather
                             than by that owner, so the ordering is a property of the call site: a receipt GitHub
                             refuses ends the tick and reports nothing, and a rotation that moved no verdict -- a
-                            permission left standing, one the publication went past -- says nothing either.
+                            permission left standing, one the publication went past -- says nothing either. A
+                            settlement whose record was lost is reported from the proof the comment kept, with the
+                            proof dropped durably behind it, so a later poll has nothing left to report.
                             Deliberately no second `late_verdict` beside it, which would read as a second
                             adjudication of work nobody was asked about twice. The proof the settlement kept for
                             this record is dropped by this owner's own write, ordered after it: a comment still
@@ -1409,22 +1414,26 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             It stops the tick outright where the checkout that pair names is not on this host and
                             where the label has left the stage the pair was frozen on, since neither a re-entry nor
                             the handler is this process's to pick -- and it retires its own measurement park on a
-                            record whose split has settled, which is a group with no count that owes no reading
+                            record whose split has settled, which is a group with no count that owes no reading.
+                            Ahead of every answer it makes the record a settled transfer never got to report, since
+                            every settled rewrite's crash comes back through this seam and no other is guaranteed to
       late_claims.py        what a post-publication record claims and what it cannot produce: whether a live one
-                            still owes its count, and -- ahead of both reconciliations -- the four refusals a record
+                            still owes its count, and -- ahead of both reconciliations -- the five refusals a record
                             that cannot make a claim whole earns. Read off the RAW fields, because the parse is what
                             loses them: a group missing one member comes back as no group, an approval missing its
                             lease as no approval, a frozen field the comment CARRIES and no reader will type as a
-                            field nothing froze, and a spend group with one unusable member as no bookkeeping at all
+                            field nothing froze, a spend group with one unusable member as no bookkeeping at all, and
+                            a settled transfer's proof nothing can report from as no report owed
                             -- so every question behind them answers "nothing owed" and the stage runs over a claim
                             nothing can check, while the freeze quietly re-derives the half it cannot see from a
                             remote that has moved. A field the comment does NOT carry is the same gap: what the
                             write that mints a generation puts down in one go is required rather than merely checked
                             when present, and a base is required beside any count, since a number is taken over a
-                            pair. All four claims on the five stages the transition graph's own set names, since
+                            pair. All five claims on the five stages the transition graph's own set names, since
                             `workflow:implementing` has an edge to the adjudication too and its approval carries no
-                            head by design; `workflow:decomposing` is asked the publication one ALONE, because that
-                            group is what a settlement decides everything by and cannot re-derive, while a verdict
+                            head by design; `workflow:decomposing` is asked the publication one and the transfer
+                            proof's, because that group is what a settlement decides everything by and cannot
+                            re-derive and a proof nothing can report from is damage in any mode, while a verdict
                             taken before publication approves its commit with no head to pin it against -- the very
                             half-written pair the approval claim calls damage
       late_debt.py          the approval the dispatcher pays ahead of every handler, where a crash past the write

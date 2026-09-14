@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow import state as _workflow_state
+from orchestrator.workflow.stages.implementing import late_claims as _claims
 from tests.workflow.stages.fixing import (
     fixing_test_support as fixing,
     published_gate_support as support,
@@ -51,6 +53,9 @@ KEY_CYCLE_ID = "late_cycle_id"
 KEY_GENERATION = "late_generation"
 KEY_ROOT_ISSUE = "late_root_issue"
 KEY_CURRENT_ISSUE = "late_current_issue"
+
+# The note a settled transfer keeps until the record it owes the sinks is out.
+KEY_REWRITE_PROOF = "late_rewrite_proof"
 
 # The one stage with an edge to the adjudication that this owner may NOT read
 # an approval on: its push opens the pull request, so the approval it writes
@@ -357,6 +362,50 @@ class DamagedApprovalDispatchTest(unittest.TestCase, _FrozenPairMixin):
         github.seed_state(ISSUE, **pinned)
         return github
 
+    _routed = DamagedPublicationDispatchTest._routed
+    _assert_refused = DamagedPublicationDispatchTest._assert_refused
+
+
+class DamagedTransferNoteDispatchTest(unittest.TestCase, _FrozenPairMixin):
+    """A settlement note that cannot produce the record it says is owed.
+
+    The note is written by the statement that settles a transfer and dropped by
+    the write behind its record, so one standing over no permission, or naming
+    no reading, is a comment saying two things at once. The report reads it as
+    nothing owed, which is exactly the reading that would let the stage run
+    behind a verdict nothing can account for.
+    """
+
+    def test_an_unreportable_note_stops_the_stage(self) -> None:
+        for described, note in (
+            ("a note beside no permission", "pushed"),
+            ("a note naming no reading", NOT_A_PHASE),
+        ):
+            with self.subTest(described):
+                github = self._damaged(**{KEY_REWRITE_PROOF: note})
+
+                self._assert_refused(github, *self._routed(github))
+
+    def test_a_repeated_refusal_says_so_once(self) -> None:
+        # Nothing discards the note, so every later poll finds it again; the
+        # park it earned has already said so, and the stage stays held.
+        github = self._damaged(**{KEY_REWRITE_PROOF: NOT_A_PHASE})
+        self._routed(github)
+        posted = len(github.get_issue(ISSUE).comments)
+
+        self._assert_refused(github, *self._routed(github))
+        self.assertEqual(len(github.get_issue(ISSUE).comments), posted)
+
+    def test_the_adjudication_is_asked_it_too(self) -> None:
+        # A note the adjudication did not write is one it cannot repair.
+        noted = PinnedState(data={KEY_REWRITE_PROOF: NOT_A_PHASE})
+
+        self.assertEqual(
+            _claims._unreadable_record(_workflow_state.WorkflowLabel.DECOMPOSING, noted),
+            _claims._DAMAGED_TRANSFER,
+        )
+
+    _damaged = DamagedPublicationDispatchTest._damaged
     _routed = DamagedPublicationDispatchTest._routed
     _assert_refused = DamagedPublicationDispatchTest._assert_refused
 
