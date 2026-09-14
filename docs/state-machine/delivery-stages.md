@@ -752,15 +752,16 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     refusal is too late, so the answer there is a **reinstatement**: the generation is still in the call's own memory,
     and it is written back and cancelled from there. What was published stays published — the exemption, the notice,
     and the handoff label are none of them this owner's to take back;
-  - **the reclamation itself** (`late_cleanup.py`), between every obligation it settles, between every two of the
-    receipts a reclaimed ref owes its children — each is a comment on somebody *else's* issue, so a close observed
-    after the first is one the second may not be written over — between the fresh consumer
-    proof and the ref delete it authorizes — a ref that is gone while the record still reads live is a reclamation
-    nothing afterwards can attribute to the cancellation that earned it — and again between that delete and the
-    receipts behind it — and once more inside each of THOSE, since proving a child untold is a thread walk of its own
-    and the comment it authorizes stands behind it — each is a request, and the receipts are the one cleanup effect
-    that writes to somebody *else's* issue. The mark does not buy a shortcut through the reclamation rules; what it
-    changes is what the settling owes anybody, since a cancelled cycle tells its consumers nothing;
+  - **the reclamation paths** (through `late_cleanup_state._observed_close`), between every obligation it
+    settles, between every two of the receipts a reclaimed ref owes its children — each is a comment on
+    somebody *else's* issue, so a close observed after the first is one the second may not be written over —
+    between the fresh consumer proof and the ref delete it authorizes — a ref that is gone while the record
+    still reads live is a reclamation nothing afterwards can attribute to the cancellation that earned it —
+    and again between that delete and the receipts behind it — and once more inside each of THOSE, since
+    proving a child untold is a thread walk of its own and the comment it authorizes stands behind it — each
+    is a request, and the receipts are the one cleanup effect that writes to somebody *else's* issue. The mark
+    does not buy a shortcut through the reclamation rules; what it changes is what the settling owes anybody,
+    since a cancelled cycle tells its consumers nothing;
   - **the umbrella walk** (`umbrella.py`), past the child scan, behind the settlement its terminal waits on, and
     once more immediately before the write that records the resolution — the scan is a request per child, and so is
     the settlement. `done` is the write that cannot be recovered from, because it takes the issue off every label

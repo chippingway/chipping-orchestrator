@@ -1484,7 +1484,7 @@ Declining a step is only safe because those retries ask the same question themse
 retirement **keeps the publication group for**. It is the only thing left on the issue naming which pull request the
 split closed and the head it was closed over, so the shared activation walk re-asks it in front of every relabel it
 makes — under `workflow:umbrella` and under `workflow:blocked` alike, since the walk reads the parent's own record
-rather than being told — `late_cleanup` re-asks it in front of every branch it deletes, and the settlement the
+rather than being told — `late_reclamation` re-asks it in front of every branch it deletes, and the settlement the
 umbrella's terminal waits on asks it once more before `done` may be written at all. Dropped there, a reopened pull
 request would have its work handed to children on the very next poll and the ref it points at reaped by the
 terminal, with nothing in between having looked. It costs one lookup per release, one per delete, and one per

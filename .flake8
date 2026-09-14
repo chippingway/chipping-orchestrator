@@ -8,7 +8,6 @@ per-file-ignores =
     orchestrator/workflow/state.py:WPS202
     orchestrator/workflow/engine/dispatch.py:WPS201,WPS202
     orchestrator/workflow/engine/terminals.py:WPS202
-    orchestrator/workflow/stages/decomposition/late_cleanup.py:WPS201,WPS202
     orchestrator/workflow/stages/implementing/late_gate.py:WPS202
     orchestrator/workflow/stages/implementing/late_parks.py:WPS202
     orchestrator/workflow/stages/implementing/late_rewrite.py:WPS202

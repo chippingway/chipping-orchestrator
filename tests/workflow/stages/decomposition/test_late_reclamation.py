@@ -16,7 +16,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split.models import LateResourceState
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
-    late_cleanup as _late_cleanup,
+    late_cleanup_proof as _late_cleanup_proof,
 )
 from orchestrator.workflow.stages.decomposition.models import _ChildScan
 from tests.workflow.fixtures import _PatchedWorkflowMixin
@@ -312,7 +312,7 @@ class TerminalConsumerTest(unittest.TestCase):
         for label in (_support.LABEL_DONE, _support.LABEL_REJECTED, _support.LABEL_IN_REVIEW, None):
             with self.subTest(label=label):
                 self.assertTrue(
-                    _late_cleanup._reclaimable(
+                    _late_cleanup_proof._reclaimable(
                         _UNSTARTED,
                         _one_consumer(), _support.scan_of(label, closed=True),
                     ),
@@ -329,7 +329,7 @@ class TerminalConsumerTest(unittest.TestCase):
         )
 
         self.assertTrue(
-            _late_cleanup._reclaimable(_UNSTARTED, _one_consumer(), scan),
+            _late_cleanup_proof._reclaimable(_UNSTARTED, _one_consumer(), scan),
         )
 
     def test_a_terminal_label_alone_does_not(self) -> None:
@@ -340,7 +340,7 @@ class TerminalConsumerTest(unittest.TestCase):
         for label in (_support.LABEL_DONE, _support.LABEL_REJECTED):
             with self.subTest(label=label):
                 self.assertFalse(
-                    _late_cleanup._reclaimable(
+                    _late_cleanup_proof._reclaimable(
                         _UNSTARTED,
                         _one_consumer(), _support.scan_of(label),
                     ),
@@ -350,7 +350,7 @@ class TerminalConsumerTest(unittest.TestCase):
         for label in (_support.LABEL_IN_REVIEW, None):
             with self.subTest(label=label):
                 self.assertFalse(
-                    _late_cleanup._reclaimable(
+                    _late_cleanup_proof._reclaimable(
                         _UNSTARTED,
                         _one_consumer(), _support.scan_of(label),
                     ),
@@ -362,7 +362,7 @@ class TerminalConsumerTest(unittest.TestCase):
         opaque = replace(_one_consumer(), opaque_consumers=_OPAQUE_CONSUMERS)
 
         self.assertFalse(
-            _late_cleanup._reclaimable(
+            _late_cleanup_proof._reclaimable(
                 _UNSTARTED, opaque, _support.scan_of(_support.LABEL_DONE),
             ),
         )
@@ -383,7 +383,7 @@ class WholeLedgerRuleTest(unittest.TestCase):
         # has written the list yet" left one nothing would ever reclaim, swept
         # on every cadence forever.
         self.assertTrue(
-            _late_cleanup._reclaimable(
+            _late_cleanup_proof._reclaimable(
                 _UNSTARTED, _support.late_generation(), _support.scan_of(_support.LABEL_DONE),
             ),
         )
@@ -396,7 +396,7 @@ class WholeLedgerRuleTest(unittest.TestCase):
         for recorded in ((), (_support.CHILD_NUMBER,)):
             with self.subTest(recorded=recorded):
                 self.assertFalse(
-                    _late_cleanup._reclaimable(
+                    _late_cleanup_proof._reclaimable(
                         _UNSTARTED,
                         _support.late_generation(
                             phase=LatePhase.SPLITTING, consumers=recorded,
@@ -413,7 +413,7 @@ class WholeLedgerRuleTest(unittest.TestCase):
         for phase in unproven:
             with self.subTest(phase=phase):
                 self.assertFalse(
-                    _late_cleanup._reclaimable(
+                    _late_cleanup_proof._reclaimable(
                         _UNSTARTED,
                         replace(_one_consumer(), phase=phase),
                         _support.scan_of(_support.LABEL_DONE),
@@ -432,14 +432,14 @@ class WholeLedgerRuleTest(unittest.TestCase):
         for phase in early:
             with self.subTest(phase=phase):
                 self.assertFalse(
-                    _late_cleanup._reclaimable(
+                    _late_cleanup_proof._reclaimable(
                         _UNSTARTED,
                         replace(_one_consumer(), phase=phase),
                         _support.scan_of(_support.LABEL_DONE, closed=True),
                     ),
                 )
                 self.assertTrue(
-                    _late_cleanup._reclaimable(
+                    _late_cleanup_proof._reclaimable(
                         _UNSTARTED,
                         _support.late_generation(phase=phase), _support.scan_of(_support.LABEL_DONE),
                     ),
@@ -457,7 +457,7 @@ class WholeLedgerRuleTest(unittest.TestCase):
         for phase in (LatePhase.OWNER_CHECK, LatePhase.SNAPSHOTTING):
             with self.subTest(phase=phase):
                 self.assertFalse(
-                    _late_cleanup._reclaimable(
+                    _late_cleanup_proof._reclaimable(
                         started,
                         _support.late_generation(phase=phase),
                         _support.scan_of(_support.LABEL_DONE),
@@ -471,7 +471,7 @@ class WholeLedgerRuleTest(unittest.TestCase):
         for phase in whole:
             with self.subTest(phase=phase):
                 self.assertTrue(
-                    _late_cleanup._reclaimable(
+                    _late_cleanup_proof._reclaimable(
                         _UNSTARTED,
                         replace(_one_consumer(), phase=phase),
                         _support.scan_of(_support.LABEL_DONE, closed=True),

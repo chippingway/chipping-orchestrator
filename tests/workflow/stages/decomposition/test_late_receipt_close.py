@@ -21,7 +21,8 @@ from unittest.mock import patch
 from orchestrator.workflow.engine import observations as _observations
 from orchestrator.workflow.late_split import models as _late_models, phases as _late_phases
 from orchestrator.workflow.stages.decomposition import (
-    late_cleanup as _late_cleanup,
+    late_cleanup_state as _late_cleanup_state,
+    late_consumer_release as _late_consumer_release,
     parents as _parents,
 )
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -115,7 +116,7 @@ class LatchedInsideTheFirstReceiptTest(
 
     def _released(self, *, closing: bool = True, reading: bool = False):
         """Deliver this ref's receipts, closing inside the first if asked."""
-        walk = _late_cleanup._Pass(
+        walk = _late_cleanup_state._Pass(
             gh=self.github,
             spec=_TEST_SPEC,
             issue=self.owner,
@@ -126,17 +127,17 @@ class LatchedInsideTheFirstReceiptTest(
         if reading:
             first = self.github.get_issue(_SIBLINGS[0])
             with _LatchingChildThread(first, PARENT_NUMBER).answering():
-                return _late_cleanup._release_consumers(
+                return _late_consumer_release._release_consumers(
                     walk, generation, SNAPSHOT_REF, walk.scan,
                 )
         if not closing:
-            return _late_cleanup._release_consumers(
+            return _late_consumer_release._release_consumers(
                 walk, generation, SNAPSHOT_REF, walk.scan,
             )
         with latches_on_call(
             self.github, _TEST_SLUG, PARENT_NUMBER, ISSUE_COMMENT,
         ):
-            return _late_cleanup._release_consumers(
+            return _late_consumer_release._release_consumers(
                 walk, generation, SNAPSHOT_REF, walk.scan,
             )
 
