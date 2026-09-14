@@ -222,4 +222,3 @@ def _resolve_branch_name(
         # branch.
         return _legacy_branch_name(issue_number)
     return _branch_name(spec, issue_number)
-

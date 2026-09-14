@@ -8,7 +8,7 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.base_sync import attempts, startup
+from orchestrator.git.base_sync import attempt_records as _attempt_records, attempts, startup
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync import base_sync_helpers as fixtures
@@ -143,7 +143,7 @@ class PendingRewriteReadTest(unittest.TestCase):
     """
 
     def test_a_whole_record_vouches_for_its_replay(self) -> None:
-        pending = attempts._pending_rewrite(_recorded())
+        pending = _attempt_records._pending_rewrite(_recorded())
 
         self.assertTrue(pending.is_declared)
         self.assertTrue(pending.is_recorded)
@@ -159,7 +159,7 @@ class PendingRewriteReadTest(unittest.TestCase):
         # own head, a pull request the issue was repointed to, and the relabel
         # a crash left behind. Each would attribute an attempt's work to a
         # publication it was never made for.
-        pending = attempts._pending_rewrite(_recorded())
+        pending = _attempt_records._pending_rewrite(_recorded())
 
         self.assertFalse(pending.names(AFTER_SHA))
         self.assertFalse(pending.names(""))
@@ -170,7 +170,7 @@ class PendingRewriteReadTest(unittest.TestCase):
         self.assertFalse(pending.answers_for(ATTEMPT_PR, None))
 
     def test_a_comment_with_no_member_claims_nothing(self) -> None:
-        pending = attempts._pending_rewrite(PinnedState(data={}))
+        pending = _attempt_records._pending_rewrite(PinnedState(data={}))
 
         self.assertFalse(pending.is_declared)
         self.assertFalse(pending.is_recorded)
@@ -185,7 +185,7 @@ class PendingRewriteReadTest(unittest.TestCase):
         state = _recorded()
         attempts._clears_the_attempt(state)
 
-        pending = attempts._pending_rewrite(state)
+        pending = _attempt_records._pending_rewrite(state)
 
         self.assertFalse(pending.damaged)
         self.assertFalse(pending.left_a_replay)
@@ -195,7 +195,7 @@ class PendingRewriteReadTest(unittest.TestCase):
         # comment carrying one and not the other is not a group short of a
         # member: it is an attempt whose branch may be standing on a replay
         # nothing here can name.
-        pending = attempts._pending_rewrite(_recorded(**{
+        pending = _attempt_records._pending_rewrite(_recorded(**{
             KEY_REWRITE_SHA: None,
         }))
 
@@ -235,7 +235,7 @@ class DamagedAttemptTest(unittest.TestCase):
         }
         for described, damage in damaged.items():
             with self.subTest(record=described):
-                pending = attempts._pending_rewrite(_recorded(**damage))
+                pending = _attempt_records._pending_rewrite(_recorded(**damage))
 
                 self.assertTrue(pending.damaged)
                 self.assertTrue(pending.left_a_replay)
@@ -251,7 +251,7 @@ class DamagedAttemptTest(unittest.TestCase):
         state = _recorded()
         state.set(KEY_REWRITE_PR, None)
 
-        self.assertTrue(attempts._pending_rewrite(state).damaged)
+        self.assertTrue(_attempt_records._pending_rewrite(state).damaged)
 
 
 class AnnouncementMarkTest(unittest.TestCase):

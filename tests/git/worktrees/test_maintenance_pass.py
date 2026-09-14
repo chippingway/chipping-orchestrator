@@ -26,16 +26,11 @@ from unittest.mock import patch
 from orchestrator.git.worktrees import (
     eligibility,
     maintenance,
+    maintenance_results as _maintenance_results,
     probes,
     reclaim,
 )
-from orchestrator.git.worktrees.models import (
-    MaintenanceOutcome,
-    MaintenanceReason,
-    ProbeAnswer,
-    ProvenTip,
-    RetentionReason,
-)
+from orchestrator.git.worktrees.models import ProbeAnswer, ProvenTip, RetentionReason
 from tests.git.worktrees import maintenance_test_support as _support
 from tests.git.worktrees.artifact_test_support import (
     BASE_BRANCH,
@@ -90,8 +85,8 @@ class OrderedCleanupTest(_support._MaintenanceTestCase):
 
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.CLEANED)
-        self.assertEqual(swept.reason, MaintenanceReason.RECLAIMED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.RECLAIMED)
         self.assertFalse(worktree.exists())
         self.assertEqual(self.local_branches(), ())
         self.assertEqual(self.remote_branches(), ())
@@ -101,7 +96,7 @@ class OrderedCleanupTest(_support._MaintenanceTestCase):
 
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertEqual(self.local_branches(), ())
         self.assertEqual(self.remote_branches(), ())
 
@@ -113,7 +108,7 @@ class OrderedCleanupTest(_support._MaintenanceTestCase):
 
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertEqual(self.remote_branches(), ())
 
     def test_a_pass_writes_nothing_to_the_issue(self) -> None:
@@ -139,7 +134,7 @@ class LegacyLayoutCleanupTest(_support._MaintenanceTestCase):
 
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertFalse(worktree.exists())
         self.assertEqual(self.local_branches(), ())
         self.assertEqual(self.remote_branches(), ())
@@ -157,7 +152,7 @@ class LegacyLayoutCleanupTest(_support._MaintenanceTestCase):
 
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertFalse(current.exists())
         self.assertFalse(flat.exists())
         self.assertEqual(self.local_branches(), ())
@@ -176,8 +171,8 @@ class LegacyLayoutCleanupTest(_support._MaintenanceTestCase):
 
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.RETAINED)
-        self.assertEqual(swept.reason, MaintenanceReason.UNPROVEN)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.UNPROVEN)
         self.assertEqual(
             tuple(kept.reason for kept in swept.retentions),
             (RetentionReason.WORKTREE_DIRTY,),
@@ -263,7 +258,7 @@ class SharedCloneCleanupTest(_support._MaintenanceTestCase):
             swept = self.swept(self.discovered(self.specs))
 
         self.assertEqual(len(swept), 1)
-        self.assertEqual(swept[0].outcome, MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept[0].outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertEqual(
             swept[0].candidate.artifacts.issue_number, OTHER_ISSUE_NUMBER,
         )
@@ -287,8 +282,8 @@ class CheckedOutBranchTest(_support._MaintenanceTestCase):
 
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.RETAINED)
-        self.assertEqual(swept.reason, MaintenanceReason.BRANCH_CHECKED_OUT)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT)
         self.assertEqual(swept.subject, self.branch)
         self.assertEqual(self.local_branches(), self.only_branch)
         self.assertEqual(
@@ -310,8 +305,8 @@ class CheckedOutBranchTest(_support._MaintenanceTestCase):
         with self.assertLogs(_support.LIFECYCLE_LOGGER, level=WARNING):
             swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.RETAINED)
-        self.assertEqual(swept.reason, MaintenanceReason.TIP_UNREADABLE)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.TIP_UNREADABLE)
         self.assertEqual(self.local_branches(), self.only_branch)
         self.assertEqual(
             _run_git("rev-parse", "--verify", "HEAD", cwd=dropped).returncode,
@@ -328,8 +323,8 @@ class CheckedOutBranchTest(_support._MaintenanceTestCase):
         ):
             swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.RETAINED)
-        self.assertEqual(swept.reason, MaintenanceReason.TIP_UNREADABLE)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.TIP_UNREADABLE)
         self.assertEqual(self.local_branches(), self.only_branch)
 
 
@@ -350,7 +345,7 @@ class DistinctCloneCleanupTest(_support._MaintenanceTestCase):
         swept = self.swept(self.discovered(specs))
 
         self.assertEqual(len(swept), 1)
-        self.assertEqual(swept[0].outcome, MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept[0].outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertFalse(worktree.exists())
         self.assertEqual(self.discovered(specs), ())
 
@@ -366,7 +361,7 @@ class GuardedCandidateTest(_support._MaintenanceTestCase):
 
     def assert_untouched(self, swept) -> None:
         """The candidate is kept, and every artifact is still where it was."""
-        self.assertEqual(swept.outcome, MaintenanceOutcome.RETAINED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
         self.assertTrue(self.worktree.exists())
         self.assertEqual(self.local_branches(), self.only_branch)
         self.assertEqual(self.remote_branches(), self.only_branch)
@@ -375,7 +370,7 @@ class GuardedCandidateTest(_support._MaintenanceTestCase):
         swept = self.only_result(claimed=_support._always_claimed)
 
         self.assert_untouched(swept)
-        self.assertEqual(swept.reason, MaintenanceReason.ACTIVE_CLAIM)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.ACTIVE_CLAIM)
         self.assertEqual(swept.subject, f"#{ISSUE_NUMBER}")
 
     def test_a_guard_that_raises_is_read_as_a_claim(self) -> None:
@@ -383,7 +378,7 @@ class GuardedCandidateTest(_support._MaintenanceTestCase):
             swept = self.only_result(claimed=_support._unanswerable_claim)
 
         self.assert_untouched(swept)
-        self.assertEqual(swept.reason, MaintenanceReason.CLAIM_UNREADABLE)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.CLAIM_UNREADABLE)
 
     def test_a_checkout_touched_lately_is_left_alone(self) -> None:
         # The tree is clean and the classification clears it; what keeps it is
@@ -394,7 +389,7 @@ class GuardedCandidateTest(_support._MaintenanceTestCase):
         swept = self.only_result()
 
         self.assert_untouched(swept)
-        self.assertEqual(swept.reason, MaintenanceReason.RECENT_ACTIVITY)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.RECENT_ACTIVITY)
 
     def test_a_just_committed_checkout_is_left_alone(self) -> None:
         # The tree is clean, the commit is in the base, and the directory's own
@@ -411,7 +406,7 @@ class GuardedCandidateTest(_support._MaintenanceTestCase):
         swept = self.only_result()
 
         self.assert_untouched(swept)
-        self.assertEqual(swept.reason, MaintenanceReason.RECENT_ACTIVITY)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.RECENT_ACTIVITY)
         self.assertEqual(swept.subject, str(self.worktree))
 
     def test_an_untimeable_checkout_is_left_alone(self) -> None:
@@ -426,7 +421,7 @@ class GuardedCandidateTest(_support._MaintenanceTestCase):
             swept = self.only_result()
 
         self.assert_untouched(swept)
-        self.assertEqual(swept.reason, MaintenanceReason.ACTIVITY_UNREADABLE)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.ACTIVITY_UNREADABLE)
 
 
 class RetainedByClassificationTest(_support._MaintenanceTestCase):
@@ -434,8 +429,8 @@ class RetainedByClassificationTest(_support._MaintenanceTestCase):
 
     def assert_kept_for(self, swept, reason: RetentionReason) -> None:
         """The pass reports the classification's answer, in its vocabulary."""
-        self.assertEqual(swept.outcome, MaintenanceOutcome.RETAINED)
-        self.assertEqual(swept.reason, MaintenanceReason.UNPROVEN)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.UNPROVEN)
         self.assertEqual(
             tuple(kept.reason for kept in swept.retentions), (reason,),
         )
@@ -519,8 +514,8 @@ class ExactTipTest(_support._MaintenanceTestCase):
 
         swept = self.reclaimed(ProvenTip(self.branch, OTHER_SHA))
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.RETAINED)
-        self.assertEqual(swept.reason, MaintenanceReason.TIP_MOVED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.TIP_MOVED)
         self.assertEqual(swept.subject, self.branch)
         self.assertEqual(self.remote_branches(), self.only_branch)
         self.assertEqual(self.local_branches(), self.only_branch)
@@ -537,7 +532,7 @@ class ExactTipTest(_support._MaintenanceTestCase):
         swept = self.reclaimed(ProvenTip(self.branch, tip))
 
         self.assertNotEqual(moved, tip)
-        self.assertEqual(swept.reason, MaintenanceReason.TIP_MOVED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.TIP_MOVED)
         self.assertEqual(self.local_branches(), self.only_branch)
 
     def test_a_checkout_that_moved_is_kept(self) -> None:
@@ -552,7 +547,7 @@ class ExactTipTest(_support._MaintenanceTestCase):
             ProvenTip(self.branch, OTHER_SHA),
         )
 
-        self.assertEqual(swept.reason, MaintenanceReason.TIP_MOVED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.TIP_MOVED)
         self.assertEqual(swept.subject, str(worktree))
         self.assertTrue(worktree.exists())
         self.assertEqual(self.remote_branches(), self.only_branch)
@@ -563,7 +558,7 @@ class ExactTipTest(_support._MaintenanceTestCase):
 
         swept = self.reclaimed(ProvenTip(self.branch, OTHER_SHA))
 
-        self.assertEqual(swept.reason, MaintenanceReason.TIP_UNREADABLE)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.TIP_UNREADABLE)
         self.assertTrue(worktree.exists())
 
     def test_a_branch_no_proof_names_is_kept(self) -> None:
@@ -575,8 +570,8 @@ class ExactTipTest(_support._MaintenanceTestCase):
 
         swept = self.reclaimed()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.RETAINED)
-        self.assertEqual(swept.reason, MaintenanceReason.TIP_UNREADABLE)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.RETAINED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.TIP_UNREADABLE)
         self.assertEqual(swept.subject, self.branch)
         self.assertEqual(self.remote_branches(), self.only_branch)
         self.assertEqual(self.local_branches(), self.only_branch)
@@ -596,8 +591,8 @@ class RefusedStepTest(_support._MaintenanceTestCase):
         ):
             swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.FAILED)
-        self.assertEqual(swept.reason, MaintenanceReason.REMOTE_DELETE_FAILED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.FAILED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED)
         self.assertEqual(swept.subject, self.branch)
         self.assertFalse(worktree.exists())
         self.assertEqual(self.local_branches(), self.only_branch)
@@ -626,7 +621,7 @@ class RefusedStepTest(_support._MaintenanceTestCase):
             self.only_result()
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertEqual(self.local_branches(), ())
         self.assertEqual(self.remote_branches(), ())
 
@@ -638,8 +633,8 @@ class RefusedStepTest(_support._MaintenanceTestCase):
         ):
             swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.FAILED)
-        self.assertEqual(swept.reason, MaintenanceReason.LOCAL_DELETE_FAILED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.FAILED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.LOCAL_DELETE_FAILED)
         self.assertEqual(self.remote_branches(), ())
         self.assertEqual(self.local_branches(), self.only_branch)
 
@@ -655,8 +650,8 @@ class RefusedStepTest(_support._MaintenanceTestCase):
         ):
             swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.FAILED)
-        self.assertEqual(swept.reason, MaintenanceReason.REMOTE_DELETE_FAILED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.FAILED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED)
         self.assertEqual(self.local_branches(), ())
         self.assertEqual(self.remote_branches(), self.only_branch)
         self.assertEqual(
@@ -679,8 +674,8 @@ class RefusedStepTest(_support._MaintenanceTestCase):
         ):
             swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.FAILED)
-        self.assertEqual(swept.reason, MaintenanceReason.REMOTE_DELETE_FAILED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.FAILED)
+        self.assertEqual(swept.reason, _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED)
         self.assertEqual(self.local_branches(), self.only_branch)
         self.assertEqual(self.remote_branches(), self.only_branch)
 
@@ -695,9 +690,9 @@ class RefusedStepTest(_support._MaintenanceTestCase):
         ):
             swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.FAILED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.FAILED)
         self.assertEqual(
-            swept.reason, MaintenanceReason.WORKTREE_REMOVAL_FAILED,
+            swept.reason, _maintenance_results.MaintenanceReason.WORKTREE_REMOVAL_FAILED,
         )
         self.assertEqual(swept.subject, str(worktree))
         self.assertEqual(self.remote_branches(), self.only_branch)
@@ -730,7 +725,7 @@ class RepeatedPassTest(_support._MaintenanceTestCase):
             self.only_result()
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertFalse(worktree.exists())
         self.assertEqual(self.local_branches(), ())
         self.assertEqual(self.remote_branches(), ())
@@ -746,7 +741,7 @@ class RepeatedPassTest(_support._MaintenanceTestCase):
 
         swept = self.only_result()
 
-        self.assertEqual(swept.outcome, MaintenanceOutcome.CLEANED)
+        self.assertEqual(swept.outcome, _maintenance_results.MaintenanceOutcome.CLEANED)
         self.assertEqual(self.local_branches(), ())
         self.assertEqual(self.remote_branches(), ())
         self.assertEqual(swept.candidate.artifacts.spec.slug, WIDGET_SLUG)
@@ -870,7 +865,7 @@ class InterruptedPassTest(_support._MaintenanceTestCase):
 
         self.assertEqual(
             [answer.outcome for answer in swept],
-            [MaintenanceOutcome.CLEANED],
+            [_maintenance_results.MaintenanceOutcome.CLEANED],
         )
         self.assertEqual(going.asked, [True, True, False])
         self.assertEqual(self.remote_branches(), (second,))
@@ -882,7 +877,7 @@ class OutcomeVocabularyTest(unittest.TestCase):
     def test_every_reason_has_an_outcome(self) -> None:
         self.assertEqual(
             frozenset(maintenance._OUTCOMES),
-            frozenset(MaintenanceReason),
+            frozenset(_maintenance_results.MaintenanceReason),
         )
 
 

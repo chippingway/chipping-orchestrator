@@ -1,44 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The read-only scan that derives issue candidates from local artifacts.
+"""Build one read-only local artifact inventory from branch and checkout evidence.
 
-Which issues this host has work for is normally GitHub's answer. This scan
-answers the local half of it instead, from what the host already holds: every
-`issue-<n>` checkout under a spec's worktrees root, every one still standing
-under the flat root that predates that per-repository parent, and every branch
-in the clone's orchestrator-owned namespace names an issue this orchestrator
-has already worked on. Nothing here fetches, writes, or asks GitHub anything,
-so the answer costs one directory listing per repository, one more for the
-whole host, one `for-each-ref` per clone, and -- only where that flat listing
-found something -- one identity read per configured entry and per flat
-checkout. It stays valid to take at any point in a tick.
-
-Every side is deduplicated into one entry per issue, because they are views of
-one thing: a checkout whose branch was deleted, a branch whose checkout was
-removed, and an issue still carrying both are all one issue. So is an issue
-published under both branch layouts, and so is one sitting in both checkout
-layouts -- a host running across the migration kept the flat tree and made the
-per-repository one beside it, and those are two directories of one issue
-rather than two issues.
-
-The flat root is read once for the whole host rather than per repository,
-because it had no per-repository parent to read: what comes back is a set of
-issue numbers with nothing on them saying whose they are, and it is
-``checkout_attribution`` that settles each against the clone the directory
-turns out to be a worktree of.
-
-The scan is grouped by clone rather than run per repository because several
-``REPOS`` entries may share one `target_root`, and a shared ref store is the
-one place a name cannot be attributed by looking at it alone -- which is
-``attribution``'s subject. What is decided here is the shape of the answer
-around it: which reads a refusal takes down with it, and in what order the
-result is handed back.
+inventory_roots groups repositories by clone, and legacy_inventory attributes
+flat checkouts. This owner combines those claims with repository-scoped paths
+and branches, withholding every ambiguous issue and refusing unreadable roots.
 """
 from __future__ import annotations
 
-import logging
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
 
@@ -47,106 +17,12 @@ from orchestrator.git.worktrees import (
     attribution,
     branch_probes,
     checkout_attribution,
+    inventory_roots as _inventory_roots,
+    legacy_inventory as _legacy_inventory,
     paths,
     probes,
 )
-from orchestrator.git.worktrees.models import ArtifactInventory, IssueArtifacts
-
-# The channel is named for the worktree-lifecycle domain rather than for this
-# module's path: operators filter the rendered `orchestrator.worktree_lifecycle`
-# prefix and attach handlers to it, so a repository this scan will not answer
-# for says so where their filters already point.
-log = logging.getLogger("orchestrator.worktree_lifecycle")
-
-# The specs on each clone a scan reads, keyed by the path their spellings
-# agree on: one group is one ref store, and everyone in it is a claimant to
-# what that store holds.
-CloneGroups = dict[Path, tuple[config.RepoSpec, ...]]
-
-# The flat pre-namespacing checkouts, by the repository each concerns.
-# A repository nothing was found for is absent from either map rather than
-# present with an empty entry, so a caller reads the same shape whether the
-# host holds one entry's flat checkouts or several entries'.
-IssueNumbers = dict[config.RepoSpec, frozenset[int]]
-
-
-@dataclass(frozen=True)
-class LegacyCheckouts:
-    """What the flat pre-namespacing checkouts mean for each repository.
-
-    `held` is the attribution: the issues whose flat checkout is a worktree of
-    exactly that repository's clone, reported as its artifacts. `ambiguous` is
-    the refusal beside it: the issues whose flat checkout could be that
-    repository's or a sibling's on the same clone, which are left out of the
-    scan entirely rather than reported without the tree nobody may take.
-
-    The two are kept apart rather than collapsed into "attributed or not",
-    because they cost a caller different things. What is held is something to
-    act on; what is ambiguous is something no repository may act on at all, and
-    a scan that merely dropped it would report the branches beside it as an
-    issue with nothing standing on them.
-    """
-
-    held: IssueNumbers
-    ambiguous: IssueNumbers
-
-
-def _resolved_root(spec: config.RepoSpec) -> Path | None:
-    """The clone this spec configures, as the one path its spellings agree on.
-
-    `None` when the path cannot be resolved at all, which is a failure worth
-    catching here rather than letting out: resolution is what says whether two
-    entries are on one clone, it runs before any repository has been read, and
-    an exception escaping it ends the whole scan -- every healthy repository
-    in it included -- over one entry's `target_root`. What it costs to fail is
-    also version-dependent, so it cannot be reasoned about from the value: a
-    root reached through a symlink loop raises `RuntimeError` out of
-    `Path.resolve` on Python 3.12 and comes back unchanged on 3.13.
-
-    The caller refuses that entry -- nothing about it is reported -- while
-    still grouping it under the path as written, because the two are different
-    questions. Whether this scan can answer for a repository is one; whether
-    that repository could have published what is on the clone it names is the
-    other, and dropping it from its group answers the second wrongly: the
-    legacy flat branch there would lose a claimant and read as unambiguously
-    some other entry's.
-    """
-    try:
-        return spec.target_root.resolve()
-    except (OSError, RuntimeError) as resolve_error:
-        log.warning(
-            "could not resolve the clone %s is configured at (%s): %s",
-            spec.slug, spec.target_root, resolve_error,
-        )
-        return None
-
-
-def _specs_by_clone(
-    specs: Sequence[config.RepoSpec],
-) -> tuple[CloneGroups, tuple[str, ...]]:
-    """The specs grouped by the clone they name, and whose path did not resolve.
-
-    Grouped on the resolved path, so two entries spelling one clone
-    differently -- through a symlink, with a trailing `.` -- land in one group
-    with one ambiguous legacy branch between them instead of two groups each
-    claiming that branch for itself. The reads still run against a path a spec
-    configures, which is the one the rest of the worktree owners lock and run
-    git in.
-
-    An entry whose path would not resolve is grouped under that path as
-    written rather than dropped: it is still one of the repositories that
-    could have published what its clone holds, and the second half of the
-    answer is what says the scan will not report for it.
-    """
-    grouped: CloneGroups = {}
-    unresolved: list[str] = []
-    for spec in specs:
-        resolved = _resolved_root(spec)
-        if resolved is None:
-            unresolved.append(spec.slug)
-        clone = resolved or spec.target_root
-        grouped[clone] = (*grouped.get(clone, ()), spec)
-    return grouped, tuple(unresolved)
+from orchestrator.git.worktrees.candidates import ArtifactInventory, IssueArtifacts
 
 
 def _held_checkouts(
@@ -197,7 +73,7 @@ def _issue_artifacts(
 def _spec_inventory(
     spec: config.RepoSpec,
     branched: Mapping[int, tuple[str, ...]],
-    legacy: LegacyCheckouts,
+    legacy: _legacy_inventory.LegacyCheckouts,
 ) -> ArtifactInventory:
     """Every issue one repository has an artifact for, or a refusal for it.
 
@@ -241,7 +117,7 @@ def _spec_inventory(
 def _root_inventory(
     root_specs: tuple[config.RepoSpec, ...],
     refused: frozenset[str],
-    legacy: LegacyCheckouts,
+    legacy: _legacy_inventory.LegacyCheckouts,
 ) -> ArtifactInventory:
     """Every issue the repositories sharing one clone hold artifacts for.
 
@@ -305,72 +181,8 @@ def _merged(
     )
 
 
-def _legacy_claim(
-    issue_number: int,
-    clones: dict[config.RepoSpec, Path | None],
-) -> checkout_attribution.CheckoutClaim:
-    """Which configured repository one flat checkout is a worktree of, if any."""
-    worktree = paths._legacy_worktree_path(issue_number)
-    return checkout_attribution._legacy_checkout_claim(
-        probes._checkout_clone(worktree), clones, str(worktree),
-    )
-
-
-def _attributed_legacy(
-    configured: tuple[config.RepoSpec, ...], flat: frozenset[int],
-) -> LegacyCheckouts:
-    """Which repository each flat pre-namespacing checkout concerns, and how.
-
-    Two answers rather than one, because a checkout nobody can be charged for
-    is not the same as one that is not there. A single claimant HOLDS it, and
-    the checkout is reported as that repository's artifact. Several claimants
-    hold an issue this scan must not report at all: the tree is standing on one
-    of that issue's branches, and reporting the branch without the tree hands a
-    teardown a ref to delete out from under a live checkout.
-
-    The clones are resolved once for the whole host and only when there is
-    something to attribute, because that read costs a git process per
-    configured entry and the layout it settles is one nothing has written to
-    for a long time: a host with no flat checkouts left pays nothing at all.
-    """
-    counted = checkout_attribution._countable_legacy_checkouts(
-        configured, flat,
-    )
-    if not counted:
-        return LegacyCheckouts(held={}, ambiguous={})
-    legacy = LegacyCheckouts(held={}, ambiguous={})
-    clones = {
-        spec: probes._checkout_clone(spec.target_root) for spec in configured
-    }
-    for issue_number in sorted(counted):
-        _file_claim(legacy, issue_number, _legacy_claim(issue_number, clones))
-    return legacy
-
-
-def _file_claim(
-    legacy: LegacyCheckouts,
-    issue_number: int,
-    claim: checkout_attribution.CheckoutClaim,
-) -> None:
-    """File one flat checkout under every repository it concerns.
-
-    A settled claim holds it; anything short of one means nobody may act on
-    that issue at all, and each repository that could own the tree has to be
-    told which issue to leave alone.
-    """
-    if claim.owner is not None:
-        legacy.held[claim.owner] = legacy.held.get(
-            claim.owner, frozenset(),
-        ) | {issue_number}
-        return
-    for spec in claim.claimants:
-        legacy.ambiguous[spec] = legacy.ambiguous.get(
-            spec, frozenset(),
-        ) | {issue_number}
-
-
 def _scanned(
-    configured: tuple[config.RepoSpec, ...], legacy: LegacyCheckouts,
+    configured: tuple[config.RepoSpec, ...], legacy: _legacy_inventory.LegacyCheckouts,
 ) -> ArtifactInventory:
     """The scan proper, once the host-wide flat checkouts have been attributed.
 
@@ -383,7 +195,7 @@ def _scanned(
     could have published what is on the clone it names.
     """
     colliding = checkout_attribution._colliding_worktree_slugs(configured)
-    grouped, unresolved = _specs_by_clone(configured)
+    grouped, unresolved = _inventory_roots._specs_by_clone(configured)
     refused = frozenset(colliding) | frozenset(unresolved)
     return _merged((
         ArtifactInventory(issues=(), refused=(*colliding, *unresolved)),
@@ -424,4 +236,4 @@ def _local_issue_inventory(
             issues=(),
             refused=tuple(sorted({spec.slug for spec in configured})),
         )
-    return _scanned(configured, _attributed_legacy(configured, flat))
+    return _scanned(configured, _legacy_inventory._attributed_legacy(configured, flat))

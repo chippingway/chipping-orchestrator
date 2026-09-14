@@ -1,5 +1,32 @@
 # Issue #1424: remaining work after the open children
 
+## Current completion target (2026-09-14)
+
+The user has requested removing **every exclusion from `.flake8`**, committing intermediate results, and deleting
+`plans/issue-1424-*.md` once that work is complete. The historical retain-or-refactor acceptance criteria below do
+not satisfy this broader target. In particular, the sixteen package initializer pairs must also be removed by
+migrating their imports and initialization responsibilities; they are not permanent exceptions.
+
+The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107 paths and
+129 file/rule pairs. The current working implementation has 95 paths and 117 pairs (76 production, 41 test), all
+matching isolated diagnostics. Twelve WPS202 pairs have been removed without replacement exemptions or raised
+limits. Remaining work is the entire live set in `.flake8`, including WPS201, WPS202, WPS204, WPS214, WPS215,
+WPS410, and WPS412. The files must stay until that set is empty and the full validation passes.
+
+Implemented batches:
+
+- `ece12214`: separate host-lock operations and their test fixture, local snapshot mirrors, and Codex frame payloads;
+  four pairs removed, with 6,431 passed and 49 skipped in the full suite.
+- `18dccb4f`: separate checkout naming, guarded anchoring, and worktree-status reads; three pairs removed,
+  with the same full-suite result and caller/test ownership updated.
+- Current implementation: separate artifact discovery records, eligibility records, and maintenance outcomes;
+  clone grouping and legacy-checkout attribution; remote discovery and layout classification; interrupted-rebase
+  record readers and recovery notices. Five pairs removed. Owner, layering, and patch inventories follow each move.
+  Ruff, configured WPS, and the full suite pass with 6,431 passed and 49 skipped.
+
+The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes
+are historical evidence, not completion of the current zero-exclusion target.
+
 Prepared on 2026-09-11 against `main` at `e3a0b43407fad7c95a46f1300044719dd71ecd42`.
 
 This is a working plan for the remaining requirements of

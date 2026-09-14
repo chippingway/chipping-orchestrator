@@ -9,7 +9,7 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import commands
-from orchestrator.git.base_sync import persistence
+from orchestrator.git.base_sync import persistence, recovery_notices as _recovery_notices
 from orchestrator.workflow.engine import comments
 from tests.git.base_sync import base_sync_helpers as fixtures
 from tests.git.base_sync.base_sync_helpers import _OrderedCall, _recorded_calls
@@ -288,7 +288,7 @@ class PostRecoveredRebaseNoticeTest(unittest.TestCase):
     def test_notice_lands_on_the_pr(self) -> None:
         context = fixtures._recovery_context()
 
-        persistence._post_recovered_rebase_notice(context, NOTICE)
+        _recovery_notices._post_recovered_rebase_notice(context, NOTICE)
 
         pr_number, body = context.gh.posted_pr_comments[-1]
         self.assertEqual(pr_number, fixtures.PR_NUMBER)
@@ -299,7 +299,7 @@ class PostRecoveredRebaseNoticeTest(unittest.TestCase):
         raising = MagicMock(side_effect=RuntimeError("GitHub is down"))
 
         with patch.object(comments, POST_PR_COMMENT, raising):
-            persistence._post_recovered_rebase_notice(context, NOTICE)
+            _recovery_notices._post_recovered_rebase_notice(context, NOTICE)
 
         raising.assert_called_once()
 
@@ -310,7 +310,7 @@ class EmitRecoveredRebaseEventTest(unittest.TestCase):
     def test_event_carries_the_head_and_method(self) -> None:
         context = fixtures._recovery_context(retry_count=2)
 
-        persistence._emit_recovered_rebase_event(
+        _recovery_notices._emit_recovered_rebase_event(
             context, fixtures.RECOVERED_SHA, RECOVERY_METHOD,
         )
 

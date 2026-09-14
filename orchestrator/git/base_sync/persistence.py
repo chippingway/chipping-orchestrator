@@ -1,31 +1,17 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Durable writes, notices, and audit events a recovered rebase leaves behind.
+"""Persist parks and route recovered rebases through their durable checkpoints.
 
-The park side and the finalize side live together because both publish the
-same surfaces in the same order: the comment, then the audit event, then --
-for a finalize that routes -- the relabel, and only last the
-`write_pinned_state` the whole sequence commits through. Every field either
-one sets before that write is staged in memory, so a tick that dies partway
-leaves the recovery anchor pinned and the next tick re-derives the same
-outcome from it instead of resuming a half-finished one. Both sides hinge on
-that anchor: parking clears it after resetting HEAD back onto it, finalizing
-clears it once the rewrite is confirmed published, and each of them ends the
-whole record of the attempt rather than the one field it names.
-
-A finalize breaks that single write in exactly one place, and the break is the
-point: the head it has just announced is recorded between the audit event and
-the relabel, while the anchor still stands, so the last window of a finish is
-one a later tick can tell from an attempt that never got that far. That write
-belongs to `attempts` rather than here, because the publisher's own tail owes
-it in the same moment and for the same reason.
+A successful reset clears abandoned evidence before parking. A finalize sends
+its notice and audit event through recovery_notices, records the announcement
+while its anchor still stands, and only then routes and clears the attempt.
 """
 from __future__ import annotations
 
 from github.Issue import Issue
 
 from orchestrator.git import commands
-from orchestrator.git.base_sync import attempts
+from orchestrator.git.base_sync import attempts, recovery_notices as _recovery_notices
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseRecoveryContext,
@@ -39,7 +25,7 @@ from orchestrator.git.base_sync.state import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.state import WorkflowLabel, stage_name
+from orchestrator.workflow.state import WorkflowLabel
 
 
 def _park_auto_rebase_failure(
@@ -228,43 +214,6 @@ def _prepare_recovered_rebase_state(
     context.state.set(_REVIEW_ROUND, 0)
 
 
-def _post_recovered_rebase_notice(
-    context: _AutoRebaseRecoveryContext, notice: str,
-) -> None:
-    """Post the recovery notice without blocking state finalization."""
-    # Lazy import: the comment owner sits in the workflow layer above this
-    # package, so binding it at module load would make every git-side
-    # import pay for the GitHub client and prompt state it pulls in.
-    from orchestrator.workflow.engine import comments as _comments
-    try:
-        _comments._post_pr_comment(
-            context.gh, context.pr_number, context.state, notice,
-        )
-    except Exception:  # noqa: BLE001 - the PR notice is best effort at the GitHub boundary
-        log.exception(
-            "issue=#%s could not post auto-rebase recovery notice to "
-            "PR #%s", context.issue.number, context.pr_number,
-        )
-
-
-def _emit_recovered_rebase_event(
-    context: _AutoRebaseRecoveryContext,
-    local_head: str,
-    method: str,
-) -> None:
-    """Emit the stable audit shape for a recovered auto-rebase."""
-    context.gh.emit_event(
-        "base_rebased",
-        issue_number=context.issue.number,
-        stage=stage_name(context.label),
-        pr_number=context.pr_number,
-        sha=local_head,
-        method=method,
-        review_round=0,
-        retry_count=context.state.get("retry_count"),
-    )
-
-
 def _route_recovered_rebase(
     context: _AutoRebaseRecoveryContext,
     local_head: str,
@@ -312,8 +261,8 @@ def _finalize_recovered_rebase(
     tell from an attempt that never got this far. What the clear rides is
     still the last write, since the anchor is what brings that tick back.
     """
-    _post_recovered_rebase_notice(context, notice)
-    _emit_recovered_rebase_event(context, local_head, method)
+    _recovery_notices._post_recovered_rebase_notice(context, notice)
+    _recovery_notices._emit_recovered_rebase_event(context, local_head, method)
     attempts._announces(context, local_head)
     _prepare_recovered_rebase_state(context)
     return _route_recovered_rebase(context, local_head, method)

@@ -15,10 +15,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git.worktrees import discovery, maintenance
-from orchestrator.git.worktrees.models import (
-    MaintenanceOutcome,
-    MaintenanceReason,
-)
+from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceReason
 from orchestrator.runtime import artifacts, exclusion
 from orchestrator.runtime.state import RuntimeState
 from tests.runtime import (

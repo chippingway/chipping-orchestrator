@@ -117,18 +117,18 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # one thing only: the shape a recorded commit is held to. Spelled twice, a
 # comment would come to accept what every other reader in the tree refuses.
 _CALL_TIME_HOPS = MappingProxyType({
-    f"{_BASE_SYNC}.attempts": (
+    f"{_BASE_SYNC}.attempt_records": (
         f"{PACKAGE}.workflow.late_split.formats",
     ),
     f"{_BASE_SYNC}.conflicts": (_COMMENTS,),
     f"{_BASE_SYNC}.persistence": (
-        _COMMENTS,
         f"{PACKAGE}.workflow.engine.guards",
         f"{PACKAGE}.workflow.stages.implementing.late_parks",
         _LATE_RECORDS,
         _LATE_TRANSFER,
     ),
     f"{_BASE_SYNC}.publication": (_COMMENTS, _LATE_PUSH, _LATE_RECORDS),
+    f"{_BASE_SYNC}.recovery_notices": (_COMMENTS,),
     f"{_BASE_SYNC}.transfers": (
         _EXEMPTION,
         _LATE_OVERFLOW,

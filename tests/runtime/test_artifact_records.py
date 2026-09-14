@@ -29,14 +29,13 @@ from typing import NamedTuple
 from unittest.mock import patch
 
 from orchestrator.config import RepoSpec
-from orchestrator.git.worktrees import discovery, maintenance, naming as _naming
-from orchestrator.git.worktrees.models import (
-    CandidateLayout,
-    IssueArtifacts,
-    MaintenanceCandidate,
-    MaintenanceReason,
-    MaintenanceResult,
+from orchestrator.git.worktrees import (
+    discovery,
+    maintenance,
+    maintenance_results as _maintenance_results,
+    naming as _naming,
 )
+from orchestrator.git.worktrees.candidates import CandidateLayout, IssueArtifacts, MaintenanceCandidate
 from orchestrator.runtime import artifact_records, artifacts
 from tests.runtime import (
     artifact_test_support as _artifacts,
@@ -94,12 +93,12 @@ _LAYOUT_BRANCHES = MappingProxyType({
 class _Case(NamedTuple):
     """One answer the pass gives, and the whole record it earns."""
 
-    answer: MaintenanceResult
+    answer: _maintenance_results.MaintenanceResult
     expected: dict
 
 
 def _case(
-    reason: MaintenanceReason,
+    reason: _maintenance_results.MaintenanceReason,
     *,
     layout: CandidateLayout = CandidateLayout.CURRENT,
     subject: str = "",
@@ -112,7 +111,7 @@ def _case(
     asserts what may be published instead of re-running the rule that decides
     it.
     """
-    answer = MaintenanceResult(
+    answer = _maintenance_results.MaintenanceResult(
         candidate=MaintenanceCandidate(
             artifacts=IssueArtifacts(
                 spec=_SPEC,
@@ -143,33 +142,33 @@ def _case(
 # artifact can have been published under -- both at once included -- and the
 # three subjects that are not a branch this record may name.
 _CASES = (
-    _case(MaintenanceReason.RECLAIMED),
+    _case(_maintenance_results.MaintenanceReason.RECLAIMED),
     _case(
-        MaintenanceReason.UNPROVEN,
+        _maintenance_results.MaintenanceReason.UNPROVEN,
         layout=CandidateLayout.LEGACY,
         subject=_LEGACY_BRANCH,
         branch=_LEGACY_BRANCH,
     ),
     _case(
-        MaintenanceReason.REMOTE_DELETE_FAILED,
+        _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED,
         subject=_BRANCH,
         branch=_BRANCH,
     ),
     _case(
-        MaintenanceReason.BRANCH_CHECKED_OUT,
+        _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT,
         layout=CandidateLayout.MIXED,
         subject=_LEGACY_BRANCH,
         branch=_LEGACY_BRANCH,
     ),
     _case(
-        MaintenanceReason.TIP_MOVED,
+        _maintenance_results.MaintenanceReason.TIP_MOVED,
         layout=CandidateLayout.REMOTE_ONLY,
         subject=_BRANCH,
         branch=_BRANCH,
     ),
-    _case(MaintenanceReason.WORKTREE_REMOVAL_FAILED, subject=_CHECKOUT),
-    _case(MaintenanceReason.ACTIVE_CLAIM, subject=_ISSUE_SUBJECT),
-    _case(MaintenanceReason.UNPROVEN, subject=_FOREIGN_BRANCH),
+    _case(_maintenance_results.MaintenanceReason.WORKTREE_REMOVAL_FAILED, subject=_CHECKOUT),
+    _case(_maintenance_results.MaintenanceReason.ACTIVE_CLAIM, subject=_ISSUE_SUBJECT),
+    _case(_maintenance_results.MaintenanceReason.UNPROVEN, subject=_FOREIGN_BRANCH),
 )
 
 # Every shape on a host whose checkout paths are spelled exactly like its
@@ -178,24 +177,24 @@ _CASES = (
 # a name that is both, since nothing there says which artifact is meant.
 _COLLIDING_CASES = (
     _case(
-        MaintenanceReason.WORKTREE_REMOVAL_FAILED,
+        _maintenance_results.MaintenanceReason.WORKTREE_REMOVAL_FAILED,
         subject=_BRANCH,
         worktrees=(_COLLIDING_CHECKOUT,),
     ),
     _case(
-        MaintenanceReason.RECENT_ACTIVITY,
+        _maintenance_results.MaintenanceReason.RECENT_ACTIVITY,
         layout=CandidateLayout.LEGACY,
         subject=_LEGACY_BRANCH,
         worktrees=(_COLLIDING_LEGACY_CHECKOUT,),
     ),
     _case(
-        MaintenanceReason.TIP_MOVED,
+        _maintenance_results.MaintenanceReason.TIP_MOVED,
         layout=CandidateLayout.MIXED,
         subject=_LEGACY_BRANCH,
         worktrees=(_COLLIDING_CHECKOUT, _COLLIDING_LEGACY_CHECKOUT),
     ),
     _case(
-        MaintenanceReason.UNPROVEN,
+        _maintenance_results.MaintenanceReason.UNPROVEN,
         subject=_BRANCH,
         worktrees=(_COLLIDING_CHECKOUT,),
     ),
@@ -204,20 +203,20 @@ _COLLIDING_CASES = (
     # collision above may not cost an operator the one artifact a refused
     # teardown is about.
     _case(
-        MaintenanceReason.REMOTE_DELETE_FAILED,
+        _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED,
         subject=_BRANCH,
         branch=_BRANCH,
         worktrees=(_COLLIDING_CHECKOUT,),
     ),
     _case(
-        MaintenanceReason.LOCAL_DELETE_FAILED,
+        _maintenance_results.MaintenanceReason.LOCAL_DELETE_FAILED,
         layout=CandidateLayout.MIXED,
         subject=_LEGACY_BRANCH,
         branch=_LEGACY_BRANCH,
         worktrees=(_COLLIDING_CHECKOUT, _COLLIDING_LEGACY_CHECKOUT),
     ),
     _case(
-        MaintenanceReason.BRANCH_CHECKED_OUT,
+        _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT,
         subject=_BRANCH,
         branch=_BRANCH,
         worktrees=(_COLLIDING_CHECKOUT,),
@@ -226,7 +225,7 @@ _COLLIDING_CASES = (
     # reason still publishes the branch it names, so the rule above costs the
     # ordinary host nothing.
     _case(
-        MaintenanceReason.TIP_UNREADABLE,
+        _maintenance_results.MaintenanceReason.TIP_UNREADABLE,
         subject=_BRANCH,
         branch=_BRANCH,
         worktrees=(Path(_CHECKOUT),),
@@ -270,7 +269,7 @@ class CleanupRecordTest(unittest.TestCase):
         named = artifact_records._BRANCH_REASONS
         either = artifact_records._EITHER_REASONS
         self.assertEqual(
-            ((named | either) - set(MaintenanceReason), named & either),
+            ((named | either) - set(_maintenance_results.MaintenanceReason), named & either),
             (set(), set()),
         )
 
@@ -337,10 +336,10 @@ class RefusedRecordTest(unittest.TestCase):
             ) as logs,
         ):
             artifact_records.record_cleanup_results([
-                MaintenanceResult(
+                _maintenance_results.MaintenanceResult(
                     candidate=_CASES[0].answer.candidate,
                     outcome=_RETAINED,
-                    reason=MaintenanceReason.RECLAIMED,
+                    reason=_maintenance_results.MaintenanceReason.RECLAIMED,
                 ),
             ])
 

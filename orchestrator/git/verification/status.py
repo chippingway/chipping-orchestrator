@@ -322,4 +322,3 @@ def _worktree_dirty_files(worktree: Path) -> list[str]:
     on -- which is the whole point of setting the bit.
     """
     return list(_worktree_status(worktree).paths)
-

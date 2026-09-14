@@ -1,5 +1,18 @@
 # Issue #1424: branch acceptance audit
 
+## Zero-exclusion continuation (2026-09-14)
+
+The current user request requires **zero exclusions in `.flake8`**. The retention decisions in the historical
+audit below do not close that goal. The continuation began at `660a0bb6` with 129 pairs across 107 paths; the
+current working implementation removes twelve WPS202 pairs and leaves 117 pairs across 95 paths. Its remaining
+76 production pairs and 41 test pairs all match isolated diagnostics, with no stale or unmapped pair.
+
+The detailed batch record and outstanding scope are in `issue-1424-remaining-work.md`. All remaining pairs,
+including the package initializer rules, still require implementation. Both notes remain until every exclusion
+has been removed and the repository-wide lint, test, and whitespace checks pass.
+
+## Historical branch audit
+
 Audited implementation: `fac15168ecee46cc6775c97964eea40f90956ed5` on `reduce-flake8-exclusions`, 2026-09-14.
 Rebased onto `main` at `277100dd2664563cb4881f3cf6b51bd70da91fe0`. The following report commit changes working
 notes only; the source and lint configuration are those of the audited implementation.
