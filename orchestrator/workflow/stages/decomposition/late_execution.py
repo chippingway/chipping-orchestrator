@@ -1,21 +1,18 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Run and interpret one late adjudication after admission and content reconciliation.
+"""Start one late adjudication after admission and content reconciliation.
 
 Only a fresh run spends the shared retry budget. The attempt owner persists
 its identity with that charge held back; pause and launch refusals remain
-free. Completed runs fold usage and prove the candidate unchanged before
-the completion owner guards and settles the answer.
+free. The completion owner folds usage, proves the candidate unchanged,
+and guards the recorded answer before settlement.
 """
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
-from orchestrator.agents.models import AgentResult
-from orchestrator.config import settings as config
 from orchestrator.git.worktrees import paths as _worktree_paths
-from orchestrator.workflow.engine import guards as _guards, issue_usage as _issue_usage, usage as _usage
 from orchestrator.workflow.late_split.models import (
     LateFailure,
 )
@@ -26,17 +23,14 @@ from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_retry_cap as _late_retry_cap,
+    late_run_reading as _late_run_reading,
     late_session as _late_session,
-    late_verdict as _late_verdict,
 )
-from orchestrator.workflow.stages.decomposition.late_evidence import _MISSING_WORKTREE_PARK, _candidate_mutation
+from orchestrator.workflow.stages.decomposition.late_evidence import _MISSING_WORKTREE_PARK
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudicationRun, _LateDisposition
 
 log = logging.getLogger("orchestrator.workflow")
-
-
-_LAST_AGENT_ACTION_AT = "last_agent_action_at"
 
 
 _HOLD_DISPLACED_PARK = (
@@ -48,9 +42,6 @@ _HOLD_DISPLACED_PARK = (
     "its description back, and the next tick continues against the same "
     "frozen commit."
 )
-
-
-_TIMEOUT_PARK = "late decomposer timed out after {seconds}s"
 
 
 def _run_and_decide(context: _LateContext) -> _LateAdjudicationRun:
@@ -117,70 +108,15 @@ def _spawned(
     an attempt nobody made, which the next tick reconciles for free, while an
     agent that ran is what nothing takes back.
     """
-    started = _late_session._spawn_record_for(
+    started = _late_run_reading._spawn_record_for(
         context.state, context.generation, resuming=context.answering,
     )
     _late_attempt._begin(context, started, unspent)
     stopped = _late_attempt._latched_stop(context, unspent)
     if stopped is not None:
         return _late_outcome._finished(context, stopped)
-    return _settle(
+    return _late_completion._settle(
         context,
         _late_session._spawn_late_adjudicator(context, started, worktree),
         worktree,
     )
-
-
-def _settle(
-    context: _LateContext, agent_result: AgentResult, worktree: Path,
-) -> _LateAdjudicationRun:
-    """Fold this run's usage and decline the outcomes that are not answers."""
-    if _guards._paused_during_agent_run(context.gh, context.issue):
-        return _late_outcome._finished(context, _LateDisposition.DEFERRED)
-    context.state.set(_LAST_AGENT_ACTION_AT, _usage._now_iso())
-    if not agent_result.interrupted:
-        _issue_usage._accumulate_issue_usage(context.state, agent_result.usage)
-    declined = _declined_run(context, agent_result, worktree)
-    if declined is not None:
-        return _late_completion._guarded(context, declined)
-    _late_session._record_late_session(context.state, agent_result)
-    return _late_completion._guarded(
-        context, _late_verdict._decide(context, agent_result.last_message),
-    )
-
-
-def _declined_run(
-    context: _LateContext, agent_result: AgentResult, worktree: Path,
-) -> _LateAdjudicationRun | None:
-    """The refusals a finished run earns before its reply is read at all.
-
-    The mutation check sits ahead of the interruption refusal for the reason
-    the initial decomposer's dirty check does: a run the shutdown sweep killed
-    can have written before it died, and a contaminated candidate is a thing
-    an operator has to be told about whether or not the run that caused it
-    counted. A launch that never became a process is ahead of both, since a
-    candidate changed by something else is not a verdict this run contaminated.
-    """
-    if _guards._ignore_if_never_invoked(context.issue, agent_result):
-        return _late_outcome._finished(context, _LateDisposition.DEFERRED)
-    if agent_result.timed_out:
-        return _late_outcome._parked_run(
-            context,
-            agent_result,
-            _TIMEOUT_PARK.format(seconds=config.AGENT_TIMEOUT),
-            reason=_late_park_state.PARK_TIMEOUT,
-        )
-    mutated = _candidate_mutation(context.generation, worktree)
-    if mutated is not None:
-        log.error(
-            "issue=#%d the late decomposer left the candidate worktree "
-            "changed; refusing its verdict",
-            context.issue.number,
-        )
-        return _late_outcome._parked_run(
-            context, agent_result, mutated,
-            reason=_late_park_state.PARK_WORKTREE_MUTATED,
-        )
-    if _guards._ignore_if_interrupted(context.issue, agent_result):
-        return _late_outcome._finished(context, _LateDisposition.DEFERRED)
-    return None

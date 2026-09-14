@@ -36,6 +36,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_hold as _late_hold,
     late_owner as _late_owner,
     late_result_models as _late_result_models,
+    late_run_reading as _late_run_reading,
     late_session as _late_session,
     late_settlement as _late_settlement,
 )
@@ -277,7 +278,7 @@ def settle_single(github, issue, **run_fields):
     decided = _late_result_models._LateAdjudicationRun(
         disposition=_late_result_models._LateDisposition.DECIDED,
         generation=generation,
-        run=_late_session._read_late_run(state),
+        run=_late_run_reading._read_late_run(state),
         adjudication=_late_result_models._LateAdjudication(
             verdict=_late_models.LateVerdict.SINGLE,
         ),

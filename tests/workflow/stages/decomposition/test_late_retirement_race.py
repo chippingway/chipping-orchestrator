@@ -25,7 +25,7 @@ from orchestrator.workflow.engine import dispatch as _dispatch
 from orchestrator.workflow.late_split import endings as _endings, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_cancellation as _late_cancellation,
-    umbrella as _umbrella,
+    umbrella_terminal as _umbrella_terminal,
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.fixtures import _TEST_SPEC
@@ -324,7 +324,7 @@ class SupersededCorrelationTest(_RetiredRecordCase, unittest.TestCase):
         state = self._state()
         _endings.record_retired_cycle(state, _NEXT_CYCLE)
 
-        _umbrella._retired_cycle(state)
+        _umbrella_terminal._retired_cycle(state)
 
         self.assertEqual(_endings.read_retired_cycle(state), CYCLE_ID)
 
@@ -339,7 +339,7 @@ class SupersededCorrelationTest(_RetiredRecordCase, unittest.TestCase):
     def _completed(self) -> None:
         """What that cycle's own umbrella terminal leaves on the record."""
         state = self._state()
-        _umbrella._retired_cycle(state)
+        _umbrella_terminal._retired_cycle(state)
         self.github.seed_state(LATE_ISSUE_NUMBER, **state.data)
 
 

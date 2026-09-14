@@ -1,21 +1,36 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Guard a completed late run before settling or publishing its verdict.
+"""Interpret and guard a completed late run before settling or publishing its verdict.
 
+Usage is folded before the completed run is checked for interruption and
+candidate mutation, then its session and answer are recorded.
 Every completion, including a reused answer or a park, re-reads the issue
 owner. Only the settlement that clears this guard may hand a split to the
 transaction; deferred runs leave durable state as they found it.
 """
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+
+from orchestrator.agents.models import AgentResult
+from orchestrator.config import settings as config
+from orchestrator.workflow.engine import guards as _guards, issue_usage as _issue_usage, usage as _usage
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
     late_owner as _late_owner,
+    late_park_state as _late_park_state,
+    late_session as _late_session,
     late_settlement as _late_settlement,
     late_transaction as _late_transaction,
+    late_verdict as _late_verdict,
 )
+from orchestrator.workflow.stages.decomposition.late_evidence import _candidate_mutation
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _OwnerState
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudicationRun, _LateDisposition
+
+log = logging.getLogger("orchestrator.workflow")
+
 
 
 def _guarded(
@@ -50,3 +65,64 @@ def _guarded(
     if settled.guarded_split is None:
         return settled
     return _late_transaction._run_late_split(context, settled)
+
+
+_LAST_AGENT_ACTION_AT = "last_agent_action_at"
+
+
+_TIMEOUT_PARK = "late decomposer timed out after {seconds}s"
+
+
+def _settle(
+    context: _LateContext, agent_result: AgentResult, worktree: Path,
+) -> _LateAdjudicationRun:
+    """Fold this run's usage and decline the outcomes that are not answers."""
+    if _guards._paused_during_agent_run(context.gh, context.issue):
+        return _late_outcome._finished(context, _LateDisposition.DEFERRED)
+    context.state.set(_LAST_AGENT_ACTION_AT, _usage._now_iso())
+    if not agent_result.interrupted:
+        _issue_usage._accumulate_issue_usage(context.state, agent_result.usage)
+    declined = _declined_run(context, agent_result, worktree)
+    if declined is not None:
+        return _guarded(context, declined)
+    _late_session._record_late_session(context.state, agent_result)
+    return _guarded(
+        context, _late_verdict._decide(context, agent_result.last_message),
+    )
+
+
+def _declined_run(
+    context: _LateContext, agent_result: AgentResult, worktree: Path,
+) -> _LateAdjudicationRun | None:
+    """The refusals a finished run earns before its reply is read at all.
+
+    The mutation check sits ahead of the interruption refusal for the reason
+    the initial decomposer's dirty check does: a run the shutdown sweep killed
+    can have written before it died, and a contaminated candidate is a thing
+    an operator has to be told about whether or not the run that caused it
+    counted. A launch that never became a process is ahead of both, since a
+    candidate changed by something else is not a verdict this run contaminated.
+    """
+    if _guards._ignore_if_never_invoked(context.issue, agent_result):
+        return _late_outcome._finished(context, _LateDisposition.DEFERRED)
+    if agent_result.timed_out:
+        return _late_outcome._parked_run(
+            context,
+            agent_result,
+            _TIMEOUT_PARK.format(seconds=config.AGENT_TIMEOUT),
+            reason=_late_park_state.PARK_TIMEOUT,
+        )
+    mutated = _candidate_mutation(context.generation, worktree)
+    if mutated is not None:
+        log.error(
+            "issue=#%d the late decomposer left the candidate worktree "
+            "changed; refusing its verdict",
+            context.issue.number,
+        )
+        return _late_outcome._parked_run(
+            context, agent_result, mutated,
+            reason=_late_park_state.PARK_WORKTREE_MUTATED,
+        )
+    if _guards._ignore_if_interrupted(context.issue, agent_result):
+        return _late_outcome._finished(context, _LateDisposition.DEFERRED)
+    return None

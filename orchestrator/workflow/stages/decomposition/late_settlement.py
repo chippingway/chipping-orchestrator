@@ -90,7 +90,7 @@ from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.late_split import exemption as _exemption
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
-    late_authorize as _late_authorize,
+    late_authorization_proof as _late_authorization_proof,
     late_handback as _late_handback,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
@@ -140,7 +140,7 @@ def _settle_adjudication(
         return finished
     if adjudication.verdict == LateVerdict.SPLIT:
         return _handed_split(context, finished)
-    if _late_authorize._publishes_unsplit(context):
+    if _late_authorization_proof._publishes_unsplit(context):
         return _reconcile_single(context, finished)
     return _late_unsplit._parked_single(context, finished)
 

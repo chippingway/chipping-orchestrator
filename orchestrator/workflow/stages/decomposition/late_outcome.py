@@ -45,6 +45,7 @@ from orchestrator.workflow.late_split.phases import IN_FLIGHT_PHASES, LatePhase
 from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     late_parks as _late_parks,
+    late_run_reading as _late_run_reading,
     late_session as _late_session,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -86,7 +87,7 @@ def _reused(
     return _finished(
         context,
         _LateDisposition.DECIDED,
-        _late_session._recovered_adjudication(run),
+        _late_run_reading._recovered_adjudication(run),
     )
 
 
@@ -243,6 +244,6 @@ def _finished(
     return _LateAdjudicationRun(
         disposition=disposition,
         generation=context.generation,
-        run=_late_session._read_late_run(context.state),
+        run=_late_run_reading._read_late_run(context.state),
         adjudication=adjudication,
     )

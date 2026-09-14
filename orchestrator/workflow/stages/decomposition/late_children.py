@@ -88,12 +88,12 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.late_split.models import LateFailure, LateResource, LateResourceKind, LateResourceState
 from orchestrator.workflow.stages.decomposition import (
+    child_creation as _child_creation,
     late_budget as _budget,
     late_outcome as _late_outcome,
     late_owner as _late_owner,
     late_park_state as _late_park_state,
     late_parks as _late_parks,
-    split as _split,
     state as _state,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -521,7 +521,7 @@ def _adopted_or_created(
         title=child[_TITLE],
         body=_child_body(context, child, walk.snapshot_ref, index),
         parent_number=context.issue.number,
-        labels=_split._child_initial_labels(),
+        labels=_child_creation._child_initial_labels(),
     )
 
 
@@ -601,7 +601,7 @@ def _forged_receipt(children: tuple) -> str | None:
 
 def _moved_off_blocked(context: _LateContext, orphan: Issue) -> bool:
     """Whether somebody has taken this child off the label it was born on."""
-    return context.gh.workflow_label(orphan) != _split._child_initial_labels()[0]
+    return context.gh.workflow_label(orphan) != _child_creation._child_initial_labels()[0]
 
 
 def _recorded(

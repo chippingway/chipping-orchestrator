@@ -8,8 +8,8 @@ not satisfy this broader target. In particular, all package initializer pairs mu
 migrating their imports and initialization responsibilities; they are not permanent exceptions.
 
 The continuation starts at `660a0bb6` on `chipping-orchestrator-reduce-flake8-exclusions-phase-2` with 107
-paths and 129 file/rule pairs. The current working implementation has 23 paths and 27 pairs (27 production, 0
-test), all matching isolated diagnostics. One hundred two pairs are removed without replacement exemptions or
+paths and 129 file/rule pairs. The current working implementation has 16 paths and 20 pairs (20 production, 0
+test), all matching isolated diagnostics. One hundred nine pairs are removed without replacement exemptions or
 raised limits, including all sixteen initializer pairs. Remaining work is the entire live set in `.flake8`,
 including WPS201, WPS202, and WPS204. The files must stay until that set is empty and
 validation passes.
@@ -147,7 +147,7 @@ Implemented batches:
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 29 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
 
-- Current implementation: separate late-run result and content values, frozen gate-call records,
+- `3ad64fdb`: separate late-run result and content values, frozen gate-call records,
   and generation-identity reads. Two production WPS202 pairs removed. Context mutation and generation minting
   remain on their original orchestration owners. The post-run candidate-mutation check joins the existing
   frozen-evidence owner to keep execution within the import limit. Of 1,383 compared function/method bodies and
@@ -156,6 +156,14 @@ Implemented batches:
   those dynamic type lookups, and the repaired base-refresh tests pass.
   Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 27 remaining production
   pairs match isolated diagnostics, with no stale or unmapped pair.
+
+- Current implementation: separate authorization proofs, snapshot reuse readings, late-run reads and
+  payload encoding, child creation, umbrella terminal effects, frozen-record guards, and command parsing.
+  Seven production WPS202 pairs removed. Completed-run handling joins the existing completion owner, keeping
+  execution within the import limit. Of 221 compared function/method bodies and 165 whole definitions, every
+  production body matches; one test difference moves its race hook with the notice owner. All 1,720 focused
+  tests pass. Ruff, configured WPS, and the full suite pass with 6,429 passed and 49 skipped. All 20 remaining
+  production pairs match isolated diagnostics, with no stale or unmapped pair.
 
 The sections below preserve the earlier implementation history. Their retention dispositions and checked boxes
 are historical evidence, not completion of the current zero-exclusion target.

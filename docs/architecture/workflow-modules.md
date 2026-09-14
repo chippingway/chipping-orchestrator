@@ -541,8 +541,10 @@ workflow/                   marker package for state, engine, and stage owners
       validation.py         bounded nonempty child envelopes, umbrella flags, and graph acyclicity after child validation
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
                             dispositions after it: the unparsed park, the `single` finalize, and the `split` hand-off
-      split.py              the crash-safe order a `split` manifest becomes child issues in, and the summary / label /
-                            activation tail
+      child_creation.py     ordinary child creation, parent receipts, and pinned-state seeding; each created child is
+                            recorded on its parent before seeding, and either failure parks the parent for repair
+      split.py              persist the expected count, create the planned children, and publish the summary and parent
+                            label before activating children without dependencies
       recovery.py           what a tick that died mid-split left behind: the stale-manifest markers, the orphan-child
                             repair, the incomplete park, and the two owners that hold those markers instead -- a
                             human the issue is parked awaiting, and the late transaction while its generation is
@@ -561,28 +563,11 @@ workflow/                   marker package for state, engine, and stage owners
                             held-dependency line it logs
       blocked.py            the `workflow:blocked` poll and the `workflow:ready` handoff to implementing with its
                             consumed-comment ratchet
-      umbrella.py           the `workflow:umbrella` poll, the barriers around everything that acts on the child
-                            scan -- past the scan, behind the settlement the terminal waits on, and once more
-                            immediately before the write that records the resolution and RETIRES the cycle
-                            together -- correlating that retirement to nothing, since the cycle it drops finished
-                            -- correlating it to the cycle it dropped, since the barrier behind the write is this
-                            process's -- which is what leaves no live cycle under a `done` no sweep queries, with
-                            that write held inside the retirement window and the latch asked once more BEHIND it,
-                            where a close is answered by putting the cycle back cancelled rather than refused; the
-                            resolution said once off that same stamp -- and, on an umbrella a POST-PUBLICATION
-                            split made and no other, off a marker naming this cycle and generation on the thread,
-                            since only there can the barrier behind it refuse a terminal whose sentence has
-                            already gone out and only there may an umbrella held on a reopened pull request repeat
-                            itself every poll, while a restart out of a rejected cycle keeps the thread; the
-                            publication that split closed asked about once more immediately in front of the
-                            retirement write, which is the boundary past which the group is gone and nothing could
-                            ask again, a refusal there writing nothing at all; the label and close
-                            asked of a record that
-                            already says the terminal is due, the close its all-done branch earns
-                            instead of
-                            an implementation pass, and the reconciliation that close waits on -- the one boundary at
-                            which what a late split still owes a remote can be settled, and the last that comes
-                            back if it cannot
+      umbrella_terminal.py  resolution text, usage totals, and cycle/generation receipts for published late splits;
+                            retire the live cycle while retaining its obligations, then label done and close
+      umbrella.py           the `workflow:umbrella` poll and barriers around child activation, cleanup, and completion;
+                            require settled obligations and publication before retirement, and restore a cancelled
+                            cycle when a close is observed inside the retirement window
       late_coordinator.py   the late mode's order: admission, park retirement, content settlement, then reuse
                             a recorded answer or buy one fresh adjudication; only the completion guard can
                             hand a cleared split to the transaction
@@ -596,11 +581,11 @@ workflow/                   marker package for state, engine, and stage owners
       late_attempt.py       the durable attempt identity and the retry accounting its pre-spawn write omits;
                             both close-latch checks restore the unspent counters before cancellation can write,
                             so a run declined by shutdown or a live pause costs the issue nothing
-      late_execution.py     spend the shared retry budget and start one admitted adjudication; account usage,
-                            refuse an unstarted, timed-out, interrupted, or mutated-candidate answer, then hand
-                            every completion through the owner guard before its verdict can take effect
-      late_completion.py    re-read the issue owner for every completed or reused answer, settle what it earned,
-                            and hand only a guarded split to the transaction; deferred runs write nothing
+      late_execution.py     spend the shared retry budget and start one admitted adjudication, checking the close latch
+                            around its durable attempt record
+      late_completion.py    account usage, refuse unstarted, timed-out, interrupted, or mutated-candidate answers,
+                            and record the session and verdict; re-read the owner for every completed or reused answer
+                            before settlement, handing only a guarded split to the transaction
       late_retry_cap.py     the same standing park on the adjudication's own road: the gate its fresh spawn is
                             charged to, the refusal staged through this mode's park owner so the generation,
                             the frozen pair, and the hold on the pull request the candidate stands under all ride
@@ -612,21 +597,13 @@ workflow/                   marker package for state, engine, and stage owners
                             renews the budget for exactly one adjudication -- written down before the spawn it
                             pays for, and needing no session retirement of its own, since the pre-spawn record
                             opens a fresh conversation for every run that is not answering a question
-      late_session.py       the late run's pinned record -- role, locked spec, session, cycle, source commit,
-                            generation, and the whole of what a verdict decided, each slice of a split manifest
-                            carrying the addition budget it was proposed at, since the child issue created from
-                            it states that number -- the ONE whole-comment budget every
-                            verdict is refused past, since charging a `single` for the sentence it earns would buy a
-                            superseded refusal, another decomposer run, and a `single` short of the park a human's
-                            decision is owed on, while the sentence itself goes in the headroom that budget leaves
-                            under GitHub's limit -- the rules it is read back
-                            through, and the tracked spawn in the candidate's
-                            own worktree, resuming the pinned session only for the run that carries a human's answer
-                            to the question it asked. The drop that ends a recorded outcome is here too, and it takes
-                            the operator's authorization to publish that outcome with it -- one statement, reached by
-                            every road that ends an answer, since the run being recorded is by definition the one
-                            replacing it and every term of that authorization survives the same candidate being
-                            adjudicated twice
+      late_run_reading.py   read the pinned role, locked spec, session, source pair, and validated verdict payload;
+                            recover adjudications and resume only a session bound to this candidate generation
+      late_result_payloads.py
+                            encode verdicts and child estimates, and measure the actual serialized pinned payload
+                            against the whole-comment budget with notice headroom
+      late_session.py       persist spawn, bounded session, and result records and invoke the tracked adjudicator;
+                            every discarded answer drops its publication override, and preflight reserves session room
       late_hold.py          the cycle-marked hold a reusable open pull request wears: which one that is -- a hold
                             already recorded (released first and re-taken where the publication entry has since
                             named another, since the record holds one identity and one preserved body), then that
@@ -811,20 +788,10 @@ workflow/                   marker package for state, engine, and stage owners
                             umbrella's terminal asks before it closes -- and that a park for a rejected or
                             hand-closed child asks on its way out, since both of those ended the consumer they
                             name and nothing else revisits an open umbrella
-      late_reuse.py         what a child born of a split proves before it starts, taken on the child's own
-                            dispatch because the owner that reclaimed the ref cannot write another live issue's
-                            pinned comment safely: its own owner's receipt read off its thread first, which is what
-                            says the reclamation HAPPENED and outranks a mirror nobody dropped or a ref pushed again
-                            at the same commit -- so a thread that could not be READ holds the dispatch rather than
-                            falling through; then, where the thread answered and carries none, this host's mirror
-                            read for the commit it carries -- and only where the pointer carries the stamp saying a
-                            reclamation would have dropped it first -- and the remote behind it, whose absent /
-                            re-pointed / unreadable answers park, park, and HOLD the dispatch respectively; and,
-                            for a child the split recorded but never managed to seed, the same answers over the
-                            pointer its BODY marker earns -- corroborated against
-                            the owner's own fresh generation first, since a body is a field the world can write and
-                            a receipt is posted only after the ref is gone -- with the park, the pointer dropped or
-                            the lineage repaired, taken before the label's handler is reached
+      late_reuse_reading.py snapshot reuse verdicts from the owner's reclamation receipt, corroborated ancestry,
+                            trusted local mirror, and exact remote ref; unreadable evidence defers the dispatch
+      late_reuse.py         hold or park the child before its label handler runs, distinguishing reclaimed and repointed
+                            snapshots and repairing unseeded lineage from the evidence the child's body earns
       late_sweep.py         the cleanup-only pass over an owner a human closed mid-cycle -- reached by being closed
                             on `decomposing` or `umbrella`, where an adjudication runs, or on `ready` or `blocked`,
                             where a decomposition outcome that landed after the close can leave an ending nothing
@@ -907,32 +874,12 @@ workflow/                   marker package for state, engine, and stage owners
                             stand between the first ask and the terminal; and the `rejected` terminal, written last,
                             only for a closed owner, and only once nothing is owed -- which is what takes the issue
                             out of the sweep for good
-      late_authorize.py     the one decision that ends that park: a trusted whole-comment
-                            `/orchestrator authorize-oversized <commit>`, read only while the park stands and only
-                            as a reply to its notice -- prose around it is guidance the developer is resumed
-                            against, guidance in the same batch outranks it, `/orchestrator continue` is refused as
-                            the non-decision it is, and an untrusted author is not in the reading at all. What a
-                            proved command earns is the contribution RECOMPUTED between the frozen pair (never a
-                            digest a caller handed in) and the `late_split/overrides` group written with the park
-                            cleared and the reply consumed in ONE write, since either half alone is a state the next
-                            tick reads wrong. The commit has to be the frozen candidate and the `single` has to
-                            still answer this cycle, generation and commit; both refusals are said once per READING
-                            -- under a receipt scoped to it, since the sentence and the write that consumes it are
-                            two operations -- and a contribution this host cannot fingerprint is not answered at
-                            all, so the operator is never asked to decide twice for a store an operator repairs. The
-                            predicate the settlement enters that road on is here too, asked of the RECORD: every
-                            frozen term compared against the generation in hand, and then the contribution
-                            fingerprinted AGAIN and held to the recorded digest, since the terms alone are the
-                            pinned comment agreeing with itself and the publication may be reached on a later
-                            process and a host that never held the content between the pair. WHICH answer was
-                            authorized is the one thing no term can say -- a candidate can be adjudicated twice and
-                            an acknowledged unchanged one matches every field -- so the record is bound to its
-                            answer by being dropped with it, by `late_session` where a result is discarded AND where
-                            the run replacing it is recorded, which is the statement no road gets around, and by
-                            `late_revision_reconciliation` where a re-freeze mints a fresh generation one step
-                            earlier. The no-verdict refusal retires the park on its way out, since the issue stops
-                            next for whatever the replacement adjudication answers and a standing `awaiting_human`
-                            would silence the question it might ask
+      late_authorization_proof.py
+                            recompute the frozen contribution for trusted consent and retained publication overrides;
+                            every frozen term and the digest must still match before publishing unsplit
+      late_authorize.py     consume trusted whole-comment oversized authorizations against the recorded single verdict;
+                            record the override, clear the park, and consume its reply in one write; refusals are
+                            receipted per reading, and an unreadable contribution leaves the command unread
       late_unsplit.py       the park a `single` hands the issue to a human under: the sentence naming the frozen
                             candidate, the reading that stopped it, the two replies that end it -- words that change
                             the work, and the command spelled out against this candidate -- and what the verdict
@@ -1373,50 +1320,11 @@ workflow/                   marker package for state, engine, and stage owners
       late_consent.py       request an operator's authorization for an adjudicated oversized commit, validate the named
                             candidate, fingerprint its contribution again, and record the measured terms while retiring
                             the park; refusals retain the candidate and share the same scoped receipt rules
-      late_command.py       which reply on a standing park a tick should act on, and nothing else: no record is
-                            written and nothing is decided. The LAST fresh trusted reply, because reading the
-                            batch as a set is what poisons a park -- a reply matching nothing is never consumed
-                            on the seams that publish onto an open pull request, so it would stand in every
-                            later batch and refuse the correct command behind it. ONE fetch answers every
-                            question a poll of that park has -- which reply to act on, whether anybody spoke at
-                            all, and how far the look got -- because the first two decide opposite things and a
-                            road that asked them separately would answer from two different threads: a command
-                            landing between the two reads is classified as guidance, handed to the ordinary
-                            resume, and consumed past the watermark with an agent paid to answer it. How far
-                            the look got travels because that is what an answer may consume and no more, and
-                            because it is what a sentence posted on the strength of it is scoped by.
-                            A reply that IS the command is carried whatever it
-                            goes on to say, an argument nobody could act on included, which is what earns an
-                            abbreviation the sentence saying so instead of a silent park. Three authors are
-                            never in the reading: an outsider, a comment with no id, and the orchestrator itself
-                            -- the park notice spells the command out ready to copy, so our own sentences are
-                            exactly what a reader matching on that syntax would mistake for one. The pinned
-                            record is named by its ID rather than by its marker, since that
-                            fallback hides every comment merely QUOTING one and a reply hidden from this
-                            reading is a reply whose author never spoke -- and it is DROPPED outright from both
-                            reads that ask a THREAD about a receipt: a receipt is a field
-                            on that record before it is a sentence on a thread, and a record whose escaped
-                            rendering would not fit is written as its own payload, so on those issues the receipt
-                            asked about sits verbatim in the pinned comment under our own login. Read there, a
-                            sentence recorded and not yet said reads as one already said -- and, since the record
-                            is the earliest comment on most threads, as one already ATTRIBUTED, which drops the
-                            receipt and means the notice is never posted at all. Being ours is
-                            PROVED by the recorded id and by nothing else, because the last-reply rule makes
-                            dropping a comment the same act as deleting what its author said: a retraction taken
-                            for one of ours never happened, and the authorization beneath it becomes the last
-                            word and publishes on consent withdrawn. A batch the generic resume forms whose
-                            LAST fresh reply is one of these commands, while the park is standing, defers that
-                            whole tick unconsumed -- since that read comes after the road classifying this park
-                            has handed the tick back, so a command landing between the two is in its batch and
-                            in nobody else's. Deferring rather than sparing the one reply, because a watermark
-                            is one number and the resume is not the last thing to move it: the run it starts
-                            parks, and that park stamps the thread read to the notice it posts, above the
-                            command. Only where the command is LAST, since one with guidance written over it
-                            has been replaced. The marker is text anybody may paste, and
-                            the author login is the shared-PAT hazard named where that ledger is defined -- a
-                            reviewer posting from the token's own account matches it exactly, and they are the
-                            one whose consent this park collects. A comment the ledger cannot vouch for stays in
-                            the reading, which leaves the park standing rather than publishing
+      late_command_reading.py
+                            whole-comment command parsing, valid comment ids, and stage attribution from the id ledger
+      late_command.py       select the last fresh trusted human reply from one thread reading, carry its furthest
+                            watermark, and read through later attributed stage comments without crossing human guidance;
+                            receipt checks exclude the pinned comment by id
       late_recovery.py      the ordered recovery dispatcher ahead of every developer spawn: repair stranded
                             authorship, restore a held park, retry measurement, answer authorization, then
                             recognize a restored candidate; committed work never buys a replacement developer run
@@ -1846,19 +1754,10 @@ workflow/                   marker package for state, engine, and stage owners
                             unreadable or foreign records cannot supply a reportable identity
       late_records.py       gate construction and candidate-generation minting; identities advance durably, the frozen
                             candidate owns its spent readings, and existing publication context is retained
-      late_freeze.py        the pair a count is taken over -- the candidate proved, the base frozen or re-proved,
-                            and a base neither of those could reach counted as one of the readings this pair may
-                            lose rather than parked outright -- and whether a recorded one may be acted on at all,
-                            its identity and the issue it names included, asked as the REUSED pair's own
-                            precondition rather than at each road into one, since the miss that retry writes back
-                            would otherwise repair a record recorded against another issue under this one's
-                            identity. A pair still waiting for its base is held to the same evidence less the base
-                            itself, which is the one field the failure being retried leaves absent: the mint the
-                            retry freezes under keeps the record's cycle, scope and spent readings while re-stamping
-                            the issue number, the ceiling and the boundary from the process running NOW, so a
-                            generation short of the ceiling it was frozen under would otherwise be re-judged against
-                            whatever the setting has been retuned to since. Also the one state the switch answers
-                            outright, which every seam that measures asks the same way
+      late_freeze_guards.py reject missing measurement fields and foreign identities before a retained pair is used;
+                            an unfinished base permits only that field to remain absent, preserving its original ceiling
+      late_freeze.py        prove the candidate, freeze or recover its exact base, and account for failed base reads;
+                            reconciliation refuses checkout drift, and retained bases are recovered by object identity
       late_evidence.py      what a recovery proves before it acts: the checkout, both recorded objects, a
                             head that is still the candidate, and a head that is still the commit an approval
                             owes a publication for -- proved ahead of every spawn

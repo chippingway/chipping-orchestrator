@@ -42,7 +42,7 @@ import unittest
 from dataclasses import replace
 
 from orchestrator.git.snapshots import refs as _snapshot_refs
-from orchestrator.workflow.stages.decomposition import umbrella as _umbrella
+from orchestrator.workflow.stages.decomposition import umbrella as _umbrella, umbrella_terminal as _umbrella_terminal
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeComment, FakeLabel, FakeUser
 from tests.workflow.fixtures import _TEST_SPEC
@@ -211,7 +211,7 @@ class _ResolvedUmbrellaCase(PublishedSplitCase):
         """
         remote = RecordedDelete(SnapshotOutcome.DELETED)
         with remote.answering(), local_teardown(), _late_race.interleaved_after(
-            _umbrella, RESOLUTION_SAID, moved or _nothing,
+            _umbrella_terminal, RESOLUTION_SAID, moved or _nothing,
         ):
             _umbrella._handle_umbrella(
                 self.github, _TEST_SPEC, self.issue,
@@ -317,7 +317,7 @@ class ReopenedInsideTheNoticeTest(_ResolvedUmbrellaCase, unittest.TestCase):
         self._settled_and_resolved()
         # Planted through the production builder, so what is on the thread is
         # exactly what THAT cycle's terminal would have left there.
-        earlier = _umbrella._resolved_marker(
+        earlier = _umbrella_terminal._resolved_marker(
             self.issue, replace(self.generation, cycle_id=EARLIER_CYCLE),
         )
         self.issue.comments.append(FakeComment(
