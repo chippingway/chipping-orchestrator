@@ -21,7 +21,7 @@ from types import MappingProxyType
 
 from orchestrator.workflow.late_split import lineage as _lineage, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
-    late_children as _late_children,
+    late_child_content as _late_child_content,
     late_hold_text as _late_hold_text,
     late_transaction as _late_transaction,
 )
@@ -250,7 +250,7 @@ def child_marker(generation, index: int) -> str:
     Through the production builder, so a test that plants one plants exactly
     what the lookup searches for.
     """
-    return _late_children._child_marker(generation, index)
+    return _late_child_content._child_marker(generation, index)
 
 
 def sibling_marker(generation, parent_issue: int) -> str:
@@ -260,7 +260,7 @@ def sibling_marker(generation, parent_issue: int) -> str:
     that identity stops naming the issue this reads as the same marker and the
     cross-parent adoption it guards against actually happens.
     """
-    return _late_children._child_marker(
+    return _late_child_content._child_marker(
         replace(generation, current_issue=parent_issue), 0,
     )
 

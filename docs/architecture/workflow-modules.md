@@ -664,29 +664,15 @@ workflow/                   marker package for state, engine, and stage owners
                             identity names, the obligation written ahead of the push and again behind the proof, the
                             create-or-verify that never overwrites, the fetch that proves a child could obtain it,
                             and the one park every refusal takes
-      late_children.py      the children a split creates: the umbrella flag and count written before the first one,
-                            the owner re-read before every one of them -- the first included, since that flag is a
-                            remote write -- the latch asked once more against the create itself, since the
-                            orphan lookup ahead of it walks the whole repository, once BEHIND it, and once between
-                            the read of the child's own comment and the write that adds to it, since a close
-                            landing inside either leaves a real issue: recorded either way, because a child
-                            nothing names is the one state no pass can clean up, never seeded, because a
-                            cancelled cycle owes its children nothing, and answered back to the loop rather than
-                            stopped at, since the seed is the last step of one child's turn and a caller told it
-                            succeeded opens the next slice against an ended cycle, the single write that records
-                            each as a child, a
-                            consumer, and an obligation, the seal that says the register a cancellation stopped
-                            the loop over is FINAL -- the count it was measured against is one a cancelled loop
-                            can never reach, so the ref would be held on a proof no pass could complete -- withheld
-                            on a resumed walk short of the first unrecorded index, where a child an earlier attempt
-                            made and never recorded would not be on it, the adopt
-                            -- never repeat -- a resumed walk does, the one-receipt-only check a candidate has to
-                            pass to be adopted, the manifest test that refuses a slice declaring a receipt of ours,
-                            the seed that adds an ancestry without replacing a child's own work, and the body
-                            naming the snapshot, the two reuse forms, the hunk splitting it forbids, and the
-                            budget the slice was proposed at -- stated BESIDE the declared scope rather than
-                            folded into it, with the paths that estimate covers named, and dropped entirely for a
-                            slice nobody sized
+      late_child_content.py child scope, declared budgets, ancestry, immutable-snapshot reuse instructions, and exact
+                            slice receipts; reserved markers in proposed scope are refused before publication
+      late_child_records.py retain the child walk, write each child on every parent ledger before seeding its ancestry,
+                            and seal a cancelled consumer ledger only once possible unrecorded children are accounted for
+      late_child_adoption.py
+                            recover the exact issue for a resumed slice or create it after the close latch; ambiguous,
+                            closed, or already-started receipt holders are refused without creating another child
+      late_children.py      walk the manifest with a fresh owner check before each slice; record a created child before
+                            checking closure again, and stop rather than seed or advance after cancellation
       late_split_preparation.py
                             validate the manifest and ledgers before publishing a snapshot, prove that immutable
                             ref before creating any child, and return the durable children and ref together; an
@@ -694,39 +680,18 @@ workflow/                   marker package for state, engine, and stage owners
       late_retirement.py    retire the generation with the umbrella label before activating children through
                             the shared guarded walk, then reconcile the recorded branch obligation; cleanup
                             failures remain on the ledger for the umbrella terminal to retry
-      late_transaction.py   the order a cleared split runs in: preparation rejects inadmissible state, proves the
-                            snapshot before any child, the owner re-read before every step the remote keeps -- the
-                            same guard the handoff took, taken between the children and again between the
-                            announcement, the supersession, and the retirement, since a close a poll saw while this
-                            worker held the issue reaches no cleanup pass on the tick it happened -- the children
-                            before any link, the forward links behind the receipt that stops them repeating, the
-                            pull request this cycle's work is on superseded and closed under a marker scoped to
-                            this adjudication -- the plan one where the gate was entered before publication, and
-                            the implementation one where it was entered past it, which is proved still open
-                            and still standing where the reading found it before it is closed, since the tail
-                            behind this deletes the branch and hands the work to children and an unsuperseded one
-                            is an open change carrying work nobody will finish, with a pull request already
-                            closed over THIS adjudication's own receipt recognised as the supersession a crashed
-                            tick already made rather than as a human's settlement -- though never a MERGED one,
-                            whatever the thread says, and never one whose head moved behind the close, since a
-                            close does not freeze the branch the tail behind it reclaims -- the publication
-                            asked about between every step of the tail on the same rule the owner is -- in
-                            front of the close, the retirement, EVERY child released, and the branch delete,
-                            the last two from inside the walk and the reclamation rather than in front of
-                            either, since a child scan and a snapshot probe are requests of their own -- since
-                            each is licensed by that supersession being on it and a human can merge, reopen, or
-                            push in between any two; the close itself made against a SECOND
-                            reading taken with no comment listing behind it, so a change settled or pushed to
-                            inside the first window is left untouched rather than marked and closed and only
-                            then refused, with the receipt that reading skipped handed to the write so no thread
-                            scan stands in the interval either; a refusal before the retirement a park with the
-                            record still live and one past it the step declined and left to the umbrella's own
-                            walk or its terminal, which ask the same question themselves, per relabel and per
-                            delete, off the publication group the retirement keeps -- the
-                            generation retired onto `workflow:umbrella` in the write that hands the issue on, the
-                            activation behind it -- through the shared dep-graph walk, so a child that ended while
-                            the supersession was parked is left where it is -- and the branch cleanup recorded as
-                            owed and attempted after
+      late_split_notices.py forward links and cycle-bound supersession notices naming the snapshot and ordered children;
+                            thread receipts recover announcements whose pinned writes were interrupted
+      late_supersession_state.py
+                            persist reconciled or failed publication obligations and their parks before the split resumes
+      late_supersession_reading.py
+                            prove the published head and this cycle's supersession still hold; moved, merged, or reopened
+                            publications withhold child activation and reclamation
+      late_supersession.py  release held descriptions and supersede the exact publication; re-read published work
+                            immediately before closure and record completion only after its proof and effects succeed
+      late_transaction.py   prepare the snapshot and children, announce the split, supersede its publication, and retire
+                            onto the umbrella; owner and publication barriers surround every externally visible step,
+                            including the branch reclamation left for cleanup when the supersession is undone
       late_cleanup.py       what a split still owes a remote once its children are running, with the latch asked
                             between every obligation it settles, between the fresh consumer proof and the ref
                             delete it authorizes, between that delete and the receipts behind it, and between

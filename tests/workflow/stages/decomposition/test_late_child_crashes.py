@@ -16,7 +16,7 @@ import unittest
 from orchestrator.git.snapshots.refs import SnapshotOutcome
 from orchestrator.workflow.engine import dispatch as _dispatch
 from orchestrator.workflow.stages.decomposition import (
-    late_children as _late_children,
+    late_child_records as _late_child_records,
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.fixtures import _TEST_SPEC
@@ -85,7 +85,7 @@ class ChildBoundaryTest(LateSplitCase, unittest.TestCase):
         # The first slice is created, recorded, and seeded; the second has not
         # been touched. The resume adopts the first and opens only the second.
         with self.assertRaises(KeyboardInterrupt):
-            self._transact(killed=killed_after(_late_children, "_seeded"))
+            self._transact(killed=killed_after(_late_child_records, "_seeded"))
         first = list(self._pinned()[KEY_CHILDREN])
         self.assertEqual(len(first), 1)
 
@@ -141,7 +141,7 @@ class ChildBoundaryTest(LateSplitCase, unittest.TestCase):
         # second issue for the same slice -- and re-seeds it, since the seed
         # is the step that can have been lost.
         with self.assertRaises(KeyboardInterrupt):
-            self._transact(killed=killed_after(_late_children, "_recorded"))
+            self._transact(killed=killed_after(_late_child_records, "_recorded"))
 
         recorded = list(self._pinned()[KEY_CHILDREN])
         self.assertEqual(self._pinned()[KEY_CONSUMERS], recorded)

@@ -33,7 +33,7 @@ import unittest
 
 from orchestrator.workflow.stages.decomposition import (
     late_publication as _late_publication,
-    late_transaction as _late_transaction,
+    late_supersession_reading as _late_supersession_reading,
     umbrella as _umbrella,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -101,7 +101,7 @@ class ReopenedPublicationUmbrellaTest(PublishedSplitCase, unittest.TestCase):
     def _reopened_past_the_barrier(self) -> None:
         """One split settled with the publication reopened behind its close."""
         with interleaved_after(
-            _late_transaction, PUBLICATION_BARRIER, self.reopened,
+            _late_supersession_reading, PUBLICATION_BARRIER, self.reopened,
         ), self.assertLogs(level=ERROR):
             self._transact(generation=self.generation)
 
@@ -140,7 +140,7 @@ class ReopenedBetweenRelabelsTest(PublishedSplitCase, unittest.TestCase):
     def _settled_with_both_children_held(self) -> None:
         """A split whose two independent slices were never released."""
         with interleaved_after(
-            _late_transaction, PUBLICATION_BARRIER, self.reopened,
+            _late_supersession_reading, PUBLICATION_BARRIER, self.reopened,
         ), self.assertLogs(level=ERROR):
             self._transact(
                 generation=self.generation, children=INDEPENDENT,

@@ -15,7 +15,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from orchestrator.workflow.stages.decomposition import (
-    late_children as _late_children,
+    late_child_records as _late_child_records,
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.state import WorkflowLabel
@@ -234,7 +234,7 @@ class AmbiguousReceiptTest(OrphanAdoptionCase, unittest.TestCase):
 
     def test_a_second_slice_is_not_adopted_by_receipt(self) -> None:
         with self.assertRaises(KeyboardInterrupt):
-            self._transact(killed=killed_after(_late_children, "_seeded"))
+            self._transact(killed=killed_after(_late_child_records, "_seeded"))
         first = self.github.created_child_issues[0]
         first.body = "\n".join(
             (first.body, child_marker(self.generation, 1)),
