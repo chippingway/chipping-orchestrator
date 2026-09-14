@@ -34,7 +34,7 @@ import logging
 
 from orchestrator.workflow.engine import (
     comments as _comments,
-    observations as _observations,
+    retiring_cycles as _retiring_cycles,
 )
 from orchestrator.workflow.late_split import endings as _endings
 from orchestrator.workflow.late_split.models import LateGeneration
@@ -152,7 +152,7 @@ def _published(context: _LateContext) -> _LateDisposition | None:
     stopped = _late_owner._latch_stops(context)
     if stopped is not None:
         return stopped
-    retiring = _observations.retiring(
+    retiring = _retiring_cycles.retiring(
         context.spec.slug, context.issue.number, live.cycle_id,
     )
     with retiring.held():
@@ -170,7 +170,7 @@ def _published(context: _LateContext) -> _LateDisposition | None:
 def _reinstated(
     context: _LateContext,
     live: LateGeneration,
-    retiring: _observations.RetiringCycle,
+    retiring: _retiring_cycles.RetiringCycle,
 ) -> _LateDisposition | None:
     """Put back a cycle the retirement write dropped a moment too early.
 

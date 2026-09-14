@@ -23,6 +23,7 @@ from dataclasses import replace
 from orchestrator.workflow.engine import (
     comments as _comments,
     observations as _observations,
+    retiring_cycles as _retiring_cycles,
     usage as _usage,
 )
 from orchestrator.workflow.late_split import (
@@ -331,7 +332,7 @@ def _retired(
     """
     if _cancelled(gate, generation):
         return True
-    retiring = _observations.retiring(
+    retiring = _retiring_cycles.retiring(
         gate.spec.slug, gate.issue.number, generation.cycle_id,
     )
     with retiring.held():

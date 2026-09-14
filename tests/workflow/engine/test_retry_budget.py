@@ -13,7 +13,11 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import retry_budget as _retry_budget
+from orchestrator.workflow.engine import (
+    retry_budget as _retry_budget,
+    retry_notices as _retry_notices,
+    retry_values as _retry_values,
+)
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.engine import retry_budget_test_support as support
 from tests.workflow.fixtures import _iso_hours_ago
@@ -165,10 +169,10 @@ class RetryCapParkTest(unittest.TestCase):
         self.assertTrue(owes)
         self.assertTrue(state.get(support.AWAITING_HUMAN))
         self.assertEqual(
-            state.get(support.PARK_REASON), _retry_budget.PARK_RETRY_CAP,
+            state.get(support.PARK_REASON), _retry_values.PARK_RETRY_CAP,
         )
         self.assertEqual(
-            state.get(_retry_budget.RETRY_CAP_STAGE), support.STAGE,
+            state.get(_retry_values.RETRY_CAP_STAGE), support.STAGE,
         )
         sentence = support.owed(state)
         self.assertIn(
@@ -203,7 +207,7 @@ class RetryCapParkTest(unittest.TestCase):
         self.assertTrue(owes)
         self.assertEqual(support.owed(state), support.NOTICE)
         self.assertEqual(
-            state.get(_retry_budget.RETRY_CAP_STAGE), support.STAGE,
+            state.get(_retry_values.RETRY_CAP_STAGE), support.STAGE,
         )
 
     def test_a_park_with_no_stage_takes_this_one(self) -> None:
@@ -216,7 +220,7 @@ class RetryCapParkTest(unittest.TestCase):
         support.staged_park(state, stage=support.OTHER_STAGE)
 
         self.assertEqual(
-            state.get(_retry_budget.RETRY_CAP_STAGE), support.OTHER_STAGE,
+            state.get(_retry_values.RETRY_CAP_STAGE), support.OTHER_STAGE,
         )
 
     def test_an_unreadable_sentence_owes_nothing(self) -> None:
@@ -237,7 +241,7 @@ class NoticeDeliveryTest(unittest.TestCase):
         self.state = support.parked_state(retry_cap_notice=support.NOTICE)
 
     def test_delivery_says_it_once_and_records_it(self) -> None:
-        said = _retry_budget._deliver_notice(self.gh, self.issue, self.state)
+        said = _retry_notices._deliver_notice(self.gh, self.issue, self.state)
 
         self.assertTrue(said)
         posted = self.gh.posted_comments[-1][1]
@@ -247,7 +251,7 @@ class NoticeDeliveryTest(unittest.TestCase):
         # The shared park clears the reason by contract, and the response
         # boundary a reply is measured against moves past the mention.
         self.assertEqual(
-            self.state.get(support.PARK_REASON), _retry_budget.PARK_RETRY_CAP,
+            self.state.get(support.PARK_REASON), _retry_values.PARK_RETRY_CAP,
         )
         self.assertEqual(
             self.state.get(support.LAST_ACTION_COMMENT_ID),
@@ -256,10 +260,10 @@ class NoticeDeliveryTest(unittest.TestCase):
         self.assertEqual(support.phases(self.gh), ["delivered"])
 
     def test_a_settled_obligation_says_nothing(self) -> None:
-        _retry_budget._deliver_notice(self.gh, self.issue, self.state)
+        _retry_notices._deliver_notice(self.gh, self.issue, self.state)
 
         self.assertFalse(
-            _retry_budget._deliver_notice(self.gh, self.issue, self.state),
+            _retry_notices._deliver_notice(self.gh, self.issue, self.state),
         )
         self.assertEqual(len(self.gh.posted_comments), 1)
 
@@ -270,7 +274,7 @@ class NoticeDeliveryTest(unittest.TestCase):
             patch.object(self.gh, "comment", side_effect=RuntimeError("nope")),
             self.assertRaises(RuntimeError),
         ):
-            _retry_budget._deliver_notice(self.gh, self.issue, self.state)
+            _retry_notices._deliver_notice(self.gh, self.issue, self.state)
 
         self.assertIsNotNone(support.owed(self.state))
         self.assertEqual(support.phases(self.gh), [])
@@ -288,7 +292,7 @@ class NoticeReconciliationTest(unittest.TestCase):
             ),
         )
 
-        self.assertIs(reading, _retry_budget.NoticeReading.SAID)
+        self.assertIs(reading, _retry_values.NoticeReading.SAID)
         self.assertEqual(gh.posted_comments, [])
         self.assertIsNone(support.owed(state))
         # Repaired to the comment that carried it -- the id the write that
@@ -309,7 +313,7 @@ class NoticeReconciliationTest(unittest.TestCase):
             ),
         )
 
-        self.assertIs(reading, _retry_budget.NoticeReading.UNSAID)
+        self.assertIs(reading, _retry_values.NoticeReading.UNSAID)
         self.assertIsNotNone(support.owed(state))
         self.assertEqual(support.phases(gh), [])
 
@@ -325,7 +329,7 @@ class NoticeReconciliationTest(unittest.TestCase):
             ),
         )
 
-        self.assertIs(reading, _retry_budget.NoticeReading.UNSAID)
+        self.assertIs(reading, _retry_values.NoticeReading.UNSAID)
         self.assertIsNotNone(support.owed(state))
         self.assertEqual(
             state.get(support.LAST_ACTION_COMMENT_ID), support.WATERMARK,
@@ -340,9 +344,9 @@ class NoticeReconciliationTest(unittest.TestCase):
         state = support.parked_state(retry_cap_notice=support.NOTICE)
 
         with patch.object(gh, "comments_after", side_effect=RuntimeError("502")):
-            reading = _retry_budget._reconcile_notice(gh, issue, state)
+            reading = _retry_notices._reconcile_notice(gh, issue, state)
 
-        self.assertIs(reading, _retry_budget.NoticeReading.UNREADABLE)
+        self.assertIs(reading, _retry_values.NoticeReading.UNREADABLE)
         self.assertIsNotNone(support.owed(state))
 
     def _reconcile(self, *comments):
@@ -351,7 +355,7 @@ class NoticeReconciliationTest(unittest.TestCase):
             retry_cap_notice=support.NOTICE,
             last_action_comment_id=support.WATERMARK,
         )
-        reading = _retry_budget._reconcile_notice(gh, issue, state)
+        reading = _retry_notices._reconcile_notice(gh, issue, state)
         return gh, state, reading
 
 
@@ -371,8 +375,8 @@ class ContinuationTest(unittest.TestCase):
 
         self.assertFalse(state.get(support.AWAITING_HUMAN))
         self.assertIsNone(state.get(support.PARK_REASON))
-        self.assertNotIn(_retry_budget.RETRY_CAP_STAGE, state.data)
-        self.assertNotIn(_retry_budget.RETRY_CAP_NOTICE, state.data)
+        self.assertNotIn(_retry_values.RETRY_CAP_STAGE, state.data)
+        self.assertNotIn(_retry_values.RETRY_CAP_NOTICE, state.data)
         self.assertEqual(gh.posted_comments, [])
         # One attempt, not a fresh day of them: the second is refused again.
         self.assertEqual(allowed, [True, False])

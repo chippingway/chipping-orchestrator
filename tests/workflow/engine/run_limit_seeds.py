@@ -4,7 +4,10 @@
 from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import run_limit as _run_limit
+from orchestrator.workflow.engine import (
+    run_limit_state as _run_limit_state,
+    run_limit_values as _run_limit_values,
+)
 from orchestrator.workflow.engine.run_ledger_models import AgentRunLedger
 
 ALLOWANCE = 50
@@ -37,11 +40,11 @@ def parked_state(*, owing: bool = False, **fields) -> PinnedState:
     """
     standing = {
         AWAITING_HUMAN: True,
-        PARK_REASON: _run_limit.PARK_AGENT_RUN_LIMIT,
+        PARK_REASON: _run_limit_values.PARK_AGENT_RUN_LIMIT,
     }
     parked = state_with(**{**standing, **fields})
     if owing:
-        _run_limit._owe_notice(parked, ledger())
+        _run_limit_state._owe_notice(parked, ledger())
     return parked
 
 

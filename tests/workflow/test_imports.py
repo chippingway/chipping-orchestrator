@@ -19,6 +19,17 @@ _TICK = "tick"
 _TICK_OWNER = f"orchestrator.workflow.engine.{_TICK}"
 
 _ENGINE_OWNERS = (
+    "retry_values",
+    "retry_park_state",
+    "retry_ledger",
+    "retry_notices",
+    "run_limit_values",
+    "run_limit_state",
+    "observation_state",
+    "observation_receipts",
+    "retiring_cycles",
+    "publication_holds",
+
     "prompt_context",
     "content_hash",
     "prompt_notes",

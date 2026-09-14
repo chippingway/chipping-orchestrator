@@ -10,7 +10,10 @@ on, not the road of any one of them.
 from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import run_limit as _run_limit
+from orchestrator.workflow.engine import (
+    run_limit_state as _run_limit_state,
+    run_limit_values as _run_limit_values,
+)
 from orchestrator.workflow.engine.run_budget_models import AgentRunLaunch
 from orchestrator.workflow.engine.run_ledger_values import AGENT_RUN_ALLOWANCE, AGENT_RUNS_USED
 from tests.support.fakes import FakeGitHubClient, make_issue
@@ -21,21 +24,21 @@ ISSUE_NUMBER = 1541
 
 RUN_LIMIT_EVENT = "agent_run_limit"
 
-DELIVERED = _run_limit.RunLimitPhase.DELIVERED
+DELIVERED = _run_limit_values.RunLimitPhase.DELIVERED
 
-RECONCILED = _run_limit.RunLimitPhase.RECONCILED
+RECONCILED = _run_limit_values.RunLimitPhase.RECONCILED
 
-STANDING = _run_limit.RunLimitPhase.STANDING
+STANDING = _run_limit_values.RunLimitPhase.STANDING
 
-GRANTED = _run_limit.RunLimitPhase.GRANTED
+GRANTED = _run_limit_values.RunLimitPhase.GRANTED
 
-REFUSED = _run_limit.RunLimitPhase.REFUSED
+REFUSED = _run_limit_values.RunLimitPhase.REFUSED
 
 WATERMARK = 900
 
 LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 
-NOTICE = _run_limit.AGENT_RUN_LIMIT_NOTICE
+NOTICE = _run_limit_values.AGENT_RUN_LIMIT_NOTICE
 
 ALLOWANCE_FIELD = AGENT_RUN_ALLOWANCE
 
@@ -57,7 +60,7 @@ LAUNCH = AgentRunLaunch(
 
 
 def notice_text(*, allowance: int = _limit_seeds.ALLOWANCE, used: int | None = None) -> str:
-    return _run_limit._limit_message(_limit_seeds.ledger(allowance=allowance, used=used))
+    return _run_limit_state._limit_message(_limit_seeds.ledger(allowance=allowance, used=used))
 
 
 def issue_and_client(*comments):
@@ -69,7 +72,7 @@ def issue_and_client(*comments):
 
 
 def owed(state: PinnedState):
-    return _run_limit._owed_notice(state)
+    return _run_limit_state._owed_notice(state)
 
 
 def phases(gh) -> list:

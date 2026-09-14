@@ -27,7 +27,7 @@ from __future__ import annotations
 from github.Issue import Issue
 
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.workflow.engine import retry_budget as _retry_budget
+from orchestrator.workflow.engine import retry_values as _retry_values
 from orchestrator.workflow.stages.discussion.state import (
     _PLAN_SHA as _DISCUSSION_PLAN_SHA,
 )
@@ -150,7 +150,7 @@ def _reset_implementing_counters(state: _pinned_state.PinnedState) -> None:
     # they are what a human bought this issue under the budget just reset, and
     # kept past that they would hold a shipped issue to the grant rather than
     # to the budget it now has again.
-    state.set(_retry_budget.RETRY_CAP_CONTINUED, None)
+    state.set(_retry_values.RETRY_CAP_CONTINUED, None)
     # The session just produced commits, so it isn't poisoned -- reset the
     # silent-park streak so a future blip doesn't tip an otherwise-healthy
     # session past the fresh-session threshold.

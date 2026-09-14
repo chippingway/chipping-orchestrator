@@ -15,7 +15,11 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import run_limit as _run_limit
+from orchestrator.workflow.engine import (
+    run_limit as _run_limit,
+    run_limit_state as _run_limit_state,
+    run_limit_values as _run_limit_values,
+)
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.engine import (
     run_budget_test_support as budget,
@@ -59,16 +63,16 @@ class StandingParkTest(unittest.TestCase):
         for fields in (
             {},
             {_limit_seeds.AWAITING_HUMAN: True},
-            {_limit_seeds.PARK_REASON: _run_limit.PARK_AGENT_RUN_LIMIT},
+            {_limit_seeds.PARK_REASON: _run_limit_values.PARK_AGENT_RUN_LIMIT},
             {_limit_seeds.AWAITING_HUMAN: True, _limit_seeds.PARK_REASON: "retry_cap"},
         ):
             with self.subTest(fields=fields):
                 self.assertFalse(
-                    _run_limit._park_stands(_limit_seeds.state_with(**fields)),
+                    _run_limit_state._park_stands(_limit_seeds.state_with(**fields)),
                 )
 
     def test_the_pair_is_the_park(self) -> None:
-        self.assertTrue(_run_limit._park_stands(_limit_seeds.parked_state()))
+        self.assertTrue(_run_limit_state._park_stands(_limit_seeds.parked_state()))
 
 
 class ParkStagingTest(unittest.TestCase):
@@ -77,11 +81,11 @@ class ParkStagingTest(unittest.TestCase):
     def test_a_first_refusal_stages_park_and_sentence(self) -> None:
         state = _limit_seeds.state_with()
 
-        self.assertTrue(_run_limit._stage_park(state, _limit_seeds.ledger()))
+        self.assertTrue(_run_limit_state._stage_park(state, _limit_seeds.ledger()))
 
         self.assertTrue(state.get(_limit_seeds.AWAITING_HUMAN))
         self.assertEqual(
-            state.get(_limit_seeds.PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
+            state.get(_limit_seeds.PARK_REASON), _run_limit_values.PARK_AGENT_RUN_LIMIT,
         )
         staged = support.owed(state)
         self.assertEqual(staged.message, support.notice_text())
@@ -93,7 +97,7 @@ class ParkStagingTest(unittest.TestCase):
         # every tick that reaches a spawn, so nothing else would stop it.
         state = _limit_seeds.parked_state()
 
-        self.assertFalse(_run_limit._stage_park(state, _limit_seeds.ledger()))
+        self.assertFalse(_run_limit_state._stage_park(state, _limit_seeds.ledger()))
 
         self.assertNotIn(support.NOTICE, state.data)
 
@@ -104,7 +108,7 @@ class ParkStagingTest(unittest.TestCase):
         state = _limit_seeds.parked_state(owing=True)
         state.get(support.NOTICE)[_MESSAGE] = _SENTENCE
 
-        self.assertTrue(_run_limit._stage_park(state, _limit_seeds.ledger()))
+        self.assertTrue(_run_limit_state._stage_park(state, _limit_seeds.ledger()))
 
         self.assertEqual(support.owed(state).message, _SENTENCE)
 
@@ -114,7 +118,7 @@ class ParkStagingTest(unittest.TestCase):
         state = _limit_seeds.parked_state(owing=True)
         widened = _limit_seeds.ledger(allowance=_WIDENED, used=_SPENT_UNDER_IT)
 
-        self.assertTrue(_run_limit._stage_park(state, widened))
+        self.assertTrue(_run_limit_state._stage_park(state, widened))
 
         self.assertEqual(
             support.owed(state).message,
@@ -130,7 +134,7 @@ class ParkStagingTest(unittest.TestCase):
 
                 self.assertIsNone(support.owed(state))
                 self.assertFalse(
-                    _run_limit._stage_park(state, _limit_seeds.ledger()),
+                    _run_limit_state._stage_park(state, _limit_seeds.ledger()),
                 )
 
 
@@ -152,7 +156,7 @@ class ParkExhaustedTest(_limit_case._ParkCase):
         recorded = self.gh.pinned_data(support.ISSUE_NUMBER)
         self.assertTrue(recorded[_limit_seeds.AWAITING_HUMAN])
         self.assertEqual(
-            recorded[_limit_seeds.PARK_REASON], _run_limit.PARK_AGENT_RUN_LIMIT,
+            recorded[_limit_seeds.PARK_REASON], _run_limit_values.PARK_AGENT_RUN_LIMIT,
         )
         self.assertEqual(
             recorded[support.NOTICE][_MESSAGE], support.notice_text(),
@@ -256,7 +260,7 @@ class NoticeDeliveryTest(unittest.TestCase):
         # boundary a reply is measured against moves past the mention.
         self.assertEqual(
             self.state.get(_limit_seeds.PARK_REASON),
-            _run_limit.PARK_AGENT_RUN_LIMIT,
+            _run_limit_values.PARK_AGENT_RUN_LIMIT,
         )
         self.assertEqual(
             self.state.get(support.LAST_ACTION_COMMENT_ID),
@@ -297,7 +301,7 @@ class NoticeReconciliationTest(unittest.TestCase):
             ),
         )
 
-        self.assertIs(reading, _run_limit.NoticeReading.SAID)
+        self.assertIs(reading, _run_limit_values.NoticeReading.SAID)
         self.assertEqual(gh.posted_comments, [])
         self.assertNotIn(support.NOTICE, state.data)
         # Repaired to the comment that carried it -- the id the write that
@@ -318,7 +322,7 @@ class NoticeReconciliationTest(unittest.TestCase):
             ),
         )
 
-        self.assertIs(reading, _run_limit.NoticeReading.UNSAID)
+        self.assertIs(reading, _run_limit_values.NoticeReading.UNSAID)
         self.assertIn(support.NOTICE, state.data)
         self.assertEqual(support.phases(gh), [])
 
@@ -334,7 +338,7 @@ class NoticeReconciliationTest(unittest.TestCase):
             ),
         )
 
-        self.assertIs(reading, _run_limit.NoticeReading.UNSAID)
+        self.assertIs(reading, _run_limit_values.NoticeReading.UNSAID)
         self.assertIn(support.NOTICE, state.data)
         self.assertEqual(
             state.get(support.LAST_ACTION_COMMENT_ID), support.WATERMARK,
@@ -351,7 +355,7 @@ class NoticeReconciliationTest(unittest.TestCase):
         with patch.object(gh, "comments_after", side_effect=RuntimeError("502")):
             reading = _run_limit._reconcile_notice(gh, issue, state)
 
-        self.assertIs(reading, _run_limit.NoticeReading.UNREADABLE)
+        self.assertIs(reading, _run_limit_values.NoticeReading.UNREADABLE)
         self.assertIn(support.NOTICE, state.data)
 
     def test_an_obligation_nobody_holds_is_said(self) -> None:
@@ -361,7 +365,7 @@ class NoticeReconciliationTest(unittest.TestCase):
             gh, issue, _limit_seeds.parked_state(),
         )
 
-        self.assertIs(reading, _run_limit.NoticeReading.SAID)
+        self.assertIs(reading, _run_limit_values.NoticeReading.SAID)
         self.assertEqual(support.phases(gh), [])
 
     def _reconcile(self, *comments):

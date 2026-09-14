@@ -36,7 +36,7 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     messages as _messages,
     prompt_context as _prompt_context,
-    retry_budget as _retry_budget,
+    retry_ledger as _retry_ledger,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -87,7 +87,7 @@ def _handle_user_content_drift(
     """
     state.set("user_content_hash", new_hash)
     session = state.get(_state._DEV_AGENT) or state.get(_state._CODEX_SESSION_ID)
-    if session and not _retry_budget._grant_is_unspent(state):
+    if session and not _retry_ledger._grant_is_unspent(state):
         _resume_dev_on_implementing_drift(gh, spec, issue, state)
         return True
     return _drift_preflight._handle_pre_session_drift(gh, spec, issue, state)

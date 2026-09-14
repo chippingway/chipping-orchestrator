@@ -17,7 +17,11 @@ from __future__ import annotations
 import logging
 
 from orchestrator.config import settings as config
-from orchestrator.workflow.engine import guards as _guards, retry_budget as _retry_budget
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    retry_notices as _retry_notices,
+    retry_values as _retry_values,
+)
 from orchestrator.workflow.stages.decomposition import late_notice as _late_notice, late_park_state as _late_park_state
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _StagedPark
 
@@ -62,7 +66,7 @@ def _release_staged_park(context: _LateContext) -> None:
     )
     context.state.set(_late_park_state._PARK_REASON, staged.reason)
     _late_notice._notice_settled(context)
-    _audit_retry_cap(context, staged, _retry_budget.RetryCapPhase.DELIVERED)
+    _audit_retry_cap(context, staged, _retry_values.RetryCapPhase.DELIVERED)
     _late_park_state._persist(context)
 
 
@@ -100,7 +104,7 @@ def _reconcile_notice_delivery(context: _LateContext) -> None:
     )
     _late_notice._notice_settled(context)
     _late_park_state._mark_replies_read(context, delivered)
-    _audit_retry_cap(context, owed, _retry_budget.RetryCapPhase.RECONCILED)
+    _audit_retry_cap(context, owed, _retry_values.RetryCapPhase.RECONCILED)
     _late_park_state._persist(context)
 
 
@@ -146,7 +150,7 @@ def _redeliver_park_notice(context: _LateContext) -> None:
 def _audit_retry_cap(
     context: _LateContext,
     staged: _StagedPark,
-    phase: _retry_budget.RetryCapPhase,
+    phase: _retry_values.RetryCapPhase,
 ) -> None:
     """Report a spent-budget park's step on the budget's own stream.
 
@@ -163,4 +167,4 @@ def _audit_retry_cap(
     """
     if staged.reason != _late_park_state.PARK_RETRY_CAP:
         return
-    _retry_budget._emit_phase(context.gh, context.issue, context.state, phase)
+    _retry_notices._emit_phase(context.gh, context.issue, context.state, phase)

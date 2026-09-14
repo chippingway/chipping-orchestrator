@@ -50,6 +50,9 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     messages as _messages,
     retry_budget as _retry_budget,
+    retry_notices as _retry_notices,
+    retry_park_state as _retry_park_state,
+    retry_values as _retry_values,
 )
 from orchestrator.workflow.stages.implementing import (
     session as _session,
@@ -87,7 +90,7 @@ def _park_owns_the_tick(
     it would buy an attempt with words nobody wrote in reply and clear the
     notice they were owed on the way out.
     """
-    if not _retry_budget._park_stands(state):
+    if not _retry_park_state._park_stands(state):
         return False
     if _park_is_explained(issue, state):
         if _continuation_is_bought(gh, issue, state):
@@ -98,8 +101,8 @@ def _park_owns_the_tick(
             "trusted /orchestrator continue buys another attempt",
             issue.number,
         )
-    _retry_budget._emit_phase(
-        gh, issue, state, _retry_budget.RetryCapPhase.STANDING,
+    _retry_notices._emit_phase(
+        gh, issue, state, _retry_values.RetryCapPhase.STANDING,
     )
     return True
 
@@ -114,7 +117,7 @@ def _park_is_explained(issue: Issue, state: PinnedState) -> bool:
     attempt and then be consumed by the notice explaining why the issue had
     stopped.
     """
-    if _retry_budget._owed_notice(state) is None:
+    if _retry_park_state._owed_notice(state) is None:
         return True
     log.info(
         "issue=#%d has still to be told what its retry-cap park is for; "

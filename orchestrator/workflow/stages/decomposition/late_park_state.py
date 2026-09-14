@@ -13,7 +13,7 @@ malformed or older reading must never lower the watermark.
 """
 from __future__ import annotations
 
-from orchestrator.workflow.engine import retry_budget as _retry_budget
+from orchestrator.workflow.engine import retry_values as _retry_values
 from orchestrator.workflow.late_split import formats as _formats, state as _late_state
 from orchestrator.workflow.stages.decomposition import late_notice as _late_notice
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -63,7 +63,7 @@ PARK_SINGLE_DECISION = "late_single_decision"
 # spent is the same durable reason every other stage's gate takes -- and it has
 # to READ as that reason, because the tick that meets it next may be an initial
 # decomposition rather than an adjudication.
-PARK_RETRY_CAP = _retry_budget.PARK_RETRY_CAP
+PARK_RETRY_CAP = _retry_values.PARK_RETRY_CAP
 
 # The parks a fresh attempt answers, and therefore retires before it runs. A
 # hold that failed has now been reconciled, a worktree that was gone is back, a

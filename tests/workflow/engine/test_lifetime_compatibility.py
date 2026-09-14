@@ -17,7 +17,7 @@ from dataclasses import replace
 from orchestrator.workflow.engine import (
     dispatch as _dispatch,
     run_ledger_values as _run_ledger_values,
-    run_limit as _run_limit,
+    run_limit_values as _run_limit_values,
 )
 from tests.workflow.engine import (
     lifetime_journeys as journeys,
@@ -137,7 +137,7 @@ class TerminalReceiptTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
         self.assertTrue(pinned.get(KEY_AWAITING_HUMAN))
         self.assertEqual(
-            pinned.get(KEY_PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
+            pinned.get(KEY_PARK_REASON), _run_limit_values.PARK_AGENT_RUN_LIMIT,
         )
 
     def _merge_and_close(self, walked: _lifetime_models.Walk) -> None:

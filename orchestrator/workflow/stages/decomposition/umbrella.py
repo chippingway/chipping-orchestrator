@@ -76,7 +76,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
     issue_usage as _issue_usage,
-    observations as _observations,
+    retiring_cycles as _retiring_cycles,
     usage as _usage,
 )
 from orchestrator.workflow.late_split import endings as _endings, state as _late_state
@@ -173,7 +173,7 @@ def _complete_umbrella(
     if _publication_holds_the_terminal(gh, issue, state):
         return
     live = _retired_cycle(state)
-    retiring = _observations.retiring(spec.slug, issue.number, live.cycle_id)
+    retiring = _retiring_cycles.retiring(spec.slug, issue.number, live.cycle_id)
     with retiring.held():
         gh.write_pinned_state(issue, state)
     if _reinstated(gh, issue, state, live, retiring):
@@ -219,7 +219,7 @@ def _reinstated(
     issue: Issue,
     state: PinnedState,
     live: LateGeneration,
-    retiring: _observations.RetiringCycle,
+    retiring: _retiring_cycles.RetiringCycle,
 ) -> bool:
     """Put back a cycle the retirement write dropped a moment too early.
 

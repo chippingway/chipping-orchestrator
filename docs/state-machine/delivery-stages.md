@@ -770,7 +770,7 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     queries. One arriving after it is a human closing an issue this orchestrator had already finished — every child
     resolved, every obligation reclaimed, the cycle over — which is not a cancellation, and leaves no live cycle
     under the terminal for anything to have to find. That write is itself a request, so the latch is asked once
-    more *behind* it, off the same `observations.retiring` window the `single` retirement holds: there the
+    more *behind* it, off the same `retiring_cycles.retiring` window the `single` retirement holds: there the
     answer is a **reinstatement** rather than a refusal — the generation is still in the call's own memory, so it
     goes back cancelled, no terminal is written, and the owner keeps `umbrella` where the ending reaches it. That
     barrier is this process's, so the write records `late_retired_cycle_id` exactly as the `single` retirement does:
@@ -848,7 +848,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   accepted candidate drops its generation and then asks the latch, and between those two the record carries no cycle
   identity at all — which is the one thing every reader of a close consults. A poll reading it there would answer
   "nothing to end", drop the observation, and leave the barrier behind the write asking a latch nobody is holding any
-  more. So the worker holds `observations.retiring_cycle` across its own write and that barrier: inside the window the
+  more. So the worker holds `retiring_cycles.retiring(...).held()` across its own write and that barrier: inside the
+  window the
   record's silence proves nothing, the reading is kept, and the receipt the poll leaves on the thread is scoped to the
   cycle the window names — which is the only place that cycle can still be read, and what makes the durable half
   survive the retirement at all. Outside the window the same reading IS dropped, and correctly: the publication
@@ -867,14 +868,16 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   best effort — a receipt GitHub refuses costs durability, not the reading, which is still latched and still ends
   the cycle on the next barrier the run reaches.
 - **A refused receipt is retried, not lost.** The post is attempted by every pass that latches a close and settled
-  by the first that lands one: the memo suppressing further attempts (`observations.receipt_written`) is written by
+  by the first that lands one: the memo suppressing further attempts (`observation_receipts.receipt_written`) is
+  written by
   the attempt that succeeded, so a comment GitHub declines is tried again on the next poll. Without that, an
   observation with no durable half would be one a restart takes away entirely — the latch alone does not survive the
   process.
 - **The attempt is claimed, and the memo is counted against the reading it was claimed for.** Asking whether the
   thread already carries a receipt and getting one onto it are two operations, and the other two parties are inside
   that gap: a second poll owing the same observation (a worker's failed pass and the following tick's enumeration
-  meet there), and the worker running the pass that settles the reading. So `observations.claim_receipt_post` hands
+  meet there), and the worker running the pass that settles the reading. So `observation_receipts.claim_receipt_post`
+  hands
   out the sole right to attempt the post — one poll walks the receipt-less thread, not two — and it carries the
   per-owner **generation** that reading was taken at. Every `settle_close` moves that generation, so a receipt
   landing either side of a settlement records no memo at all: without it the memo would stand for a reading nobody
@@ -885,11 +888,12 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
 - **The receipt is read back once per owner per process.** After a restart the fresh process finds an issue a human
   reopened, a record still saying the cycle is live, and nothing in memory; the dispatcher's own cancelled-cycle
   guard therefore scans the thread for a receipt scoped to the cycle the record names, adopts it, marks the
-  cancellation, and runs the ending from the mark. The scan is claimed through `observations.claim_receipt_scan`, so
+  cancellation, and runs the ending from the mark. The scan is claimed through
+  `observation_receipts.scanning_receipt`, so
   a thread carrying no receipt is walked on the first tick that sees the owner and never again — what it recovers is
   an observation a *dead* process was holding, and every observation this one makes is in the latch, which costs no
   request. The claim is held for the length of the walk and handed back where the walk established nothing — a
-  listing that raises leaves `observations.scanning_receipt` by exception and the claim goes with it — because a
+  listing that raises leaves `observation_receipts.scanning_receipt` by exception and the claim goes with it — because a
   claim standing over a read that established nothing would send every later tick straight past the receipt and on
   to the live stage handler. It is handed back again whenever a receipt actually LANDS: a claim taken when the thread
   carried nothing proved nothing about one posted since, and every later pass would read straight past it. Cycle

@@ -55,6 +55,7 @@ from orchestrator.workflow.engine import (
     prompt_context as _prompt_context,
     prompts as _prompts,
     retry_budget as _retry_budget,
+    retry_ledger as _retry_ledger,
     run_charge_state as _run_charge_state,
     usage as _usage,
 )
@@ -144,7 +145,7 @@ def _charge_fresh_spawn(
     would be nothing left to recognize. A refused tick retires nothing, since
     nothing ran.
     """
-    granted = _retry_budget._grant_is_unspent(state)
+    granted = _retry_ledger._grant_is_unspent(state)
     if not _retry_budget._charge_or_park(
         gh, issue, state, stage=_state._IMPLEMENTING_STAGE,
     ):

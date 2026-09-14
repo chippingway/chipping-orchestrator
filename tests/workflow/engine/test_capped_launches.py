@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 from orchestrator.config import settings as config
 from orchestrator.workflow.engine import (
-    retry_budget as _retry_budget,
+    retry_values as _retry_values,
     run_ledger_values as _run_ledger_values,
 )
 from tests.workflow.engine import charged_run_roads as roads, charged_run_test_support as support
@@ -62,7 +62,7 @@ class CappedLaunchTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
 
         self._assert_refused_ahead_of_the_charge(
-            driven, _retry_budget.PARK_RETRY_CAP,
+            driven, _retry_values.PARK_RETRY_CAP,
         )
 
     def test_a_spent_review_cap_charges_no_run(self) -> None:

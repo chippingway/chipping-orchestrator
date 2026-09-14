@@ -31,7 +31,7 @@ from functools import partial
 
 from orchestrator.workflow.engine import (
     run_ledger_values as _run_ledger_values,
-    run_limit as _run_limit,
+    run_limit_values as _run_limit_values,
 )
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import spent_ledger_test_support as support
@@ -79,7 +79,7 @@ class SpentLedgerSpawnTest(unittest.TestCase, _PatchedWorkflowMixin):
         parked = gh.pinned_data(road.number)
         self.assertTrue(parked.get(KEY_AWAITING_HUMAN))
         self.assertEqual(
-            parked.get(KEY_PARK_REASON), _run_limit.PARK_AGENT_RUN_LIMIT,
+            parked.get(KEY_PARK_REASON), _run_limit_values.PARK_AGENT_RUN_LIMIT,
         )
         self.assertEqual(
             parked.get(_run_ledger_values.AGENT_RUNS_USED), support.ALLOWANCE,

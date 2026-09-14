@@ -1353,9 +1353,10 @@ The keys that matter for the state machine fall into a few groups:
   nothing — the reading is taken and acted on at the tracked spawn boundary
   ([The agent-run circuit](#the-agent-run-circuit)), and the one writer of `agent_run_allowance` is the operator
   command below.
-- **The agent-run-limit park.** `awaiting_human` + `park_reason="agent_run_limit"` + `agent_run_limit_notice`, owned
-  by [`orchestrator/workflow/engine/run_limit.py`](../../orchestrator/workflow/engine/run_limit.py), which is handed
-  the ledger reading rather than taking one — so the park quotes the numbers the refusal was made on rather than
+- **The agent-run-limit park.** `awaiting_human` + `park_reason="agent_run_limit"` + `agent_run_limit_notice` are
+  staged by [`run_limit_state.py`](../../orchestrator/workflow/engine/run_limit_state.py), then persisted and reported
+  by [`run_limit.py`](../../orchestrator/workflow/engine/run_limit.py), which is handed the ledger reading — so the
+  park quotes the numbers the refusal was made on rather than
   whatever the setting has become since. It is the human-intervention state a spent lifetime ledger leaves, and
   unlike the retry cap beside it there is no window under it to elapse: a lifetime total is spent once and no clock
   returns it, so the park IS the ending rather than a pause in it. The durable half goes down before a word of it is
@@ -1448,8 +1449,11 @@ it round-trips to `spec="codex"` with no args so an older orchestrator's pin kee
 
 Fresh agent spawns are charged to one per-issue budget — implementing and decomposing share it, because both spend
 the same issue's day of tokens — and it is decided on
-[`orchestrator/workflow/engine/retry_budget.py`](../../orchestrator/workflow/engine/retry_budget.py), which every
-stage's gate reads and none of them re-implements. The gate answers a decision and posts nothing: what a refusal
+[`retry_ledger.py`](../../orchestrator/workflow/engine/retry_ledger.py), which every stage's gate reads.
+[`retry_budget.py`](../../orchestrator/workflow/engine/retry_budget.py) owns the shared parking form and continuation;
+[`retry_park_state.py`](../../orchestrator/workflow/engine/retry_park_state.py) holds the durable obligation and
+[`retry_notices.py`](../../orchestrator/workflow/engine/retry_notices.py) delivers and reconciles it.
+The ledger answers a decision and posts nothing: what a refusal
 implies durably is staged into the caller's own pinned state and rides the write that caller was going to make
 anyway, so a tick that dies between the two leaves the budget as it found it. What a caller then DOES with a refusal
 is written once beside the gate (`_charge_or_park`) for the stages whose park carries nothing of their own — the

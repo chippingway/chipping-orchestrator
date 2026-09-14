@@ -65,6 +65,8 @@ from orchestrator.workflow.engine import (
     run_ledger as _run_ledger,
     run_ledger_values as _run_ledger_values,
     run_limit as _run_limit,
+    run_limit_state as _run_limit_state,
+    run_limit_values as _run_limit_values,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -140,8 +142,8 @@ def _lifts_the_park(
     the notice explaining why the issue had stopped.
     """
     unanswerable = (
-        not _run_limit._park_stands(state)
-        or _run_limit._owed_notice(state) is not None
+        not _run_limit_state._park_stands(state)
+        or _run_limit_state._owed_notice(state) is not None
     )
     if unanswerable:
         return False
@@ -219,8 +221,8 @@ def _grant_runs(
     state.set(_run_ledger_values.AGENT_RUN_ALLOWANCE, allowance)
     state.set(_AWAITING_HUMAN, False)
     state.set(_PARK_REASON, None)
-    _run_limit._settle_notice(state)
-    _consumed(gh, issue, state, request, _run_limit.RunLimitPhase.GRANTED)
+    _run_limit_state._settle_notice(state)
+    _consumed(gh, issue, state, request, _run_limit_values.RunLimitPhase.GRANTED)
     _run_budget._emit_extension(gh, issue, _run_ledger._read_ledger(state))
 
 
@@ -255,7 +257,7 @@ def _refuse_request(
         maximum=_run_grant_request.MAX_RUNS_PER_COMMAND,
         marker=marker,
     )))
-    _consumed(gh, issue, state, request, _run_limit.RunLimitPhase.REFUSED)
+    _consumed(gh, issue, state, request, _run_limit_values.RunLimitPhase.REFUSED)
 
 
 def _said(
@@ -291,7 +293,7 @@ def _consumed(
     issue: Issue,
     state: PinnedState,
     request: _run_grant_request._Request,
-    phase: _run_limit.RunLimitPhase,
+    phase: _run_limit_values.RunLimitPhase,
 ) -> None:
     """Consume exactly what this tick read and answered, and record the tick.
 
