@@ -1255,7 +1255,9 @@ The keys that matter for the state machine fall into a few groups:
   no longer has is what refused, and as
   `auto_base_rebase_failed` where the pinned comment is: a record nobody can vouch for, a record that disowns the
   checkout, a permit that declines, a replay in flight nothing can prove, terms naming a publication this issue no
-  longer records, or a relabel off the refresh-driven set over an attempt that left a replay or an unspent
+  longer records — save the `validating` relabel a finish makes past a mark naming the head in hand, which is the
+  route's own last step and is answered as the announced publication it is — or a relabel off the refresh-driven set
+  over an attempt that left a replay or an unspent
   permission behind, or a branch put back on the anchor with any of those still standing. Two of them park without
   resetting, since which pull request the branch belongs to and whether the hand that moved the label moved the
   checkout are both questions a hard reset would answer by discarding work; the undone rollback resets onto the

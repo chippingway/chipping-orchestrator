@@ -32,6 +32,7 @@ from orchestrator.workflow.stages.implementing import (
     late_push as _push,
     late_transfer as _transfer,
 )
+from orchestrator.workflow.state import WorkflowLabel
 from tests.git.base_sync import (
     base_sync_helpers as fixtures,
     transfers_test_support as seed,
@@ -39,12 +40,16 @@ from tests.git.base_sync import (
 
 RETRY_PUSH = "_retry_recovery_push"
 
+FOREIGN_PUBLICATION = "_park_foreign_publication_recovery"
+
+ANNOUNCED = "_park_announced_recovery"
+
 UNFINISHED = "_park_unfinished_recovery"
 
 # Every terminal an unpublished checkout can select, on the owner it lives on.
 _ANSWERS = MappingProxyType({
-    "_park_foreign_publication_recovery": outcomes,
-    "_park_announced_recovery": outcomes,
+    FOREIGN_PUBLICATION: outcomes,
+    ANNOUNCED: outcomes,
     "_park_rolled_back_recovery": outcomes,
     "_park_unvouched_recovery": outcomes,
     "_park_unrecorded_recovery": outcomes,
@@ -52,6 +57,9 @@ _ANSWERS = MappingProxyType({
     "_reject_unknown_recovery_comparison": outcomes,
     RETRY_PUSH: recovery,
 })
+
+# The one label this route's own finish writes.
+_VALIDATING = WorkflowLabel.VALIDATING
 
 # A remote standing where the attempt's anchor says it left it, and one
 # somebody else moved.
@@ -117,7 +125,7 @@ class UnpublishedRouteTest(seed.TransferCase):
         ):
             with self.subTest(described):
                 self._fresh(pending_rewrite=replace(seed.RECORDED, **terms))
-                self._assert_selects("_park_foreign_publication_recovery")
+                self._assert_selects(FOREIGN_PUBLICATION)
 
     def test_terms_in_flight_are_held_too(self) -> None:
         # The terms go down before `git rebase` and can say which publication
@@ -126,7 +134,7 @@ class UnpublishedRouteTest(seed.TransferCase):
             seed.DECLARED, pr_number=seed.OTHER_PR_NUMBER,
         ))
 
-        self._assert_selects("_park_foreign_publication_recovery")
+        self._assert_selects(FOREIGN_PUBLICATION)
 
     def test_an_announced_publication_the_remote_lost(self) -> None:
         # The mark stands only past a finish's notice and audit event, so it
@@ -142,7 +150,42 @@ class UnpublishedRouteTest(seed.TransferCase):
                 self._fresh()
                 attempts._announces(self.context, announced)
 
-                self._assert_selects("_park_announced_recovery")
+                self._assert_selects(ANNOUNCED)
+
+    def test_its_own_finish_relabel_is_not_foreign(self) -> None:
+        # A finish relabels to `validating` past the mark and before the clear,
+        # so that label beside a mark naming this head is this route's own
+        # last step -- and the remote not standing on it is the announced
+        # publication the next question refuses.
+        self._fresh(label=_VALIDATING)
+        attempts._announces(self.context, seed.REPLAYED_SHA)
+
+        self._assert_selects(ANNOUNCED)
+
+    def test_every_other_relabel_is_still_foreign(self) -> None:
+        for described, label, number, announced in (
+            ("validating with nothing announced", _VALIDATING, None, ""),
+            (
+                "validating beside a mark naming another head",
+                _VALIDATING, None, seed.FOREIGN_SHA,
+            ),
+            (
+                "a stage this route never writes",
+                seed.OTHER_STAGE, None, seed.REPLAYED_SHA,
+            ),
+            (
+                "validating on a pull request somebody repointed",
+                _VALIDATING, seed.OTHER_PR_NUMBER, seed.REPLAYED_SHA,
+            ),
+        ):
+            with self.subTest(described):
+                self._fresh(label=label)
+                if number is not None:
+                    self.context = replace(self.context, pr_number=number)
+                if announced:
+                    attempts._announces(self.context, announced)
+
+                self._assert_selects(FOREIGN_PUBLICATION)
 
     def test_a_settled_transfer_reads_as_a_rollback(self) -> None:
         # The write that settled says the pull request HAD this commit, so a

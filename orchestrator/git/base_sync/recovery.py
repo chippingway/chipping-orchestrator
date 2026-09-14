@@ -508,7 +508,7 @@ def _refused_before_the_retry(
     checkout would be measured and force-pushed on the strength of a claim
     nothing could check.
     """
-    if _made_for_another_publication(context):
+    if _made_for_another_publication(context, completed):
         return outcomes._park_foreign_publication_recovery(context, completed)
     if attempts._carries_an_announcement(context.state):
         return outcomes._park_announced_recovery(context, completed)
@@ -537,6 +537,7 @@ def _refused_by_the_records(
 
 def _made_for_another_publication(
     context: _AutoRebaseRecoveryContext,
+    completed: _AutoRebaseRecoverySnapshot,
 ) -> bool:
     """Whether the attempt was made for a publication this tick is not on.
 
@@ -566,12 +567,49 @@ def _made_for_another_publication(
     The stage is compared against the label this tick read rather than against
     the transition graph, since what the record names is the stage the rewrite
     was entered from and nothing on this road relabels before it publishes.
+
+    One stage disagreement is this route's OWN and is forgiven: a finish
+    relabels the issue to `validating` right after it records that it has
+    announced itself, and before the write that clears the attempt -- so a
+    tick that finds that mark beside a record made from another stage is
+    looking at its own last step, and a remote since rolled back is the
+    announced publication the next question refuses. Read as foreign instead,
+    it parks without resetting over a branch the pull request no longer has.
+
+    The forgiveness is as narrow as the step it recognizes. Only `validating`,
+    because that is the one label this route ever writes; an issue somebody
+    moved to `fixing` or `documenting` while the process was down is a
+    publication this attempt was not made for, whatever mark stands beside it.
+    Only the pull request the record names, because no step of this route
+    repoints one. And only a mark naming the head in hand, because the finish
+    writes the commit it published and nothing else -- a mark naming any other
+    head is not evidence the relabel was this route's.
     """
     recorded = context.pending_rewrite
     if not recorded.is_declared:
         return False
-    claimed = (recorded.pr_number, recorded.stage)
-    return claimed != (context.pr_number, _recovered_stage(context.label))
+    if recorded.pr_number != context.pr_number:
+        return True
+    stage = _recovered_stage(context.label)
+    if recorded.stage == stage:
+        return False
+    return not _relabelled_by_its_own_finish(context, completed, stage)
+
+
+def _relabelled_by_its_own_finish(
+    context: _AutoRebaseRecoveryContext,
+    completed: _AutoRebaseRecoverySnapshot,
+    stage: WorkflowLabel | None,
+) -> bool:
+    """Whether a `validating` label is the relabel this attempt's finish made.
+
+    Read off the announcement the same finish wrote one step earlier, held to
+    the commit the checkout is standing on: that pair -- the label and a mark
+    naming this head -- is the one shape only this route's last step leaves.
+    """
+    if stage != WorkflowLabel.VALIDATING:
+        return False
+    return attempts._already_announced(context.state, completed.head)
 
 
 def _recovered_stage(label: str) -> WorkflowLabel | None:

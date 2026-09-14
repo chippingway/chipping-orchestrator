@@ -110,6 +110,23 @@ class RecoveryRealGitTest(RecoveryGitFixtureMixin, unittest.TestCase):
         # nothing more; read as an absence it costs the same second notice.
         self._assert_announcement_parks(self.anchor)
 
+    def test_its_own_relabel_then_a_rollback_resets(self) -> None:
+        # The finish pushed, announced, and relabelled to `validating` before
+        # the write that clears the attempt, and the remote was rolled back
+        # while the process was down. The relabel is this route's own last
+        # step rather than a stage somebody moved the issue to, so what is
+        # left is the announced publication the remote has lost.
+        self.publish_recovered_head()
+        self.announce_a_finish(self.recovered)
+        self.roll_the_remote_back()
+
+        recovered = self.recover(label=fixtures.VALIDATING)
+
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self.assertEqual(self._remote_head(), self.anchor)
+        self._assert_parked(fixtures.PARK_PUSH_FAILED)
+
     def _assert_announcement_parks(self, announced: str) -> None:
         self.announce_a_finish(announced)
 

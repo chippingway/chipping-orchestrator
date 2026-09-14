@@ -316,7 +316,7 @@ class RecoveryGitFixtureMixin:
             mock.patch.object(branch_transport, PUSH_BRANCH, self.push),
         )
 
-    def recover(self) -> bool:
+    def recover(self, label: str = LABEL) -> bool:
         """Run the recovery the way the refresh flow enters it."""
         return recovery._recover_pending_auto_base_rebase(
             self.gh,
@@ -325,7 +325,7 @@ class RecoveryGitFixtureMixin:
             self.gh.read_pinned_state(self.issue),
             self.work,
             pr_number=PR_NUMBER,
-            label=LABEL,
+            label=label,
             pending_pre_rebase_sha=self.anchor,
             pending_rewrite=attempts._pending_rewrite(
                 self.gh.read_pinned_state(self.issue),
@@ -389,6 +389,19 @@ class RecoveryGitFixtureMixin:
         it still standing on the comment.
         """
         run_git("reset", "--hard", self.anchor, cwd=self.work)
+
+    def roll_the_remote_back(self) -> None:
+        """Put the pull request's branch back on the anchor, out of band.
+
+        Forced, because the replay a finish published is not an ancestor of
+        the commit it replaced. The tracking ref is rewound with it, so the
+        recovery's own fetch is what finds the rollback.
+        """
+        run_git(
+            PUSH, "--force", REMOTE_NAME, f"{self.anchor}:{BRANCH_REF}",
+            cwd=self.work,
+        )
+        self._rewind_tracking_ref()
 
     def announce_a_finish(self, announced: str) -> None:
         """Leave the checkpoint a finish writes past its notice and event.
