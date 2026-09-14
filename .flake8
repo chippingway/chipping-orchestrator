@@ -84,7 +84,7 @@ per-file-ignores =
     tests/git/base_sync/test_recovery_authorization.py:WPS201,WPS214
     tests/git/base_sync/test_transfers.py:WPS214
     tests/git/base_sync/test_recovery_real_git.py:WPS214
-    tests/git/base_sync/test_recovery_transfer.py:WPS201,WPS214
+    tests/git/base_sync/test_recovery_transfer.py:WPS201,WPS202,WPS214
     tests/git/publication/squash_recovery_support.py:WPS202
     tests/git/worktrees/artifact_test_support.py:WPS214
     tests/git/worktrees/candidate_host_test_support.py:WPS202,WPS214

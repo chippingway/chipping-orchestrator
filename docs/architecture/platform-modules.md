@@ -390,10 +390,16 @@ orchestrator/
                         behind the push records. A checkout the pull request is NOT standing on is classified by
                         the pair of SHAs the attempt recorded rather than by the divergence counts -- a replay is
                         behind its own publication, so the counts read the canonical pre-push recovery as an
-                        out-of-band update -- and by how far the transfer beside them got. Where a verdict is
-                        being carried the permit is the whole of what may let the push out: it is asked ahead of
-                        the gate, the gate is told the same, and the rotation is read back afterwards. The counts
-                        answer only for a comment that recorded no replay at all
+                        out-of-band update -- and by how far the transfer beside them got. Ahead of all of it
+                        the terms the attempt recorded are held to the publication this tick holds, since every
+                        road behind them posts a notice, files an event, and drops the anchor. Where a verdict
+                        is being carried the permit is the whole of what may let the push out: it is asked ahead
+                        of the gate, the gate is told the same, and the rotation is read back afterwards. The
+                        counts answer only for a comment that recorded no replay at all. Two more states are
+                        answered by what the attempt left rather than by where the branch is: an issue
+                        relabelled off the refresh-driven set, and a checkout back ON the anchor -- the shortcut
+                        belongs to the attempt that never started, and one something UNDID is finished as the
+                        rollback it is rather than handed to a fresh rebase
       outcomes.py       the already-published, unknown-comparison, diverged, dirty, and failed-push answers,
                         beside the parks a transfer adds: a record nobody can vouch for, an attempt record that
                         disowns the checkout, a permit that refuses, a replay in flight no verdict can prove, a
@@ -401,7 +407,9 @@ orchestrator/
                         leave HEAD alone -- a push that landed with the route behind it unfinished, an attempt
                         made for a publication this issue no longer records, and an issue relabelled out from
                         under an attempt that left something a clear would strand, the last of which is taken
-                        once rather than on every poll under the wrong label
+                        once rather than on every poll under the wrong label. Beside them the park a branch put
+                        back on its anchor with the attempt's records still standing earns, whose reset moves
+                        nothing and is taken for the bookkeeping it carries out
       persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the

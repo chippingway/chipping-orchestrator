@@ -246,6 +246,47 @@ class CrashAfterTheGrantTest(_AdjudicatedRecoveryCase):
         self._assert_nothing_was_read_again()
 
 
+class UndoneRebaseTest(_AdjudicatedRecoveryCase):
+    """A branch put back on the anchor with the grant still standing."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._grants()
+        self.roll_back_to_the_anchor()
+        self.resumed = self._resumes()
+
+    def test_the_rollback_is_finished_not_restarted(self) -> None:
+        # HEAD equalling the anchor is the shortcut only for an attempt that
+        # never started. Taken here it would drop the anchor and hand the
+        # branch to a fresh rebase, which force-pushes a commit no
+        # adjudication has seen over the one the pull request carries.
+        self.assertFalse(self.resumed)
+        self.assertEqual(self.push.leases, [])
+        self.assertEqual(fixtures.head_sha(self.work), self.anchor)
+        self.assertEqual(
+            fixtures.head_sha(self.remote, fixtures.BRANCH_REF), self.anchor,
+        )
+        self.assertEqual(self.gh.label_history, [])
+
+    def test_the_abandoned_bookkeeping_goes_with_it(self) -> None:
+        # The reset re-run onto the commit the branch is already on moves
+        # nothing, and that is the point: it is the step the debt for a commit
+        # no branch has, and the permission that will never be spent on it,
+        # ride out on.
+        durable = self._state()
+        self.assertEqual(_parks._approved_commit(durable), "")
+        self.assertFalse(_rewrites.carries_rewrite_authorization(durable))
+        # The grant moved nothing, so the verdict is still where the
+        # adjudication put it.
+        self.assertTrue(_exemption.is_exempt(durable, self.anchor))
+
+    def test_a_human_is_asked_what_undid_it(self) -> None:
+        pinned = self.gh.pinned_data(fixtures.ISSUE)
+        self.assertTrue(pinned.get(fixtures.KEY_AWAITING_HUMAN))
+        self.assertEqual(pinned.get(fixtures.KEY_PARK_REASON), PARK_FAILED)
+        self.assertIsNone(pinned.get(fixtures.KEY_PENDING_PUSH_SHA))
+
+
 class RefusedPermitTest(_AdjudicatedRecoveryCase):
     """A replay the verdict does not account for is reset and parked."""
 

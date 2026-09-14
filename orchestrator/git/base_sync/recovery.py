@@ -5,8 +5,8 @@
 The verified facts arrive from ``snapshot`` and the answers live in
 ``outcomes``; what this owner adds is the order they are asked in, and that
 order is the safety property. An ineligible label is answered before anything
-is fetched, an unmoved HEAD falls back to the normal rebase flow before any
-comparison is trusted, and equality with the remote is checked before the
+is fetched, an unmoved HEAD is answered before any comparison is trusted, and
+equality with the remote is checked before the
 ahead/behind counts are -- so the reissued force-push is only ever reached by
 a head proven to be ahead of a remote the tick actually read. Anything else
 parks. The legacy keyword signature is bound here too, because the flat
@@ -52,6 +52,7 @@ import inspect
 from typing import Any
 
 from orchestrator.git.base_sync import (
+    attempts,
     outcomes,
     persistence,
     publication,
@@ -74,6 +75,14 @@ _UNROTATED = (
     "the push went out and the verdict did not move with it, so the "
     "permission granted for `{published}` is still outstanding"
 )
+
+# The two handoffs that say a grant is still standing over a commit the branch
+# does not have: one this build reads as owed a push, and one it cannot read
+# at all. A settled transfer is neither -- it is never cleared, so an issue
+# that earned one would never look unstarted again.
+_UNSPENT_TRANSFERS = frozenset((
+    transfers._Handoff.OUTSTANDING, transfers._Handoff.UNVOUCHED,
+))
 
 _RECOVERY_SIGNATURE = inspect.Signature((
     inspect.Parameter("gh", inspect.Parameter.POSITIONAL_OR_KEYWORD),
@@ -264,7 +273,7 @@ def _recover_pending_auto_base_rebase_context(
         recovery_snapshot.local_head
         and recovery_snapshot.local_head == context.pending_pre_rebase_sha
     ):
-        return snapshot._clear_unchanged_recovery(context)
+        return _finish_an_unmoved_head(context, recovery_snapshot)
 
     return _route_recovery_snapshot(context, recovery_snapshot)
 
@@ -312,6 +321,75 @@ def _answers_an_ineligible_label(
     ) != context.pending_pre_rebase_sha:
         return outcomes._park_stranded_recovery(context)
     return snapshot._clear_ineligible_recovery(context)
+
+
+def _finish_an_unmoved_head(
+    context: _AutoRebaseRecoveryContext,
+    recovery_snapshot: _AutoRebaseRecoverySnapshot,
+) -> bool:
+    """Answer a checkout standing exactly where the attempt anchored it.
+
+    Two states look identical from HEAD alone, and only one of them is the
+    shortcut. An attempt that pinned its anchor and got no further left
+    nothing else behind: no record of a replay, no permission it never spent,
+    and a tree git has not touched. Dropping the anchor there costs nothing --
+    the normal rebase flow picks the branch up on this same tick and does the
+    work again.
+
+    The other is an attempt that got a long way and was UNDONE. A reset that
+    landed and whose park write did not, or somebody's own `git reset`, puts
+    the branch back on the anchor with the record of the replay, the
+    permission granted for it, and the debt beside it all still standing.
+    Dropping the anchor there throws away the only thing that brings a
+    recovery back, leaves the transfer state for the next grant to trip over,
+    and hands the branch straight to a fresh rebase -- which force-pushes a
+    commit no adjudication has seen over the one the pull request carries.
+
+    So the shortcut is for the unstarted attempt only, and everything else is
+    finished as the rollback it is: the reset is re-run onto the head the
+    branch is already on, which is what lets the abandoned debt and the
+    permission the replay will never spend go with it, and the issue parks for
+    a human to say what undid it.
+    """
+    if _unstarted_attempt(context, recovery_snapshot):
+        return snapshot._clear_unchanged_recovery(context)
+    return outcomes._park_undone_recovery(context, recovery_snapshot)
+
+
+def _unstarted_attempt(
+    context: _AutoRebaseRecoveryContext,
+    recovery_snapshot: _AutoRebaseRecoverySnapshot,
+) -> bool:
+    """Whether this attempt left nothing behind but the anchor it pinned.
+
+    Three things say it did leave something. A record of the replay it
+    produced, whether whole or in pieces, is an attempt that reached the write
+    after `git rebase` -- and a reset that put the branch back before its own
+    park write leaves exactly that. A mark saying a finish had already
+    announced a head says the same from the far end of the route, since no
+    finish ever announces the anchor. A permission this build reads as
+    outstanding, or one it cannot vouch for at all, is a grant that was never
+    spent on a commit the branch no longer has.
+
+    A SETTLED permission is not one of them: a transfer that finished is never
+    cleared, so every issue that ever earned one would fail this test for the
+    rest of its life.
+
+    The TREE is nobody's question here, and deliberately. A checkout carrying
+    uncommitted work is one the clean-tree gate ahead of every rebase already
+    refuses, so a shortcut taken over one hands the branch to a flow that
+    stands down on the same tick -- and where the dirt came from a reset this
+    attempt took, the record it left is the first test above.
+
+    Costs no git and no request, which is what lets the ordinary unstarted
+    attempt -- the whole reason this shortcut exists -- pay nothing for it.
+    """
+    if context.pending_rewrite.left_a_replay:
+        return False
+    if attempts._foreign_mark(context.state, recovery_snapshot.head):
+        return False
+    carried = transfers._carried_by(context, recovery_snapshot.head)
+    return carried not in _UNSPENT_TRANSFERS
 
 
 def _route_recovery_snapshot(

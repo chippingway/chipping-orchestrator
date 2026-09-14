@@ -17,7 +17,13 @@ from dataclasses import replace
 from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.base_sync import outcomes, recovery, transfers
+from orchestrator.git.base_sync import (
+    attempts,
+    outcomes,
+    recovery,
+    snapshot,
+    transfers,
+)
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.measurement.models import FrozenCommit, MeasurementFailure
 from orchestrator.git.verification import probes as _verification_probes
@@ -60,10 +66,14 @@ _NO_BASE = FrozenCommit(
 _UNREADABLE_TREE = _verification_probes._WorktreeStatus(readable=False)
 
 
-def _snapshot(remote_head: str = _ON_ANCHOR, **counts):
-    """The completed comparison the unpublished road is handed."""
+def _snapshot(
+    remote_head: str = _ON_ANCHOR,
+    local_head: str = seed.REPLAYED_SHA,
+    **counts,
+):
+    """The comparison one recovery road is handed."""
     return fixtures._snapshot(
-        local_head=seed.REPLAYED_SHA, remote_head=remote_head, **counts,
+        local_head=local_head, remote_head=remote_head, **counts,
     )
 
 
@@ -72,12 +82,17 @@ def _pushed(**answer) -> _push._PushedCandidate:
     return _push._PushedCandidate(**answer)
 
 
+def _handled() -> MagicMock:
+    """A collaborator stub that reports the tick as handled."""
+    return MagicMock(return_value=True)
+
+
 @contextlib.contextmanager
 def _every_answer(selected: dict):
     """Patch every terminal the road can select, recording them by name."""
     with contextlib.ExitStack() as stack:
         for name, owner in _ANSWERS.items():
-            selected[name] = MagicMock(return_value=True)
+            selected[name] = _handled()
             stack.enter_context(patch.object(owner, name, selected[name]))
         yield
 
@@ -185,6 +200,76 @@ class UnpublishedRouteTest(seed.TransferCase):
         return taken
 
 
+class UnmovedHeadTest(seed.TransferCase):
+    """A checkout on the anchor is a shortcut only where nothing is left.
+
+    HEAD equalling the pinned anchor is two states at once: an attempt that
+    got no further than pinning it, and one that got a long way and was UNDONE
+    -- a reset whose park write was lost, or a hand at the checkout. Only the
+    first may drop the anchor and hand the branch to a fresh rebase.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        # The anchor and the verdict, with no record of a replay: the shape
+        # every case here starts from and adds one leftover to.
+        self._fresh(pending_rewrite=seed.ABSENT)
+
+    def test_an_unstarted_attempt_hands_the_tick_back(self) -> None:
+        # Nothing was left behind, so the anchor costs the issue nothing and
+        # the normal rebase flow does the work again on this same tick.
+        self.assertFalse(self._answers(shortcut=True))
+
+    def test_a_previous_rotation_is_not_a_rollback(self) -> None:
+        # A settled transfer is never cleared, so an issue that ever earned
+        # one would fail this test for the rest of its life.
+        seed.settled(self.state)
+
+        self.assertFalse(self._answers(shortcut=True))
+
+    def test_every_leftover_is_finished_as_a_rollback(self) -> None:
+        for described, leave in (
+            ("a replay the attempt recorded", self._recorded_replay),
+            ("a record something took apart", self._damaged_record),
+            ("a permission nobody spent", self._unspent_permission),
+            ("a mark a finish left", self._foreign_announcement),
+        ):
+            with self.subTest(described):
+                self._fresh(pending_rewrite=seed.ABSENT)
+                leave()
+
+                self.assertTrue(self._answers(shortcut=False))
+
+    def _recorded_replay(self) -> None:
+        self.context = replace(self.context, pending_rewrite=seed.RECORDED)
+
+    def _damaged_record(self) -> None:
+        self.context = replace(self.context, pending_rewrite=seed.DAMAGED)
+
+    def _unspent_permission(self) -> None:
+        seed.granted(self.state)
+
+    def _foreign_announcement(self) -> None:
+        attempts._announces(self.context, seed.REPLAYED_SHA)
+
+    def _answers(self, *, shortcut: bool) -> bool:
+        """Route the unmoved head and pin which of the two roads it takes."""
+        cleared = MagicMock(return_value=False)
+        parked = _handled()
+        with patch.object(
+            snapshot, "_clear_unchanged_recovery", cleared,
+        ), patch.object(outcomes, "_park_undone_recovery", parked):
+            answered = recovery._finish_an_unmoved_head(
+                self.context, _snapshot(local_head=seed.ACCEPTED_SHA),
+            )
+        taken, refused = (
+            (cleared, parked) if shortcut else (parked, cleared)
+        )
+        taken.assert_called_once()
+        refused.assert_not_called()
+        return answered
+
+
 class LicensedRetryTest(seed.TransferCase):
     """What the permit decides for a push nothing else may license."""
 
@@ -194,7 +279,7 @@ class LicensedRetryTest(seed.TransferCase):
         # of what may let this push out.
         self._fresh(pending_rewrite=seed.DECLARED)
         rebuilt = seed.GRANTED
-        permits = MagicMock(return_value=True)
+        permits = _handled()
 
         entered = self._retries(
             reconstructed=MagicMock(return_value=rebuilt), permits=permits,
@@ -209,7 +294,7 @@ class LicensedRetryTest(seed.TransferCase):
         # gate re-asks the permission the grant left.
         seed.granted(self.state)
 
-        entered = self._retries(permits=MagicMock(return_value=True))
+        entered = self._retries(permits=_handled())
 
         self.assertIsNone(entered.rewrite)
         self.assertTrue(entered.permit_only)
@@ -265,7 +350,7 @@ class LicensedRetryTest(seed.TransferCase):
 
     def _parks(self, park: str, **retry) -> MagicMock:
         """Run the retry and pin the single park it takes."""
-        parked = MagicMock(return_value=True)
+        parked = _handled()
         with patch.object(outcomes, park, parked):
             self.assertTrue(self._retry(**retry))
         parked.assert_called_once()
@@ -274,9 +359,7 @@ class LicensedRetryTest(seed.TransferCase):
     def _retries(self, **retry):
         """Run the retry and hand back the terms the gate was entered on."""
         publishes = MagicMock(return_value=_pushed(landed=True))
-        with patch.object(
-            transfers, "_rotated_onto", MagicMock(return_value=True),
-        ):
+        with patch.object(transfers, "_rotated_onto", _handled()):
             self.assertTrue(self._retry(publishes=publishes, **retry))
         return publishes.call_args.args[2]
 
@@ -296,8 +379,7 @@ class LicensedRetryTest(seed.TransferCase):
         )
         with contextlib.ExitStack() as stack:
             stack.enter_context(patch.object(
-                transfers, "_permits_the_publication",
-                permits or MagicMock(return_value=True),
+                transfers, "_permits_the_publication", permits or _handled(),
             ))
             if reconstructed is not None:
                 stack.enter_context(patch.object(

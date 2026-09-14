@@ -378,6 +378,16 @@ class RecoveryGitFixtureMixin:
             self.forget_the_rewrite_record()
         return stranded
 
+    def roll_back_to_the_anchor(self) -> None:
+        """Put the branch back where the attempt found it, records intact.
+
+        What a reset that landed and whose park write did not leaves, and what
+        an operator's own `git reset --hard` leaves: HEAD exactly on the
+        anchor, with the record of the replay and the permission granted for
+        it still standing on the comment.
+        """
+        run_git("reset", "--hard", self.anchor, cwd=self.work)
+
     def forget_the_rewrite_record(self) -> None:
         """Drop what the attempt recorded as its own replay.
 

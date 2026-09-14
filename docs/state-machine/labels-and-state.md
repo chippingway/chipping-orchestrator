@@ -1248,14 +1248,19 @@ The keys that matter for the state machine fall into a few groups:
   `_rebase_base_into_worktree`; cleared on every exit that leaves the branch where the attempt found it. A non-empty
   value on entry means a previous tick rebased and died
   before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
-  head, or park — as `auto_base_rebase_push_failed` where the push or the remote is what refused, and as
+  head, or park. The no-op is for an attempt that pinned the anchor and got no further: a checkout back on it with a
+  replay recorded, a permission unspent, or a finish's mark standing is a rebase something UNDID, and it is finished
+  as that rollback rather than cleared and rebased again. It parks — as `auto_base_rebase_push_failed` where the push
+  or the remote is what refused, and as
   `auto_base_rebase_failed` where the pinned comment is: a record nobody can vouch for, a record that disowns the
   checkout, a permit that declines, a replay in flight nothing can prove, terms naming a publication this issue no
   longer records, or a relabel off the refresh-driven set over an attempt that left a replay or an unspent
-  permission behind. The last two park without resetting, since which pull request the branch belongs to and
-  whether the hand that moved the label moved the checkout are both questions a hard reset would answer by
-  discarding work. It is also what tells the approval that
-  interrupted attempt wrote from a stage's, so the refresh is not frozen out of finishing its own route (see
+  permission behind, or a branch put back on the anchor with any of those still standing. Two of them park without
+  resetting, since which pull request the branch belongs to and whether the hand that moved the label moved the
+  checkout are both questions a hard reset would answer by discarding work; the undone rollback resets onto the
+  commit the branch is already on, which moves nothing and is what its abandoned bookkeeping rides out on. It is also
+  what tells the approval that interrupted attempt wrote from a stage's, so the refresh is not frozen out of
+  finishing its own route (see
   [Base refresh](#base-refresh)).
   `pending_auto_base_rebase_rewrite_pr` + `pending_auto_base_rebase_rewrite_stage` — the TERMS of the same attempt,
   written in the anchor's own statement, before `git rebase` is allowed to touch the branch. They say which
