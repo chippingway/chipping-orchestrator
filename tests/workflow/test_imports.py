@@ -10,7 +10,6 @@ import subprocess
 import sys
 import unittest
 from importlib.util import find_spec
-from unittest.mock import patch
 
 from orchestrator import workflow as _workflow
 from orchestrator.workflow import engine as _engine, state as _state
@@ -136,8 +135,7 @@ _PUBLIC_SURFACE = (
     _TICK,
 )
 
-# Every published name but `tick` is the `state` owner's own object; `tick` is
-# the one the package defines itself.
+# Labels and guards belong to the state owner; the tick belongs to the engine.
 _STATE_NAMES = tuple(name for name in _PUBLIC_SURFACE if name != _TICK)
 
 # The two operator-facing log channels this package reports on. Every engine and
@@ -196,32 +194,23 @@ class CleanProcessImportTest(unittest.TestCase):
 
 
 class PublicSurfaceTest(unittest.TestCase):
-    """The initializer publishes one narrow API; the engine owns no names."""
+    """The package binds no API; state and engine names live on their owners."""
 
-    def test_all_names_the_narrow_public_surface(self) -> None:
-        self.assertEqual(_workflow.__all__, _PUBLIC_SURFACE)
+    def test_package_exposes_no_owner_names(self) -> None:
+        self.assertNotIn("__all__", _workflow.__dict__)
+        for name in _PUBLIC_SURFACE:
+            with self.subTest(name=name):
+                self.assertNotIn(name, _workflow.__dict__)
         for name in _STATE_NAMES:
             with self.subTest(name=name):
-                self.assertIs(
-                    getattr(_workflow, name), getattr(_state, name),
-                )
+                self.assertEqual(getattr(_state, name).__module__, _state.__name__)
 
-    def test_tick_drives_the_engine_owner(self) -> None:
-        # The entry point is defined here rather than re-exported, so what a
-        # patch on the engine owner has to intercept is the call it makes.
+    def test_tick_is_defined_on_the_engine_owner(self) -> None:
         engine_tick = importlib.import_module(_TICK_OWNER)
-        self.assertIsNot(_workflow.tick, engine_tick.tick)
-        with patch.object(engine_tick, _TICK) as driven:
-            _workflow.tick("gh", "spec", scheduler="scheduler")
-            driven.assert_called_once_with(
-                "gh", "spec", global_semaphore=None, scheduler="scheduler",
-            )
+        self.assertEqual(engine_tick.tick.__module__, _TICK_OWNER)
+        self.assertEqual(engine_tick.tick.__name__, _TICK)
 
     def test_engine_initializer_binds_nothing(self) -> None:
-        # Importing an owner plants it in the package namespace, so a submodule
-        # is the only thing allowed to appear here. A re-export beside it would
-        # make the initializer a second identity for that owner and charge every
-        # importer of one owner for the imports of all the others.
         for owner in _ENGINE_OWNERS:
             with self.subTest(owner=owner):
                 imported = importlib.import_module(f"{_engine.__name__}.{owner}")
@@ -230,9 +219,7 @@ class PublicSurfaceTest(unittest.TestCase):
             if name.startswith("__"):
                 continue
             with self.subTest(name=name):
-                self.assertEqual(
-                    getattr(bound, "__name__", None), f"{_engine.__name__}.{name}",
-                )
+                self.assertEqual(getattr(bound, "__name__", None), f"{_engine.__name__}.{name}")
 
 
 class LoggerChannelTest(unittest.TestCase):

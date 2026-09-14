@@ -91,7 +91,7 @@ class SignalledDispatchTest(unittest.TestCase):
     """A shutdown raised mid-tick closes the submit path immediately.
 
     `running=False` alone only stops at the next tick boundary, so a
-    `workflow.tick` still iterating its eligible-issue list would keep landing
+    `workflow.engine.tick.tick` still iterating its eligible-issue list would keep landing
     fresh `scheduler.submit` calls for the rest of the dispatch loop and grow
     the in-flight set after the user asked to stop. With the submit path
     closed mid-tick, those late submits are refused and the drain only waits

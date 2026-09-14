@@ -3,9 +3,7 @@
 # domain owner still reports. No globs, so neighboring and future files stay
 # held to the rule. docs/configuration/operations.md states what earns an entry.
 per-file-ignores =
-    orchestrator/__init__.py:WPS412,WPS410
     orchestrator/config/__init__.py:WPS412,WPS410
-    orchestrator/workflow/__init__.py:WPS412,WPS410
     orchestrator/git/base_sync/outcomes.py:WPS202,WPS204
     orchestrator/git/base_sync/recovery.py:WPS202
     orchestrator/git/base_sync/transfers.py:WPS201,WPS202

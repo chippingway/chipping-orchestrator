@@ -118,7 +118,7 @@ class PassDrainTest(unittest.TestCase):
 
     def test_real_dispatch_reaps_once(self) -> None:
         # The mocked-tick paths above cannot see a reap the engine itself
-        # might add, so one pass runs through the real `workflow.tick` over
+        # might add, so one pass runs through the real `workflow.engine.tick.tick` over
         # empty issue lists: `_dispatch_via_scheduler` deliberately does not
         # reap, leaving the pass as the only site that does.
         with _execution.dispatch_context(

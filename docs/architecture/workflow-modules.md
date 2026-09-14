@@ -1,6 +1,6 @@
 # Workflow modules
 
-This page maps `orchestrator/workflow/`: the package API, the state owner beside it, the `engine/` owners one tick is
+This page maps `orchestrator/workflow/`: the state owner, the `engine/` owners one tick is
 composed of, the `late_split/` domain the late size gate is defined by, and the stage subpackages the label dispatch
 routes into. It is split out of
 [`../architecture.md#top-level-layout`](../architecture.md#top-level-layout), which keeps the top-level map and the
@@ -16,15 +16,11 @@ to write is in [`../workflow.md`](../workflow.md).
 Each rule below names the check that holds it. The last is a convention the tree keeps rather than one a test can
 see, and is called out as such.
 
-- **The package API is six names.** Five are `workflow/state.py`'s own objects, re-exported and pinned by identity so
-  the graph a caller reads cannot fork; the sixth is `tick`. In-tree callers name the owner, and the re-export is for
-  callers outside the tree — `tests/workflow/test_imports.py`.
-- **`tick` resolves the engine inside the call.** `github/` and `git/` import `workflow/state.py` for the label
-  vocabulary they are typed by, and a submodule import runs this initializer first, so an engine import at module
-  scope would send `github/labels.py` and `github/issues.py` back into the client they are still initializing.
-  Importing the package therefore costs the initializer and the state owner, and pulls in neither the engine, the
-  stage tree, nor the config, analytics, git, and GitHub graphs — `tests/workflow/test_imports.py` probes both import
-  paths in a clean interpreter, and `tests/repository/test_layering.py` holds the direction under it.
+- **Callers name the state and tick owners directly.** Labels and transition guards are defined in
+  `workflow/state.py`; the per-repo entry point is `workflow.engine.tick.tick`. The package initializer binds no
+  API and imports no owner. `github/` and `git/` can therefore import the state vocabulary without loading the
+  engine or pointing back into their own initialization. `tests/workflow/test_imports.py` probes the import paths
+  in a clean interpreter, and `tests/repository/test_layering.py` holds the direction under them.
 - **The stage handlers are resolved at call time.** `engine/dispatch.py` pairs each label with the module its handler
   lives on and imports it when it dispatches, as `engine/pickup.py` does for the stage it starts an issue on: the
   stage tree imports `engine/`, so a module-scope bind would point that edge back at itself.
@@ -54,8 +50,7 @@ four — `run.py` for `workflow:decomposing`, `blocked.py` for both `workflow:re
 unlabeled entry, which `engine/pickup.py` answers rather than a stage package.
 
 ```
-workflow/                   publishes the two label vocabularies, `guard_transition` and `is_allowed_transition`,
-                            `IllegalTransition`, and the per-repo `tick`
+workflow/                   marker package for state, engine, and stage owners
   state.py                  the `WorkflowLabel` / `ControlLabel` vocabularies, strict label coercion, the declared
                             transition graph and the guard over it -- including the one edge OUT of a terminal,
                             `done` to `rejected`, which the umbrella cancelled between its label write and its

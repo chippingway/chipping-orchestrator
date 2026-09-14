@@ -169,7 +169,7 @@ def _collect_and_record_catalog(spec: RepoSpec) -> None:
 def _emit_repo_skill_catalog(spec: RepoSpec) -> None:
     """Collect the target repo's skill catalog and append one record.
 
-    Called once per tick per spec from `workflow.tick` after the base
+    Called once per tick per spec from `workflow.engine.tick.tick` after the base
     fetch in `_refresh_base_and_worktrees` has refreshed
     `<remote_name>/<base_branch>`. Emits unconditionally on a successful
     enumeration (an empty catalog still records `skills_available: []`).

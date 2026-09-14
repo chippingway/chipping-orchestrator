@@ -93,7 +93,7 @@ class StageEvaluationAnalyticsTest(unittest.TestCase):
     `stage_evaluation` analytics record carrying repo / issue / stage /
     duration_s / result. The record fires on both happy-path and
     exception paths; an unhandled handler exception still propagates so
-    the per-issue tick try/except in `workflow.tick` owns the isolation.
+    the per-issue tick try/except in `workflow.engine.tick.tick` owns the isolation.
     Backlog-skips are NOT timed -- no handler runs.
     """
 

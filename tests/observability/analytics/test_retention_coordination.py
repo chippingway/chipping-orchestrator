@@ -146,7 +146,7 @@ class PruneWithRetentionLoggingTest(unittest.TestCase):
 
     def test_parallel_append_survives_prune(self) -> None:
         # Under the scheduler-driven dispatch `runtime.ticks.run_tick` drives,
-        # `workflow.tick` returns as soon as the per-issue callables have
+        # `workflow.engine.tick.tick` returns as soon as the per-issue callables have
         # been submitted to the scheduler, so the retention prune can run
         # while scheduler workers are still calling `append_record()`.
         # Without a shared lock, an append that landed between

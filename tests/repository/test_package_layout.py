@@ -27,10 +27,9 @@ from tests.repository.layout_test_support import (
     python_files,
 )
 
-# What sits directly under the package root. The version metadata, the console
-# script's composition point, and the module launch form over it -- three files
-# a launch names, none of them an owner.
-_ROOT_LEAVES = ("__init__.py", "__main__.py", "cli.py")
+# The root holds a package marker, version metadata, the console script
+# composition point, and the module launch form. Runtime owners live below it.
+_ROOT_LEAVES = ("__init__.py", "__main__.py", "cli.py", "version.py")
 
 # The domain packages beneath it. A new one is a deliberate edit here and a
 # paragraph in the module map, which is what this inventory is compared against.

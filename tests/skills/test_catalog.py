@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.skills import catalog
+from orchestrator.workflow.engine import tick as _engine_tick
 from tests.skills.skills_test_support import (
     _capture_analytics_records,
     _catalog_identity,
@@ -351,13 +352,12 @@ class EmitRepoSkillCatalogTest(unittest.TestCase):
 
 
 class TickEmitsRepoSkillCatalogTest(unittest.TestCase):
-    """`workflow.tick` drives `_emit_repo_skill_catalog` once per tick."""
+    """`workflow.engine.tick.tick` drives `_emit_repo_skill_catalog` once per tick."""
 
     def test_tick_calls_emit_once(self) -> None:
         # The tick names this owner, so patching it here is what intercepts
         # the pass -- and what proves the spec it is handed is the one being
         # polled, which is all the catalog needs to read the right base ref.
-        from orchestrator import workflow
         from orchestrator.workflow.engine import dispatch
         from tests.support.fakes import FakeGitHubClient, make_issue
         from tests.workflow.fixtures import _TEST_SPEC
@@ -369,7 +369,7 @@ class TickEmitsRepoSkillCatalogTest(unittest.TestCase):
         with seam_patch(_REFRESH_BASE), \
                 patch.object(dispatch, "_process_issue"), \
                 patch.object(catalog, "_emit_repo_skill_catalog", emit):
-            workflow.tick(gh, _TEST_SPEC)
+            _engine_tick.tick(gh, _TEST_SPEC)
         emit.assert_called_once_with(_TEST_SPEC)
 
 

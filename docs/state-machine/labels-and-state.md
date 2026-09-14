@@ -79,8 +79,8 @@ Three non-workflow **control labels** modify behavior without occupying the work
 ### Typed states and the transition guard
 
 The label vocabulary is defined once in [`orchestrator/workflow/state.py`](../../orchestrator/workflow/state.py), which
-every caller inside the tree imports directly — `orchestrator.workflow` re-exports the same objects for callers
-outside it: `WorkflowLabel` (a `StrEnum`) is the single source of truth for workflow states, and `ControlLabel` holds
+callers import directly: `WorkflowLabel` (a `StrEnum`) is the single source of truth for workflow states,
+and `ControlLabel` holds
 the modifiers above. Because `StrEnum` members *are* their wire strings, a member is the GitHub label verbatim — the
 enum just gives the names one authoritative definition. The labels the orchestrator writes itself are namespaced
 `workflow:<tag>` so a repository's own labels cannot collide with them; `in_review`, `question`, `discussion`, `done`,
@@ -244,14 +244,16 @@ worth nothing if a relabel deleted the label anyway. The one case the two spelli
 on an issue with no namespaced label — there it is taken as the pre-migration state, which is what lets the issue
 keep routing.
 
-## Per-tick flow (`workflow.tick`)
+<a id="per-tick-flow-workflowtick"></a>
+
+## Per-tick flow (`workflow.engine.tick.tick`)
 
 Each tick fans out across every configured repo (`config.default_repo_specs()` returns one `RepoSpec` per `REPOS` line)
 and dispatches per-issue handlers through a long-lived `IssueScheduler` capped by `MAX_PARALLEL_ISSUES_GLOBAL` /
-`MAX_PARALLEL_ISSUES_PER_REPO`. One repo's pass is owned by `workflow/engine/tick.py`, which `workflow.tick` is the
-entry point into; the multi-repo dispatch, the scheduler lifecycle, and the fixed order that pass runs its four steps
+`MAX_PARALLEL_ISSUES_PER_REPO`. One repo's pass is entered through `workflow.engine.tick.tick`;
+the multi-repo dispatch, the scheduler lifecycle, and the fixed order that pass runs its four steps
 in are in
-[`architecture.md#per-tick-flow-workflowtick`](../architecture.md#per-tick-flow-workflowtick). What follows is what
+the [architecture's per-tick flow](../architecture.md#per-tick-flow-workflowengineticktick). What follows is what
 each step reads and writes per issue.
 
 The dispatch loop classifies each pollable issue by workflow label before submitting it:

@@ -4,7 +4,7 @@
 
 The recorders stand in for the two collaborators a polling pass calls out to --
 the `GitHubClient` constructor `startup.connect_clients` names, and the
-`workflow.tick` each repository's turn ends at -- so a test can drive a run and
+`workflow.engine.tick.tick` each repository's turn ends at -- so a test can drive a run and
 then assert on what it dispatched. A pass fans out across worker threads, so
 every recorder guards its own bookkeeping with a lock.
 """
@@ -54,7 +54,7 @@ class ClientFactory:
 
 
 class TickRecorder:
-    """`workflow.tick` side_effect that thread-safely records every tick's
+    """`workflow.engine.tick.tick` side_effect that thread-safely records every tick's
     `(spec.slug, gh.slug)` pairing, the scheduler it was handed, and the
     worker-thread id, then runs an optional `on_tick(gh, spec)` hook for
     per-test side effects (raise, barrier, shutdown).

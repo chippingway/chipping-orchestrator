@@ -430,8 +430,8 @@ separators.
 Each polling tick advances issues concurrently along two axes:
 
 - **Across repos.** When `REPOS` lists more than one entry, `runtime.ticks.run_tick` fans the per-repo
-  `workflow.tick(gh, spec)` calls out across a `ThreadPoolExecutor` (one worker per repo). The legacy single-repo mode
-  (`REPOS` unset) stays in-thread.
+  `workflow.engine.tick.tick(gh, spec)` calls out across a `ThreadPoolExecutor` (one worker per repo).
+  The legacy single-repo mode (`REPOS` unset) stays in-thread.
 - **Within a repo.** Per-issue handlers are dispatched to a long-lived `IssueScheduler`. Fan-out issues
   (`workflow:ready` / `workflow:implementing` / `workflow:documenting` / `workflow:validating` / `in_review` /
   `workflow:fixing` / `workflow:resolving_conflict` / `question` / `discussion`) are submitted one callable per
@@ -454,7 +454,7 @@ The two caps below are the levers:
   issue under the wrong label for as long as the guard stayed on. Invalid values abort at startup.
 
 Both caps are enforced by a single `IssueScheduler` (`orchestrator/scheduler/`) built once at startup and threaded
-through every `workflow.tick` call. New callers may pass a frozen `SubmissionRequest`; the historical
+through every `workflow.engine.tick.tick` call. New callers may pass a frozen `SubmissionRequest`; the historical
 `submit(repo_slug, issue_number, fn, *, ...)` positional/all-keyword API remains supported. A submit is skipped this
 tick (and retried next pass) when:
 

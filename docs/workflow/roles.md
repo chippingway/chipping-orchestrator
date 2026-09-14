@@ -148,7 +148,7 @@ So an issue can move between `workflow:implementing` and `workflow:decomposing`,
 candidate, rotate sessions, and answer review round after review round without any of those loops ending — and the
 ledger is the one thing counting them. When it is spent, the issue parks on `agent_run_limit` and the dispatcher
 holds it ahead of every handler above; only a trusted, bounded `/orchestrator add-agent-runs N` widens what it may
-still spend ([`../state-machine.md#per-tick-flow-workflowtick`](../state-machine.md#per-tick-flow-workflowtick)).
+still spend ([`../state-machine.md#per-tick-flow-workflowengineticktick`](../state-machine.md#per-tick-flow-workflowengineticktick)).
 
 The caps each role already had still refuse first — a cap that fired only after the charge would spend a run on work
 nothing ran — so a spent review cap, conflict cap, or daily spawn budget parks its own way with the lifetime count
