@@ -28,7 +28,7 @@ from orchestrator.git.measurement.models import (
     MeasurementFailure,
     _BaseObject,
 )
-from orchestrator.git.verification.probes import _WorktreeStatus
+from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
     rewrites as _rewrites,

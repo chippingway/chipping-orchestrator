@@ -14,7 +14,7 @@ import logging
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -197,7 +197,7 @@ def _unpublishable_checkout(state: PinnedState, worktree) -> str:
     """
     if not worktree.exists():
         return "is not on this host"
-    tree = _verification_probes._worktree_status(worktree)
+    tree = _worktree_status._worktree_status(worktree)
     if not tree.is_clean:
         return (
             "carries work no push would publish" if tree.readable

@@ -33,7 +33,7 @@ import logging
 from typing import Any
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.git.worktrees.models import Retention, RetentionReason
 from orchestrator.github import issues as github_issues
 from orchestrator.github.client import GitHubClient
@@ -292,8 +292,8 @@ def _open_pull_request_retentions(
     the operator has to be told which branch nobody could answer for.
     """
     asked = set(branches) | set(
-        paths._issue_branch_names(spec, issue_number),
-    ) | {paths._resolve_branch_name(state, spec, issue_number)}
+        _naming._issue_branch_names(spec, issue_number),
+    ) | {_naming._resolve_branch_name(state, spec, issue_number)}
     retentions = _recorded_pull_request(gh, state)
     for branch in sorted(asked):
         try:

@@ -14,7 +14,7 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.agents import AgentResult
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.late_split.models import (
@@ -225,7 +225,7 @@ def _candidate_mutation(
     head = _verification_probes._head_sha(worktree)
     if head != generation.candidate_sha:
         return _MOVED_HEAD_PARK.format(frozen=generation.candidate_sha)
-    tree = _verification_probes._worktree_status(worktree)
+    tree = _worktree_status._worktree_status(worktree)
     if not tree.readable or tree.paths:
         return _DIRTY_TREE_PARK.format(frozen=generation.candidate_sha)
     return None

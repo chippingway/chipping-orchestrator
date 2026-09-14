@@ -68,7 +68,7 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoverySnapshot,
 )
 from orchestrator.git.base_sync.state import _PR_REFRESH_DETOUR_LABELS
-from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.state import WorkflowLabel
 
 # Why a push that landed could not be finished, in the operator's own terms.
@@ -162,7 +162,7 @@ def _retry_recovery_push(
     and with neither the transfer is `NOTHING`, nothing is re-derived, and the
     push is the measured one described first.
     """
-    dirty_files = verification_probes._worktree_dirty_files(context.worktree)
+    dirty_files = _worktree_status._worktree_dirty_files(context.worktree)
     if dirty_files:
         return outcomes._park_dirty_recovery(
             context, recovery_snapshot, dirty_files,

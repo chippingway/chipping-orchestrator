@@ -85,7 +85,7 @@ import logging
 from dataclasses import dataclass
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.late_split import (
     formats as _formats,
     payloads as _payloads,
@@ -344,7 +344,7 @@ def _standing_where_the_push_lands(
     very pull request; different on either, it would publish somewhere the
     proof was never taken.
     """
-    branch = _worktree_paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         gate.state, gate.spec, gate.issue.number,
     )
     if reading.head_branch != branch:

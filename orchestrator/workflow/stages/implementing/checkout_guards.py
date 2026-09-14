@@ -41,7 +41,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.git.measurement import commits as _measurement_commits
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import (
@@ -138,7 +138,7 @@ def _park_for_the_checkout(
     state.set(_state._PARK_REASON, _state._CANDIDATE_MOVED)
 
 
-def _loose_work(tree: _verification_probes._WorktreeStatus) -> str:
+def _loose_work(tree: _worktree_status._WorktreeStatus) -> str:
     """Say what a tree reading refused on, in the words the refusal needs.
 
     A reading that never HAPPENED is the one an operator would otherwise be
@@ -254,7 +254,7 @@ def _dirtied_before_the_push(
     checkout whose tree is cleaned republishes it on the next tick with
     nothing re-run.
     """
-    tree = _verification_probes._worktree_status(worktree)
+    tree = _worktree_status._worktree_status(worktree)
     if tree.is_clean:
         return False
     loose = _loose_work(tree)
@@ -350,7 +350,7 @@ def _dirtied_after_the_push(
     for itself, while a push onto one the remote already carries knows exactly
     which head it left the branch on and can pin the republication to it.
     """
-    tree = _verification_probes._worktree_status(worktree)
+    tree = _worktree_status._worktree_status(worktree)
     if tree.is_clean:
         return False
     loose = _loose_work(tree)

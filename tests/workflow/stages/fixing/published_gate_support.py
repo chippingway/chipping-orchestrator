@@ -26,9 +26,7 @@ from orchestrator.git.measurement.models import (
     FrozenCommit as FrozenCommit,
     MeasurementFailure as MeasurementFailure,
 )
-from orchestrator.git.verification.probes import (
-    _WorktreeStatus as _WorktreeStatus,
-)
+from orchestrator.git.verification.status import _WorktreeStatus as _WorktreeStatus
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import dispatch as _dispatch

@@ -59,6 +59,7 @@ from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
+    naming as _naming,
     paths as _worktree_paths,
 )
 from orchestrator.workflow.engine import run_circuit as _run_circuit, usage as _usage
@@ -166,7 +167,7 @@ def _open_round_checkout(
     it, a resumed round that wrote the agreed plan and was then paused or cut
     short would be reported to the humans as a violation to reset away.
     """
-    branch = _worktree_paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         run.state, run.spec, run.issue.number,
     )
     retained = _worktree_paths._worktree_path(run.spec, run.issue.number)

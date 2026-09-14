@@ -24,7 +24,7 @@ from __future__ import annotations
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.stages.documenting import (
@@ -120,7 +120,7 @@ def _handle_documenting(gh: GitHubClient, spec: config.RepoSpec, issue: Issue) -
 
     ctx = _models._DocumentingContext(
         gh, spec, issue, state,
-        _worktree_paths._resolve_branch_name(state, spec, issue.number),
+        _naming._resolve_branch_name(state, spec, issue.number),
         pr_number,
     )
 

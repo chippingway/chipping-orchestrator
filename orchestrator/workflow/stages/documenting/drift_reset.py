@@ -26,7 +26,7 @@ from contextlib import suppress
 
 from orchestrator import config
 from orchestrator.git import branch_transport as _branch_transport, commands as _git_commands
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.stages.documenting import models as _models, parks as _parks
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -199,7 +199,7 @@ def _reset_documenting_drift_worktree(
     if probe is None:
         return False
     ahead, behind = probe
-    dirty = _verification_probes._worktree_dirty_files(wt)
+    dirty = _worktree_status._worktree_dirty_files(wt)
     if ahead > 0 or behind > 0 or dirty:
         return _documenting_drift_hard_reset(ctx, wt)
     return True

@@ -45,7 +45,7 @@ from orchestrator.agents import AgentResult
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
-    paths as _worktree_paths,
+    naming as _naming,
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -206,7 +206,7 @@ def _ensure_dev_worktree(
     PR. `_ensure_pr_worktree` restores from the PR head instead, which is only
     a ref to ask for once a PR exists, so `pr_number` decides.
     """
-    branch = _worktree_paths._resolve_branch_name(state, spec, issue.number)
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
     if state.get("pr_number") is None:
         return _worktree_creation._ensure_worktree(
             spec, issue.number, branch=branch,
@@ -279,6 +279,6 @@ def _prepare_dev_run(
     if prepared is not None:
         state.set(
             _state._BRANCH,
-            _worktree_paths._resolve_branch_name(state, spec, issue.number),
+            _naming._resolve_branch_name(state, spec, issue.number),
         )
     return prepared

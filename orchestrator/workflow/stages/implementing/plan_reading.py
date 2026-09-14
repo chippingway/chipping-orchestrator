@@ -32,8 +32,8 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.git.worktrees import (
-    creation as _worktree_creation,
-    paths as _worktree_paths,
+    anchoring as _anchoring,
+    naming as _naming,
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -169,10 +169,10 @@ def _inherited_tip(
     onto = "" if reviewed.merged else reviewed.head
     if onto and onto == str(anchor or ""):
         return _HandoffTip(sha=anchor)
-    anchored = _worktree_creation._anchor_pr_worktree(
+    anchored = _anchoring._anchor_pr_worktree(
         spec,
         issue.number,
-        branch=_worktree_paths._resolve_branch_name(state, spec, issue.number),
+        branch=_naming._resolve_branch_name(state, spec, issue.number),
         head_sha=onto,
     )
     if anchored is None:

@@ -66,7 +66,7 @@ import logging
 from dataclasses import dataclass, field
 
 from orchestrator import config
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.late_split import (
     formats as _formats,
@@ -240,7 +240,7 @@ def _frozen_entry(
     What is frozen is what the push will be pinned against, so both roads fail
     closed on the same fact.
     """
-    if not _verification_probes._worktree_status(gate.worktree).is_clean:
+    if not _worktree_status._worktree_status(gate.worktree).is_clean:
         return _records._PublicationEntry(refusal=_UNPROVABLE_TREE)
     stage = entered.stage or gate.gh.workflow_label(gate.issue)
     if not publishes_onto_a_pull_request(stage):

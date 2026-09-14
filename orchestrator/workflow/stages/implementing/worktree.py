@@ -24,6 +24,7 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
+    naming as _naming,
     paths as _worktree_paths,
 )
 from orchestrator.github.pinned_state import PinnedState
@@ -38,5 +39,5 @@ def _ensure_resume_worktree(
     return _worktree_creation._ensure_worktree(
         spec,
         issue.number,
-        branch=_worktree_paths._resolve_branch_name(state, spec, issue.number),
+        branch=_naming._resolve_branch_name(state, spec, issue.number),
     )

@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from orchestrator.agents import processes
-from orchestrator.git.verification import probes, process, runner
+from orchestrator.git.verification import probes, process, runner, status as _worktree_status
 from tests.git.verification import command_helpers
 
 VERIFY_HEAD_CHANGED = "head_changed"
@@ -99,7 +99,7 @@ class VerifyCommandMutationTest(
         proc.communicate.side_effect = command_helpers.RegisteredCommunicate(proc, seen)
         with (
             patch.object(process.subprocess, "Popen", return_value=proc),
-            patch.object(probes, "_worktree_dirty_files", return_value=[]),
+            patch.object(_worktree_status, "_worktree_dirty_files", return_value=[]),
             patch.object(probes, "_head_sha", return_value="sha"),
         ):
             run = runner._run_verify_commands(self.worktree, (PASSING_COMMAND,), 60)

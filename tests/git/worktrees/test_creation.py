@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.worktrees import creation
+from orchestrator.git.worktrees import anchoring as _anchoring, creation
 from tests.git.worktrees import lifecycle_test_support as _support
 from tests.git.worktrees.lifecycle_test_support import _GitRecorder
 from tests.git.worktrees.real_git_test_support import (
@@ -442,7 +442,7 @@ class AnchorPrWorktreeTest(unittest.TestCase):
         )
 
     def _anchor(self, head_sha: str):
-        return creation._anchor_pr_worktree(
+        return _anchoring._anchor_pr_worktree(
             self._repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH,
             head_sha=head_sha,
         )
@@ -525,7 +525,7 @@ class MergedPlanHandoffTest(unittest.TestCase):
 
     def _anchor_on_base(self):
         """The handoff a finished pull request asks for: no head, the base."""
-        return creation._anchor_pr_worktree(
+        return _anchoring._anchor_pr_worktree(
             self._repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH, head_sha="",
         )
 

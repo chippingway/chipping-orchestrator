@@ -32,8 +32,8 @@ import logging
 from pathlib import Path
 
 from orchestrator import config
-from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import prompts as _prompts
 from orchestrator.workflow.stages.conflicts import (
     evidence as _evidence,
@@ -155,7 +155,7 @@ def _publish_clean_rebase(
     _evidence._records_the_replayed_commit(ctx, replayed, after_sha)
     published = _late_push._publishes(
         _late_records._gate(ctx.gh, spec, ctx.issue, ctx.state, wt),
-        _worktree_paths._resolve_branch_name(ctx.state, spec, ctx.issue.number),
+        _naming._resolve_branch_name(ctx.state, spec, ctx.issue.number),
         _late_records._Entered(
             head=before_sha or "", reconciling=True,
             # The head the rebase left, so a commit landing between that read
@@ -227,7 +227,7 @@ def _unprovable_tree(ctx: _models._ConflictContext, wt: Path) -> bool:
     clean one. So the reading has to have HAPPENED and named nothing, which is
     the one question `is_clean` answers.
     """
-    tree = _verification_probes._worktree_status(wt)
+    tree = _worktree_status._worktree_status(wt)
     if tree.is_clean:
         return False
     base_ref = _base_ref(ctx.spec)

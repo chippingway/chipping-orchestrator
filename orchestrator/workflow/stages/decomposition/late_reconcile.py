@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import pull_requests as _pull_requests
 from orchestrator.workflow.late_split import payloads as _payloads
 from orchestrator.workflow.late_split.models import LateFailure
@@ -191,7 +191,7 @@ def _reconciled_pr(context: _LateContext) -> bool:
     if context.generation.has_publication_context:
         return _reconciled_publication(context)
     carrying = context.gh.find_pr_for_commit(
-        branch=_worktree_paths._resolve_branch_name(
+        branch=_naming._resolve_branch_name(
             context.state, context.spec, context.issue.number,
         ),
         base=context.spec.base_branch,
@@ -357,7 +357,7 @@ def _reconciled_branch(
     read back, since the question is where the push behind this verdict will
     actually land.
     """
-    branch = _worktree_paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         context.state, context.spec, context.issue.number,
     )
     if observed == branch:

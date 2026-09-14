@@ -20,7 +20,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator.git import commands
-from orchestrator.git.verification import probes
+from orchestrator.git.verification import probes, status as _worktree_status
 from tests.workflow.fixtures import TEST_BASE_BRANCH
 
 GIT_COMMAND = "git"
@@ -110,13 +110,13 @@ class PorcelainParsingTest(unittest.TestCase):
                 self.subTest(record=record),
                 patch.object(commands, HARDENED_GIT, return_value=_completed(0, record)),
             ):
-                self.assertEqual(probes._worktree_dirty_files(WORKTREE), expected)
+                self.assertEqual(_worktree_status._worktree_dirty_files(WORKTREE), expected)
 
     def test_all_reported_paths_are_collected(self) -> None:
         status = "".join(record for record, paths in PORCELAIN_CASES if paths)
         with patch.object(commands, HARDENED_GIT, return_value=_completed(0, status)):
             self.assertEqual(
-                probes._worktree_dirty_files(WORKTREE),
+                _worktree_status._worktree_dirty_files(WORKTREE),
                 [
                     "src/app.py", LEFTOVER_FILE, "new.py", "old.py",
                     "quoted path.txt", ARROW_FILE,
@@ -128,7 +128,7 @@ class PorcelainParsingTest(unittest.TestCase):
         # probe that could not run names none. What it could not prove is the
         # status form's to say -- see below.
         with patch.object(commands, HARDENED_GIT, return_value=_completed(GIT_FAILURE, LEFTOVER_FILE)):
-            self.assertEqual(probes._worktree_dirty_files(WORKTREE), [])
+            self.assertEqual(_worktree_status._worktree_dirty_files(WORKTREE), [])
 
 
 class WorktreeStatusProbeTest(unittest.TestCase):
@@ -136,7 +136,7 @@ class WorktreeStatusProbeTest(unittest.TestCase):
 
     def test_a_read_tree_reports_its_paths(self) -> None:
         with patch.object(commands, HARDENED_GIT, return_value=_completed(0, f"?? {LEFTOVER_FILE}")):
-            status = probes._worktree_status(WORKTREE)
+            status = _worktree_status._worktree_status(WORKTREE)
 
         self.assertTrue(status.readable)
         self.assertEqual(status.paths, (LEFTOVER_FILE,))
@@ -146,7 +146,7 @@ class WorktreeStatusProbeTest(unittest.TestCase):
         # still succeeds. Reported as an empty path list, that would let a
         # publication push on the strength of a probe that never ran.
         with patch.object(commands, HARDENED_GIT, return_value=_completed(GIT_FAILURE, "fatal: bad index")):
-            status = probes._worktree_status(WORKTREE)
+            status = _worktree_status._worktree_status(WORKTREE)
 
         self.assertFalse(status.readable)
         self.assertEqual(status.paths, ())
@@ -245,7 +245,7 @@ class WorktreeDirtyFilesHardeningTest(unittest.TestCase):
         )
         marker.unlink()
 
-        dirty = probes._worktree_dirty_files(self.work)
+        dirty = _worktree_status._worktree_dirty_files(self.work)
 
         # The real modification is still reported...
         self.assertIn(LEFTOVER_FILE, dirty)

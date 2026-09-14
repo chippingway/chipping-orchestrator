@@ -33,8 +33,8 @@ from __future__ import annotations
 from orchestrator.git.base_sync import attempts, guards, transfers
 from orchestrator.git.base_sync.models import _AutoRebaseContext
 from orchestrator.git.base_sync.state import _REVIEW_ROUND, log
-from orchestrator.git.verification import probes
-from orchestrator.git.worktrees import paths
+from orchestrator.git.verification import probes, status as _worktree_status
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 
@@ -170,12 +170,12 @@ def _publish_auto_rebase(
     # push, the finalize -- leaves a rewritten branch behind if the process
     # dies under it.
     attempts._records_the_replay(context, after_sha)
-    dirty_files = probes._worktree_dirty_files(context.worktree)
+    dirty_files = _worktree_status._worktree_dirty_files(context.worktree)
     if dirty_files:
         guards._park_dirty_auto_rebase(context, before_sha, dirty_files)
         return
 
-    branch = paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         context.state, context.spec, context.issue.number,
     )
     records = _gate_records()

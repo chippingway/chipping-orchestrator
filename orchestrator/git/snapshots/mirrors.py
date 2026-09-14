@@ -14,7 +14,7 @@ from pathlib import Path
 from orchestrator import config
 from orchestrator.git import commands, locks
 from orchestrator.git.snapshots import namespace
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming
 
 log = logging.getLogger("orchestrator.git_plumbing")
 
@@ -83,10 +83,10 @@ def local_snapshot_present(
 
 def _repository_segment(slug: str) -> str:
     """A ref-safe, bounded, injective segment naming one repository."""
-    sanitized = paths._sanitize_branch_segment(slug)
+    sanitized = _naming._sanitize_branch_segment(slug)
     if len(sanitized) <= namespace.MAX_REPOSITORY_SEGMENT:
         return sanitized
-    digest = paths._slug_digest(slug)
+    digest = _naming._slug_digest(slug)
     kept = namespace.MAX_REPOSITORY_SEGMENT - len(digest) - len(_DIGEST_MARK)
     return _DIGEST_MARK.join((sanitized[:kept], digest))
 

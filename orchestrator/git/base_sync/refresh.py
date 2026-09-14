@@ -25,7 +25,7 @@ from orchestrator.git.base_sync import (
     refresh_selection as _selection,
     state as _state,
 )
-from orchestrator.git.verification import probes as _probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import paths as _paths
 from orchestrator.github import client as _client
 from orchestrator.scheduler import IssueScheduler
@@ -74,7 +74,7 @@ def _sync_worktree_with_base(
         return
 
     pr_number = state.get("pr_number")
-    if pr_number is None and _probes._worktree_dirty_files(worktree):
+    if pr_number is None and _worktree_status._worktree_dirty_files(worktree):
         log.debug(
             "issue=#%d skipping base sync: worktree has uncommitted changes",
             issue_number,

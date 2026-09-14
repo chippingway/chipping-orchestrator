@@ -31,7 +31,7 @@ from orchestrator.git.base_sync.state import (
     _PR_REFRESH_DETOUR_LABELS,
     log,
 )
-from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github.comments import filter_trusted
 
 
@@ -177,7 +177,7 @@ def _auto_rebase_recovery_decision(
 
 def _normal_auto_rebase_can_start(context: _AutoRebaseContext) -> bool:
     """Apply the clean-tree probe before deciding whether base is behind."""
-    if verification_probes._worktree_dirty_files(context.worktree):
+    if _worktree_status._worktree_dirty_files(context.worktree):
         log.debug(
             "issue=#%d skipping base sync: worktree has uncommitted changes",
             context.issue.number,

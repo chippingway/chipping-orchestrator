@@ -12,7 +12,7 @@ import subprocess
 
 from orchestrator import config
 from orchestrator.git import commands, locks
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming
 
 
 def _branch_has_unpushed_commits(
@@ -110,7 +110,7 @@ def _candidate_issue_branches(
     spec: config.RepoSpec, issue_number: int,
 ) -> tuple[str, ...]:
     """Return namespaced then legacy branch candidates without duplicates."""
-    namespaced = paths._branch_name(spec, issue_number)
+    namespaced = _naming._branch_name(spec, issue_number)
     legacy = f"orchestrator/issue-{issue_number}"
     if legacy == namespaced:
         return (namespaced,)

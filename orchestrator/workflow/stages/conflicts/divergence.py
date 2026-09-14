@@ -39,7 +39,7 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git import commands as _git_commands
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.workflow.stages.conflicts import (
     evidence as _evidence,
     guards as _guards,
@@ -458,7 +458,7 @@ def _parked_dirty_recovery(
     could read is a checkout to repair, which the next tick's own reading
     clears.
     """
-    tree = _verification_probes._worktree_status(wt)
+    tree = _worktree_status._worktree_status(wt)
     if tree.is_clean:
         return False
     if not tree.readable:

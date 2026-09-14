@@ -27,7 +27,7 @@ from orchestrator.git.base_sync.state import (
 )
 from orchestrator.git.publication import probes as publication_probes
 from orchestrator.git.verification import probes as verification_probes
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming
 
 
 def _abort_recovery_unverified(
@@ -75,7 +75,7 @@ def _fetch_recovery_snapshot(
 ) -> _AutoRebaseRecoverySnapshot | None:
     """Fetch the PR branch and capture the local recovery head."""
     spec = context.spec
-    branch = paths._resolve_branch_name(
+    branch = _naming._resolve_branch_name(
         context.state, spec, context.issue.number,
     )
     fetch_result = branch_transport._authed_fetch(

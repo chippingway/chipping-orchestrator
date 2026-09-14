@@ -36,7 +36,7 @@ import logging
 from collections.abc import Iterable
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming, paths
 
 # The channel is named for the worktree-lifecycle domain rather than for this
 # module's path: operators filter the rendered `orchestrator.worktree_lifecycle`
@@ -77,11 +77,11 @@ def _matching_owners(
     """
     namespaced = tuple(
         spec for spec in specs
-        if paths._branch_name(spec, issue_number) == branch
+        if _naming._branch_name(spec, issue_number) == branch
     )
     if namespaced:
         return namespaced
-    if branch == paths._legacy_branch_name(issue_number):
+    if branch == _naming._legacy_branch_name(issue_number):
         return specs
     return ()
 
@@ -128,7 +128,7 @@ def _record_attribution(
 ) -> None:
     """File one attributed branch under the repository and issue it names.
 
-    Rebuilt through `paths._issue_branch_names` rather than appended in the
+    Rebuilt through `naming._issue_branch_names` rather than appended in the
     order the ref store listed them, which does two things at once: an issue
     carrying both layouts always reads namespaced-first, the order a caller
     acts on them in, and a name that is not one of the two that derivation
@@ -138,7 +138,7 @@ def _record_attribution(
     issues = owned.setdefault(spec, {})
     found = set(issues.get(issue_number, ())) | {branch}
     issues[issue_number] = tuple(
-        name for name in paths._issue_branch_names(spec, issue_number)
+        name for name in _naming._issue_branch_names(spec, issue_number)
         if name in found
     )
 

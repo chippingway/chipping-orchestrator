@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.git.base_sync import eligibility, recovery
-from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from tests.git.base_sync import base_sync_helpers as fixtures
 
 RECOVER = "_recover_pending_auto_base_rebase"
@@ -48,7 +48,7 @@ TERMINAL_PR_STATES = ((True, "closed"), (False, "closed"))
 
 _OWNERS = MappingProxyType(
     {
-        DIRTY_FILES: verification_probes,
+        DIRTY_FILES: _worktree_status,
         RECOVER: recovery,
     },
 )

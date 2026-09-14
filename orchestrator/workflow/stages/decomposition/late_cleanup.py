@@ -156,7 +156,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.git.snapshots import namespace as _namespace, refs as _snapshot_refs
-from orchestrator.git.worktrees import cleanup as _worktree_cleanup, paths as _worktree_paths
+from orchestrator.git.worktrees import cleanup as _worktree_cleanup, naming as _naming, paths as _worktree_paths
 from orchestrator.github import comments as _comments
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
@@ -585,7 +585,7 @@ def _ours(
     """
     if not isinstance(branch, str):
         return False
-    return branch in _worktree_paths._issue_branch_names(spec, issue_number)
+    return branch in _naming._issue_branch_names(spec, issue_number)
 
 
 def _reclaim_branch(

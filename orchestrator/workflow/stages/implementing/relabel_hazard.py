@@ -31,8 +31,9 @@ from dataclasses import dataclass
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
+    naming as _naming,
     paths as _worktree_paths,
     recovery as _worktree_recovery,
 )
@@ -113,7 +114,7 @@ def _read_only_relabel_hazard(
         )
     if not triggers:
         return None
-    branch = unpushed or _worktree_paths._resolve_branch_name(
+    branch = unpushed or _naming._resolve_branch_name(
         state, spec, issue.number,
     )
     return _ReadOnlyRelabelHazard(
@@ -194,7 +195,7 @@ def _checkout_triggers(
         spec, worktree, head, state, reviewed,
     ):
         triggers.append(f"a per-issue worktree sitting on `{head}`")
-    tree_status = _verification_probes._worktree_status(worktree)
+    tree_status = _worktree_status._worktree_status(worktree)
     if not tree_status.readable:
         triggers.append(
             "a per-issue worktree whose state could not be read "

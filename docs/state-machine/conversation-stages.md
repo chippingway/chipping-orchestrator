@@ -516,7 +516,7 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
   a correction to the Markdown, the base merged in to make it mergeable — and the commit publication recorded would
   then be a stale answer: the tick after the handoff would read their own edit as an implementation and close the issue
   as `done` with no developer having run. The same read anchors the checkout, through
-  `worktrees/creation._anchor_pr_worktree`: one authenticated fetch of the branch, a re-read of what the remote says
+  `worktrees/anchoring._anchor_pr_worktree`: one authenticated fetch of the branch, a re-read of what the remote says
   that branch is on, and a `reset --hard` onto that head
   (an `update-ref` when the worktree is gone), both under the hardened envelope like every other reset here — the
   checkout is agent-writable and a linked worktree can write the common repo, so an `fsmonitor` on the reset's index

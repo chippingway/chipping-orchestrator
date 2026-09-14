@@ -27,7 +27,7 @@ import logging
 from pathlib import Path
 
 from orchestrator.git import commands as _git_commands
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.fixing import models as _models, state as _state
@@ -176,7 +176,7 @@ def _reconcile_parked_fixing(ctx: _models._FixingContext) -> bool:
     wt = _worktree_paths._worktree_path(spec, ctx.issue.number)
     if not wt.exists():
         return False
-    if _verification_probes._worktree_dirty_files(wt):
+    if _worktree_status._worktree_dirty_files(wt):
         return False
 
     base_ref = f"{spec.remote_name}/{spec.base_branch}"

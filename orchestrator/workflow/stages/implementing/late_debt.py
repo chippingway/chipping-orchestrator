@@ -21,7 +21,7 @@ import logging
 
 from orchestrator import config
 from orchestrator.git.measurement import commits as _measurement_commits
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow import state as _workflow_state
 from orchestrator.workflow.late_split import (
@@ -284,7 +284,7 @@ def _publishes_the_debt(
     )
     published = _push._publishes(
         gate,
-        _worktree_paths._resolve_branch_name(
+        _naming._resolve_branch_name(
             gate.state, gate.spec, gate.issue.number,
         ),
         _records._Entered(

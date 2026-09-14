@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.git import commands
 from orchestrator.git.publication import planning, titles
-from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.verification import probes as verification_probes, status as _worktree_status
 from tests.git.publication.publication_helpers import (
     GIT_HELPER,
     WORKTREE,
@@ -187,7 +187,7 @@ class PrepareSquashTest(unittest.TestCase):
                 verification_probes, HEAD_HELPER, return_value=head,
             ),
             patch.object(
-                verification_probes, DIRTY_HELPER, return_value=list(dirty),
+                _worktree_status, DIRTY_HELPER, return_value=list(dirty),
             ),
         ):
             return planning._prepare_squash(

@@ -36,7 +36,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from orchestrator.git.verification import probes
+from orchestrator.git.verification import probes, status as _worktree_status
 from tests.workflow.fixtures import TEST_BASE_BRANCH
 
 GIT_COMMAND = "git"
@@ -172,11 +172,11 @@ class StatusFlagOverrideTest(_RealRepoMixin, unittest.TestCase):
         self.assertEqual(self.git("status", "--porcelain"), "")
         self.assertEqual(self.git("status", "--porcelain", "--ignored"), "")
 
-        status = probes._worktree_status(self.work)
+        status = _worktree_status._worktree_status(self.work)
 
         self.assertTrue(status.readable)
         self.assertIn(LEFTOVER_FILE, status.paths)
-        self.assertEqual(probes._ignored_paths(self.work), (HIDDEN_FILE,))
+        self.assertEqual(_worktree_status._ignored_paths(self.work), (HIDDEN_FILE,))
 
     def test_the_ignored_report_is_kept_small(self) -> None:
         # `--untracked-files=all` is what the other half of this read needs and
@@ -190,10 +190,10 @@ class StatusFlagOverrideTest(_RealRepoMixin, unittest.TestCase):
             self.write(f"{IGNORED_DIR}/deep/{buried}", HIDDEN_TEXT)
             self.write(f"{HIDDEN_FILE}{buried}", HIDDEN_TEXT)
 
-        hidden = probes._ignored_paths(self.work)
+        hidden = _worktree_status._ignored_paths(self.work)
 
         self.assertIn(f"{IGNORED_DIR}/", hidden)
-        self.assertEqual(len(hidden), probes._IGNORED_LIMIT)
+        self.assertEqual(len(hidden), _worktree_status._IGNORED_LIMIT)
 
     def test_a_redirected_worktree_is_not_read(self) -> None:
         # The knob no `-c` override wins against. With `extensions.
@@ -217,7 +217,7 @@ class StatusFlagOverrideTest(_RealRepoMixin, unittest.TestCase):
 
         self.assertEqual(self.git(AT_PATH, str(linked), GIT_STATUS, PORCELAIN), "")
 
-        status = probes._worktree_status(linked)
+        status = _worktree_status._worktree_status(linked)
 
         self.assertTrue(status.readable)
         self.assertIn(SEED_FILE, status.paths)
@@ -239,7 +239,7 @@ class StatusFlagOverrideTest(_RealRepoMixin, unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             self.git(f"{WORK_TREE_FLAG}={relative}", GIT_STATUS, PORCELAIN)
 
-        status = probes._worktree_status(relative)
+        status = _worktree_status._worktree_status(relative)
 
         self.assertTrue(status.readable)
         self.assertIn(LEFTOVER_FILE, status.paths)
@@ -266,13 +266,13 @@ class StatusFlagOverrideTest(_RealRepoMixin, unittest.TestCase):
         self.write(ARROW_FILE, "left where the round died\n")
         self.assertIn(QUOTED_ARROW, self.git(GIT_STATUS, PORCELAIN))
 
-        self.assertEqual(probes._worktree_status(self.work).paths, (ARROW_FILE,))
+        self.assertEqual(_worktree_status._worktree_status(self.work).paths, (ARROW_FILE,))
 
         (self.work / ARROW_FILE).unlink()
         self.git("mv", SEED_FILE, RENAMED_FILE)
 
         self.assertEqual(
-            sorted(probes._worktree_status(self.work).paths),
+            sorted(_worktree_status._worktree_status(self.work).paths),
             sorted((RENAMED_FILE, SEED_FILE)),
         )
 
@@ -285,12 +285,12 @@ class StatusFlagOverrideTest(_RealRepoMixin, unittest.TestCase):
 
         self.assertEqual(self.git(GIT_STATUS, PORCELAIN), "")
 
-        status = probes._worktree_status(self.work)
+        status = _worktree_status._worktree_status(self.work)
 
         # Named, so a refusal can tell an operator which entry to clear -- and
         # so the callers that refuse on what git listed refuse on it too.
         self.assertIn(SEED_FILE, status.paths)
-        self.assertIn(SEED_FILE, probes._worktree_dirty_files(self.work))
+        self.assertIn(SEED_FILE, _worktree_status._worktree_dirty_files(self.work))
         # Withheld, since nothing here established what the rest of the tree is.
         self.assertFalse(status.readable)
 

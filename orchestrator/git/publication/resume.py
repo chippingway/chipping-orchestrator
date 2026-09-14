@@ -87,7 +87,7 @@ from pathlib import Path
 from orchestrator.git import commands
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.publication import models, planning, rewrite
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 
 # Which recorded end a reading could not produce, so an operator told the
 # record names an object nobody holds knows which one.
@@ -431,7 +431,7 @@ def _unprovable_claim(gate, recorded) -> str:
     would catch a value somebody edited -- and what it becomes is the number a
     human is told their history was collapsed from.
     """
-    if not _verification_probes._worktree_status(gate.worktree).is_clean:
+    if not _worktree_status._worktree_status(gate.worktree).is_clean:
         return _UNPROVABLE_TREE
     for side, end in (
         (_RECORDED_HEAD, recorded.head), (_RECORDED_BASE, recorded.base_sha),

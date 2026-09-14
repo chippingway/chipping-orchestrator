@@ -37,7 +37,7 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator.git.measurement import commits as _measurement_commits
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
@@ -83,7 +83,7 @@ def _restored_checkout(
             "park where it is", issue.number, approved,
         )
         return ""
-    if _verification_probes._worktree_status(worktree).is_clean:
+    if _worktree_status._worktree_status(worktree).is_clean:
         return approved
     log.debug(
         "issue=#%s is back on the approved commit %s but its tree is not "

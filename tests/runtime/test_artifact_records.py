@@ -29,7 +29,7 @@ from typing import NamedTuple
 from unittest.mock import patch
 
 from orchestrator.config import RepoSpec
-from orchestrator.git.worktrees import discovery, maintenance, paths
+from orchestrator.git.worktrees import discovery, maintenance, naming as _naming
 from orchestrator.git.worktrees.models import (
     CandidateLayout,
     IssueArtifacts,
@@ -58,13 +58,13 @@ _SPEC = RepoSpec(
 _OTHER_SPEC = RepoSpec(
     slug=_support.BETA_REPO, target_root=Path("/tmp"), base_branch="main",
 )
-_BRANCH, _LEGACY_BRANCH = paths._issue_branch_names(_SPEC, _ISSUE_NUMBER)
+_BRANCH, _LEGACY_BRANCH = _naming._issue_branch_names(_SPEC, _ISSUE_NUMBER)
 # What a subject can be that is not this candidate's branch: the checkout the
 # reason is about, the issue itself, and the name another spec sharing this
 # clone publishes its own issue 41 under.
 _CHECKOUT = "/srv/worktrees/alpha-one/issue-41"
 _ISSUE_SUBJECT = f"#{_ISSUE_NUMBER}"
-_FOREIGN_BRANCH = paths._branch_name(_OTHER_SPEC, _ISSUE_NUMBER)
+_FOREIGN_BRANCH = _naming._branch_name(_OTHER_SPEC, _ISSUE_NUMBER)
 _REFUSED_LOG = "was not written"
 _UNSERIALIZABLE = "the record could not be built"
 _ANALYTICS_LOGGER = "orchestrator.analytics"

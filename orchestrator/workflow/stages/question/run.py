@@ -24,7 +24,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from orchestrator.agents import AgentResult
-from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
     guards as _guards,
     run_circuit as _run_circuit,
@@ -76,7 +76,7 @@ def _resume_question_on_human_reply(
         worktree = _worktree_creation._ensure_worktree(
             run.spec,
             run.issue.number,
-            branch=_worktree_paths._resolve_branch_name(
+            branch=_naming._resolve_branch_name(
                 run.state, run.spec, run.issue.number,
             ),
         )
@@ -102,7 +102,7 @@ def _spawn_fresh_question(run: _models._QuestionRun) -> AgentResult:
     worktree = _worktree_creation._ensure_worktree(
         run.spec,
         run.issue.number,
-        branch=_worktree_paths._resolve_branch_name(
+        branch=_naming._resolve_branch_name(
             run.state, run.spec, run.issue.number,
         ),
     )

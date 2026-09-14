@@ -24,7 +24,7 @@ from orchestrator.git.measurement.models import (
     FrozenCommit,
     _BaseObject,
 )
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from tests.git.base_sync.refresh_test_support import (
     GATE_BASE_SHA,
     GATE_CANDIDATE_SHA,
@@ -79,8 +79,8 @@ def _gate_reads(test_case) -> None:
     are taken against is seeded beside the issue that has one, so a test whose
     premise is that `gh.get_pr` fails can still say so.
     """
-    _patched(test_case, _verification_probes, "_worktree_status", MagicMock(
-        return_value=_verification_probes._WorktreeStatus(readable=True),
+    _patched(test_case, _worktree_status, "_worktree_status", MagicMock(
+        return_value=_worktree_status._WorktreeStatus(readable=True),
     ))
     _patched(
         test_case, _measurement_commits, "_prove_candidate_commit",

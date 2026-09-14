@@ -18,7 +18,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.late_split import collapses as _collapses
 from tests.git.publication import squash_git_support as squash_support, squash_recovery_support as _support
 from tests.git.publication.squash_gate_support import (
@@ -39,7 +39,7 @@ NOT_A_COMMIT = "not-a-sha"
 # worktree through, and what it answers when git could not be asked at all.
 STATUS_HELPER = "_worktree_status"
 
-UNREADABLE_TREE = _verification_probes._WorktreeStatus(readable=False)
+UNREADABLE_TREE = _worktree_status._WorktreeStatus(readable=False)
 
 # What each notice about a moved branch says the branch is standing on, which
 # is the difference an operator acts on: the recorded head is still under the
@@ -290,7 +290,7 @@ class UnprovableCollapseRealGitTest(
         resumed = self._next_tick(gate)
 
         with patch.object(
-            _verification_probes, STATUS_HELPER,
+            _worktree_status, STATUS_HELPER,
             MagicMock(return_value=UNREADABLE_TREE),
         ):
             squash_run = self._squashes(resumed)
@@ -311,7 +311,7 @@ class UnprovableCollapseRealGitTest(
         resumed = self._next_tick(gate)
 
         with patch.object(
-            _verification_probes, STATUS_HELPER,
+            _worktree_status, STATUS_HELPER,
             MagicMock(return_value=UNREADABLE_TREE),
         ):
             squash_run = self._squashes(resumed, **{_support.DECOMPOSE: False})

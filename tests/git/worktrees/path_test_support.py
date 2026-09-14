@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from orchestrator import config
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import PinnedState
 
 BASE_BRANCH = "main"
@@ -28,13 +28,13 @@ PR_NUMBER = 42
 def _spec(repo_slug: str) -> config.RepoSpec:
     return config.RepoSpec(
         slug=repo_slug,
-        target_root=Path(f"/tmp/{paths._sanitize_slug(repo_slug)}-target"),
+        target_root=Path(f"/tmp/{_naming._sanitize_slug(repo_slug)}-target"),
         base_branch=BASE_BRANCH,
     )
 
 
 def _branch(repo_slug: str, issue_number: int = 1) -> str:
-    return paths._branch_name(_spec(repo_slug), issue_number)
+    return _naming._branch_name(_spec(repo_slug), issue_number)
 
 
 def _migration_spec() -> config.RepoSpec:
