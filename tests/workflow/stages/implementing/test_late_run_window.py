@@ -24,7 +24,8 @@ from orchestrator.workflow.stages.implementing import parks as _parks, state as 
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
 from tests.workflow.fixtures import LABEL_IMPLEMENTING, _agent
 from tests.workflow.stages.implementing import (
-    late_consent_test_support as support,
+    late_consent_case as _consent_case,
+    late_consent_payloads as _consent_payloads,
 )
 
 # What the agent comes back with: words, and no commit unless a case seeds
@@ -49,7 +50,7 @@ class _RunsWhileOneLands:
     has to leave alone.
     """
 
-    def __init__(self, case, said: str = support.AUTHORIZE) -> None:
+    def __init__(self, case, said: str = _consent_payloads.AUTHORIZE) -> None:
         self._case = case
         self._said = said
         self.landed = 0
@@ -60,7 +61,7 @@ class _RunsWhileOneLands:
         return _agent(last_message=_ASKS)
 
 
-class RunWindowWatermarkTest(support._ParkedCase, unittest.TestCase):
+class RunWindowWatermarkTest(_consent_case._ParkedCase, unittest.TestCase):
     """How far a park ending a run may record this thread as read.
 
     Past its own notice, so the next tick does not answer our own sentence as
@@ -96,10 +97,10 @@ class RunWindowWatermarkTest(support._ParkedCase, unittest.TestCase):
         )
         self.assertTrue(self._pinned()[_state._AWAITING_HUMAN])
 
-    def _runs_over_guidance(self, said: str = support.AUTHORIZE):
+    def _runs_over_guidance(self, said: str = _consent_payloads.AUTHORIZE):
         """One whole tick: guidance resumes a developer, and a reply lands."""
-        self._seed(**support.measured_pair())
-        guided = self._reply(support.GUIDANCE)
+        self._seed(**_consent_payloads.measured_pair())
+        guided = self._reply(_consent_payloads.GUIDANCE)
         landing = _RunsWhileOneLands(self, said)
         self._run_tick(
             run_agent=MagicMock(side_effect=landing), has_new_commits=False,

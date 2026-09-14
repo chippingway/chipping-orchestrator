@@ -29,15 +29,21 @@ from orchestrator.workflow.stages.implementing import (
     late_transfer_telemetry as _telemetry_owner,
     state as _state,
 )
-from tests.workflow.stages.implementing import late_transfer_test_support as _support
+from tests.workflow import git_owners as _git_owners
+from tests.workflow.stages.implementing import (
+    late_transfer_adjudication as _transfer_adjudication,
+    late_transfer_payloads as _transfer_payloads,
+    late_transfer_readings as _transfer_readings,
+    late_transfer_test_support as _support,
+)
 
-ACCEPTED_SHA = _support.ACCEPTED_SHA
-MERGE_BASE_SHA = _support.MERGE_BASE_SHA
-REWRITTEN_SHA = _support.REWRITTEN_SHA
-LEASED_SHA = _support.LEASED_SHA
-ACCEPTED_DIGEST = _support.ACCEPTED_DIGEST
-PR_NUMBER = _support.PR_NUMBER
-ISSUE_NUMBER = _support.ISSUE_NUMBER
+ACCEPTED_SHA = _transfer_payloads.ACCEPTED_SHA
+MERGE_BASE_SHA = _transfer_payloads.MERGE_BASE_SHA
+REWRITTEN_SHA = _transfer_payloads.REWRITTEN_SHA
+LEASED_SHA = _transfer_payloads.LEASED_SHA
+ACCEPTED_DIGEST = _transfer_payloads.ACCEPTED_DIGEST
+PR_NUMBER = _transfer_payloads.PR_NUMBER
+ISSUE_NUMBER = _transfer_payloads.ISSUE_NUMBER
 
 # The two keywords a gated push names its commit and pins its ref by.
 REVISION = "revision"
@@ -92,11 +98,11 @@ class _SettlementCase(unittest.TestCase):
     """One gated push made over an issue whose exemption is about to move."""
 
     def setUp(self) -> None:
-        adjudicated = _support.adjudicated()
+        adjudicated = _transfer_adjudication.adjudicated()
         self.github = adjudicated.github
         self.issue = adjudicated.issue
         self.state = adjudicated.state
-        self.readings = _support.readings(self)
+        self.readings = _transfer_readings.readings(self)
         self.pushed = None
         self.published = None
 
@@ -108,12 +114,12 @@ class _SettlementCase(unittest.TestCase):
         did not get its receipt down. A fresh transfer hands the evidence in
         instead, exactly as the squash that made the rewrite does.
         """
-        _support.open_pull_request(self.github, standing)
+        _transfer_adjudication.open_pull_request(self.github, standing)
         if granted:
             _support.granted(self.state)
             self.github.write_pinned_state(self.issue, self.state)
         self.pushed = self.enterContext(
-            _support.seam_patch(_support.PUSH_BRANCH),
+            _git_owners.seam_patch(_transfer_payloads.PUSH_BRANCH),
         )
         self.pushed.return_value = True
         self.published = _push._publishes(
@@ -121,9 +127,9 @@ class _SettlementCase(unittest.TestCase):
                 self.github, self.issue, self.state,
                 candidate="", entry=None, rewrite=None,
             ),
-            _support.BRANCH,
+            _transfer_payloads.BRANCH,
             _records._Entered(**{
-                "stage": _support.SOURCE_STAGE,
+                "stage": _transfer_payloads.SOURCE_STAGE,
                 "head": LEASED_SHA,
                 "candidate": REWRITTEN_SHA,
                 "reconciling": True,
@@ -406,17 +412,17 @@ class RefusedPermitTest(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        adjudicated = _support.adjudicated(labels=(RELABELLED,))
+        adjudicated = _transfer_adjudication.adjudicated(labels=(RELABELLED,))
         self.github = adjudicated.github
         self.issue = adjudicated.issue
         self.state = adjudicated.state
-        _support.readings(self)
-        _support.measures(self)
-        _support.open_pull_request(self.github, LEASED_SHA)
+        _transfer_readings.readings(self)
+        _transfer_readings.measures(self)
+        _transfer_adjudication.open_pull_request(self.github, LEASED_SHA)
         _support.granted(self.state)
         self.github.write_pinned_state(self.issue, self.state)
         self.pushed = self.enterContext(
-            _support.seam_patch(_support.PUSH_BRANCH),
+            _git_owners.seam_patch(_transfer_payloads.PUSH_BRANCH),
         )
         self.pushed.return_value = True
         with patch.object(config, MAX_ADDED_LINES, CEILING):
@@ -425,9 +431,9 @@ class RefusedPermitTest(unittest.TestCase):
                     self.github, self.issue, self.state,
                     candidate="", entry=None, rewrite=None,
                 ),
-                _support.BRANCH,
+                _transfer_payloads.BRANCH,
                 _records._Entered(
-                    stage=_support.SOURCE_STAGE,
+                    stage=_transfer_payloads.SOURCE_STAGE,
                     head=LEASED_SHA,
                     candidate=REWRITTEN_SHA,
                     reconciling=True,

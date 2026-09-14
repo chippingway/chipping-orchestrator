@@ -32,6 +32,7 @@ from tests.workflow.fixtures import (
 )
 from tests.workflow.interleaving import _RacesTheStep
 from tests.workflow.stages.implementing import (
+    late_consent_payloads as _consent_payloads,
     late_consent_test_support as support,
 )
 
@@ -47,7 +48,7 @@ _FAILURE_EVENT = "late_failure"
 
 # The pair a tick freezes over a commit no record on this issue names, which
 # is what a resumed developer's fresh work looks like to the gate.
-_MOVED_PAIR = replace(support.measured(), candidate_sha=support.STRANGER_SHA)
+_MOVED_PAIR = replace(_consent_payloads.measured(), candidate_sha=_consent_payloads.STRANGER_SHA)
 
 # The sentence only the side of publication with a resume behind it may offer.
 _RESUMED_AGAINST_IT = "the developer is resumed against it"
@@ -71,24 +72,24 @@ class GateDoorTest(support._ConsentCase, unittest.TestCase):
         # adjudication that has never seen it.
         for described, exempted in (
             ("nothing at all", None),
-            ("another commit", support.STRANGER_SHA),
-            ("an abbreviation", MEASURED_CANDIDATE_SHA[:support.ABBREVIATED]),
+            ("another commit", _consent_payloads.STRANGER_SHA),
+            ("an abbreviation", MEASURED_CANDIDATE_SHA[:_consent_payloads.ABBREVIATED]),
             ("prose", "the one above"),
         ):
             with self.subTest(exemption=described):
                 self.setUp()
                 self._seed(**{
-                    support.KEY_EXEMPT_SHA: exempted,
-                    **support.measured_pair(),
+                    _consent_payloads.KEY_EXEMPT_SHA: exempted,
+                    **_consent_payloads.measured_pair(),
                 })
-                self._reply(support.AUTHORIZE)
+                self._reply(_consent_payloads.AUTHORIZE)
 
                 decided = self._decides()
 
                 self.assertTrue(decided.verdict.held)
                 self.assertTrue(decided.measured)
                 self.assertNotIn(
-                    support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned(),
+                    _consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned(),
                 )
 
     def test_an_adjudicated_commit_takes_this_road(self) -> None:
@@ -96,8 +97,8 @@ class GateDoorTest(support._ConsentCase, unittest.TestCase):
         # nobody authorized is MEASURED like any other, and what the operator
         # authorizes is that reading -- a change of this size against this
         # ceiling -- rather than a number read back off the comment.
-        self._seed(**support.measured_pair())
-        commanded = self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
 
         decided = self._decides()
 
@@ -106,11 +107,11 @@ class GateDoorTest(support._ConsentCase, unittest.TestCase):
         self.assertEqual(decided.verdict.candidate_sha, MEASURED_CANDIDATE_SHA)
         authorized = self._pinned()
         self.assertEqual(
-            authorized[support.KEY_OVERRIDE_COMMENT_ID], commanded,
+            authorized[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded,
         )
         self.assertEqual(
-            authorized[support.KEY_OVERRIDE_ADDITIONS],
-            support.OVERSIZED_ADDITIONS,
+            authorized[_consent_payloads.KEY_OVERRIDE_ADDITIONS],
+            _consent_payloads.OVERSIZED_ADDITIONS,
         )
 
     def test_an_authorized_commit_skips_the_reading(self) -> None:
@@ -139,7 +140,7 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
     def test_an_oversized_count_holds_for_a_person(self) -> None:
         # The exemption on the record is exactly what the park doubts, so what
         # decides is this tick's own count rather than the record's answer.
-        self.assertTrue(self._holds(support.OVERSIZED))
+        self.assertTrue(self._holds(_consent_payloads.OVERSIZED))
 
         self.assertEqual(
             self._pinned()[_state._PARK_REASON],
@@ -152,8 +153,8 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
         # nobody's permission.
         settles = support.SettlesWithItsOwnWrite()
 
-        with patch.object(_verdict_owner, support.SETTLED, settles):
-            self.assertFalse(self._holds(support.FITS))
+        with patch.object(_verdict_owner, _consent_payloads.SETTLED, settles):
+            self.assertFalse(self._holds(_consent_payloads.FITS))
 
         self.assertEqual(len(settles.given), 1)
         self.assertEqual(self.github.posted_comments, [])
@@ -166,8 +167,8 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
         # to a question this tick answered.
         settles = support.SettlesWithItsOwnWrite()
 
-        with patch.object(_verdict_owner, support.ACCEPTED, settles):
-            self._holds(support.FITS)
+        with patch.object(_verdict_owner, _consent_payloads.ACCEPTED, settles):
+            self._holds(_consent_payloads.FITS)
 
         for described, record in (
             ("handed to the settlement", settles.given[0]),
@@ -190,8 +191,8 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
         pinned = self._pinned()
         self.assertEqual(pinned[_state._PARK_REASON], _MEASUREMENT_FAILED)
         self.assertIn(str(_DIFF_FAILED), self.github.posted_comments[0][1])
-        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, pinned)
-        self.assertEqual(pinned[support.KEY_EXEMPT_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertNotIn(_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, pinned)
+        self.assertEqual(pinned[_consent_payloads.KEY_EXEMPT_SHA], MEASURED_CANDIDATE_SHA)
         self.assertIn(
             _FAILURE_EVENT,
             [record["event"] for record in self.github.recorded_events],
@@ -203,7 +204,7 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
         # issue held for an operator is visible to the same telemetry.
         self._seed(parked=False)
 
-        self._holds(support.OVERSIZED)
+        self._holds(_consent_payloads.OVERSIZED)
 
         self.assertIn(
             _MEASUREMENT_EVENT,
@@ -211,12 +212,12 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
         )
 
     def test_a_pair_nothing_froze_holds_as_found(self) -> None:
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
 
-        self.assertTrue(self._holds(support.OVERSIZED, pair=None))
+        self.assertTrue(self._holds(_consent_payloads.OVERSIZED, pair=None))
 
         self.assertEqual(self.github.posted_comments, [])
-        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
+        self.assertNotIn(_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
 
     def test_a_candidate_it_moved_past_is_adjudicated(self) -> None:
         # A resumed developer's fresh commit is not the change anybody was
@@ -224,10 +225,10 @@ class MeasuredAfreshTest(support._ConsentCase, unittest.TestCase):
         # adjudication, which takes the stale park down on its way. Left
         # standing, the human would go on holding an issue over a commit the
         # branch has moved off.
-        self._seed(**support.measured_pair(candidate_sha=support.STRANGER_SHA))
+        self._seed(**_consent_payloads.measured_pair(candidate_sha=_consent_payloads.STRANGER_SHA))
 
-        with patch.object(_verdict_owner, support.ROUTED, return_value=True):
-            self.assertTrue(self._holds(support.OVERSIZED, pair=_MOVED_PAIR))
+        with patch.object(_verdict_owner, _consent_payloads.ROUTED, return_value=True):
+            self.assertTrue(self._holds(_consent_payloads.OVERSIZED, pair=_MOVED_PAIR))
 
         self.assertEqual(self.github.posted_comments, [])
 
@@ -251,7 +252,7 @@ class AuthorizationParkTest(support._ConsentCase, unittest.TestCase):
         # carries re-enter the gate on every poll behind the park, so a second
         # notice would mention the same people once a poll about a decision
         # they have already been asked for.
-        self._seed(**support.measured_pair())
+        self._seed(**_consent_payloads.measured_pair())
 
         self.assertFalse(self._authorizes())
 
@@ -267,9 +268,9 @@ class AuthorizationParkTest(support._ConsentCase, unittest.TestCase):
 
         said = self.github.posted_comments[0][1]
         self.assertIn(config.HITL_MENTIONS, said)
-        self.assertIn(support.AUTHORIZE, said)
-        self.assertIn(str(support.OVERSIZED_ADDITIONS), said)
-        self.assertIn(str(support.THRESHOLD), said)
+        self.assertIn(_consent_payloads.AUTHORIZE, said)
+        self.assertIn(str(_consent_payloads.OVERSIZED_ADDITIONS), said)
+        self.assertIn(str(_consent_payloads.THRESHOLD), said)
 
     def test_the_notice_offers_a_resume(self) -> None:
         # Before there is one the ordinary resume is still in front of the
@@ -288,10 +289,10 @@ class AuthorizationParkTest(support._ConsentCase, unittest.TestCase):
         # thread nothing reads.
         self._seed(parked=False)
 
-        self._authorizes(entry=support.PUBLISHED_ENTRY)
+        self._authorizes(entry=_consent_payloads.PUBLISHED_ENTRY)
 
         said = self.github.posted_comments[0][1]
-        self.assertIn(support.AUTHORIZE, said)
+        self.assertIn(_consent_payloads.AUTHORIZE, said)
         self.assertNotIn(_RESUMED_AGAINST_IT, said)
 
     def test_it_deletes_nothing_and_counts_nothing(self) -> None:
@@ -305,8 +306,8 @@ class AuthorizationParkTest(support._ConsentCase, unittest.TestCase):
         self._authorizes()
 
         pinned = self._pinned()
-        self.assertEqual(pinned[support.KEY_EXEMPT_SHA], MEASURED_CANDIDATE_SHA)
-        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, pinned)
+        self.assertEqual(pinned[_consent_payloads.KEY_EXEMPT_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertNotIn(_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, pinned)
         self.assertIsNone(pinned.get("late_additions"))
 
 
@@ -314,30 +315,30 @@ class AuthorizedCandidateTest(support._ConsentCase, unittest.TestCase):
     """What the command that ends the park writes, and what it costs."""
 
     def test_the_terms_come_from_the_reading(self) -> None:
-        identified = self._reply(support.AUTHORIZE)
+        identified = self._reply(_consent_payloads.AUTHORIZE)
 
         self.assertTrue(self._authorizes())
 
         pinned = self._pinned()
         self.assertEqual(
-            pinned[support.KEY_OVERRIDE_CANDIDATE_SHA], MEASURED_CANDIDATE_SHA,
+            pinned[_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA], MEASURED_CANDIDATE_SHA,
         )
         self.assertEqual(
-            pinned[support.KEY_OVERRIDE_BASE_SHA], MEASURED_BASE_SHA,
+            pinned[_consent_payloads.KEY_OVERRIDE_BASE_SHA], MEASURED_BASE_SHA,
         )
         self.assertEqual(
-            pinned[support.KEY_OVERRIDE_ADDITIONS], support.OVERSIZED_ADDITIONS,
+            pinned[_consent_payloads.KEY_OVERRIDE_ADDITIONS], _consent_payloads.OVERSIZED_ADDITIONS,
         )
         self.assertEqual(
-            pinned[support.KEY_OVERRIDE_THRESHOLD], support.THRESHOLD,
+            pinned[_consent_payloads.KEY_OVERRIDE_THRESHOLD], _consent_payloads.THRESHOLD,
         )
-        self.assertEqual(pinned[support.KEY_OVERRIDE_COMMENT_ID], identified)
+        self.assertEqual(pinned[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], identified)
 
     def test_the_park_comes_down_with_the_record(self) -> None:
         # One write: the record without the park cleared says a human is owed
         # a question they have answered, and the park without the record sends
         # the candidate straight back to it.
-        identified = self._reply(support.AUTHORIZE)
+        identified = self._reply(_consent_payloads.AUTHORIZE)
 
         self._authorizes()
 
@@ -350,16 +351,16 @@ class AuthorizedCandidateTest(support._ConsentCase, unittest.TestCase):
         # Nothing about a store that cannot hand back the content between two
         # commits it holds is the operator's doing, so the next tick takes the
         # same reading rather than asking them to authorize twice.
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
 
-        self.assertFalse(self._authorizes(contribution=support.UNREADABLE))
+        self.assertFalse(self._authorizes(contribution=_consent_payloads.UNREADABLE))
 
         pinned = self._pinned()
         self.assertTrue(pinned[_state._AWAITING_HUMAN])
-        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, pinned)
+        self.assertNotIn(_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, pinned)
         self.assertEqual(
             pinned[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
 
     def test_consent_withdrawn_publishes_nothing(self) -> None:
@@ -371,12 +372,12 @@ class AuthorizedCandidateTest(support._ConsentCase, unittest.TestCase):
         # deletes the retraction from the reading and publishes on consent
         # withdrawn.
         for described, author in (
-            ("their own account", support.TRUSTED_AUTHOR),
+            ("their own account", _consent_payloads.TRUSTED_AUTHOR),
             ("the shared bot login", self.github._bot_login),
         ):
             with self.subTest(written_from=described):
                 self.setUp()
-                self._reply(support.AUTHORIZE, author=author)
+                self._reply(_consent_payloads.AUTHORIZE, author=author)
                 self._reply(
                     f"actually, hold off\n\n{_ORCH_MARKER}", author=author,
                 )
@@ -384,7 +385,7 @@ class AuthorizedCandidateTest(support._ConsentCase, unittest.TestCase):
                 self.assertFalse(self._authorizes())
 
                 self.assertNotIn(
-                    support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned(),
+                    _consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned(),
                 )
 
     def test_a_reply_landing_mid_write_survives(self) -> None:
@@ -393,7 +394,7 @@ class AuthorizedCandidateTest(support._ConsentCase, unittest.TestCase):
         # the comments it examined. Consumed to the tip as it stands NOW, that
         # retraction would be swallowed unread while the authorization it
         # retracts published.
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
         landed = []
         racing = _RacesTheStep(
             _consent._recorded_authorization,
@@ -418,8 +419,8 @@ class RefusedCommandTest(support._ConsentCase, unittest.TestCase):
         # ever writes one -- both get the sentence and the command that would
         # have worked.
         for described, written in (
-            ("another commit", support.AUTHORIZE_ANOTHER),
-            ("an abbreviation", support.AUTHORIZE_ABBREVIATED),
+            ("another commit", _consent_payloads.AUTHORIZE_ANOTHER),
+            ("an abbreviation", _consent_payloads.AUTHORIZE_ABBREVIATED),
         ):
             with self.subTest(command=described):
                 self.setUp()
@@ -429,7 +430,7 @@ class RefusedCommandTest(support._ConsentCase, unittest.TestCase):
 
                 pinned = self._pinned()
                 self.assertTrue(pinned[_state._AWAITING_HUMAN])
-                self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, pinned)
+                self.assertNotIn(_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, pinned)
                 self.assertIn(
                     MEASURED_CANDIDATE_SHA, self.github.posted_comments[-1][1],
                 )
@@ -439,7 +440,7 @@ class RefusedCommandTest(support._ConsentCase, unittest.TestCase):
         # between the two, the orchestrator's own words are what the next poll
         # finds past the watermark -- and every other reader of this thread
         # takes that for a human's fresh guidance.
-        answered = self._reply(support.AUTHORIZE_ANOTHER)
+        answered = self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
 
         self._authorizes()
 
@@ -457,11 +458,11 @@ class RefusedCommandTest(support._ConsentCase, unittest.TestCase):
         # standing as the last word it can attribute to nobody, which is no
         # command, so it holds the park it is already standing on and says
         # nothing rather than mentioning the same people twice.
-        self._reply(support.AUTHORIZE_ANOTHER)
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
         self._authorizes()
         self._seed(**{
-            _state._LAST_ACTION_COMMENT_ID: support.PRIOR_ACTION_COMMENT_ID,
-            **support.measured_pair(),
+            _state._LAST_ACTION_COMMENT_ID: _consent_payloads.PRIOR_ACTION_COMMENT_ID,
+            **_consent_payloads.measured_pair(),
         })
 
         self._authorizes()
@@ -475,14 +476,14 @@ class RefusedCommandTest(support._ConsentCase, unittest.TestCase):
         # ascend -- so a watermark jumped straight to the sentence's own id
         # would consume their answer unread and leave the park standing over a
         # command nobody will ever see again.
-        self._reply(support.AUTHORIZE_ANOTHER)
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
         corrected = []
         racing = _RacesTheStep(
             _comments._post_issue_comment,
-            lambda: corrected.append(self._reply(support.AUTHORIZE)),
+            lambda: corrected.append(self._reply(_consent_payloads.AUTHORIZE)),
         )
 
-        with patch.object(_comments, support.POST_ISSUE_COMMENT, racing):
+        with patch.object(_comments, _consent_payloads.POST_ISSUE_COMMENT, racing):
             self.assertFalse(self._authorizes())
 
         self.assertLess(
@@ -495,14 +496,14 @@ class RefusedCommandTest(support._ConsentCase, unittest.TestCase):
         # walk treats a reply quoting one as the record, steps straight over
         # it, and consumes it unread -- so a retraction written while this
         # tick was posting would be lost for good.
-        self._reply(support.AUTHORIZE_ANOTHER)
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
         landed = []
         racing = _RacesTheStep(
             _comments._post_issue_comment,
-            lambda: landed.append(self._reply(support.QUOTES_THE_RECORD)),
+            lambda: landed.append(self._reply(_consent_payloads.QUOTES_THE_RECORD)),
         )
 
-        with patch.object(_comments, support.POST_ISSUE_COMMENT, racing):
+        with patch.object(_comments, _consent_payloads.POST_ISSUE_COMMENT, racing):
             self.assertFalse(self._authorizes())
 
         self.assertLess(
@@ -513,33 +514,33 @@ class RefusedCommandTest(support._ConsentCase, unittest.TestCase):
         # And the other half of it: the reply the refusal did not swallow is
         # the last fresh word on the next reading, so the poll after the race
         # records the authorization rather than asking for it again.
-        self._reply(support.AUTHORIZE_ANOTHER)
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
         corrected = []
         racing = _RacesTheStep(
             _comments._post_issue_comment,
-            lambda: corrected.append(self._reply(support.AUTHORIZE)),
+            lambda: corrected.append(self._reply(_consent_payloads.AUTHORIZE)),
         )
-        with patch.object(_comments, support.POST_ISSUE_COMMENT, racing):
+        with patch.object(_comments, _consent_payloads.POST_ISSUE_COMMENT, racing):
             self._authorizes()
 
         self.assertTrue(self._authorizes())
 
         self.assertEqual(
-            self._pinned()[support.KEY_OVERRIDE_COMMENT_ID], corrected[0],
+            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], corrected[0],
         )
 
     def test_a_correct_command_behind_it_still_works(self) -> None:
         # The command a human gets right after getting one wrong has to work.
         # Read as a set instead of as a last word, the first reply would
         # refuse every one behind it for as long as the park stood.
-        self._reply(support.AUTHORIZE_ANOTHER)
+        self._reply(_consent_payloads.AUTHORIZE_ANOTHER)
         self._authorizes()
-        corrected = self._reply(support.AUTHORIZE)
+        corrected = self._reply(_consent_payloads.AUTHORIZE)
 
         self.assertTrue(self._authorizes())
 
         self.assertEqual(
-            self._pinned()[support.KEY_OVERRIDE_COMMENT_ID], corrected,
+            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], corrected,
         )
 
 

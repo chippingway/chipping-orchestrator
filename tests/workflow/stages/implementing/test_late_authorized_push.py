@@ -25,12 +25,13 @@ from orchestrator.workflow.stages.implementing import (
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_VALIDATING
 from tests.workflow.observation_support import ObservedCloseCase
 from tests.workflow.stages.implementing import (
-    late_consent_test_support as support,
+    late_consent_case as _consent_case,
+    late_consent_payloads as _consent_payloads,
 )
 
 _REPO_SLUG = _TEST_SPEC.slug
 
-_VALIDATING = (support.ISSUE_NUMBER, LABEL_VALIDATING)
+_VALIDATING = (_consent_payloads.ISSUE_NUMBER, LABEL_VALIDATING)
 
 # The field that says a cycle is still there to end, and the one the write
 # retiring it leaves in its place for a close observed inside that window.
@@ -51,11 +52,11 @@ _A_RETUNED_CEILING = 5000
 # Every term a bypass is recorded on: the pair it was measured between,
 # the count, the ceiling, the digest, and the comment it was written in.
 _THE_TERMS = (
-    support.KEY_OVERRIDE_CANDIDATE_SHA,
-    support.KEY_OVERRIDE_BASE_SHA,
-    support.KEY_OVERRIDE_ADDITIONS,
-    support.KEY_OVERRIDE_THRESHOLD,
-    support.KEY_OVERRIDE_COMMENT_ID,
+    _consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA,
+    _consent_payloads.KEY_OVERRIDE_BASE_SHA,
+    _consent_payloads.KEY_OVERRIDE_ADDITIONS,
+    _consent_payloads.KEY_OVERRIDE_THRESHOLD,
+    _consent_payloads.KEY_OVERRIDE_COMMENT_ID,
 )
 
 
@@ -72,14 +73,14 @@ class _RemembersTheBasis:
 
 
 class AuthorizedPublicationTest(
-    ObservedCloseCase, support._ParkedCase, unittest.TestCase,
+    ObservedCloseCase, _consent_case._ParkedCase, unittest.TestCase,
 ):
     """A command that publishes, and the record it may not leave standing."""
 
     def setUp(self) -> None:
         super().setUp()
         self._fresh_process()
-        self._seed(**support.measured_pair())
+        self._seed(**_consent_payloads.measured_pair())
 
     def test_the_command_retires_the_generation(self) -> None:
         # Reached without the retirement, the push lands and the handoff moves
@@ -87,11 +88,11 @@ class AuthorizedPublicationTest(
         # reading key stays on the record, the pull request's checkout is held
         # out of the base refresh for good, and a later close on this issue is
         # taken for a cancellation of a cycle that finished.
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
 
         mocks = self._run_tick()
 
-        mocks[support.PUSH_BRANCH].assert_called_once()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
         self.assertIn(_VALIDATING, self.github.label_history)
         self.assertFalse(
             _late_state.read_late_generation(self._state()).is_present,
@@ -104,7 +105,7 @@ class AuthorizedPublicationTest(
         # tick coming back after a crash owes nobody a question before it
         # pushes; this one says a person did, which is a permission that has
         # to still be readable when the debt is spent.
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
         granting = _RemembersTheBasis(_parks._approve)
 
         with patch.object(_parks, _APPROVE, granting):
@@ -122,14 +123,14 @@ class AuthorizedPublicationTest(
         # terms over the ones the human agreed to -- a ceiling retuned in
         # between becomes the ceiling they are recorded as having authorized.
         # The terms of a bypass are the terms somebody agreed to.
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
         agreed = dict(self._pinned())
 
         with patch.object(config, _MAX_ADDED_LINES, _A_RETUNED_CEILING):
             mocks = self._run_tick()
 
-        mocks[support.PUSH_BRANCH].assert_called_once()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
         for term in _THE_TERMS:
             self.assertEqual(self._pinned()[term], agreed[term])
 
@@ -137,7 +138,7 @@ class AuthorizedPublicationTest(
         # And the park comes down with the publication. Carried past it, a
         # commit publishes over a record still saying a human is holding the
         # issue, and the source stage's parked road stops on every poll after.
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
 
         self._run_tick()
@@ -152,12 +153,12 @@ class AuthorizedPublicationTest(
         # that identity -- so a poll landing inside the window would find an
         # issue with nothing to end. Caught there, the generation goes back
         # and the publication does not happen.
-        self._reply(support.AUTHORIZE)
-        self._latch_close(_REPO_SLUG, support.ISSUE_NUMBER)
+        self._reply(_consent_payloads.AUTHORIZE)
+        self._latch_close(_REPO_SLUG, _consent_payloads.ISSUE_NUMBER)
 
         mocks = self._run_tick()
 
-        mocks[support.PUSH_BRANCH].assert_not_called()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
         self.assertNotIn(_VALIDATING, self.github.label_history)
         self.assertTrue(self._pinned()[_KEY_CANCELLED])
 
@@ -166,7 +167,7 @@ class AuthorizedPublicationTest(
         # dropped: a poll observing one in the window that follows receipts a
         # cycle the record has stopped naming, and this is what it is adopted
         # against.
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
 
         self._run_tick()
 

@@ -21,10 +21,12 @@ from orchestrator.workflow.stages.implementing import (
     late_command as _command,
     state as _state,
 )
+from tests.workflow import fixtures as _workflow_fixtures
 from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA
 from tests.workflow.interleaving import _RacesPastTheStep
 from tests.workflow.stages.implementing import (
-    late_consent_test_support as support,
+    late_consent_case as _consent_case,
+    late_consent_payloads as _consent_payloads,
 )
 
 _READS_THE_THREAD = "_reads_the_thread"
@@ -38,7 +40,7 @@ _DIRTY_TREE = _WorktreeStatus(readable=True, paths=("src/left_behind.py",))
 
 # A commit the checkout is standing on that the park's own record does not
 # name: work that replaced what an operator decided about.
-_MOVED_HEAD_SHA = "e" * support.SHA_LENGTH
+_MOVED_HEAD_SHA = "e" * _workflow_fixtures.SHA_LENGTH
 
 # The same head read twice and answering differently: the recovery proves the
 # checkout on the commit the park is about, the gate reads it again for
@@ -61,13 +63,13 @@ _SMALL_ADDITIONS = 12
 
 def _assert_no_agent(case, mocks) -> None:
     """No developer was paid for on this tick, whatever else it decided."""
-    mocks[support.RUN_AGENT].assert_not_called()
+    mocks[_consent_payloads.RUN_AGENT].assert_not_called()
 
 
 def _assert_held(case, mocks) -> None:
     """The tick spent nothing and moved the issue nowhere."""
-    mocks[support.RUN_AGENT].assert_not_called()
-    mocks[support.PUSH_BRANCH].assert_not_called()
+    mocks[_consent_payloads.RUN_AGENT].assert_not_called()
+    mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
     case.assertEqual(case.github.label_history, [])
 
 
@@ -80,7 +82,7 @@ class _LandsOneReply:
     thread the one before it never saw and pin nothing at all.
     """
 
-    def __init__(self, case, body: str = support.AUTHORIZE) -> None:
+    def __init__(self, case, body: str = _consent_payloads.AUTHORIZE) -> None:
         self._case = case
         self._body = body
         self.landed = 0
@@ -90,7 +92,7 @@ class _LandsOneReply:
             self.landed = self._case._reply(self._body)
 
 
-class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
+class SeamHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
     """The park survives whatever the real publication seam does with it.
 
     Driven through a whole tick rather than against a mocked seam, because
@@ -103,18 +105,18 @@ class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
         # The routing end to end: a parked tick with no run to dispose reaches
         # the gate, the gate measures afresh, and the command an operator
         # already wrote is what publishes the branch.
-        self._seed(**support.measured_pair())
-        commanded = self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
 
         mocks = self._run_tick()
 
-        mocks[support.PUSH_BRANCH].assert_called_once()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
         _assert_no_agent(self, mocks)
         pinned = self._pinned()
         self.assertEqual(
-            pinned[support.KEY_OVERRIDE_CANDIDATE_SHA], MEASURED_CANDIDATE_SHA,
+            pinned[_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA], MEASURED_CANDIDATE_SHA,
         )
-        self.assertEqual(pinned[support.KEY_OVERRIDE_COMMENT_ID], commanded)
+        self.assertEqual(pinned[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded)
         self.assertFalse(pinned[_state._AWAITING_HUMAN])
 
     def test_a_second_read_keeps_the_park(self) -> None:
@@ -124,8 +126,8 @@ class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
         # moves the watermark past the command -- so the park is put back
         # rather than merely guarded, and the operator who cleans the tree is
         # not asked to authorize the same commit twice.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
 
         mocks = self._run_tick(tree_states=(_CLEAN_TREE, _DIRTY_TREE))
 
@@ -144,8 +146,8 @@ class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
         # PUSH whatever it found there -- which is the one refusal the park
         # being put back afterwards cannot undo, since the work is on the
         # remote by then.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
 
         mocks = self._run_tick(
             candidate_commit=FrozenCommit(sha=_MOVED_HEAD_SHA),
@@ -164,8 +166,8 @@ class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
         # seam would measure whatever the checkout had become, and a reading
         # the ceiling lets through would push it under a command that
         # authorized another commit.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
 
         mocks = self._run_tick(
@@ -175,7 +177,7 @@ class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
 
         self._assert_still_parked(mocks)
         self.assertEqual(
-            self._pinned()[support.KEY_OVERRIDE_CANDIDATE_SHA],
+            self._pinned()[_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA],
             MEASURED_CANDIDATE_SHA,
         )
 
@@ -183,8 +185,8 @@ class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
         # And what holding it buys, across the restart that follows: an
         # operator who puts the checkout back on the commit they authorized
         # gets that commit published, under the command they already wrote.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
         self._run_tick(candidate_commit=FrozenCommit(sha=_MOVED_HEAD_SHA))
 
@@ -192,7 +194,7 @@ class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
 
         _assert_no_agent(self, mocks)
         self.assertEqual(
-            mocks[support.PUSH_BRANCH].call_args.kwargs[_REVISION],
+            mocks[_consent_payloads.PUSH_BRANCH].call_args.kwargs[_REVISION],
             MEASURED_CANDIDATE_SHA,
         )
 
@@ -208,8 +210,8 @@ class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
         # the issue relabelled under a command and an override that name the
         # commit before it -- the one refusal putting the park back cannot
         # undo, since the work is on the remote by then.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
 
         mocks = self._run_tick(
@@ -236,7 +238,7 @@ class SeamHeldParkTest(support._ParkedCase, unittest.TestCase):
 
 
 
-class LostReadingHeldParkTest(support._ParkedCase, unittest.TestCase):
+class LostReadingHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
     """A reading the seam could not take, over a park waiting on a person.
 
     The size gate answers a lost base by counting a quiet miss and re-reading
@@ -254,8 +256,8 @@ class LostReadingHeldParkTest(support._ParkedCase, unittest.TestCase):
         # is left exactly as the tick found it -- park, reason, watermark and
         # the operator's command all still standing for the poll that can act
         # on them.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
 
         mocks = self._run_tick(base_object_present=False)
 
@@ -270,16 +272,16 @@ class LostReadingHeldParkTest(support._ParkedCase, unittest.TestCase):
         # the command the operator wrote in the first place is what publishes
         # the branch. Consumed on the missed tick instead, this poll would
         # find a thread with nothing on it and a park nobody could end.
-        self._seed(**support.measured_pair())
-        commanded = self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(base_object_present=False)
 
         mocks = self._run_tick()
 
-        mocks[support.PUSH_BRANCH].assert_called_once()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
         _assert_no_agent(self, mocks)
         self.assertEqual(
-            self._pinned()[support.KEY_OVERRIDE_COMMENT_ID], commanded,
+            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded,
         )
 
     def test_a_lost_reading_keeps_a_silent_park(self) -> None:
@@ -289,8 +291,8 @@ class LostReadingHeldParkTest(support._ParkedCase, unittest.TestCase):
         # asked -- and the poll after publishes the adjudicated candidate with
         # no authorization recorded anywhere.
         self._seed(**{
-            _state._HELD_RECEIPT: support.PARK_RECEIPT,
-            **support.measured_pair(),
+            _state._HELD_RECEIPT: _consent_payloads.PARK_RECEIPT,
+            **_consent_payloads.measured_pair(),
         })
 
         missed = self._run_tick(base_object_present=False)
@@ -298,7 +300,7 @@ class LostReadingHeldParkTest(support._ParkedCase, unittest.TestCase):
 
         self._assert_held_as_found(missed)
         self._assert_held_as_found(published)
-        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
+        self.assertNotIn(_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
 
     def test_a_refusal_that_never_clears_is_said_once(self) -> None:
         # A base that does not come back, past the bound the quiet retry is
@@ -315,8 +317,8 @@ class LostReadingHeldParkTest(support._ParkedCase, unittest.TestCase):
         # from it comes back as somebody's guidance: a developer paid to
         # answer our own sentence, over a watermark that swallowed the
         # operator's command on the way.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
 
         for _ in range(_POLLS_PAST_THE_BOUND):
             mocks = self._run_tick(base_object_present=False)
@@ -335,11 +337,11 @@ class LostReadingHeldParkTest(support._ParkedCase, unittest.TestCase):
         self._assert_still_parked()
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
 
 
-class SpentCommandTest(support._ParkedCase, unittest.TestCase):
+class SpentCommandTest(_consent_case._ParkedCase, unittest.TestCase):
     """What a publication leaves of the reply that let it happen.
 
     The seam consumes the command itself wherever it records an authorization
@@ -359,12 +361,12 @@ class SpentCommandTest(support._ParkedCase, unittest.TestCase):
         # without the record an authorization would leave, and the command is
         # spent by the handoff that carried the reading rather than by a gate
         # that never looked.
-        self._seed(**support.measured_pair())
-        commanded = self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
 
         mocks = self._run_tick(added_lines=_SMALL_ADDITIONS)
 
-        self.assertNotIn(support.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
+        self.assertNotIn(_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
         self._assert_spent(mocks, commanded)
 
     def test_a_decided_candidate_spends_the_command(self) -> None:
@@ -373,8 +375,8 @@ class SpentCommandTest(support._ParkedCase, unittest.TestCase):
         # and this park put back over them, so the retry recognizes the commit
         # as decided and pushes it -- past the door where the command would
         # otherwise have been consumed.
-        self._seed(**support.measured_pair())
-        commanded = self._reply(support.AUTHORIZE)
+        self._seed(**_consent_payloads.measured_pair())
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
 
         mocks = self._run_tick()
@@ -389,9 +391,9 @@ class SpentCommandTest(support._ParkedCase, unittest.TestCase):
         # replaced it. Spent on the way out anyway, the reply the park is
         # still standing over would be consumed with nothing having acted on
         # it, and the poll that could act would never see it.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
-        landing = _LandsOneReply(self, support.GUIDANCE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
+        landing = _LandsOneReply(self, _consent_payloads.GUIDANCE)
 
         with patch.object(
             _command, _READS_THE_THREAD,
@@ -399,24 +401,24 @@ class SpentCommandTest(support._ParkedCase, unittest.TestCase):
         ):
             mocks = self._run_tick()
 
-        mocks[support.PUSH_BRANCH].assert_not_called()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
         _assert_no_agent(self, mocks)
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
         self._assert_still_parked()
 
     def _assert_spent(self, mocks, commanded: int) -> None:
         """The branch went out, nobody was resumed, and the reply is read."""
-        mocks[support.PUSH_BRANCH].assert_called_once()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
         _assert_no_agent(self, mocks)
         self.assertGreaterEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID], commanded,
         )
 
 
-class CommandArrivalRaceTest(support._ParkedCase, unittest.TestCase):
+class CommandArrivalRaceTest(_consent_case._ParkedCase, unittest.TestCase):
     """A command that lands while this park's own thread is being read.
 
     The two questions a poll of this park asks -- is there a command, and has
@@ -433,7 +435,7 @@ class CommandArrivalRaceTest(support._ParkedCase, unittest.TestCase):
         # with nothing on it, so the tick is held where it stands -- and the
         # command that arrived just past that reading is still the last fresh
         # word for the poll that can act on it.
-        self._seed(**support.measured_pair())
+        self._seed(**_consent_payloads.measured_pair())
         landing = self._lands_the_command()
 
         with patch.object(
@@ -445,7 +447,7 @@ class CommandArrivalRaceTest(support._ParkedCase, unittest.TestCase):
         _assert_held(self, mocks)
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
         self.assertIsNotNone(
             _command._read_the_park(self.github, self.issue, self._state()),
@@ -460,7 +462,7 @@ class CommandArrivalRaceTest(support._ParkedCase, unittest.TestCase):
         # follows parks and stamps the thread read to its own notice, which
         # lands above the command and takes it for good. So the whole tick is
         # deferred instead: nothing runs and nothing is consumed.
-        self._seed(**support.measured_pair())
+        self._seed(**_consent_payloads.measured_pair())
         landing = self._lands_the_command()
 
         with patch.object(
@@ -472,14 +474,14 @@ class CommandArrivalRaceTest(support._ParkedCase, unittest.TestCase):
         _assert_no_agent(self, mocks)
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
-            support.PRIOR_ACTION_COMMENT_ID,
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
 
     def test_the_deferred_command_publishes_next_poll(self) -> None:
         # What deferring buys, through the whole handler and across a restart:
         # the command the operator wrote is still the last fresh word, so the
         # poll after the one that stood aside reads it and publishes on it.
-        self._seed(**support.measured_pair())
+        self._seed(**_consent_payloads.measured_pair())
         landing = self._lands_the_command()
         with patch.object(
             _command, _READS_THE_THREAD,
@@ -489,10 +491,10 @@ class CommandArrivalRaceTest(support._ParkedCase, unittest.TestCase):
 
         mocks = self._run_tick()
 
-        mocks[support.PUSH_BRANCH].assert_called_once()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
         _assert_no_agent(self, mocks)
         self.assertEqual(
-            self._pinned()[support.KEY_OVERRIDE_COMMENT_ID], landing.landed,
+            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], landing.landed,
         )
 
     def test_guidance_over_a_command_is_consumed(self) -> None:
@@ -501,20 +503,20 @@ class CommandArrivalRaceTest(support._ParkedCase, unittest.TestCase):
         # publish and then asked for a change is the one that publishes
         # nothing -- so that batch is an ordinary resume and the developer
         # answers the change.
-        self._seed(**support.measured_pair())
-        self._reply(support.AUTHORIZE)
-        guided = self._reply(support.GUIDANCE)
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
+        guided = self._reply(_consent_payloads.GUIDANCE)
 
         mocks = self._run_tick()
 
-        mocks[support.RUN_AGENT].assert_called_once()
+        mocks[_consent_payloads.RUN_AGENT].assert_called_once()
         self.assertGreaterEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID], guided,
         )
 
     def _run_tick_with_guidance(self):
         """One whole tick over a park a human has already written guidance on."""
-        self._reply(support.GUIDANCE)
+        self._reply(_consent_payloads.GUIDANCE)
         return self._run_tick()
 
     def _lands_the_command(self) -> _LandsOneReply:

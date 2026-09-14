@@ -30,9 +30,10 @@ from orchestrator.workflow.stages.implementing import (
     late_recovery as _recovery,
     state as _state,
 )
-from tests.workflow.fixtures import _TEST_SPEC, MEASURED_CANDIDATE_SHA
+from tests.workflow.fixtures import _TEST_SPEC, MEASURED_CANDIDATE_SHA, SHA_LENGTH
 from tests.workflow.stages.implementing import (
-    late_consent_test_support as support,
+    late_consent_case as _consent_case,
+    late_consent_payloads as _consent_payloads,
 )
 
 _PUBLISH_COMMITTED_WORK = "_publish_committed_work"
@@ -64,7 +65,7 @@ _DIRTIED_AFTER_THE_PUSH = (
 
 # A commit the checkout is standing on that the park's own record does not
 # name: work that replaced what an operator decided about.
-_MOVED_HEAD_SHA = "e" * support.SHA_LENGTH
+_MOVED_HEAD_SHA = "e" * SHA_LENGTH
 
 # A reading the ceiling lets through, so the seam's answer to a head nobody
 # authorized is a push rather than a park.
@@ -87,7 +88,7 @@ class _Routed:
     routed: bool = False
 
 
-class _RoutingCase(support._ParkedCase):
+class _RoutingCase(_consent_case._ParkedCase):
     """One parked tick routed with the publication seam held still.
 
     The seam is patched and nothing else is, so a case reads the routing off
@@ -96,7 +97,7 @@ class _RoutingCase(support._ParkedCase):
 
     def _recovers(
         self,
-        worktree: Path = support.TEMP_WORKTREE_ROOT,
+        worktree: Path = _consent_payloads.TEMP_WORKTREE_ROOT,
         tree: _WorktreeStatus = _CLEAN_TREE,
         moved: str = "",
     ) -> _Routed:
@@ -114,7 +115,7 @@ class _RoutingCase(support._ParkedCase):
         )
         with (
             patch.object(
-                _worktree_paths, support.WORKTREE_PATH, return_value=worktree,
+                _worktree_paths, _consent_payloads.WORKTREE_PATH, return_value=worktree,
             ),
             patch.object(
                 _worktree_status, _WORKTREE_STATUS, return_value=tree,
@@ -148,9 +149,9 @@ class UnauthorizedExemptionRecoveryTest(_RoutingCase, unittest.TestCase):
         # knows which candidate is waiting, and left unrouted the reply would
         # fall to the ordinary resume and spawn a developer.
         for described, written in (
-            ("the parked candidate", support.AUTHORIZE),
-            ("another commit", support.AUTHORIZE_ANOTHER),
-            ("an abbreviation", support.AUTHORIZE_ABBREVIATED),
+            ("the parked candidate", _consent_payloads.AUTHORIZE),
+            ("another commit", _consent_payloads.AUTHORIZE_ANOTHER),
+            ("an abbreviation", _consent_payloads.AUTHORIZE_ABBREVIATED),
         ):
             with self.subTest(command=described):
                 self.setUp()
@@ -164,7 +165,7 @@ class UnauthorizedExemptionRecoveryTest(_RoutingCase, unittest.TestCase):
     def test_guidance_is_left_for_the_resume(self) -> None:
         # A reply whose last word is not the command belongs to the road that
         # feeds it to the developer.
-        self._reply(support.GUIDANCE)
+        self._reply(_consent_payloads.GUIDANCE)
 
         routed = self._recovers()
 
@@ -186,9 +187,9 @@ class UnauthorizedExemptionRecoveryTest(_RoutingCase, unittest.TestCase):
         # outsider posts is a decision or guidance, so the park is held on
         # the same terms a silent thread is.
         with patch.object(
-            config, support.ALLOWLIST_CONFIG, (support.TRUSTED_AUTHOR,),
+            config, _consent_payloads.ALLOWLIST_CONFIG, (_consent_payloads.TRUSTED_AUTHOR,),
         ):
-            self._reply(support.AUTHORIZE, author=support.OUTSIDER)
+            self._reply(_consent_payloads.AUTHORIZE, author=_consent_payloads.OUTSIDER)
 
             routed = self._recovers()
 
@@ -201,7 +202,7 @@ class UnauthorizedExemptionRecoveryTest(_RoutingCase, unittest.TestCase):
         # something else is not this park's to end, and a tick that claimed it
         # would hold every other park in the stage on a thread nobody read.
         self._seed(**{_state._PARK_REASON: _state._AGENT_TIMEOUT})
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
 
         routed = self._recovers()
 
@@ -213,7 +214,7 @@ class UnauthorizedExemptionRecoveryTest(_RoutingCase, unittest.TestCase):
         # them off, so a tick that could not fingerprint the pair leaves the
         # issue exactly as parked as it found it rather than durably unparking
         # an issue nothing published.
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
 
         self._recovers()
 
@@ -256,7 +257,7 @@ class MeasurementParkRecoveryTest(_RoutingCase, unittest.TestCase):
     def test_guidance_is_left_for_the_resume(self) -> None:
         # A reply carrying real words is guidance, which belongs to the
         # ordinary resume that feeds it to the developer.
-        self._reply(support.GUIDANCE)
+        self._reply(_consent_payloads.GUIDANCE)
 
         routed = self._recovers()
 
@@ -332,7 +333,7 @@ class MovedCandidateRecoveryTest(_RoutingCase, unittest.TestCase):
         self._assert_parked_for(_state._CANDIDATE_MOVED)
 
     def _recovers_the_checkout(
-        self, restored: str, worktree: Path = support.TEMP_WORKTREE_ROOT,
+        self, restored: str, worktree: Path = _consent_payloads.TEMP_WORKTREE_ROOT,
     ) -> _Routed:
         """Route the tick with the checkout answering what a case says it does."""
         with patch.object(
@@ -369,7 +370,7 @@ class UnpublishableCheckoutHoldTest(_RoutingCase, unittest.TestCase):
         ):
             with self.subTest(tree=described):
                 self.setUp()
-                self._reply(support.AUTHORIZE)
+                self._reply(_consent_payloads.AUTHORIZE)
                 before = dict(self._pinned())
 
                 routed = self._recovers(tree=tree)
@@ -388,7 +389,7 @@ class UnpublishableCheckoutHoldTest(_RoutingCase, unittest.TestCase):
         # command still standing, and its reason takes this park's off, so an
         # operator who put the worktree back would be asked for the same
         # decision again on an issue now waiting for a different reply.
-        self._reply(support.AUTHORIZE)
+        self._reply(_consent_payloads.AUTHORIZE)
         before = dict(self._pinned())
 
         routed = self._recovers(worktree=_MISSING_WORKTREE)
@@ -409,7 +410,7 @@ class UnpublishableCheckoutHoldTest(_RoutingCase, unittest.TestCase):
         ):
             with self.subTest(held=described):
                 self.setUp()
-                self._reply(support.AUTHORIZE)
+                self._reply(_consent_payloads.AUTHORIZE)
                 self._recovers(**held)
 
                 routed = self._recovers()
@@ -443,7 +444,7 @@ _RETIREMENTS = (
 )
 
 
-class RetiredParkTest(support._ParkedCase, unittest.TestCase):
+class RetiredParkTest(_consent_case._ParkedCase, unittest.TestCase):
     """Which of the two parks the size gate takes one road may take down.
 
     Apart from the routing above because no road there can tell them apart:
