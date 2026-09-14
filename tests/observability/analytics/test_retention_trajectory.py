@@ -151,15 +151,11 @@ class TrajectoryPruneBoundaryTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as sink_dir:
             path = Path(sink_dir) / "absent.jsonl"
             _reload({_support.TRAJECTORY_LOG_PATH: str(path)})
-            self.assertEqual(retention.prune_trajectory_records(), 0)
+            with self.assertNoLogs(analytics_sink.log, level="WARNING"):
+                self.assertEqual(retention.prune_trajectory_records(), 0)
             self.assertFalse(path.exists())
 
     def test_probe_oserror_becomes_warning(self) -> None:
-        # `Path.exists()` re-raises OSErrors that don't mean "absent"
-        # (e.g. ENAMETOOLONG on an over-long path). That probe runs
-        # before the read/rewrite try-block, so without its own guard
-        # the error would escape the per-tick caller. The prune must
-        # warn and no-op (return 0) instead of raising.
         with tempfile.TemporaryDirectory() as sink_dir:
             path = Path(sink_dir) / ("x" * _OVERLONG_NAME_LENGTH)
             _reload(

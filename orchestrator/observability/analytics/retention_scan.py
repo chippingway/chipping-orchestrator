@@ -30,17 +30,18 @@ _KeptRemoved = tuple[list[str], int]
 def probe_exists(path: Path) -> bool:
     """True if `path` exists; False when it is absent or the probe raised.
 
-    `Path.exists()` re-raises OSErrors that do not mean "absent" -- e.g.
-    ENAMETOOLONG on a misconfigured path -- so the probe itself must be
-    guarded, otherwise it escapes the per-tick caller. A probe failure is
-    logged and treated as "absent" (a no-op prune), same as a read/rewrite
-    OSError.
+    An absent sink is expected before its first append and stays quiet.
+    Probe failures must warn without interrupting the caller. `Path.stat()`
+    preserves those errors; `Path.exists()` can suppress them.
     """
     try:
-        return path.exists()
+        path.stat()
+    except FileNotFoundError:
+        return False
     except OSError as error:
         log.warning("could not probe %s for prune: %s", path, error)
         return False
+    return True
 
 
 def prune_timestamp(raw_line: str) -> datetime | None:
