@@ -52,10 +52,10 @@ from types import MappingProxyType
 from typing import NamedTuple
 
 from orchestrator.git.worktrees import claims, commit_claims, evidence
+from orchestrator.git.worktrees.candidates import IssueArtifacts
 from orchestrator.git.worktrees.models import (
     ArtifactVerdict,
     BranchTip,
-    IssueArtifacts,
     ProbeAnswer,
     ProvenTip,
     Retention,

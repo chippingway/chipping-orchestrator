@@ -34,11 +34,10 @@ from orchestrator.git.worktrees import (
     maintenance,
     paths,
     probes,
+    remote_inventory as _remote_inventory,
 )
-from orchestrator.git.worktrees.models import (
-    MaintenanceCandidate,
-    MaintenanceResult,
-)
+from orchestrator.git.worktrees.candidates import MaintenanceCandidate
+from orchestrator.git.worktrees.maintenance_results import MaintenanceResult
 from tests.git.worktrees.artifact_test_support import (
     BASE_BRANCH,
     GADGET_SLUG,
@@ -253,4 +252,4 @@ class _MaintenanceTestCase(unittest.TestCase):
 
     def remote_branches(self) -> tuple[str, ...]:
         """Every orchestrator-owned branch the remote still carries."""
-        return discovery._remote_orchestrator_branches(self.spec) or ()
+        return _remote_inventory._remote_orchestrator_branches(self.spec) or ()

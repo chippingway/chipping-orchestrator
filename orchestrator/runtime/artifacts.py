@@ -67,11 +67,8 @@ import time
 
 from orchestrator import config
 from orchestrator.git.worktrees import discovery, maintenance
-from orchestrator.git.worktrees.models import (
-    MaintenanceCandidate,
-    MaintenanceOutcome,
-    MaintenanceResult,
-)
+from orchestrator.git.worktrees.candidates import MaintenanceCandidate
+from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceResult
 from orchestrator.runtime import artifact_records
 from orchestrator.runtime.startup import RepoClients
 from orchestrator.runtime.state import RuntimeState

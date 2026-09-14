@@ -21,11 +21,11 @@ last is held by the loader itself rather than by a check.
 - **At module scope, one exception.** The only name a lower layer may bind above itself is `workflow/state.py`, for
   the label vocabulary it is typed by, and only `github/` and `git/` may bind it — matched on the module boundary in
   the same check, so a sibling of the state owner cannot inherit the exemption by wearing the same prefix.
-- **Over every scope, eight more, each declared per module.** A base sync runs in the git layer but reports to the
-  issue it was started for: `base_sync/conflicts.py`, `base_sync/persistence.py`, and `base_sync/publication.py`
-  reach `workflow/engine/comments.py`; `persistence` also `workflow/engine/guards.py` and
+- **Over every scope, declared per module.** A base sync runs in the git layer but reports to the
+  issue it was started for: `base_sync/conflicts.py`, `base_sync/recovery_notices.py`, and `base_sync/publication.py`
+  reach `workflow/engine/comments.py`; `persistence` reaches `workflow/engine/guards.py` and
   `workflow/stages/implementing/late_parks.py`, to drop the debt the size gate recorded when a refused push sends
-  the branch back to where it started; `base_sync/attempts.py` reaches `workflow/late_split/formats.py`, for the
+  the branch back to where it started; `base_sync/attempt_records.py` reaches `workflow/late_split/formats.py`, for the
   shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
   refuses; `base_sync/transfers.py` reaches `workflow/late_split/exemption.py` and `rewrites.py` plus
   `workflow/stages/implementing/late_parks.py`, because the evidence one exemption transfer is decided on is spread
@@ -348,19 +348,13 @@ orchestrator/
       pr.py             the order a PR-having worktree's gates, rebase, and publication are asked in
       startup.py        the pre-rebase HEAD guard, and the anchor and the attempt's terms persisted before git
                         runs
-      attempts.py       the record one auto-rebase attempt leaves of itself, and the two members no other
-                        write is in a position to make: the head the replay produced, put down before the first
-                        step that can leave it standing, and the announcement checkpoint BOTH finishes -- the
-                        publisher's own tail and the recovery's -- write between their notice and their relabel,
-                        while the anchor still stands. Beside them the three-valued read of the group -- absent,
-                        in flight, or damaged -- held to the shape every other recorded commit is and reached
-                        through a call-time import of the late domain's own formats, the presence read the
-                        checkpoint gets, and the whole-record clear every step that ends an attempt goes through.
-                        The writes and the clear are on the running roads. The readings are consulted only by the
-                        DORMANT vouched-replay route in `recovery`, which no production selector reaches: the
-                        three-valued read, the checkpoint's bare presence -- asked by the roads that would push,
-                        call an attempt unstarted, or clear one under a relabel -- and which head the mark names,
-                        asked where a `validating` label may be the relabel a finish makes
+      attempts.py       the replay and announcement checkpoints, their presence checks, and the whole-record
+                        clear that ends an auto-rebase attempt. Both publication and recovery record their
+                        announcement while the anchor still stands and before relabeling
+      attempt_records.py
+                        validate interrupted replay evidence as absent, in flight, or damaged, sharing the replay
+                        field group with the lifecycle clear. Commit validation uses the late domain's format
+                        reader through a call-time import
       publication.py    the post-rebase checks, the size gate the rebase passes before it publishes -- reached
                         through a call-time import, since it sits in the workflow layer above this one, and named
                         against the head this owner read, so a checkout something moved between that read and the
@@ -423,8 +417,11 @@ orchestrator/
       persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the
-                        approved commit -- and the state / notice / event writes a recovery ends in, which
-                        reach `attempts` for the announcement they owe before their relabel
+                        approved commit -- and the recovery finalization that orders notice delivery, the
+                        durable announcement checkpoint, routing, and the final state write
+      recovery_notices.py
+                        the PR notice and audit event a recovery publishes before its announcement checkpoint;
+                        a failed comment is reported while the recovered publication can still be recorded
       models.py         the frozen contexts, requests, snapshots, and decisions
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
@@ -657,16 +654,13 @@ orchestrator/
                         compared against
       decomposition.py  the decomposer scratch path, its detached creation, and its best-effort removal
       terminal.py       question-stage teardown and terminal local and remote branch cleanup
-      models.py         one issue's local artifacts and the whole answer a scan gives -- the issues it attributed
-                        beside the repositories it will not answer for and the single issues it withholds from
-                        one that it otherwise does -- plus what a classification over them
-                        says: the three answers a fail-closed read has, the ref reading that carries a commit
-                        with them, the reasons, subjects, and verdict a retained candidate is reported as, and
-                        the commits an eligible one hands over as cleared, what the discovery over both
-                        hosts answers with -- one candidate per issue and the layout it was published under --
-                        and what a pass over one of those candidates answers with: the three outcomes it can
-                        end in, the closed reason that fixes which, and the record carrying both beside the
-                        artifact the reason names
+      candidates.py     local issue artifacts, the inventory's refused and withheld claims, candidate layout,
+                        and the combined maintenance scan. These records describe what discovery established
+      models.py         the three answers a fail-closed probe can give, branch and proven commit identities,
+                        retention reasons and subjects, and the eligibility verdict over a discovered candidate
+      maintenance_results.py
+                        the pass's closed outcome and reason vocabularies and the result carrying them beside
+                        its candidate, artifact subject, and retained eligibility evidence
       branch_probes.py  the branch read a scan is built from: the `refs/heads/orchestrator/` listing in one clone,
                         named as the derivations spell it rather than as git's shortest unambiguous form, and
                         answering "could not read" -- a listing that warned about a ref it skipped included, since
@@ -696,18 +690,15 @@ orchestrator/
                         are handed one directory, and both are refused outright. Every unsettled shape names its
                         claimants rather than nobody, because a tree none of them may take is standing on one of
                         that issue's branches: the scan has to withhold the issue, not just the directory
-      inventory.py      the read-only scan over those reads: the flat checkouts read once for the host and put
-                        to the clone each is a worktree of, paid for only where that listing found something --
-                        one claimant holds the checkout, several withhold the whole issue from every one of them,
-                        branches included, since reporting a branch whose tree nobody may remove is handing out a
-                        ref to delete under a live checkout; which entries share a clone, one listing per clone,
-                        worktree-only and branch-only candidates deduplicated into one entry per issue -- both
-                        checkout layouts of one issue among them, since a host running across the migration can
-                        hold the flat tree and the per-repository one at once -- and a
-                        repository whose clone would not resolve, whose checkout directory another entry also
-                        derives, or whose read failed left out of the answer rather than reported empty -- and
-                        still put to the attribution, since a repository this scan will not answer for is one the
-                        flat branch on its clone could equally belong to
+      inventory_roots.py
+                        group configured repositories by their resolved clone, retaining unresolved claimants
+                        so an unreadable root cannot make another repository appear to own a shared branch
+      legacy_inventory.py
+                        attribute the host's flat checkout listing by clone identity and record both owned and
+                        ambiguous issue claims; identity reads are spent only where the listing found checkouts
+      inventory.py      combine those claims with per-repository checkout listings and one branch listing per
+                        clone. Deduplicate each issue's artifacts, withhold ambiguous issues on every claimant,
+                        and refuse unreadable or colliding roots rather than report an empty inventory
       evidence.py       the nine hardened reads a candidate is judged by -- a checkout that is a worktree of
                         this clone (asked of `probes`, which owns that identity read) and on one of this issue's
                         own branch names, a tree that PROVED it carries
@@ -766,17 +757,14 @@ orchestrator/
                         nobody proved is one a teardown may neither delete nor write down. Reported as one
                         verdict per candidate carrying every reason it is kept for, and -- when it keeps none --
                         the commit each artifact was cleared at
-      discovery.py      the local scan widened by what the remote still carries: one `ls-remote` of the owned
-                        namespace per repository, put to the same claimants a local name is, so the flat legacy
-                        branch on a shared clone stays nobody's on the remote too, and a name spelled for a
-                        sibling that turned up there stays nobody's as well. The two halves merge into one
-                        candidate per issue in the order a teardown takes them, carrying the layout it was
-                        published under -- `current`, `legacy`, `mixed`, or `remote_only`, read off the names of
-                        every artifact it holds, branches and checkouts alike, with the last decided on where the
-                        artifacts are rather than what they are called. A repository whose remote will
-                        not answer is refused outright, since every question after this one goes to that same
-                        remote; an issue the scan withheld is dropped from both halves, since the remote's copy of
-                        its branch would otherwise revive exactly the candidate the host refused
+      remote_inventory.py
+                        list the orchestrator branch namespace once per reachable repository and attribute it
+                        against every spec sharing the clone. An unreachable remote refuses its whole repository
+      candidate_layout.py
+                        classify the complete artifact names as current, legacy, mixed, or remote-only; both
+                        checkout paths and branch names contribute to that classification
+      discovery.py      merge local and remote evidence into one ordered candidate per issue. A withheld local
+                        claim stays withheld on both halves, so a remote branch cannot revive a refused candidate
       reclaim.py        the three commit-pinned teardown steps, each behind a total boundary and each refused
                         by git or by the remote rather than
                         by the reading in front of it: the removal that does not force, so a tree written in
@@ -846,11 +834,13 @@ off a facade:
 - `worktrees/` — the creators call `commands`, `locks`, `branch_transport`, and their `paths`, `naming`, `anchoring`,
   and `recovery` siblings. `anchoring` reads branch transport and moves the checkout under the target-root lock;
   `decomposition` resolves its own path helper; `terminal` composes its local teardown from `cleanup`. The read-only
-  scan sits on the same owners: `inventory` calls `branch_probes`, `probes`, `attribution`, and
-  `checkout_attribution`, and `paths` itself for the checkout path it hands back; `probes`, `attribution`, and
+  scan sits on the same owners: `inventory` combines `inventory_roots` and `legacy_inventory` with `branch_probes`,
+  `probes`, `attribution`, `checkout_attribution`, and `paths`. `legacy_inventory` uses checkout attribution and
+  identity reads; `inventory_roots` resolves and groups clone roots. `probes`, `attribution`, and
   `checkout_attribution` reach `paths` and `naming` for the names they compare against. Only the two probe owners
   reach `commands` — `branch_probes` the `locks` its listing is taken under as well.
-  `models` carries only data. Nothing in the scan writes, fetches, or names GitHub, which is what lets a caller take
+  `candidates`, `models`, and `maintenance_results` carry only data. Nothing in the scan writes, fetches, or names
+  GitHub, which is what lets a caller take
   it at any point in a tick. The classification over it keeps that split visible:
   `evidence` calls `commands`, `locks`, `paths`, `probes` for the clone-identity read the scan owns, both
   `git/verification/` tree reads (the status one, and the
@@ -859,8 +849,9 @@ off a facade:
   `claims` names GitHub and reaches `naming` for the branch names it asks GitHub about rather than for anything on
   disk; `commit_claims` names GitHub alone, since the commit it asks about is handed to it; `eligibility` calls all
   three and nothing else. None of the four writes anything, on the host or on GitHub.
-  The pass over them is where that stops, and only its own step owner writes: `discovery` calls `inventory`,
-  `attribution`, and `paths`, plus `ref_discovery` for the namespace listing no local read can answer; `reclaim`
+  The pass over them is where that stops, and only its own step owner writes: `discovery` combines `inventory`,
+  `remote_inventory`, and `candidate_layout`. `remote_inventory` uses `ref_discovery` for the remote namespace
+  listing and `attribution` to resolve its claims against the clone groups from `inventory_roots`; `reclaim`
   calls `commands`, `locks`, and `ref_transport` for the leased delete; `maintenance` calls `eligibility`,
   `evidence`, and `reclaim`, takes both the active/claimed answer and the may-I-go-on answer from guards its caller
   injects rather than reaching up for either, and names nothing in the workflow layer. The caller that injects them
@@ -870,7 +861,9 @@ off a facade:
   `pre_pr` and `pr`, `refresh_selection` asks `frozen` alone, `pr` asks `eligibility`, `startup`, and `publication` in
   that order, and `guards` ends in `persistence`. On the recovery side `recovery` calls `snapshot`, `outcomes`, and
   `persistence`. `attempts` is under both: it owns the record one rebase attempt leaves of itself, and every owner
-  that writes a member of that record or ends it calls through it rather than spelling a key of its own. `transfers`
+  that writes a member of that record or ends it calls through it rather than spelling a key of its own.
+  `attempt_records` owns interrupted-replay validation; `recovery_notices` delivers the notice and audit event in
+  the order `persistence` coordinates with its checkpoint and routing. `transfers`
   sits beside it on the same terms — it owns what a rebase replaced and how far the transfer of an exemption over it
   got, `publication` calls it for the evidence the size gate is handed, and nothing else reaches it yet. The three
   keyword-call adapters — the PR sync, the conflict route, and the crash recovery — still take the argument lists

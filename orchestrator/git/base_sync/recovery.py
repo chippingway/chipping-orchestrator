@@ -68,7 +68,7 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoverySnapshot,
 )
 from orchestrator.git.base_sync.state import _PR_REFRESH_DETOUR_LABELS
-from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.verification import probes as verification_probes, status as _worktree_status
 from orchestrator.workflow.state import WorkflowLabel
 
 # Why a push that landed could not be finished, in the operator's own terms.

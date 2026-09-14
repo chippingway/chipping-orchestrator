@@ -21,8 +21,9 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from orchestrator.git import ref_discovery
 from orchestrator.git.worktrees import discovery, probes
-from orchestrator.git.worktrees.models import CandidateLayout
+from orchestrator.git.worktrees.candidates import CandidateLayout
 from tests.git.worktrees.artifact_test_support import (
     GADGET_SLUG,
     WIDGET_SLUG,
@@ -344,7 +345,7 @@ class UnreachableRemoteTest(_DiscoveryTestCase):
 
         with (
             patch.object(
-                discovery.ref_discovery,
+                ref_discovery,
                 "_remote_ref_names",
                 side_effect=OSError("git could not be spawned"),
             ),

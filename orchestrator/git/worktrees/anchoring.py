@@ -259,4 +259,3 @@ def _move_branch_onto(
         issue_number, branch, head_sha,
     )
     return True
-

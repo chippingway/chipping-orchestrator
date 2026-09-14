@@ -43,7 +43,14 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from types import MappingProxyType
 
-from orchestrator.git.worktrees import eligibility, evidence, models as _models, reclaim
+from orchestrator.git.worktrees import (
+    candidates as _candidates,
+    eligibility,
+    evidence,
+    maintenance_results as _maintenance_results,
+    models as _models,
+    reclaim,
+)
 from orchestrator.github.client import GitHubClient
 
 # The channel is named for the worktree-lifecycle domain rather than for this
@@ -86,29 +93,29 @@ _QUIET_PERIOD_SECONDS = 3600
 # step that ran and was refused, and the one reason that cleans is the one
 # that reached the end of the teardown.
 _OUTCOMES = MappingProxyType({
-    _models.MaintenanceReason.RECLAIMED: _models.MaintenanceOutcome.CLEANED,
-    _models.MaintenanceReason.UNPROVEN: _models.MaintenanceOutcome.RETAINED,
-    _models.MaintenanceReason.RECENT_ACTIVITY: _models.MaintenanceOutcome.RETAINED,
-    _models.MaintenanceReason.ACTIVITY_UNREADABLE: _models.MaintenanceOutcome.RETAINED,
-    _models.MaintenanceReason.ACTIVE_CLAIM: _models.MaintenanceOutcome.RETAINED,
-    _models.MaintenanceReason.CLAIM_UNREADABLE: _models.MaintenanceOutcome.RETAINED,
-    _models.MaintenanceReason.TIP_MOVED: _models.MaintenanceOutcome.RETAINED,
-    _models.MaintenanceReason.TIP_UNREADABLE: _models.MaintenanceOutcome.RETAINED,
-    _models.MaintenanceReason.BRANCH_CHECKED_OUT: _models.MaintenanceOutcome.RETAINED,
-    _models.MaintenanceReason.WORKTREE_REMOVAL_FAILED: _models.MaintenanceOutcome.FAILED,
-    _models.MaintenanceReason.REMOTE_DELETE_FAILED: _models.MaintenanceOutcome.FAILED,
-    _models.MaintenanceReason.LOCAL_DELETE_FAILED: _models.MaintenanceOutcome.FAILED,
+    _maintenance_results.MaintenanceReason.RECLAIMED: _maintenance_results.MaintenanceOutcome.CLEANED,
+    _maintenance_results.MaintenanceReason.UNPROVEN: _maintenance_results.MaintenanceOutcome.RETAINED,
+    _maintenance_results.MaintenanceReason.RECENT_ACTIVITY: _maintenance_results.MaintenanceOutcome.RETAINED,
+    _maintenance_results.MaintenanceReason.ACTIVITY_UNREADABLE: _maintenance_results.MaintenanceOutcome.RETAINED,
+    _maintenance_results.MaintenanceReason.ACTIVE_CLAIM: _maintenance_results.MaintenanceOutcome.RETAINED,
+    _maintenance_results.MaintenanceReason.CLAIM_UNREADABLE: _maintenance_results.MaintenanceOutcome.RETAINED,
+    _maintenance_results.MaintenanceReason.TIP_MOVED: _maintenance_results.MaintenanceOutcome.RETAINED,
+    _maintenance_results.MaintenanceReason.TIP_UNREADABLE: _maintenance_results.MaintenanceOutcome.RETAINED,
+    _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT: _maintenance_results.MaintenanceOutcome.RETAINED,
+    _maintenance_results.MaintenanceReason.WORKTREE_REMOVAL_FAILED: _maintenance_results.MaintenanceOutcome.FAILED,
+    _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED: _maintenance_results.MaintenanceOutcome.FAILED,
+    _maintenance_results.MaintenanceReason.LOCAL_DELETE_FAILED: _maintenance_results.MaintenanceOutcome.FAILED,
 })
 
 
 def _answered(
-    candidate: _models.MaintenanceCandidate,
-    reason: _models.MaintenanceReason,
+    candidate: _candidates.MaintenanceCandidate,
+    reason: _maintenance_results.MaintenanceReason,
     subject: str = "",
     retentions: tuple[_models.Retention, ...] = (),
-) -> _models.MaintenanceResult:
+) -> _maintenance_results.MaintenanceResult:
     """One candidate's answer, with the outcome its reason fixes."""
-    return _models.MaintenanceResult(
+    return _maintenance_results.MaintenanceResult(
         candidate=candidate,
         outcome=_OUTCOMES[reason],
         reason=reason,
@@ -118,8 +125,8 @@ def _answered(
 
 
 def _claim_reason(
-    artifacts: _models.IssueArtifacts, claimed: ActivityGuard,
-) -> _models.MaintenanceReason | None:
+    artifacts: _candidates.IssueArtifacts, claimed: ActivityGuard,
+) -> _maintenance_results.MaintenanceReason | None:
     """Whether something is running for this issue, or could not be asked.
 
     First of the gates, because it is the only one that costs nothing and the
@@ -140,13 +147,13 @@ def _claim_reason(
             "leaving its artifacts alone",
             artifacts.issue_number, exc_info=True,
         )
-        return _models.MaintenanceReason.CLAIM_UNREADABLE
-    return _models.MaintenanceReason.ACTIVE_CLAIM if active else None
+        return _maintenance_results.MaintenanceReason.CLAIM_UNREADABLE
+    return _maintenance_results.MaintenanceReason.ACTIVE_CLAIM if active else None
 
 
 def _activity_reason(
-    artifacts: _models.IssueArtifacts,
-) -> tuple[_models.MaintenanceReason | None, str]:
+    artifacts: _candidates.IssueArtifacts,
+) -> tuple[_maintenance_results.MaintenanceReason | None, str]:
     """Whether this candidate's checkouts have been left alone long enough.
 
     Asked of every checkout the issue holds, since an issue that was in flight
@@ -161,9 +168,9 @@ def _activity_reason(
     for worktree in artifacts.worktrees:
         quiet = evidence._quiet_checkout(worktree, since)
         if quiet is _models.ProbeAnswer.REFUTED:
-            return _models.MaintenanceReason.RECENT_ACTIVITY, str(worktree)
+            return _maintenance_results.MaintenanceReason.RECENT_ACTIVITY, str(worktree)
         if quiet is _models.ProbeAnswer.UNREADABLE:
-            return _models.MaintenanceReason.ACTIVITY_UNREADABLE, str(worktree)
+            return _maintenance_results.MaintenanceReason.ACTIVITY_UNREADABLE, str(worktree)
     return None, ""
 
 
@@ -184,7 +191,7 @@ def _cleared_tips(proven: tuple[_models.ProvenTip, ...]) -> dict[str, str]:
 
 def _checkout_stop(
     worktree: Path, proven: str | None,
-) -> _models.MaintenanceReason | None:
+) -> _maintenance_results.MaintenanceReason | None:
     """Whether the checkout is still standing on the commit that was cleared.
 
     The last reading before the tree comes down, and it is about the commit
@@ -199,15 +206,15 @@ def _checkout_stop(
     """
     tip = evidence._checkout_tip(worktree)
     if proven is None or tip.answer is not _models.ProbeAnswer.CONFIRMED:
-        return _models.MaintenanceReason.TIP_UNREADABLE
+        return _maintenance_results.MaintenanceReason.TIP_UNREADABLE
     if tip.sha != proven:
-        return _models.MaintenanceReason.TIP_MOVED
+        return _maintenance_results.MaintenanceReason.TIP_MOVED
     return None
 
 
 def _take_checkouts(
-    candidate: _models.MaintenanceCandidate, cleared: dict[str, str],
-) -> _models.MaintenanceResult | None:
+    candidate: _candidates.MaintenanceCandidate, cleared: dict[str, str],
+) -> _maintenance_results.MaintenanceResult | None:
     """Take every checkout of this candidate down, or say where the pass stops.
 
     None is the step being done -- every tree removed, or none of them there in
@@ -230,10 +237,10 @@ def _take_checkouts(
 
 
 def _take_checkout(
-    candidate: _models.MaintenanceCandidate,
+    candidate: _candidates.MaintenanceCandidate,
     worktree: Path,
     cleared: dict[str, str],
-) -> _models.MaintenanceResult | None:
+) -> _maintenance_results.MaintenanceResult | None:
     """Take one checkout down, or say why the pass stops on it."""
     stopped = _checkout_stop(worktree, cleared.get(str(worktree)))
     if stopped is not None:
@@ -244,13 +251,13 @@ def _take_checkout(
     if removed:
         return None
     return _answered(
-        candidate, _models.MaintenanceReason.WORKTREE_REMOVAL_FAILED, str(worktree),
+        candidate, _maintenance_results.MaintenanceReason.WORKTREE_REMOVAL_FAILED, str(worktree),
     )
 
 
 def _take_remote_branch(
-    candidate: _models.MaintenanceCandidate, branch: str, proven: str,
-) -> _models.MaintenanceResult | None:
+    candidate: _candidates.MaintenanceCandidate, branch: str, proven: str,
+) -> _maintenance_results.MaintenanceResult | None:
     """Take one branch off the remote, or say why the pass stops here.
 
     The remote is asked what it carries before the delete is sent, so the three
@@ -266,19 +273,19 @@ def _take_remote_branch(
     spec = candidate.artifacts.spec
     published = evidence._published_tip(spec, branch)
     if published.answer is _models.ProbeAnswer.UNREADABLE:
-        return _answered(candidate, _models.MaintenanceReason.TIP_UNREADABLE, branch)
+        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_UNREADABLE, branch)
     if published.answer is _models.ProbeAnswer.REFUTED:
         return None
     if published.sha != proven:
-        return _answered(candidate, _models.MaintenanceReason.TIP_MOVED, branch)
+        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_MOVED, branch)
     if reclaim._delete_remote_branch_at(spec, branch, proven):
         return None
-    return _answered(candidate, _models.MaintenanceReason.REMOTE_DELETE_FAILED, branch)
+    return _answered(candidate, _maintenance_results.MaintenanceReason.REMOTE_DELETE_FAILED, branch)
 
 
 def _take_local_branch(
-    candidate: _models.MaintenanceCandidate, branch: str, proven: str,
-) -> _models.MaintenanceResult | None:
+    candidate: _candidates.MaintenanceCandidate, branch: str, proven: str,
+) -> _maintenance_results.MaintenanceResult | None:
     """Take one branch out of the clone, or say why the pass stops here.
 
     Reached only once the remote's copy is gone, which is what keeps a failed
@@ -294,17 +301,17 @@ def _take_local_branch(
     if tip.answer is _models.ProbeAnswer.REFUTED:
         return None
     if tip.answer is _models.ProbeAnswer.UNREADABLE:
-        return _answered(candidate, _models.MaintenanceReason.TIP_UNREADABLE, branch)
+        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_UNREADABLE, branch)
     if tip.sha != proven:
-        return _answered(candidate, _models.MaintenanceReason.TIP_MOVED, branch)
+        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_MOVED, branch)
     if reclaim._delete_local_ref_at(spec, branch, proven):
         return None
-    return _answered(candidate, _models.MaintenanceReason.LOCAL_DELETE_FAILED, branch)
+    return _answered(candidate, _maintenance_results.MaintenanceReason.LOCAL_DELETE_FAILED, branch)
 
 
 def _take_branches(
-    candidate: _models.MaintenanceCandidate, cleared: dict[str, str],
-) -> _models.MaintenanceResult | None:
+    candidate: _candidates.MaintenanceCandidate, cleared: dict[str, str],
+) -> _maintenance_results.MaintenanceResult | None:
     """Take every cleared branch of this candidate, in the order it was named.
 
     Each branch goes remote-side first and then locally, rather than every
@@ -341,11 +348,11 @@ def _take_branches(
 
 
 def _take_branch(
-    candidate: _models.MaintenanceCandidate,
+    candidate: _candidates.MaintenanceCandidate,
     branch: str,
     cleared: dict[str, str],
     standing: frozenset[str] | None,
-) -> _models.MaintenanceResult | None:
+) -> _maintenance_results.MaintenanceResult | None:
     """Take one branch off both hosts, or say why the pass stops on it.
 
     A listing that could not be taken keeps the branch, as every unread
@@ -354,12 +361,12 @@ def _take_branch(
     """
     proven = cleared.get(branch)
     if proven is None:
-        return _answered(candidate, _models.MaintenanceReason.TIP_UNREADABLE, branch)
+        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_UNREADABLE, branch)
     if standing is None:
-        return _answered(candidate, _models.MaintenanceReason.TIP_UNREADABLE, branch)
+        return _answered(candidate, _maintenance_results.MaintenanceReason.TIP_UNREADABLE, branch)
     if branch in standing:
         return _answered(
-            candidate, _models.MaintenanceReason.BRANCH_CHECKED_OUT, branch,
+            candidate, _maintenance_results.MaintenanceReason.BRANCH_CHECKED_OUT, branch,
         )
     return (
         _take_remote_branch(candidate, branch, proven)
@@ -368,24 +375,24 @@ def _take_branch(
 
 
 def _reclaimed(
-    candidate: _models.MaintenanceCandidate, proven: tuple[_models.ProvenTip, ...],
-) -> _models.MaintenanceResult:
+    candidate: _candidates.MaintenanceCandidate, proven: tuple[_models.ProvenTip, ...],
+) -> _maintenance_results.MaintenanceResult:
     """Run the whole teardown for one cleared candidate, and say where it got to."""
     cleared = _cleared_tips(proven)
     stopped = (
         _take_checkouts(candidate, cleared)
         or _take_branches(candidate, cleared)
     )
-    return stopped or _answered(candidate, _models.MaintenanceReason.RECLAIMED)
+    return stopped or _answered(candidate, _maintenance_results.MaintenanceReason.RECLAIMED)
 
 
 def _maintained_candidate(
     gh: GitHubClient,
-    candidate: _models.MaintenanceCandidate,
+    candidate: _candidates.MaintenanceCandidate,
     *,
     claimed: ActivityGuard,
     going: ContinuationGuard,
-) -> _models.MaintenanceResult | None:
+) -> _maintenance_results.MaintenanceResult | None:
     """Decide about one candidate, and act on it if everything clears it.
 
     The classification is taken here rather than handed in, because what it
@@ -415,7 +422,7 @@ def _maintained_candidate(
     if not verdict.eligible:
         return _answered(
             candidate,
-            _models.MaintenanceReason.UNPROVEN,
+            _maintenance_results.MaintenanceReason.UNPROVEN,
             _kept_subject(verdict),
             verdict.retentions,
         )
@@ -447,11 +454,11 @@ def _stopped(going: ContinuationGuard) -> bool:
 
 def _maintained_candidates(
     gh: GitHubClient,
-    candidates: Iterable[_models.MaintenanceCandidate],
+    candidates: Iterable[_candidates.MaintenanceCandidate],
     *,
     claimed: ActivityGuard,
     going: ContinuationGuard,
-) -> tuple[_models.MaintenanceResult, ...]:
+) -> tuple[_maintenance_results.MaintenanceResult, ...]:
     """Run the pass over every candidate of ONE repository, in its order.
 
     One client for the lot, so the caller is what splits a discovery spanning
@@ -479,7 +486,7 @@ def _maintained_candidates(
     A candidate the pass stops before has no answer at all, which is exactly
     what an interrupted pass has always looked like from here.
     """
-    answers: list[_models.MaintenanceResult] = []
+    answers: list[_maintenance_results.MaintenanceResult] = []
     for candidate in candidates:
         answered = None if _stopped(going) else _maintained_candidate(
             gh, candidate, claimed=claimed, going=going,

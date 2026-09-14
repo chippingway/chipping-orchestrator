@@ -50,12 +50,8 @@ import logging
 from collections.abc import Iterable
 
 from orchestrator.git.worktrees import naming as _naming
-from orchestrator.git.worktrees.models import (
-    CandidateLayout,
-    MaintenanceOutcome,
-    MaintenanceReason,
-    MaintenanceResult,
-)
+from orchestrator.git.worktrees.candidates import CandidateLayout
+from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceReason, MaintenanceResult
 from orchestrator.observability.analytics import recording
 
 # The channel the pass and its owner already report on, so an operator whose

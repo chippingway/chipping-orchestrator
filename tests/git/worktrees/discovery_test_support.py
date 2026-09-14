@@ -23,7 +23,7 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.git.worktrees import discovery, paths, probes
-from orchestrator.git.worktrees.models import MaintenanceCandidate
+from orchestrator.git.worktrees.candidates import MaintenanceCandidate
 from tests.git.worktrees.artifact_test_support import (
     BASE_BRANCH,
     GADGET_SLUG,

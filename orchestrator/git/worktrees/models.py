@@ -1,109 +1,17 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a scan of this host's per-issue artifacts found, and what it decided.
+"""Eligibility evidence and retention reasons for one discovered candidate.
 
-Data only, for the artifact domain's three halves: what a scan found, what a
-classification over it concluded, and what a maintenance pass spending that
-conclusion did. `IssueArtifacts` is one
-issue as one repository's clone and worktrees roots show it, and
-`ArtifactInventory` is the whole answer a single scan gives; the scan that
-fills them lives in ``inventory``, the local reads under it in ``probes``,
-and the rules deciding which configured repository a discovered artifact
-belongs to in ``attribution``.
-
-`ProbeAnswer` and `BranchTip` are what one fail-closed read of those artifacts
-comes back with, and `RetentionReason`, `Retention`, `ProvenTip`, and
-`ArtifactVerdict` are what a classification over them concludes. The reads
-live in ``evidence``, the GitHub side of the same question in ``claims`` for
-what the issue says and in ``commit_claims`` for what a terminal pull request
-published, and the classifier composing all three in ``eligibility``.
-
-`CandidateLayout`, `MaintenanceCandidate`, and `MaintenanceScan` are what the
-widest of those readings hands back -- the local scan folded together with
-what the remote still carries, in ``discovery`` -- and `MaintenanceOutcome`,
-`MaintenanceReason`, and `MaintenanceResult` are what one pass over a candidate
-answers with, in ``maintenance``. The outcome and the reason are two fields
-rather than one because they are read by two different readers: a count of what
-a pass did is taken off the first, and what to go and look at off the second.
-The layout rides on the candidate rather than being worked out again downstream
-because it is the one thing about it that cannot be re-read later: the branch
-that said a candidate was remote-only is the artifact a teardown goes on to
-delete.
-
-The refusals are carried in the answer rather than logged and dropped because
-of what a reader does with an absence: "this repository has no artifacts" and
-"this repository could not be read" look identical in a list of issues, and a
-caller acting on the first while holding the second acts on a host it never
-saw. A retention is carried for the same reason one step on: "nothing kept
-this artifact" and "the question could not be put" are one answer to a caller
-that only asks whether it may delete.
+Discovery records live in candidates; maintenance_results describes a pass
+that acts on an eligible verdict. The closed reason vocabulary and proven
+commit identities here are shared by those two boundaries.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path
 
-from orchestrator import config
-
-
-@dataclass(frozen=True)
-class IssueArtifacts:
-    """The orchestrator-owned artifacts one issue left in one repository.
-
-    An issue is in a scan because an `issue-<n>` checkout of it still stands,
-    because a branch in that clone's orchestrator-owned namespace names it, or
-    because both do -- which is why either half may be empty. Never both: an
-    entry with no checkout and no branch is an issue nothing on this host
-    attests to, and the scan does not invent one.
-
-    Both halves are tuples, and for the same reason: this orchestrator has
-    published an issue under two layouts, and a host that was running across
-    the migration can be holding both at once. `branches` carries the
-    slug-namespaced name and the legacy flat one; `worktrees` carries the
-    checkout under the spec's own root and the legacy one directly under
-    `WORKTREES_DIR`. Each is ordered current-first, which is the order a
-    teardown takes them in.
-
-    Two entries for one issue therefore cannot happen -- the layouts are
-    several names for one issue, not several issues.
-    """
-
-    spec: config.RepoSpec
-    issue_number: int
-    worktrees: tuple[Path, ...]
-    branches: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class ArtifactInventory:
-    """Every issue one scan attributed, and the repositories it would not answer for.
-
-    `refused` names the slugs whose picture this scan does not stand behind:
-    a ref store or worktrees root it could not read. Their issues are left out
-    entirely rather than reported in part, because a partial list of one
-    repository's artifacts is indistinguishable from a complete one and reads
-    as the same fact. A caller that acts on absence -- nothing here, so
-    nothing to adopt or clean up -- has to skip those repositories, and this
-    field is how it knows which.
-
-    `withheld` is the same refusal one granularity down: a repository and an
-    issue number this scan will not answer for, while still answering for the
-    rest of that repository. It exists for the artifact whose name says nothing
-    -- the flat pre-namespacing checkout, which several entries on one clone
-    derive identically -- because a tree nobody may take is standing on one of
-    that issue's branches, and reporting the branch alone would hand a teardown
-    a ref to delete out from under a live checkout. A caller reading only
-    `issues` would see that issue absent and go looking for it somewhere else,
-    which is exactly what a wider scan does.
-
-    `issues` is ordered by slug and then issue number, and so are both
-    refusals, so two scans of an unchanged host produce equal answers.
-    """
-
-    issues: tuple[IssueArtifacts, ...]
-    refused: tuple[str, ...]
-    withheld: tuple[tuple[str, int], ...] = ()
+from orchestrator.git.worktrees import candidates as _candidates
 
 
 class ProbeAnswer(StrEnum):
@@ -242,7 +150,7 @@ class ArtifactVerdict:
     rather than a re-derivation of them.
     """
 
-    artifacts: IssueArtifacts
+    artifacts: _candidates.IssueArtifacts
     retentions: tuple[Retention, ...] = ()
     proven: tuple[ProvenTip, ...] = ()
 
@@ -250,151 +158,3 @@ class ArtifactVerdict:
     def eligible(self) -> bool:
         """Whether every artifact reported for this issue may be reclaimed."""
         return not self.retentions
-
-
-class CandidateLayout(StrEnum):
-    """Which of the layouts this orchestrator has published a candidate under.
-
-    Named on the candidate rather than worked out again by every reader,
-    because it is the one thing about a candidate that says how it came to
-    exist. `CURRENT` is the slug-namespaced branch this orchestrator publishes
-    now and the per-repository checkout beside it; `LEGACY` is the flat
-    `orchestrator/issue-<n>` an issue in flight when namespacing landed is
-    still on; `MIXED` is an issue carrying both names at once, which a
-    migration leaves behind and which no single derivation would ever produce.
-
-    `REMOTE_ONLY` is where the artifact is rather than what it is called, and
-    it wins over the other three when nothing local is left: a candidate this
-    host holds no checkout and no branch for is one an operator has nothing to
-    look at here for, whichever name the remote's copy carries.
-    """
-
-    CURRENT = "current"
-    LEGACY = "legacy"
-    REMOTE_ONLY = "remote_only"
-    MIXED = "mixed"
-
-
-@dataclass(frozen=True)
-class MaintenanceCandidate:
-    """One issue's artifacts, and the layout they were published under.
-
-    The pair rather than the artifacts alone, because the layout is a reading
-    taken where both halves of the discovery were still in hand -- what the
-    clone holds and what the remote does -- and nothing downstream can
-    reconstruct it: by the time a teardown has finished, the branch that said
-    the candidate was remote-only is gone.
-    """
-
-    artifacts: IssueArtifacts
-    layout: CandidateLayout
-
-
-@dataclass(frozen=True)
-class MaintenanceScan:
-    """Every candidate the discovery found, and what it will not answer for.
-
-    `refused` carries the same fact the scan's own does, one step wider: a
-    repository whose checkout root, ref store, or remote listing could not be
-    read is left out entirely rather than reported in part, because a partial
-    list of what a repository still holds reads exactly like a complete one.
-
-    `candidates` is ordered by slug and then issue number, so two discoveries
-    of an unchanged host and remote produce equal answers.
-    """
-
-    candidates: tuple[MaintenanceCandidate, ...]
-    refused: tuple[str, ...]
-
-
-class MaintenanceOutcome(StrEnum):
-    """What one maintenance pass over one candidate did.
-
-    Three answers, because a caller counting them has to keep apart the two
-    ways a candidate survives a pass. `RETAINED` is the pass deciding not to
-    touch it -- every gate in front of the mutation is a decision of that kind,
-    and one repeating every pass is a candidate somebody has to settle by hand.
-    `FAILED` is the pass trying and being refused: git would not remove the
-    checkout, the remote would not accept the delete. Collapsed together, an
-    operator could not tell a host that is behaving from one that is not.
-
-    `CLEANED` is every artifact this candidate was found holding now gone from
-    the host and the remote, absences included: a pass that found a branch
-    already deleted has nothing left to do about it, and reporting that as
-    anything but done would keep the candidate reported forever.
-    """
-
-    CLEANED = "cleaned"
-    RETAINED = "retained"
-    FAILED = "failed"
-
-
-class MaintenanceReason(StrEnum):
-    """Why one maintenance pass ended where it did.
-
-    Closed, and each member is fixed to exactly one outcome, so the two fields
-    of a result cannot disagree: what an outcome counts, the reason explains.
-
-    `UNPROVEN` is the classification keeping the candidate, and it is one
-    member rather than a copy of `RetentionReason` because the result carries
-    those retentions themselves -- an operator reads which artifact and which
-    question off them, in the vocabulary they were already spelled in.
-
-    The two tip members are the pass's own last reading, taken after everything
-    else cleared and immediately before the mutation. `TIP_MOVED` is an
-    artifact that has left the commit the classification proved -- an agent
-    committed, a human pushed -- which is not a failure but a race the next
-    pass re-runs from the start. `TIP_UNREADABLE` is that reading not coming
-    back at all.
-
-    `BRANCH_CHECKED_OUT` is the one reason about a tree this candidate does
-    not own. Some worktree of the clone is still standing on the branch --
-    an operator's own, or one this scan could not attribute -- and the
-    plumbing delete would take the ref without a word and leave that tree
-    holding a HEAD nothing resolves.
-
-    The three failures name the step that would not run, because that is what
-    separates the operator's next move: a checkout git refuses to remove is a
-    tree on this host, a remote delete refused is a token or a branch
-    protection rule, and a local ref that would not go is a clone somebody
-    else is holding.
-    """
-
-    RECLAIMED = "reclaimed"
-    UNPROVEN = "unproven"
-    RECENT_ACTIVITY = "recent_activity"
-    ACTIVITY_UNREADABLE = "activity_unreadable"
-    ACTIVE_CLAIM = "active_claim"
-    CLAIM_UNREADABLE = "claim_unreadable"
-    TIP_MOVED = "tip_moved"
-    TIP_UNREADABLE = "tip_unreadable"
-    BRANCH_CHECKED_OUT = "branch_checked_out"
-    WORKTREE_REMOVAL_FAILED = "worktree_removal_failed"
-    REMOTE_DELETE_FAILED = "remote_delete_failed"
-    LOCAL_DELETE_FAILED = "local_delete_failed"
-
-
-@dataclass(frozen=True)
-class MaintenanceResult:
-    """What one pass over one candidate decided, and what it is about.
-
-    One record per candidate rather than one per artifact, because a pass that
-    stops stops for the whole candidate: whatever is still standing when it
-    ends is left where it is, and the discovery that found it once finds it
-    again. Nothing here is a retry list, which is what lets an interrupted pass
-    cost nothing to resume.
-
-    `subject` names the artifact the reason is about -- a branch by name, a
-    checkout by path -- spelled the way a retention's and a proven tip's are,
-    and empty where the reason is about the candidate as a whole. `retentions`
-    is the classification's own answer, carried only where it is what kept the
-    candidate: a pass that cleared it has nothing to report there, and a
-    retention beside a reclaimed candidate would read as a permission nothing
-    gave.
-    """
-
-    candidate: MaintenanceCandidate
-    outcome: MaintenanceOutcome
-    reason: MaintenanceReason
-    subject: str = ""
-    retentions: tuple[Retention, ...] = ()
