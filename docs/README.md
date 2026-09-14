@@ -22,6 +22,7 @@ handler reads and writes.
 | run a second poller beside the first on one host | [running more than one poller][pollers] |
 | see what the orchestrator did, and what it cost | [`observability.md`](observability.md) |
 | trace functionality across published releases | [`release-timeline.md`](release-timeline.md) |
+| publish a release | [maintainer notes](../CONTRIBUTING.md#notes-for-maintainers) |
 | harden the deployment | [`security.md`](security.md) |
 | report a suspected vulnerability | [`../SECURITY.md`](../SECURITY.md) |
 | report a bug, propose a change, or contribute a PR | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
