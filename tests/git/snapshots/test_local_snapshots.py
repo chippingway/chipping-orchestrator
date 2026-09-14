@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git import commands
-from orchestrator.git.snapshots import namespace, refs
+from orchestrator.git.snapshots import mirrors as _snapshot_mirrors, namespace, refs
 from tests.git.snapshots.snapshot_test_support import real_remote
 
 REF = "refs/orchestrator/late-split/issue-41/cycle-3/gen-1"
@@ -62,8 +62,8 @@ def _preserved(remote) -> None:
 
 def _mirrored(remote) -> str:
     """What this repository's copy of the snapshot resolves to here."""
-    return refs._local_ref_sha(
-        remote.clone, refs.local_snapshot_ref(remote.spec, REF),
+    return _snapshot_mirrors._local_ref_sha(
+        remote.clone, _snapshot_mirrors.local_snapshot_ref(remote.spec, REF),
     )
 
 
@@ -72,14 +72,14 @@ class LocalSnapshotNameTest(unittest.TestCase):
 
     def test_it_qualifies_the_remote_name(self) -> None:
         with real_remote() as remote:
-            self.assertEqual(refs.local_snapshot_ref(remote.spec, REF), MIRROR)
+            self.assertEqual(_snapshot_mirrors.local_snapshot_ref(remote.spec, REF), MIRROR)
 
     def test_a_fetched_snapshot_resolves_under_it(self) -> None:
         with real_remote() as remote:
             _preserved(remote)
 
             self.assertEqual(
-                refs._local_ref_sha(remote.clone, MIRROR), remote.sha,
+                _snapshot_mirrors._local_ref_sha(remote.clone, MIRROR), remote.sha,
             )
 
 
@@ -92,8 +92,8 @@ class BoundedRepositoryTest(unittest.TestCase):
         # on one local ref -- so the rewrite carries the slug's own digest.
         near = f"{LONG_SLUG}x"
 
-        first = refs.local_snapshot_ref(_spec_for(LONG_SLUG), REF)
-        second = refs.local_snapshot_ref(_spec_for(near), REF)
+        first = _snapshot_mirrors.local_snapshot_ref(_spec_for(LONG_SLUG), REF)
+        second = _snapshot_mirrors.local_snapshot_ref(_spec_for(near), REF)
 
         self.assertNotEqual(first, second)
         for built in (first, second):
@@ -138,8 +138,8 @@ class SharedTargetRootTest(unittest.TestCase):
             _preserved(second)
 
             self.assertNotEqual(
-                refs.local_snapshot_ref(first.spec, REF),
-                refs.local_snapshot_ref(second.spec, REF),
+                _snapshot_mirrors.local_snapshot_ref(first.spec, REF),
+                _snapshot_mirrors.local_snapshot_ref(second.spec, REF),
             )
             self.assertEqual(_mirrored(first), first.sha)
             self.assertEqual(_mirrored(second), second.sha)
@@ -198,14 +198,14 @@ class LocalSnapshotReclamationTest(unittest.TestCase):
         with real_remote() as remote:
             _preserved(remote)
             self.assertEqual(
-                refs._local_ref_sha(remote.clone, MIRROR), remote.sha,
+                _snapshot_mirrors._local_ref_sha(remote.clone, MIRROR), remote.sha,
             )
 
             refs.delete_snapshot_ref(
                 remote.spec, remote.clone, ref=REF, sha=remote.sha,
             )
 
-            self.assertIsNone(refs._local_ref_sha(remote.clone, MIRROR))
+            self.assertIsNone(_snapshot_mirrors._local_ref_sha(remote.clone, MIRROR))
 
     def test_an_absent_remote_drops_a_stranded_copy(self) -> None:
         # The crash between the push that deleted a ref and the write that
@@ -220,7 +220,7 @@ class LocalSnapshotReclamationTest(unittest.TestCase):
                 ),
                 refs.SnapshotOutcome.ABSENT,
             )
-            self.assertIsNone(refs._local_ref_sha(remote.clone, MIRROR))
+            self.assertIsNone(_snapshot_mirrors._local_ref_sha(remote.clone, MIRROR))
 
     def test_a_mirror_that_survives_keeps_the_ref(self) -> None:
         # The state the guard cannot read: remote reclaimed, mirror standing,
@@ -272,13 +272,13 @@ class LocalSnapshotReclamationTest(unittest.TestCase):
             # Planted rather than fetched: what is under test is the reading,
             # and the fetch that ordinarily puts a copy here is proved above.
             remote.point_local_ref(MIRROR, remote.sha)
-            self.assertTrue(refs.local_snapshot_present(
+            self.assertTrue(_snapshot_mirrors.local_snapshot_present(
                 remote.spec, remote.clone, ref=REF, sha=remote.sha,
             ))
 
             remote.point_local_ref(MIRROR, remote.other_sha)
 
-            self.assertFalse(refs.local_snapshot_present(
+            self.assertFalse(_snapshot_mirrors.local_snapshot_present(
                 remote.spec, remote.clone, ref=REF, sha=remote.sha,
             ))
             self.assertEqual(_mirrored(remote), remote.other_sha)

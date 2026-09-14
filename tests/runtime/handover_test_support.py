@@ -25,7 +25,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.runtime import exclusion
+from orchestrator.runtime import exclusion, host_lock
 from orchestrator.scheduler import IssueScheduler
 from tests.runtime import polling_test_support as _support
 
@@ -103,7 +103,7 @@ class _HandoverTestCase(unittest.TestCase):
         self.root = Path(root.name)
         for patched in (
             patch.object(config, _WORKTREES_ATTR, self.root),
-            patch.object(exclusion, _RETRY_ATTR, _BRIEF_RETRY_SECONDS),
+            patch.object(host_lock, _RETRY_ATTR, _BRIEF_RETRY_SECONDS),
         ):
             patched.start()
             self.addCleanup(patched.stop)

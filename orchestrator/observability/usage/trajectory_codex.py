@@ -4,7 +4,8 @@
 
 Codex emits several frames per operation -- started, then any updates, then
 completed -- so this owner correlates them by `item.id` and keeps each item at
-the position its first frame took. `trajectory_codex_items` beside it decides
+the position its first frame took. `trajectory_codex_payloads` owns their accumulated payloads and step projection;
+`trajectory_codex_items` beside it decides
 what each item type contributes, down to which frame's invocation an item is
 recorded under; everything here is the correlation, the ordering, and the
 frames a stream can carry without an id at all.
@@ -37,6 +38,7 @@ from typing import Any
 from orchestrator.observability.usage import (
     protocol,
     trajectory_codex_items as codex_items,
+    trajectory_codex_payloads as codex_payloads,
 )
 from orchestrator.observability.usage.trajectory_models import (
     ITEM_EMPTY,
@@ -106,7 +108,7 @@ class ItemClaim:
 
 def frame_claim(
     stream_item: dict[str, Any],
-    payloads: codex_items.CodexItemPayloads | None,
+    payloads: codex_payloads.CodexItemPayloads | None,
 ) -> ItemClaim:
     """Read what one frame says about the item it reports under.
 
@@ -121,7 +123,7 @@ def frame_claim(
     if payloads is None:
         excluded = named == codex_items.REASONING
         return ItemClaim(named, EXCLUDED_CLAIM if excluded else UNTYPED_CLAIM)
-    if payloads.kind == codex_items.UNSUPPORTED_ITEM:
+    if payloads.kind == codex_payloads.UNSUPPORTED_ITEM:
         return ItemClaim(named, UNSUPPORTED_CLAIM)
     return ItemClaim(named, NORMALIZED_CLAIM)
 
@@ -131,7 +133,7 @@ class CodexTrajectoryBuilder:
     """Frames folded into one record per item, in first-seen order."""
 
     order: list[str] = field(default_factory=list)
-    by_id: dict[str, codex_items.CodexItemPayloads] = field(default_factory=dict)
+    by_id: dict[str, codex_payloads.CodexItemPayloads] = field(default_factory=dict)
     anonymous: list[TrajectoryStep] = field(default_factory=list)
     claims: dict[str, ItemClaim] = field(default_factory=dict)
 
@@ -191,14 +193,14 @@ class CodexTrajectoryBuilder:
     def _absorb(
         self,
         item_id: str,
-        payloads: codex_items.CodexItemPayloads,
+        payloads: codex_payloads.CodexItemPayloads,
     ) -> None:
         recorded = self.by_id.get(item_id)
         if recorded is None:
             self.order.append(item_id)
             self.by_id[item_id] = payloads
             return
-        placeholder = codex_items.UNSUPPORTED_ITEM
+        placeholder = codex_payloads.UNSUPPORTED_ITEM
         if payloads.kind == placeholder and recorded.kind != placeholder:
             # One operation is one item however many frames wrap it. A frame
             # nothing claims -- an outer tool call the parser has no
@@ -220,5 +222,5 @@ class CodexTrajectoryBuilder:
         recorded.name = payloads.name or recorded.name
         if payloads.contributes_call(recorded.call_payload):
             recorded.call_payload = payloads.call_payload
-        if payloads.result_payload is not codex_items.MISSING:
+        if payloads.result_payload is not codex_payloads.MISSING:
             recorded.result_payload = payloads.result_payload

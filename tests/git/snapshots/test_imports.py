@@ -9,12 +9,13 @@ import sys
 import unittest
 
 from orchestrator.git import snapshots as _package
-from orchestrator.git.snapshots import namespace, refs
+from orchestrator.git.snapshots import mirrors, namespace, refs
 
 _PACKAGE = "orchestrator.git.snapshots"
 
 _MODULES = (
     _PACKAGE,
+    f"{_PACKAGE}.mirrors",
     f"{_PACKAGE}.namespace",
     f"{_PACKAGE}.refs",
 )
@@ -32,6 +33,8 @@ _OWNER_DEFINED = (
     ("InvalidSnapshotRef", namespace),
     ("is_snapshot_ref", namespace),
     ("snapshot_ref", namespace),
+    ("local_snapshot_ref", mirrors),
+    ("local_snapshot_present", mirrors),
     ("SnapshotOutcome", refs),
     ("create_snapshot_ref", refs),
     ("delete_snapshot_ref", refs),
