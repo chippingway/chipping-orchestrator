@@ -6,12 +6,8 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.git.worktrees import eligibility
-from tests.git.worktrees.artifact_test_support import (
-    BASE_BRANCH,
-    WIDGET_SLUG,
-    _namespaced_branch,
-    _spec,
-)
+from tests.git.worktrees.artifact_git import BASE_BRANCH
+from tests.git.worktrees.artifact_test_support import WIDGET_SLUG, _namespaced_branch, _spec
 from tests.git.worktrees.candidate_host_test_support import (
     CLONE_NAME,
     _CandidateWorld,

@@ -31,13 +31,9 @@ from tests.git.worktrees.artifact_test_support import (
     _namespaced_branch,
     _spec,
 )
-from tests.git.worktrees.candidate_host_test_support import _branch_at
-from tests.git.worktrees.discovery_test_support import (
-    LIFECYCLE_LOGGER,
-    SIBLING_REMOTE_DIR,
-    _CloneOfAllBut,
-    _DiscoveryTestCase,
-)
+from tests.git.worktrees.candidate_refs import _branch_at
+from tests.git.worktrees.discovery_host import SIBLING_REMOTE_DIR
+from tests.git.worktrees.discovery_test_support import LIFECYCLE_LOGGER, _CloneOfAllBut, _DiscoveryTestCase
 from tests.git.worktrees.eligibility_test_support import ISSUE_NUMBER
 
 OTHER_ISSUE_NUMBER = 315

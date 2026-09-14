@@ -27,11 +27,6 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.config import settings as config
 from orchestrator.git import branch_transport as _branch_transport
-from orchestrator.git.measurement import (
-    commits as _measurement_commits,
-    fingerprint as _fingerprint,
-)
-from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.late_split import (
     exemption as _exemption,
     rewrites as _rewrites,
@@ -46,25 +41,11 @@ from orchestrator.workflow.stages.implementing import (
     late_records as _late_records,
     late_transfer as _transfer,
 )
-from orchestrator.workflow.state import WorkflowLabel
-from tests.support.authorization import _authorize
-from tests.support.fakes import (
-    FakeGitHubClient,
-    FakeLabel,
-    FakePR,
-    FakePRRef,
-    make_issue,
-)
 from tests.support.replay_repository import (
     TOPIC_BRANCH,
-    ReplayRepositoryMixin,
     divergence_from_the_publication,
 )
-from tests.workflow.observation_support import ObservedCloseCase
-
-ISSUE_NUMBER = 9
-PR_NUMBER = 77
-STAGE = WorkflowLabel.RESOLVING_CONFLICT
+from tests.workflow.stages.conflicts import real_replay_case as _real_replay
 
 LABEL_DECOMPOSING = "workflow:decomposing"
 
@@ -74,102 +55,10 @@ LABEL_DECOMPOSING = "workflow:decomposing"
 PAST_THE_CEILING = 2
 
 MAX_ADDED_LINES = "MAX_ADDED_LINES"
-FREEZE_BASE = "_freeze_base_commit"
 PUSH_BRANCH = "_push_branch"
 
 
-class _RealReplayCase(ObservedCloseCase, ReplayRepositoryMixin):
-    """One adjudicated commit, really replayed, really fingerprinted."""
-
-    def setUp(self) -> None:
-        super().setUp()
-        # The transfer re-reads the issue before granting anything, and a
-        # close another case latched process-wide is a refusal this one never
-        # asked for.
-        self._fresh_process()
-        self.replay = self.build_replay()
-        # The one reading in this fixture that leaves the host. Both the
-        # permit and the measurement freeze the base branch from the remote,
-        # which there is no token for here; the ancestry and the fingerprints
-        # decided against it are the repository's own.
-        self.enterContext(patch.object(
-            _measurement_commits, FREEZE_BASE,
-            MagicMock(return_value=FrozenCommit(sha=self.replay.replayed_base)),
-        ))
-
-    def _adjudicated(self, candidate: str):
-        """The gate for an issue whose exemption names the replayed commit.
-
-        The pinned comment is exactly what a settled `single` verdict leaves,
-        with the digest taken over the objects rather than chosen: the pair
-        the adjudication was measured between, and the real contribution
-        between them.
-        """
-        github = FakeGitHubClient()
-        issue = make_issue(ISSUE_NUMBER)
-        issue.labels.append(FakeLabel(str(STAGE)))
-        github.add_issue(issue)
-        github.add_pr(FakePR(
-            number=PR_NUMBER,
-            head_branch=TOPIC_BRANCH,
-            head=FakePRRef(sha=self.replay.accepted),
-        ))
-        github.seed_state(ISSUE_NUMBER, pr_number=PR_NUMBER)
-        state = github.read_pinned_state(issue)
-        contributes = self._contributes(
-            self.replay.accepted_base, self.replay.accepted,
-        )
-        _exemption.record_exemption(state, self.replay.accepted)
-        _exemption.record_semantic_identity(
-            state,
-            base_sha=self.replay.accepted_base,
-            candidate_sha=self.replay.accepted,
-            fingerprint=contributes,
-        )
-        _authorize(
-            state, self.replay.accepted, self.replay.accepted_base, contributes,
-        )
-        github.write_pinned_state(issue, state)
-        return _late_records._gate(
-            github, self.replay.spec, issue, state, self.replay.worktree,
-        )
-
-    def _contributes(self, base: str, candidate: str) -> str:
-        """What one pair really contributes, over the objects this host holds."""
-        fingerprinted = _fingerprint._fingerprint_contribution(
-            self.replay.worktree, base, candidate,
-        )
-        self.assertTrue(fingerprinted.is_fingerprinted)
-        return fingerprinted.digest
-
-    def _context(self, gate) -> _conflict_models._ConflictContext:
-        """The tick this stage's own owners are handed."""
-        return _conflict_models._ConflictContext(
-            gate.gh, gate.spec, gate.issue, gate.state,
-        )
-
-    def _evidence(self, gate, candidate: str):
-        """What the replay hands the gate, over the fork points git answers."""
-        return _evidence._rewritten(
-            self._context(gate),
-            self.replay.worktree,
-            _evidence._replayed(
-                self.replay.spec, self.replay.worktree, self.replay.accepted,
-            ),
-            candidate,
-            PR_NUMBER,
-        )
-
-    def _entered(self, gate, candidate: str) -> _late_records._Entered:
-        return _late_records._Entered(
-            head=self.replay.accepted,
-            reconciling=True,
-            candidate=candidate,
-            rewrite=self._evidence(gate, candidate),
-        )
-
-
-class ReplayedTransferRealGitTest(_RealReplayCase, unittest.TestCase):
+class ReplayedTransferRealGitTest(_real_replay._RealReplayCase, unittest.TestCase):
     """A replay whose contribution the objects say is the accepted one."""
 
     def test_the_two_ends_fingerprint_alike(self) -> None:
@@ -235,7 +124,7 @@ class ReplayedTransferRealGitTest(_RealReplayCase, unittest.TestCase):
         self.assertEqual(carried, "")
         self.assertIsNone(_rewrites.read_rewrite_authorization(gate.state))
         self.assertEqual(
-            gate.gh.pinned_data(ISSUE_NUMBER)[_exemption.LATE_EXEMPT_SHA],
+            gate.gh.pinned_data(_real_replay.ISSUE_NUMBER)[_exemption.LATE_EXEMPT_SHA],
             self.replay.accepted,
         )
 
@@ -246,15 +135,15 @@ class ReplayedTransferRealGitTest(_RealReplayCase, unittest.TestCase):
             reconciling=True,
             candidate=candidate,
             entry=_late_records._PublicationEntry(
-                stage=STAGE,
-                pr_number=PR_NUMBER,
+                stage=_real_replay.STAGE,
+                pr_number=_real_replay.PR_NUMBER,
                 published_sha=self.replay.accepted,
             ),
             rewrite=self._evidence(gate, candidate),
         )
 
 
-class DivergentRecoveryRealGitTest(_RealReplayCase, unittest.TestCase):
+class DivergentRecoveryRealGitTest(_real_replay._RealReplayCase, unittest.TestCase):
     """The shape a real replay leaves, and what lets a recovery past it.
 
     A rebase moves the branch off the head it replayed, so the publication
@@ -304,7 +193,7 @@ class DivergentRecoveryRealGitTest(_RealReplayCase, unittest.TestCase):
             _evidence._Replayed(
                 head=self.replay.accepted, base_sha=self.replay.accepted_base,
             ),
-            PR_NUMBER,
+            _real_replay.PR_NUMBER,
         )
         _evidence._records_the_replayed_commit(
             self._context(gate),
@@ -319,7 +208,7 @@ class DivergentRecoveryRealGitTest(_RealReplayCase, unittest.TestCase):
         ahead, behind = divergence_from_the_publication(self.replay)
         return _divergence._guard_diverged_worktree(
             self._context(gate),
-            gate.gh.get_pr(PR_NUMBER),
+            gate.gh.get_pr(_real_replay.PR_NUMBER),
             _conflict_models._WorktreeSync(
                 worktree=self.replay.worktree,
                 branch=TOPIC_BRANCH,
@@ -330,7 +219,7 @@ class DivergentRecoveryRealGitTest(_RealReplayCase, unittest.TestCase):
         )
 
 
-class AuthoredChangeRealGitTest(_RealReplayCase, unittest.TestCase):
+class AuthoredChangeRealGitTest(_real_replay._RealReplayCase, unittest.TestCase):
     """The same replay with one byte written into it, decided the same way."""
 
     def test_one_byte_moves_the_contribution(self) -> None:
@@ -356,7 +245,7 @@ class AuthoredChangeRealGitTest(_RealReplayCase, unittest.TestCase):
         self.assertTrue(published.held)
         self.assertFalse(_rewrites.carries_rewrite_authorization(gate.state))
         self.assertIn(
-            (ISSUE_NUMBER, LABEL_DECOMPOSING), gate.gh.label_history,
+            (_real_replay.ISSUE_NUMBER, LABEL_DECOMPOSING), gate.gh.label_history,
         )
 
     def test_an_equivalent_replay_still_publishes(self) -> None:
@@ -369,10 +258,10 @@ class AuthoredChangeRealGitTest(_RealReplayCase, unittest.TestCase):
 
         self.assertTrue(published.landed)
         self.assertNotIn(
-            (ISSUE_NUMBER, LABEL_DECOMPOSING), gate.gh.label_history,
+            (_real_replay.ISSUE_NUMBER, LABEL_DECOMPOSING), gate.gh.label_history,
         )
         self.assertEqual(
-            gate.gh.pinned_data(ISSUE_NUMBER)[_exemption.LATE_EXEMPT_SHA],
+            gate.gh.pinned_data(_real_replay.ISSUE_NUMBER)[_exemption.LATE_EXEMPT_SHA],
             self.replay.replayed,
         )
 

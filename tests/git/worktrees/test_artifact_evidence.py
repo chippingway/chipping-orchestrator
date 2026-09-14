@@ -23,21 +23,14 @@ from unittest.mock import patch
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.worktrees import activity_evidence as _activity_evidence, evidence, tip_evidence as _tip_evidence
 from orchestrator.git.worktrees.models import BranchTip, ProbeAnswer
-from tests.git.worktrees.artifact_test_support import (
-    BASE_BRANCH,
-    WIDGET_SLUG,
-    _namespaced_branch,
-    _spec,
+from tests.git.worktrees import (
+    artifact_git as _artifact_git,
+    candidate_refs as _candidate_refs,
+    evidence_test_support as _evidence_support,
 )
+from tests.git.worktrees.artifact_test_support import WIDGET_SLUG, _spec
 from tests.git.worktrees.candidate_host_test_support import (
-    CLONE_NAME,
-    _branch_at,
-    _CandidateWorld,
     _foreign_checkout,
-    _revision,
-    _settle_checkout,
-    _track_file,
-    _tracking_ref,
 )
 from tests.git.worktrees.eligibility_test_support import ISSUE_NUMBER
 from tests.workflow.stages.question.question_real_git_test_support import (
@@ -57,35 +50,13 @@ HIDDEN_FILE = "secrets.env"
 HIDDEN_CONTENT = "TOKEN=an operator's own\n"
 TRACKED_FILE = "tracked.txt"
 TRACKED_CONTENT = "committed work\n"
-MINUTE = 60
-HOUR = 60 * MINUTE
 
 
-def _named(sha: str) -> BranchTip:
-    """One commit as the remote naming it, which is how a base arrives."""
-    return BranchTip(answer=ProbeAnswer.CONFIRMED, sha=sha)
-
-
-class _HostTestCase(unittest.TestCase):
-    """A clone, its issue branch name, and the spec naming both."""
-
-    def setUp(self) -> None:
-        self.world = _CandidateWorld()
-        self.world.prepare(self)
-        self.clone = self.world.clone(CLONE_NAME)
-        self.spec = _spec(WIDGET_SLUG, self.clone)
-        self.branch = _namespaced_branch(WIDGET_SLUG, ISSUE_NUMBER)
-
-    def commit(self) -> str:
-        """Put one commit on this issue's branch."""
-        return self.world.commit_on(self.clone, self.branch)
-
-
-class CheckoutIdentityTest(_HostTestCase):
+class CheckoutIdentityTest(_evidence_support._HostTestCase):
     """Whether the directory at the issue's path is the issue's checkout."""
 
     def test_its_own_branch_confirms(self) -> None:
-        _branch_at(self.clone, self.branch, BASE_BRANCH)
+        _candidate_refs._branch_at(self.clone, self.branch, _artifact_git.BASE_BRANCH)
         worktree = self.world.attached_checkout(
             self.spec, ISSUE_NUMBER, self.branch,
         )
@@ -113,7 +84,7 @@ class CheckoutIdentityTest(_HostTestCase):
         # Both are a checkout of this clone that is not on this issue's work:
         # the first is somebody else's branch parked in our directory, the
         # second is commits sitting on no branch at all.
-        _branch_at(self.clone, ANOTHER_BRANCH, BASE_BRANCH)
+        _candidate_refs._branch_at(self.clone, ANOTHER_BRANCH, _artifact_git.BASE_BRANCH)
         elsewhere = self.world.attached_checkout(
             self.spec, ISSUE_NUMBER, ANOTHER_BRANCH,
         )
@@ -143,7 +114,7 @@ class CheckoutIdentityTest(_HostTestCase):
         self.assertIs(identified, ProbeAnswer.UNREADABLE)
 
 
-class WorktreeCleanlinessTest(_HostTestCase):
+class WorktreeCleanlinessTest(_evidence_support._HostTestCase):
     """Whether a checkout PROVED it is carrying nothing an operator wants.
 
     Two reads rather than one, because git draws the line between them: what
@@ -153,7 +124,7 @@ class WorktreeCleanlinessTest(_HostTestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        _branch_at(self.clone, self.branch, BASE_BRANCH)
+        _candidate_refs._branch_at(self.clone, self.branch, _artifact_git.BASE_BRANCH)
         self.worktree = self.world.attached_checkout(
             self.spec, ISSUE_NUMBER, self.branch,
         )
@@ -223,7 +194,7 @@ class WorktreeCleanlinessTest(_HostTestCase):
         )
 
 
-class QuietCheckoutTest(_HostTestCase):
+class QuietCheckoutTest(_evidence_support._QuietCheckoutCase):
     """When a checkout was last disturbed, and the two ways that does not answer.
 
     The one read here that is not about what a tree holds. What it costs to get
@@ -231,24 +202,9 @@ class QuietCheckoutTest(_HostTestCase):
     answers as one -- never as a tree nobody has been near.
     """
 
-    def setUp(self) -> None:
-        super().setUp()
-        _branch_at(self.clone, self.branch, BASE_BRANCH)
-        self.worktree = self.world.attached_checkout(
-            self.spec, ISSUE_NUMBER, self.branch,
-        )
-
-    def quiet(self) -> ProbeAnswer:
-        """What the probe says about this checkout a minute-wide window back."""
-        return _activity_evidence._quiet_checkout(self.worktree, time.time() - MINUTE)
-
-    def settle(self) -> None:
-        """Leave every trace of this checkout an hour in the past."""
-        _settle_checkout(self.worktree, time.time() - HOUR)
-
     def test_a_checkout_made_just_now_refutes(self) -> None:
         self.assertIs(
-            _activity_evidence._quiet_checkout(self.worktree, time.time() - HOUR),
+            _activity_evidence._quiet_checkout(self.worktree, time.time() - _evidence_support.HOUR),
             ProbeAnswer.REFUTED,
         )
 
@@ -272,8 +228,8 @@ class QuietCheckoutTest(_HostTestCase):
         # and afterwards the tree is clean and every other probe clears it.
         # What says somebody was here a moment ago is the checkout's own index
         # and reflog, which the commit rewrote.
-        _track_file(self.clone, TRACKED_FILE, TRACKED_CONTENT)
-        _run_git("merge", "-q", BASE_BRANCH, cwd=self.worktree)
+        _candidate_refs._track_file(self.clone, TRACKED_FILE, TRACKED_CONTENT)
+        _run_git("merge", "-q", _artifact_git.BASE_BRANCH, cwd=self.worktree)
         self.settle()
         (self.worktree / TRACKED_FILE).write_text(LOOSE_CONTENT)
         _run_git("commit", "-q", "-am", "an agent's own round", cwd=self.worktree)
@@ -292,7 +248,7 @@ class QuietCheckoutTest(_HostTestCase):
         )
 
 
-class BranchTipTest(_HostTestCase):
+class BranchTipTest(_evidence_support._HostTestCase):
     """What a local branch stands on, and the two ways it does not answer."""
 
     def test_a_branch_resolves_to_its_commit(self) -> None:
@@ -331,7 +287,7 @@ class BranchTipTest(_HostTestCase):
         self.assertIs(resolved.answer, ProbeAnswer.UNREADABLE)
 
 
-class PublishedTipTest(_HostTestCase):
+class PublishedTipTest(_evidence_support._HostTestCase):
     """What the remote itself says a branch is at."""
 
     def test_a_pushed_branch_resolves(self) -> None:
@@ -362,7 +318,7 @@ class PublishedTipTest(_HostTestCase):
         # actually holds.
         self.world.serve(self.spec)
         planted = self.commit()
-        _tracking_ref(self.clone, self.branch, planted)
+        _candidate_refs._tracking_ref(self.clone, self.branch, planted)
 
         published = _tip_evidence._published_tip(self.spec, self.branch)
 
@@ -397,7 +353,7 @@ class PublishedTipTest(_HostTestCase):
         self.assertIs(published.answer, ProbeAnswer.UNREADABLE)
 
 
-class BaseAncestryTest(_HostTestCase):
+class BaseAncestryTest(_evidence_support._HostTestCase):
     """Whether a base commit the caller established carries a branch tip."""
 
     def test_a_tip_the_base_holds_is_confirmed(self) -> None:
@@ -405,18 +361,18 @@ class BaseAncestryTest(_HostTestCase):
         # from what the branch is standing on.
         tip = self.commit()
         merged = self.world.commit_on(
-            self.clone, BASE_BRANCH, start=self.branch,
+            self.clone, _artifact_git.BASE_BRANCH, start=self.branch,
         )
 
         self.assertIs(
-            _tip_evidence._base_contains(self.spec, _named(merged), tip),
+            _tip_evidence._base_contains(self.spec, _evidence_support._named(merged), tip),
             ProbeAnswer.CONFIRMED,
         )
 
     def test_a_tip_ahead_of_the_base_is_refuted(self) -> None:
         # Both ends are things the caller established, so what the clone's own
         # `refs/remotes/...` say about either is not consulted at all.
-        base = _named(_revision(self.clone, BASE_BRANCH))
+        base = _evidence_support._named(_candidate_refs._revision(self.clone, _artifact_git.BASE_BRANCH))
         tip = self.commit()
 
         self.assertIs(
@@ -428,7 +384,7 @@ class BaseAncestryTest(_HostTestCase):
         tip = self.commit()
 
         self.assertIs(
-            _tip_evidence._base_contains(self.spec, _named(MISSING_REVISION), tip),
+            _tip_evidence._base_contains(self.spec, _evidence_support._named(MISSING_REVISION), tip),
             ProbeAnswer.UNREADABLE,
         )
 

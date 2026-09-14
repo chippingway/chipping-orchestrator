@@ -29,13 +29,13 @@ from orchestrator.git.worktrees.models import (
     ProvenTip,
     RetentionReason,
 )
-from tests.git.worktrees import candidate_host_test_support as _candidate_host, eligibility_case as _eligibility_case
-from tests.git.worktrees.artifact_test_support import (
-    BASE_BRANCH,
-    WIDGET_SLUG,
-    _legacy_branch,
-    _namespaced_branch,
+from tests.git.worktrees import (
+    artifact_git as _artifact_git,
+    candidate_host_test_support as _candidate_host,
+    candidate_refs as _candidate_refs,
+    eligibility_case as _eligibility_case,
 )
+from tests.git.worktrees.artifact_test_support import WIDGET_SLUG, _legacy_branch, _namespaced_branch
 from tests.git.worktrees.eligibility_test_support import (
     ISSUE_NUMBER,
     OPEN_PR_STATE,
@@ -113,7 +113,7 @@ class ArtifactShapeTest(_eligibility_case._CandidateTestCase):
         # be a deletion nobody proved and nothing recorded.
         tip = self.landed()
         self.world.publish(self.clone, self.branch, self.branch)
-        _candidate_host._branch_at(self.clone, self.branch)
+        _candidate_refs._branch_at(self.clone, self.branch)
 
         verdict = self.classify()
 
@@ -124,7 +124,7 @@ class ArtifactShapeTest(_eligibility_case._CandidateTestCase):
         # And it owes what any tip owes: this one is ahead of base and on no
         # pull request, so the copy left on the remote keeps the candidate.
         self.world.publish(self.clone, self.branch, self.commit())
-        _candidate_host._branch_at(self.clone, self.branch)
+        _candidate_refs._branch_at(self.clone, self.branch)
 
         self.assertEqual(
             self.kept(), (RetentionReason.UNACCOUNTED_COMMITS,),
@@ -180,7 +180,7 @@ class MigratedCheckoutTest(_eligibility_case._CandidateTestCase):
         """
         legacy = _legacy_branch(ISSUE_NUMBER)
         tip = self.landed()
-        _candidate_host._branch_at(self.clone, legacy, self.branch)
+        _candidate_refs._branch_at(self.clone, legacy, self.branch)
         flat = self.world.checkout_at(
             self.spec, paths._legacy_worktree_path(ISSUE_NUMBER), legacy,
         )
@@ -281,7 +281,7 @@ class CheckoutStateTest(_eligibility_case._CandidateTestCase):
         # to every status -- and is still an `.env` somebody left there. They
         # are charged apart for what an operator is sent to look at: `git
         # status` shows them nothing about the first.
-        _candidate_host._track_file(self.clone, IGNORE_FILE, f"{HIDDEN_FILE}\n")
+        _candidate_refs._track_file(self.clone, IGNORE_FILE, f"{HIDDEN_FILE}\n")
         self.landed()
         worktree = self.checkout()
         (worktree / HIDDEN_FILE).write_text(HIDDEN_CONTENT)
@@ -333,7 +333,7 @@ class CheckoutStateTest(_eligibility_case._CandidateTestCase):
         # unless it is told not to. The file is re-stamped first so there IS
         # something to refresh -- with nothing stale, a probe that writes and
         # one that does not leave the same index.
-        _candidate_host._track_file(self.clone, TRACKED_FILE, TRACKED_CONTENT)
+        _candidate_refs._track_file(self.clone, TRACKED_FILE, TRACKED_CONTENT)
         self.landed()
         worktree = self.checkout()
         os.utime(worktree / TRACKED_FILE, (STALE_STAMP, STALE_STAMP))
@@ -352,7 +352,7 @@ class CheckoutStateTest(_eligibility_case._CandidateTestCase):
         # alone, so removing it is what would take that commit.
         self.commit()
         worktree = self.checkout()
-        _candidate_host._branch_at(self.clone, self.branch)
+        _candidate_refs._branch_at(self.clone, self.branch)
 
         self.assertEqual(
             self.kept(worktree=worktree),
@@ -420,8 +420,8 @@ class BranchTipProofTest(_eligibility_case._CandidateTestCase):
         # an agent points the base mirror and the branch's own mirror at its
         # unpublished tip -- and the remote goes on saying what it holds.
         tip = self.commit()
-        _candidate_host._tracking_ref(self.clone, BASE_BRANCH, tip)
-        _candidate_host._tracking_ref(self.clone, self.branch, tip)
+        _candidate_refs._tracking_ref(self.clone, _artifact_git.BASE_BRANCH, tip)
+        _candidate_refs._tracking_ref(self.clone, self.branch, tip)
 
         self.assertEqual(
             self.kept(), (RetentionReason.UNACCOUNTED_COMMITS,),
@@ -570,13 +570,13 @@ class UnreadableReadTest(_eligibility_case._CandidateTestCase):
         # that separates the two reads: the candidate is measurable and its
         # publication is still unknown.
         self.commit()
-        base = _tip_evidence._published_tip(self.spec, BASE_BRANCH)
+        base = _tip_evidence._published_tip(self.spec, _artifact_git.BASE_BRANCH)
 
         with patch.object(
             _tip_evidence,
             "_published_tip",
             side_effect=lambda _spec, branch: (
-                base if branch == BASE_BRANCH
+                base if branch == _artifact_git.BASE_BRANCH
                 else BranchTip(answer=ProbeAnswer.UNREADABLE)
             ),
         ):

@@ -22,83 +22,18 @@ stop testing the guard that says so.
 
 from __future__ import annotations
 
-import time
-import unittest
-from collections.abc import Sequence
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
-    branch_probes,
-    discovery,
-    maintenance,
-    maintenance_guards as _maintenance_guards,
-    paths,
     probes,
-    remote_inventory as _remote_inventory,
 )
-from orchestrator.git.worktrees.candidates import MaintenanceCandidate
-from orchestrator.git.worktrees.maintenance_results import MaintenanceResult
-from tests.git.worktrees.artifact_test_support import (
-    BASE_BRANCH,
-    GADGET_SLUG,
-    WIDGET_SLUG,
-    _namespaced_branch,
-    _spec,
+from tests.git.worktrees import (
+    maintenance_assertions as _maintenance_assertions,
+    maintenance_host as _maintenance_host,
 )
-from tests.git.worktrees.candidate_host_test_support import (
-    CLONE_NAME,
-    _CandidateWorld,
-    _settle_checkout,
-)
-from tests.git.worktrees.eligibility_test_support import ISSUE_NUMBER, _github
-
-# Far enough back that the pass's own quiet period has passed for a checkout,
-# derived from that period rather than written out so the two cannot drift.
-SETTLED_SECONDS = 2 * _maintenance_guards._QUIET_PERIOD_SECONDS
-
-# The second bare repository and the second clone a multi-repository case
-# builds, named apart from the world's own so both can stand at once.
-SIBLING_REMOTE_DIR = "sibling.git"
-
-SIBLING_CLONE_NAME = "sibling"
 
 LIFECYCLE_LOGGER = "orchestrator.worktree_lifecycle"
-
-
-def _never_claimed(_repo_slug: str, _issue_number: int) -> bool:
-    """The guard a host with nothing running for this issue answers with."""
-    return False
-
-
-def _always_claimed(_repo_slug: str, _issue_number: int) -> bool:
-    """The guard a host that is mid-run for this issue answers with."""
-    return True
-
-
-def _unanswerable_claim(_repo_slug: str, _issue_number: int) -> bool:
-    """A guard that fails the way one reaching into a live scheduler can."""
-    raise RuntimeError("the scheduler could not be asked")
-
-
-def _going_on() -> bool:
-    """The continuation a process that is not stopping answers with."""
-    return True
-
-
-def _stopping() -> bool:
-    """The continuation a process whose run has been stopped answers with."""
-    return False
-
-
-def _unanswerable_continuation() -> bool:
-    """A continuation that fails the way one reaching into a live run can."""
-    raise RuntimeError("the run could not be asked whether it goes on")
-
-
-def _settle(worktree: Path) -> None:
-    """Back-date a checkout to before the pass's quiet period."""
-    _settle_checkout(worktree, time.time() - SETTLED_SECONDS)
 
 
 class _CloneOfAllBut:
@@ -126,131 +61,11 @@ def _refused_delete(*_args, **_options) -> bool:
     return False
 
 
-class _MaintenanceTestCase(unittest.TestCase):
+class _MaintenanceTestCase(_maintenance_assertions._MaintenanceAssertions, _maintenance_host._MaintenanceHostCase):
     """One finished issue, with its artifacts on a real host and remote."""
-
-    def setUp(self) -> None:
-        self.world = _CandidateWorld()
-        self.world.prepare(self)
-        self.clone = self.world.clone(CLONE_NAME)
-        self.spec = _spec(WIDGET_SLUG, self.clone)
-        self.world.serve(self.spec)
-        self.branch = _namespaced_branch(WIDGET_SLUG, ISSUE_NUMBER)
-        self.gh = _github()
-
-    def published(self, branch: str | None = None) -> str:
-        """Put one commit on a branch and push it, as a run's own round does."""
-        branch = branch or self.branch
-        return self.world.publish(
-            self.clone, branch, self.world.commit_on(self.clone, branch),
-        )
-
-    def landed(self, branch: str | None = None) -> str:
-        """Publish that branch and move the remote's base onto it.
-
-        The ordinary shape of a merged pull request, and the cheapest way to a
-        candidate the classification clears: the tip the artifacts stand on is
-        one the base already carries, so nothing is lost by deleting them.
-        """
-        branch = branch or self.branch
-        tip = self.published(branch)
-        self.world.publish(self.clone, BASE_BRANCH, branch)
-        return tip
-
-    def checkout(self, branch: str | None = None) -> Path:
-        """Add this issue's worktree, on the branch its creator leaves it on."""
-        return self.world.attached_checkout(
-            self.spec, ISSUE_NUMBER, branch or self.branch,
-        )
 
     def settled_checkout(self, branch: str | None = None) -> Path:
         """The same checkout, left alone long enough for the pass to act."""
         worktree = self.checkout(branch)
-        _settle(worktree)
+        _maintenance_host._settle(worktree)
         return worktree
-
-    def legacy_checkout(self, branch: str | None = None) -> Path:
-        """Add the checkout where this orchestrator put one before namespacing.
-
-        Directly under `WORKTREES_DIR`, with no per-repository parent, which is
-        the layout every entry shared until the slug went into the path -- and
-        which a host that has been running since then is still holding.
-        """
-        worktree = self.world.checkout_at(
-            self.spec,
-            paths._legacy_worktree_path(ISSUE_NUMBER),
-            branch or self.branch,
-        )
-        _settle(worktree)
-        return worktree
-
-    def sibling_on_this_clone(self) -> _config_models.RepoSpec:
-        """A second configured repository over the very same clone.
-
-        A public and a private remote across one checkout, which is the shape
-        branch namespacing exists for -- and the one shape in which an artifact
-        carrying no slug cannot be charged to either of them.
-        """
-        sibling = _spec(GADGET_SLUG, self.clone)
-        self.world.serve_beside(sibling, SIBLING_REMOTE_DIR)
-        return sibling
-
-    def sibling_on_its_own_clone(self) -> _config_models.RepoSpec:
-        """A second configured repository, on a clone and a remote of its own.
-
-        What a multi-repo host normally looks like: the entries do not share a
-        ref store, so nothing about one of them makes the other's artifacts
-        ambiguous -- which is the whole difference between this and a shared
-        `target_root`.
-        """
-        sibling = _spec(GADGET_SLUG, self.world.clone(SIBLING_CLONE_NAME))
-        self.world.serve_beside(sibling, SIBLING_REMOTE_DIR)
-        return sibling
-
-    @property
-    def only_branch(self) -> tuple[str, ...]:
-        """This issue's one branch, as a listing of what a host still holds."""
-        return (self.branch,)
-
-    def discovered(
-        self, specs: Sequence[_config_models.RepoSpec] | None = None,
-    ) -> tuple[MaintenanceCandidate, ...]:
-        """Every candidate the discovery finds on this host and its remote."""
-        return discovery._maintenance_candidates(
-            specs or (self.spec,),
-        ).candidates
-
-    def only_candidate(self, specs=None) -> MaintenanceCandidate:
-        """The single candidate this host and its remote hold between them."""
-        found = self.discovered(specs)
-        self.assertEqual(len(found), 1, f"expected one candidate, got {found}")
-        return found[0]
-
-    def swept(
-        self,
-        candidates: Sequence[MaintenanceCandidate] | None = None,
-        *,
-        claimed=_never_claimed,
-        going=_going_on,
-    ) -> tuple[MaintenanceResult, ...]:
-        """Run one maintenance pass over what the discovery found."""
-        return maintenance._maintained_candidates(
-            self.gh,
-            self.discovered() if candidates is None else candidates,
-            claimed=claimed,
-            going=going,
-        )
-
-    def only_result(self, **options) -> MaintenanceResult:
-        """The single answer a pass over this host's one candidate gives."""
-        swept = self.swept(**options)
-        self.assertEqual(len(swept), 1, f"expected one candidate, got {swept}")
-        return swept[0]
-
-    def local_branches(self) -> tuple[str, ...]:
-        """Every orchestrator-owned branch the clone still carries."""
-        return branch_probes._local_orchestrator_branches(self.clone) or ()
-
-    def remote_branches(self) -> tuple[str, ...]:
-        """Every orchestrator-owned branch the remote still carries."""
-        return _remote_inventory._remote_orchestrator_branches(self.spec) or ()

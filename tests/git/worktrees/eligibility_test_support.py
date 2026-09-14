@@ -21,7 +21,7 @@ from typing import Any
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees.candidates import IssueArtifacts
 from orchestrator.git.worktrees.models import Retention
-from tests.git.worktrees.artifact_test_support import BASE_BRANCH
+from tests.git.worktrees.artifact_git import BASE_BRANCH
 from tests.support.fakes import (
     FakeGitHubClient,
     FakeIssue,

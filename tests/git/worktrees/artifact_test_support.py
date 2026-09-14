@@ -19,11 +19,8 @@ from unittest.mock import patch
 from orchestrator.config import models as _config_models, settings as config
 from orchestrator.git import locks
 from orchestrator.git.worktrees import paths
-from tests.workflow.stages.question.question_real_git_test_support import (
-    _run_git,
-)
+from tests.git.worktrees import artifact_git as _artifact_git
 
-BASE_BRANCH = "main"
 WIDGET_SLUG = "acme/widget"
 GADGET_SLUG = "acme/gadget"
 STRANGER_SLUG = "stranger/repo"
@@ -39,7 +36,7 @@ WORKTREES_DIR_NAME = "worktrees"
 def _spec(slug: str, target_root: Path) -> _config_models.RepoSpec:
     """A repo spec on one clone, with the fields the scan reads set."""
     return _config_models.RepoSpec(
-        slug=slug, target_root=target_root, base_branch=BASE_BRANCH,
+        slug=slug, target_root=target_root, base_branch=_artifact_git.BASE_BRANCH,
     )
 
 
@@ -84,7 +81,7 @@ def _break_ref(root: Path, name: str) -> Path:
     return ref
 
 
-class _ArtifactWorld:
+class _ArtifactWorld(_artifact_git._ArtifactGitFixture):
     """A temp-backed host: clones to read refs from, and a worktrees root.
 
     `WORKTREES_DIR` is redirected at this world for the test's duration, which
@@ -107,48 +104,6 @@ class _ArtifactWorld:
         worktrees_patch.start()
         test_case.addCleanup(worktrees_patch.stop)
 
-    def clone(self, name: str) -> Path:
-        """A repository with one commit, standing in for a `target_root`."""
-        root = self.path(name)
-        root.mkdir(parents=True)
-        _run_git("init", "-q", "-b", BASE_BRANCH, cwd=root)
-        _run_git("commit", "-q", "--allow-empty", "-m", "init", cwd=root)
-        return root
-
     def path(self, name: str) -> Path:
         """A path inside the world, whether or not anything is at it."""
         return self._tmpdir / name
-
-    def branch(self, root: Path, name: str) -> None:
-        _run_git("branch", name, cwd=root)
-
-    def tag(self, root: Path, name: str) -> None:
-        _run_git("tag", name, cwd=root)
-
-    def checkout(self, spec: _config_models.RepoSpec, issue_number: int) -> Path:
-        """Add the issue's worktree where the creators would put it."""
-        return self._checkout_at(
-            spec, paths._worktree_path(spec, issue_number),
-        )
-
-    def legacy_checkout(
-        self, spec: _config_models.RepoSpec, issue_number: int,
-    ) -> Path:
-        """Add the issue's worktree where they put one before namespacing.
-
-        Directly under `WORKTREES_DIR`, with no per-repository parent, so the
-        directory carries nothing saying which entry made it -- which is what
-        the attribution has to settle from the clone instead.
-        """
-        return self._checkout_at(
-            spec, paths._legacy_worktree_path(issue_number),
-        )
-
-    def _checkout_at(self, spec: _config_models.RepoSpec, worktree: Path) -> Path:
-        """One detached worktree of this spec's clone, at a named path."""
-        worktree.parent.mkdir(parents=True, exist_ok=True)
-        _run_git(
-            "worktree", "add", "-q", "--detach", str(worktree),
-            cwd=spec.target_root,
-        )
-        return worktree
