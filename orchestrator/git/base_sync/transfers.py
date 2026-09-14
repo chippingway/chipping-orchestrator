@@ -476,11 +476,17 @@ def _outstanding_or_unvouched(state: PinnedState, rewrite) -> _Handoff:
 
     Read through the same fail-closed readers the debt's own owner uses: a
     hand-edited value is no approval, which is exactly the disagreement this
-    is looking for.
+    is looking for. Those readers answer for two of the group's three members,
+    so the third is asked by PRESENCE beside them: a debt claiming a basis
+    this build cannot name is a group something took apart, and read as the
+    two members that happen to agree it would license the permit-only push
+    over a record nobody can show whole.
     """
     # Lazy for the reason every upward reach in this package is: the debt
     # sits in the workflow layer above it.
     from orchestrator.workflow.stages.implementing import late_parks
+    if late_parks._unreadable_approval(state):
+        return _Handoff.UNVOUCHED
     owed = late_parks._approved_commit(state) == rewrite.to_sha
     if owed and late_parks._approved_lease(state) == rewrite.lease:
         return _Handoff.OUTSTANDING
@@ -779,3 +785,24 @@ def _permits_the_publication(
         rewrite=rewrite,
     )
     return bool(_transfer._carried_over(gate, local_head))
+
+
+def _left_mid_transfer(state: PinnedState) -> bool:
+    """Whether a permission on this comment still says a push is owed.
+
+    Asked where a recovery is about to walk away from an attempt rather than
+    finish it, and asked of the record alone: no fetch, no checkout, no
+    comparison -- none of which the caller is on a road to make. What it needs
+    to know is only whether walking away would leave a human's verdict
+    licensed onto a commit no push carried, with the approval debt granted
+    beside it still standing.
+
+    Fail-closed in the same direction every reader of this record is. A group
+    this build cannot read back whole answers yes, because "not shown to be
+    over" is the only reading available to a caller deciding whether it is
+    safe to forget one.
+    """
+    # Lazy for the reason every upward reach in this package is: the record
+    # sits in the workflow layer above it.
+    from orchestrator.workflow.late_split import rewrites as _rewrites
+    return _rewrites.outstanding_permission(state)

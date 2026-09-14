@@ -80,6 +80,9 @@ per-file-ignores =
     orchestrator/github/pull_requests.py:WPS214
     tests/support/github/models.py:WPS202
     tests/git/base_sync/recovery_git_support.py:WPS214
+    tests/git/base_sync/test_anchor.py:WPS214
+    tests/git/base_sync/test_recovery_authorization.py:WPS201,WPS214
+    tests/git/base_sync/test_transfers.py:WPS214
     tests/git/base_sync/test_recovery_real_git.py:WPS214
     tests/git/base_sync/test_recovery_transfer.py:WPS201,WPS214
     tests/git/publication/squash_recovery_support.py:WPS202

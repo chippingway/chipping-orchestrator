@@ -45,6 +45,10 @@ PARK_FAILED = "auto_base_rebase_failed"
 
 KEY_PENDING_PUSH_SHA = "pending_auto_base_rebase_push_sha"
 
+# The anchor an attempt pinned before the issue was moved off the stage the
+# refresh drives, spelled as a commit so a checkout can be said to be on it.
+STALE_ANCHOR = "57a1ea0c" * 5
+
 # Git output and commands the scenario assertions match on.
 THREE_BEHIND_STDOUT = "3\n"
 TWO_BEHIND_STDOUT = "2\n"
@@ -165,22 +169,11 @@ class CrashRecoveryAnchorUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCas
         _assert_parked_without_anchor(self, self, PARK_DIRTY)
 
     def test_stale_anchor_cleared_after_label_exit(self) -> None:
-        self._seed_pr_issue(
-            label=LABEL_RESOLVING_CONFLICT,
-            pending_auto_base_rebase_push_sha="stale-anchor",
-        )
-        self._add_pr()
-        scenario = _scenario(
-            dirty=MagicMock(return_value=[]),
-            rebase=MagicMock(),
-            push=MagicMock(),
-            head_sha=MagicMock(),
-            ahead_behind=MagicMock(),
-            fetch=MagicMock(),
-            git=MagicMock(
-                return_value=_git_result(stdout=THREE_BEHIND_STDOUT),
-            ),
-        )
+        # Git never moved the branch and the attempt recorded nothing past
+        # the anchor, so the flag is a promise to come back nobody is coming
+        # back for and dropping it strands nothing.
+        self._relabelled_mid_attempt()
+        scenario = self._stale_anchor_scenario(STALE_ANCHOR)
 
         scenario.run(self)
 
@@ -194,6 +187,42 @@ class CrashRecoveryAnchorUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCas
         )
         self.assertIsNone(
             self.gh.pinned_data(ISSUE).get(KEY_PENDING_PUSH_SHA),
+        )
+
+    def test_a_stranded_attempt_keeps_its_records(self) -> None:
+        # A checkout that has moved off the anchor under a label nothing here
+        # classifies may be standing on a replay the pull request has never
+        # seen. Cleared, the issue reads as one with nothing in flight and the
+        # next handler is free to start over on it.
+        self._relabelled_mid_attempt()
+
+        self._stale_anchor_scenario(AFTER_SHA).run(self)
+
+        pinned = self.gh.pinned_data(ISSUE)
+        self.assertEqual(pinned.get(KEY_PENDING_PUSH_SHA), STALE_ANCHOR)
+        self.assertTrue(pinned.get("awaiting_human"))
+        self.assertEqual(pinned.get("park_reason"), PARK_FAILED)
+
+    def _relabelled_mid_attempt(self) -> None:
+        """An anchor pinned under a label the base refresh does not drive."""
+        self._seed_pr_issue(
+            label=LABEL_RESOLVING_CONFLICT,
+            pending_auto_base_rebase_push_sha=STALE_ANCHOR,
+        )
+        self._add_pr()
+
+    def _stale_anchor_scenario(self, head_sha: str):
+        """One tick over that issue, with the checkout standing on `head_sha`."""
+        return _scenario(
+            dirty=MagicMock(return_value=[]),
+            rebase=MagicMock(),
+            push=MagicMock(),
+            head_sha=MagicMock(return_value=head_sha),
+            ahead_behind=MagicMock(),
+            fetch=MagicMock(),
+            git=MagicMock(
+                return_value=_git_result(stdout=THREE_BEHIND_STDOUT),
+            ),
         )
 
 

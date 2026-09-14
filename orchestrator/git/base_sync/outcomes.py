@@ -7,18 +7,32 @@ was already published, the comparison is unclassifiable, the remote moved out
 of band, the worktree is dirty, the reissued push failed, the pinned comment
 claims an exemption or a transfer nobody can read whole, the attempt's own
 record is in pieces, no permit licenses the replay to publish at all, the
-remote was rolled back off a replay the record says it carried, or the route
-behind a push that did land cannot be finished. Each one either finalizes
-through ``persistence`` or parks, so keeping them in one owner is what makes
-the set enumerable -- an outcome that neither routed nor parked would leave
-the issue holding an anchor no later tick can act on.
+remote was rolled back off a replay the record says it carried, the route
+behind a push that did land cannot be finished, the attempt was made for a
+publication this issue no longer records, or the issue was relabelled off the
+refresh-driven set with the attempt's own records still standing. Each one
+either finalizes through ``persistence`` or parks, so keeping them in one
+owner is what makes the set enumerable -- an outcome that neither routed nor
+parked would leave the issue holding an anchor no later tick can act on.
 
 Most parks reset HEAD onto the pre-rebase anchor first, because that anchor is
-the head the remote PR still carries and the reviewer is still voting on. One
-must not: the unfinished-route park sits over a remote standing on the
+the head the remote PR still carries and the reviewer is still voting on.
+Three must not. The unfinished-route park sits over a remote standing on the
 REWRITE, so putting the branch back on the anchor would take the checkout off
-work the pull request has. It parks with the anchor left pinned instead, and
-the next tick classifies afresh.
+work the pull request has. The foreign-publication park cannot say which pull
+request the branch belongs to at all, which is a question about the issue's
+record rather than about the commit -- throwing the replay away would answer
+neither. And the stranded park is taken under a label nothing here classifies,
+so it cannot say whether the hand that moved the issue moved the checkout too.
+All three park with the anchor left pinned instead, and the next tick
+classifies afresh.
+
+The stranded one is also the only park here that has to recognize its own
+work. It is reached from the label check ahead of every gate, so every poll
+under the wrong label comes back to a comment nothing has changed -- and
+saying it again would repeat one sentence on the thread and ratchet the
+watermark past the operator's own reply, which is the thing that would release
+the attempt.
 
 The count of answers here is what the subject costs rather than a module that
 outgrew itself: it IS the closed set one recovery resolves into, and a member
@@ -34,6 +48,8 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoverySnapshot,
 )
 from orchestrator.git.base_sync.state import (
+    _AWAITING_HUMAN,
+    _PARK_REASON,
     _REASON_AUTO_BASE_REBASE_FAILED,
     _REASON_AUTO_BASE_REBASE_PUSH_FAILED,
     log,
@@ -513,6 +529,138 @@ def _park_unproven_replay_recovery(
             "and nothing was pushed; the replay is still in `git reflog`. "
             "Check the worktree and reply on this issue with anything to "
             "have the rebase made again."
+        ),
+        reason=_REASON_AUTO_BASE_REBASE_FAILED,
+    )
+    return True
+
+
+def _park_foreign_publication_recovery(
+    context: _AutoRebaseRecoveryContext,
+    recovery_snapshot: _AutoRebaseRecoverySnapshot,
+) -> bool:
+    """Park, without a reset, an attempt made for another publication.
+
+    The interrupted tick recorded which pull request it rebased for and which
+    stage it was entered from, and the issue no longer says either. Every road
+    out of a recovery ends in the same tail -- a notice to the pull request
+    this tick holds, an audit event filed under the stage this tick reads, and
+    the anchor dropped -- so finishing here would attribute the dead tick's
+    work to a publication it was never made for, and drop the one record that
+    could ever say otherwise. The permit catches the same disagreement where
+    there is a verdict to move; on an issue carrying none there is no permit,
+    so this is the only reading that can.
+
+    Nothing is reset. Which publication the branch belongs to is exactly what
+    this tick cannot say, and putting the checkout back onto the anchor would
+    throw the replay away to settle a question about the pull request rather
+    than about the commit. The whole record stays pinned with it, so a human
+    who repoints the issue back, or clears the record, hands the next tick
+    something it can finish.
+    """
+    recorded = context.pending_rewrite
+    log.warning(
+        "issue=#%d auto-rebase recovery: the interrupted attempt recorded PR "
+        "#%d from %r and this issue now records PR #%d on %r; parking rather "
+        "than finishing a route for a publication it was not made for",
+        context.issue.number, recorded.pr_number, str(recorded.stage),
+        context.pr_number, str(context.label),
+    )
+    persistence._park_auto_rebase_failure(
+        context.gh,
+        context.issue,
+        context.state,
+        message=(
+            f"{config.HITL_MENTIONS} crash recovery for this issue's auto "
+            f"rebase: the interrupted attempt was made against pull request "
+            f"#{recorded.pr_number} from `{recorded.stage}`, and this issue "
+            f"now records pull request #{context.pr_number} on "
+            f"`{context.label}`. Finishing it would post the notice, file the "
+            "audit event, and route the reviewer against a publication that "
+            "attempt was never made for, so nothing was pushed and HEAD has "
+            "not been reset. Put the issue back on the publication the rebase "
+            "was made for -- or clear the `pending_auto_base_rebase_*` fields "
+            "on the pinned comment -- then reply on this issue with anything "
+            "to retry."
+        ),
+        reason=_REASON_AUTO_BASE_REBASE_FAILED,
+    )
+    return True
+
+
+def _already_stranded(state) -> bool:
+    """Whether this route's own stranded park is already standing.
+
+    Two fields, and the anchor beside them is what makes the pair this park's
+    own rather than any other auto-rebase failure's: every other road that
+    ends on this reason resets the branch and clears the attempt first, so a
+    comment still carrying one is one only this park could have left. The
+    caller is on that road by definition, since the record is what brought it
+    here.
+    """
+    if not state.get(_AWAITING_HUMAN):
+        return False
+    return state.get(_PARK_REASON) == _REASON_AUTO_BASE_REBASE_FAILED
+
+
+def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
+    """Hold an attempt whose issue was relabelled out from under it.
+
+    The label is no longer one refresh drives, so this recovery has no road
+    left: nothing here fetches, compares, or publishes for a stage the sync
+    does not own. What the attempt left decides what that costs. An issue
+    holding a rebase an earlier tick RECORDED, a permission granted for a push
+    nobody made, or a branch git has already replayed is not an issue that
+    loses nothing by dropping the anchor: the checkout may be standing on a
+    rewrite the pull request has never seen, a human's verdict is licensed
+    onto a commit no push carried, and the approval debt beside it says a
+    publication is still owed.
+
+    Dropped there, the three come apart from one another. The anchor is the
+    only thing naming what the branch would go back to, so the replay stops
+    being attributable to anything; the permission outlives the attempt it was
+    granted for and the next grant trips over it; and a decomposition tick
+    reading an issue with no attempt in flight is free to put another agent on
+    a change a human already ruled on.
+
+    So nothing is reset and nothing is cleared. The reset cannot run here for
+    the same reason the classification cannot: this tick does not know whether
+    the hand that moved the label also moved the checkout, and a hard reset
+    onto the anchor would answer that by discarding it.
+
+    Which is also why the park has to be taken ONCE. Keeping the record is
+    what brings this route back, and this route is reached from the label
+    check ahead of every gate -- so every poll under the wrong label arrives
+    here again, over a comment nothing has changed. Said again each time, the
+    thread fills with one sentence repeated and each park ratchets
+    `last_action_comment_id` past whatever the operator wrote: the reply that
+    would release the attempt ends up behind the orchestrator's own newest
+    comment and the retry scan never sees it.
+    """
+    if _already_stranded(context.state):
+        return True
+    log.warning(
+        "issue=#%d auto-rebase recovery: label %r is not one the refresh "
+        "drives and the attempt left records a clear would strand; keeping "
+        "them and parking awaiting human",
+        context.issue.number, context.label,
+    )
+    persistence._park_auto_rebase_failure(
+        context.gh,
+        context.issue,
+        context.state,
+        message=(
+            f"{config.HITL_MENTIONS} this issue was moved to "
+            f"`{context.label}`, which the base refresh does not drive, while "
+            "an auto rebase was still in flight for it -- the branch may be "
+            "standing on a replay the pull request has never seen, and a "
+            "permission granted for a push nobody made may still be "
+            "outstanding. Nothing was reset and nothing was cleared, because "
+            "this tick cannot say whether the checkout moved with the label. "
+            "Put the issue back on the stage the rebase was made under to let "
+            "the recovery finish it, or reconcile the "
+            "`pending_auto_base_rebase_*` and `late_rewrite_*` fields on the "
+            "pinned comment by hand."
         ),
         reason=_REASON_AUTO_BASE_REBASE_FAILED,
     )

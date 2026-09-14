@@ -37,6 +37,7 @@ UNFINISHED = "_park_unfinished_recovery"
 
 # Every terminal an unpublished checkout can select, on the owner it lives on.
 _ANSWERS = MappingProxyType({
+    "_park_foreign_publication_recovery": outcomes,
     "_park_rolled_back_recovery": outcomes,
     "_park_unvouched_recovery": outcomes,
     "_park_unrecorded_recovery": outcomes,
@@ -83,6 +84,28 @@ def _every_answer(selected: dict):
 
 class UnpublishedRouteTest(seed.TransferCase):
     """One checkout the pull request is not standing on selects one road."""
+
+    def test_an_attempt_for_another_publication_parks(self) -> None:
+        # Every road behind this posts a notice to the pull request this tick
+        # holds and files an audit event under the stage it reads, so terms
+        # the issue no longer has are refused before any of them -- including
+        # on an issue carrying no verdict, where no permit would catch it.
+        for described, terms in (
+            ("a repointed pull request", {"pr_number": seed.OTHER_PR_NUMBER}),
+            ("a relabelled issue", {"stage": seed.OTHER_STAGE}),
+        ):
+            with self.subTest(described):
+                self._fresh(pending_rewrite=replace(seed.RECORDED, **terms))
+                self._assert_selects("_park_foreign_publication_recovery")
+
+    def test_terms_in_flight_are_held_too(self) -> None:
+        # The terms go down before `git rebase` and can say which publication
+        # the attempt was for with no replay recorded beside them.
+        self._fresh(pending_rewrite=replace(
+            seed.DECLARED, pr_number=seed.OTHER_PR_NUMBER,
+        ))
+
+        self._assert_selects("_park_foreign_publication_recovery")
 
     def test_a_settled_transfer_reads_as_a_rollback(self) -> None:
         # The write that settled says the pull request HAD this commit, so a

@@ -351,8 +351,10 @@ orchestrator/
                         in flight, or damaged -- held to the shape every other recorded commit is and reached
                         through a call-time import of the late domain's own formats, the presence read the
                         checkpoint gets, and the whole-record clear every step that ends an attempt goes through.
-                        The writes and the clear are on the running roads; the two readings are consulted by no
-                        caller yet and wait for the recovery that is taught to decide on them
+                        The writes, the clear, and the three-valued read are on the running roads -- the recovery
+                        classifies an unpublished checkout on that read and on the terms beside it. The presence
+                        read the announcement checkpoint gets is consulted by no caller yet, and waits for the
+                        road that finishes a rewrite the pull request already carries
       publication.py    the post-rebase checks, the size gate the rebase passes before it publishes -- reached
                         through a call-time import, since it sits in the workflow layer above this one, and named
                         against the head this owner read, so a checkout something moved between that read and the
@@ -395,9 +397,11 @@ orchestrator/
       outcomes.py       the already-published, unknown-comparison, diverged, dirty, and failed-push answers,
                         beside the parks a transfer adds: a record nobody can vouch for, an attempt record that
                         disowns the checkout, a permit that refuses, a replay in flight no verdict can prove, a
-                        remote rolled back off a replay the record says it carried, and the one park that leaves
-                        HEAD alone -- a push that landed with the route behind it unfinished, where a reset would
-                        take the checkout off work the pull request has
+                        remote rolled back off a replay the record says it carried, and the three parks that
+                        leave HEAD alone -- a push that landed with the route behind it unfinished, an attempt
+                        made for a publication this issue no longer records, and an issue relabelled out from
+                        under an attempt that left something a clear would strand, the last of which is taken
+                        once rather than on every poll under the wrong label
       persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the

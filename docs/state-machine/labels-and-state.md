@@ -1250,7 +1250,11 @@ The keys that matter for the state machine fall into a few groups:
   before the post-push write, and `_recover_pending_auto_base_rebase` keys off it to either no-op, push the recovered
   head, or park — as `auto_base_rebase_push_failed` where the push or the remote is what refused, and as
   `auto_base_rebase_failed` where the pinned comment is: a record nobody can vouch for, a record that disowns the
-  checkout, a permit that declines, or a replay in flight nothing can prove. It is also what tells the approval that
+  checkout, a permit that declines, a replay in flight nothing can prove, terms naming a publication this issue no
+  longer records, or a relabel off the refresh-driven set over an attempt that left a replay or an unspent
+  permission behind. The last two park without resetting, since which pull request the branch belongs to and
+  whether the hand that moved the label moved the checkout are both questions a hard reset would answer by
+  discarding work. It is also what tells the approval that
   interrupted attempt wrote from a stage's, so the refresh is not frozen out of finishing its own route (see
   [Base refresh](#base-refresh)).
   `pending_auto_base_rebase_rewrite_pr` + `pending_auto_base_rebase_rewrite_stage` — the TERMS of the same attempt,
@@ -1291,13 +1295,15 @@ The keys that matter for the state machine fall into a few groups:
   go through the same clear — so no road can leave a member behind. That clear is held to the reset LANDING wherever
   one is made: a reset that failed abandoned nothing, and the comment is then the only account of where the checkout
   may be standing, so nothing is dropped and the next tick still has an anchor to come back with.
-  **What is live today is the record, not yet the decisions above.** Every write and the clear are on the running
-  roads: the terms and the anchor go down before `git rebase`, the replay goes down before the dirty check, both
-  finishes mark what they announced, and every ending drops the group. The readings — the three answers, the presence
-  test on the mark — are implemented beside them and consulted by no road yet, so an interrupted attempt is still
-  recovered on the anchor and the divergence counts alone, and a crash between an announcement and its relabel still
-  costs the stream a second `base_rebased` and the pull request a second notice. The keys are written now so that the
-  recovery taught to act on them has a record to act on for attempts that were in flight before it shipped.
+  **The record and the readings that decide a checkout are both live; the announcement mark is not yet read.** Every
+  write and the clear are on the running roads: the terms and the anchor go down before `git rebase`, the replay goes
+  down before the dirty check, both finishes mark what they announced, and every ending drops the group. The
+  three-valued read is what the recovery classifies an unpublished checkout on — absent falls back to the divergence
+  counts, in flight is proved by what the contribution is rather than by an id, damaged and disowning both park — and
+  the terms are what say the attempt was made for the publication this tick holds, asked before any road that posts a
+  notice or files an event. The presence test on the MARK is the one reading still consulted by no road, so a crash
+  between an announcement and its relabel still costs the stream a second `base_rebased` and the pull request a
+  second notice; it belongs to the road that finishes a rewrite the pull request already carries.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since
@@ -2331,10 +2337,10 @@ rather than preserving.
 
   Its LIFECYCLE is live and its readings are not, the same split the attempt record above has. The settlement writes
   the proof and the reporting owner drops it behind the record it feeds, so a comment carries one only inside that
-  window — but `unreported_transfer` is consulted by nothing at all and `stranded_transfer_proof` only by the
-  transfer classification above, which is itself consulted by no road, so a process lost inside it still leaves a
-  settled transfer neither sink hears about. What the durable proof buys today is that the fact is there to report
-  from once a reader is taught to look.
+  window — but `unreported_transfer` is consulted by nothing at all, and `stranded_transfer_proof` only by the
+  transfer classification above, which reaches it on the recovery's own road and answers *unvouched* — a park rather
+  than a report — so a process lost inside that window still leaves a settled transfer neither sink hears about. What
+  the durable proof buys today is that the fact is there to report from once a reader is taught to look.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,
   `late_override_fingerprint`, `late_override_fingerprint_format`, `late_override_additions`,
   `late_override_threshold`, and `late_override_comment_id` are the terms an operator authorized one oversized

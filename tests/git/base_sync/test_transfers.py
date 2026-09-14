@@ -21,6 +21,7 @@ from orchestrator.workflow.late_split import (
     exemption as _exemption,
     rewrites as _rewrites,
 )
+from orchestrator.workflow.stages.implementing.state import _APPROVED_BASIS
 from tests.git.base_sync import (
     base_sync_helpers as fixtures,
     transfers_test_support as seed,
@@ -256,6 +257,13 @@ class UnvouchedClaimTest(seed.TransferCase):
                 seed.owes(self.state, commit, lease)
 
                 self._refuses()
+
+    def test_a_debt_whose_basis_cannot_be_named(self) -> None:
+        """The third member of the group, which the two readers pass over."""
+        seed.granted(self.state)
+        self.state.set(_APPROVED_BASIS, "a bypass nobody grants")
+
+        self._refuses()
 
     def test_a_digest_from_another_reading(self) -> None:
         """It describes a contribution this issue never adjudicated."""

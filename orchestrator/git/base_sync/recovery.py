@@ -4,7 +4,7 @@
 
 The verified facts arrive from ``snapshot`` and the answers live in
 ``outcomes``; what this owner adds is the order they are asked in, and that
-order is the safety property. An ineligible label is cleared before anything
+order is the safety property. An ineligible label is answered before anything
 is fetched, an unmoved HEAD falls back to the normal rebase flow before any
 comparison is trusted, and equality with the remote is checked before the
 ahead/behind counts are -- so the reissued force-push is only ever reached by
@@ -21,6 +21,15 @@ still has something to publish is handed it. A rewrite the grant never reached
 is given re-derived evidence, so the replay is decided on the transfer the
 dead tick would have asked for rather than measured past the same ceiling and
 adjudicated a second time with a pull request open over the work.
+
+Every road out of here ends in a notice, an audit event, and the anchor
+dropped, so the publication the attempt recorded making its rewrite for is
+reconciled against the one this issue holds now before any of them is taken.
+An issue moved off the refresh-driven set is answered the same way -- by what
+the attempt left rather than by the label alone: an anchor over a checkout
+still standing on it is dropped, and a recorded replay, an unspent permission,
+or a branch git has already moved parks with every record intact, since no
+road runs here and a clear would leave them asymmetrically stranded.
 
 The counts are a fallback for one state alone -- a comment carrying no record
 of a replay at all -- and the window between git returning and the write that
@@ -56,6 +65,7 @@ from orchestrator.git.base_sync.models import (
 )
 from orchestrator.git.base_sync.state import _PR_REFRESH_DETOUR_LABELS
 from orchestrator.git.verification import probes as verification_probes
+from orchestrator.workflow.state import WorkflowLabel
 
 # Why a push that landed could not be finished, in the operator's own terms.
 # Spelled at the seam that answers for it rather than beside the park, which
@@ -245,7 +255,7 @@ def _recover_pending_auto_base_rebase_context(
 ) -> bool:
     """Route an interrupted auto-rebase from verified local/remote state."""
     if context.label not in _PR_REFRESH_DETOUR_LABELS:
-        return snapshot._clear_ineligible_recovery(context)
+        return _answers_an_ineligible_label(context)
 
     recovery_snapshot = snapshot._fetch_recovery_snapshot(context)
     if recovery_snapshot is None:
@@ -257,6 +267,51 @@ def _recover_pending_auto_base_rebase_context(
         return snapshot._clear_unchanged_recovery(context)
 
     return _route_recovery_snapshot(context, recovery_snapshot)
+
+
+def _answers_an_ineligible_label(
+    context: _AutoRebaseRecoveryContext,
+) -> bool:
+    """Answer an anchor found under a label the base refresh does not drive.
+
+    Nothing is fetched and nothing is compared, because nothing under this
+    label is coming back to do either. So the road is a clear or a park, and
+    what decides between them is whether the attempt left anything a clear
+    would strand.
+
+    An anchor over a checkout still standing ON it strands nothing. Git never
+    moved the branch, no replay exists, and no permission was granted, so the
+    anchor is a promise to come back that nobody is coming back for: dropping
+    it costs the issue nothing, and leaving it pinned would strand a flag no
+    later tick under this label ever reads.
+
+    Everything else parks with every record intact. A rebase the tick
+    RECORDED, or a permission granted for a push that never landed, is state
+    the clear cannot honour: it would drop the one field naming what the
+    branch would go back to while leaving the verdict, the debt, and the
+    replay standing without it. A checkout that has MOVED off the anchor under
+    the terms alone is the same refusal one reading over: that is the window
+    between `git rebase` returning and the write that names what it produced,
+    and the terms on their own cannot tell it from an attempt that never
+    started. Cleared there, the replay stays on the branch with nothing on the
+    comment naming it, and the issue this route hands on is one no reader can
+    tell from an issue with nothing in flight -- so another handler or a
+    decomposition tick is free to start over on a change a human already ruled
+    on.
+
+    The head is read locally, which costs no fetch and no request. A reading
+    that could not be taken is no evidence the branch is where the attempt
+    left it, so it parks with everything else this route cannot prove.
+    """
+    if context.pending_rewrite.left_a_replay:
+        return outcomes._park_stranded_recovery(context)
+    if transfers._left_mid_transfer(context.state):
+        return outcomes._park_stranded_recovery(context)
+    if verification_probes._head_sha(
+        context.worktree,
+    ) != context.pending_pre_rebase_sha:
+        return outcomes._park_stranded_recovery(context)
+    return snapshot._clear_ineligible_recovery(context)
 
 
 def _route_recovery_snapshot(
@@ -308,8 +363,39 @@ def _route_an_unpublished_head(
 ) -> bool:
     """Route a checkout the pull request is not standing on.
 
-    Three refusals before the one road that pushes, in the order the evidence
-    for them costs nothing to read. A remote the record says already carried
+    What survives every refusal beside this is the retry the anchor exists
+    for -- reached on the pair of heads the attempt recorded, or, for a remote
+    neither of them accounts for, on the counts over an attempt that recorded
+    nothing at all.
+    """
+    refused = _refused_before_the_retry(context, completed, carried)
+    if refused is not None:
+        return refused
+    in_flight = _is_an_attempt_in_flight(context, completed, carried)
+    if in_flight or _is_this_attempts_rewrite(context, completed):
+        return _retry_recovery_push(
+            context, completed, carried, permit_alone=in_flight,
+        )
+    return _route_a_moved_remote(context, completed, carried)
+
+
+def _refused_before_the_retry(
+    context: _AutoRebaseRecoveryContext,
+    completed: _AutoRebaseRecoverySnapshot,
+    carried: transfers._Handoff,
+) -> bool | None:
+    """The park this checkout owes before any push, or None where it owes one.
+
+    Four refusals, in the order the evidence for them costs nothing to read.
+
+    The first is not about the commit at all: whether the attempt was made for
+    the publication this tick holds. It is asked of the RECORD rather than of
+    the permit, because the permit is not on every road -- an issue carrying
+    no verdict never had one, and it still reaches a finalize that posts a
+    notice to this tick's pull request, files an audit event under this tick's
+    stage, and drops the anchor.
+
+    Then the three about the commit. A remote the record says already carried
     this replay has been rolled back by somebody, and the anchor a retry would
     lease against is the head they rolled it back to. A transfer record nobody
     can vouch for would reach the ordinary cumulative gate and send an
@@ -319,23 +405,68 @@ def _route_an_unpublished_head(
     resembles, it would fall through to the counts, and a strictly-ahead
     checkout would be measured and force-pushed on the strength of a claim
     nothing could check.
-
-    What is left is the retry the anchor exists for, and -- for a remote
-    neither pinned head accounts for -- the counts, over an attempt that
-    recorded nothing at all.
     """
+    if _made_for_another_publication(context):
+        return outcomes._park_foreign_publication_recovery(context, completed)
     if transfers._rolled_back_publication(context, completed.head, carried):
         return outcomes._park_rolled_back_recovery(context, completed)
     if carried == transfers._Handoff.UNVOUCHED:
         return outcomes._park_unvouched_recovery(context, completed)
     if _unclaimed_checkout(context, completed):
         return outcomes._park_unrecorded_recovery(context, completed)
-    in_flight = _is_an_attempt_in_flight(context, completed, carried)
-    if in_flight or _is_this_attempts_rewrite(context, completed):
-        return _retry_recovery_push(
-            context, completed, carried, permit_alone=in_flight,
-        )
-    return _route_a_moved_remote(context, completed, carried)
+    return None
+
+
+def _made_for_another_publication(
+    context: _AutoRebaseRecoveryContext,
+) -> bool:
+    """Whether the attempt was made for a publication this tick is not on.
+
+    A pull request repointed or an issue relabelled while the process was down
+    leaves a record naming terms the issue no longer has, and every road
+    behind this one is loud: the notice goes to the pull request this tick
+    holds, the audit event is filed under the stage this tick reads, and the
+    anchor that is the only thing bringing the tick back is dropped. Where the
+    checkout carries a verdict the permit refuses the same disagreement, but
+    an ordinary interrupted rebase has no permit to refuse it -- the replay
+    would be measured, force-pushed, and finalized under terms nothing
+    checked.
+
+    Silent where the attempt recorded no TERMS, which is the window between
+    the anchor going down and git being allowed to run, and a comment from
+    before this record existed. There is no claim to disagree with there, and
+    the roads behind this one already refuse to publish anything they cannot
+    show the terms of.
+
+    Asked of the terms alone rather than through `answers_for`, which requires
+    the replay beside them. The terms go down before git runs and the head
+    only once it returns, so a comment carrying the first and not the second
+    is an attempt still in flight -- one this route has a road for -- and it
+    can say which publication it was made for just as exactly as a finished
+    record can.
+
+    The stage is compared against the label this tick read rather than against
+    the transition graph, since what the record names is the stage the rewrite
+    was entered from and nothing on this road relabels before it publishes.
+    """
+    recorded = context.pending_rewrite
+    if not recorded.is_declared:
+        return False
+    claimed = (recorded.pr_number, recorded.stage)
+    return claimed != (context.pr_number, _recovered_stage(context.label))
+
+
+def _recovered_stage(label: str) -> WorkflowLabel | None:
+    """The label this tick read, as the vocabulary a record is written in.
+
+    A label the pinned record could never name is None rather than a raised
+    lookup, and it answers the comparison above as the disagreement it is:
+    nothing this route writes puts a stage there that is not one of these.
+    """
+    try:
+        return WorkflowLabel(label)
+    except ValueError:
+        return None
 
 
 def _is_an_attempt_in_flight(

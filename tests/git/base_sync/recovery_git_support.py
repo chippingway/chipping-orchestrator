@@ -215,6 +215,9 @@ class _RecoveryRepositoryBuilder:
         fixture = self._fixture
         commit(fixture.work, "README.md", "hello\n", "initial")
         run_git(PUSH, REMOTE_NAME, BASE_BRANCH, cwd=fixture.work)
+        # The base the anchor's own contribution is read over, which is what
+        # an adjudication of that commit would have been measured against.
+        fixture.accepted_base = head_sha(fixture.work)
         run_git(CHECKOUT, "-b", BRANCH, cwd=fixture.work)
         fixture.anchor = commit(
             fixture.work, FEATURE_FILE, "feature\n", "feat: add feature",
@@ -244,7 +247,9 @@ class _RecoveryRepositoryBuilder:
         """Land a commit on the base branch, the way a sibling PR merge does."""
         fixture = self._fixture
         run_git(CHECKOUT, BASE_BRANCH, cwd=fixture.work)
-        commit(fixture.work, SIBLING_FILE, "sibling\n", "feat: sibling landed")
+        fixture.replayed_base = commit(
+            fixture.work, SIBLING_FILE, "sibling\n", "feat: sibling landed",
+        )
         run_git(PUSH, REMOTE_NAME, BASE_BRANCH, cwd=fixture.work)
         run_git(CHECKOUT, BRANCH, cwd=fixture.work)
 

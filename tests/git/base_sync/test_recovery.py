@@ -40,6 +40,10 @@ PUSH_BRANCH = "_push_branch"
 
 DIRTY_FILES = "_worktree_dirty_files"
 
+HEAD_SHA = "_head_sha"
+
+STRANDED = "_park_stranded_recovery"
+
 PUSHED_METHOD = "crash_recovery_pushed"
 
 # The keyword a gated push names the commit it publishes by, and the one the
@@ -196,7 +200,7 @@ class RecoveryRouteTest(unittest.TestCase):
 
         with _routed(
             **{CLEAR_INELIGIBLE: cleared, FETCH_SNAPSHOT: fetch},
-        ):
+        ), self._standing_on(fixtures.PRE_REBASE_SHA):
             recovered = recovery._recover_pending_auto_base_rebase_context(
                 self._relabelled(context),
             )
@@ -261,6 +265,31 @@ class RecoveryRouteTest(unittest.TestCase):
             )
 
         self.assertIs(route.call_args.args[1], moved)
+
+    def test_an_ineligible_label_keeps_a_replay(self) -> None:
+        # The checkout has moved off the anchor and no road under this label
+        # will ever classify it, so the record a clear would strand is kept
+        # and a human is asked instead.
+        cleared = _handled()
+        parked = _handled()
+
+        with _routed(**{CLEAR_INELIGIBLE: cleared}), self._standing_on(
+            MOVED_CHECKOUT_SHA,
+        ), patch.object(outcomes, STRANDED, parked):
+            recovery._recover_pending_auto_base_rebase_context(
+                self._relabelled(fixtures._recovery_context()),
+            )
+
+        parked.assert_called_once()
+        cleared.assert_not_called()
+
+    @contextlib.contextmanager
+    def _standing_on(self, head_sha: str):
+        """Answer the local head read the ineligible road takes for itself."""
+        with patch.object(
+            verification_probes, HEAD_SHA, MagicMock(return_value=head_sha),
+        ):
+            yield
 
     def _relabelled(self, context):
         return dataclasses.replace(context, label="workflow:implementing")
