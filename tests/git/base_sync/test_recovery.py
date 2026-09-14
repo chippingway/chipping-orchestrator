@@ -40,6 +40,20 @@ PUSH_BRANCH = "_push_branch"
 
 DIRTY_FILES = "_worktree_dirty_files"
 
+# Every road of the dormant vouched-replay route a running selector could
+# reach it through, on the `recovery` owner they live on.
+_VOUCHED_ROADS = (
+    "_recover_vouched_replay_context",
+    "_answers_an_ineligible_label",
+    "_finish_an_unmoved_head",
+    "_route_vouched_snapshot",
+    "_route_an_unpublished_head",
+)
+
+# A changed head strictly ahead of the remote it was compared against, which
+# is the one comparison the running route reissues a push over.
+_MOVED_AHEAD = fixtures._snapshot(ahead=1)
+
 PUSHED_METHOD = "crash_recovery_pushed"
 
 # The keyword a gated push names the commit it publishes by, and the one the
@@ -99,10 +113,20 @@ _SPENDS = "late_spends"
 # The round that publication's route still owes, recorded beside the approval.
 _OWED_ROUND = ("review_round", 2)
 
+# The record of the attempt itself, which the same reset drops and the same
+# refusal keeps: without it a later tick has no anchor to come back with and
+# no id to ask for the candidate by.
+_ANCHOR_KEY = "pending_auto_base_rebase_push_sha"
+_REPLAY_KEY = "pending_auto_base_rebase_rewrite_sha"
+_ANNOUNCED_KEY = "pending_auto_base_rebase_announced_sha"
+
 _OWED = MappingProxyType({
     _APPROVED_SHA: _ABANDONED_SHA,
     _APPROVED_LEASE: fixtures.PRE_REBASE_SHA,
     _SPENDS: [list(_OWED_ROUND)],
+    _ANCHOR_KEY: fixtures.PRE_REBASE_SHA,
+    _REPLAY_KEY: _ABANDONED_SHA,
+    _ANNOUNCED_KEY: _ABANDONED_SHA,
 })
 
 _PARK_MESSAGE = "the push did not land"
@@ -158,6 +182,15 @@ class RolledBackDebtTest(unittest.TestCase):
         self.assertEqual(pinned[_APPROVED_SHA], _ABANDONED_SHA)
         self.assertEqual(pinned[_APPROVED_LEASE], fixtures.PRE_REBASE_SHA)
         self.assertEqual(tuple(pinned[_SPENDS][0]), _OWED_ROUND)
+        # The attempt's own record goes with them, and for the same reason:
+        # the comment is the only account of where the checkout may be
+        # standing once the reset that would have settled it did not run.
+        self.assertEqual(pinned[_ANCHOR_KEY], fixtures.PRE_REBASE_SHA)
+        self.assertEqual(pinned[_REPLAY_KEY], _ABANDONED_SHA)
+        # The checkpoint a finish left goes with them: dropped over a reset
+        # that did not run, the next tick reads a publication that already
+        # went out as one nothing has announced.
+        self.assertEqual(pinned[_ANNOUNCED_KEY], _ABANDONED_SHA)
 
     def test_a_landed_reset_drops_it(self) -> None:
         # What says the refusal above is about the reset rather than about the
@@ -175,6 +208,9 @@ class RolledBackDebtTest(unittest.TestCase):
         self.assertIsNone(pinned[_APPROVED_SHA])
         self.assertIsNone(pinned[_APPROVED_LEASE])
         self.assertNotIn(_SPENDS, pinned)
+        self.assertIsNone(pinned[_ANCHOR_KEY])
+        self.assertIsNone(pinned[_REPLAY_KEY])
+        self.assertIsNone(pinned[_ANNOUNCED_KEY])
 
     @contextlib.contextmanager
     def _reset_refusing(self, returncode: int):
@@ -261,6 +297,44 @@ class RecoveryRouteTest(unittest.TestCase):
             )
 
         self.assertIs(route.call_args.args[1], moved)
+
+    def test_the_vouched_route_is_never_selected(self) -> None:
+        # That route is dormant. Every shape this one is handed -- a relabel,
+        # an unmoved head, a changed one -- is answered on its own roads, and
+        # the push it reaches hands in no transfer, so nothing it does can
+        # enter the gate permit-only.
+        dormant = {name: MagicMock() for name in _VOUCHED_ROADS}
+        retried = _handled()
+        context = fixtures._recovery_context()
+
+        with self._vouched_roads_replaced(dormant, retried):
+            for routed in (self._relabelled(context), context, context):
+                recovery._recover_pending_auto_base_rebase_context(routed)
+
+        for road in dormant.values():
+            road.assert_not_called()
+        self.assertEqual(retried.call_args.args, (context, _MOVED_AHEAD))
+        self.assertEqual(retried.call_args.kwargs, {})
+
+    @contextlib.contextmanager
+    def _vouched_roads_replaced(self, dormant: dict, retried: MagicMock):
+        """Stand doubles in for the vouched roads and the running route's reads.
+
+        The fetch answers an unmoved head first and a changed one second, in
+        the order the test walks the shapes after the relabel.
+        """
+        unmoved = fixtures._snapshot(local_head=fixtures.PRE_REBASE_SHA)
+        with contextlib.ExitStack() as stack:
+            for name, road in dormant.items():
+                stack.enter_context(patch.object(recovery, name, road))
+            stack.enter_context(patch.object(recovery, RETRY_PUSH, retried))
+            stack.enter_context(_routed(**{
+                CLEAR_INELIGIBLE: _handled(),
+                CLEAR_UNCHANGED: MagicMock(return_value=False),
+                FETCH_SNAPSHOT: MagicMock(side_effect=[unmoved, _MOVED_AHEAD]),
+                COMPLETE_SNAPSHOT: MagicMock(return_value=_MOVED_AHEAD),
+            }))
+            yield
 
     def _relabelled(self, context):
         return dataclasses.replace(context, label="workflow:implementing")

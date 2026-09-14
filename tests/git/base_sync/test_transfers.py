@@ -7,8 +7,10 @@ receipts that push, and a process can die in any of the windows between. What
 these cases pin is the reading a later tick takes off the comment alone, and
 the fail-closed direction every record nobody can check is answered in.
 
-Nothing here publishes, parks, or routes: the classification is read by no
-caller yet and waits for the recovery that is taught to decide on it.
+Nothing here publishes, parks, or routes. The classification is read by the
+dormant vouched-replay recovery alone, which decides its roads on it -- those
+decisions are pinned beside the recovery owner's own tests, and these pin only
+the reading.
 """
 from __future__ import annotations
 
@@ -21,10 +23,18 @@ from orchestrator.workflow.late_split import (
     exemption as _exemption,
     rewrites as _rewrites,
 )
+from orchestrator.workflow.stages.implementing.state import _APPROVED_BASIS
 from tests.git.base_sync import (
     base_sync_helpers as fixtures,
     transfers_test_support as seed,
 )
+
+# A debt standing with no permission beside it that this attempt's own gate
+# did not leave: the commit and the head it is leased to, as `(commit, lease)`.
+FOREIGN_DEBTS = MappingProxyType({
+    "naming some other commit": (seed.FOREIGN_SHA, seed.ACCEPTED_SHA),
+    "leased to some other head": (seed.REPLAYED_SHA, seed.FOREIGN_SHA),
+})
 
 # A group something took a member out of, or left a value in that nothing here
 # would have written. `None` is the member taken out.
@@ -225,6 +235,34 @@ class PriorRotationTest(seed.TransferCase):
         ))
 
 
+class LeftMidTransferTest(seed.TransferCase):
+    """Whether walking away from an attempt would leave a push still owed."""
+
+    def test_only_a_live_group_owes_a_push(self) -> None:
+        """History a newer verdict moved past is no claim; a grant still is."""
+        for described, leave, owed in (
+            ("a grant still outstanding", seed.granted, True),
+            ("a group short of a member", self._taken_apart, True),
+            ("a rotation a newer verdict moved past", self._moved_past, False),
+        ):
+            with self.subTest(described):
+                self._fresh()
+                leave(self.state)
+
+                self.assertIs(transfers._left_mid_transfer(self.state), owed)
+
+    def _taken_apart(self, state) -> None:
+        seed.granted(state)
+        state.set(_rewrites.LATE_REWRITE_FROM_BASE_SHA, None)
+
+    def _moved_past(self, state) -> None:
+        # A settled rotation is never cleared, so a later adjudication leaves
+        # it describing a commit nothing exempts.
+        seed.settled(state)
+        _rewrites.forget_transfer_proof(state)
+        seed.adjudicated(state, accepted=seed.NEWER_SHA)
+
+
 class UnvouchedClaimTest(seed.TransferCase):
     """Every record a recovery may not act on answers the same way."""
 
@@ -256,6 +294,35 @@ class UnvouchedClaimTest(seed.TransferCase):
                 seed.owes(self.state, commit, lease)
 
                 self._refuses()
+
+    def test_a_debt_no_permission_explains(self) -> None:
+        """Only the debt this attempt's own gate leaves is not a claim."""
+        for described, (commit, lease) in FOREIGN_DEBTS.items():
+            with self.subTest(described):
+                self._fresh()
+                seed.owes(self.state, commit, lease)
+
+                self._refuses()
+
+    def test_an_unreadable_debt_with_no_permission(self) -> None:
+        """A basis nothing can name is no debt anybody can tie to this."""
+        seed.owes(self.state, seed.REPLAYED_SHA, seed.ACCEPTED_SHA)
+        self.state.set(_APPROVED_BASIS, "a bypass nobody grants")
+
+        self._refuses()
+
+    def test_this_attempts_own_debt_is_no_claim(self) -> None:
+        """The ordinary gate records one for this replay before its push."""
+        seed.owes(self.state, seed.REPLAYED_SHA, seed.ACCEPTED_SHA)
+
+        self.assertEqual(self._carried(), transfers._Handoff.UNRECORDED)
+
+    def test_a_debt_whose_basis_cannot_be_named(self) -> None:
+        """The third member of the group, which the two readers pass over."""
+        seed.granted(self.state)
+        self.state.set(_APPROVED_BASIS, "a bypass nobody grants")
+
+        self._refuses()
 
     def test_a_digest_from_another_reading(self) -> None:
         """It describes a contribution this issue never adjudicated."""

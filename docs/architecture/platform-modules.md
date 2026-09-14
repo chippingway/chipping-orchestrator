@@ -30,7 +30,9 @@ last is held by the loader itself rather than by a check.
   refuses; `base_sync/transfers.py` reaches `workflow/late_split/exemption.py` and `rewrites.py` plus
   `workflow/stages/implementing/late_parks.py`, because the evidence one exemption transfer is decided on is spread
   over the exemption, the permission, the debt written with it, and the receipt, and every one of those is a pinned
-  record a layer above this package; and `publication` also
+  record a layer above this package -- and `late_overflow.py`, `late_records.py`, and `late_transfer.py` besides, since
+  it also ASKS that permit ahead of the gated push a recovery makes, over an entry frozen through the same owner every
+  other publication freezes one through; and `publication` also
   `workflow/stages/implementing/late_push.py` and `late_records.py` — the gated push the rebase it is about to
   force-push goes through, since a base that moved changes what the branch adds to it and a pull request may not be
   grown past the ceiling by a refresh either. `publication/rewrite.py` reaches `late_rewrite.py` for the same reason
@@ -351,8 +353,11 @@ orchestrator/
                         in flight, or damaged -- held to the shape every other recorded commit is and reached
                         through a call-time import of the late domain's own formats, the presence read the
                         checkpoint gets, and the whole-record clear every step that ends an attempt goes through.
-                        The writes and the clear are on the running roads; the two readings are consulted by no
-                        caller yet and wait for the recovery that is taught to decide on them
+                        The writes and the clear are on the running roads. The readings are consulted only by the
+                        DORMANT vouched-replay route in `recovery`, which no production selector reaches: the
+                        three-valued read, the checkpoint's bare presence -- asked by the roads that would push,
+                        call an attempt unstarted, or clear one under a relabel -- and which head the mark names,
+                        asked where a `validating` label may be the relabel a finish makes
       publication.py    the post-rebase checks, the size gate the rebase passes before it publishes -- reached
                         through a call-time import, since it sits in the workflow layer above this one, and named
                         against the head this owner read, so a checkout something moved between that read and the
@@ -369,11 +374,14 @@ orchestrator/
                         taken from the interrupted attempt's own record where a caller hands one in and empty where
                         either pair cannot be shown. Beside it the closed set of answers a tick coming back to a
                         crash is decided on -- no transfer, a replay no permission was written for, one still
-                        outstanding, one already settled, and a claim nobody can check -- with the evidence
-                        re-derived for the first of those alone, the accounting a road that publishes nothing new
-                        owes, and the rollback a receipt beside a remote that has moved describes. Only the
-                        publisher's own assembly is on a running road; every classification waits for the recovery
-                        that is taught to decide on it
+                        outstanding, one already settled, and a claim nobody can check, a debt no permission
+                        explains among them -- with the evidence re-derived for the first of those alone, the
+                        accounting a road that publishes nothing new owes, the rollback a receipt beside a remote
+                        that has moved describes, the permit itself asked ahead of a recovery's gated push rather
+                        than through it, since the gate answers a refusal by measuring, and whether a permission
+                        still says a push is owed, for a road walking away from an attempt. Only the publisher's
+                        own assembly is on a running road; everything else is consulted by the dormant
+                        vouched-replay route in `recovery` alone, and the accounting by nothing yet
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
                         with
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals
@@ -383,8 +391,30 @@ orchestrator/
                         measured by the same gate and named against the head this recovery verified against the
                         remote: one an earlier tick rebased and never pushed is a head nothing has read against
                         the base it now sits on, and one something moved since is not the head the finalize
-                        behind the push records
-      outcomes.py       the already-published, unknown-comparison, diverged, dirty, and failed-push answers
+                        behind the push records. Beside that route, and DORMANT -- no production selector reaches
+                        `_recover_vouched_replay_context` -- the vouched-replay route. A checkout the pull request
+                        is NOT standing on is classified by the pair of SHAs the attempt recorded rather than by
+                        the divergence counts -- a replay is behind its own publication, so the counts read the
+                        canonical pre-push recovery as an out-of-band update -- and by how far the transfer beside
+                        them got. Ahead of all of it the terms the attempt recorded are held to the publication
+                        this tick holds, forgiving only the `validating` relabel a finish makes beside a mark
+                        naming the head in hand. Where a verdict is being carried the permit is the whole of what
+                        may let the push out: it is asked ahead of the gate, the gate is told the same, and the
+                        rotation is read back afterwards -- and the permission that ask persists is itself what
+                        vouches for the checkout on the tick after a crash between it and the push. An issue
+                        relabelled off the refresh-driven set and a checkout back ON the anchor are answered by
+                        what the attempt left. The reissued push takes the transfer and the permit-only switch as
+                        arguments the running route never passes
+      outcomes.py       the already-published, unknown-comparison, diverged, dirty, and failed-push answers, beside
+                        the parks only the dormant vouched-replay route reaches: a record nobody can vouch for, an
+                        attempt record that disowns the checkout, a permit that refuses, a replay in flight no
+                        verdict can prove, a remote rolled back off a replay the record says it carried, a finish's
+                        announcement over a remote that has lost the publication it describes, and a branch put
+                        back on its anchor with the attempt's records still standing, whose reset moves nothing and
+                        is taken for the bookkeeping it carries out. Three of them leave HEAD alone: a push that
+                        landed with the route behind it unfinished, an attempt made for a publication this issue no
+                        longer records, and an issue relabelled out from under an attempt that left something a
+                        clear would strand, the last taken once rather than on every poll under the wrong label
       persistence.py    the parks, the reset-and-park tail -- which drops the whole attempt and the debt it
                         abandons, and the permission a transfer granted for the same commit, only once the reset
                         has actually landed, since a refused one may leave the branch still standing on the

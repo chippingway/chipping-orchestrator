@@ -195,6 +195,17 @@ class _AutoRebaseRecoverySnapshot:
     ahead: int = 0
     behind: int = 0
 
+    @property
+    def head(self) -> str:
+        """The commit this checkout stands on, as a name anything may hold.
+
+        The same reading as `local_head` with the one absence spelled out: a
+        checkout that could not name its own head answers the empty string,
+        which every comparison behind this reads as "not that commit" rather
+        than as None.
+        """
+        return self.local_head or ""
+
 
 @dataclass(frozen=True)
 class _AutoRebaseDecision:

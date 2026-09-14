@@ -70,6 +70,8 @@ _BASE_SYNC = f"{PACKAGE}.git.base_sync"
 
 _COMMENTS = f"{PACKAGE}.workflow.engine.comments"
 
+_LATE_OVERFLOW = f"{PACKAGE}.workflow.stages.implementing.late_overflow"
+
 _LATE_PUSH = f"{PACKAGE}.workflow.stages.implementing.late_push"
 
 _LATE_RECORDS = f"{PACKAGE}.workflow.stages.implementing.late_records"
@@ -105,7 +107,11 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # permit is granted on and classifies how far an interrupted transfer got --
 # which reads the exemption, the permission, and the receipt and debt beside
 # them -- and the reset-and-park tail, which drops the permission its rollback
-# will never spend.
+# will never spend. The first also ASKS that permit, ahead of the gated push a
+# recovery makes rather than through it, since the gate answers a refusal with
+# the cumulative reading and a road finishing a publication may not fall back
+# on one; the entry it is asked over is frozen through the same owner every
+# other publication freezes one through.
 #
 # The record one attempt leaves of its own replay reaches the late domain for
 # one thing only: the shape a recorded commit is held to. Spelled twice, a
@@ -125,7 +131,10 @@ _CALL_TIME_HOPS = MappingProxyType({
     f"{_BASE_SYNC}.publication": (_COMMENTS, _LATE_PUSH, _LATE_RECORDS),
     f"{_BASE_SYNC}.transfers": (
         _EXEMPTION,
+        _LATE_OVERFLOW,
         f"{PACKAGE}.workflow.stages.implementing.late_parks",
+        _LATE_RECORDS,
+        _LATE_TRANSFER,
         _REWRITES,
     ),
     f"{_PUBLICATION}.rewrite": (_LATE_REWRITE,),
