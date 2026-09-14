@@ -346,6 +346,17 @@ started. Nothing else writes either field while an anchor is outstanding, and a 
 fails the test and keeps the freeze. The reading group is never set aside: a generation the gate froze and did not
 answer is a question no push settles.
 
+Beside a pinned anchor the rest of those freezes are set aside as well, and only the late claims — the reading
+group, and an approval not leased to the anchor — keep the refresh away. The anchor is this refresh's own interrupted
+work, and while it stands the dispatcher holds every stage handler back (`recovery_holds._recovery_holds_dispatch`,
+see [Pinned state](#pinned-state)): a `question_*` / `discussion_*` park, the two discussion records,
+`read_only_baseline_sha`, the `late_collapse_*` group, `late_measurement_failed`, and `agent_timeout` are each ended
+by a handler that hold keeps back, so a freeze on any of them as well would leave neither side able to move. None of
+them is holding a branch still against a rebase any more — the anchor says one already ran — so the recovery reaches
+the checkout, pushes the replay its record names or puts the branch back on the anchor and asks a human, and leaves
+each record for its owner. The `question` and `discussion` labels themselves are still skipped, and an anchor under
+either is answered by the dispatcher on the recovery's ineligible road.
+
 `late_exempt_sha` and `implementing_published_sha` freeze the branch too, but on conditions rather than on their
 presence: neither is ended by a write — the exemption is never cleared at all and the publication record is
 overwritten rather than spent — so read by presence they would take a branch out of the refresh for the rest of its
@@ -366,11 +377,15 @@ SHA and park awaiting human with a durable `park_reason`. Recovery is refresh-on
 issue-thread comment past `last_action_comment_id`; the actual `awaiting_human` / `park_reason` clear is deferred to the
 same pinned-state write that publishes real progress, so an early-return path cannot silently drop the retry intent.
 Every PR-stage handler short-circuits at its `awaiting_human` gate when `park_reason in _AUTO_REBASE_PARK_REASONS` so
-the refresh owns the operator's retry comment.
+the refresh owns the operator's retry comment. A park some STAGE left is kept intact rather than rebased past, but an
+anchor standing under one is answered all the same: the recovery runs alone, with no reply spent and no rebase of its
+own behind it, and a finish leaves the stage's park where it was.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
-a PR the next handler would finalize. A `gh.get_pr` failure is treated as "leave alone".
+a PR the next handler would finalize. A `gh.get_pr` failure is treated as "leave alone"; where an anchor is pinned
+the dispatcher then holds the stage handler until a later refresh reaches the recovery. A base lag that cannot be
+counted ends the sync the same way, except over a pinned anchor, where the checkout is reset and parked instead.
 
 ### Pollable issues and finalization
 
