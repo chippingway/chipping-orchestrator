@@ -228,8 +228,10 @@ self-exit and be restarted with new code.
   *before* admission reopens, or this run resumes submitting while another process is still free to take the host.
   Inside the barrier the window between the two locks is safe in both directions, because there is nothing of this
   run's left to race.
-- **Which side waits**: a pass never waits. Refused the host it defers whole, which costs one interval of a finished
-  issue's disk. A poller always waits, with no deadline: it may not start submitting while another process is
+- **Which side waits**: a pass never waits. Refused the host it defers whole, which costs a finished issue's disk
+  until the next scheduled attempt: the next interval with no window set, no sooner than 15 elapsed minutes later
+  inside a window that is still open, or whenever a one-shot run is next asked for. A poller always waits, with no
+  deadline: it may not start submitting while another process is
   deleting, and no length of wait makes doing so safe (giving up and polling would put a tick's fresh checkouts in a
   directory being torn down; giving up and refusing to poll would be a crash loop under `Restart=always`). Only a
   lock somebody *holds* is waited for: a lock that does not work at all — a filesystem without `flock`, a full lock
@@ -241,9 +243,10 @@ self-exit and be restarted with new code.
   outside the hold entirely: a run that cannot go quiet never takes the host at all. A pass whose process dies
   holds nothing, since the kernel drops the lock with the file description.
 - **Tick cadence**: every `POLL_INTERVAL` seconds (default 60).
-- **Artifact maintenance cadence** (`runtime.artifacts`): at the end of the wait between two polling passes — never
-  inside a tick, since a tick is what makes the host busy — and at most
-  once every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` (default 86400), the worktrees and branches of finished
+- **Artifact maintenance cadence** (`runtime.artifacts`, scheduled by `runtime.artifact_schedule`): at the end of the
+  wait between two polling passes — never inside a tick, since a tick is what makes the host busy — and at most
+  once every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` (default 86400), or once per local
+  `TERMINAL_ARTIFACT_CLEANUP_WINDOW` where one is set, the worktrees and branches of finished
   issues are reclaimed under a scheduler maintenance barrier: admission is closed for counted workers and tracked
   claims alike, the work already admitted is waited out within a finite bound, and only a host that went quiet is
   acted on. A bound that expires, a shutdown that started, or a barrier that could not be taken defers the whole
@@ -256,9 +259,13 @@ self-exit and be restarted with new code.
   there ends the pass instead of being answered by a teardown. Past that reading one candidate is taken as a unit —
   its checkouts, then each of its branches on the remote and in the clone, every step pinned to the commit that was
   proved and idempotent — because a candidate half taken is the one state this vocabulary cannot report. The due
-  gate
-  lives in this process's memory on the monotonic clock, so nothing is persisted and a
-  restart costs at most one extra pass — the pass reads the host again and reports whatever is already gone as done.
+  gate lives in this process's memory, so nothing is persisted and a restart costs at most one extra pass — the pass
+  reads the host again and reports whatever is already gone as done. The interval runs on the monotonic clock and
+  spends its turn when it hands it out. A window is read off the wall clock and named by the local date it opened
+  on, so neither midnight nor a repeated daylight-saving hour owes a second pass; the pass asks the gate again once
+  it holds both the barrier and the host, and spends the window there, immediately before discovery. A window that
+  closed during that wait starts nothing, only a deferral before that point is retried — no sooner than 15 elapsed
+  minutes later — and nothing is caught up outside the window.
   What it did is reported per candidate and nowhere else: one line on the `orchestrator.worktree_lifecycle` log, and
   one bounded [`terminal_artifact_cleanup`](observability/event-streams.md#terminal_artifact_cleanup-records)
   analytics record (`runtime.artifact_records`) — never a label, a pinned state, or a comment. The operator runbook

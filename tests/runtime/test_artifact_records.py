@@ -424,7 +424,7 @@ class PassRecordTest(_artifacts._MaintenanceTestCase):
             artifacts.run_maintenance_pass(state, self.clients, self.scheduler)
 
             # An interrupted pass answers for the prefix it reached, and the
-            # records say the same: the rest are found again next interval.
+            # records say the same: the rest are found again next pass.
             self.assertEqual(
                 [call.args[0][_REPO_KEY] for call in appended.call_args_list],
                 [_support.ALPHA_REPO],

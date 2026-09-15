@@ -521,7 +521,7 @@ teardown ran three steps and one whose teardown ran none are one record each. Wh
 in [`../configuration/operations.md#reclaiming-a-finished-issues-artifacts`](../configuration/operations.md#reclaiming-a-finished-issues-artifacts).
 
 Only candidates the pass reached appear. A pass that stops — a signal, a closed scheduler, its 120s host-hold budget
-spent — answers for the prefix it got to and records exactly that prefix; the rest are rediscovered next interval and
+spent — answers for the prefix it got to and records exactly that prefix; the rest are rediscovered next pass and
 recorded then. Nothing here is a retry list, and no record is a promise that anything will be revisited.
 
 **Fields.** The `ts` / `repo` / `issue` / `event` envelope, plus four extras and nothing else:

@@ -234,11 +234,18 @@ child on that host goes on working from it until the copy is deleted too.
 
 ### Scheduled artifact reclamation
 
-Once every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` (a day by default) the polling process reclaims what the
-issues it has finished with left behind — the per-issue checkouts on this host, and the `orchestrator/`-namespaced
-branches those issues were published under, in the clone *and* on the remote. The same pass runs on demand under
+Once every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` (a day by default), or once per local
+`TERMINAL_ARTIFACT_CLEANUP_WINDOW` where one is set, the polling process reclaims what the issues it has finished with
+left behind — the per-issue checkouts on this host, and the `orchestrator/`-namespaced branches those issues were
+published under, in the clone *and* on the remote. The same pass runs on demand under
 [`--cleanup-terminal-artifacts`](configuration/operations.md#run-modes). It is the one deletion path here that no
-issue transition triggers, so what bounds it is worth an operator's attention:
+issue transition triggers, so what bounds it is worth an operator's attention.
+
+The window is scheduling, not a safeguard. It decides only when a pass may *start* — read again after the pass has
+drained its workers and taken the host lock, and spent immediately before discovery — and nothing below is relaxed
+inside it or skipped outside it. A pass that started runs under every bound that follows and its own host-hold
+budget, whatever the clock does next, and the scheduling state is in memory only, so a restart inside the window may
+repeat a pass. What bounds the pass itself:
 
 - **It can only name this repository's own branches for this issue.** The candidates come from re-deriving the exact
   names this repository publishes an issue under — the current `orchestrator/<slug>/issue-<n>` and the legacy flat

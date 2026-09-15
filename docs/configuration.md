@@ -191,8 +191,9 @@ examples.
   workers bounded only by `AGENT_TIMEOUT` (1800s) or a blocking GitHub retry/backoff, which overruns the stop deadline.
 - `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` — default `86400` (a day). how long apart the terminal-artifact
   maintenance passes run: the bounded reclamation of the worktrees and branches of issues this orchestrator has
-  finished with. The polling loop fits one in *between* passes (never inside a tick) once this long has elapsed on
-  its own monotonic clock, and `python -m orchestrator --cleanup-terminal-artifacts` runs one on demand regardless.
+  finished with. With no `TERMINAL_ARTIFACT_CLEANUP_WINDOW` set, the polling loop fits one in *between* passes (never
+  inside a tick) once this long has elapsed on its own monotonic clock; a set window replaces this cadence for the
+  polling loop, and `python -m orchestrator --cleanup-terminal-artifacts` runs one on demand regardless of either.
   Must be `>= 1`: a zero or negative interval would put a host-wide teardown between every pair of polling passes,
   each one holding scheduler admission closed while it proved the host quiet. Nothing is persisted, so a restart
   costs at most one extra pass — a repeated pass reads the host again and reports whatever is already gone as done.
@@ -216,10 +217,14 @@ examples.
   ```
 
   A set window takes precedence over `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` for automatic scheduling and
-  requires `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE`; `--cleanup-terminal-artifacts` still runs whenever asked. That
-  precedence is the settings' contract, and startup validation is so far the only reader of either one: the polling
-  loop's due gate still schedules every automatic pass on the interval alone, as
-  [`configuration/operations.md#when-it-runs`](configuration/operations.md#when-it-runs) describes. Unset or
+  requires `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE`; `--cleanup-terminal-artifacts` still runs whenever asked. The polling
+  loop attempts a pass at its first boundary between polling passes inside the window, reads the window again once
+  the pass has drained its workers and taken the host lock, and spends it as that pass starts, however the pass then
+  ends. A deferral before that point is retried no sooner than 15 elapsed minutes later; a window missed is not caught
+  up by day. Each window is named by the local date it opened on, so neither midnight nor a repeated daylight-saving
+  hour owes a second pass, and the state is in memory only, so a restart inside the window may repeat that night's
+  pass. The full semantics are in
+  [`configuration/operations.md#when-it-runs`](configuration/operations.md#when-it-runs). Unset or
   blank — including a key left behind with its value removed — disables the window and falls back to the interval with
   its own default and validation, and the timezone is then not read at all. A malformed window or identical endpoints
   abort at startup with an error naming this setting.
@@ -562,7 +567,8 @@ is cancelled or hurried. The hold answers `True` only when every counted worker 
 while it keeps new ones out; a bound that expires, a `shutdown` that started, a scheduler already closed, or a hold
 somebody else has answers `False`, and the caller does nothing. Admission is given back around the body whatever
 the body did, so a pass that raised cannot leave a host refusing work. The one caller is the terminal-artifact
-maintenance pass (`runtime.artifacts`, cadence `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS`).
+maintenance pass (`runtime.artifacts`, cadence `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` or, where set,
+`TERMINAL_ARTIFACT_CLEANUP_WINDOW`).
 
 The barrier is bounded by what a scheduler knows, and two things sit around it for what it does not. A granted hold
 is a snapshot, so the pass re-reads `state.running`, `scheduler.is_closed()` and its own host-hold budget **twice

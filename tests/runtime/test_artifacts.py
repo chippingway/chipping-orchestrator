@@ -2,94 +2,51 @@
 # SPDX-License-Identifier: Apache-2.0
 """When the finished issues' artifacts are reclaimed, and under what.
 
-The cadence, the hold the pass is only allowed to run under, and the split of
-one host-wide discovery back into the repository each candidate belongs to.
+The hold the pass is only allowed to run under, the second ask a scheduled
+pass puts to its gate from inside that hold, and the split of one host-wide
+discovery back into the repository each candidate belongs to.
 """
 
 from __future__ import annotations
 
 import logging
-import time
 import unittest
 from unittest.mock import patch
 
-from orchestrator import config
 from orchestrator.git.worktrees import discovery, maintenance
 from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceReason
-from orchestrator.runtime import artifacts, exclusion
+from orchestrator.runtime import artifact_schedule, artifacts, exclusion
 from orchestrator.runtime.state import RuntimeState
 from tests.runtime import (
+    artifact_schedule_test_support as _schedule,
     artifact_test_support as _artifacts,
     handover_test_support as _handover,
     polling_test_support as _support,
 )
 
-_INTERVAL_ATTR = "TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS"
-_MONOTONIC_ATTR = "monotonic"
-_DAY_SECONDS = 86400
-_SHORT_INTERVAL_SECONDS = 60
 _BARRIER_ATTR = "_QUIESCENCE_TIMEOUT_SECONDS"
 _BUDGET_ATTR = "_HOST_HOLD_BUDGET_SECONDS"
 _SPENT_BUDGET_SECONDS = 0
+_ROOMY_BUDGET_SECONDS = 120.0
 _DISCOVERY_FAILURE = "the host could not be scanned"
 _DEFERRED_LOG = "deferred"
 _UNCLAIMED_LOG = "not this process's to take"
 _CONTENDED_LOG = "took this host while this one was going quiet"
 _OVERRAN_LOG = "giving it back"
 _RAISED_LOG = "raised"
+_LAPSED_LOG = "no unspent cleanup window"
+_NIGHT_OPENS = "2026-09-15T03:00:00"
+_NIGHT_UNDER_WAY = "2026-09-15T03:10:00"
+_WINDOW_ALMOST_CLOSED = "2026-09-15T04:59:30"
+_MIDDAY = "2026-09-15T12:00:00"
+_NEXT_NIGHT_OPENS = "2026-09-16T03:00:00"
+_NEXT_NIGHT_UNDER_WAY = "2026-09-16T03:10:00"
 
-
-class DueGateTest(unittest.TestCase):
-    """A pass is owed once an interval, on the clock that cannot jump.
-
-    The first ask of a run is always owed one, which is what makes a restart
-    cost at most one extra pass rather than a missed one. Every ask inside the
-    interval after that is refused, so a poll every minute does not turn into a
-    host-wide teardown every minute.
-    """
-
-    def test_a_fresh_gate_is_owed_a_pass_at_once(self) -> None:
-        # Nothing is persisted, so the first ask of a run is always owed one
-        # and the run that comes back after a restart owes another: repeating
-        # a pass costs one discovery and reports what is already gone as done.
-        gate = artifacts.DueGate()
-        self.assertEqual([gate.due(), gate.due()], [True, False])
-        self.assertTrue(artifacts.DueGate().due())
-
-    def test_asks_inside_the_interval_are_refused(self) -> None:
-        gate = artifacts.DueGate()
-        # A day of polling at the default interval, spelled as the clock
-        # readings the asks along the way would take.
-        readings = (0, 60, 3600, _DAY_SECONDS - 1)
-        with patch.object(time, _MONOTONIC_ATTR, side_effect=readings):
-            self.assertEqual(
-                [gate.due() for _ask in readings],
-                [True, False, False, False],
-            )
-
-    def test_the_interval_elapsing_owes_another_pass(self) -> None:
-        gate = artifacts.DueGate()
-        readings = (0, _DAY_SECONDS, 2 * _DAY_SECONDS)
-        with patch.object(time, _MONOTONIC_ATTR, side_effect=readings):
-            self.assertEqual(
-                [gate.due() for _ask in readings],
-                [True, True, True],
-            )
-
-    def test_the_configured_interval_is_read_per_ask(self) -> None:
-        # Read at the ask rather than captured when the gate was created, so
-        # what decides the cadence is the setting in force when the question
-        # is put and nothing about when this run started.
-        gate = artifacts.DueGate()
-        readings = (0, 2 * _SHORT_INTERVAL_SECONDS)
-        with (
-            patch.object(config, _INTERVAL_ATTR, _SHORT_INTERVAL_SECONDS),
-            patch.object(time, _MONOTONIC_ATTR, side_effect=readings),
-        ):
-            self.assertEqual(
-                [gate.due() for _ask in readings],
-                [True, True],
-            )
+# A poll a minute from the window's opening until noon, and the attempts a
+# night that refuses every one of them is owed inside the window: 03:00, 03:15,
+# and so on up to 04:45.
+_POLLS_UNTIL_NOON = 540
+_NIGHTLY_ATTEMPTS = 8
 
 
 class MaintenancePassTest(_artifacts._MaintenanceTestCase):
@@ -217,6 +174,26 @@ class MaintenancePassTest(_artifacts._MaintenanceTestCase):
     def test_a_host_with_no_repository_takes_no_hold(self) -> None:
         artifacts.run_maintenance_pass(self.state(), [], self.scheduler)
         self.assertEqual(self.scheduler.holds, 0)
+
+    def test_an_on_demand_pass_ignores_the_window(self) -> None:
+        # The maintenance-only launch hands the pass no gate, since being asked
+        # is its schedule: a window set for the polling run does not stop it
+        # at midday.
+        clocks = _schedule.Clocks(_schedule.local(_MIDDAY))
+        with (
+            _schedule.windowed(_schedule.NIGHTLY_WINDOW),
+            clocks.installed(),
+            patch.object(
+                discovery,
+                _artifacts.CANDIDATES_ATTR,
+                return_value=_artifacts.scan([]),
+            ) as discovered,
+        ):
+            artifacts.run_maintenance_pass(
+                self.state(), self.clients, self.scheduler,
+            )
+
+            discovered.assert_called_once()
 
 
 class ContinuationTest(_artifacts._MaintenanceTestCase):
@@ -419,9 +396,13 @@ class LiveClaimTest(_artifacts._MaintenanceTestCase):
 class DueMaintenanceTest(_artifacts._MaintenanceTestCase):
     """What the polling loop asks for between passes: a pass if one is owed."""
 
+    def setUp(self) -> None:
+        super().setUp()
+        self.enterContext(_schedule.windowed(None))
+
     def test_only_a_due_ask_reaches_the_hold(self) -> None:
         self.scheduler.quiet = False
-        gate = artifacts.DueGate()
+        gate = artifact_schedule.DueGate()
         for ask in range(3):
             with self.subTest(ask=ask):
                 artifacts.run_maintenance_when_due(
@@ -430,8 +411,25 @@ class DueMaintenanceTest(_artifacts._MaintenanceTestCase):
 
         self.assertEqual(self.scheduler.holds, 1)
 
+    def test_a_due_interval_turn_reaches_the_host(self) -> None:
+        # The interval's turn was spent when it was handed out, so the pass it
+        # goes down with has nothing left to ask its gate and starts.
+        with patch.object(
+            discovery,
+            _artifacts.CANDIDATES_ATTR,
+            return_value=_artifacts.scan([]),
+        ) as discovered:
+            artifacts.run_maintenance_when_due(
+                self.state(),
+                self.clients,
+                self.scheduler,
+                artifact_schedule.DueGate(),
+            )
+
+            discovered.assert_called_once()
+
     def test_a_stopped_run_spends_no_turn(self) -> None:
-        gate = artifacts.DueGate()
+        gate = artifact_schedule.DueGate()
         artifacts.run_maintenance_when_due(
             self.state(running=False), self.clients, self.scheduler, gate,
         )
@@ -440,6 +438,143 @@ class DueMaintenanceTest(_artifacts._MaintenanceTestCase):
         # pass this one did not take.
         self.assertEqual(self.scheduler.holds, 0)
         self.assertTrue(gate.due())
+
+
+class ScheduledWindowTest(_artifacts._MaintenanceTestCase):
+    """A window's turn is asked for twice: before the pass, and inside it.
+
+    Before, between polling passes, whether one is owed at all. Inside, once
+    the host is quiet and held, whether it may still start -- and that answer
+    is the one that spends the night, so only a deferral ahead of it leaves the
+    window owed, and then no sooner than a quarter of an hour later.
+    """
+
+    def test_deferrals_retry_inside_the_window_only(self) -> None:
+        # Both refusals a pass meets before it reads anything: its own workers
+        # would not drain, and another process held the host.
+        for scheduler, host_claim in (
+            (_artifacts.StubScheduler(quiet=False), exclusion.ExclusiveHost()),
+            (_artifacts.StubScheduler(), _schedule.HeldHost(sole=False)),
+        ):
+            with self.subTest(quiet=scheduler.quiet):
+                self.assert_retried_overnight(
+                    RuntimeState(host_claim=host_claim), scheduler,
+                )
+
+    def test_the_window_is_read_again_once_held(self) -> None:
+        clocks = _schedule.Clocks(_schedule.local(_WINDOW_ALMOST_CLOSED))
+        host_claim = _schedule.HeldHost(
+            clocks, takes=_schedule.MINUTE_SECONDS,
+        )
+        gate = artifact_schedule.DueGate()
+        with (
+            _schedule.windowed(_schedule.NIGHTLY_WINDOW),
+            clocks.installed(),
+            patch.object(discovery, _artifacts.CANDIDATES_ATTR) as discovered,
+            self.assertLogs(
+                _artifacts.LIFECYCLE_LOGGER, level=logging.INFO,
+            ) as logs,
+        ):
+            artifacts.run_maintenance_when_due(
+                RuntimeState(host_claim=host_claim),
+                self.clients,
+                self.scheduler,
+                gate,
+            )
+
+            # Owed when asked, and quiet and alone once held -- but held after
+            # 05:00, so nothing was scanned.
+            self.assertEqual((self.scheduler.holds, host_claim.handovers), (1, 1))
+            discovered.assert_not_called()
+            self.assertTrue(any(
+                _LAPSED_LOG in message for message in logs.output
+            ))
+            clocks.reach(_schedule.local(_MIDDAY))
+            self.assertFalse(gate.due())
+            clocks.reach(_schedule.local(_NEXT_NIGHT_OPENS))
+            self.assertTrue(gate.due())
+
+    def test_a_started_pass_spends_the_night(self) -> None:
+        found = [_artifacts.scan([
+            _artifacts.candidate(self.specs[0], _artifacts.ALPHA_ISSUE_NUMBER),
+        ])]
+        for outcome, scanned, maintained, budget in (
+            ("empty", [_artifacts.scan([])], self.recorded, _ROOMY_BUDGET_SECONDS),
+            ("retained", found, _artifacts.RecordedPass(), _ROOMY_BUDGET_SECONDS),
+            (
+                "failed",
+                found,
+                _artifacts.RecordedPass(
+                    outcome=MaintenanceOutcome.FAILED,
+                    reason=MaintenanceReason.WORKTREE_REMOVAL_FAILED,
+                ),
+                _ROOMY_BUDGET_SECONDS,
+            ),
+            (
+                "raised",
+                [RuntimeError(_DISCOVERY_FAILURE)],
+                self.recorded,
+                _ROOMY_BUDGET_SECONDS,
+            ),
+            ("out of budget", found, self.recorded, _SPENT_BUDGET_SECONDS),
+        ):
+            with self.subTest(outcome=outcome):
+                self.assert_night_spent(scanned, maintained, budget)
+
+    def assert_retried_overnight(
+        self, state: RuntimeState, scheduler: _artifacts.StubScheduler,
+    ) -> None:
+        """Poll a minute apart from the window's opening to noon, then once the next night."""
+        clocks = _schedule.Clocks(_schedule.local(_NIGHT_OPENS))
+        gate = artifact_schedule.DueGate()
+        with (
+            _schedule.windowed(_schedule.NIGHTLY_WINDOW),
+            clocks.installed(),
+            patch.object(discovery, _artifacts.CANDIDATES_ATTR) as discovered,
+        ):
+            for _ in range(_POLLS_UNTIL_NOON):
+                artifacts.run_maintenance_when_due(
+                    state, self.clients, scheduler, gate,
+                )
+                clocks.advance(_schedule.MINUTE_SECONDS)
+
+            # Fifteen minutes apart inside the window, and never after it
+            # closed: a night the host stayed busy through is not caught up.
+            self.assertEqual(scheduler.holds, _NIGHTLY_ATTEMPTS)
+            clocks.reach(_schedule.local(_NEXT_NIGHT_OPENS))
+            artifacts.run_maintenance_when_due(
+                state, self.clients, scheduler, gate,
+            )
+            self.assertEqual(scheduler.holds, _NIGHTLY_ATTEMPTS + 1)
+            discovered.assert_not_called()
+
+    def assert_night_spent(self, scanned, maintained, budget) -> None:
+        """Start one pass inside the window, and check the night it spent."""
+        clocks = _schedule.Clocks(_schedule.local(_NIGHT_UNDER_WAY))
+        gate = artifact_schedule.DueGate()
+        with (
+            _schedule.windowed(_schedule.NIGHTLY_WINDOW),
+            clocks.installed(),
+            patch.object(artifacts, _BUDGET_ATTR, budget),
+            patch.object(
+                discovery, _artifacts.CANDIDATES_ATTR, side_effect=scanned,
+            ) as discovered,
+            patch.object(
+                maintenance, _artifacts.MAINTAINED_ATTR, side_effect=maintained,
+            ),
+            self.assertLogs(_artifacts.LIFECYCLE_LOGGER, level=logging.INFO),
+        ):
+            artifacts.run_maintenance_when_due(
+                self.state(), self.clients, _artifacts.StubScheduler(), gate,
+            )
+
+            discovered.assert_called_once()
+            # Still inside the window a retry's spacing later, and owed
+            # nothing: retries are for passes that never started.
+            clocks.advance(_schedule.RETRY_SECONDS)
+            self.assertFalse(gate.due())
+            clocks.reach(_schedule.local(_NEXT_NIGHT_UNDER_WAY))
+            self.assertTrue(gate.due())
 
 
 if __name__ == "__main__":
