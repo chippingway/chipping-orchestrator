@@ -80,6 +80,7 @@ def _completed_run(**overrides) -> _late_result_models._LateRun:
             generation=_support.GENERATION_NUMBER,
             verdict=LateVerdict.SINGLE,
             split_blocker=_support.SPLIT_BLOCKER,
+            rationale=_support.SINGLE_RATIONALE,
         ),
         **overrides,
     )
@@ -107,15 +108,39 @@ class LateRunRecordTest(unittest.TestCase):
             _support.KEYS.verdict: str(LateVerdict.SINGLE),
             _support.KEYS.category: str(LateVerdictCategory.UNSAFE_SPLIT),
             _support.KEYS.split_blocker: _support.SPLIT_BLOCKER,
+            _support.KEYS.rationale: _support.SINGLE_RATIONALE,
         })
 
         _session._record_late_spawn(state, _completed_run())
 
         for dropped in (
-            _support.KEYS.session_id, _support.KEYS.verdict, _support.KEYS.category, _support.KEYS.split_blocker,
+            _support.KEYS.session_id,
+            _support.KEYS.verdict,
+            _support.KEYS.category,
+            _support.KEYS.split_blocker,
+            _support.KEYS.rationale,
         ):
             with self.subTest(key=dropped):
                 self.assertNotIn(dropped, state.data)
+
+    def test_a_dropped_answer_takes_its_rationale(self) -> None:
+        # A rationale argued for ONE answer, so an answer a human's reply or a
+        # certificate threw away cannot leave its argument beside the next
+        # one. The identity it was recorded against is not what the human
+        # replied to, so that stays.
+        state = PinnedState()
+        _session._record_late_spawn(state, _completed_run())
+        _session._record_late_result(state, _late_result_models._LateAdjudication(
+            verdict=LateVerdict.SINGLE,
+            rationale=_support.SINGLE_RATIONALE,
+            split_blocker=_support.SPLIT_BLOCKER,
+        ))
+
+        _session._drop_late_result(state)
+
+        self.assertNotIn(_support.KEYS.rationale, state.data)
+        self.assertEqual(state.get(_support.KEYS.source_sha), _support.CANDIDATE_SHA)
+        self.assertEqual(state.get(_support.KEYS.run_generation), _support.GENERATION_NUMBER)
 
     def test_a_result_records_verdict_and_category(self) -> None:
         state = PinnedState()
@@ -136,15 +161,38 @@ class LateRunRecordTest(unittest.TestCase):
         )
 
     def test_the_record_round_trips(self) -> None:
-        state = PinnedState()
-        _session._record_late_spawn(state, _completed_run())
-        _session._record_late_result(
-            state, _late_result_models._LateAdjudication(
-                verdict=LateVerdict.SINGLE, split_blocker=_support.SPLIT_BLOCKER,
+        # The rationale and what stopped a split are two answers, so each
+        # comes back under its own field and neither stands in for the other.
+        cases = (
+            (
+                _late_result_models._LateAdjudication(
+                    verdict=LateVerdict.SINGLE,
+                    rationale=_support.SINGLE_RATIONALE,
+                    split_blocker=_support.SPLIT_BLOCKER,
+                ),
+                _completed_run(),
+            ),
+            (
+                _late_result_models._LateAdjudication(
+                    verdict=LateVerdict.SPLIT,
+                    rationale=_support.SPLIT_RATIONALE,
+                    children=(recorded_child(),),
+                ),
+                _completed_run(
+                    verdict=LateVerdict.SPLIT,
+                    split_blocker="",
+                    rationale=_support.SPLIT_RATIONALE,
+                    children=(recorded_child(),),
+                ),
             ),
         )
+        for adjudication, expected in cases:
+            with self.subTest(verdict=adjudication.verdict):
+                state = PinnedState()
+                _session._record_late_spawn(state, _completed_run())
+                _session._record_late_result(state, adjudication)
 
-        self.assertEqual(_late_run_reading._read_late_run(state), _completed_run())
+                self.assertEqual(_late_run_reading._read_late_run(state), expected)
 
 
 class LateResultRecordTest(unittest.TestCase):
@@ -157,7 +205,7 @@ class LateResultRecordTest(unittest.TestCase):
 
         _session._record_late_result(state, _late_result_models._LateAdjudication(
             verdict=LateVerdict.SPLIT,
-            rationale="two slices",
+            rationale=_support.SPLIT_RATIONALE,
             children=SPLIT_CHILDREN,
         ))
 
@@ -173,6 +221,7 @@ class LateResultRecordTest(unittest.TestCase):
                 },
             ],
         )
+        self.assertEqual(state.get(_support.KEYS.rationale), _support.SPLIT_RATIONALE)
 
     def test_a_manifest_carries_only_its_own_fields(self) -> None:
         # Rewritten from the fields a child issue is created out of, so
@@ -221,12 +270,13 @@ class LateResultRecordTest(unittest.TestCase):
 
     def test_a_single_records_what_stopped_a_split(self) -> None:
         # The one thing a human deciding about an oversized candidate cannot
-        # get from anywhere else once the run is over.
+        # get from anywhere else once the run is over -- and beside it, under
+        # its own key, the argument the verdict was reached with.
         state = PinnedState()
 
         _session._record_late_result(state, _late_result_models._LateAdjudication(
             verdict=LateVerdict.SINGLE,
-            rationale="one coherent change",
+            rationale=_support.SINGLE_RATIONALE,
             split_blocker=_support.SPLIT_BLOCKER,
         ))
 
@@ -235,13 +285,16 @@ class LateResultRecordTest(unittest.TestCase):
             {
                 _support.KEYS.verdict: str(LateVerdict.SINGLE),
                 _support.KEYS.split_blocker: _support.SPLIT_BLOCKER,
+                _support.KEYS.rationale: _support.SINGLE_RATIONALE,
             },
         )
 
     def test_a_recovered_outcome_is_whole(self) -> None:
         state = PinnedState()
         _session._record_late_result(state, _late_result_models._LateAdjudication(
-            verdict=LateVerdict.SPLIT, children=SPLIT_CHILDREN,
+            verdict=LateVerdict.SPLIT,
+            rationale=_support.SPLIT_RATIONALE,
+            children=SPLIT_CHILDREN,
         ))
 
         recovered = _late_run_reading._recovered_adjudication(
@@ -249,6 +302,7 @@ class LateResultRecordTest(unittest.TestCase):
         )
 
         self.assertEqual(recovered.verdict, LateVerdict.SPLIT)
+        self.assertEqual(recovered.rationale, _support.SPLIT_RATIONALE)
         self.assertEqual(
             [child[TITLE] for child in recovered.children],
             [FIRST_TITLE, SECOND_TITLE],

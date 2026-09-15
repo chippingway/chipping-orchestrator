@@ -568,8 +568,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_run_reading.py   read the pinned role, locked spec, session, source pair, and validated verdict payload;
                             recover adjudications and resume only a session bound to this candidate generation
       late_result_payloads.py
-                            encode verdicts and child estimates, and measure the actual serialized pinned payload
-                            against the whole-comment budget with notice headroom
+                            encode verdicts, bounded rationales, and child estimates, and measure the actual
+                            serialized pinned payload against the whole-comment budget with notice headroom
       late_session.py       persist spawn, bounded session, and result records and invoke the tracked adjudicator;
                             every discarded answer drops its publication override, and preflight reserves session room
       late_hold_text.py     exact cycle-marked descriptions for unpublished, published, and superseded hold forms

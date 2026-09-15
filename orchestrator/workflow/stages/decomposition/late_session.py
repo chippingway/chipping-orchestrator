@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Persist late-run spawn, session, and result records, and invoke the adjudicator.
 
-A new spawn clears the previous result and publication override. Results
-are written only after the whole pinned payload fits the comment ceiling,
-and the preflight reserves room for the longest supported session id.
+A new spawn clears the previous result, its rationale included, and the
+publication override. Results are written only after the whole pinned
+payload -- the rationale already cut to its bound, every other field whole --
+fits the comment ceiling, and the preflight reserves room for the longest
+supported session id.
 """
 from __future__ import annotations
 
@@ -48,6 +50,7 @@ _RESULT_KEYS = (
     _late_run_reading._LATE_RESULT_QUESTION,
     _late_run_reading._LATE_RESULT_SPLIT_BLOCKER,
     _late_run_reading._LATE_RESULT_CHILDREN,
+    _late_run_reading._LATE_RESULT_RATIONALE,
 )
 
 # What a recorded outcome is measured against: not its own size, but what the
@@ -204,7 +207,8 @@ def _record_late_result(
 
     What each verdict decided is what gets written: a `single` the explanation
     of what stopped a split, a `question` its category and the sentence it
-    asked, and a `split` the ordered child manifest that IS its decision.
+    asked, and a `split` the ordered child manifest that IS its decision --
+    and beside a `single` or a `split`, the rationale it argued with.
     Recording all of it is what lets a crashed tick recover the answer instead
     of paying for a second agent run that may not even decide the same way.
 
@@ -216,6 +220,12 @@ def _record_late_result(
     manifest names children nobody proposed. A caller told False has an
     outcome it cannot make durable, which is a human's problem and not a thing
     to half-record.
+
+    The rationale is settled before any of that is asked. It is prose nothing
+    acts on, cut to its fixed bound with a marker saying so, so what is
+    measured is the record exactly as it would be written -- escapes and all
+    -- and a long argument is never on its own what refuses the verdict it
+    came with.
 
     One budget, and every verdict is held to it. What a verdict goes on to
     owe the thread is not taken out of what it may record: the park a `single`

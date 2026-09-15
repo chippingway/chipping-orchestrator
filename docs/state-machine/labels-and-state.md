@@ -3128,10 +3128,11 @@ stage's own, which describe the RUN that adjudicates one:
 - `late_agent_role` — the role the run was recorded under (`decomposer` for the adjudication itself).
 - `late_run_cycle_id`, `late_run_generation`, and `late_source_sha` — the cycle, the generation, and the exact commit
   the run was spawned against.
-- `late_result_verdict`, `late_result_category`, `late_result_question`, `late_result_split_blocker`, and
-  `late_result_children` — what it completed with: the verdict, the category beside it, the sentence a `question`
-  asked, the explanation a `single` gave for what stopped a split, and the ordered child manifest a `split` decided
-  on, each slice of it carrying the addition budget it was proposed at.
+- `late_result_verdict`, `late_result_category`, `late_result_question`, `late_result_split_blocker`,
+  `late_result_children`, and `late_result_rationale` — what it completed with: the verdict, the category beside it,
+  the sentence a `question` asked, the explanation a `single` gave for what stopped a split, the ordered child
+  manifest a `split` decided on, each slice of it carrying the addition budget it was proposed at, and the bounded
+  rationale a `single` or a `split` argued with.
 
 They are written by [`late_session.py`](../../orchestrator/workflow/stages/decomposition/late_session.py) and are
 deliberately NOT in `LATE_STATE_KEYS`: clearing late mode drops exactly the domain's group, and a locked backend
@@ -3172,13 +3173,13 @@ carries the explanation of what stopped a split, because that is the one thing s
 oversized candidate cannot get from anywhere else once the run is over. A `question` carries the category it was
 asked under and the sentence it asked, because announcing it is that outcome's own external effect. A `split` carries
 the ordered child manifest, because the manifest *is* what a split decided — a marker without it would refuse to
-re-run the adjudicator while the answer it stood for was gone. The agent's rationale for accepting the change is the
-part deliberately not kept: it is prose, it belongs on the issue thread, and nothing acts on it. A recorded manifest
-is rewritten from the fields a child issue is created out of, so nothing an agent put beside them travels into the
-comment humans read. The per-child addition budget is one of them: the child issue created from a slice states the
-size that slice was proposed at, so a manifest recorded without the number would leave a tick that crashed between
-the verdict and the transaction creating children that say nothing about their own size — and the only way back to
-it would be a second adjudication, free to propose a different split entirely.
+re-run the adjudicator while the answer it stood for was gone. Beside a `single` or a `split` the record also keeps
+the agent's rationale, the argument it gave for the verdict, on the looser terms described below, since nothing acts
+on it. A recorded manifest is rewritten from the fields a child issue is created out of, so nothing an agent put
+beside them travels into the comment humans read. The per-child addition budget is one of them: the child issue
+created from a slice states the size that slice was proposed at, so a manifest recorded without the number would
+leave a tick that crashed between the verdict and the transaction creating children that say nothing about their own
+size — and the only way back to it would be a second adjudication, free to propose a different split entirely.
 
 The budget is written only where the reply declared one, and read back the same way. A manifest on a live issue was
 recorded before this domain kept budgets, and the rules a record is read through are the shared split rules, which
@@ -3197,13 +3198,31 @@ reading it as incomplete would send the adjudicator round again to recover prose
 to decide something else entirely. Nothing writes the stand-in into the comment, so a record that never had an
 explanation stays distinguishable from one that does.
 
+The rationale is looser still, because it decides nothing. `late_result_rationale` is written only beside a `single`
+or a `split`, and only where the reply gave one: a `question` asks rather than argues, and a split refused at the
+lineage bound is recorded as the question it became. It is bounded on its own. One longer than `MAX_RATIONALE` —
+2,048 characters, counted on the value rather than on what JSON escaping makes of it — is stored as its prefix, a
+space, and `[... rationale truncated by the orchestrator]`, with the marker inside the bound, so no recorded
+rationale is longer than that and a reader shown one can tell a shortened argument from a whole one (both constants
+live in [`late_result_models.py`](../../orchestrator/workflow/stages/decomposition/late_result_models.py)). It is the
+only result field ever shortened, and it is cut before the record is measured. Read back, a missing, blank, or
+non-string value, one longer than the bound, and one beside a `question` all read as no rationale while the verdict
+stays actionable — re-adjudicating to recover an argument would buy a second run free to decide differently — and
+nothing rewrites the comment or writes a stand-in, so an absent key stays distinguishable from a value nobody can
+use. It is written and dropped with the rest of the result: a fresh spawn and every road that throws an answer away
+remove it, which is what binds it to the same cycle, generation, and commit. It is issue prose, and no late event or
+analytics record carries it.
+
 Half of an outcome is not one, in either direction. On the way in, what is measured is the whole comment the write
 would produce — the preserved held-PR body and every other stage's keys included, since a result small on its own can
 still be the one that pushes the comment past what GitHub accepts — and an outcome past that budget
 (`MAX_RECORDED_BODY`: GitHub's limit, less headroom for the keys other stages still write) is refused *whole* rather
 than shortened: a truncated question asks something nobody said, a truncated explanation gives a reason nobody wrote,
-and a truncated manifest names children nobody proposed. Every verdict is held to that one budget, and what a verdict
-goes on to OWE the thread is not taken out of it. A `single` earns the park a human's decision to publish the
+and a truncated manifest names children nobody proposed. The rationale has already been cut to its own bound by then,
+so what is measured is the record exactly as it would be rendered — JSON and Unicode escapes and the escaped
+HTML-comment terminator included — and a record that still does not fit is refused with its rationale, nothing of it
+written. Every verdict is held to that one budget, and what a verdict goes on to OWE the thread is not taken out of
+it. A `single` earns the park a human's decision to publish the
 candidate unsplit is owed on; the refusal a smaller budget would produce is one the next attempt supersedes, so
 charging it for its own sentence would buy another decomposer run against a candidate already adjudicated and leave
 that `single` short of the park it earns. Its durable obligation is written into the headroom this budget leaves under
