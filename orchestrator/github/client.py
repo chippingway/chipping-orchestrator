@@ -3,9 +3,10 @@
 """Authenticated repository client and canonical repository identity.
 
 The concrete client resolves credentials, opens the PyGithub connection,
-creates independent worker clients, and pairs stage-entry records across the
-audit and analytics sinks. Repository identity comes from the API object,
-with the configured slug as fallback and case-insensitive ownership checks.
+creates independent worker clients whose repository is fetched on its first
+metadata read, and pairs stage-entry records across the audit and analytics
+sinks. Repository identity comes from the API object, with the configured slug
+as fallback and case-insensitive ownership checks.
 """
 from __future__ import annotations
 
@@ -24,6 +25,24 @@ from orchestrator.github.reviews import GitHubReviewMixin
 from orchestrator.observability.analytics.recording import events as _recording_events
 
 log = logging.getLogger("orchestrator.github")
+
+
+def _open_repository(gh: Github, slug: str, *, lazy: bool) -> Repository:
+    """The client's repository, fetched now or on its first metadata read.
+
+    `get_repo(..., lazy=True)` hands the repository a lazy copy of the
+    requester, and every issue, pull request, label, and commit the repository
+    returns would inherit it: each of those fetches would move from the call to
+    a later attribute read, and a missing label would stop raising the 404
+    `_cached_label` catches -- so adding it to an issue would post its name,
+    which GitHub answers by creating the label. The repository is handed the
+    client's own requester back, so only the repository itself waits.
+    """
+    if not lazy:
+        return gh.get_repo(slug)
+    repository = gh.get_repo(slug, lazy=True)
+    repository._requester = gh.requester
+    return repository
 
 
 class GitHubClient(
@@ -45,6 +64,7 @@ class GitHubClient(
         repo_spec: _config_models.RepoSpec | None = None,
         *,
         bot_login: str | None = None,
+        lazy_repository: bool = False,
     ) -> None:
         slug = repo_slug or config.REPO if repo_spec is None else repo_spec.slug
         if token is None:
@@ -59,7 +79,9 @@ class GitHubClient(
                 "can read that file.",
             )
         self._gh = Github(auth=Auth.Token(token))
-        self.repo: Repository = self._gh.get_repo(slug)
+        self.repo: Repository = _open_repository(
+            self._gh, slug, lazy=lazy_repository,
+        )
         self._repo_slug = slug
         self._token = token
         self._bot_login = (
@@ -83,10 +105,17 @@ class GitHubClient(
         same repository as `chippingway/orchestrator` while being a name no
         human would recognize in a refusal. The configured spelling is the
         fallback for a client whose repository could not be described.
+
+        A worker client's repository is completed here first. Until it has
+        been fetched, PyGithub spells `full_name` out of the URL it was built
+        on -- the configured slug -- which would compare a renamed repository's
+        own pull requests against its old name. On a completed repository the
+        completion sends nothing.
         """
-        return getattr(
-            getattr(self, "repo", None), "full_name", None,
-        ) or self._repo_slug
+        repo = getattr(self, "repo", None)
+        if isinstance(repo, Repository):
+            repo.complete()
+        return getattr(repo, "full_name", None) or self._repo_slug
 
     def is_own_repository(self, full_name: str | None) -> bool:
         """Whether `full_name` names the repository this client is for.
@@ -107,11 +136,18 @@ class GitHubClient(
         return full_name.casefold() == self.repo_slug.casefold()
 
     def _for_worker_thread(self) -> GitHubClient:
-        """Build a fresh requester/repository pair for one worker thread."""
+        """Build a fresh requester/repository pair for one worker thread.
+
+        Every scheduled handler mints one, so the mint asks GitHub nothing:
+        the token and bot login are the ones this client already resolved, and
+        the repository waits for the first read of its own metadata. A handler
+        that never reads it never fetches it.
+        """
         return GitHubClient(
             token=self._token,
             repo_slug=self._repo_slug,
             bot_login=self._bot_login,
+            lazy_repository=True,
         )
 
     def _emit_stage_enter(self, issue: Issue, stage: str) -> None:

@@ -176,8 +176,11 @@ orchestrator/
     repositories.py     `REPOS` entry parsing, validation, and default-spec construction
   github/               publishes `GitHubClient` and `PinnedState` from their defining owners
     client.py           authenticated PyGithub setup, worker-thread clones, paired stage-entry records, and canonical
-                        repository identity; ownership checks use GitHub's repository name case-insensitively and
-                        reject a head with no repository
+                        repository identity; a clone reuses the parent's token and bot login on a requester of its
+                        own and fetches its repository only on the first read of repository metadata, while
+                        number, label, and commit operations stay eager at the call; ownership checks complete that
+                        repository first, use GitHub's repository name case-insensitively, and reject a head with no
+                        repository
     aliases.py          the descriptor a stateless helper is bound onto the client with, so class, instance, and
                         module access all answer alike
     checks.py           status / check-run normalization, failure-before-pending folding, and the fail-closed check
