@@ -159,19 +159,22 @@ Write every comment against the current state of the code, as if it had always b
 
 ## Documentation drift
 
-When you move a handler, helper, or constant, grep for the symbol across these files and update them in the same commit:
+When you move, rename, or delete a symbol or module — a handler, helper, constant, or whole owner — grep for its name
+across these files and update every inventory entry, prose pointer, and docstring it leaves stale in the same commit:
 
 - `docs/architecture.md` and the focused pages under `docs/architecture/` — the module-by-module inventory
   lives here and nowhere else, with one exception:
   `docs/architecture/observability-modules.md` maps `observability/` and `apps/` at the package boundary, so a
-  move inside those two trees updates the owner's own module docstring rather than a map entry
+  move, rename, or deletion inside those two trees updates the affected owner and package docstrings rather than a
+  map entry
 - `docs/state-machine.md` and the focused pages under `docs/state-machine/`
 - `docs/workflow.md` and the focused pages under `docs/workflow/`
-- the module docstrings at the top of the owners the symbol moved between
+- the module docstrings at the top of the owners the symbol moved between, was renamed in, or was deleted from, and of
+  the package initializers above them that describe where a name answers
 
 `AGENTS.md` (and its `CLAUDE.md` symlink) is deliberately not on that list. It carries no module, owner, or test
-inventory, so a routine symbol or module move must leave it alone. Update it only when repository-wide agent
-instructions, safety rules, or documentation routing change.
+inventory, so a routine move, rename, or deletion of a symbol or module must leave it alone. Update it only when
+repository-wide agent instructions, safety rules, or documentation routing change.
 
 Be precise about what a package does and does not publish — overstated claims like "every helper is re-exported"
 get flagged.
