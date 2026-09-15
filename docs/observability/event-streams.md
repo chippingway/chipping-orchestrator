@@ -762,8 +762,9 @@ the one this stage already pushed (`implementing_published_sha`, brought back by
 `workflow:validating` that did not land), and the one an open pull request this call FROZE is already standing on
 while an exemption nothing authorizes names it — where the push would move nothing and only the bookkeeping behind a
 publication that has happened is owed. The fifth is a NEW candidate while `DECOMPOSE=off`, and the sixth is a
-workflow rewrite that EARNED the exemption of the commit it replaced — a squash on approval, or the clean base rebase
-the per-tick refresh publishes (`late_rewrite_*`, granted only over two recomputed fingerprints that agree — taken
+workflow rewrite that EARNED the exemption of the commit it replaced — a squash on approval, the clean base rebase
+the per-tick refresh publishes, or the clean replay `workflow:resolving_conflict` runs (`late_rewrite_*`, granted only
+over two recomputed fingerprints that agree — taken
 over a rewritten base the remote's own base branch reaches — and only where an operator authorization stands behind
 the exemption it would move). So a
 reading that never happened is not always a reading that failed: an issue whose branch is published, or whose commit a
@@ -784,18 +785,27 @@ rides the write that receipts the landed push, so it is written only where the p
 rewritten commit, and it is filed under the stage the rewrite was entered from rather than under `implementing`. An
 auto rebase whose pull request merged or closed on the rewritten commit before its receipt was written reports the
 same way when the refresh ends that attempt's handoff, since the pull request shipped the commit the permission names. A
-process lost between that write and the record leaves the proof the settlement kept, and the reconciliation ahead of
-the next dispatched handler writes the record from it and drops the proof, so a settled transfer reaches the stream
-once. The
-record names both ends of both contributions — `source_sha` / `base_sha` for the pair the verdict moved ONTO,
-`transferred_from_sha` / `transferred_from_base_sha` for the pair it moved off — the pull request it happened on,
-`rewrite_kind` for which rewrite this workflow made (`squash` for the collapse an approval earns,
+process lost between that write and the record leaves the proof the settlement kept (`late_rewrite_proof`), and the
+reconciliation ahead of the next dispatched handler — or the refresh's own recovery, which finishes the same attempt —
+writes the record from it and drops the proof, so a lost process does not cost the record. Delivery stays best effort
+all the same: a sink that refuses the write loses it (**Fail-open, twice** below), and a proof drop that does not land
+lets a later tick emit it again (**Duplicates** below). The record names both ends of both contributions —
+`source_sha` / `base_sha` for the pair the verdict moved ONTO, `transferred_from_sha` / `transferred_from_base_sha`
+for the pair it moved off — the
+publication it happened on, which is always `post_publication`, with `published_pr_number`, `published_sha` (the head
+that pull request stood on when the permission was granted, which the push was leased against), and `source_stage`
+beside it, `rewrite_kind` for which rewrite this workflow made (`squash` for the collapse an approval earns,
 `auto_clean_rebase` for the replay the base refresh publishes, and `conflict_rebase` for the one
 `workflow:resolving_conflict` runs when a branch has stopped merging cleanly), and `transfer_proof` for which
 reading proved the push landed: `pushed` where the leased force-push moved the publication off the head the permit
-was granted against, and `already_published` where a tick that pushed and died before its receipt came back to a
-pull request standing there already and the leased no-op found it so. There is no third value — a remote anywhere
-else is a permit that was refused, which settles nothing and reports nothing. No `late_verdict` joins it: the
+was granted against, and `already_published` where the rewritten commit was found on the pull request already rather
+than put there by this tick — either by the leased no-op a tick that pushed and died before its receipt comes back
+to, or by the base refresh's terminal handoff, where a pull request that merged or closed ended on the rewrite the
+permission names and no push is made at all. There is no third value — a remote anywhere
+else is a permit that was refused, which settles nothing and reports nothing. The generation it is filed under is
+minted from what the pinned comment already says — the one the accepted pair was adjudicated under was retired long
+before — and it carries no `phase`, since a transfer is not a boundary a generation reconciles at. No `late_verdict`
+joins it: the
 transfer carries a decision a human already made onto the object that replaced the one they made it about, and a
 second `single` here would read as a second adjudication of work nobody was asked about twice. Two roads leave the
 permission unspent and are silent here for the same reason — nothing moved. A publication the permit went PAST —
@@ -938,8 +948,9 @@ rather than a keyword somebody passed:
   reason) with `measurement_failure` and `detail` where a refused size reading named them,
   `resource` (`snapshot_ref` / `branch` / `plan_pr` / `child`) with `resource_id` and `outcome` — the
   ledger's own state vocabulary, projected verbatim: `pending` / `retained` / `reclaiming` / `reconciled` /
-  `failed` — plus `restart_step` (`pending` / `reconciled`), and `restart_target` +
-  `predecessor_cycle_id`.
+  `failed` — plus `restart_step` (`pending` / `reconciled`), `restart_target` + `predecessor_cycle_id`, and the
+  transfer's `rewrite_kind` (`squash` / `auto_clean_rebase` / `conflict_rebase`), `transfer_proof` (`pushed` /
+  `already_published`), `transferred_from_sha`, and `transferred_from_base_sha`.
 
 Extras whose value is `None` are dropped by both envelope builders, so each family carries only what applies to it.
 
@@ -1025,8 +1036,18 @@ promoted column; every field in `LATE_PAYLOAD_FIELDS` — `measurement_failure` 
 database already carrying rows from an older orchestrator keeps answering, and one carrying rows from a newer one
 loses nothing to a column it does not have.
 
-**Duplicates.** Records are emitted before the step they describe is durable, so a crash can produce the same record
-twice. Consumers deduplicate on `records.CORRELATION_FIELDS`, which is **the whole record apart from `ts`**: the four
+**Duplicates.** A retry can emit a record a crashed tick already emitted, and a crash between a write and the emission
+behind it can lose one; which of the two a producer risks depends on where it emits relative to the write it
+describes, so read that off the producer rather than off the family. `late_transfer` is emitted behind the write that
+settles the transfer and keeps the proof its record is made from, so a process lost between that write and the record
+is reported by a later tick. It repeats in the window behind the record instead: the proof is dropped by a write of
+its own, and a process lost before that drop, or a drop GitHub refuses, leaves a comment still saying the report is
+owed. Its generation is minted from the pinned comment and every other field comes off the settled record, so that
+repeat is identical apart from `ts`. Two keys
+answer two different questions. `content_hash`, which the analytics sink takes over the whole line with `ts`
+included, is exact-line replay protection: it absorbs a line synced twice, and absorbs a re-emission only where both
+copies happen to carry the same second, since `ts` has second precision. Logical-event deduplication is the
+consumer's, on `records.CORRELATION_FIELDS`, which is **the whole record apart from `ts`**: the four
 envelope fields (`repo`, `issue`, `event`, `stage`) plus every field in `LATE_PAYLOAD_FIELDS`. A retried step writes
 every field again identically, so the timestamp is the only thing that can differ between one step's two emissions,
 and any other difference is a different step by construction — one candidate split into two children and into seven,

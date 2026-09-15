@@ -1362,7 +1362,8 @@ The keys that matter for the state machine fall into a few groups:
   the rotation, so the exemption, its identity, the receipt, the paid debt, and the settlement proof go down in the push
   tail's one write; that receipt is leased against the commit itself, and a SETTLED transfer's bound permission is what
   dates it on a later poll. A settlement whose `late_transfer` record never reached the sinks is reported before any
-  finish, from the proof the comment kept, and the proof is dropped durably behind it, so it is reported once. A mark
+  finish, from the proof the comment kept, and the proof is dropped durably behind it, so a later poll reports it
+  again only where that drop did not land. A mark
   naming the head in hand owes only the route and the clearing write — no second notice and no second `base_rebased` —
   spending a released reply, relabelling only where that relabel did not already land, and leaving the route to the
   rebase a base that advanced again still owes. A pull request that merged or closed over an attempt ends its whole
@@ -1758,7 +1759,8 @@ once, on [`orchestrator/workflow/late_split/keys.py`](../../orchestrator/workflo
 round trip through them, and `clear_late_generation` is defined as dropping exactly
 that list and nothing else. The late keys that deliberately sit outside it all do for the same reason — each is
 written so the generation CAN be cleared and would be worthless if the clear took it. `late_exempt_sha` and the
-semantic identity beside it, both described below, live on the
+semantic identity beside it, both described below and mapped against the rotation between them in
+[Exemption identity and rotation](#exemption-identity-and-rotation), live on the
 [`exemption`](../../orchestrator/workflow/late_split/exemption.py) owner; the `late_rewrite_*` authorization that
 says a rewrite was allowed to carry one of those exemptions over lives on the
 [`rewrites`](../../orchestrator/workflow/late_split/rewrites.py) owner, and outlives the generation for the same
@@ -2138,13 +2140,13 @@ rather than preserving.
   adjudicated again. It names exactly the commit that was measured, which is also the whole invalidation rule —
   anything committed on top of it is work nobody adjudicated, does not match, and is measured as the fresh candidate
   it is. There is no clearing step to remember and no window in which a stale exemption covers a moved head. The one
-  thing that MOVES it is an authorized rewrite — a squash on approval, or the clean base rebase the per-tick refresh
-  publishes, whose contribution fingerprints identically to the accepted one, granted by `late_transfer` and recorded
-  by the `late_rewrite_*` group below — and that move is a write of its
-  own rather than a widening of the match: it belongs to the receipt of the push that landed rather than to the grant
-  before it, so a verdict is never left on a commit no remote carries. `late_rotation` stages it into the push tail's
-  own write, so the exemption, the identity, the phase, and the account of what the remote holds land together or not
-  at all. That
+  thing that MOVES it is an authorized rewrite — a squash on approval, the clean base rebase the per-tick refresh
+  publishes, or the clean replay `workflow:resolving_conflict` runs, whose contribution fingerprints identically to the
+  accepted one, granted by `late_transfer` and recorded by the `late_rewrite_*` group below — and that move is a write
+  of its own rather than a widening of the match: it belongs to the receipt of the push that landed rather than to the
+  grant before it, so a verdict is never left on a commit no remote carries. `late_rotation` stages it into the push
+  tail's own write, so the exemption, the identity, the phase, and the account of what the remote holds land together
+  or not at all. That
   is also why the pre-tick base refresh reads the CHECKOUT and the LABEL before it decides whether this record
   freezes the branch: a rebase while the head is still the accepted commit, and the gate has still to act on it,
   would have the gate measure the rewrite past the ceiling and re-route a decision a human has already made — while
@@ -2260,8 +2262,8 @@ rather than preserving.
   comment carrying a member of the group whose exempt commit cannot be read back claims one it cannot show, as does
   an identity group with a member present that does not read back whole. The legacy shape is neither, which is why
   the identity half is asked by presence rather than by truth — a comment written before the group existed carries
-  the exempt commit alone and is complete for what it says. It is read by the transfer classification below and by
-  no live road yet.
+  the exempt commit alone and is complete for what it says. It is read by the transfer classification below, on
+  the base refresh's crash recovery.
 
   The group belongs to the commit `late_exempt_sha` named when it was written, so `record_exemption` **drops it
   whenever it moves that field to another commit**. Nothing else would: a verdict whose fingerprint could not be read
@@ -2298,7 +2300,10 @@ rather than preserving.
   left exactly where it stands: not spent, and not dropped either, since the remote is now on a head the permit
   accounts for and a later tick whose refusal has cleared can still settle it. A permission the publication went
   PAST — the push put some other commit on the pull request, so the head it was granted against is gone — is dropped
-  on the rollback's own terms instead, since what is left is a claim about a push that cannot happen.
+  on the rollback's own terms instead, since what is left is a claim about a push that cannot happen. The one
+  settlement with no permit to re-ask is a pull request that merged or closed on the rewritten commit before its
+  receipt was written: that push is behind it, so the attempt's terminal handoff settles the permission on its own
+  binding instead — the commit the pull request ended on, the anchor it was pushed from, and that pull request.
   `late_approved_sha` and its lease ride the GRANT's own write instead, and they have to: by then the rewrite has
   already replaced the branch's commits with one, so a comment that explains that commit and does not say a push is
   outstanding is one the next squash reads as *nothing to squash* — reported as success, never measured, never
@@ -2411,8 +2416,9 @@ rather than preserving.
 
   `late_rewrite_proof` sits beside that group and deliberately outside it. It records which reading proved the push a
   settlement was taken on had landed — `pushed` for the leased force-push that moved the pull request off the head the
-  permit was granted against, `already_published` for the leased no-op that found the remote standing on the rewritten
-  commit already — and it is the one fact nothing later could re-derive, since the receipt looks identical either way.
+  permit was granted against, `already_published` where the rewritten commit was found there already — by the leased
+  no-op a recovery makes, or by the terminal handoff of a pull request that merged or closed on it — and it is the one
+  fact nothing later could re-derive, since the receipt looks identical either way.
   `record_rewrite_publication` writes it in the same statement as the move, and the reporting owner drops it in a
   write of its own ordered after the `late_transfer` record it feeds, so a process lost between the settlement and
   that record leaves the next reader something to report from rather than a verdict that moved with nothing anywhere
@@ -2436,7 +2442,9 @@ rather than preserving.
   other answer, which reads `unreported_transfer` and makes the one record still owed before the drop. The presence
   reading is taken on two roads: that reconciliation's claim check parks once on a proof nothing can report from, and
   the recovery's transfer classification above answers the same proof *unvouched*. The post-publication and
-  terminal-handoff routes call the same reporter, so wherever a settled transfer is reached it is reported once.
+  terminal-handoff routes call the same reporter, so wherever a settled transfer is reached it is reported from the
+  one proof — best effort, since a sink that refuses the record loses it, and repeated only where the drop behind it
+  does not land.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,
   `late_override_fingerprint`, `late_override_fingerprint_format`, `late_override_additions`,
   `late_override_threshold`, and `late_override_comment_id` are the terms an operator authorized one oversized
@@ -2952,6 +2960,157 @@ rather than preserving.
   `agent_run_limit_notice` beside the park it explains (an obligation is a claim about one park, and the sentence it
   carries quotes a spend the fresh cycle will re-read for itself), and every
   timestamp.
+
+### Exemption identity and rotation
+
+An oversized change an operator authorized is recorded three ways, and each answers a different question. All three
+are pinned-state compatibility contracts on the same terms as the rest of the late group — additive, read fail-closed,
+and never migrated on a live issue — and each is described in full in the
+[late generation state](#late-generation-state) entries above. This section is the map between them.
+
+- **Exact publication identity** — which COMMIT was accepted: `late_exempt_sha`. A publication of exactly that commit
+  skips the reading, asked together with the `late_override_*` authorization naming it, whose recorded pair is
+  re-fingerprinted first. A later settlement records it for another commit, and a settled rotation moves it.
+- **Semantic identity** — which CHANGE was accepted: `late_exempt_base_sha`, `late_exempt_candidate_sha`,
+  `late_exempt_fingerprint`, and `late_exempt_fingerprint_format`. It licenses nothing on its own: it is the evidence
+  a rewrite is proved against. It is dropped when the exemption is recorded for another commit, and moved with it by
+  a settled rotation.
+- **Proven rotation** — which workflow rewrite carried the exemption over: the `late_rewrite_*` group, with
+  `late_rewrite_proof` beside it. It licenses moving the exemption, its identity, and the operator authorization from
+  one exact commit onto one other. The next grant replaces it, and an `authorized` one is dropped by a rollback that
+  landed or by a publication that went past it.
+
+A restart's projection drops all three with the branch they describe.
+
+**Two phases, each one write.** `late_rewrite_phase` is a closed vocabulary of two:
+
+1. **`authorized`** — the grant. `late_transfer` writes it before the push, in the same write as the
+   `late_approved_sha` / `late_approved_lease` debt that push is owed, and it moves nothing: the exemption and its
+   identity stay on the accepted commit, which the group is bound to through `late_rewrite_from_sha`, because the
+   rewritten commit is on no remote yet.
+2. **`published`** — the settlement. `late_rotation` stages it into the write that receipts the landed push, so the
+   exemption, the semantic identity, the operator authorization, the `implementing_published_*` receipt and its lease,
+   the paid debt, the route bookkeeping the landing closes, and `late_rewrite_proof` (`pushed` or `already_published`)
+   land together or not at all, and the group is bound through `late_rewrite_to_sha` from then on.
+
+On every publication still to be made, only a permit `late_transfer` re-asked on the settling tick spends a grant.
+A grant no permit vouched for is left standing for a later tick to settle, a grant the publication went past is
+dropped, and a refused permit is never read as equivalence: the rewrite goes to the ordinary cumulative gate, or, on
+the base refresh's permit-only crash recovery, parks. The one settlement with no permit to re-ask is a pull request
+that merged or closed on the rewritten commit before the receipt was written: a permit licenses a push about to be
+made and this one is behind it, so the attempt's terminal handoff holds the grant to its own binding instead — read
+back whole, still `authorized`, and naming the commit the pull request ended on, the anchor it was pushed from, and
+that pull request — and settles it as `already_published`. A grant that fails those terms is dropped only on the
+rollback's own rule — read back whole, still `authorized`, and granted over that same anchor — while a damaged group,
+a `published` one, and one bound to some other head are left standing, fail-closed.
+
+**Who may present a rewrite.** Only the owner that RAN it, since nothing read off a branch tells a replay from work
+somebody else wrote. The kind and the stage it was entered from are one claim, and a pairing no owner produces reads
+back as no authorization.
+
+- `squash`, entered from `validating`: the squash on approval (`implementing/late_rewrite`), which reads the head it
+  collapses and its merge base before the reset. Its recovery is the recorded collapse (`late_collapse_*`), answered
+  ahead of every `validating` route.
+- `auto_clean_rebase`, entered from `validating`, `documenting`, `in_review`, or `fixing`: the base refresh's clean
+  rebase (`git/base_sync/publication._publish_auto_rebase`). Its recovery is the refresh's own crash recovery — the
+  reissued push and the leased no-op, both `permit_only` — and the terminal handoff of a pull request that merged or
+  closed.
+- `conflict_rebase`, entered from `resolving_conflict`: the clean rebase `conflicts/publication._publish_clean_rebase`
+  runs. Its recovery is `conflicts/divergence._push_recovered_commits`, over the `conflict_replay_*` record written
+  before the replay.
+
+A caller that presents nothing is answered from an outstanding grant already on the comment, re-asked in full; with
+none standing there is no transfer to ask about.
+
+**What a permit is granted on.** A rewrite is a transfer question at all only where it is of the candidate in hand and
+comes from the commit a whole semantic identity names as exempt; anything else is answered in silence. Past that,
+every term below is asked in this fixed order, and a reading that could not be taken is a refusal rather than a pass:
+
+1. Evidence naming both pairs and a kind its stage produces.
+2. No rewrite group already claiming the exempt commit that this build cannot read back whole — a grant replaces the
+   whole group, so overwriting that claim would repair evidence nobody checked.
+3. The publication this call froze naming the pull request the rewrite and the issue record, and standing on a head
+   the permit accounts for: the lease, or — only while the permission for this rewrite is still outstanding — the
+   rewritten commit itself, which is that permit's own push having landed with its receipt lost.
+4. A provably clean checkout standing on the rewritten commit.
+5. A lease this host holds as an object.
+6. The issue re-read open, carrying no `paused` or `backlog`, and still on the stage the rewrite recorded.
+7. A rewritten base the remote's own base branch reaches.
+8. An operator authorization standing behind the exemption, proved by re-fingerprinting the pair it records.
+9. The contribution proof: the semantic identity re-fingerprints to its own digest over its own recorded pair, and the
+   claimed and the rewritten contributions fingerprint to that same digest.
+10. No permission already standing for the exempt commit whose recorded digest disagrees with the one just taken — a
+    grant carried forward over it would write its own reading over evidence nobody checked.
+
+**What a crash leaves.** The base refresh's journey is proved at every durable boundary on a real repository
+([`tests/git/base_sync/test_real_git_journey_recovery.py`](../../tests/git/base_sync/test_real_git_journey_recovery.py)),
+and every case finishes without an agent run, a measurement, or a second adjudication, or parks:
+
+- **After the anchor, before `git rebase`**: the checkout is still on the anchor, so the attempt is dropped and
+  rebased afresh.
+- **After the local rewrite, before it was recorded**: the checkout diverges from the pull request with no
+  `pending_auto_base_rebase_rewrite_sha`, so the replay is vouched for by what it contributes over the pinned terms
+  and pushed under the lease.
+- **After the replay was recorded, before the grant**: an exemption and no permission (*unrecorded*), so the evidence
+  is re-derived from the recorded terms, the permit is asked, and the push goes out under the lease.
+- **After the grant, before the push**: an *outstanding* permission with the remote still on the lease, so the push is
+  reissued on the permit alone.
+- **After the push, before the receipt**: an outstanding permission with the remote already on the rewrite, so the
+  leased no-op receipts it and settles the rotation as `already_published`.
+- **After the receipt, before the record**: a settled transfer with `late_rewrite_proof` standing, so the one
+  `late_transfer` record is made from that proof and the proof is dropped.
+- **Before the notice, the mark, or the relabel**: a settled transfer, with or without the announcement mark, so the
+  finish announces only where no mark records it — the one window before the mark repeats the notice and
+  `base_rebased` — and relabels only where the relabel did not land.
+- **After somebody else moved the remote**: a permit the lease no longer satisfies, or an *unvouched* record, so the
+  attempt parks for a human with nothing spent, nothing reported, and no unleased push.
+- **After the pull request merged or closed**: the attempt's terminal handoff settles a permission whose rewrite the
+  pull request ended on (`already_published`) on the record's own binding, with no permit left to re-ask. Any other
+  grant is dropped only where it reads back whole, is still `authorized`, and was granted over that anchor; a damaged,
+  `published`, or otherwise bound group is left standing.
+
+The squash and the conflict rebase reach the same two phases through their own records and share the rules around the
+push: an outstanding grant makes the approval beside it defer to the permit, a remote already on the rewrite is
+receipted by a leased no-op, and a re-ask the permit refuses falls through to the ordinary gate. They part at a push
+the remote refuses. The **squash** rolls back: the branch goes back on the head it collapsed, and an `authorized`
+permission is dropped once that reset has landed, since nothing will ever push the object it names. The **conflict
+rebase** does not: `conflicts/publication._publish_clean_rebase` and `conflicts/divergence._push_recovered_commits`
+each park `push_failed` with the rewritten commits still on the branch, and leave the `conflict_replay_*` record and
+any permission beside it standing, so the push a later tick retries is the same replay that record and permission
+describe.
+
+**Legacy and damaged records fail closed.** None of them is repaired or deleted to reach its answer:
+
+- `late_exempt_sha` with no identity beside it — a settlement an older build wrote, or one whose fingerprint reading
+  could not be taken — keeps exact-SHA behavior and never permits a transfer: a rewrite of that commit is measured.
+- An identity group with a member missing, a field that is not a whole object id or digest, a format this build does
+  not compute, or a candidate other than the exempt commit reads back as no transferable identity. The exact-SHA
+  exemption beside it goes on working, and the base refresh's crash recovery asks `unreadable_exemption` and answers
+  such a claim *unvouched* rather than walking past it as though no verdict were in flight.
+- A `late_rewrite_*` group that does not read back whole — a missing member, an unknown kind or phase, a kind its
+  stage does not make, a bound end that is not the exempt commit — is no authorization. A grant may not overwrite a
+  group that claims the exempt commit, so the permit refuses; a rollback cannot drop it; the refresh's recovery
+  classifies it *unvouched* and parks.
+- A `late_rewrite_proof` standing beside a proof, phase, or authorization nothing can account for is
+  `stranded_transfer_proof`: the reconciliation parks once on it and the recovery answers *unvouched*.
+- A reading that could not be taken — an object this host does not hold, a checkout `git status` cannot report on,
+  a remote that will not answer — refuses, and is never read as equivalence or answered with an unleased push.
+
+**What earns no waiver.** The exemption names one commit, and a rotation moves it only onto another exact commit a
+workflow owner rewrote itself and proved — a recovery finishing a replay that owner pinned, or a grant it already
+persisted, included. A descendant of the exempt commit, a developer's or reviewer's fix, the documentation pass, an
+agent's conflict resolution, commits a recovery finds that nothing the rewriting owner pinned vouches for, a child a
+split creates, and a replay that changed a single covered byte are each measured by the ordinary cumulative gate, and
+an oversized one is adjudicated afresh. Equivalence is never inferred: an addition count, a commit subject, a
+timestamp, tree or rename similarity, and `git patch-id` can each agree over a different change, and only the
+canonical fingerprint is compared
+([`../architecture.md`](../architecture.md#fingerprinting-a-prospective-contribution-gitmeasurementfingerprintpy)).
+
+**What it reports.** One `late_transfer` record per settled rotation — both pairs, the publication, the rewrite kind,
+and the proof — and no second `late_verdict`, since nothing was adjudicated again. Delivery is best effort: a sink
+that refuses the record loses it, and a proof drop that does not land lets a later tick emit it again, identical
+apart from `ts`. Its fields and its duplicate rule are in
+[`../observability/event-streams.md`](../observability/event-streams.md#late-split-records-both-sinks).
 
 ### The late run
 
