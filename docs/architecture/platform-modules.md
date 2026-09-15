@@ -500,10 +500,11 @@ orchestrator/
                         to, or a checkout that would not report its own head -- and an operator sent by any of the
                         others would be looking for commits that are not where the notice says
       planning.py       the merge-base, HEAD, dirty, commit-count, and subject preconditions plus the squash
-                        message they select -- the count WALKED rather than taken from the subjects beside it,
-                        since a commit written with no message contributes no subject and still contributes one
-                        commit, and a count short by those decides both whether there is anything to collapse at
-                        all and what a human is told their history was collapsed from --
+                        message they select, ended in the ` (#N)` reference `pr_references` formats for the pull
+                        request the squash is handed, where one is -- the count WALKED rather than taken from the
+                        subjects beside it, since a commit written with no message contributes no subject and still
+                        contributes one commit, and a count short by those decides both whether there is anything
+                        to collapse at all and what a human is told their history was collapsed from --
                         and the pre-squash head pinned beside them -- the rollback target, the head the entry takes
                         its lease from, and the commit the gate is told this rewrite collapsed, none of which a
                         reading taken past the reset could recover
@@ -599,7 +600,9 @@ orchestrator/
                         one this build cannot read WHOLE refuses rather than being waved past, since the branch
                         behind it is exactly the one commit that reads as nothing to squash
       squash.py         the plan-then-resume-then-enter-then-record-then-rewrite entry point a stage handler
-                        calls, over the gate subject that handler builds, and the owner of `SQUASH_ON_APPROVAL`:
+                        calls, over the gate subject that handler builds and the pull request number it hands in --
+                        which the plan's message references only while `PR_REF_IN_SUBJECT` is on -- and the owner
+                        of `SQUASH_ON_APPROVAL`:
                         the switch decides whether a NEW collapse is made, and one an earlier tick already made
                         is finished either way, since the commits are off the branch and the remote either has
                         the object that replaced them or does not. An issue with nothing recorded costs an
@@ -873,10 +876,10 @@ The six subpackages bind their collaborators directly, so the dependency directi
 off a facade:
 
 - `publication/` — `pr_references` calls nothing; `probes` and `titles` each call `commands` and neither calls the
-  other; `planning` calls `commands`, `titles`, and the verification probes; `rewrite` calls `commands`,
-  `branch_transport`, and those same verification probes; `resume` calls `rewrite` and reaches the gate through the
-  one hop that owner spells; `standing` calls `resume` for the ancestry read and reaches the gate through that same
-  hop; `squash` calls `planning`, `resume`, `rewrite`, and `standing`.
+  other; `planning` calls `commands`, `titles`, `pr_references`, and the verification probes; `rewrite` calls
+  `commands`, `branch_transport`, and those same verification probes; `resume` calls `rewrite` and reaches the gate
+  through the one hop that owner spells; `standing` calls `resume` for the ancestry read and reaches the gate through
+  that same hop; `squash` calls `planning`, `resume`, `rewrite`, and `standing`.
 - `verification/` — `output` calls `models`, `process` calls `output` and `status`, and `runner` calls `process`.
   `status` shares the NUL framing and submodule arguments defined on `probes` so both path reads agree.
   Both subprocess owners reach the agent package for what a spawned child costs rather than keeping a second copy:

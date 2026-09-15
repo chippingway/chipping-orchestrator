@@ -73,12 +73,17 @@ _MOVED_UNDER_THE_READING = (
 _UNRECORDED_COLLAPSE = "{refusal}; the approved commits are still on the branch"
 
 
-def _squash_and_force_push(gate, branch: str) -> models._SquashOutcome:
+def _squash_and_force_push(
+    gate, branch: str, pr_number: int | None,
+) -> models._SquashOutcome:
     """Squash all commits since `origin/<base>` into one, force-push with lease.
 
     `gate` is the subject the size gate decides about -- the issue, its pinned
     state, and the checkout -- built by the caller, which is in the layer this
-    module would otherwise have to reach up into for it.
+    module would otherwise have to reach up into for it. `pr_number` is handed
+    in on the same terms: the pull request the squash subject references --
+    the reviewer run's on an approval, the pinned one on a recovery -- or None
+    where there is no number to reference.
 
     Returns one `_SquashOutcome`, in the four shapes a squash can end in:
       * `success` with `sha` and `count=0` — nothing to squash (zero or one
@@ -151,18 +156,26 @@ def _squash_and_force_push(gate, branch: str) -> models._SquashOutcome:
     already carries a reusable `<prefix>:` form (Conventional or repo-local,
     so an `event:` / `career:` subject survives); otherwise it builds one
     from the issue title with `_infer_subject_prefix` -- a repo-local prefix
-    when recent base history uses one, else `fix`/`feat`. The message is
-    subject-only -- no body, no trailers -- so the orchestrator-authored
-    squash matches the repo's subject-only commit rule. The commit is
-    authored under the AGENT_GIT_* identity (via env vars) so attribution
-    matches the per-step commits this squash replaces.
+    when recent base history uses one, else `fix`/`feat`. With
+    `PR_REF_IN_SUBJECT` on, either one then ends in ` (#<pr_number>)` through
+    `pr_references`, the formatter every publisher shares, so a reused subject
+    an earlier approval round already squashed to is not given a second
+    reference; off, or with no number, the selected subject is committed
+    exactly as it was picked. A branch carrying one commit is not rewritten
+    here at all, and a collapse the recovery finishes keeps the subject it was
+    committed under. The message is subject-only -- no body, no trailers --
+    so the orchestrator-authored squash matches the repo's subject-only commit
+    rule. The commit is authored under the AGENT_GIT_* identity (via env vars)
+    so attribution matches the per-step commits this squash replaces.
     """
     return standing._tells_the_caller_where_the_branch_is(
-        gate, _squashed_or_resumed(gate, branch),
+        gate, _squashed_or_resumed(gate, branch, pr_number),
     )
 
 
-def _squashed_or_resumed(gate, branch: str) -> models._SquashOutcome:
+def _squashed_or_resumed(
+    gate, branch: str, pr_number: int | None,
+) -> models._SquashOutcome:
     """Finish a collapse this issue began, or make one out of what is here.
 
     `SQUASH_ON_APPROVAL` decides only the second. A collapse an earlier tick
@@ -181,6 +194,10 @@ def _squashed_or_resumed(gate, branch: str) -> models._SquashOutcome:
     moved; with it off there is no rewrite to do the asking, and the tick
     would hand a divergent branch on having read nothing. So the branch that
     is NOT going to be rewritten is answered by its own owner below.
+
+    `PR_REF_IN_SUBJECT` is asked here as well, and it decides only whether the
+    plan's message references `pr_number`: off, the plan is built with no
+    number at all, so nothing but that subject can change with it.
     """
     claimed = standing._claims_a_collapse(gate)
     if not config.SQUASH_ON_APPROVAL and not claimed:
@@ -188,6 +205,7 @@ def _squashed_or_resumed(gate, branch: str) -> models._SquashOutcome:
     try:
         plan = planning._prepare_squash(
             gate.spec, gate.worktree, gate.issue,
+            pr_number if config.PR_REF_IN_SUBJECT else None,
         )
     except planning._SquashPreparationError as error:
         return rewrite._squash_failure(str(error))

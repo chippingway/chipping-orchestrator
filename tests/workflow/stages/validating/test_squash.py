@@ -12,7 +12,12 @@ from orchestrator.git.publication.models import _SquashOutcome
 from tests.support.fakes import FakePRRef
 from tests.workflow.fixtures import REVIEW_APPROVED_MESSAGE, _agent
 from tests.workflow.stages.validating import squash_approval_support as _support
-from tests.workflow.stages.validating.squash_approval_support import _MeasurementPark, _SquashApprovalFixtureMixin
+from tests.workflow.stages.validating.squash_approval_support import (
+    _CollapseWorldMixin,
+    _MeasurementPark,
+    _RefusesTheCollapse,
+    _SquashApprovalFixtureMixin,
+)
 
 # The two sentences a notice about somewhere ELSE may not carry: the ordinary
 # failure's, which puts the approved commits at HEAD, and the collapse's,
@@ -225,6 +230,45 @@ class SquashParkNoticeTest(
         parked = [body for _, body in gh.posted_comments if "squash" in body]
         self.assertTrue(parked)
         return parked[-1]
+
+
+class SquashSubjectReferenceTest(
+    unittest.TestCase,
+    _SquashApprovalFixtureMixin,
+    _CollapseWorldMixin,
+):
+    """The pull request each road hands the squash its subject references.
+
+    Whether the subject spells it is the squash owner's to decide. What the
+    stage owes is the number, from whichever road holds one: the reviewer run
+    on an approval, the pinned comment on a recovery.
+    """
+
+    def test_both_roads_hand_the_pull_request_in(self) -> None:
+        for recovered in (False, True):
+            with self.subTest(recovered=recovered):
+                github, issue = self._approved_issue()
+                if recovered:
+                    self._records_a_collapse(github)
+
+                mocks = self._lands_a_collapse(github, issue)
+
+                self.assertEqual(
+                    mocks[_support.SQUASH_SEAM].call_args.args[-1],
+                    _support.APPROVAL_PR,
+                )
+
+    def test_a_damaged_number_references_nothing(self) -> None:
+        # Read as an identity first: a value that is not a whole positive
+        # number would otherwise be spelled into a force-pushed subject as a
+        # reference no pull request answers to.
+        github, issue = self._approved_issue()
+        self._records_a_collapse(github)
+        self._pins(github, _support.PR_NUMBER_KEY, True)
+
+        mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
+
+        self.assertIsNone(mocks[_support.SQUASH_SEAM].call_args.args[-1])
 
 
 if __name__ == "__main__":

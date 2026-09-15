@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a squash does on an install with the size gate switched off.
+"""What a squash does on an install with one of its switches turned off.
 
 `DECOMPOSE=off` decides what ENTERS the gate, and a squash is new work by that
 definition: the commit it publishes is one it makes itself, out of commits a
@@ -28,6 +28,11 @@ the publication whatever the switch says.
 `reconciling` cannot answer that question, which is why the seam asks it
 separately: the squash sets that flag to say no developer ran on the tick, and
 the gate reads it as answering a reading the gate itself recorded.
+
+`PR_REF_IN_SUBJECT=off` is the other switch run here, and it reaches far less:
+no reading, no refusal, and no push is its to decide. What it keeps is the
+multi-commit message exactly as the subject selection picked it, on the road
+that reuses the first subject and on the one that synthesizes one alike.
 """
 from __future__ import annotations
 
@@ -48,6 +53,7 @@ from tests.git.publication.test_squash_gate import (
 
 MAX_ADDED_LINES = "MAX_ADDED_LINES"
 DECOMPOSE = "DECOMPOSE"
+PR_REF_IN_SUBJECT = "PR_REF_IN_SUBJECT"
 
 # The two keywords a gated push names its commit and pins its ref by.
 REVISION = "revision"
@@ -218,6 +224,46 @@ class SquashRecoveredSwitchedOffRealGitTest(
         pushed = squash_run.push_mock.call_args.kwargs
         self.assertEqual(pushed[REVISION], squashed)
         self.assertEqual(pushed[LEASE], original_head)
+
+
+class SquashUnreferencedRealGitTest(
+    squash_support.SquashGitFixtureMixin,
+    unittest.TestCase,
+):
+    """`PR_REF_IN_SUBJECT=off` commits the multi-commit message as it was picked.
+
+    The pull request is still handed in, so a subject with no reference is the
+    switch answering rather than a number that never arrived -- on the road
+    that reuses the first subject and on the one that synthesizes one alike.
+    """
+
+    def test_a_reused_subject_is_left_as_picked(self) -> None:
+        self._assert_committed_as(
+            self._squash(**{PR_REF_IN_SUBJECT: False}), "fix: typo",
+        )
+
+    def test_a_synthesized_subject_is_left_as_picked(self) -> None:
+        self._rebuild_topic(("typo fix", "feat: add foo"), "g")
+
+        squash_run = self._squash(
+            publication=PublicationSeed(
+                issue=self._make_issue(title="rename frobnicator"),
+            ),
+            **{PR_REF_IN_SUBJECT: False},
+        )
+
+        self._assert_committed_as(squash_run, "feat: rename frobnicator")
+
+    def _assert_committed_as(self, squash_run, subject: str) -> None:
+        """The collapse landed and its whole message is `subject` alone."""
+        self.assertTrue(squash_run.success, squash_run.error)
+        self.assertGreater(squash_run.count, 1)
+        self.assertEqual(
+            squash_support.run_git(
+                "log", "-1", "--pretty=%B", cwd=self.work,
+            ).strip(),
+            subject,
+        )
 
 
 if __name__ == "__main__":

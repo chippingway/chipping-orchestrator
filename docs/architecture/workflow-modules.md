@@ -1738,9 +1738,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             The settled handoff is answered beside it and needs no checkout at all: the label
                             a finished squash never got to move is moved here, but only while the pull request is
                             still standing on the commit that handoff named
-      approval.py           the verify gate and the squash-and-hand-off tail both roads run, over the subject and
-                            branch whichever road decided them hands in: the optional squash, the park each of
-                            its four readings earns, the notice its count is worded from --
+      approval.py           the verify gate and the squash-and-hand-off tail both roads run, over the subject,
+                            branch, and pull request number whichever road decided them hands in -- that number
+                            read as an identity before the squash subject may reference it: the optional squash,
+                            the park each of its four readings earns, the notice its count is worded from --
                             posted ahead of the seed it orders, and the one failure that stops the road, since
                             the count lives only on the collapse record the next tick would otherwise drop -- the
                             end of that record, and the `workflow:documenting` relabel that lands behind that

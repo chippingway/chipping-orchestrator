@@ -50,6 +50,9 @@ PARK_REASON = "park_reason"
 PARK_MEASUREMENT_FAILED = "late_measurement_failed"
 PARK_SQUASH_FAILED = _validating_state._REASON_SQUASH_FAILED
 APPROVAL_PR = 31
+# The pinned field that number is recorded under, which a case damages to
+# show the stage references nothing by a value that names no pull request.
+PR_NUMBER_KEY = "pr_number"
 APPROVAL_BRANCH = "orchestrator/chippingway__orchestrator/issue-5"
 REVIEWED_SHA = "reviewedAA"
 # The commit a squash leaves behind, at the shape this domain holds every
@@ -100,7 +103,7 @@ class _MeasurementPark:
     relabels, because a park is not the adjudication.
     """
 
-    def __call__(self, gate, _branch) -> _SquashOutcome:
+    def __call__(self, gate, _branch, _pr_number) -> _SquashOutcome:
         gate.state.set(AWAITING_HUMAN, True)
         gate.state.set(PARK_REASON, PARK_MEASUREMENT_FAILED)
         return _SquashOutcome(held=True)
@@ -115,7 +118,7 @@ class _LandsWithACollapseRecorded:
     not gone out yet.
     """
 
-    def __call__(self, gate, _branch) -> _SquashOutcome:
+    def __call__(self, gate, _branch, _pr_number) -> _SquashOutcome:
         _collapses.record_pending_collapse(
             gate.state,
             head=COLLAPSED_HEAD,
@@ -135,7 +138,7 @@ class _RefusesTheCollapse:
     is owed the park.
     """
 
-    def __call__(self, _gate, _branch) -> _SquashOutcome:
+    def __call__(self, _gate, _branch, _pr_number) -> _SquashOutcome:
         return _SquashOutcome(
             error="this issue records a squash it could not finish",
             standing=_publication.BRANCH_COLLAPSED,
