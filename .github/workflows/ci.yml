@@ -33,13 +33,13 @@ jobs:
     # in the minutes the suite needs.
     timeout-minutes: 20
     strategy:
-      # Both interpreters report. A failure on one is a fact about that
-      # version, not a reason to stop learning what the other does.
+      # All interpreters report. A failure on one is a fact about that
+      # version, not a reason to stop learning what the others do.
       fail-fast: false
       matrix:
-        # The two versions a run proves. `requires-python` sets a floor of
+        # The versions a run proves. `requires-python` sets a floor of
         # 3.12 and no ceiling, so a later release installs untested.
-        python-version: ["3.12", "3.13"]
+        python-version: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

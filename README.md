@@ -65,7 +65,7 @@ is in [`docs/state-machine/lifecycle.md`](docs/state-machine/lifecycle.md).
 ## Requirements
 
 - Linux host, Git, Python 3.12+, and [`uv`](https://github.com/astral-sh/uv) (or `python3-venv` + `pip`). CI runs the
-  suite on 3.12 and 3.13, so a newer interpreter installs but is untested.
+  suite on 3.12, 3.13, and 3.14, so a newer interpreter installs but is untested.
 - The CLI agents you actually route to must be authenticated on the host. Defaults:
   [`claude`](https://docs.anthropic.com/en/docs/claude-code) for decomposition + implementation,
   [`codex`](https://github.com/openai/codex) for review; either can be remapped via `DEV_AGENT` / `REVIEW_AGENT` /
