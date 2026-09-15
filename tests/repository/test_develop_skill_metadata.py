@@ -14,66 +14,20 @@ must stay aligned with, so the two cannot silently drift back apart.
 from __future__ import annotations
 
 import unittest
-from itertools import takewhile
-from pathlib import Path
 
 from orchestrator.workflow.engine import prompts
+from tests.repository.skill_metadata_test_support import frontmatter_field, skill_paths
 from tests.support.fakes import make_issue
 from tests.workflow.fixtures import _TEST_SPEC
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-
-# Both roots the skill-catalog scanner reads. `.claude` is a symlink to
-# `.agents`, but the harness may load either, so the anchor must hold on both.
-_DEVELOP_SKILLS = (
-    _REPO_ROOT / ".agents" / "skills" / "develop" / "SKILL.md",
-    _REPO_ROOT / ".claude" / "skills" / "develop" / "SKILL.md",
-)
-_YAML_BLOCK_MARKERS = frozenset((">", ">-", ">+", "|", "|-", "|+"))
-
-
-def _is_indented_or_blank(line: str) -> bool:
-    return not line or line[0].isspace()
-
-
-def _description_field(lines: list[str]) -> tuple[int, str] | None:
-    return next(
-        (
-            (index, line.split(":", 1)[1].strip())
-            for index, line in enumerate(lines[1:], 1)
-            if line.startswith("description:")
-        ),
-        None,
-    )
-
-
-def _frontmatter_description(text: str) -> str:
-    """Fold the `description:` block scalar out of a SKILL.md frontmatter.
-
-    Handles the `description: >-` folded form the skill files use: the value is
-    the indented block below the key, rejoined on single spaces and stopped at
-    the next top-level key or the closing `---`.
-    """
-    lines = text.splitlines()
-    assert lines and lines[0].strip() == "---", "missing frontmatter open"
-    description = _description_field(lines)
-    if description is None:
-        return ""
-    index, inline = description
-    if inline and inline not in _YAML_BLOCK_MARKERS:
-        return inline
-    return " ".join(
-        line.strip()
-        for line in takewhile(_is_indented_or_blank, lines[index + 1:])
-        if line.strip()
-    )
+_DEVELOP_SKILLS = skill_paths("develop")
 
 
 class DevelopSkillTriggerAnchorTest(unittest.TestCase):
     def test_anchor_names_commit_not_pr(self) -> None:
         for path in _DEVELOP_SKILLS:
-            desc = _frontmatter_description(
-                path.read_text(encoding="utf-8")
+            desc = frontmatter_field(
+                path.read_text(encoding="utf-8"), "description",
             ).lower()
             with self.subTest(path=str(path)):
                 # The action every developer run actually performs.
