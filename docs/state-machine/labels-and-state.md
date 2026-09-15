@@ -288,7 +288,12 @@ reported active to the next poll's submit, which is rejected as `duplicate_activ
 active issue's worktree.
 
 Only issue numbers cross the thread boundary — each scheduler worker mints a fresh `GitHubClient` via
-`gh._for_worker_thread()` and re-fetches its Issue against that client.
+`gh._for_worker_thread()` and re-fetches its Issue against that client. The mint itself sends no request: the clone
+reuses the parent's token and bot login on a requester of its own, and its repository is lazy. The first read of
+repository metadata — the canonical `repo_slug` an ownership check or refusal quotes, or the owner login a branch's
+pull-request lookup filters on — fetches `GET /repos/{slug}` once, and a handler that reads none never fetches it.
+Issue, pull-request, label, and commit operations address the repository by URL and still ask GitHub at the call, as
+they do on the eagerly built parent client that enumerates the tick.
 
 ### Base refresh
 
