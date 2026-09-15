@@ -11,4 +11,4 @@ import of the package the launch forms already pay for.
 
 __all__ = ("__version__",)
 
-__version__ = "0.11.1"
+__version__ = "0.12.0"
