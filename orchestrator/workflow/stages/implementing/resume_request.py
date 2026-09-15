@@ -42,11 +42,12 @@ class _DevResumeRequest:
         """Name the stage every record this run emits is attributed to.
 
         An explicit override wins: the caller that passes one relabeled the
-        issue and then resumed on the SAME ``Issue`` object, whose cached
-        labels PyGithub does not refresh, so the label read would report the
-        stage the run just left. Otherwise the label the issue carries names
-        it -- by its bare tag, which is what the audit, analytics, and
-        trajectory records have always keyed on.
+        issue just before resuming and names the stage it moved to, so the
+        attribution does not rest on which ``Issue`` object reached the
+        resume -- one the relabel did not go through reports the stage the
+        run just left. Otherwise the label the issue carries names it -- by
+        its bare tag, which is what the audit, analytics, and trajectory
+        records have always keyed on.
         """
         return (
             self.stage

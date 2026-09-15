@@ -125,12 +125,12 @@ def _retired(
     the attempt.
 
     Where the issue now IS comes off the marker rather than off the issue. The
-    label was applied a moment ago and a client's cached labels survive the
-    write that changes them, so reading it back here would say the state the
-    issue was in BEFORE the restart -- which for the ordinary entry is no
-    state at all, putting `None` in the line an operator reads and in the
-    `stage` both sinks file the reconciled record under. The marker named the
-    target before either effect ran and is the same value the write carried.
+    label was applied a moment ago, and an issue object reports it only when
+    that write went through it: any other still says the state the issue was
+    in BEFORE the restart -- which for the ordinary entry is no state at all,
+    putting `None` in the line an operator reads and in the `stage` both sinks
+    file the reconciled record under. The marker named the target before
+    either effect ran and is the same value the write carried.
     """
     target = generation.restart_target
     fresh = _restart.retire_restart(generation)

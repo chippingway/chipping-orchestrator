@@ -256,15 +256,15 @@ class TerminalProofTest(_fix.RestartCase, unittest.TestCase):
         self.assertTrue(self._pinned()[_fix.KEY_TERMINAL_CONFIRMED])
 
     def test_a_stale_label_cache_proves_it_too(self) -> None:
-        # `stale_label_cache` reproduces PyGithub: `set_labels(REJECTED)`
-        # writes the remote and leaves the cached `self.issue.labels` where it
-        # was, so a pass that read the label back after writing it would see
-        # the one the issue wore a moment ago and record nothing. The proof
-        # available to the pass that made the write is the write RETURNING --
-        # and it has to take it, because a CLOSED owner leaves the sweep on
-        # that write and gets no second visit to see the label for itself.
-        # What that costs when it is missed is the operator's gesture: one
-        # reopen and one removal reapply the terminal instead of restarting.
+        # `stale_label_cache` writes `rejected` to the remote and leaves
+        # `self.issue.labels` where they were -- an issue object the write did
+        # not refresh -- so a pass that read the label back after writing it
+        # would see the one the issue wore a moment ago and record nothing.
+        # The proof available to the pass that made the write is the write
+        # RETURNING -- and it has to take it, because a CLOSED owner leaves the
+        # sweep on that write and gets no second visit to see the label for
+        # itself. What that costs when it is missed is the operator's gesture:
+        # one reopen and one removal reapply the terminal instead of restarting.
         self._seed(terminal=False)
         self.github._stale_label_cache = True
         self.issue.closed = True
@@ -640,9 +640,9 @@ class RestartRecordsTest(_fix.RestartCase, unittest.TestCase):
     """Both halves of the transaction, on both sinks, once each."""
 
     def test_a_stale_cache_keeps_the_stage(self) -> None:
-        # `stale_label_cache` reproduces PyGithub: the label the restart just
-        # applied is not on the cached issue, so reading it back would file
-        # the reconciled record under the state the issue was in BEFORE the
+        # `stale_label_cache` hands the pass an issue object the restart's
+        # write did not refresh, so reading the label back would file the
+        # reconciled record under the state the issue was in BEFORE the
         # restart -- which for the ordinary entry is no state at all. The
         # marker named the target before either effect ran.
         self._seed()

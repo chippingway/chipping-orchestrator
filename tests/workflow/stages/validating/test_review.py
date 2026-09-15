@@ -476,11 +476,11 @@ class HandleValidatingFixLoopRoutingTest(
     """Expose the fixing subphase and return pushed fixes to validating."""
 
     def test_a_held_fix_records_its_own_stage(self) -> None:
-        # `set_labels(FIXING)` writes the remote and leaves the cached labels
-        # at `validating`, so the size gate reading them back would freeze the
-        # state the issue has LEFT -- and a settled adjudication continues at
-        # whatever the record names, which would skip the fix loop's own
-        # completion entirely.
+        # `stale_label_cache` writes `fixing` to the remote and leaves the
+        # issue object at `validating`, so a size gate reading the label back
+        # would freeze the state the issue has LEFT -- and a settled
+        # adjudication continues at whatever the record names, which would
+        # skip the fix loop's own completion entirely.
         held_github, held_issue = self._seeded(stale_label_cache=True)
 
         with patch.object(config, MAX_ADDED_LINES, CEILING):
@@ -554,10 +554,10 @@ class HandleValidatingFixLoopRoutingTest(
         # appear in the label history strictly before any later flip
         # back to `validating`.
         #
-        # `stale_label_cache` reproduces PyGithub: `set_labels(FIXING)`
-        # writes the remote but leaves the cached `route_issue.labels` at
-        # `validating`, so the dev-run stage cannot be read back off the
-        # route_issue -- the reviewer-requested fix path must pass it explicitly.
+        # `stale_label_cache` writes `fixing` to the remote but leaves
+        # `route_issue.labels` at `validating` -- an issue object the write
+        # did not refresh -- so the dev-run stage cannot be read back off the
+        # route_issue: the reviewer-requested fix path must pass it explicitly.
         route_github, route_issue = self._seeded(stale_label_cache=True)
         self._run_validating(
             route_github,
@@ -580,9 +580,9 @@ class HandleValidatingFixLoopRoutingTest(
         self.assertLess(fixing_idx, validating_idx)
         # Reviewer work stays attributed to `validating`; the CHANGES_REQUESTED
         # developer fix is attributed to `fixing` even though the resume runs
-        # on the same `Issue` object whose cached labels still read
-        # `validating`. Attributing the fix to `validating` would double-count
-        # its spend against the reviewer/verify bucket.
+        # on an `Issue` object whose labels still read `validating`.
+        # Attributing the fix to `validating` would double-count its spend
+        # against the reviewer/verify bucket.
         spawns_by_role = {
             event[AGENT_ROLE]: event for event in route_github.recorded_events if event[EVENT_NAME] == EVENT_AGENT_SPAWN
         }

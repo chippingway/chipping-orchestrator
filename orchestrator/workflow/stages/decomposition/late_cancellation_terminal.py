@@ -79,12 +79,13 @@ def _retired(
     a restart nobody asked for, on an owner that is unlabeled for the reason
     it always was.
 
-    The proof this pass takes is the write RETURNING, and it may not be
-    re-derived by reading the issue back: a client's cached labels survive the
-    write that changes them, so a re-read here would answer with the label the
-    issue wore a moment ago and record nothing. That matters most exactly
-    where nothing would notice -- a closed owner leaves the sweep on this
-    write and gets no second visit to see the label for itself.
+    The proof this pass takes is the write RETURNING, and it is not re-derived
+    by reading the issue back: the label a read finds on this object is only
+    what that same write left there, and on any object the write did not go
+    through it is the label the issue wore a moment ago, which records
+    nothing. That matters most exactly where nothing would notice -- a closed
+    owner leaves the sweep on this write and gets no second visit to see the
+    label for itself.
 
     A write GitHub refuses is left for the next visit rather than raised: the
     obligations are settled and recorded by then, and the only thing missing
@@ -133,10 +134,9 @@ def _terminal_proved(
     one that authorizes the fresh cycle.
 
     Asked of the label as this pass FOUND it, which is why it is not what the
-    pass that writes the terminal uses: a client's cached labels are not
-    refreshed by the write that changes them, so re-reading one here after
-    writing would answer with the label the issue wore before and record
-    nothing at all.
+    pass that writes the terminal uses: that pass holds its own write
+    returning, and a read after it could only repeat what the write left on
+    the object it went through.
     """
     if gh.workflow_label(issue) != WorkflowLabel.REJECTED:
         return

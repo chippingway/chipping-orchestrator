@@ -1732,8 +1732,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the split that tells a provider's failure from a reviewer's
       dev_fix.py            what a finished dev fix leaves behind: the no-commit reading and the head it carries
                             on, the size gate every fix route publishes through -- told the state the run really
-                            belongs to, since the route that relabels before it spawns reads its own cached labels
-                            back -- the push and the approval it spends, and the round bump
+                            belongs to by the route that relabels before it spawns, rather than reading it off the
+                            issue object -- the push and the approval it spends, and the round bump
       stranded.py           the probe under that reading, which the `fixing` handler asks off no dev run at all:
                             a clean checkout fetched and proved strictly ahead of the remote pull request branch
                             and behind nothing, answering with the head it was compared AGAINST so the push that

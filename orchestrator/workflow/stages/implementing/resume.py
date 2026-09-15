@@ -70,11 +70,11 @@ def _resume_dev_with_text(
     `stage` overrides the recorded stage for every audit / analytics /
     trajectory record this run emits. It defaults to the label read off
     `issue`, which is correct whenever the caller fetched the issue fresh this
-    tick. The CHANGES_REQUESTED fix path must pass it explicitly (`fixing`):
-    it relabels validating -> fixing and then resumes on the SAME `Issue`
-    object, whose cached `labels` PyGithub does not refresh after
-    `set_labels`, so the label read would still report `validating` and
-    attribute the developer run to the reviewer's stage.
+    tick or relabelled it through `set_workflow_label`. The CHANGES_REQUESTED
+    fix path passes it explicitly (`fixing`): it relabels validating -> fixing
+    and then resumes, and naming the stage keeps the developer run off the
+    reviewer's stage whichever `Issue` object reaches the resume -- one the
+    relabel did not go through would still report `validating`.
 
     The backend is locked to whatever wrote `dev_session_id` (or the legacy
     `codex_session_id`) for this issue -- resuming across backends would need

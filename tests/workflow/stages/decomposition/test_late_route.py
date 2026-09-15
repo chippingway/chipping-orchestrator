@@ -68,13 +68,11 @@ _ERROR = "ERROR"
 
 
 def _stale_label_client(case, github):
-    """Make this client behave the way the real one does around a relabel.
+    """Keep the issue this tick holds apart from the one a refetch returns.
 
-    PyGithub's `set_labels` writes the label and leaves the object it was
-    called on exactly as it was, so an issue relabelled mid-tick goes on
-    reporting the label it arrived with until something fetches it again. The
-    fake mutates in place instead, which hides the whole failure -- so the
-    write is neutered here and `get_issue` answers with a distinct object
+    The fake relabels its issue in place, which would leave the object the
+    tick was dispatched with and a freshly read one indistinguishable -- so
+    the write is neutered here and `get_issue` answers with a distinct object
     carrying the label the write made durable.
     """
     refreshed = make_issue(LATE_ISSUE_NUMBER, label=LABEL_IMPLEMENTING)
@@ -319,13 +317,10 @@ class LateHandoffTest(_RouteCase, unittest.TestCase):
     """The relabel a handoff makes, and the read it owes the handler."""
 
     def test_the_handoff_reads_the_issue_again(self) -> None:
-        # A label write does not refresh the object it was made against, so
-        # the one this tick holds still reports `decomposing`. The handler it
-        # falls into ends in a relabel of its own, and the transition guard
-        # reads that against whatever the issue says it currently is: handed
-        # the stale object it sees an edge the graph does not declare, and
-        # under `enforce` it raises -- after the branch is pushed and the pull
-        # request is open.
+        # The handler this falls into publishes on the issue it is handed, so
+        # it is handed one read after the relabel rather than the object this
+        # tick was dispatched with: the write keeps that object's labels
+        # current and nothing else about it.
         github, issue = self._settled()
         handled = MagicMock()
         refreshed = _stale_label_client(self, github)
@@ -336,7 +331,7 @@ class LateHandoffTest(_RouteCase, unittest.TestCase):
         self.assertIs(handled.call_args.args[2], refreshed)
 
     def test_the_disabled_route_reads_it_again(self) -> None:
-        # The kill-switch handoff is the same relabel and the same stale
+        # The kill-switch handoff is the same relabel on the same dispatched
         # object, so it is refetched for the same reason.
         github = FakeGitHubClient()
         issue = seed_late_issue(github, LateGeneration())

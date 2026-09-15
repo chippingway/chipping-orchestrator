@@ -110,6 +110,13 @@ Two guards run at `GitHubClient.set_workflow_label` (the single label-write chok
   long as the operator kept the guard on, which is the opposite of what the guard is for. See
   [`../workflow/roles.md`](../workflow/roles.md#what-the-humans-can-still-change-while-a-candidate-is-frozen).
 
+The write also leaves the issue object it went through reading what it wrote. PyGithub's `Issue.set_labels` sends the
+replacement and keeps nothing of GitHub's answer, so once the request returns the chokepoint stores the label set it
+sent on that same object — without a second request — and only then emits `stage_enter`. Two relabels through one
+object in one tick, such as pickup's `workflow:decomposing` followed by the decomposition outcome's `workflow:ready`,
+are therefore each guarded against the state the one before left, and a write GitHub refuses raises before the cached
+labels or the event move. Any other object fetched for the same issue still carries the labels it was fetched with.
+
 `ALLOWED_TRANSITIONS` is a forward spine (e.g. `workflow:implementing → workflow:validating → workflow:documenting`)
 plus interrupt / detour edges declared per-target. It is keyed by `WorkflowLabel` members, so a pre-namespace label
 resolves to its member before the guard sees it and is checked against the same edges. Operator relabels via the
@@ -2641,9 +2648,9 @@ rather than preserving.
   a `rejected` that actually landed. Only the pair authorizes a restart; an attempt is not a terminal. Recording the
   decision drops any proof standing beside it, since the same field is reused by every cycle an issue ends.
 
-  The proof is reached three ways. `_retired` takes the write **returning**, and has to: PyGithub does not refresh an
-  issue's cached labels when `set_labels` succeeds, so reading the label back there would answer with the one the
-  issue wore a moment ago — and a closed owner leaves the sweep on that write with no second visit to correct it.
+  The proof is reached three ways. `_retired` takes the write **returning**, and has to: reading the label back proves
+  no more than what that write left on the issue object it went through, and on any other object answers with the one
+  the issue wore a moment ago — and a closed owner leaves the sweep on that write with no second visit to correct it.
   `_terminal_proved` takes the other side, recording the proof for any visit that *finds* the label on the issue,
   which is what makes the record compatible with cancellations that ended before it existed: such an issue wears
   `rejected` and records nothing, and the first pass to see it writes the proof down.

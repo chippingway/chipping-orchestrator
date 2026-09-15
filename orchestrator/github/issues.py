@@ -163,6 +163,21 @@ def issue_query_options(
     return query_options
 
 
+def _cache_written_labels(issue: Issue, label_names: list[str]) -> None:
+    """Leave the issue object a write went through reading what it wrote.
+
+    PyGithub's `set_labels` sends the PUT and keeps nothing of the answer, so
+    the object would go on serving the labels it was fetched with -- and the
+    next write through it would have the transition guard judge its edge from
+    the state before this one: `None -> ready` for a pickup whose
+    decomposition ends in the same tick. What is stored is the set the write
+    sent, in the shape a label listing carries, so no request is spent reading
+    it back. Only this object moves; any other one for the same issue still
+    carries what it was fetched with.
+    """
+    issue._useAttributes({"labels": [{"name": str(name)} for name in label_names]})
+
+
 def set_workflow_label(
     client: Any,
     issue: Issue,
@@ -171,6 +186,11 @@ def set_workflow_label(
     guarded: bool = True,
 ) -> None:
     """Replace only the workflow label and emit its stage-enter event.
+
+    A write that returns leaves `issue` reading the labels it wrote, so a
+    second relabel through the same object in one tick is guarded against
+    the state the first one left. A write GitHub refuses raises before either
+    the cached labels or the stage-enter event move.
 
     `guarded=False` is for the one write that is not a transition: putting a
     label back where a human moved it from. The graph describes the moves this
@@ -199,6 +219,7 @@ def set_workflow_label(
     if new_workflow_label is not None:
         kept_labels.append(new_workflow_label)
     issue.set_labels(*kept_labels)
+    _cache_written_labels(issue, kept_labels)
     if new_workflow_label is not None:
         # The event and the analytics row name the state by its bare tag: the
         # namespace is a GitHub label spelling, and every reader downstream of

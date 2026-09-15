@@ -15,9 +15,10 @@ before the retry spawns a second agent, the second before anything is persisted
 `awaiting_human` is cleared, so the next tick re-derives the resume from
 untouched durable state. The stage the run is attributed to is resolved once, at
 build time, and an explicit `stage` wins over the label read off the issue: a
-caller that just relabeled (validating -> fixing) holds an `Issue` whose cached
-labels PyGithub did not refresh, so the read would charge the developer's run to
-the reviewer's stage.
+caller that just relabeled (validating -> fixing) names the stage it moved to,
+so the attribution does not rest on the `Issue` it hands down -- one that
+relabel did not go through would charge the developer's run to the reviewer's
+stage.
 """
 from __future__ import annotations
 

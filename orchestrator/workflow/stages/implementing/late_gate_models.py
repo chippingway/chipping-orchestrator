@@ -217,8 +217,10 @@ class _Entered:
 
     Every field is something this owner could read for itself and must not, or
     could not know at all. A stage read back off a cached issue names the
-    label the fetch carried rather than the one a same-tick relabel wrote, and
-    a head read again is not the head the caller pinned its own decision to.
+    label of the last write made through that object -- on one a same-tick
+    relabel did not go through, the label the fetch carried rather than the
+    one the relabel wrote -- and a head read again is not the head the caller
+    pinned its own decision to.
     `reconciling` says no developer ran on this tick, which is what tells a
     checkout that MOVED from a resumed developer's fresh commit. `answering`
     is the narrower claim behind it -- that this call is answering a reading a
