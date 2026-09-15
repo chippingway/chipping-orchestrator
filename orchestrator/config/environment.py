@@ -3,8 +3,9 @@
 """Environment resolution for the config package.
 
 This module owns env-value parsing (shell-like agent-backend specs,
-positive-integer controls, non-negative budgets, HITL handle lists,
-verify-command lists) and the `_SettingsResolver` that drives the whole
+positive-integer controls, non-negative budgets, the terminal-artifact cleanup
+window and its timezone, HITL handle lists, verify-command lists) and the
+`_SettingsResolver` that drives the whole
 pipeline: it loads the non-secret `.env` (via the `_dotenv` leaf), then reads
 each `os.environ` key, validates it, and returns the resolved settings
 mapping. `orchestrator.config` invokes the resolver on every import / reload
@@ -14,10 +15,13 @@ that package's single configuration-failure funnel.
 """
 from __future__ import annotations
 
+import datetime
+import re
 import shlex
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, Mapping, MutableMapping
 from pathlib import Path
 from typing import Any, NoReturn
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from orchestrator.config._dotenv import _TRUE_VALUES, load_dotenv
 from orchestrator.config.credentials import resolve_github_token
@@ -54,6 +58,15 @@ _DEFAULT_ARTIFACT_CLEANUP_INTERVAL_SECONDS = 86400
 # skipped tick defers and why is on the setting itself in
 # `orchestrator/config/__init__.py`.
 _DEFAULT_DEPENDENCY_POLL_EVERY_N_TICKS = 5
+
+_CLEANUP_WINDOW_SETTING = "TERMINAL_ARTIFACT_CLEANUP_WINDOW"
+_CLEANUP_TIMEZONE_SETTING = "TERMINAL_ARTIFACT_CLEANUP_TIMEZONE"
+
+# One 24-hour `HH:MM` endpoint. The digit classes are spelled in ASCII because
+# `\d` also admits other scripts' digits, which `datetime.time` would then be
+# asked to read.
+_CLOCK_ENDPOINT = "(?:[01][0-9]|2[0-3]):[0-5][0-9]"
+_CLEANUP_WINDOW_PATTERN = re.compile(f"{_CLOCK_ENDPOINT}-{_CLOCK_ENDPOINT}")
 
 
 def parse_agent_spec(
@@ -171,6 +184,73 @@ class NonNegativeIntParser:
         return parsed_setting
 
 
+class CleanupWindowParser:
+    """Callable terminal-artifact cleanup window parser bound to the funnel.
+
+    Reads the window and its timezone as one pair, because the zone means
+    nothing without a window: an unset or blank window is disabled and leaves
+    the zone unread, so a stale zone beside a blanked window cannot abort a
+    start, and both resolve to `None`. A set window resolves to its
+    `(start, end)` clock times and demands a zone, which is resolved here so
+    a name the host cannot find aborts at import rather than at the first
+    pass that would read the clock in it.
+    """
+
+    def __init__(self, config_error: ConfigError) -> None:
+        self._config_error = config_error
+
+    def __call__(self, environ: Mapping[str, str]) -> dict[str, Any]:
+        window = self._window(environ.get(_CLEANUP_WINDOW_SETTING, ""))
+        return {
+            _CLEANUP_WINDOW_SETTING: window,
+            _CLEANUP_TIMEZONE_SETTING: None if window is None else self._timezone(
+                environ.get(_CLEANUP_TIMEZONE_SETTING, ""),
+            ),
+        }
+
+    def _window(
+        self, raw_window: str,
+    ) -> tuple[datetime.time, datetime.time] | None:
+        stripped_window = raw_window.strip()
+        if not stripped_window:
+            return None
+        if _CLEANUP_WINDOW_PATTERN.fullmatch(stripped_window) is None:
+            self._config_error(
+                f"orchestrator: {_CLEANUP_WINDOW_SETTING}={raw_window!r} is not "
+                "a valid window; expected 24-hour HH:MM-HH:MM such as "
+                "03:00-05:00",
+            )
+        start, end = (
+            datetime.time.fromisoformat(endpoint)
+            for endpoint in stripped_window.split("-")
+        )
+        if start == end:
+            self._config_error(
+                f"orchestrator: {_CLEANUP_WINDOW_SETTING}={raw_window!r} starts "
+                "where it ends; expected distinct HH:MM-HH:MM endpoints (an "
+                "end earlier than the start crosses midnight)",
+            )
+        return start, end
+
+    def _timezone(self, raw_timezone: str) -> ZoneInfo:
+        stripped_timezone = raw_timezone.strip()
+        if not stripped_timezone:
+            self._config_error(
+                f"orchestrator: {_CLEANUP_TIMEZONE_SETTING}={raw_timezone!r} is "
+                f"empty but {_CLEANUP_WINDOW_SETTING} is set; expected an IANA "
+                "timezone such as Asia/Novosibirsk",
+            )
+        try:
+            zone = ZoneInfo(stripped_timezone)
+        except (ZoneInfoNotFoundError, ValueError, OSError) as error:
+            self._config_error(
+                f"orchestrator: {_CLEANUP_TIMEZONE_SETTING}={raw_timezone!r} is "
+                f"not a resolvable IANA timezone ({error}); expected a name such "
+                "as Asia/Novosibirsk",
+            )
+        return zone
+
+
 def parse_hitl_handles(raw_handles: str) -> tuple[str, ...]:
     """Normalize, deduplicate, and preserve configured handle order."""
     handles: list[str] = []
@@ -284,6 +364,7 @@ class _SettingsResolver:
                 env.get("TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS", ""),
                 _DEFAULT_ARTIFACT_CLEANUP_INTERVAL_SECONDS,
             ),
+            **CleanupWindowParser(self._config_error)(env),
             "DEPENDENCY_POLL_EVERY_N_TICKS": positive_int(
                 "DEPENDENCY_POLL_EVERY_N_TICKS",
                 env.get("DEPENDENCY_POLL_EVERY_N_TICKS", ""),

@@ -24,10 +24,12 @@ ORCHESTRATOR_TOKEN_FILE).
 """
 from __future__ import annotations
 
+import datetime
 import os
 import sys
 from pathlib import Path
 from typing import NoReturn
+from zoneinfo import ZoneInfo
 
 from orchestrator.config import credentials, environment
 
@@ -91,6 +93,8 @@ __all__ = [
     "SQUASH_ON_APPROVAL",
     "TARGET_REPO_ROOT",
     "TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS",
+    "TERMINAL_ARTIFACT_CLEANUP_TIMEZONE",
+    "TERMINAL_ARTIFACT_CLEANUP_WINDOW",
     "VERIFY_COMMANDS",
     "VERIFY_TIMEOUT",
     "WORKFLOW_TRANSITION_GUARD",
@@ -456,6 +460,25 @@ EXPOSE_TRACKED_REPOS: bool = _RESOLVED["EXPOSE_TRACKED_REPOS"]
 # one holding scheduler admission closed while it proved the host quiet.
 TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS: int = _RESOLVED[
     "TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS"
+]
+
+# The local wall-clock window the polling process's own terminal-artifact
+# maintenance passes are scheduled in, and the IANA timezone that clock is
+# read in. The window is spelled strictly as 24-hour `HH:MM-HH:MM`, start
+# inclusive and end exclusive; an end earlier than its start crosses midnight,
+# and identical endpoints name no window at all, so they abort at import like
+# a malformed spelling. A set window takes precedence over the interval above
+# for automatic scheduling -- `--cleanup-terminal-artifacts` still runs when
+# asked -- and demands a timezone, resolved at import so a name the host cannot
+# find stops the process before the first GitHub call. Unset or blank, both
+# are `None`: the timezone is not read, and the interval keeps its own default
+# and validation. Held as a `(start, end)` pair of `datetime.time` and a
+# `ZoneInfo`.
+TERMINAL_ARTIFACT_CLEANUP_WINDOW: tuple[datetime.time, datetime.time] | None = _RESOLVED[
+    "TERMINAL_ARTIFACT_CLEANUP_WINDOW"
+]
+TERMINAL_ARTIFACT_CLEANUP_TIMEZONE: ZoneInfo | None = _RESOLVED[
+    "TERMINAL_ARTIFACT_CLEANUP_TIMEZONE"
 ]
 
 # Local verification commands run in the per-issue worktree on
