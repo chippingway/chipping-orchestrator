@@ -21,9 +21,12 @@ _TEST_REPO_SLUG = "chippingway/orchestrator"
 _REFRESH_BASE = "_refresh_base_and_worktrees"
 _TEST_BASE_BRANCH = "main"
 _TEST_REMOTE_NAME = "origin"
+_DECOMPOSE_SKILL = "decompose"
 _DEVELOP_SKILL = "develop"
 _REVIEW_SKILL = "review"
 _AGENT_SKILLS_ROOT = ".agents/skills"
+_AGENT_DECOMPOSE_SKILL_PATH = ".agents/skills/decompose/SKILL.md"
+_CLAUDE_DECOMPOSE_SKILL_PATH = ".claude/skills/decompose/SKILL.md"
 _AGENT_DEVELOP_SKILL_PATH = ".agents/skills/develop/SKILL.md"
 _AGENT_REVIEW_SKILL_PATH = ".agents/skills/review/SKILL.md"
 _CLAUDE_REVIEW_SKILL_PATH = ".claude/skills/review/SKILL.md"
@@ -78,18 +81,19 @@ class ExtractSkillCatalogTest(unittest.TestCase):
         # but every source path that produced it is preserved (sorted).
         paths = [
             _CLAUDE_REVIEW_SKILL_PATH,
+            _CLAUDE_DECOMPOSE_SKILL_PATH,
             _AGENT_REVIEW_SKILL_PATH,
             _AGENT_DEVELOP_SKILL_PATH,
+            _AGENT_DECOMPOSE_SKILL_PATH,
         ]
         skills, skill_paths = catalog._extract_skill_catalog(paths)
-        self.assertEqual(skills, [_DEVELOP_SKILL, _REVIEW_SKILL])
-        self.assertEqual(
-            skill_paths[_REVIEW_SKILL],
-            [
-                _AGENT_REVIEW_SKILL_PATH,
-                _CLAUDE_REVIEW_SKILL_PATH,
-            ],
-        )
+        self.assertEqual(skills, [_DECOMPOSE_SKILL, _DEVELOP_SKILL, _REVIEW_SKILL])
+        for skill_name, both_roots in (
+            (_DECOMPOSE_SKILL, [_AGENT_DECOMPOSE_SKILL_PATH, _CLAUDE_DECOMPOSE_SKILL_PATH]),
+            (_REVIEW_SKILL, [_AGENT_REVIEW_SKILL_PATH, _CLAUDE_REVIEW_SKILL_PATH]),
+        ):
+            with self.subTest(skill=skill_name):
+                self.assertEqual(skill_paths[skill_name], both_roots)
         self.assertEqual(
             skill_paths[_DEVELOP_SKILL], [_AGENT_DEVELOP_SKILL_PATH],
         )
@@ -147,19 +151,25 @@ class RecordRepoSkillCatalogShapeTest(unittest.TestCase):
 
     def test_record_shape(self) -> None:
         captured = _capture_analytics_records(self)
+        catalog_paths = {
+            _DECOMPOSE_SKILL: [
+                _AGENT_DECOMPOSE_SKILL_PATH,
+                _CLAUDE_DECOMPOSE_SKILL_PATH,
+            ],
+            _DEVELOP_SKILL: [_AGENT_DEVELOP_SKILL_PATH],
+            _REVIEW_SKILL: [
+                _AGENT_REVIEW_SKILL_PATH,
+                _CLAUDE_REVIEW_SKILL_PATH,
+            ],
+        }
         _recording_events.record_repo_skill_catalog(
             repo=_TEST_REPO_SLUG,
             base_branch=_TEST_BASE_BRANCH,
             remote_name=_TEST_REMOTE_NAME,
-            skills_available=[_DEVELOP_SKILL, _REVIEW_SKILL],
-            skill_paths={
-                _DEVELOP_SKILL: [_AGENT_DEVELOP_SKILL_PATH],
-                _REVIEW_SKILL: [
-                    _AGENT_REVIEW_SKILL_PATH,
-                    _CLAUDE_REVIEW_SKILL_PATH,
-                ],
-            },
+            skills_available=[_DECOMPOSE_SKILL, _DEVELOP_SKILL, _REVIEW_SKILL],
+            skill_paths=catalog_paths,
             skill_levels={
+                _DECOMPOSE_SKILL: _PROJECT_LEVEL,
                 _DEVELOP_SKILL: _PROJECT_LEVEL,
                 _REVIEW_SKILL: _PROJECT_LEVEL,
             },
@@ -178,18 +188,13 @@ class RecordRepoSkillCatalogShapeTest(unittest.TestCase):
         )
         self.assertEqual(
             record[_SKILLS_AVAILABLE_FIELD],
-            [_DEVELOP_SKILL, _REVIEW_SKILL],
+            [_DECOMPOSE_SKILL, _DEVELOP_SKILL, _REVIEW_SKILL],
         )
-        self.assertEqual(
-            record["skill_paths"][_REVIEW_SKILL],
-            [
-                _AGENT_REVIEW_SKILL_PATH,
-                _CLAUDE_REVIEW_SKILL_PATH,
-            ],
-        )
+        self.assertEqual(record["skill_paths"], catalog_paths)
         self.assertEqual(
             record["skill_levels"],
             {
+                _DECOMPOSE_SKILL: _PROJECT_LEVEL,
                 _DEVELOP_SKILL: _PROJECT_LEVEL,
                 _REVIEW_SKILL: _PROJECT_LEVEL,
             },
