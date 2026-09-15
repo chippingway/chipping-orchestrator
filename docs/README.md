@@ -21,6 +21,7 @@ focused pages beside it.
 | harden the deployment | [`security.md`](security.md) |
 | report a suspected vulnerability | [`../SECURITY.md`](../SECURITY.md) |
 | change the code | [`../AGENTS.md`](../AGENTS.md), then the [`develop` skill](../.agents/skills/develop/SKILL.md) |
+| size or split an issue | the [`decompose` skill](../.agents/skills/decompose/SKILL.md) |
 
 ## Architecture
 

@@ -16,7 +16,10 @@ is attributed to — while `workflow:<tag>` is the **wire label** the GitHub iss
   resume); `_handle_question` (and its `awaiting_human` resume), `_handle_discussion`, and the late adjudication an
   oversized committed candidate earns all reuse the same backend. Session: locked per issue after first spawn
   (decomposing → `decomposer_agent`; question → `question_agent`; discussion → `discussion_agent`; late adjudication
-  → `late_agent`, each a separate pin).
+  → `late_agent`, each a separate pin). The [`decompose` skill](../../.agents/skills/decompose/SKILL.md) holds the
+  sizing and decomposition policy for the two of those runs that split work: the initial decomposition and the late
+  adjudication. `question` and `discussion` share the backend and nothing else — neither sizes or splits an issue,
+  so selecting it for them does not call for the skill.
 - **Implementer / dev** (`DEV_AGENT`, default `claude`) — spawned by `_handle_implementing`, `_handle_documenting`,
   `_handle_validating` (awaiting-human resume; the `CHANGES_REQUESTED` dev fix is dispatched here but relabels to
   `workflow:fixing` BEFORE the spawn and records `stage="fixing"` analytics, so the dev-fix subphase reads as fixing

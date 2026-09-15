@@ -63,6 +63,10 @@ Read [`.agents/skills/develop/SKILL.md`](.agents/skills/develop/SKILL.md) before
 `orchestrator/`, `tests/`, or `docs/`. It carries the commands, commit format, license headers, test placement,
 comment rules, and dependency policy.
 
+Any agent that sizes or splits an issue, including the late adjudication of an oversized committed change, must first
+read [`.agents/skills/decompose/SKILL.md`](.agents/skills/decompose/SKILL.md). It carries what a child's scope has to
+include, the residual test every proposed child passes, and how the initial and late stages differ.
+
 The repo targets Python 3.12+ and installs from the lockfile with [`uv`](https://github.com/astral-sh/uv):
 
 ```sh

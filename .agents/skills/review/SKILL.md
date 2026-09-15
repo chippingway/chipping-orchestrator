@@ -85,7 +85,8 @@ label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions
 
 ## Documentation drift
 
-After any handler or helper move, grep the PR for stale pointers and request fixes in:
+After a PR moves, renames, or deletes a symbol or module — a handler, helper, constant, or whole owner — grep the
+PR for stale pointers to that name, inventory entries and docstrings included, and request fixes in:
 
 - `docs/architecture.md` and the focused pages under `docs/architecture/` — the module-by-module inventory
   lives here and nowhere else, except `docs/architecture/observability-modules.md`, which maps
@@ -93,13 +94,13 @@ After any handler or helper move, grep the PR for stale pointers and request fix
   rather than asking for one
 - `docs/state-machine.md` and the focused pages under `docs/state-machine/`
 - `docs/workflow.md` and the focused pages under `docs/workflow/`
-- module docstrings at the top of the owners the symbol moved between, and of the package initializers
-  above them that describe where a name answers
+- module docstrings at the top of the owners the symbol moved between, was renamed in, or was deleted from, and of
+  the package initializers above them that describe where a name answers
 
 `AGENTS.md` (and its `CLAUDE.md` symlink) is deliberately off that list, and the inverse is what to flag: it is
 loaded into every agent session and carries no module, owner, or test inventory. Reject a PR that answers a routine
-symbol or module move by editing it, or that grows an inventory back into it. It changes only when repository-wide
-agent instructions, safety rules, or documentation routing change.
+move, rename, or deletion of a symbol or module by editing it, or that grows an inventory back into it. It changes
+only when repository-wide agent instructions, safety rules, or documentation routing change.
 
 Treat blanket statements about what a package publishes — "every helper is re-exported", "the hub answers for
 these names" — with suspicion; verify literally against the code, since an attribute that no longer exists raises
