@@ -82,6 +82,7 @@ __all__ = [
     "MAX_REVIEW_ROUNDS",
     "ORCHESTRATOR_BASE_BRANCH",
     "POLL_INTERVAL",
+    "PR_REF_IN_SUBJECT",
     "REMOTE_NAME",
     "REPO",
     "REPO_ROOT",
@@ -433,6 +434,17 @@ MAX_ADDED_LINES: int = _RESOLVED["MAX_ADDED_LINES"]
 # as-is" behavior; useful if a workflow downstream (changelog generation,
 # bisect tooling) depends on the per-step commit history.
 SQUASH_ON_APPROVAL: bool = _RESOLVED["SQUASH_ON_APPROVAL"]
+
+# Whether the commits the orchestrator publishes onto a pull request end their
+# subject with exactly ` (#N)`, N being that pull request, so a rebase-merged
+# `main` links each commit back to it: the approval squash (a single-commit
+# branch included) and the documenting pass's commit, idempotently for a
+# subject that already carries the same number. Default on. Off is the escape
+# for a target repo that lands pull requests with GitHub's squash merge and its
+# default message, where GitHub appends its own `(#N)` to the squash commit
+# title and a single-commit pull request would carry the number twice. Nothing
+# reads it yet: no publication road suffixes a subject, whatever the value.
+PR_REF_IN_SUBJECT: bool = _RESOLVED["PR_REF_IN_SUBJECT"]
 
 # Whether working agents are told about the *other* repos this orchestrator
 # tracks (slug, local `target_root`, base branch) for cross-repo reference.
