@@ -216,7 +216,10 @@ examples.
   ```
 
   A set window takes precedence over `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` for automatic scheduling and
-  requires `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE`; `--cleanup-terminal-artifacts` still runs whenever asked. Unset or
+  requires `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE`; `--cleanup-terminal-artifacts` still runs whenever asked. That
+  precedence is the settings' contract, and startup validation is so far the only reader of either one: the polling
+  loop's due gate still schedules every automatic pass on the interval alone, as
+  [`configuration/operations.md#when-it-runs`](configuration/operations.md#when-it-runs) describes. Unset or
   blank — including a key left behind with its value removed — disables the window and falls back to the interval with
   its own default and validation, and the timezone is then not read at all. A malformed window or identical endpoints
   abort at startup with an error naming this setting.
