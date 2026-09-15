@@ -385,8 +385,9 @@ its anchor to hold back the handler that finalizes the issue.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
-a PR the next handler would finalize. A `gh.get_pr` failure is treated as "leave alone"; where an anchor is pinned
-the dispatcher then holds the stage handler until a later refresh reaches the recovery. A base lag that cannot be
+a PR the next handler would finalize; an attempt still anchored to a PR that merged or closed has its whole handoff
+ended there first, through `terminal_handoff`. A `gh.get_pr` failure is treated as "leave alone"; where an anchor is
+pinned the dispatcher then holds the stage handler until a later refresh reaches the recovery. A base lag that cannot be
 counted ends the sync the same way, except over a pinned anchor, where the checkout is reset and parked instead.
 
 ### Pollable issues and finalization
@@ -2394,11 +2395,10 @@ rather than preserving.
   And whether the record says a replay reached a remote that no longer has it, which a *settled* transfer says
   outright and a whole receipt says for a replay no permit ever licensed: the head they rolled back to is the very
   head a retry would lease its force-push against, so the lease would be satisfied and the rollback would be gone.
-  **Every one of these readings but the accounting is on a running road.** The publisher's own evidence is what the
-  size gate is handed on every exempt rebase, and the classification, the re-derivation, and the rollback answer are
-  what the crash recovery the refresh enters decides on; the accounting is consulted by nothing yet, and belongs to
-  the road that finishes a rewrite the pull request already carries. On the recovery, a checkout the pull request is
-  not standing on is
+  **Every one of these readings is on a running road.** The publisher's own evidence is what the size gate is handed
+  on every exempt rebase, the classification, the re-derivation, and the rollback answer are what the crash recovery
+  the refresh enters decides on, and the accounting is what `landed_recovery` holds a rewrite the pull request already
+  carries to before it finishes that road. On the recovery, a checkout the pull request is not standing on is
   classified off the pair of SHAs the attempt recorded — the anchor the remote must still be on, the replay the
   checkout must still be — and off the handoff above: a *settled* transfer or a whole receipt over a remote that has
   moved is somebody's rollback and parks, an *unvouched* record parks, and a record that disowns the checkout parks.

@@ -781,7 +781,9 @@ The seam writes one family more still, and it is the only one on this page that 
 than being taken: `late_transfer`, one record per exemption carried onto the commit a workflow rewrite replaced the
 accepted one with ([`../workflow/roles.md`](../workflow/roles.md#the-size-gate-a-committed-candidate-passes)). It
 rides the write that receipts the landed push, so it is written only where the pull request really carries the
-rewritten commit, and it is filed under the stage the rewrite was entered from rather than under `implementing`. A
+rewritten commit, and it is filed under the stage the rewrite was entered from rather than under `implementing`. An
+auto rebase whose pull request merged or closed on the rewritten commit before its receipt was written reports the
+same way when the refresh ends that attempt's handoff, since the pull request shipped the commit the permission names. A
 process lost between that write and the record leaves the proof the settlement kept, and the reconciliation ahead of
 the next dispatched handler writes the record from it and drops the proof, so a settled transfer reaches the stream
 once. The
