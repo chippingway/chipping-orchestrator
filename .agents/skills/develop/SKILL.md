@@ -23,7 +23,8 @@ uv run python -m orchestrator --log-level DEBUG
 
 ## License headers
 
-Every source file (`*.py`, `*.sh`, `pyproject.toml`) starts with:
+Every source file (`*.py`, `*.sh`, `pyproject.toml`) places this pair immediately after any shebang, or at the
+beginning of the file when there is no shebang:
 
 ```
 # Copyright 2026 Geser Dugarov
@@ -68,7 +69,9 @@ Before committing, run each of these and fix what they report:
   same module back into one.
 - `uv run flake8 orchestrator tests --select=WPS` — all WPS naming, complexity, consistency, bug-prevention,
   refactoring, and OOP rules must pass.
-- `git diff --check origin/main...HEAD` — catches trailing whitespace and stray blank lines at EOF.
+- `git diff --check` — catches whitespace errors in unstaged changes.
+- `git diff --cached --check` — catches whitespace errors in staged changes.
+- `git diff --check origin/main...HEAD` — catches whitespace errors in committed branch changes.
 - `.venv/bin/python -m pytest` — full suite must pass. Do not assume any "known" failure is
   acceptable; if a test fails on your branch, first reproduce it on `origin/main` at the same SHA
   you branched from, and only then call it out in the PR as a baseline failure with the reproduction

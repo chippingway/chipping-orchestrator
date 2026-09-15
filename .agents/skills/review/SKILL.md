@@ -25,8 +25,9 @@ Reject (or request fixes) if any of these are red:
 - Full `pytest` run is referenced in the PR description and passes end-to-end. Reject "known failure"
   hand-waves; if the PR claims a baseline failure, the description must include a reproduction on
   `origin/main` at the branch point. Otherwise the developer must fix it.
-- Every source file the PR adds (`*.py`, `*.sh`, `pyproject.toml`) opens with the `# Copyright 2026 Geser Dugarov` /
-  `# SPDX-License-Identifier: Apache-2.0` header pair.
+- Every source file the PR adds (`*.py`, `*.sh`, `pyproject.toml`) places the `# Copyright 2026 Geser Dugarov` /
+  `# SPDX-License-Identifier: Apache-2.0` header pair immediately after any shebang, or at the beginning of the file
+  when there is no shebang.
 
 ## Behavior preservation
 
@@ -71,7 +72,9 @@ label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions
 - Identify newly added tests that duplicate existing tests or each other; request merging into
   `pytest.mark.parametrize` cases or a small named loop when the only difference is fixture values or
   branch selection.
-- Verify each added test fails against the old behavior or directly protects a changed contract.
+- Verify each added regression test fails before the fix and passes afterward.
+- Require tests for changed contracts to assert those contracts directly.
+- Allow tests that document and protect existing behavior, including coverage added before refactoring.
 - For resource-usage fixes (over-fetching, redundant API calls, retained state), reject tests that
   only assert the final result; require at least one assertion at the helper/producer level.
 - Prefer fewer tests with clear distinct coverage over many narrowly overlapping regression tests.
