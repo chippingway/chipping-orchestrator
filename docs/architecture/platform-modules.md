@@ -391,8 +391,9 @@ orchestrator/
                         and require a published rotation to agree with the issue's current exemption. Its outstanding
                         transfer reading passes over settled history when deciding whether an attempt can be cleared
       transfer_permits.py
-                        freeze the current publication entry and ask its transfer permit ahead of a recovered push;
-                        the replay recovery requires the same permit again inside the publication gate
+                        freeze the current publication entry and ask its transfer permit ahead of a recovered push
+                        or the leased no-op that receipts a landed one; both require the same permit again inside
+                        the publication gate
       conflicts.py      the counter, notice, event, and relabel a genuinely conflicted rebase is handed to its stage
                         with
       guards.py         the no-op completion and the unreadable-HEAD, dirty-tree, and failed-push refusals
