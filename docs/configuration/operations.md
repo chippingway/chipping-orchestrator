@@ -844,6 +844,8 @@ When each setting's change takes effect:
   starts a fresh due gate: the cadence is held in memory, so the run that comes back is owed a pass at once rather
   than at the end of an interval it cannot remember. A repeated pass costs one discovery and reports whatever is
   already gone as done.
+- `TERMINAL_ARTIFACT_CLEANUP_WINDOW`, `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE` — next Python start, where both are
+  validated again: a malformed window, or a blank or unresolvable timezone beside a set one, stops that start.
 - `POLL_INTERVAL`, `AGENT_TIMEOUT`, `REVIEW_TIMEOUT`, `SHUTDOWN_GRACE_SECONDS`, `MAX_REVIEW_ROUNDS`,
   `MAX_CONFLICT_ROUNDS`, `MAX_RETRIES_PER_DAY`, `MAX_ADDED_LINES`, `DEV_SESSION_MAX_RESUMES`,
   `MAX_AGENT_RUNS_PER_ISSUE`, `IN_REVIEW_DEBOUNCE_SECONDS`, `DECOMPOSE`,

@@ -1,10 +1,15 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The intervals a maintenance pass and a dependency poll are owed at."""
+"""The intervals and window a maintenance pass and a dependency poll are owed at."""
 
+import datetime
 import unittest
 
 from tests.config import config_reload_helpers as _reload, config_test_values as _config_cases
+
+
+def _clock(spelling: str) -> datetime.time:
+    return datetime.time.fromisoformat(spelling)
 
 
 class ArtifactCleanupIntervalConfigTest(unittest.TestCase):
@@ -58,6 +63,141 @@ class ArtifactCleanupIntervalConfigTest(unittest.TestCase):
                     _config_cases._CLEANUP_INTERVAL_ENV, error_message,
                 )
                 self.assertIn(spelling, error_message)
+
+
+class ArtifactCleanupWindowConfigTest(unittest.TestCase):
+    """The local window a maintenance pass is scheduled in, and its timezone.
+
+    Optional: unset or blank, the window is disabled and the timezone is not
+    read, so the interval keeps its own default and validation. A set window
+    is strict 24-hour `HH:MM-HH:MM`, may cross midnight, cannot start where it
+    ends, and needs a timezone the host resolves; every refusal aborts at
+    import with an error naming the setting it refuses.
+    """
+
+    def test_unset_or_blank_window_is_disabled(self) -> None:
+        for environment in (
+            {},
+            {_config_cases._CLEANUP_WINDOW_ENV: _config_cases._BLANK_ENV},
+            # A zone left beside a blanked window is not read, so even one the
+            # host cannot resolve lets the start go on.
+            {
+                _config_cases._CLEANUP_WINDOW_ENV: "",
+                _config_cases._CLEANUP_TIMEZONE_ENV: _config_cases._UNKNOWN_TIMEZONE,
+            },
+        ):
+            with self.subTest(environment=environment):
+                config = _reload.load_config(environment)
+                self.assertIsNone(config.TERMINAL_ARTIFACT_CLEANUP_WINDOW)
+                self.assertIsNone(config.TERMINAL_ARTIFACT_CLEANUP_TIMEZONE)
+
+    def test_daytime_and_overnight_windows_normalize(self) -> None:
+        for spelling, start, end in (
+            ("09:30-17:45", "09:30", "17:45"),
+            ("23:00-01:00", "23:00", "01:00"),
+            (" 00:00-23:59 ", "00:00", "23:59"),
+        ):
+            with self.subTest(window=spelling):
+                config = _reload.load_config(
+                    {
+                        _config_cases._CLEANUP_WINDOW_ENV: spelling,
+                        _config_cases._CLEANUP_TIMEZONE_ENV: (
+                            f" {_config_cases._CLEANUP_TIMEZONE} "
+                        ),
+                    }
+                )
+                self.assertEqual(
+                    config.TERMINAL_ARTIFACT_CLEANUP_WINDOW,
+                    (_clock(start), _clock(end)),
+                )
+                self.assertEqual(
+                    config.TERMINAL_ARTIFACT_CLEANUP_TIMEZONE.key,
+                    _config_cases._CLEANUP_TIMEZONE,
+                )
+
+    def test_window_coexists_with_the_interval(self) -> None:
+        window_environment = {
+            _config_cases._CLEANUP_WINDOW_ENV: _config_cases._NIGHTLY_WINDOW,
+            _config_cases._CLEANUP_TIMEZONE_ENV: _config_cases._CLEANUP_TIMEZONE,
+        }
+        for interval, expected_interval in (
+            ("", _config_cases._DEFAULT_CLEANUP_INTERVAL),
+            (
+                str(_config_cases._OVERRIDE_CLEANUP_INTERVAL),
+                _config_cases._OVERRIDE_CLEANUP_INTERVAL,
+            ),
+        ):
+            with self.subTest(interval=interval):
+                config = _reload.load_config(
+                    {**window_environment, _config_cases._CLEANUP_INTERVAL_ENV: interval},
+                )
+                self.assertEqual(
+                    config.TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS,
+                    expected_interval,
+                )
+                self.assertEqual(
+                    config.TERMINAL_ARTIFACT_CLEANUP_WINDOW,
+                    (_clock("03:00"), _clock("05:00")),
+                )
+        # A set window leaves the interval's own validation in force.
+        error_message = _reload.config_error_message(
+            {
+                **window_environment,
+                _config_cases._CLEANUP_INTERVAL_ENV: _config_cases._DISABLED_ENV,
+            },
+        )
+        self.assertIn(_config_cases._CLEANUP_INTERVAL_ENV, error_message)
+
+    def test_an_invalid_window_aborts_at_import(self) -> None:
+        for spelling in (
+            "nightly",
+            "3:00-05:00",
+            "03:00-5:00",
+            "24:00-01:00",
+            "03:60-05:00",
+            "03:00",
+            "03:00-05:00-07:00",
+            "03:00 - 05:00",
+            "0300-0500",
+            "03:00\N{EN DASH}05:00",
+            # `\d` would read this digit; the window's endpoints are ASCII.
+            "0\N{ARABIC-INDIC DIGIT THREE}:00-05:00",
+            "03:00-03:00",
+            "00:00-00:00",
+        ):
+            with self.subTest(window=spelling):
+                error_message = _reload.config_error_message(
+                    {
+                        _config_cases._CLEANUP_WINDOW_ENV: spelling,
+                        _config_cases._CLEANUP_TIMEZONE_ENV: _config_cases._CLEANUP_TIMEZONE,
+                    },
+                )
+                self.assertIn(_config_cases._CLEANUP_WINDOW_ENV, error_message)
+                self.assertNotIn(_config_cases._CLEANUP_TIMEZONE_ENV, error_message)
+                self.assertIn(spelling, error_message)
+
+    def test_a_window_without_a_timezone_aborts(self) -> None:
+        for timezone in (
+            "",
+            _config_cases._BLANK_ENV,
+            _config_cases._UNKNOWN_TIMEZONE,
+            "Asia/",
+            "../etc/passwd",
+        ):
+            with self.subTest(timezone=timezone):
+                error_message = _reload.config_error_message(
+                    {
+                        _config_cases._CLEANUP_WINDOW_ENV: _config_cases._NIGHTLY_WINDOW,
+                        _config_cases._CLEANUP_TIMEZONE_ENV: timezone,
+                    },
+                )
+                self.assertIn(_config_cases._CLEANUP_TIMEZONE_ENV, error_message)
+                self.assertIn(repr(timezone), error_message)
+        # Unset reads as blank rather than as some default zone.
+        error_message = _reload.config_error_message(
+            {_config_cases._CLEANUP_WINDOW_ENV: _config_cases._NIGHTLY_WINDOW},
+        )
+        self.assertIn(_config_cases._CLEANUP_TIMEZONE_ENV, error_message)
 
 
 class DependencyPollCadenceConfigTest(unittest.TestCase):

@@ -204,6 +204,27 @@ examples.
   [`configuration/operations.md#reclaiming-a-finished-issues-artifacts`](configuration/operations.md#reclaiming-a-finished-issues-artifacts);
   the bounded record each candidate earns on the analytics sink is
   [`observability/event-streams.md#terminal_artifact_cleanup-records`](observability/event-streams.md#terminal_artifact_cleanup-records).
+- `TERMINAL_ARTIFACT_CLEANUP_WINDOW` — default unset (disabled). the local wall-clock window the polling process's own
+  terminal-artifact maintenance passes are scheduled in, spelled as 24-hour `HH:MM-HH:MM`: each endpoint is exactly
+  two-digit hours `00`–`23` and minutes `00`–`59`, joined by one `-` with no spaces inside (whitespace around the whole
+  value is ignored). The start is inclusive and the end exclusive; an end earlier than the start crosses midnight
+  (`23:00-01:00`), and identical endpoints name no window and are rejected. For example:
+
+  ```dotenv
+  TERMINAL_ARTIFACT_CLEANUP_WINDOW=03:00-05:00
+  TERMINAL_ARTIFACT_CLEANUP_TIMEZONE=Asia/Novosibirsk
+  ```
+
+  A set window takes precedence over `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` for automatic scheduling and
+  requires `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE`; `--cleanup-terminal-artifacts` still runs whenever asked. Unset or
+  blank — including a key left behind with its value removed — disables the window and falls back to the interval with
+  its own default and validation, and the timezone is then not read at all. A malformed window or identical endpoints
+  abort at startup with an error naming this setting.
+- `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE` — no default; required while `TERMINAL_ARTIFACT_CLEANUP_WINDOW` is set. the
+  IANA timezone the window's clock is read in, such as `Asia/Novosibirsk` or `UTC`, resolved once at startup through
+  Python's standard `zoneinfo` against the host's time zone database. While a window is set, a blank value or a name
+  that does not resolve aborts at startup with an error naming this setting; with the window unset or blank it is
+  ignored, whatever it holds.
 - `MAX_REVIEW_ROUNDS` — default `3`. review/fix iterations before parking on `awaiting_human`
 - `MAX_CONFLICT_ROUNDS` — default `3`. auto-conflict-resolution rounds before parking on `awaiting_human`
 - `MAX_RETRIES_PER_DAY` — default `3`. fresh implementer spawns per issue per 24h window (`0` = unbounded, and an
