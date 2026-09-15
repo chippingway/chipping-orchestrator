@@ -460,7 +460,7 @@ class SettledSplitRecordTest(unittest.TestCase, _FrozenPairMixin):
     def test_a_settled_split_reaches_its_own_handler(self) -> None:
         # Without the record's own settlement answering first, the group would
         # name `fixing` while the issue is on `umbrella`, and the
-        # stranded-reading refusal would hold every tick in front of the walk
+        # stranded-reading refusal would hold every dispatch in front of the walk
         # that releases the children.
         for phase in SETTLED_SPLIT_PHASES:
             with self.subTest(phase=phase):

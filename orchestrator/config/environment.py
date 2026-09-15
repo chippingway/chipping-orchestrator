@@ -50,6 +50,11 @@ _DEFAULT_MAX_AGENT_RUNS_PER_ISSUE = 50
 # `orchestrator/config/__init__.py`.
 _DEFAULT_ARTIFACT_CLEANUP_INTERVAL_SECONDS = 86400
 
+# Polling ticks between two passes over the open dependency walks; what a
+# skipped tick defers and why is on the setting itself in
+# `orchestrator/config/__init__.py`.
+_DEFAULT_DEPENDENCY_POLL_EVERY_N_TICKS = 5
+
 
 def parse_agent_spec(
     setting_name: str,
@@ -278,6 +283,11 @@ class _SettingsResolver:
                 "TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS",
                 env.get("TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS", ""),
                 _DEFAULT_ARTIFACT_CLEANUP_INTERVAL_SECONDS,
+            ),
+            "DEPENDENCY_POLL_EVERY_N_TICKS": positive_int(
+                "DEPENDENCY_POLL_EVERY_N_TICKS",
+                env.get("DEPENDENCY_POLL_EVERY_N_TICKS", ""),
+                _DEFAULT_DEPENDENCY_POLL_EVERY_N_TICKS,
             ),
             "VERIFY_COMMANDS": parse_verify_commands(env.get("VERIFY_COMMANDS", "")),
             "ORCHESTRATOR_BASE_BRANCH": env.get("ORCHESTRATOR_BASE_BRANCH", "main"),

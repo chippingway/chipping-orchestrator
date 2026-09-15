@@ -12,7 +12,7 @@ What the retirement leaves on that comment is the publication group with no
 count beside it, which is also the shape of a tick that died between the freeze
 and the diff. The two are told apart by the record's own settlement. Without
 that reading the group would name the stage the gate was entered from rather
-than `workflow:umbrella`, every poll would be held for a human in front of the
+than `workflow:umbrella`, every dispatch would be held for a human in front of the
 walk, and a split's own children would be the one thing it can leave
 permanently unreleased.
 
@@ -49,7 +49,7 @@ PARK_MEASUREMENT_FAILED = "late_measurement_failed"
 
 
 class SettledSplitUmbrellaDispatchTest(PublishedSplitCase, unittest.TestCase):
-    """A split's own umbrella, polled the way every tick after it polls it."""
+    """A split's own umbrella, polled the way every dependency poll after it polls it."""
 
     def setUp(self) -> None:
         super().setUp()

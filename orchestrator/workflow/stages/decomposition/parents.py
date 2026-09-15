@@ -7,10 +7,10 @@ It can be a fresh read because the dispatcher serializes `decomposing`,
 `blocked`, and `umbrella` into a single bucket on one worker thread, so a
 child's own label flip cannot land between this read and the writes that follow
 it. A read that raises abandons the whole tick for this parent rather than
-acting on a partial picture -- the next poll retries.
+acting on a partial picture -- the parent's next dependency poll retries.
 
 Two child states end the parent's tick instead of advancing it, and both park
-idempotently so they do not re-comment every tick. A `rejected` child is a
+idempotently so they do not re-comment on every walk. A `rejected` child is a
 human decision the parent cannot interpret. A child closed without a terminal
 label is invisible to the closed-issue sweep, so its label is frozen wherever
 it was at close and the parent would otherwise wait on it forever -- except
@@ -80,11 +80,11 @@ def _read_child_labels(
     """Fetch each recorded child issue and its current workflow label.
 
     Returns a child scan with issues and labels keyed by child number, or
-    None if any child read raised (the caller returns and the tick retries
-    on the next poll). Labels are read fresh here: the family-aware bucket
-    (see `dispatch._FAMILY_AWARE_LABELS`) serializes decomposing / blocked
-    / umbrella within a tick, so a child's own label flip cannot race this
-    read.
+    None if any child read raised (the caller returns and the walk retries
+    on its next dependency poll). Labels are read fresh here: the
+    family-aware bucket (see `dispatch._FAMILY_AWARE_LABELS`) serializes
+    decomposing / blocked / umbrella within a tick, so a child's own label
+    flip cannot race this read.
     """
     child_labels: dict[int, str | None] = {}
     child_issues: dict[int, Issue] = {}
@@ -108,7 +108,7 @@ def _park_rejected_children(
 
     Returns True when parked (caller must return); False otherwise.
     Idempotent by `awaiting_human` so a rejected child does not re-park
-    every tick.
+    on every walk.
     """
     rejected = [
         child_number

@@ -109,7 +109,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             A standing auto-rebase anchor holds the handler, on the adjudication's own road too,
                             and is asked again behind the reconciliation; whether it holds and what a held tick
                             is owed are `base_sync/recovery_holds.py`'s
-    poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup;
+    poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup; drop open
+                            blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket
     dispatch_closure.py     persist poll and refetch closes, retain them across ordinary processing, and preserve
                             receipts and deferred cleanup when a worker submission is refused
@@ -1407,7 +1408,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for; the same fact immediately before a PUSH is `late_publication`'s and is read the
                             other way round, since what falling through costs there is a branch nothing can put
                             back. Asked behind the caller's record questions rather than at its door, because the
-                            pull-request half is a request and this runs ahead of every stage on every poll
+                            pull-request half is a request and this runs ahead of every stage on every dispatch
       late_reconcile.py     the reading the dispatcher takes for a pair frozen and never counted, scoped to the
                             stage the record names and taken with no run behind it: measured at or under the ceiling
                             the candidate is PUBLISHED before the stage runs -- nothing goes back for a push a

@@ -502,7 +502,7 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    itself no more than the reclamation would;
                                    unreadable is an outage, which parks
                                    nothing and writes nothing -- the dispatch
-                                   is HELD and asked again next tick.
+                                   is HELD and asked again next dispatch.
                                    A park -> drop the pointer, say so
                                    (late_snapshot_reclaimed) naming the ref
                                    and the owner, and return before the
@@ -611,13 +611,13 @@ than a second source of truth: where the two disagree, the handler pages are aut
        restart authorized          later read shadows. Apply a workflow label
                                    by hand to drive such an issue again
 
-   workflow:blocked (per tick):
+   workflow:blocked (each due dependency poll, open issues only; DEPENDENCY_POLL_EVERY_N_TICKS):
      all children = done       ─► parent=workflow:ready
      any child = rejected      ─► park HITL on parent
      dep_graph walk: any workflow:blocked child with all deps=done
                                ─► child=workflow:ready
 
-   workflow:umbrella (per tick):
+   workflow:umbrella (each due dependency poll, open issues only; DEPENDENCY_POLL_EVERY_N_TICKS):
      all children = done       ─► settle what the late split still owes the
                                   remote, THEN parent=done, issue closed
                                   (no implementation). The branch is retried
@@ -638,7 +638,8 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                   ref included), as does an opaque RESOURCE
                                   ledger or a damaged cycle identity -- the
                                   label stays, which IS the retry, and the
-                                  reason is logged on every tick that holds.
+                                  reason is logged on each due dependency
+                                  poll that holds.
                                   An opaque CONSUMER list keeps the ref and
                                   frees the branch: the two ledgers are
                                   written apart and refused apart
@@ -675,7 +676,8 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    rule reads, and nothing revisits an OPEN
                                    umbrella either. It decides no terminal:
                                    the park stands, and the issue stays open
-                                   on the label that brings the next tick back
+                                   on the label its next dependency poll
+                                   comes back for
      dep_graph walk: any workflow:blocked child with all deps=done
                                ─► child=workflow:ready
 

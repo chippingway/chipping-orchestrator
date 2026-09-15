@@ -143,7 +143,7 @@ class LegacyMeterTest(unittest.TestCase):
 
     def test_a_damaged_meter_counts_nothing(self) -> None:
         # A count nothing can read must not strand an issue behind a crash on
-        # every poll, and the meter beside it still answers.
+        # every dispatch, and the meter beside it still answers.
         for damaged in _UNREADABLE_COUNTS:
             with self.subTest(damaged=damaged):
                 ledger = _read(_state(**{

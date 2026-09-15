@@ -381,8 +381,8 @@ label and keeps being visited, so a repository whose closed owners stay on `work
 `workflow:umbrella` is a repository with something the orchestrator could not reclaim.
 
 Reopening such an owner does not get the workflow going again. The same cleanup runs from the dispatcher instead,
-once per tick, the issue reaches no stage handler, and the same `rejected` is written once the ledger settles —
-each held tick logs a warning naming what is still owed. Clearing the refusal is clearing the obligation; starting
+once per dispatch, the issue reaches no stage handler, and the same `rejected` is written once the ledger settles —
+each held dispatch logs a warning naming what is still owed. Clearing the refusal is clearing the obligation; starting
 a fresh attempt afterwards is removing `rejected`, which is the handshake below.
 
 ### Rolling back to an older orchestrator
@@ -483,8 +483,8 @@ control label comes off; the authorization is not lost meanwhile.
   issue is *closed*, since reaching `done`, being `rejected`, and a human closing it all close it, and reopening
   leaves the label where it was. Those readings are taken fresh on every visit rather than latched, and every
   obligation that is not `reconciled` holds the owner's terminal, so the umbrella stays open and logs what it is
-  waiting for on each tick. A child that stays open forever keeps its ancestor's ref forever, which is the
-  deliberate trade — invalidating a live child's only copy of the work it was told to reuse is worse. Closing (or
+  waiting for on each due dependency poll. A child that stays open forever keeps its ancestor's ref forever, which is
+  the deliberate trade — invalidating a live child's only copy of the work it was told to reuse is worse. Closing (or
   finishing) the child is what lets both go.
 - An umbrella that will not close with **nothing owed at all** — every obligation `reconciled`, no failure on
   either sink. The issue was split on the far side of publication, and the pull request that split superseded is
@@ -531,7 +531,7 @@ and it makes sure nothing resumes against one:
 - **Where the thread answered and carries none, the ref itself decides**, and its three answers are three different
   outcomes. Gone → park. Still there under **another commit** → park too, under `late_snapshot_repointed`: the name
   survived and what it stood for did not, and nothing here re-points or deletes that ref. Unreachable → the dispatch
-  is *held* for the next tick, with nothing written, because an outage is evidence of nothing. A park drops the
+  is *held* for the next dispatch, with nothing written, because an outage is evidence of nothing. A park drops the
   dangling pointer, marks the issue `awaiting_human`, and returns before the label's handler is reached — including
   for a reopened `done` / `rejected` child, which is otherwise a dispatch no-op.
 - **The steady state costs nothing on the wire.** The ref reading asks this host's own copy first, and a reclamation

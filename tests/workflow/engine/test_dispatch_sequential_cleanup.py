@@ -70,7 +70,13 @@ class _PolledOneReadingBehind:
         self._polled = polled
 
     def list_pollable_issues(self):
-        """Answer this tick's enumeration with the stale reading."""
+        """Answer this tick's enumeration with the stale reading.
+
+        Counted as a poll on the client underneath, as the real enumeration
+        counts one, because the cadences a tick classifies against are read
+        off that count.
+        """
+        self._github._pollable_calls += 1
         return [self._polled]
 
     def __getattr__(self, name):

@@ -69,12 +69,12 @@ def _awaits_its_count(recorded: LateGeneration) -> bool:
     settled split keeps is the publication group, for the releases and the
     branch delete its umbrella still has to make, and what it drops is the
     measurement, because one answering "oversized" pins `workflow:decomposing`
-    and would put the umbrella label back on every tick. Read without that,
+    and would put the umbrella label back on every dispatch. Read without that,
     the finished adjudication wears the whole shape of a reading nobody took,
     and the record it is read off strands the very umbrella it made: the group
     names the stage the gate was entered from, the issue is on
     `workflow:umbrella` now, and the refusal for a pair read off its own stage
-    holds every tick in front of the handler that would release the children.
+    holds every dispatch in front of the handler that would release the children.
     """
     if not recorded.publication.is_complete or recorded.cancelled:
         return False

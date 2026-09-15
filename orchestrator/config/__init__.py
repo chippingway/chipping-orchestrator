@@ -58,6 +58,7 @@ __all__ = [
     "DECOMPOSE_AGENT",
     "DECOMPOSE_AGENT_ARGS",
     "DECOMPOSE_AGENT_SPEC",
+    "DEPENDENCY_POLL_EVERY_N_TICKS",
     "DEV_AGENT",
     "DEV_AGENT_ARGS",
     "DEV_AGENT_SPEC",
@@ -175,6 +176,23 @@ AGENT_TIMEOUT: int = _RESOLVED["AGENT_TIMEOUT"]
 # extra ticks to finalize to `done` -- pinned GitHub state stays authoritative
 # in the meantime, so nothing is lost, only briefly deferred.
 CLOSED_ISSUE_SWEEP_EVERY_N_TICKS: int = _RESOLVED["CLOSED_ISSUE_SWEEP_EVERY_N_TICKS"]
+
+# How many polling ticks apart an OPEN `workflow:blocked` / `workflow:umbrella`
+# issue is dispatched. Both handlers are dependency walks that spawn nothing:
+# each pass reads every child's label to decide whether a child can be
+# activated or the parent completed, so a repo holding a few waiting parents
+# pays that read fan-out every tick while nothing downstream has moved.
+# Counted on the same enumeration calls as `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS`
+# -- the first poll is due and every Nth after it -- and on the ticks between,
+# those issues are dropped before the family / fanout partition, so they are
+# neither submitted nor handed a worker client. The cost is latency, bounded
+# by N ticks: a child whose dependencies finished waits up to that long to be
+# activated, a parent whose children all landed waits as long to complete, and
+# drift on either is noticed as late. Everything else keeps its every-tick
+# cadence -- `decomposing` and the unlabeled pickup still drain in the family
+# bucket, and a closed owner's cleanup is routed on the sweep's own schedule.
+# `1` restores the every-tick dispatch. Must be >= 1.
+DEPENDENCY_POLL_EVERY_N_TICKS: int = _RESOLVED["DEPENDENCY_POLL_EVERY_N_TICKS"]
 
 # Hard ceiling, in seconds, on how long the polling loop may take to exit
 # after a SIGTERM/SIGINT before it force-terminates in-flight agent

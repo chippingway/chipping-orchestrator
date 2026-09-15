@@ -137,7 +137,7 @@ class HandoffBoundaryTest(LateSplitCase, unittest.TestCase):
 
     def test_a_death_between_label_and_write_repairs(self) -> None:
         # The window the relabel guard exists for: an `umbrella` label over a
-        # generation that still reads oversized. The next tick puts the label
+        # generation that still reads oversized. The next dispatch puts the label
         # back and re-runs the transaction, which adopts everything durable.
         with self.assertRaises(KeyboardInterrupt):
             self._transact(

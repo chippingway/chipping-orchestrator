@@ -198,7 +198,7 @@ class RetirementTest(LateSplitCase, unittest.TestCase):
     def test_the_measurement_goes_identity_stays(self) -> None:
         # A parent that became an umbrella has no candidate to measure, and a
         # record still answering "oversized" would pin `decomposing` and put
-        # the umbrella label back on every tick.
+        # the umbrella label back on every dispatch.
         self._transact()
 
         pinned = self._pinned()

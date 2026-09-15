@@ -29,7 +29,7 @@ class _Reuse(Enum):
     Four answers rather than a boolean, because the three that stop the child
     are stopped in different ways: two are verdicts a human has to act on and
     are parked with the pointer dropped, and the third is the absence of a
-    verdict, which is held for the next tick and writes nothing at all.
+    verdict, which is held for the next dispatch and writes nothing at all.
     """
 
     ALLOWED = "allowed"
@@ -141,7 +141,7 @@ def _verdict(
     than falling through: the readings below it are exactly the ones a receipt
     would have overruled.
 
-    Reading it costs one walk of the child's own thread, per tick, for as long
+    Reading it costs one walk of the child's own thread, per dispatch, for as long
     as the child names a ref. That is the price of an answer a concurrent
     writer cannot take away, and it is paid only by issues a split created.
 
@@ -150,7 +150,7 @@ def _verdict(
     it first, and only where the pointer says that is worth anything: the
     reclamation drops the local mirror BEFORE it touches the remote ref and
     refuses to touch it at all while the mirror stands, so a mirror still here
-    says no reclamation has happened -- which is what keeps a per-tick guard
+    says no reclamation has happened -- which is what keeps a per-dispatch guard
     off the network for every child of a live split. A pointer written before
     that ordering existed says nothing of the kind and skips straight to the
     ask, and so does a copy standing at any commit but the one this child was

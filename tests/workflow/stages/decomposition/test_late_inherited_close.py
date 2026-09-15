@@ -106,7 +106,7 @@ class InheritedCloseCostTest(
     sits on is walked once per owner per process. Without the first, a close
     observed before a restart would end the fresh cycle an operator
     authorized afterwards; without the second, every late owner would pay a
-    thread walk every tick for a reading only a dead process could have left.
+    thread walk every dispatch for a reading only a dead process could have left.
     """
 
     def setUp(self) -> None:
@@ -177,7 +177,7 @@ class FailedReceiptScanTest(
 ):
     """A scan that could not be taken has to be taken again.
 
-    The claim is what stops the walk repeating every tick, and it is only
+    The claim is what stops the walk repeating every dispatch, and it is only
     honest once the walk has answered. A listing that raises established
     nothing, so a claim left standing over it would send every later tick
     straight past the receipt and on to the live stage handler -- which is

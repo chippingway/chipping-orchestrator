@@ -333,7 +333,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   same tick.
 
 ## `_handle_blocked` (label `workflow:blocked`)
-- **Trigger**: each tick while the label is `workflow:blocked`.
+- **Trigger**: each tick `DEPENDENCY_POLL_EVERY_N_TICKS` makes due while the issue is open on `workflow:blocked` — the
+  first poll and every Nth after it (default `5`; `1` is every tick), so a child's activation or the parent's
+  completion can wait up to N ticks.
 - **Input**: pinned `children` (parent only), optional `dep_graph`, `parent_number` (child only — seeded at
   child-creation time).
 - **Internal flow**:
@@ -351,8 +353,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   still waiting on its dependencies.
 
 ## `_handle_umbrella` (label `workflow:umbrella`)
-- **Trigger**: each tick while the label is `workflow:umbrella` (only ever a parent — set by the decomposer when the
-  manifest's `umbrella` boolean is true).
+- **Trigger**: each tick `DEPENDENCY_POLL_EVERY_N_TICKS` makes due while the issue is open on `workflow:umbrella`, on
+  the same cadence as `_handle_blocked` (only ever a parent — set by the decomposer when the manifest's `umbrella`
+  boolean is true).
 - **Input**: pinned `children` and optional `dep_graph` on the parent, plus the late generation's obligation ledger
   when the umbrella was made by a late split.
 - **Internal flow**: mirrors `_handle_blocked` for the rejected / manually-closed checks and dep-graph walk. The only
@@ -371,9 +374,10 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   is one the act behind it has already outlived. It is asked a **third and fourth** time on the terminal road — by
   the settlement the terminal waits on, before anything is said, and once more immediately in front of the
   retirement write, since the resolution comment and the latches between them are requests a reopen can land inside.
-  A refusal at the second of those writes nothing, so the next tick reads the record exactly as this one found it;
-  what it does cost is a sentence already sent, which is why that sentence carries a marker and is gated on the
-  **thread** as well as on the stamp the retirement write puts down. That marker names the cycle and generation,
+  A refusal at the second of those writes nothing, so the next dependency poll reads the record exactly as this one
+  found it; what it does cost is a sentence already sent, which is why that sentence carries a marker and is gated
+  on the **thread** as well as on the stamp the retirement write puts down. That marker names the cycle and
+  generation,
   since an operator restarting a rejected cycle keeps the thread, and it is stamped **only** on an umbrella a
   post-publication split made — nothing refuses the others past their sentence, so they keep the stamp as their
   sole gate and spend no listing. Those two are the answer no ledger
@@ -385,7 +389,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   all three:
   the children stay where they are (the walk latches, so a reopen between two relabels releases the first and not
   the second), the branch entry stays owed (nothing was attempted, so nothing is recorded `failed`), the terminal
-  stays held, and the reason is logged on every tick that holds. It costs one lookup per release and one per delete;
+  stays held, and the reason is logged on every dependency poll that holds. It costs one lookup per release and one
+  per delete;
   an umbrella the initial decomposer made, or one from a split entered before publication, reads back as no
   publication and pays nothing.
 - **And the record that group sits on is not an unfinished size reading.** The same retirement that keeps the group
@@ -395,8 +400,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   [ahead of every handler](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr) asks whether the
   split has settled before it reads any of that: a `late_phase` of `splitting`, `superseding`, or `cleaning_up`, or
   a non-empty `late_split_children` register, and the tick goes to this handler. Without that question the group
-  names the stage the gate was entered from while the issue wears `workflow:umbrella`, so every poll is held for a
-  human as a reading read off a stage the issue has left, and the walk below never runs — the children of a split
+  names the stage the gate was entered from while the issue wears `workflow:umbrella`, so every dispatch is held for
+  a human as a reading read off a stage the issue has left, and the walk below never runs — the children of a split
   would be the one thing a split can leave permanently unreleased.
 - **What the terminal waits on.** An umbrella made by a late split
   ([`../workflow/roles.md`](../workflow/roles.md#what-a-cleared-split-actually-does)) owes two things — the branch its
@@ -505,9 +510,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   would leave each owed for as long as the issue is stopped. Ahead of everything else, including the
   live-adjudication and reuse guards.
 - **What it does**: replays the sentence the park still owes (nothing below it runs to say one, so a notice a refused
-  post or an unreadable thread left owed would otherwise stay owed for good), logs the hold once a tick, records a
-  `standing` phase on the `agent_run_limit` event stream, and returns before the label's handler is reached. A park
-  already explained says nothing more, however many ticks meet it.
+  post or an unreadable thread left owed would otherwise stay owed for good), logs the hold once per dispatch,
+  records a `standing` phase on the `agent_run_limit` event stream, and returns before the label's handler is
+  reached. A park already explained says nothing more, however many dispatches meet it.
 - **Work that has ENDED steps past it**, on the grounds the hold is a question rather than a filter: what an ending
   reaches below is a terminal that finishes the issue rather than a road that spends anything on it, and the park is
   permanent — a lifetime total buys no clock — so an ending this hold refuses is one nothing else reaches. Two facts
@@ -515,7 +520,7 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   counts beside it). The PULL REQUEST the record names is the half it cannot: a merge leaves the issue open until a
   stage terminal reads it, and a close nobody merged leaves it open for good, so `implementing`, `validating` and
   `documenting` — which drain both endings at handler entry — would never get to. That reading costs a request per
-  parked issue per poll and fails *open*: a remote that would not answer leaves the hold where it was.
+  parked issue per dispatch and fails *open*: a remote that would not answer leaves the hold where it was.
   Nothing it lets through can spend a run either: the circuit every launch goes through reads the same ledger and
   refuses on it, so what a lifted hold buys is the terminal and nothing else.
 - **The one thing that lifts it** is a trusted `/orchestrator add-agent-runs N` (`workflow/engine/run_grant.py`, over
@@ -561,7 +566,7 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   authoritative answer, because it records what *happened* rather than what a later reading suggests: a local mirror
   nobody got round to dropping, or a ref somebody pushed again at the same commit, would both make the world look
   untouched while the guarantee the child was given — that its candidate provably came from one adjudication — is
-  gone. It costs one walk of the child's own thread per tick, paid only by issues a split created. A thread that
+  gone. It costs one walk of the child's own thread per dispatch, paid only by issues a split created. A thread that
   could not be **read** is not a thread with no receipt on it, and the two may not be collapsed: everything asked
   after this can look untouched while the answer that outranks it sits unseen, so an unreadable thread **holds** the
   dispatch there and then.
@@ -586,9 +591,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   — not the candidate this child was promised, and not something to start work against either — so it parks too,
   under its own reason (`late_snapshot_repointed`) and its own comment; nothing here re-points or deletes that ref,
   exactly as the reclamation refuses one for a human. `unreadable` is an outage, which is evidence of nothing: the
-  dispatch is **held** — no park, no comment, no write, and the same question next tick — because parking every
-  late-born child through a rate-limit window would be a self-inflicted stop, while continuing would start an agent
-  against a ref nobody could vouch for.
+  dispatch is **held** — no park, no comment, no write, and the same question on the next dispatch — because
+  parking every late-born child through a rate-limit window would be a self-inflicted stop, while continuing would
+  start an agent against a ref nobody could vouch for.
 - **A child with no recorded ancestry at all** is not automatically an issue of no lineage. The split records a child
   on the parent's ledger *before* it seeds that child's ancestry — a child on GitHub the parent does not record is a
   child nothing would come back to — so a seed that failed leaves an issue whose **body** carries the split's own
@@ -616,12 +621,13 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   (`awaiting_human`, reason `late_snapshot_reclaimed`, or `late_snapshot_repointed` where the ref survived and its
   commit did not) with a comment naming the ref and the owner, and
   returns before the label's handler is reached. Dropping the pointer is what makes the guard cost nothing on every
-  tick after — and both writes are taken on the issue's own dispatch, so there is no second writer to lose them to.
+  dispatch after — and both writes are taken on the issue's own dispatch, so no second writer can lose them.
 - **Anything not `reconciled` holds the terminal**, ref and branch alike — a `retained` ref included. There is no
   reading under which an object still on the remote is settled, and an umbrella closed over one is an object nothing
   would ever come back for: the parent is `done` by then and no pass revisits it. Keeping the label *is* the retry,
-  and the reason it is held is logged on every tick that holds, since a hold attempts nothing and so writes and emits
-  nothing. An opaque *resource* ledger blocks outright, and so does any ledger entry on a record whose cycle identity
+  and the reason it is held is logged on every dependency poll that holds, since a hold attempts nothing and so
+  writes and emits nothing. An opaque *resource* ledger blocks outright, and so does any ledger entry on a record
+  whose cycle identity
   is damaged; an umbrella with no recorded generation and no ledger owes nothing and answers without a write. An
   opaque *consumer* ledger is refused separately, because the two are preserved and written separately: it is what a
   snapshot's proof would be taken from, so the ref stays — while the superseded branch, which owes no consumer
@@ -2405,11 +2411,11 @@ so the tick stops with nothing pushed, nothing discarded, and one notice on the 
 **A settled split's retained publication group is not an outstanding reading.** A candidate the adjudication turned
 into children owes no count, and the record says so by carrying none: the split's retirement drops the measurement
 on purpose — one still answering "oversized" pins `workflow:decomposing` and would put the umbrella label back on
-every tick — and keeps the publication group, because the umbrella re-asks it in front of every child it releases
+every dispatch — and keeps the publication group, because the umbrella re-asks it in front of every child it releases
 and every branch it deletes. Read as a pair somebody froze, that record is the shape above with the label already
 moved: the group names the stage the gate was entered from and the issue is on `workflow:umbrella` by design, so the
-stranded-reading refusal would hold every tick in front of the walk that releases the children — the one way a split
-can leave its own children permanently unreleased. So the reading is asked of the record's own settlement first
+stranded-reading refusal would hold every dispatch in front of the walk that releases the children — the one way a
+split can leave its own children permanently unreleased. So the reading is asked of the record's own settlement first
 (`LateGeneration.split_has_settled`): a `late_phase` of `splitting`, `superseding`, or `cleaning_up`, or a non-empty
 `late_split_children` register, and the tick goes to the label's own handler. `snapshotting` is not one of them —
 that boundary cuts the ref and creates no child, and a record standing there still carries the reading that sent it

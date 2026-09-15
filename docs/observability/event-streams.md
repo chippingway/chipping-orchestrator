@@ -668,9 +668,9 @@ is the whole of what keeps the stream a count of what an issue spent rather than
 - A launch honoring a **reservation** an earlier tick left standing pays for no new run, so it records `started` and
   no second `reserved`.
 - A **standing park** records nothing. An exhausted issue meets the same refusal on every launch it has left and the
-  dispatcher's hold meets it on every tick, so a record per meeting would report one ending as a stream of them; what
-  says a park went on holding is the `agent_run_limit` event's `standing` phase. A park re-taken while it still owes
-  the thread its sentence records nothing either — the sentence is re-said, but the lifetime ended once.
+  dispatcher's hold meets it on every dispatch, so a record per meeting would report one ending as a stream of them;
+  what says a park went on holding is the `agent_run_limit` event's `standing` phase. A park re-taken while it still
+  owes the thread its sentence records nothing either — the sentence is re-said, but the lifetime ended once.
 - A **replayed command** records the extension that landed. A tick that died between its receipt and its write bought
   nothing durable, so the next tick's grant is the only one there is to report; a grant that landed takes its own
   park down and is never re-read.
@@ -838,8 +838,8 @@ transaction reconciled (`reconciled`) or could not (`failed`) — the latter bes
 `snapshot_failed` or `branch_cleanup_failed`, and `child_create_failed` or `supersession_failed` where those
 steps park instead. The third producer is the reclamation, and it has three entries into the same emission. One
 is the umbrella's terminal gate, where what the transaction could not reclaim is retried: it emits the same pair
-under `stage: umbrella` on every tick that finds every child resolved and something still owed — the branch
-whenever it is owed, and the snapshot ref once every recorded direct consumer is terminal, carrying
+under `stage: umbrella` on every due dependency poll that finds every child resolved and something still owed —
+the branch whenever it is owed, and the snapshot ref once every recorded direct consumer is terminal, carrying
 `snapshot_delete_failed` where the remote refuses one. One case emits nothing at all for an owed branch: a split
 entered past publication does not delete the branch while the pull request it superseded is open again, and nothing
 was attempted there, so no `late_cleanup` and no `branch_cleanup_failed` describe it — the terminal that never fires

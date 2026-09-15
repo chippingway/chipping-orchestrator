@@ -157,7 +157,7 @@ class UmbrellaParkedCleanupTest(_UmbrellaCleanupCase, unittest.TestCase):
     def test_the_park_is_left_exactly_as_it_was(self) -> None:
         # The settlement decides no terminal and takes nothing back: the
         # parent is still stopped for the human, still open, and still on the
-        # label that brings the next tick back to it.
+        # label its next dependency poll comes back to it on.
         for child_label in (_support.LABEL_REJECTED, _support.LABEL_READY):
             with self.subTest(child_label=child_label):
                 seeded, _deleted = self._parked(child_label)

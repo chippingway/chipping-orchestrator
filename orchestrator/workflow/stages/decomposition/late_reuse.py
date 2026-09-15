@@ -98,10 +98,10 @@ def _refuses_reuse(
     True tells the caller to return, and covers two different states. One is
     a verdict: the ref is gone, or carries a commit nobody preserved, and the
     issue is parked for a human with its pointer dropped -- dropping it is
-    what makes this cost nothing on every tick after, since an ancestry that
+    what makes this cost nothing on every dispatch after, since an ancestry that
     goes on naming a ref the child may not use is one every later reader would
     follow. The other is the absence of a verdict, where nothing at all is
-    written and the same question is asked again next tick.
+    written and the same question is asked again on the next dispatch.
 
     An issue with no recorded ancestry at all is not automatically an issue of
     no lineage -- see `_refuses_unrecorded`, which is what the crash window

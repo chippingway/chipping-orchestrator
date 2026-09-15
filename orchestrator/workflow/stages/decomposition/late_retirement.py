@@ -80,7 +80,8 @@ def _handed_to_children(
     by a reading taken in front of it would release its second child on
     evidence taken before its first. A pull request that came back leaves
     every child exactly where it is -- the umbrella's own walk is the retry,
-    and it asks the same question in the same place on its next tick.
+    and it asks the same question in the same place on its next dependency
+    poll.
     """
     context.generation = _settled_generation(context.generation, branch)
     # The pull request this issue recorded is closed and carries superseded
@@ -101,9 +102,9 @@ def _activated(
     """Let the children this split may still start, run.
 
     A read that failed leaves every child where it is. The umbrella's own walk
-    takes the same reading on its next tick, so nothing is lost by declining
-    to guess -- while flipping a child whose state could not be established is
-    the write this exists to avoid.
+    takes the same reading on its next dependency poll, so nothing is lost by
+    declining to guess -- while flipping a child whose state could not be
+    established is the write this exists to avoid.
 
     The walk asks the latch before every relabel of its own, and what it does
     with a close it finds there is HOLD the children after it -- it does not
@@ -118,7 +119,7 @@ def _activated(
     if scan is None:
         log.warning(
             "issue=#%d could not read its children to activate them; the "
-            "umbrella's own walk retries on the next tick",
+            "umbrella's own walk retries on its next dependency poll",
             context.issue.number,
         )
         return None
@@ -169,7 +170,7 @@ def _settled_generation(
     candidate to measure -- the work is its children's now -- and keeping the
     reading would leave the record answering "oversized", which is the one
     thing that pins `workflow:decomposing` and would put the umbrella label
-    back on every tick.
+    back on every dispatch.
 
     Everything a later reader still needs stays. The identity is what a
     cleanup record is correlated by, the commits are what the snapshot

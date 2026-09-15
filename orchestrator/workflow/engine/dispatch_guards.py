@@ -40,7 +40,7 @@ def _pinned_state_refuses(
     """True when what this issue's own pinned comment records stops the tick.
 
     ONE read, seven questions, because the read is what costs -- a comment
-    walk per labelled issue per tick, on top of the one that issue's own
+    walk per labelled issue per dispatch, on top of the one that issue's own
     handler makes.
 
     The first is a restart an operator has authorized. A settled cancellation

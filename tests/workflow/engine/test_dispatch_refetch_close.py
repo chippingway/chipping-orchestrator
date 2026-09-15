@@ -23,6 +23,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.workflow.engine import dispatch, dispatch_workers as _dispatch_workers
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.late_split.models import LateGeneration
@@ -46,6 +47,8 @@ _KEY_CANCELLED = "late_cancelled"
 _PINNED_WRITE = "write_pinned_state"
 
 _GET_ISSUE = "get_issue"
+
+_DEPENDENCY_CADENCE_ATTR = "DEPENDENCY_POLL_EVERY_N_TICKS"
 
 # What GitHub declining the write that marks a cancellation looks like here.
 _REFUSED = RuntimeError("pinned write rejected")
@@ -74,6 +77,12 @@ class _RefetchedCloseCase(ObservedCloseCase):
 
     def setUp(self) -> None:
         self._fresh_process()
+        # Dispatched straight off the object with no enumeration in front of
+        # it, so no poll is counted that the dependency cadence could be due
+        # on; the refetch is the subject, not which tick walks the umbrella.
+        every_tick = patch.object(config, _DEPENDENCY_CADENCE_ATTR, 1)
+        every_tick.start()
+        self.addCleanup(every_tick.stop)
         self.github = _owner_with_a_live_cycle()
         self.polled = self.github.get_issue(_OWNER_NUMBER)
 

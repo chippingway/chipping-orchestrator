@@ -247,7 +247,7 @@ def _terminal_recorded(
     neither is, and what may not reach here, is an attempt that raised.
 
     Bounded by what it records: a cycle already proved is left alone, so the
-    guard that brings a tick back to a cancelled owner every tick costs a
+    guard that meets a cancelled owner on every dispatch costs a
     pinned write once rather than one per visit.
     """
     if _endings.terminal_confirmed(state, generation.cycle_id):

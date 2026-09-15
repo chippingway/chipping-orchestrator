@@ -113,7 +113,7 @@ def _compute_user_content_hash(
       by GitHub's `user.type == "Bot"` flag. These accounts cannot be
       filtered by the id-list or marker because we never post them, and
       they post structurally (e.g. weekly Dependabot bumps) which would
-      otherwise re-trigger drift detection on every tick they post.
+      otherwise re-trigger drift detection every time they post.
     * untrusted authors by `is_trusted_author` when `ALLOWED_ISSUE_AUTHORS`
       is set. This keeps an outsider's comment from shifting the hash and
       re-triggering drift (and the re-decompose / dev-resume it drives) on

@@ -272,7 +272,13 @@ The dispatch loop classifies each pollable issue by workflow label before submit
   `_CAP_EXEMPT_FAMILY_LABELS` (`workflow:blocked` or `workflow:umbrella` — pure label / dep-graph walks) runs on a
   dedicated executor and does not consume a `MAX_PARALLEL_ISSUES_*` slot, so a blocked parent waiting on children
   cannot deadlock those children. A **closed** issue on a cleanup-swept label is not in this bucket at all: its
-  handler is the cleanup sweep rather than the stage its label names, so it fans out with its own exemption.
+  handler is the cleanup sweep rather than the stage its label names, so it fans out with its own exemption. An
+  **open** `workflow:blocked` / `workflow:umbrella` issue is left out before the split on the ticks
+  `DEPENDENCY_POLL_EVERY_N_TICKS` skips — default `5`, counted on the same polls as
+  `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS`, so the first poll is due and every fifth after it. That saves the child reads
+  its dependency walk spends, and costs up to N ticks before a child is activated, a parent completes, or drift on
+  either is detected; `1` keeps the walk every tick. The rest of the bucket still drains in order on a skipped tick,
+  and a close this process already observed still routes such an issue to its cleanup.
 - **Fan-out labels** (`workflow:ready`, `workflow:implementing`, `workflow:documenting`, `workflow:validating`,
   `in_review`, `workflow:fixing`, `workflow:resolving_conflict`, and the operator-applied `question` and
   `discussion`) only touch their own state and worktree. They run concurrently up to the per-repo and global caps. A

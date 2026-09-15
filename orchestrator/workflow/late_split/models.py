@@ -219,7 +219,7 @@ class LateGeneration:
         candidate nobody counted and one nobody needs to. A settled split
         drops the measurement, because a record still answering "oversized"
         pins `workflow:decomposing` and would put the umbrella label back on
-        every tick, and keeps the publication group, because the umbrella
+        every dispatch, and keeps the publication group, because the umbrella
         re-asks it in front of every child it releases and every branch it
         deletes. A group with no number beside it is otherwise exactly the
         shape of a tick that died between the freeze and the diff.
@@ -248,7 +248,7 @@ class LateGeneration:
         Ordinarily whatever the step that reached it says. The one move
         refused is BACKWARDS out of a transaction that has begun, and it is
         refused here rather than at each caller because every retry ABOVE the
-        transaction makes it: the hold is reconciled on every tick, a
+        transaction makes it: the hold is reconciled on every dispatch, a
         spawn names its own boundary, and each completion claims the owner
         read. Any of them writing its own phase over `splitting` would erase
         the only evidence there is in the window that matters -- a child is

@@ -13,7 +13,7 @@ class OrchCommentMarkerSurvivesIdCapTest(unittest.TestCase):
     """Reviewer point 3: `orchestrator_comment_ids` is capped, but the
     hash scans every comment. Once an old orchestrator-comment id is
     evicted from the cap, an id-only filter would start including the
-    bot comment in the hash and trigger false drift each tick. The body
+    bot comment in the hash and trigger false drift on every dispatch. The body
     marker (`_ORCH_COMMENT_MARKER`) must keep the hash stable."""
 
     def test_unknown_id_bot_comment_is_excluded(
@@ -53,7 +53,7 @@ class HashFiltersBotUsersTest(unittest.TestCase):
     """Reviewer point 2: third-party Bot/App accounts (Dependabot,
     Renovate, CI bots) post comments structurally on long-lived issues.
     The hash must filter them by GitHub's `user.type == "Bot"` flag so
-    a periodic bot comment doesn't re-trigger drift on every tick it
+    a periodic bot comment doesn't re-trigger drift every time it
     posts. Login matching is intentionally avoided because the
     orchestrator PAT may be shared with a human reviewer's account."""
 

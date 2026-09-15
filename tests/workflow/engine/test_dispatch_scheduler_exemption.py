@@ -127,7 +127,7 @@ class UmbrellaCapExemptionTest(_SchedulerWorkflowTest):
         # exactly like umbrella. With per-repo cap 1 and a fanout child
         # already holding the slot, the `blocked` parent bucket must STILL
         # run this tick. Before the fix the bucket was cap-counted, so the
-        # parent (dispatched first) grabbed the only slot every tick and
+        # parent (dispatched first) grabbed the only slot on every dispatch and
         # starved the very child it was blocked on -- deadlocking the pair.
         sched = self._scheduler(per_repo_cap=1)
         gh = FakeGitHubClient()

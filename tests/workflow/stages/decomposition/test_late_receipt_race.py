@@ -279,7 +279,7 @@ class ReopenedScanClaimTest(_ReceiptCase, unittest.TestCase):
 
     def test_a_walk_nothing_landed_on_stays_claimed(self) -> None:
         # The bound that keeps it once: a thread this process walked and
-        # nothing has been added to is not walked again every tick.
+        # nothing has been added to is not walked again every dispatch.
         self._already_walked()
 
         with _observation_receipts.scanning_receipt(

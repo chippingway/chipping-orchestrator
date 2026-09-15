@@ -183,8 +183,8 @@ def _still_activating(context: _LateContext) -> _LateDisposition | None:
     and this read -- ends the cycle: the mark goes down, no child is started,
     and the ending settles what the transaction already put on the remote. An
     unreadable one starts nothing and ends nothing; the umbrella's own walk
-    takes the same reading on its next tick, which is the retry the activation
-    always had.
+    takes the same reading on its next dependency poll, which is the retry the
+    activation always had.
     """
     reading = _late_owner_reading._read_owner(context)
     if reading == _OwnerState.OPEN:

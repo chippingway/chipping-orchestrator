@@ -84,8 +84,8 @@ def _activate_initial_split_children(
 ) -> None:
     # Activation: flip no-dep children from `blocked` to `ready`.
     # Best-effort -- if any flip fails the parent's `_handle_blocked`
-    # walk handles it on the next tick (the walk treats a child with
-    # no recorded deps as deps-satisfied).
+    # walk handles it on its next dependency poll (the walk treats a
+    # child with no recorded deps as deps-satisfied).
     for idx, (child_number, _) in enumerate(plan.created):
         if str(idx) in plan.dep_graph:
             continue
@@ -94,7 +94,7 @@ def _activate_initial_split_children(
         except Exception:
             log.exception(
                 "issue=#%s could not flip child #%d to ready; the parent's "
-                "_handle_blocked walk will retry on the next tick",
+                "_handle_blocked walk will retry on its next dependency poll",
                 issue.number, child_number,
             )
 

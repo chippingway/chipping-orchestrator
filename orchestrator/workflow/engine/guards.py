@@ -178,7 +178,7 @@ def _park_awaiting_human(
     A post whose id nothing could read falls back to the thread's tip, which
     is the lesser of the two failures left: a watermark that never moved
     leaves the park's own notice to be read back as somebody's fresh guidance
-    on every tick after this one.
+    on every dispatch after this one.
     """
     posted = _comments._post_issue_comment(gh, issue, state, message)
     state.set("awaiting_human", True)
