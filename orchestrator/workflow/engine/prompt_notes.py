@@ -1,7 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Shared prompt placeholders, foreground-run instructions, and commit contracts."""
+"""Shared prompt placeholders, foreground-run instructions, and commit and report contracts.
+
+The developer report contract is spelled from the marker vocabulary its parser
+reads, so every developer prompt teaches exactly the outcomes `report_outcomes`
+accepts."""
 from __future__ import annotations
+
+from orchestrator.workflow.engine import report_outcome_models as _report_models
 
 _NO_BODY = "(no body)"
 
@@ -29,10 +35,71 @@ _COMMIT_STYLE_NOTE = (
     "`git commit -m \"<subject>\"` with a single `-m`."
 )
 
+# Every developer prompt carries this whole, resumes included: a resumed
+# session's transcript may predate the contract or hold another stage's prompt.
+_DEVELOPER_REPORT_NOTE = (
+    "Developer report: you write it, and the orchestrator publishes it. "
+    "Whenever this task ends in finished work -- with a new commit or without "
+    "one -- your final message MUST end with your complete, current completion "
+    "report for this issue: what the branch changes and why, how you verified "
+    "it, and anything a reviewer should know. Write the whole report every "
+    "time rather than only what changed since the last one, because it "
+    "supersedes every earlier report. Publishing it on the pull request is "
+    "routine orchestrator work that needs no permission: do NOT post or edit "
+    "the report yourself, and do NOT ask a human whether or how to publish "
+    "it. Never create an empty commit, or any change made only to carry a "
+    "report -- a report that needs no repository change is delivered with no "
+    "commit at all. The one finished reply without a report is an `ACK:` "
+    "line, where this prompt offers one.\n\n"
+    "End with EXACTLY one of these two report outcomes:\n\n"
+    "1. Report ready for publication. Put the complete report between these "
+    "two lines, each alone on its own line and outside any code fence, with "
+    "nothing after the closing line:\n\n"
+    f"  {_report_models._REPORT_READY_MARKER}\n"
+    "  <complete report>\n"
+    f"  {_report_models._REPORT_END_MARKER}\n\n"
+    "2. Report already on the pull request. Use this ONLY when a complete, "
+    "current report is already published on this issue's pull request -- for "
+    "example one a human posted or edited -- and you read it during this run. "
+    "End with this single line, outside any code fence:\n\n"
+    f"  {_report_models._REPORT_VERIFIED_MARKER} <location> <revision>\n\n"
+    f"<location> is `{_report_models._PULL_REQUEST_URL_SHAPE}` for the pull "
+    "request description, or that URL followed by "
+    f"`{_report_models._COMMENT_ANCHOR_SHAPE}` for a comment on it. <revision> "
+    f"is `{_report_models._REVISION_PREFIX}` followed by the 64 lowercase hex "
+    "digits of the SHA-256 of that report's text exactly as GitHub returns "
+    "it. The orchestrator re-reads the location and accepts the outcome only "
+    "while its text still matches.\n\n"
+    "No other line of your message may start with "
+    f"`{_report_models._REPORT_MARKER_PREFIX}`, and a report outcome never "
+    "shares a message with an `ACK:` line. A report outcome means the work is "
+    "finished: if you have a question, disagree with a request, or could not "
+    "finish, emit neither outcome and end with your question for the human "
+    "instead."
+)
+
+# A fresh respawn's preamble precedes every stage's task, including ones that
+# end on a marker of their own, so it defers the outcome to the task below.
+_RESPAWN_REPORT_NOTE = (
+    "Wherever the task below asks for your completion report, write it for the "
+    "whole branch, the previous session's commits included. You write the "
+    "report and the orchestrator publishes it as routine work: there is no "
+    "permission to ask for, nothing of yours to push or post, and no empty "
+    "commit to make just to carry it. End with the exact report outcome that "
+    f"task describes -- the `{_report_models._REPORT_READY_MARKER}` ... "
+    f"`{_report_models._REPORT_END_MARKER}` block or the "
+    f"`{_report_models._REPORT_VERIFIED_MARKER} <location> <revision>` line."
+)
+
 _CONTINUE_RETRY_PROMPT = (
     "Resuming after a session/usage limit or a silent session failure. "
     "Re-read the issue requirements and the conversation in your transcript, "
     "then CONTINUE the work already in progress and COMMIT any remaining "
     "changes in your current worktree. Do NOT push -- the orchestrator pushes "
     "and re-runs the reviewer."
+)
+
+_DEVELOPER_CONTINUE_RETRY_PROMPT = (
+    f"{_CONTINUE_RETRY_PROMPT}\n\n{_DEVELOPER_REPORT_NOTE}\n\n"
+    f"{_FOREGROUND_ONLY_NOTE}"
 )

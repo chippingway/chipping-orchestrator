@@ -163,14 +163,30 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is a command the workflow owes an answer to. What that second command MEANS is the
                             late-split stage owners', which is where the pair it names exists -- one per park it can
                             end, the adjudication's and the size gate's, each proving it against its own record
+    report_outcome_models.py the developer report vocabulary: the `REPORT: READY` / `REPORT: END` and
+                            `REPORT: VERIFIED` spellings the prompts teach, the two successful outcomes -- a complete
+                            report ready for publication, and a report asserted to be on the pull request at a URL
+                            and SHA-256 revision -- and the closed refusals: five for a run that did not complete,
+                            two for a completed run's message that carries no marker or a malformed one
+    report_outcomes.py      the strict reader of those outcomes. A run never invoked, interrupted, timed out, refused
+                            by its provider, or exited nonzero is refused before its message is read; the outcome has
+                            to be the message's only marker use and its last lines, outside any code block, and an
+                            `ACK:` beside it makes it malformed. A verified location and revision are parsed for
+                            shape, never taken as proof
+    report_fences.py        which lines of a developer's message a code fence may enclose, judged without a Markdown
+                            parser so that a doubt reads as fenced: a fence opens at the top level or in a list item,
+                            closes only on a bare run at its opening run's column, and stays open to the end past a
+                            line that may have ended its list item
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
-    prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, and the
-                            continuation note for a session-limit retry
+    prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, the
+                            developer report contract spelled from the report vocabulary with its fresh-respawn
+                            counterpart, and the continuation notes for a session-limit retry
     prompts.py              implementation, review, documentation, fixing, conflict-resolution, and fresh-session prompt
                             builders; each response marker agrees with the parser that settles its stage
-    conversation_prompts.py question, discussion, and PR-feedback follow-up prompts; discussion publication instructions
-                            describe the confirmed plan artifact and the commit its stage verifies
+    conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
+                            discussion publication instructions describe the confirmed plan artifact and the commit
+                            its stage verifies
     decomposition_prompts.py the decomposition prompt with the validator-owned child limit, and the bounded
                             single-decision comment that carries manifest notes into implementation
     retry_values.py         daily-retry decisions, notice phases, pinned keys, and the bounded continuation and
@@ -851,8 +867,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_revision.py      the developer run guidance buys -- the locked session resumed under `agent_role=developer`
                             and `stage=decomposing`, with a latched close asked on BOTH sides of it, since a resume
                             is the same step a spawn is and the run takes hours -- and the followup it is resumed
-                            with, quoting the issue as it reads NOW and asking for the `ACK:` marker an UNCHANGED
-                            commit needs before it counts as an answer. The two entry points are this owner's own --
+                            with, quoting the issue as it reads NOW, carrying the developer report contract, and
+                            asking for the `ACK:` marker an UNCHANGED commit needs before it counts as an answer,
+                            offered only while the report needs no change either. The two entry points are this
+                            owner's own --
                             the guidance that buys a run, and the reply to a revision that stalled -- and each asks
                             the two owners below in turn rather than re-exporting what they hold
       late_revision_obligations.py

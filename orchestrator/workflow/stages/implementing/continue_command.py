@@ -78,7 +78,7 @@ def _retry_parked_dev_session(
     dispose the result exactly like the awaiting-human resume path.
 
     Unlike the generic human-reply resume this does NOT feed the bare command
-    text to the dev (`_prompts._CONTINUE_RETRY_PROMPT` instead): the poisoned
+    text to the dev (`_prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT` instead): the poisoned
     session already carries the issue context in its transcript, or
     `_resume_dev_with_text` rotates it to a re-grounded fresh spawn. The
     command comment(s) are marked consumed up front so the retry does not
@@ -99,9 +99,9 @@ def _retry_parked_dev_session(
             branch=_naming._resolve_branch_name(state, spec, issue.number),
         )
     before_sha = _verification_probes._head_sha(wt)
-    followup = f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     wt, agent_result, paused = _resume._resume_dev_with_text(
-        gh, spec, issue, state, followup, pause_guard=True,
+        gh, spec, issue, state, _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
+        pause_guard=True,
     )
     state.set("last_agent_action_at", _usage._now_iso())
     state.set(

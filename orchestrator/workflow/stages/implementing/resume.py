@@ -36,8 +36,7 @@ from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
-    prompt_context as _prompt_context,
-    prompt_notes as _prompt_notes,
+    conversation_prompts as _conversation_prompts,
 )
 from orchestrator.workflow.stages.implementing import (
     execution as _execution,
@@ -236,11 +235,7 @@ def _resume_developer_on_human_reply(
     consumed_max = max(comment.id for comment in new_comments)
     state.set(_state._LAST_ACTION_COMMENT_ID, consumed_max)
 
-    followup = "\n\n".join(
-        _prompt_context._quote_comment_line(comment)
-        for comment in new_comments if comment.body
-    )
-    followup = f"{followup}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}"
+    followup = _conversation_prompts._build_human_reply_followup(new_comments)
     return _resume_dev_with_text(
         gh, spec, issue, state, followup, pause_guard=pause_guard,
     )

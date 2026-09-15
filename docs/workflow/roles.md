@@ -2107,7 +2107,9 @@ requirements that changed rather than answered from the record taken before they
 
 The resulting SHA is allowed to be the one that went in, but only when the developer *said* so. The prompt asks for
 the same `ACK: <justification>` marker every other drift resume asks for, and that marker is what an unchanged commit
-needs before it is re-measured. Without one, an unchanged commit is not an acknowledgment — it is a run that said
+needs before it is re-measured; the prompt carries the developer report contract beside it and, like theirs, offers the
+marker only when nothing the report says has to change either. Without one, an unchanged commit is not an
+acknowledgment — it is a run that said
 nothing, asked a question, or timed out before it could do either, and all three look identical from the checkout.
 Reading any of them as "the work already covers it" would advance a generation and adjudicate a candidate nobody
 vouched for, so they park (`late_revision_unanswered`) with whatever the developer *did* say quoted, so a question

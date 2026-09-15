@@ -156,7 +156,8 @@ Result routing in `_post_user_content_change_result`:
   committed but never pushed) is published through the push tail and counted as a pushed fix
   (`validating/stranded._stranded_fix_unpushed`), ahead of the ack check;
 - a no-commit reply is otherwise treated as an ack ONLY when it carries the explicit `ACK: <reason>` marker the resume
-  prompt instructs the dev to emit when existing work already satisfies the edit;
+  prompt instructs the dev to emit when existing work already satisfies the edit and nothing its report says has to
+  change;
 - any other no-commit response falls back to `_on_question` and parks awaiting human.
 
 Per-stage specifics:
@@ -2561,11 +2562,14 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      same tick. Values at or above the configured maximum grant one full review budget rather than extending the
      budget past it. A second exception: a bare `/orchestrator continue` on a session-failure dev park (`agent_silent` /
      `agent_timeout`) is intercepted (`_continue_command_action`) and retries the dev on the neutral
-     `_CONTINUE_RETRY_PROMPT` — NOT the literal command, which the dev has no context for — while
+     `_DEVELOPER_CONTINUE_RETRY_PROMPT` — NOT the literal command, which the dev has no context for — while
      `_handle_dev_fix_result` still publishes any stranded commit; a bare continue on a park needing a real answer
      refuses (`_refuse_parked_continue`) and stays parked. A command carrying real guidance, or a normal reply,
-     resumes the dev on that text as before. (Shared with `implementing` / `documenting` / `resolving_conflict`; see
-     the drift-detection section for the bare-continue hash exclusion.)
+     resumes the dev on that text, with the developer report contract restated beside it
+     (`_build_human_reply_followup`). (The classification is shared with `implementing` / `documenting` /
+     `resolving_conflict`, the retry prompt is not: `documenting` reruns its docs prompt and `resolving_conflict`
+     retries on the plain `_CONTINUE_RETRY_PROMPT`; see the drift-detection section for the bare-continue hash
+     exclusion.)
   3. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
      `/orchestrator add-review-rounds N` escape hatch.
   4. Otherwise persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer is spawned fresh
@@ -2846,7 +2850,8 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      normal push tail and treats the run as a pushed fix — this outranks the ACK fast path on both routes, so an acked
      stranded fix is published rather than relabeled. **ACK fast path** (in_review route only, no stranded fix): if the
      dev makes no commit but ends its message with the `ACK: <reason>` marker (the prompt instructs it to emit this when
-     the comments name no actionable change — a vague "continue" / "ok"), clear `pending_fix_*`, post the ack as an
+     the comments name no actionable change — a vague "continue" / "ok" — and neither the branch nor its report has to
+     change), clear `pending_fix_*`, post the ack as an
      FYI, and relabel straight to **`in_review`** without parking. Otherwise apply the same `_handle_dev_fix_result`
      disposition as the validating fix-loop. Any other unmarked no-commit reply falls through to `_on_question` and
      parks awaiting human — a no-ACK reply may be a real dev question, and we cannot tell by inspection (a dirty tree,

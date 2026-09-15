@@ -39,6 +39,7 @@ def _build_implement_prompt(
         "new branch). When done, COMMIT your changes with a clear message. Do NOT push - "
         "the orchestrator pushes and opens the PR.\n\n"
         f"{_prompt_notes._COMMIT_STYLE_NOTE}\n\n"
+        f"{_prompt_notes._DEVELOPER_REPORT_NOTE}\n\n"
         f"{_prompt_notes._FOREGROUND_ONLY_NOTE}\n\n"
         "If you cannot proceed because of missing information, leave the working tree "
         "uncommitted (no commits) and end your response with a clear question for the human."
@@ -78,6 +79,7 @@ def _build_fresh_respawn_preamble(
         f"Issue body:\n{body}\n\n"
         f"Conversation so far:\n{convo}\n\n"
         f"{tracked_block}"
+        f"{_prompt_notes._RESPAWN_REPORT_NOTE}\n\n"
         "Your immediate task follows.\n"
         "----------------------------------------"
     )
@@ -177,14 +179,18 @@ def _build_fix_prompt(review_feedback: str) -> str:
     quoted = _messages._as_blockquote(feedback)
     return (
         "An automated reviewer requested changes on your implementation. Address each item "
-        "below, then COMMIT the fix in your current worktree. Do NOT push -- the orchestrator "
-        "pushes and re-runs the review.\n\n"
+        "below: COMMIT every repository change in your current worktree, and answer an item "
+        "that asks only for report content -- a missing explanation, verification detail, or "
+        "summary -- in your updated report, with no commit for it. Do NOT push -- the "
+        "orchestrator pushes, publishes your report, and re-runs the review.\n\n"
         f"Review feedback:\n\n{quoted}\n\n"
         f"{_prompt_notes._COMMIT_STYLE_NOTE}\n\n"
+        f"{_prompt_notes._DEVELOPER_REPORT_NOTE}\n\n"
         f"{_prompt_notes._FOREGROUND_ONLY_NOTE}\n\n"
         "If you genuinely disagree with a point, end your final message with a question for "
         "the human and leave that item un-fixed; the orchestrator will park the issue for "
-        "human review. Otherwise, fix all items (a single commit is fine)."
+        "human review. Otherwise, address all items (a single commit is fine where one is "
+        "needed)."
     )
 
 

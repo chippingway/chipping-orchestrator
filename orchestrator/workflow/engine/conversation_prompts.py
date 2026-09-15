@@ -1,10 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Question, design-discussion, and pull-request follow-up prompts.
+"""Question, design-discussion, pull-request follow-up, and human-reply resume prompts.
 
 Conversation context comes from the common trusted-thread reader. Discussion
 rounds carry the publication and commit instructions their confirmed plan needs;
-question and follow-up rounds preserve the response markers their readers expect."""
+question and follow-up rounds preserve the response markers their readers expect,
+and the developer resumes restate the report contract beside them."""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -266,19 +267,47 @@ def _build_pr_comment_followup(comments: list) -> str:
     )
     quoted = _messages._as_blockquote(body)
     return (
-        "New comments arrived on the open PR for this issue. Address each item, "
-        "then COMMIT the fix in your current worktree. Do NOT push -- the "
-        "orchestrator pushes and re-runs the reviewer.\n\n"
+        "New comments arrived on the open PR for this issue. Address each item: "
+        "COMMIT every repository change in your current worktree, and answer an "
+        "item that asks only for report content in your updated report, with "
+        "no commit for it. Do NOT push -- the orchestrator pushes, publishes "
+        "your report, and re-runs the reviewer.\n\n"
         f"PR comments:\n\n{quoted}\n\n"
         f"{_prompt_notes._COMMIT_STYLE_NOTE}\n\n"
+        f"{_prompt_notes._DEVELOPER_REPORT_NOTE}\n\n"
+        "If a comment says a human published or updated the report on the pull "
+        "request, read it there: when it is complete and current, end with the "
+        "report-already-on-the-pull-request outcome instead of writing it "
+        "again.\n\n"
         "If you genuinely disagree with a point, end your final message with a "
         "question for the human and leave that item un-fixed; the orchestrator "
         "will park the issue for human review.\n\n"
         "If the comments contain NO concrete, actionable change request -- e.g. "
         "a vague 'continue', 'ok', or 'ping' that names no specific defect -- "
-        "and the branch already satisfies them, make NO commit and end your "
-        "final message with a single line `ACK: <brief reason>`. The "
+        "and neither the branch nor your report has to change, make NO commit, "
+        "emit no report outcome, and end your final message with a single line "
+        "`ACK: <brief reason>`. The "
         "orchestrator will then return the PR to review-ready instead of "
         "parking it for a fix that is not warranted.\n\n"
+        f"{_prompt_notes._FOREGROUND_ONLY_NOTE}"
+    )
+
+
+def _build_human_reply_followup(comments: list) -> str:
+    """Compose the resume prompt a parked developer session receives when a
+    human replies on the issue thread.
+
+    The replies, one per paragraph, are the whole of the new task: the session
+    already holds its stage's instructions in its transcript. The report
+    contract is restated anyway, because that transcript may predate it or
+    carry another stage's prompt, and a reply is often what lets the parked
+    work finish.
+    """
+    replies = "\n\n".join(
+        _prompt_context._quote_comment_line(comment)
+        for comment in comments if comment.body
+    )
+    return (
+        f"{replies}\n\n{_prompt_notes._DEVELOPER_REPORT_NOTE}\n\n"
         f"{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     )
