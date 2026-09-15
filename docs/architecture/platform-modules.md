@@ -82,8 +82,9 @@ last is held by the loader itself rather than by a check.
   `git/measurement/` owners that log, which all report on the same token, `ls-remote`, fetch, push, and diff
   plumbing),
   `orchestrator.base_sync` (`git/base_sync/state.py`), `orchestrator.worktree_lifecycle` (the
-  `git/worktrees/` owners that log, plus `runtime/artifacts.py` and `runtime/artifact_records.py` above them — when a
-  maintenance pass ran, why it did not, and the record one candidate's answer could not be written as are facts about
+  `git/worktrees/` owners that log, plus `runtime/artifacts.py`, `runtime/artifact_schedule.py`, and
+  `runtime/artifact_records.py` above them — when a maintenance pass ran, why it did not (including a window that
+  closed before its pass could start), and the record one candidate's answer could not be written as are facts about
   the same artifacts the owners under it report on, so an operator filtering for what
   happened to a finished issue's checkout is told about the day the host was too busy to attempt one), and
   `orchestrator.branch_publication` (`git/publication/rewrite.py`). A
