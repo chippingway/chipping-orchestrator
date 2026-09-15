@@ -97,7 +97,7 @@ def scanning_receipt(repo_slug: str, issue_number: int):
 
     True once per owner per process, and the claim is taken as this is
     ENTERED rather than once the walk has answered, so a thread that carries
-    no receipt is not walked again every tick. What the scan recovers is an
+    no receipt is not walked again every dispatch. What the scan recovers is an
     observation a process that died was holding: anything observed since is
     in the latch, which costs nothing to ask.
 

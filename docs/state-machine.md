@@ -79,7 +79,11 @@ One repo's pass runs the base refresh, the community-contribution PR sweep, and 
 dispatches each pollable issue by workflow label. **Family-aware labels** (`workflow:decomposing`,
 `workflow:blocked`, `workflow:umbrella`, unlabeled pickup) read and write cross-issue parent ↔ child state, so they
 fold into one bucket per repo that drains sequentially; every other label fans out concurrently up to
-`MAX_PARALLEL_ISSUES_GLOBAL` / `MAX_PARALLEL_ISSUES_PER_REPO`. Only issue numbers cross the thread boundary — each
+`MAX_PARALLEL_ISSUES_GLOBAL` / `MAX_PARALLEL_ISSUES_PER_REPO`. An open `workflow:blocked` / `workflow:umbrella` issue
+joins only on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` makes due — the first poll and every Nth after it, default
+`5` — and is dropped before that split in between, which saves the child reads its dependency walk spends at the price
+of up to N ticks before a child is activated, a parent completes, or drift on either is detected; `1` dispatches it
+every tick. Only issue numbers cross the thread boundary — each
 worker mints its own `GitHubClient` and re-fetches the issue. The cap exemptions, the `duplicate_active` gate, and
 what each step reads and writes are in [`state-machine/labels-and-state.md`][per-tick]; the multi-repo dispatch and
 scheduler lifecycle around them are in

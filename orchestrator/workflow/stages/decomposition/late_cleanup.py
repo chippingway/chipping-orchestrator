@@ -92,9 +92,9 @@ def _settled_for_terminal(
 
     The caller is the umbrella's all-children-resolved branch, and the answer
     is a decision rather than a report: False keeps the parent open on
-    `workflow:umbrella` for the next tick to ask again, which is what makes an
-    unreclaimed remote loud instead of silent. An issue with no recorded
-    generation owes nothing and answers without a write.
+    `workflow:umbrella` for its next dependency poll to ask again, which is
+    what makes an unreclaimed remote loud instead of silent. An issue with no
+    recorded generation owes nothing and answers without a write.
 
     The ledger is not the whole of what holds it. A split entered past
     publication owes the terminal one question as well as its obligations --
@@ -110,7 +110,7 @@ def _settled_for_terminal(
     Asked before anything is SAID, which is why it belongs to this owner and
     not to the completion behind it: the resolution comment is gated on a
     stamp the retirement write puts down, so a refusal taken past that comment
-    would repeat it on every tick that holds.
+    would repeat it on every dependency poll that holds.
     """
     generation = _late_state.read_late_generation(state)
     if not generation.is_present:
@@ -119,9 +119,9 @@ def _settled_for_terminal(
     held = _late_cleanup_reading._blocking(settled) + _unsettled_publication(gh, issue, settled)
     if not held:
         return True
-    # Said on every tick that holds, because a hold with nothing attempted
-    # writes nothing and emits nothing: an umbrella that will not close and
-    # never says why is the one shape an operator cannot act on.
+    # Said on every dependency poll that holds, because a hold with nothing
+    # attempted writes nothing and emits nothing: an umbrella that will not
+    # close and never says why is the one shape an operator cannot act on.
     log.info(
         "issue=#%d holds its terminal on: %s", issue.number, ", ".join(held),
     )

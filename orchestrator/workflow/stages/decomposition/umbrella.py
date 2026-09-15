@@ -131,9 +131,10 @@ def _publication_holds_the_terminal(
 
     A refusal writes nothing at all. The record on the remote is exactly as
     this pass found it: the group intact, the cycle live, the label `umbrella`
-    -- so the next tick asks earlier, where refusing costs nothing, and every
-    tick after that until a human settles the pull request. The one thing
-    already spent is the sentence, and the thread is what stops that repeating.
+    -- so the next dependency poll asks earlier, where refusing costs nothing,
+    and every one after that until a human settles the pull request. The one
+    thing already spent is the sentence, and the thread is what stops that
+    repeating.
     """
     undone = _late_publication._release_undone(gh, issue, state)
     if not undone:

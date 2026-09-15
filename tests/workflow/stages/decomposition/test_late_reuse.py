@@ -483,7 +483,7 @@ class ReuseCostTest(_ReuseCase, unittest.TestCase):
     def test_an_unreadable_remote_holds_the_dispatch(self) -> None:
         # An outage is evidence of nothing, so it is neither a park nor a
         # permission: the whole route stops without writing anything, and the
-        # same question is asked again next tick. Parking here would strand a
+        # same question is asked again next dispatch. Parking here would strand a
         # live child on a rate-limit window; continuing would start an agent
         # against a ref nobody could vouch for.
         seeded = _resumable()

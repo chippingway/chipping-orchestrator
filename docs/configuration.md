@@ -171,6 +171,18 @@ examples.
   owner behaves the same way: it keeps its `workflow:decomposing` / `workflow:umbrella` label, so the cleanup sweep
   revisits it every pass until its obligation ledger is fully reconciled, and `N>1` stretches how long a superseded
   branch or an unreclaimed snapshot ref survives by that many ticks.
+- `DEPENDENCY_POLL_EVERY_N_TICKS` — default `5`. how many ticks apart an **open** `workflow:blocked` /
+  `workflow:umbrella` issue is dispatched (see [GitHub rate limits](#github-rate-limits) below). Both handlers are
+  dependency walks that spawn nothing, but each pass reads every child, so a repo holding waiting parents and children
+  spends that read fan-out every tick while nothing downstream has moved. Counted on the same polls as
+  `CLOSED_ISSUE_SWEEP_EVERY_N_TICKS` — the first poll is due and every Nth after it — and on the ticks between,
+  those issues are dropped before the family / fan-out partition: never submitted, and no worker client is minted for
+  them.
+  The cost is latency of up to `N` ticks: a child whose dependencies are `done` waits that long to be activated, a
+  parent whose children all landed waits that long to complete, and drift on either is detected that much later.
+  `workflow:decomposing`, unlabeled pickup, fan-out work, and a closed owner's cleanup keep their own cadence, and a
+  due tick still serializes the whole family bucket. `1` dispatches them every tick. Must be a positive integer; an
+  invalid value aborts at startup.
 - `AGENT_TIMEOUT` — default `1800`. wall-clock cap per agent invocation, seconds
 - `REVIEW_TIMEOUT` — default (= `AGENT_TIMEOUT`). wall-clock cap per reviewer invocation, seconds
 - `SHUTDOWN_GRACE_SECONDS` — default `30`. seconds after SIGTERM/SIGINT before the loop force-terminates in-flight
@@ -323,6 +335,11 @@ fixed number of `GET /repos/…` requests **per repo**, independent of how much 
   and
 - the community-contribution PR sweep: 1 `GET …/pulls` request.
 
+On top of that floor comes work that grows with what the repo holds rather than with the tick. The part priced here
+is the open dependency walks: each open `workflow:blocked` / `workflow:umbrella` issue reads every child it records,
+so that cost scales with the number of waiting parents and their children, is zero on a repo holding none, and is
+spent only on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` makes due.
+
 With `R` repos at `POLL_INTERVAL` seconds, the floor is roughly `R × (10 + sweep) × 3600 / POLL_INTERVAL`
 requests/hour even when every repo is idle. Past ~5–6 repos at the 60s default this exceeds 5000/hour: the budget is
 spent partway into each hour, GitHub starts returning `403: Forbidden` with an `X-RateLimit-Reset` in the future, and
@@ -347,6 +364,10 @@ Two built-in mitigations reduce the floor without touching `POLL_INTERVAL`:
 - **`CLOSED_ISSUE_SWEEP_EVERY_N_TICKS`** batches the closed-issue recovery sweep to once every N ticks (see the list
   above). At `N=4`–`5` the closed-label queries are amortized down by the same factor while the open-issue poll
   stays every tick.
+- **`DEPENDENCY_POLL_EVERY_N_TICKS`** (default `5`) works on the variable dependency-walk cost above rather than on
+  the floor: it dispatches open `workflow:blocked` / `workflow:umbrella` issues once every N ticks, on the same polls
+  the closed sweep counts, so the child reads their walks spend are divided by that factor. The price is up to `N`
+  ticks before a child is activated, a parent completes, or drift on either is detected; `1` walks them every tick.
 
 If you still approach the cap, the remaining levers are operator-side: raise `POLL_INTERVAL`, split repos across more
 than one PAT (one token file per slug under `~/.config/<owner>/<repo>/token`), or reduce the number of tracked repos.
@@ -438,7 +459,9 @@ Each polling tick advances issues concurrently along two axes:
   (`workflow:ready` / `workflow:implementing` / `workflow:documenting` / `workflow:validating` / `in_review` /
   `workflow:fixing` / `workflow:resolving_conflict` / `question` / `discussion`) are submitted one callable per
   issue. Family-aware issues (`workflow:decomposing` / `workflow:blocked` / `workflow:umbrella` / unlabeled pickup)
-  are folded into ONE bucket submit per repo that drains them sequentially.
+  are folded into ONE bucket submit per repo that drains them sequentially. An open `workflow:blocked` /
+  `workflow:umbrella` issue joins only on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` makes due; on the ticks between,
+  classification drops it before this split.
 
 The two caps below are the levers:
 
@@ -472,7 +495,9 @@ otherwise deadlock those children for the only per-repo slot under the default `
 still applies. A bucket containing `workflow:decomposing` (spawns the decomposer agent) or an unlabeled-pickup issue
 stays cap-counted. A CLOSED issue on `workflow:decomposing` / `workflow:umbrella` never joins the bucket: its handler
 is the cleanup sweep over a snapshot owner's obligation ledger rather than the stage its label names, so it fans out
-with its own `cap_exempt=True` submit and cannot be starved by whatever else the bucket holds.
+with its own `cap_exempt=True` submit and cannot be starved by whatever else the bucket holds. On the ticks
+`DEPENDENCY_POLL_EVERY_N_TICKS` skips, an open `workflow:blocked` / `workflow:umbrella` issue is dropped before the
+split, so a bucket that would have held nothing else is not submitted and mints no worker client.
 
 **Family vs fan-out labels:**
 

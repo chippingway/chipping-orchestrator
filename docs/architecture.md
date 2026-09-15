@@ -306,10 +306,12 @@ execution, in that order. That last step is the sequential loop on `tick.py` its
 bounded thread pool on `workflow/engine/parallel.py` beside it at any higher limit. The refresh runs first because
 every step after it reads what that fetch left behind, and the sweep and the catalog emission both precede the
 scheduler / in-tick split so each fires exactly once per tick on either path.
-The dispatch behind that split folds every family-aware issue (`workflow:decomposing` / `workflow:blocked` /
-`workflow:umbrella` / unlabeled — the labels that write cross-issue parent ↔ child state) into ONE bucket submit per
-repo that drains sequentially on a single worker, so a stale child cannot starve the parent umbrella issue, and
-submits everything else one callable per issue.
+The dispatch behind that split first drops each open `workflow:blocked` / `workflow:umbrella` issue on the ticks
+`DEPENDENCY_POLL_EVERY_N_TICKS` skips — a classification filter taken before any partition, so a skipped dependency
+walk is neither submitted nor handed a worker client — and then folds every remaining family-aware issue
+(`workflow:decomposing` / `workflow:blocked` / `workflow:umbrella` / unlabeled — the labels that write cross-issue
+parent ↔ child state) into ONE bucket submit per repo that drains sequentially on a single worker, so a stale child
+cannot starve the parent umbrella issue, and submits everything else one callable per issue.
 
 Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
 The orchestrator process is stateless; the label and the pinned JSON are the entire dispatch input.
@@ -719,8 +721,10 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
   per tick per repo: one `git fetch <spec.remote_name> <spec.base_branch>`, then per-worktree dispatch — a pre-PR
   worktree rebases locally, and a PR-having one behind base is rebased and pushed in the refresh itself.
 - **`_handle_*` per issue** — function call. Trigger: the issue's workflow label. Cadence: once per tick per pollable
-  issue; concurrent up to `spec.parallel_limit` per repo and `MAX_PARALLEL_ISSUES_GLOBAL` across all repos. No-agent
-  family buckets (`workflow:blocked` / `workflow:umbrella`) are cap-exempt.
+  issue, except an open `workflow:blocked` / `workflow:umbrella` issue, which is dispatched only on the ticks
+  `DEPENDENCY_POLL_EVERY_N_TICKS` makes due (default every fifth, the first included); concurrent up to
+  `spec.parallel_limit` per repo and `MAX_PARALLEL_ISSUES_GLOBAL` across all repos. No-agent family buckets
+  (`workflow:blocked` / `workflow:umbrella`) are cap-exempt.
 - **decomposer agent (`DECOMPOSE_AGENT`)** — subprocess (fresh or resumed). Trigger: `_handle_decomposing` (retry
   budget OK) or HITL resume. Cadence: one shot per tick when needed. The same role spec also backs both conversation
   stages, which pin their own agent and session keys rather than a decomposing one.
@@ -781,6 +785,8 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │     _refresh_base_and_worktrees(gh, spec, scheduler): skip           │
    │       worktrees whose handler is still in flight in scheduler        │
    │     classify each pollable issue and submit to scheduler:            │
+   │       open `workflow:blocked` / `workflow:umbrella` on a tick        │
+   │         DEPENDENCY_POLL_EVERY_N_TICKS skips → dropped first          │
    │       family-aware (`workflow:decomposing` / `workflow:blocked` /    │
    │         `workflow:umbrella` / unlabeled) →                           │
    │         ONE bucket submit per repo that drains sequentially          │

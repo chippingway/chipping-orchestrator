@@ -130,7 +130,8 @@ class FirstTimeHashSeedingIsDurableTest(
         self.assertIsNotNone(state.get(support.KEY_USER_CONTENT_HASH))
 
     def test_blocked_child_no_op_persists_baseline(self) -> None:
-        # A `blocked` child waiting on a sibling is a per-tick no-op.
+        # A `blocked` child waiting on a sibling is a no-op on every due
+        # dependency poll.
         # Without the durability fix, a later edit during the wait would
         # silently become the new baseline because the no-op branch
         # returns without `write_pinned_state`.

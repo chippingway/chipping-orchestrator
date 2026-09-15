@@ -80,6 +80,15 @@ class DeferralCase(ObservedCloseCase, _SchedulerWorkflowTest):
         self.stage = Mock()
         self._fresh_process()
 
+    def _fresh_process(self) -> None:
+        """Every registry a new process starts on, and its poll count too.
+
+        A restarted process mints its own client, so the cadences counted on
+        that client's enumeration start again from their first, due, poll.
+        """
+        super()._fresh_process()
+        self.github._pollable_calls = 0
+
     def _cancelled(self) -> bool:
         """Whether the owner's own record now says the cycle ended."""
         return bool(self.github.pinned_data(OWNER_NUMBER).get(CANCELLED))

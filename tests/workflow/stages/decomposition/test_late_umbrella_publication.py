@@ -4,10 +4,10 @@
 
 The transaction is not the last thing to release a child of a published split.
 It hands the issue to `umbrella` and stops; from then on the umbrella's own
-walk releases them, on every tick until the manifest is done. Every one of
-those releases is licensed by the pull request their work was superseded on
-still being closed, and that pass is long gone -- so a human who reopens the
-change afterwards would otherwise have its work handed over anyway.
+walk releases them, on every dependency poll until the manifest is done. Every
+one of those releases is licensed by the pull request their work was
+superseded on still being closed, and that pass is long gone -- so a human who
+reopens the change afterwards would otherwise have its work handed over anyway.
 
 Which is why the question is asked inside the walk rather than by whoever
 called it: the child scan a caller decides on is a request per child, and the
@@ -76,9 +76,10 @@ class ReopenedPublicationUmbrellaTest(PublishedSplitCase, unittest.TestCase):
     """The ticks that come AFTER the pass that saw the reopen.
 
     That pass holds its own children and keeps its own branch, and neither
-    answer is durable on its own: the umbrella polls this issue on every tick
-    from then on, and nothing it reads is about a pull request. So the record
-    is what has to carry the question, and these are the two readers of it.
+    answer is durable on its own: the umbrella walks this issue on every
+    dependency poll from then on, and nothing it reads is about a pull request.
+    So the record is what has to carry the question, and these are the two
+    readers of it.
     """
 
     def test_the_next_umbrella_tick_holds_children(self) -> None:

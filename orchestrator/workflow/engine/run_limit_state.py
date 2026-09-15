@@ -36,7 +36,7 @@ def _stage_park(state: PinnedState, ledger: AgentRunLedger) -> bool:
     Returns whether the thread is now owed a sentence. A park already standing
     whose notice has been said is not announced again -- that repeat is the
     whole failure this protocol exists to stop, and nothing else would stop
-    it, since a park is re-asked on every tick that reaches it. Nor is such a
+    it, since a park is re-asked on every dispatch that reaches it. Nor is such a
     park rewritten: the flag and the reason under it are already what this
     refusal would say.
 

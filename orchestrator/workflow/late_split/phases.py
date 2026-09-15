@@ -57,7 +57,7 @@ _PAST_THE_SNAPSHOT = (
 ) - frozenset((LatePhase.SNAPSHOTTING,))
 
 # The boundaries that come before a transaction. Every retry above one -- the
-# hold reconciled on each tick, the spawn, the owner read a completion
+# hold reconciled on each dispatch, the spawn, the owner read a completion
 # claims -- writes one of these, and writing it over an in-flight boundary is
 # the rewind `at_phase` refuses.
 _BEFORE_TRANSACTION = frozenset((

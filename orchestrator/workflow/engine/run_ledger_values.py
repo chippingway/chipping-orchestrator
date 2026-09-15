@@ -68,7 +68,7 @@ def _runs_used(state: PinnedState) -> int:
 
     A field that is not a real, non-negative whole number counts as nothing
     rather than raising: a damaged meter must not strand an issue behind a
-    crash on every poll, and the other meter is still there to answer.
+    crash on every dispatch, and the other meter is still there to answer.
     """
     meters = (
         _counted(state.get(AGENT_RUNS_USED)),

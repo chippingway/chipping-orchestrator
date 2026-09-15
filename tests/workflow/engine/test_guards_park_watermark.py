@@ -66,7 +66,7 @@ class ParkWatermarkTest(unittest.TestCase):
     def test_an_unreadable_post_falls_back_to_the_tip(self) -> None:
         # The lesser of the two failures left: a watermark that never moved
         # would leave the park's own notice to be read back as somebody's
-        # fresh guidance on every tick after this one.
+        # fresh guidance on every dispatch after this one.
         standing = self._reply()
 
         with patch.object(_comments, _POST_ISSUE_COMMENT, return_value=None):

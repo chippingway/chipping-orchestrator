@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Classify workflow labels and operator controls while preserving observed-close cleanup.
 
-A paused or backlogged issue still ends a close already observed. Failed
+A paused or backlogged issue still ends a close already observed. An open
+dependency walk is left out on the ticks its polling cadence skips. Failed
 label reads enter the family path, where processing isolates the issue
 and reports any sustained failure.
 """
@@ -12,6 +13,7 @@ import logging
 
 from github.Issue import Issue
 
+from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import (
@@ -21,8 +23,33 @@ from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.workflow.engine import (
     poll_models as _poll_models,
 )
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The labels whose open handler only walks a dependency graph: it reads the
+# children's labels to activate one or complete the parent, and spawns
+# nothing, so a pass that finds nothing moved is pure request cost.
+_DEPENDENCY_POLL_LABELS = frozenset((
+    WorkflowLabel.BLOCKED, WorkflowLabel.UMBRELLA,
+))
+
+
+def _dependency_poll_deferred(
+    gh: GitHubClient, issue: Issue, label: str | None,
+) -> bool:
+    """Whether this tick leaves an open dependency walk to a later one.
+
+    Counted on the enumeration's own poll counter, the way the closed sweep
+    counts: the first poll is due and every Nth after it. Only an OPEN issue
+    is deferred -- a closed one on these labels is here for its cleanup, which
+    the sweep already puts on its own cadence and which no skipped walk may
+    cost it.
+    """
+    if label not in _DEPENDENCY_POLL_LABELS or issue_is_closed(issue):
+        return False
+    cadence = config.DEPENDENCY_POLL_EVERY_N_TICKS
+    return cadence > 1 and (gh._pollable_calls - 1) % cadence != 0
 
 
 
@@ -51,6 +78,12 @@ def _read_issue_routing(
     family-aware route and would flip the whole bucket cap-counted.
     """
     label = gh.workflow_label(issue)
+    if _dependency_poll_deferred(gh, issue, label):
+        log.debug(
+            "repo=%s issue=#%s %s is not due for its dependency poll this "
+            "tick; skipping", spec.slug, issue.number, label,
+        )
+        return True, label
     return _hard_skipped(spec, issue, label, _poll_models._POLLED_OPEN), label
 
 
@@ -106,7 +139,10 @@ def _classify_pollable_issue(
     state machine, so the caller drops it BEFORE the partition -- a parked,
     workflow-label-less issue folded into the family bucket would flip the
     whole bucket cap-counted and starve fanout under ``parallel_limit=1``
-    (``_process_issue`` skips it anyway).
+    (``_process_issue`` skips it anyway). An open ``blocked`` / ``umbrella``
+    issue on a tick ``DEPENDENCY_POLL_EVERY_N_TICKS`` skips is reported the
+    same way, so it is never submitted and no worker client is minted for it;
+    a closed or held observation still outranks the skip at both callers.
 
     A label-read failure (including one raised by ``hard_skip_control_label``
     itself) is reported as ``(False, None)`` so the issue is conservatively

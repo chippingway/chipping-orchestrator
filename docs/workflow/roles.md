@@ -1546,15 +1546,15 @@ split closed and the head it was closed over, so the shared activation walk re-a
 makes — under `workflow:umbrella` and under `workflow:blocked` alike, since the walk reads the parent's own record
 rather than being told — `late_reclamation` re-asks it in front of every branch it deletes, and the settlement the
 umbrella's terminal waits on asks it once more before `done` may be written at all. Dropped there, a reopened pull
-request would have its work handed to children on the very next poll and the ref it points at reaped by the
-terminal, with nothing in between having looked. It costs one lookup per release, one per delete, and one per
-terminal decision, and a parent that never entered the size gate answers without a request at all.
+request would have its work handed to children on the umbrella's very next dependency poll and the ref it points at
+reaped by the terminal, with nothing in between having looked. It costs one lookup per release, one per delete, and
+one per terminal decision, and a parent that never entered the size gate answers without a request at all.
 
 Keeping the group has one cost, and it is paid a layer above: a whole publication group with no count beside it is
 also the shape a tick that died between the freeze and the diff leaves, so the reconciliation the dispatcher runs
 ahead of every handler asks the record's own settlement before it reads that shape — a `late_phase` past the ref the
 transaction cuts, or a non-empty `late_split_children`. Without that question the group would name the stage the
-gate was entered from while the issue wears `workflow:umbrella`, every poll would be held for a human as a reading
+gate was entered from while the issue wears `workflow:umbrella`, every dispatch would be held for a human as a reading
 read off a stage the issue has left, and the walk this section is about would never run
 ([`../state-machine/delivery-stages.md#the-size-gate…`][size-gate]).
 
@@ -1571,7 +1571,8 @@ each a request a reopen can land inside — and a refusal there costs a sentence
 sentence carries a marker and is gated on the **thread** as well as on the stamp: the stamp is what a resumed
 terminal has past the write, and the thread is what covers the window the stamp cannot, so an umbrella held on a
 reopened pull request does not repeat itself on every poll for as long as a human takes to settle it. A refusal at
-that second barrier writes nothing at all, so the record the next tick reads is exactly what this one found.
+that second barrier writes nothing at all, so the record the next dependency poll reads is exactly what this one
+found.
 
 Both halves of that receipt are scoped deliberately. It names the **cycle and generation**, because an operator
 restarting a rejected cycle keeps the thread — a marker naming only the issue would silence the sentence the cycle
@@ -1584,17 +1585,17 @@ that hands the issue to `workflow:umbrella`: identity, both commits, both ledger
 the measurement dropped,
 and the recorded `pr_number` cleared. Dropping the measurement is what makes the label stick — a parent that has
 become an umbrella has no candidate to measure, and a record still answering "oversized" is exactly what pins
-`workflow:decomposing` and would have the relabel guard put the umbrella label back every tick. Activation runs after
-that write for the reason the initial split's does: a crash between them must not leave a runnable child under a
-parent still labelled `decomposing`, and a child this pass could not flip is picked up by the umbrella's own walk as
-the retry.
+`workflow:decomposing` and would have the relabel guard put the umbrella label back on every dispatch. Activation
+runs after that write for the reason the initial split's does: a crash between them must not leave a runnable child
+under a parent still labelled `decomposing`, and a child this pass could not flip is picked up by the umbrella's own
+walk as the retry.
 
 It runs *through* that walk rather than through the initial split's one-shot flip, and the difference is the
 supersession above it: that step can park for as long as a human takes to settle a pull request, so by the time
 activation runs a child may have reached `rejected` or `done` on its own. A write that read nothing would put it
 back to `ready`, and the transition guard only warns by default. So each child is read fresh and only the ones still
 `blocked` with their recorded dependencies satisfied are moved; a read that failed leaves every child where it is,
-since the umbrella takes the same reading on its next tick.
+since the umbrella takes the same reading on its next dependency poll.
 
 A child GitHub reports as closed is passed over there too, and that one is not specific to the late split: closing an
 issue leaves its label untouched, so a child a human ended while it was still `blocked` goes on looking startable to
@@ -1701,8 +1702,8 @@ A ref is owed on exactly the same reading, and for a reason the branch rule only
 which an object still on the remote is settled. A ref kept because a consumer could not be proved *ended* is one
 this repository is holding, and an umbrella closed over it is an object nothing would ever come back for — the
 parent is `done` by then, and no pass revisits a `done` issue. So `retained` holds the terminal exactly as `failed`
-does, the label staying put *is* the retry, and the reason it is held is logged on every tick that holds, since a
-hold attempts nothing and therefore writes and emits nothing.
+does, the label staying put *is* the retry, and the reason it is held is logged on every dependency poll that holds,
+since a hold attempts nothing and therefore writes and emits nothing.
 
 "Ended" is the consumer's own issue state rather than its label. All three dispositions that end a child — reaching
 `done`, being `rejected`, and a human closing it — close the issue, and none of them survives a reopen, while a
@@ -1747,7 +1748,7 @@ generation its own ancestry records, and it is read only off a comment of ours �
 receipt nor a third party pasting one can speak for this one. It outranks every reading of the ref because it
 records what *happened*: a mirror this host never dropped, or a ref pushed again at the same commit, would both make
 the world look untouched while the guarantee the child was given — that its candidate provably came from one
-adjudication — is gone. It costs one walk of the child's own thread per tick, paid only by issues a split created.
+adjudication — is gone. It costs one walk of the child's own thread per dispatch, paid only by issues a split created.
 A thread that could not be *read* is not a thread with no receipt on it: everything asked after this can look
 untouched while the answer that outranks it sits unseen, so an unreadable thread holds the dispatch rather than
 falling through to readings a receipt would have overruled.
@@ -1771,7 +1772,7 @@ The ask itself gives three answers and each is a different verdict. `absent` is 
 child about, and it parks. `mismatch` is the ref carrying somebody else's commit, which is not the candidate the
 child was promised — the reclamation refuses one of those for a human, and so does this, under its own park reason
 and its own sentence. `unreadable` is neither: an outage is evidence of nothing, so the dispatch is held for the
-next tick with nothing written at all — parking every late-born child through a rate-limit window would be a
+next dispatch with nothing written at all — parking every late-born child through a rate-limit window would be a
 self-inflicted stop, and starting one against a ref nobody could vouch for is the failure the guard exists for.
 
 One shape has no recorded ancestry to read at all, and it still has to stop. The transaction records a child on the
