@@ -243,7 +243,9 @@ foundation layer for the Postgres aggregation step.
 - `stage_evaluation` — the `_process_issue` dispatcher (in `workflow/engine/dispatch.py`); written by its
   try/except/finally wrapper; carries `stage`,
   `duration_s` (handler wall-clock), `result` (`"ok"` / `"error"`); omitted for `backlog`- / `paused`-skipped issues
-  (no handler runs).
+  (no handler runs), and for an open `workflow:blocked` / `workflow:umbrella` issue on a tick
+  `DEPENDENCY_POLL_EVERY_N_TICKS` skips, since that issue is dropped before dispatch — so those two labels carry one
+  evaluation per due dependency poll rather than one per tick.
 - `agent_exit` — `_run_agent_tracked` (in `workflow/engine/usage.py`); one record per tracked agent invocation; agent
   context + parsed token / model / cost details (see below).
 - `repo_skill_catalog` — `orchestrator.skills.catalog._emit_repo_skill_catalog`, driven once per tick per spec by the
