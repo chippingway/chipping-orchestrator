@@ -3208,9 +3208,14 @@ live in [`late_result_models.py`](../../orchestrator/workflow/stages/decompositi
 only result field ever shortened, and it is cut before the record is measured. Read back, a missing, blank, or
 non-string value, one longer than the bound, and one beside a `question` all read as no rationale while the verdict
 stays actionable — re-adjudicating to recover an argument would buy a second run free to decide differently — and
-nothing rewrites the comment or writes a stand-in, so an absent key stays distinguishable from a value nobody can
-use. It is written and dropped with the rest of the result: a fresh spawn and every road that throws an answer away
-remove it, which is what binds it to the same cycle, generation, and commit. It is issue prose, and no late event or
+nothing rewrites the comment or writes a stand-in into it, so an absent key stays distinguishable from a value nobody
+can use. It is written and dropped with the rest of the result: a fresh spawn and every road that throws an answer
+away remove it, which is what binds it to the same cycle, generation, and commit. It is issue prose. The one place it
+reaches the thread is the notice an authorized publication posts
+([`late_handback.py`](../../orchestrator/workflow/stages/decomposition/late_handback.py)), which quotes it as the
+decomposer's rationale off this record rather than off any reply — so the authorization's own tick and a retry after
+a crash show the same bounded text, a cut one with its marker — fenced the way a park notice quotes an explanation,
+and which says `Decomposer rationale was not recorded.` wherever the reading above answers none. No late event or
 analytics record carries it.
 
 Half of an outcome is not one, in either direction. On the way in, what is measured is the whole comment the write

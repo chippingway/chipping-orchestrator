@@ -15,6 +15,11 @@ the candidate still owes. Only after that is the generation cleared: a
 would pick up and re-decompose, and an issue back on its own stage with a live
 generation is one the relabel guard puts back and the settlement re-runs.
 
+The notice that says so quotes the decomposer's rationale off the RECORD
+rather than off a reply: this owner is reached on the tick an authorization
+is read and on the retry after a process died past it, and the record is the
+one thing both hold -- bounded exactly as it was kept.
+
 The window between the push and the label is the one the record alone cannot
 answer, and the head proof one owner over is what recognizes it: the retry
 comes back to a live generation whose pull request is standing on the accepted
@@ -39,8 +44,10 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.late_split import endings as _endings
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
+    late_notice as _late_notice,
     late_owner as _late_owner,
     late_park_state as _late_park_state,
+    late_run_reading as _late_run_reading,
     late_verdict_push as _late_verdict_push,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -52,13 +59,29 @@ log = logging.getLogger("orchestrator.workflow")
 # Said by whoever the publication is owed to, which is an operator: a `single`
 # on its own parks, so the only road that reaches this sentence is one a human
 # authorized. Naming the adjudicator instead would credit the decision to the
-# agent that is not allowed to make it.
+# agent that is not allowed to make it -- which is also why the decomposer's
+# argument comes AFTER the sentence and under its own name, as what the agent
+# said rather than as the grounds the operator decided on.
 _ACCEPTED_NOTICE = (
     ":white_check_mark: the committed candidate `{candidate}` was authorized "
-    "to publish unsplit ({additions} added lines against a ceiling of "
-    "{threshold}), so it publishes as it stands. Only that commit is exempt "
-    "-- anything committed on top of it is measured again."
+    "to publish unsplit by a human operator ({additions} added lines against "
+    "a ceiling of {threshold}), so it publishes as it stands. Only that commit "
+    "is exempt -- anything committed on top of it is measured again.\n\n"
+    "{rationale}"
 )
+
+# The decomposer's argument, named as its own and quoted LAST, through the
+# rendering a park notice quotes an explanation with (`late_notice`). It is
+# agent prose on a markdown thread: a fence line of its own would close the
+# block around it, and an HTML-comment opener outside one would hide the rest
+# of it from the page.
+_RECORDED_RATIONALE = "Decomposer rationale:\n\n{quoted}"
+
+# What the notice says where the record holds no rationale a reader can use.
+# Said rather than left out, so a human can tell an argument nobody recorded
+# from a notice that dropped one -- and said only here, so the record keeps
+# the absence it has.
+_UNRECORDED_RATIONALE = "Decomposer rationale was not recorded."
 
 
 def _continued(context: _LateContext) -> _LateDisposition | None:
@@ -139,12 +162,7 @@ def _published(context: _LateContext) -> _LateDisposition | None:
     says which cycle that was, which is all a later one needs to adopt it.
     """
     _comments._post_issue_comment(
-        context.gh, context.issue, context.state,
-        _ACCEPTED_NOTICE.format(
-            candidate=context.generation.candidate_sha,
-            additions=context.generation.additions,
-            threshold=context.generation.threshold,
-        ),
+        context.gh, context.issue, context.state, _accepted_notice(context),
     )
     live = context.generation
     stopped = _late_owner._latch_stops(context)
@@ -160,6 +178,41 @@ def _published(context: _LateContext) -> _LateDisposition | None:
         _endings.record_retired_cycle(context.state, live.cycle_id)
         _late_park_state._persist(context)
     return _reinstated(context, live, retiring)
+
+
+def _accepted_notice(context: _LateContext) -> str:
+    """The sentence a settled publication says, with the argument beside it.
+
+    The rationale is read off the record rather than off the answer in hand.
+    The tick an authorization is read on and the retry after a process died
+    past it both reach this, and only the record holds the argument on both --
+    bounded as it was kept, so the two quote the same words and a cut one
+    still says where it was cut.
+
+    Where the record holds nothing a reader can use, the notice says so. Which
+    values those are is the reader's answer -- a missing key, a blank or
+    non-string value, one past the bound -- and the stand-in exists only in
+    this sentence, never on the record.
+
+    The whole body fits one comment by construction: a quote is held to what
+    a delivered notice may give one, which leaves the room this sentence and
+    the comment marker appended to it need, and a rationale's own bound sits
+    far inside that -- so what reaches the thread is always the fenced quote
+    of exactly the recorded text.
+    """
+    generation = context.generation
+    recorded = _late_run_reading._read_late_run(context.state).rationale
+    rationale = _UNRECORDED_RATIONALE
+    if recorded:
+        rationale = _RECORDED_RATIONALE.format(
+            quoted=_late_notice._quoted(recorded),
+        )
+    return _ACCEPTED_NOTICE.format(
+        candidate=generation.candidate_sha,
+        additions=generation.additions,
+        threshold=generation.threshold,
+        rationale=rationale,
+    )
 
 
 def _reinstated(

@@ -258,7 +258,7 @@ SETTLED_PR_NUMBER = 91
 CARRYING_PR_NUMBER = 92
 
 
-def settle_single(github, issue, **run_fields):
+def settle_single(github, issue, *, replied: str = "", **run_fields):
     """Run the settlement road a decided `single` licenses, at its own owner.
 
     Entered here rather than through the coordinator, because the coordinator's
@@ -271,6 +271,10 @@ def settle_single(github, issue, **run_fields):
     The worktree seams are held the way a run holds them, since the identity
     reading, the push, and the checkout proof all reach the checkout the
     candidate was committed in.
+
+    `replied` is the rationale the answer in hand carries. Set apart from
+    whatever the record keeps, it is what lets a case tell which of the two a
+    notice quoted.
     """
     state = github.read_pinned_state(issue)
     generation = _late_state.read_late_generation(state)
@@ -287,6 +291,7 @@ def settle_single(github, issue, **run_fields):
         run=_late_run_reading._read_late_run(state),
         adjudication=_late_result_models._LateAdjudication(
             verdict=_late_models.LateVerdict.SINGLE,
+            rationale=replied,
         ),
     )
     with late_run_context(MagicMock(), **run_fields):

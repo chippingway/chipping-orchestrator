@@ -3,17 +3,74 @@
 """Recovering a recorded authorization after interruption or a replaced adjudication."""
 from __future__ import annotations
 
-from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
+import itertools
+import json
+
+from orchestrator.workflow.stages.decomposition.late_result_models import (
+    MAX_RATIONALE,
+    RATIONALE_TRUNCATION_MARKER,
+    _LateDisposition,
+)
 from tests.workflow.stages.decomposition import (
     late_authorize_case as _authorize_case,
     late_content_replies as _content_replies,
     late_content_support as _support,
     late_test_support as _stage_support,
 )
+from tests.workflow.stages.decomposition.late_accepted_notice_support import (
+    UNRECORDED_RATIONALE,
+    shown_rationale,
+)
+from tests.workflow.stages.decomposition.late_published_support import (
+    published_generation,
+    seed_published_pr,
+)
+from tests.workflow.stages.decomposition.late_reply_support import late_block
 from tests.workflow.stages.decomposition.late_revision_support import (
     DEV_ACK,
     DEV_PIN,
     UNCHANGED,
+)
+from tests.workflow.stages.decomposition.late_settlement_support import (
+    OWNER_GUARD,
+    killed_at,
+)
+
+# A `single` arguing past what a record keeps, through a fence and an opener:
+# what only the run that received it ever holds whole.
+_UNKEPT_RATIONALE = "".join(("```\n<!-- ", "r" * MAX_RATIONALE))
+
+_UNKEPT_RATIONALE_REPLY = late_block(json.dumps({
+    "decision": "single",
+    "rationale": _UNKEPT_RATIONALE,
+    "split_blocker": _stage_support.SPLIT_BLOCKER,
+}))
+
+# The two publications a settled `single` makes: the ordinary one a candidate
+# nothing had published goes back to, and the push onto the pull request the
+# verdict was taken over.
+_PUBLICATIONS = (("initial publication", False), ("an existing pull request", True))
+
+# What a record kept beside its `single`, and what the accepted notice quotes
+# of it: the argument itself, or nothing for a record older than the key and
+# for one holding a value nobody can show.
+_RECOVERED_RATIONALES = (
+    (
+        "recorded",
+        {_stage_support.KEYS.rationale: _stage_support.SINGLE_RATIONALE},
+        _stage_support.SINGLE_RATIONALE,
+    ),
+    ("legacy", {}, ""),
+    ("malformed", {_stage_support.KEYS.rationale: 7}, ""),
+)
+
+# Every record above on each publication: what a notice said by a later tick
+# than the one that recorded the authorization quotes of it.
+_DEAD_AUTHORIZATIONS = tuple(
+    (f"{road}, {kept}", published, held, quoted)
+    for (road, published), (kept, held, quoted) in itertools.product(
+        _PUBLICATIONS, _RECOVERED_RATIONALES,
+    )
 )
 
 
@@ -225,3 +282,78 @@ class ReadjudicatedAuthorizationTest(_authorize_case._AuthorizeCase):
         pinned = self._pinned()
         self.assertFalse(pinned.get(_stage_support.KEYS.awaiting))
         self.assertIsNone(pinned.get(_stage_support.KEYS.park_reason))
+
+
+class RecoveredRationaleTest(_authorize_case._AuthorizeCase):
+    """The argument an accepted notice quotes, after a process died on the way.
+
+    Nothing that reaches the publication after a crash ever saw the reply, so
+    what it quotes is what the record kept -- on either publication, and with
+    no agent paid to recover an argument.
+    """
+
+    def test_a_dead_authorization_quotes_the_record(self) -> None:
+        # The tick that recorded the authorization died before publishing, so
+        # the notice is said by one that read nothing but the record: the
+        # argument where it kept one, and the sentence saying none was
+        # recorded where it kept none a reader can use.
+        for named, published, held, quoted in _DEAD_AUTHORIZATIONS:
+            with self.subTest(case=named):
+                self._seed_on(published, **_support.SINGLE_PARKED, **held)
+                self._authorize_then_crash()
+
+                said = self._settled_notice()
+
+                self.assertEqual(shown_rationale(said), quoted)
+                self.assertEqual(UNRECORDED_RATIONALE in said, not quoted)
+
+    def test_a_dead_run_parks_then_quotes_its_record(self) -> None:
+        # The run is the only thing that ever holds the whole reply, and this
+        # one dies past the write recording it. What every later tick has is
+        # the bounded record: an adjudicator's own `single` still parks until
+        # a human authorizes it, no second agent is paid for, and the notice
+        # that authorization earns quotes exactly what was kept -- cut, and
+        # saying so -- rather than what the agent wrote.
+        for road, published in _PUBLICATIONS:
+            with self.subTest(publication=road):
+                self._seed_on(published)
+                with killed_at(OWNER_GUARD), self.assertRaises(KeyboardInterrupt):
+                    self._tick(reply=_UNKEPT_RATIONALE_REPLY)
+                kept = self._pinned().get(_stage_support.KEYS.rationale)
+
+                parked = self._tick()
+
+                self.spawn.assert_not_called()
+                self.assertEqual(parked.disposition, _LateDisposition.PARKED)
+                self._assert_still_parked()
+                self.assertNotIn(_authorize_case.ACCEPTED_NOTICE, "".join(self._bodies()))
+                self._command()
+
+                said = self._settled_notice()
+
+                self.assertTrue(kept.endswith(RATIONALE_TRUNCATION_MARKER))
+                self.assertEqual(shown_rationale(said), kept)
+
+    def _seed_on(self, published: bool, **state) -> None:
+        """Seed this issue on either publication a settled `single` makes."""
+        if not published:
+            self._seed(**state)
+            return
+        self._seed(generation=published_generation(), **state)
+        seed_published_pr(self.github)
+
+    def _settled_notice(self) -> str:
+        """Tick once more, and the one accepted notice the settlement said.
+
+        Settled with no agent behind it: the verdict is on the record, and
+        nothing about publishing it is worth a second run.
+        """
+        outcome = self._tick()
+        self.spawn.assert_not_called()
+        self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
+        said = [
+            body for body in self._bodies()
+            if _authorize_case.ACCEPTED_NOTICE in body
+        ]
+        self.assertEqual(len(said), _authorize_case.SAID_ONCE)
+        return said[0]
