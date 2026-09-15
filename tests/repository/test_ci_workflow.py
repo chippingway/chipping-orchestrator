@@ -44,7 +44,7 @@ _ENCODING = "utf-8"
 # Every interpreter the workflow installs, lints, tests, and smoke-tests the
 # wheel under, in matrix order. The first is the floor `requires-python`
 # declares; the last is simply the newest one a run covers.
-_PYTHON_VERSIONS = ("3.12", "3.13")
+_PYTHON_VERSIONS = ("3.12", "3.13", "3.14")
 
 # The ref keys a pull request's lane; the run id gives every other run a lane
 # of its own, which no later run can be queued into and evict it from.
@@ -67,6 +67,7 @@ _WHEEL_SMOKE = (
 
 # The pages that state the tested versions in prose.
 _DOCUMENTING_PAGES = (
+    Path("README.md"),
     Path("docs") / "configuration.md",
     Path("docs") / "configuration" / "operations.md",
     Path("docs") / "security.md",

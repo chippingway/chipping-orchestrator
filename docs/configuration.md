@@ -569,7 +569,7 @@ The five steps from a JSONL sink to a running Streamlit page — confirm the rec
 `flake8 orchestrator tests --select=WPS`, pytest with an informational missing-line coverage report, `uv build`, and a
 launch of `chipping-orchestrator --help` from a throwaway environment holding that wheel and the dependencies it
 declares and nothing else, as five separate mandatory steps for every push to `main` and every pull request. The
-whole set runs twice, once on Python 3.12 and once on Python 3.13 — the two versions a run proves, out of the
+whole set runs on Python 3.12, 3.13, and 3.14 — the versions a run proves, out of the
 open-ended range `requires-python = ">=3.12"` admits — under a 20-minute job timeout. A second push to a pull request
 cancels the run its earlier push started, while a run on `main` is cancelled by nothing, queued or started. Dependabot
 opens weekly `workflow:dependencies` update PRs. The coverage report has no minimum threshold.

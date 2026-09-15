@@ -13,17 +13,14 @@ a launch of the console script from the wheel that build produced, as five separ
 `main` and every pull request, installing from the committed [`../../uv.lock`](../../uv.lock) via `uv sync --locked`.
 The pytest step prints coverage and missing lines for visibility but sets no minimum threshold.
 
-The job is a two-leg matrix: that whole set runs once on Python 3.12 and once on Python 3.13. Those two are the
-versions a run proves, not the whole of what [`../../pyproject.toml`](../../pyproject.toml) admits —
-`requires-python = ">=3.12"` names a floor and no ceiling, so 3.14 and everything after it installs without CI having
-run a line under it, and 3.12 is checked because it is the floor an installer reads. Both legs install the same pins
-from the same lockfile — one resolution serves both, so neither leg needs a version of its own — and each names its
-interpreter with `uv sync --locked --python <version>` rather than letting uv pick a compatible one off the runner,
-which is what keeps a leg from reporting green for a version it never ran. `fail-fast: false` leaves the other leg
-running when one fails, so a failure that belongs to one interpreter is reported as one instead of cancelling the
-evidence that it does not belong to the other. A matrix leg carries its value in the check name, so the two report as
-`ci (3.12)` and `ci (3.13)`, and those two names — not a bare `ci` — are what a branch-protection rule has to
-require ([`../security.md#required-checks`](../security.md#required-checks)).
+The job runs the whole set on Python 3.12, 3.13, and 3.14. These are the versions CI verifies within the range
+[`../../pyproject.toml`](../../pyproject.toml) admits: `requires-python = ">=3.12"` names a floor and no ceiling, so a
+newer interpreter installs without CI coverage. Python 3.12 is checked because it is the floor an installer reads.
+All matrix jobs install the same pins from the same lockfile, and each selects its interpreter explicitly with
+`uv sync --locked --python <version>`, so a job cannot report green for a version it never ran. `fail-fast: false`
+keeps the remaining jobs running when one fails, preserving the evidence from each interpreter. The jobs report as
+`ci (3.12)`, `ci (3.13)`, and `ci (3.14)`; branch-protection rules must require all three check names
+([`../security.md#required-checks`](../security.md#required-checks)).
 
 The last two steps are about the distribution rather than the tree. `uv build` builds the sdist and, from it, the
 wheel; the step after installs that wheel into an environment created for it alone —
