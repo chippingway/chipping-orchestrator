@@ -205,6 +205,16 @@ class InferSubjectPrefixTest(unittest.TestCase, _InferFixtureMixin):
             FEATURE_PREFIX,
         )
 
+    def test_prefixes_survive_a_pr_reference_suffix(self) -> None:
+        # Landed subjects end in ` (#N)`. Were the scoped, breaking one not
+        # counted, `event` and `career` would tie and the newer `event` win.
+        history = (
+            "event: add the gala (#7)\n"
+            "career(jobs)!: open a role (#6)\n"
+            "career: close a role (#5)\n"
+        )
+        self.assertEqual(self._infer(_GitRecorder(history)), "career")
+
 
 class InferSubjectPrefixGitRoutingTest(unittest.TestCase, _InferFixtureMixin):
     def test_git_error_falls_back_without_crashing(self) -> None:

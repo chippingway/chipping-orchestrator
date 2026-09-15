@@ -10,6 +10,11 @@ are read on, and the inference and the selection above them decide. A type
 added to the list cannot drift from the regex that recognizes it, and a
 predicate cannot drift from the caller that picks a title with it.
 
+The ` (#N)` reference a published commit subject ends in is not chosen here:
+a pull request's title is picked before the request has a number, so
+``pr_references`` beside this owner spells it for the commits published onto
+one, and the selection below never adds it.
+
 The history reads are commit MESSAGES, not branch geometry: what is asked of
 git here is what past subjects say, so ``probes`` beside this owner keeps the
 ahead/behind and fork-point reads and this one never consults them.

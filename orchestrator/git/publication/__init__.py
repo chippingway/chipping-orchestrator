@@ -6,7 +6,9 @@ Branch geometry -- ahead/behind counts and the fork point a contribution is
 read over -- lives in ``probes``; what a published subject line may say and
 which one gets written -- the prefix vocabulary, the predicates over it, the
 commit-subject reads they are applied to, and the inference and PR-title
-selection above them -- lives in ``titles``; the preconditions a squash is
+selection above them -- lives in ``titles``; the ` (#N)` pull-request
+reference a published commit subject ends in lives in ``pr_references``; the
+preconditions a squash is
 planned from, the commit count among them, live in ``planning``; the reset,
 commit, force-push, and rollback that spend that plan live in ``rewrite``;
 what a squash an earlier tick did not finish is owed lives in ``resume``;

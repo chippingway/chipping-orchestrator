@@ -17,8 +17,8 @@ from orchestrator.git import publication as _publication_package
 _PACKAGE = "orchestrator.git.publication"
 
 _OWNERS = (
-    "models", "planning", "probes", "resume", "rewrite", "squash", "standing",
-    "titles",
+    "models", "planning", "pr_references", "probes", "resume", "rewrite",
+    "squash", "standing", "titles",
 )
 
 _MODULES = (_PACKAGE, *(f"{_PACKAGE}.{owner}" for owner in _OWNERS))
@@ -46,6 +46,7 @@ _DEFINED = MappingProxyType({
         "_squash_subjects",
     ),
     "models": ("_SquashOutcome",),
+    "pr_references": ("_subject_with_pr_reference",),
     "probes": (
         "_BranchDivergence",
         _DIVERGENCE,
@@ -175,8 +176,9 @@ def _defined_here(owner: str) -> tuple:
 class CleanProcessImportTest(unittest.TestCase):
     """Each owner imports standalone in a fresh interpreter.
 
-    `probes` and `titles` each depend only on the config and git command
-    owners, `planning` on `titles` plus the verification probes, and
+    `pr_references` depends on nothing, `probes` and `titles` each only on the
+    config and git command owners, `planning` on `titles` plus the
+    verification probes, and
     `rewrite` / `resume` / `standing` / `squash` layer on top, so importing any
     one of them first must not need a name a half-run module has not defined
     yet. A subprocess per module gives each a clean `sys.modules` no other test

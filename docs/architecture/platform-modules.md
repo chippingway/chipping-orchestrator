@@ -501,6 +501,13 @@ orchestrator/
                         and the pre-squash head pinned beside them -- the rollback target, the head the entry takes
                         its lease from, and the commit the gate is told this rewrite collapsed, none of which a
                         reading taken past the reset could recover
+      pr_references.py  the ` (#N)` pull-request reference a published commit subject ends in, formatted once for
+                        every publisher: a subject already ending in the same reference comes back unchanged, so a
+                        retried or repeated publication never doubles it, and one naming any other number is
+                        ordinary text the current reference is appended after. Only the subject line comes back,
+                        never a body, trailer, or closing keyword, and a pure function reading no git, GitHub, or
+                        configuration. The PR title `titles` selects never carries it, since that title is picked
+                        before the request has a number
       probes.py         the two branch-geometry reads, and nothing about what a commit SAYS -- `titles` beside it owns
                         that. One is the divergence reading -- the fetched ref resolved ONCE and HEAD counted against
                         that immutable commit, since the counts are a claim about the tip and a ref something moves
@@ -859,11 +866,11 @@ orchestrator/
 The six subpackages bind their collaborators directly, so the dependency direction reads off the owner rather than
 off a facade:
 
-- `publication/` — `probes` and `titles` each call `commands` and neither calls the other; `planning` calls
-  `commands`, `titles`, and the verification probes; `rewrite` calls `commands`, `branch_transport`, and those same
-  verification probes; `resume` calls `rewrite` and reaches the gate through the one hop that owner spells;
-  `standing` calls `resume` for the ancestry read and reaches the gate through that same hop; `squash` calls
-  `planning`, `resume`, `rewrite`, and `standing`.
+- `publication/` — `pr_references` calls nothing; `probes` and `titles` each call `commands` and neither calls the
+  other; `planning` calls `commands`, `titles`, and the verification probes; `rewrite` calls `commands`,
+  `branch_transport`, and those same verification probes; `resume` calls `rewrite` and reaches the gate through the
+  one hop that owner spells; `standing` calls `resume` for the ancestry read and reaches the gate through that same
+  hop; `squash` calls `planning`, `resume`, `rewrite`, and `standing`.
 - `verification/` — `output` calls `models`, `process` calls `output` and `status`, and `runner` calls `process`.
   `status` shares the NUL framing and submodule arguments defined on `probes` so both path reads agree.
   Both subprocess owners reach the agent package for what a spawned child costs rather than keeping a second copy:
