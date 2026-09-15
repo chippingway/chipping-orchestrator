@@ -101,8 +101,8 @@ Shape of the block:
   read-only ones (reviewer / decomposer / question), and in the discussion prompts, whose single write a human's
   confirmation unlocks — none of them widens what the surrounding prompt granted.
 
-Delivery builders live in `workflow/engine/prompts.py`, question/discussion and PR-follow-up builders in
-`workflow/engine/conversation_prompts.py`, and the decomposition builder in
+Delivery builders live in `workflow/engine/prompts.py`, question/discussion, PR-follow-up, and human-reply resume
+builders in `workflow/engine/conversation_prompts.py`, and the decomposition builder in
 `workflow/engine/decomposition_prompts.py`. Their use of the awareness block is:
 
 - **Embedded** in `_build_implement_prompt`, `_build_documentation_prompt`, `_build_review_prompt`,
@@ -113,7 +113,8 @@ Delivery builders live in `workflow/engine/prompts.py`, question/discussion and 
   preserved PR-feedback batch) never saw the original spawn's block, so the re-grounding text must re-feed it
   alongside the issue body and conversation.
 - **Omitted** from the bare resume / followup builders (`_build_fix_prompt`, `_build_conflict_resolution_prompt`,
-  `_build_pr_comment_followup`, `_build_question_followup_prompt`, `_build_discussion_followup_prompt`): those text
+  `_build_pr_comment_followup`, `_build_human_reply_followup`, `_build_question_followup_prompt`,
+  `_build_discussion_followup_prompt`): those text
   payloads resume a live session that already received the block at spawn time, so repeating it would only burn
   tokens.
 
@@ -121,5 +122,69 @@ The default single-repo deployment (or any host with `EXPOSE_TRACKED_REPOS=off`)
 added prompt tokens and zero behavior change**. See
 [`../configuration.md#agent-roles`](../configuration.md#agent-roles) for the env var.
 
+## The developer report contract in developer prompts
+
+Every prompt a developer can finish work on teaches one report contract, `_DEVELOPER_REPORT_NOTE` in
+`workflow/engine/prompt_notes.py`. Its marker spellings come from `workflow/engine/report_outcome_models.py`, the
+vocabulary `workflow/engine/report_outcomes.py` reads, so what a developer is told to write and what the reader accepts
+cannot drift apart.
+
+The contract settles who owns the report. The developer writes it: the complete, current report for the issue — what
+the branch changes and why, how it was verified, and anything a reviewer should know — written whole every time,
+because it supersedes every earlier one. Publishing it on the pull request is routine orchestrator work, so the
+developer neither posts nor edits it and never asks a human whether or how to publish it. A report that needs no
+repository change is delivered with no commit at all: an empty commit, or any change made only to carry a report, is
+never asked for. Finished work ends on exactly one of two outcomes, outside any code fence and with nothing after it:
+
+- **Report ready for publication** — the complete report between a `REPORT: READY` line and a `REPORT: END` line.
+- **Report already on the pull request** — a single `REPORT: VERIFIED <location> <revision>` line, for a complete,
+  current report the developer read on the issue's pull request during the run, such as one a human posted or edited.
+  `<location>` is `https://github.com/<owner>/<repo>/pull/<number>` for the description, or that URL followed by
+  `#issuecomment-<id>` for a comment on it, and `<revision>` is `sha256:` followed by the 64 lowercase hex digits of
+  that text as GitHub returns it.
+
+No other line may open on `REPORT:`, and an outcome never shares a message with an `ACK:` line, which stays the one
+finished reply without a report on the prompts that offer it. A question, a disagreement, or work that could not
+finish ends on the question with neither outcome.
+
+Where the contract is carried:
+
+- **Whole** in the initial `_build_implement_prompt`, the automated-review `_build_fix_prompt`, the requirements-drift
+  `_build_user_content_change_prompt`, the PR-feedback `_build_pr_comment_followup`, the human-reply resume
+  `_build_human_reply_followup` (`_resume_developer_on_human_reply`), the late revision's `_revision_prompt`
+  (`decomposition/late_revision.py`), which resumes the developer against a human's guidance on an oversized
+  candidate, and `_DEVELOPER_CONTINUE_RETRY_PROMPT`, the retry a bare `/orchestrator continue` on a session-failure
+  park resumes the developer on (`implementing/continue_command.py`, `validating/awaiting.py`). The resumes carry it
+  whole because the transcript they continue may predate the contract or hold another stage's prompt. The fix and
+  PR-feedback prompts have an item that asks only for report content answered in the report, with no commit for it;
+  the PR-feedback prompt sends a developer whose comments say a human published or updated the report to read it
+  there and, when it is complete and current, end on `REPORT: VERIFIED`; and the drift, late-revision, and
+  PR-feedback prompts keep `ACK:` for a reply after which neither the branch nor the report has to change.
+- **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the report covers the
+  whole branch, the previous session's commits included, ownership and publication are restated, and the outcome is
+  the one the task below the preamble describes — that preamble also precedes tasks that close on markers of their
+  own.
+- **Absent** from the documentation, review, and conflict-resolution prompts, which close on markers of their own, and
+  from the conflict stage's own reply resume and bare-continue retry, which stays on the plain
+  `_CONTINUE_RETRY_PROMPT`.
+
+`report_outcomes._report_outcome_of_run` reads an outcome only out of a run that completed: a run never invoked,
+interrupted, timed out, refused by its provider, or exited nonzero is refused before its message is read. On a
+completed run's message, `_parse_report_outcome` answers `NO_MARKER` for a reply that never used the contract — a
+question, a disagreement, an `ACK:`, no-change prose — and `MALFORMED` for one that reached for it and missed: an
+unclosed or empty block, text after the outcome, a location or revision out of shape, a stray or second marker line,
+an `ACK:` beside it, or a marker line that may render as code. That last reading is made without a Markdown parser, so
+a doubt reads as code: a marker line four columns in or behind a tab, or on a line a code fence may enclose, whether
+that fence opened at the top level or in a list item (`workflow/engine/report_fences.py`). A `REPORT: VERIFIED`
+location and revision are parsed for shape only; completing on one is owed a fresh read of that location whose text
+still hashes to the revision.
+
+No stage handler calls `report_outcomes`, or publishes a report through the developer-report comment owners
+(`github/developer_reports.py`, `github/pull_request_reports.py`, and `workflow/engine/comments.py`'s
+`_publish_developer_report`). A developer run is still routed by its commits, its `ACK:` line, and the question parks
+the [delivery stages][delivery-stages] describe: nothing publishes the report an outcome carries, and a no-commit reply
+that ends on a report outcome is read the way its stage reads any other no-commit reply without `ACK:`.
+
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion
+[delivery-stages]: ../state-machine/delivery-stages.md

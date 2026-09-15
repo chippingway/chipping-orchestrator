@@ -163,13 +163,12 @@ def _resume_awaiting_dev_agent(
             pause_guard=True,
         )
     context.consume_comments()
-    followup = f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     return _dev_resume._resume_dev_with_text(
         context.gh,
         context.spec,
         context.issue,
         context.state,
-        followup,
+        _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
         pause_guard=True,
     )
 

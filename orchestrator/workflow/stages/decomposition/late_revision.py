@@ -20,8 +20,11 @@ than a retry, exactly as it is in every other stage that resumes on one.
 The prompt is this owner's own, and one line of it is a contract with the
 reconciliation: it asks for the same `ACK:` marker every other drift resume
 asks for, because an unchanged commit needs one before it may be re-measured
-as an answer. What the marker is read against, and what a commit nobody
-vouched for earns instead, are decided where the checkout is.
+as an answer. Like theirs, it carries the developer report contract and
+offers the marker only while the report needs no change either, since
+guidance can leave the code as it is and still change what the report says.
+What the marker is read against, and what a commit nobody vouched for earns
+instead, are decided where the checkout is.
 
 Nothing before that reconciliation is durable. The guidance is consumed, the
 park is cleared, and the session is recorded in memory; the write that keeps
@@ -93,18 +96,23 @@ _REVISION_PROMPT = (
     "Guidance:\n{guidance}\n\n"
     "Leave the worktree CLEAN: anything uncommitted is not part of the "
     "candidate and stops the re-measurement.\n\n"
-    "If your existing commits already satisfy the guidance and no further "
-    "change is needed, leave the commit exactly as it is and end your final "
-    "message with EXACTLY this marker, alone on its own line:\n\n"
+    "{commit_style}\n\n"
+    "{report}\n\n"
+    "If you committed a change, or your report has to change to answer the "
+    "guidance, end with a report outcome. If instead your existing commits "
+    "already satisfy the guidance, no further change is needed, and nothing "
+    "your report says has to change, leave the commit exactly as it is and "
+    "end your final message with EXACTLY this marker, alone on its own "
+    "line:\n\n"
     "  ACK: <one-line justification>\n\n"
     "The marker is the only thing that lets an unchanged commit through: "
     "without it, a run that changed nothing is read as one that could not "
     "answer, and the orchestrator parks for a human instead of re-measuring. "
     "So use `ACK:` ONLY when you are certain the committed work covers the "
-    "guidance. If you have a clarification question or are unsure, do NOT use "
-    "it -- reply with the question and the orchestrator will park awaiting a "
-    "human, quoting what you asked.\n\n"
-    "{commit_style}\n\n"
+    "guidance, and never in the same message as a report outcome. If you "
+    "have a clarification question or are unsure, do NOT use it -- reply "
+    "with the question and the orchestrator will park awaiting a human, "
+    "quoting what you asked.\n\n"
     "{foreground}"
 )
 
@@ -283,5 +291,6 @@ def _revision_prompt(issue: Issue, guidance: tuple) -> str:
         ),
         guidance=quoted or f"(see issue #{issue.number})",
         commit_style=_prompt_notes._COMMIT_STYLE_NOTE,
+        report=_prompt_notes._DEVELOPER_REPORT_NOTE,
         foreground=_prompt_notes._FOREGROUND_ONLY_NOTE,
     )

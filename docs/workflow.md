@@ -18,7 +18,8 @@ behavior belong to [`state-machine.md`](state-machine.md).
   role.
 - [`workflow/conversations.md`](workflow/conversations.md) — the two operator-applied conversation labels: what the
   `question` and `discussion` prompts grant and forbid, what a round may leave behind, the plan PR a confirmed design
-  earns, and the tracked-repository awareness block the working-agent prompts carry.
+  earns, the tracked-repository awareness block the working-agent prompts carry, and the report contract every
+  developer prompt teaches with the reader of its outcomes.
 - [`workflow/command-specs.md`](workflow/command-specs.md) — the spec grammar, backend selection and `CODEX_BIN` /
   `CLAUDE_BIN`, worked examples, and what pinning a spec buys.
 
@@ -78,6 +79,19 @@ granted, and a single-repo host gets an empty string and zero added tokens. Whic
 contains:
 [`workflow/conversations.md#tracked-repository-awareness-in-working-agent-prompts`][tracked-repos]. Disclosure
 analysis: [`security.md#cross-repo-awareness-disclosure-expose_tracked_repos`][disclosure].
+
+## Developer report contract in developer prompts
+
+Every prompt a developer can finish work on — the initial implementation, an automated-review fix, a
+requirements-drift resume, PR feedback, a human-reply resume, a late revision against a human's guidance, and the
+bare-continue retry — teaches one report contract: the developer writes the complete, current report, the
+orchestrator publishes it as routine work that needs no permission, a report that needs no repository change needs no
+commit, and finished work ends on exactly one outcome — the report between `REPORT: READY` and `REPORT: END` lines,
+or a `REPORT: VERIFIED <location> <revision>` line naming
+a report already on the pull request. A fresh respawn's preamble restates the ownership and defers the outcome to the
+task below it. `workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and no stage
+handler calls it. Full contract:
+[`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts).
 
 ## Examples
 
