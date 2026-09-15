@@ -43,7 +43,8 @@ spellings and pinned-state JSON keys are a compatibility contract, so this area 
 
 - [`state-machine/labels-and-state.md`](state-machine/labels-and-state.md) — the label set and control labels, the
   typed states and the transition guard, the migration off the pre-namespace spellings, what one tick reads and writes,
-  and every pinned-state key.
+  and every pinned-state key, including how an accepted change's exact exemption, its semantic identity, and the
+  rotation that carries it through a workflow rewrite relate.
 - [`state-machine/delivery-stages.md`](state-machine/delivery-stages.md) — pickup, drift detection, decomposition, and
   the dev / reviewer / docs loop through `in_review`, `workflow:fixing`, and `workflow:resolving_conflict`, plus the
   two passes that belong to no label of their own: the guard every dispatched issue passes before its handler, and
