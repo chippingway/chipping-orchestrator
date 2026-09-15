@@ -268,6 +268,13 @@ where you put it rather than greeted a second time, so nothing runs again until 
   outranks the command entirely: the issue parks on the edit first, and the decision has to be made again against the
   requirements as they now read.
 
+  The one way the exemption moves is the orchestrator's own rewrite of that exact commit — the squash on approval,
+  the base refresh's clean rebase, or the clean rebase `workflow:resolving_conflict` runs. Where the rewritten commit
+  contributes exactly the change you authorized, the exemption and your authorization carry over to it rather than
+  asking you again; a rewrite that changed anything, and any commit the orchestrator did not rewrite itself, is
+  measured like any other candidate
+  ([how that is proved](docs/state-machine/labels-and-state.md#exemption-identity-and-rotation)).
+
   Publishing it needs the issue's checkout, and where that is not ready the orchestrator holds rather than asking you
   twice. The worktree has to be on this host, its tree carrying nothing a push would leave behind, and its head still
   on the commit you named; where any of the three is not true, nothing is published, nothing is said, and your
