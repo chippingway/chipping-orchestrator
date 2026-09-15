@@ -21,6 +21,8 @@ from tests.support.fakes import make_issue
 BASE_SHA = "base1234"
 ORIGINAL_HEAD = "head5678"
 PLAN_ISSUE = 60
+PLAN_PR = 61
+PLAN_PR_REFERENCE = f" (#{PLAN_PR})"
 ISSUE_TITLE = "add a sparkly thing"
 PREFIXED_SUBJECT = "fix: typo"
 PLAIN_SUBJECT = "add foo"
@@ -104,12 +106,33 @@ class SquashMessageTest(unittest.TestCase):
             message = self._message(PLAIN_SUBJECT)
         self.assertEqual(message, f"event: {ISSUE_TITLE}\n")
 
-    def _message(self, first_subject: str) -> str:
+    def test_both_roads_end_in_one_reference(self) -> None:
+        # Equality with the whole message is what rules out a body or trailer
+        # riding along, and the last case is a first subject an earlier
+        # approval round already squashed to.
+        for first_subject, subject in (
+            (PREFIXED_SUBJECT, PREFIXED_SUBJECT),
+            (PLAIN_SUBJECT, f"event: {ISSUE_TITLE}"),
+            (f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}", PREFIXED_SUBJECT),
+        ):
+            with (
+                self.subTest(first_subject=first_subject),
+                patch.object(titles, INFER_HELPER, return_value="event"),
+            ):
+                self.assertEqual(
+                    self._message(first_subject, PLAN_PR),
+                    f"{subject}{PLAN_PR_REFERENCE}\n",
+                )
+
+    def _message(
+        self, first_subject: str, pr_number: int | None = None,
+    ) -> str:
         return planning._squash_message(
             _spec(),
             WORKTREE,
             make_issue(PLAN_ISSUE, title=ISSUE_TITLE),
             (first_subject, PLAIN_SUBJECT),
+            pr_number,
         )
 
 
@@ -122,7 +145,7 @@ class PrepareSquashTest(unittest.TestCase):
         self.assertEqual(plan.original_head, ORIGINAL_HEAD)
         self.assertEqual(plan.subjects, (PREFIXED_SUBJECT, PLAIN_SUBJECT))
         self.assertEqual(plan.count, 2)
-        self.assertEqual(plan.message, f"{PREFIXED_SUBJECT}\n")
+        self.assertEqual(plan.message, f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}\n")
 
     def test_single_commit_plan_carries_no_message(self) -> None:
         # Nothing to squash, so no message is built -- the caller reads the
@@ -191,7 +214,10 @@ class PrepareSquashTest(unittest.TestCase):
             ),
         ):
             return planning._prepare_squash(
-                _spec(), WORKTREE, make_issue(PLAN_ISSUE, title=ISSUE_TITLE),
+                _spec(),
+                WORKTREE,
+                make_issue(PLAN_ISSUE, title=ISSUE_TITLE),
+                PLAN_PR,
             )
 
 

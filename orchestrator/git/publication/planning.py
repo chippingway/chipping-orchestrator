@@ -23,7 +23,7 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import commands
-from orchestrator.git.publication import titles
+from orchestrator.git.publication import pr_references, titles
 from orchestrator.git.verification import probes as verification_probes, status as _worktree_status
 
 
@@ -118,27 +118,45 @@ def _squash_message(
     worktree: Path,
     issue: Issue,
     subjects: tuple[str, ...],
+    pr_number: int | None,
 ) -> str:
     """Build the subject-only message for a multi-commit squash.
 
     A branch whose commits were all written with no subject at all offers
     nothing to reuse, so the message is inferred from the issue exactly as it
     is for a first subject carrying no reusable prefix.
+
+    Whichever of the two picked the subject, it ends in the reference to
+    `pr_number` through the formatter every publisher shares, so a reused
+    first subject an earlier approval round already squashed to is not given
+    a second one. None is a squash whose subject references no pull request,
+    and it gets the selected subject back exactly as it was picked.
     """
     first_subject = subjects[0] if subjects else ""
     if titles._is_prefixed_subject(first_subject):
-        return f"{first_subject}\n"
-    fallback_prefix = titles._infer_subject_prefix(spec, worktree, issue)
-    subject = titles._pr_title_from_commit_or_issue(
-        issue, first_subject, fallback_prefix,
-    )
+        subject = first_subject
+    else:
+        fallback_prefix = titles._infer_subject_prefix(spec, worktree, issue)
+        subject = titles._pr_title_from_commit_or_issue(
+            issue, first_subject, fallback_prefix,
+        )
+    if pr_number is not None:
+        subject = pr_references._subject_with_pr_reference(subject, pr_number)
     return f"{subject}\n"
 
 
 def _prepare_squash(
-    spec: _config_models.RepoSpec, worktree: Path, issue: Issue,
+    spec: _config_models.RepoSpec,
+    worktree: Path,
+    issue: Issue,
+    pr_number: int | None,
 ) -> _SquashPlan:
-    """Collect every precondition before the branch rewrite begins."""
+    """Collect every precondition before the branch rewrite begins.
+
+    `pr_number` is the pull request the squash message references, or None
+    where it references none. Only a branch with something to collapse spends
+    it, since a single commit builds no message at all.
+    """
     base_sha = _squash_base_sha(spec, worktree)
     original_head = verification_probes._head_sha(worktree)
     if not original_head:
@@ -148,6 +166,7 @@ def _prepare_squash(
     count = _squash_commit_count(worktree, base_sha)
     subjects = _squash_subjects(worktree, base_sha)
     message = (
-        _squash_message(spec, worktree, issue, subjects) if count > 1 else ""
+        _squash_message(spec, worktree, issue, subjects, pr_number)
+        if count > 1 else ""
     )
     return _SquashPlan(base_sha, original_head, subjects, message, count)

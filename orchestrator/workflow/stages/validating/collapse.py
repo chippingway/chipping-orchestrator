@@ -133,12 +133,15 @@ def _finished_collapse(
         return True
     # The subject the size gate decides about, built over the checkout this
     # route read rather than one rebuilt a layer down: what a recovery may do
-    # with a worktree is exactly what `_checkout_of` decided.
+    # with a worktree is exactly what `_checkout_of` decided. No reviewer ran
+    # on this road, so a squash made afresh references the pull request the
+    # pinned comment records.
     _approval._squashed_and_handed_off(
         _late_records._gate(
             gh, spec, issue, state, _checkout_of(spec, issue, state),
         ),
         _naming._resolve_branch_name(state, spec, issue.number),
+        state.get(_approval._PR_NUMBER),
     )
     return True
 

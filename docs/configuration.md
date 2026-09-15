@@ -336,8 +336,9 @@ examples.
 - `SQUASH_ON_APPROVAL` — default `on`. after the reviewer emits `VERDICT: APPROVED`, squash the dev's commits on the
   PR branch into a single subject-only commit and force-push with lease. The subject reuses the dev's first commit
   subject when it carries a reusable `<prefix>:` form (Conventional **or** repo-local such as `event:`/`career:`);
-  otherwise it is synthesized with a prefix inferred from recent base-branch history. `off` leaves the per-step commit
-  history intact (useful when downstream tooling depends on it). What the switch decides is whether a **new** collapse
+  otherwise it is synthesized with a prefix inferred from recent base-branch history. Either one ends in the pull
+  request reference `PR_REF_IN_SUBJECT` describes. `off` leaves the per-step commit history intact (useful when
+  downstream tooling depends on it). What the switch decides is whether a **new** collapse
   is made: one an earlier tick already made is finished either way, because the commits it replaced are off the branch
   and the remote either carries the object that replaced them or does not, so an install that flips the switch off
   between the rewrite and the push does not abandon reviewer-approved work off the pull request. An issue with no
@@ -355,8 +356,11 @@ examples.
   number as an issue to close. `off` suffixes nothing, leaves a single-commit branch unrewritten, and does not amend
   the `docs:` commit. Turn it off on a target repo that lands pull requests with GitHub's **Squash and merge** and its
   default commit message: GitHub appends its own `(#N)` to the squash commit title, so a single-commit pull request
-  would carry the number twice. The switch is dormant for now — it is parsed and published on `orchestrator.config`,
-  but no publication road reads it yet, so neither value changes a published subject today. Parsed as a boolean:
+  would carry the number twice. Only the multi-commit approval squash reads it so far: the reused first-commit subject
+  and the synthesized one alike end in the reference to the pull request the reviewer approved — or to the one the
+  pinned comment records, when the recovery of an unfinished squash collapses the branch afresh — and `off` leaves
+  that message exactly as it was selected. A collapse the recovery finishes keeps the subject it was committed under,
+  and a single-commit branch and the `docs:` commit are not suffixed yet, whichever value is set. Parsed as a boolean:
   `1` / `true` / `on` / `yes` enable, anything else disables.
 - `EXPOSE_TRACKED_REPOS` — default `on`. tell working agents about the *other* repos this orchestrator tracks (slug,
   local `target_root`, base branch) for cross-repo reference. Inert for single-repo hosts — the awareness block is

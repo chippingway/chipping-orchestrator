@@ -18,6 +18,7 @@ from unittest import mock
 from orchestrator import config
 from orchestrator.git import branch_transport
 from orchestrator.git.publication import rewrite as _rewrite, squash
+from orchestrator.workflow.late_split import payloads as _payloads
 from tests.git.publication.squash_gate_support import (
     SQUASH_PR_NUMBER,
     PublicationSeed,
@@ -47,6 +48,10 @@ HARD_RESET = "--hard"
 REMOTE_BASE_REF = "origin/main"
 GIT_REV_PARSE = "rev-parse"
 HEAD_REF = "HEAD"
+
+# The pinned field a squash's pull request is read back from, as the recovery
+# road reads it before handing the number to the squash subject.
+PINNED_PR_NUMBER = "pr_number"
 
 # The seam `_InterruptsTheRewrite` is hung on, which is the step between the
 # two entry readings: the first answered while the branch was intact, and
@@ -260,9 +265,13 @@ class _SquashScenarioMixin:
             self.enterContext(
                 mock.patch.object(config, setting, setting_value),
             )
+        gate = _squash_gate(self, publication or PublicationSeed())
+        # The number a recovery hands in: whatever the pinned comment records,
+        # read as an identity, so a case that damaged it references nothing.
         raw_result = squash._squash_and_force_push(
-            _squash_gate(self, publication or PublicationSeed()),
+            gate,
             self.branch,
+            _payloads.as_identity(gate.state.get(PINNED_PR_NUMBER)),
         )
         return SquashRun(outcome=raw_result, push_mock=push_mock)
 

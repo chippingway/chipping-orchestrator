@@ -2587,7 +2587,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        `_squash_and_force_push` (subject reuses the first commit when it carries a reusable `<prefix>:` form —
        Conventional **or** repo-local such as `event:`/`career:` — otherwise `<inferred-prefix>: <issue title>`, where
        the prefix is inferred from recent base-branch history via `_infer_subject_prefix` and falls back to
-       `fix:`/`feat:` only when no repo-local prefix dominates; pushed with `--force-with-lease`). That call answers
+       `fix:`/`feat:` only when no repo-local prefix dominates; with `PR_REF_IN_SUBJECT` on (default) either subject
+       then ends in ` (#N)` through `_subject_with_pr_reference`, which leaves one already ending in that reference
+       alone — `N` is the reviewer run's `pr_number` here, and the pinned one when `_recovers_a_recorded_collapse`
+       collapses the branch afresh — while `off` keeps the selected subject exactly, and a single-commit branch is not
+       rewritten for it; pushed with `--force-with-lease`). That call answers
        a squash an earlier tick did not finish first, from the record that squash wrote before it ran, so a
        collapsed-but-unpublished branch is resumed rather than reported as having nothing to squash — and it does
        so whatever `SQUASH_ON_APPROVAL` says, since the switch decides whether a NEW collapse is made and one

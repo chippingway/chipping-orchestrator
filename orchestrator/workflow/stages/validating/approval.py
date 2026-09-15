@@ -61,6 +61,7 @@ from orchestrator.workflow.engine import comments as _comments, guards as _guard
 from orchestrator.workflow.late_split import (
     collapses as _collapses,
     handoffs as _late_handoffs,
+    payloads as _payloads,
 )
 from orchestrator.workflow.stages.validating import (
     handoff as _handoff,
@@ -74,7 +75,8 @@ log = logging.getLogger("orchestrator.workflow")
 
 # The pull request this issue's work is on, read off the pinned comment rather
 # than off a reviewer run: the tail below is reached with one behind it and
-# without, and the record is the same either way.
+# without, and the record is the same either way. The squash subject is the one
+# thing each road hands its own number to, beside the gate and the branch.
 _PR_NUMBER = "pr_number"
 
 # The park flag both roads here read and write, spelled beside the pull
@@ -221,7 +223,7 @@ def _parked_on_the_squash(state: _pinned_state.PinnedState) -> bool:
     )
 
 
-def _squashed_and_handed_off(gate, branch: str) -> None:
+def _squashed_and_handed_off(gate, branch: str, pr_number) -> None:
     """Squash what the branch carries and hand the issue on, or stop.
 
     The whole of what an approval owes past the reviewer, and the whole of
@@ -237,6 +239,12 @@ def _squashed_and_handed_off(gate, branch: str) -> None:
     every part of them, and the checkout in particular is one only that road
     may decide -- a recovery reads the worktree where it stands and rebuilds
     it only where it is absent.
+
+    `pr_number` is handed in on the same terms: the pull request the squash
+    subject references, which the approval holds on its reviewer run and the
+    recovery reads off the pinned comment. It is read as an identity before
+    the squash sees it, so a value that is not a whole positive number
+    references nothing rather than spelling a pull request no link reaches.
 
     The squash is reached on every approval, whatever `SQUASH_ON_APPROVAL`
     says. The switch decides whether a NEW collapse is made and the squash
@@ -261,7 +269,9 @@ def _squashed_and_handed_off(gate, branch: str) -> None:
     `documenting` over a condition nobody is waiting on any more.
     """
     gh, issue, state = gate.gh, gate.issue, gate.state
-    squashed = _squash._squash_and_force_push(gate, branch)
+    squashed = _squash._squash_and_force_push(
+        gate, branch, _payloads.as_identity(pr_number),
+    )
     if squashed.held:
         # The gate owns the issue from here, and it owns it in one of two
         # shapes. Routed, the squashed commit is on the branch, the label is
@@ -282,8 +292,8 @@ def _squashed_and_handed_off(gate, branch: str) -> None:
             gh, issue, state, squashed.error, standing=squashed.standing,
         )
         return
-    pr_number = state.get(_PR_NUMBER)
-    if not _squash_notice_posted(gh, issue, state, pr_number, squashed.count):
+    pinned_pr = state.get(_PR_NUMBER)
+    if not _squash_notice_posted(gh, issue, state, pinned_pr, squashed.count):
         # The notice this collapse owed did not go out, and the count behind
         # it is on the record the next tick would drop. Keep it, persist what
         # did land, and leave the label here: the recovery republishes the
@@ -294,7 +304,7 @@ def _squashed_and_handed_off(gate, branch: str) -> None:
     # the notice's own id, so the walk steps past it. Seeded ahead of the post
     # instead, that notice would reach in_review as fresh human PR feedback
     # and wake the dev on an informational orchestrator post.
-    _handoff._seed_in_review_handoff_watermarks(gh, issue, state, pr_number)
+    _handoff._seed_in_review_handoff_watermarks(gh, issue, state, pinned_pr)
     # A squash that finished ends the park it took: the branch is published
     # and the label is about to move, so an `awaiting_human` carried into
     # `documenting` would hold an issue over a condition that is answered.
@@ -390,4 +400,4 @@ def _finalize_validating_approval(
         gh.write_pinned_state(issue, state)
         return
     _handoff._post_approval_comment(gh, issue, state, reviewer_run)
-    _squashed_and_handed_off(gate, branch)
+    _squashed_and_handed_off(gate, branch, reviewer_run.pr_number)

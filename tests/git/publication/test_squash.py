@@ -7,13 +7,19 @@ from __future__ import annotations
 import unittest
 
 from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_gate_support import PublicationSeed
+from tests.git.publication.squash_gate_support import SQUASH_PR_NUMBER, PublicationSeed
 
 GIT_LOG = "log"
 LAST_COMMIT = "-1"
 SUBJECT_FORMAT = "--pretty=%s"
 FULL_MESSAGE_FORMAT = "--pretty=%B"
 SCRATCH_FILE = "scratch.txt"
+
+# The switch the subject cases run under, set rather than inherited so an
+# operator environment that turned it off cannot change what they read back,
+# and the reference it ends each of their subjects in.
+PR_REF_IN_SUBJECT = "PR_REF_IN_SUBJECT"
+REFERENCE = f" (#{SQUASH_PR_NUMBER})"
 
 
 def _last_commit(worktree, pretty: str) -> str:
@@ -30,14 +36,15 @@ class SquashSubjectSelectionTest(
     squash_support.SquashGitFixtureMixin,
     unittest.TestCase,
 ):
-    """The committed subject is the one the plan selected."""
+    """The committed subject is the one the plan selected, referencing its PR."""
 
     def test_squash_collapses_three_commits_to_one(self) -> None:
         # First commit's subject ("fix: typo") is conventional-commit form,
-        # so the squash subject reuses it. The squash message is
-        # subject-only: the repo's Conventional-Commits-subject-only rule
-        # forbids bodies on orchestrator-authored commits.
-        squash_run = self._squash()
+        # so the squash subject reuses it and ends it in the pull request's
+        # reference. The squash message is subject-only: the repo's
+        # Conventional-Commits-subject-only rule forbids bodies on
+        # orchestrator-authored commits.
+        squash_run = self._referenced_squash()
         self.assertTrue(
             squash_run.success,
             f"expected success, got err={squash_run.error!r}",
@@ -53,13 +60,13 @@ class SquashSubjectSelectionTest(
             f"expected one commit on top of base, got {commits!r}",
         )
         # Squash subject reuses the conventional-commit first subject.
-        self.assertEqual(commits[0], "fix: typo")
+        self.assertEqual(commits[0], f"fix: typo{REFERENCE}")
         # Body is empty (subject-only commit): the repo's commit-style
         # rule forbids a body or trailer on orchestrator-authored
         # commits, so the squash MUST NOT carry a `Squashed commits: -...`
         # listing.
         body = _last_commit(self.work, FULL_MESSAGE_FORMAT)
-        self.assertEqual(body, "fix: typo")
+        self.assertEqual(body, f"fix: typo{REFERENCE}")
         self.assertNotIn("Squashed commits:", body)
 
     def test_issue_title_used_without_conventional(
@@ -67,7 +74,7 @@ class SquashSubjectSelectionTest(
     ) -> None:
         # Reset and rebuild the branch with non-conv-commit first subject.
         self._rebuild_topic(("typo fix", "feat: add foo"), "g")
-        squash_run = self._squash(
+        squash_run = self._referenced_squash(
             publication=PublicationSeed(
                 issue=self._make_issue(title="rename frobnicator"),
             ),
@@ -77,7 +84,7 @@ class SquashSubjectSelectionTest(
 
         self.assertEqual(
             _last_commit(self.work, SUBJECT_FORMAT),
-            "feat: rename frobnicator",
+            f"feat: rename frobnicator{REFERENCE}",
         )
 
     def test_keeps_custom_prefix_first_subject(self) -> None:
@@ -88,7 +95,7 @@ class SquashSubjectSelectionTest(
             ("career: add a senior role", "fix wording"),
             "c",
         )
-        squash_run = self._squash(
+        squash_run = self._referenced_squash(
             publication=PublicationSeed(
                 issue=self._make_issue(title="hiring page"),
             ),
@@ -97,7 +104,18 @@ class SquashSubjectSelectionTest(
         self.assertEqual(squash_run.count, 2)
         self.assertEqual(
             _last_commit(self.work, SUBJECT_FORMAT),
-            "career: add a senior role",
+            f"career: add a senior role{REFERENCE}",
+        )
+
+    def test_a_referenced_subject_is_not_doubled(self) -> None:
+        # A second approval round reuses the subject the first one squashed
+        # to, which already ends in this pull request's reference.
+        self._rebuild_topic((f"fix: typo{REFERENCE}", "fix wording"), "r")
+        squash_run = self._referenced_squash()
+        self.assertTrue(squash_run.success, squash_run.error)
+        self.assertEqual(
+            _last_commit(self.work, FULL_MESSAGE_FORMAT),
+            f"fix: typo{REFERENCE}",
         )
 
     def test_infers_prefix_from_base_history(self) -> None:
@@ -107,7 +125,7 @@ class SquashSubjectSelectionTest(
         # `feat:`.
         # Seed the base branch with a history dominated by `event:`.
         self._seed_inferred_prefix_history()
-        squash_run = self._squash(
+        squash_run = self._referenced_squash(
             publication=PublicationSeed(
                 issue=self._make_issue(title="redesign the homepage"),
             ),
@@ -116,8 +134,12 @@ class SquashSubjectSelectionTest(
         self.assertEqual(squash_run.count, 2)
         self.assertEqual(
             _last_commit(self.work, SUBJECT_FORMAT),
-            "event: redesign the homepage",
+            f"event: redesign the homepage{REFERENCE}",
         )
+
+    def _referenced_squash(self, **squash_options):
+        """One squash run with the pull-request reference switched on."""
+        return self._squash(**squash_options, **{PR_REF_IN_SUBJECT: True})
 
 
 class SquashSkipsRewriteTest(

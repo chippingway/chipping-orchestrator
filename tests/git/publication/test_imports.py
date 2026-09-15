@@ -177,8 +177,8 @@ class CleanProcessImportTest(unittest.TestCase):
     """Each owner imports standalone in a fresh interpreter.
 
     `pr_references` depends on nothing, `probes` and `titles` each only on the
-    config and git command owners, `planning` on `titles` plus the
-    verification probes, and
+    config and git command owners, `planning` on `titles` and `pr_references`
+    plus the verification probes, and
     `rewrite` / `resume` / `standing` / `squash` layer on top, so importing any
     one of them first must not need a name a half-run module has not defined
     yet. A subprocess per module gives each a clean `sys.modules` no other test
