@@ -113,8 +113,14 @@ def _outside_the_gate(
     is the wider fact that no developer ran: a rebase, a resolution, and a
     recovery push each set that and are each new work this gate has never
     seen.
+
+    A caller that may publish on a transfer permit and on nothing else is kept
+    inside whatever the switch says, because the permit is asked over the
+    publication entry only the gate freezes. Kept out, it would reach that
+    question with no entry, be refused on every tick, and park an interrupted
+    rebase the permit would have finished.
     """
-    if config.DECOMPOSE or recorded.candidate_sha:
+    if config.DECOMPOSE or recorded.candidate_sha or gate.permit_only:
         return False
     return not gate.answering and not _late_approval_reading._approved_commit(gate.state)
 

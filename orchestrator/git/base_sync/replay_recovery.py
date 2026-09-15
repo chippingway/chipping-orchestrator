@@ -3,22 +3,22 @@
 """Coordinate the vouched-replay recovery in its required decision order.
 
 The refresh enters it through `recovery`. It checks label and unmoved-head
-cleanup before comparison, recognizes a published head before considering a
-retry, and refuses foreign publication, prior announcement, rollback, damaged
-transfer, and unclaimed checkout in that order. Only then may recorded or
-transfer-vouched replay evidence authorize the shared recovery push; counts
-remain the fallback for a head neither form of evidence describes.
+cleanup before comparison, hands a published head to `landed_recovery` before
+considering a retry, and refuses foreign publication, prior announcement,
+rollback, damaged transfer, and unclaimed checkout in that order. Only then
+may recorded or transfer-vouched replay evidence authorize the shared recovery
+push; counts remain the fallback for a head neither form of evidence describes.
 """
 from __future__ import annotations
 
 from orchestrator.git.base_sync import (
+    landed_recovery as _landed_recovery,
     outcomes,
     recovery_push as _recovery_push,
     replay_cleanup as _replay_cleanup,
     replay_evidence as _replay_evidence,
     replay_refusals as _replay_refusals,
     snapshot,
-    transfer_values as _transfer_values,
     transfers,
 )
 from orchestrator.git.base_sync.models import (
@@ -26,6 +26,7 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoverySnapshot,
 )
 from orchestrator.git.base_sync.state import _PR_REFRESH_DETOUR_LABELS
+from orchestrator.git.base_sync.transfer_values import _Handoff
 
 
 def _recover_vouched_replay_context(
@@ -70,10 +71,9 @@ def _route_vouched_snapshot(
     far as -- still on the anchor and the push never went out, on the rewrite
     and it did, anywhere else and somebody moved the branch out of band. What
     the pinned comment CARRIES says which of the transfer's own writes it got
-    as far as, and that is what the road with something left to publish is
-    handed: the evidence a permit is decided on. It costs no git and no
-    request, so the road that has nothing left to publish pays nothing for a
-    question it does not ask.
+    as far as, and both roads are handed it: the evidence a permit is decided
+    on where something is left to publish, and the account a landed head is
+    finished against where nothing is. It costs no git and no request.
 
     The unpublished road is answered by exact SHAs rather than by the
     ahead/behind counts, and for the interrupted rebase that is the whole
@@ -92,19 +92,18 @@ def _route_vouched_snapshot(
     )
     if completed is None:
         return True
+    carried = transfers._carried_by(context, completed.head)
     if completed.local_head and completed.local_head == completed.remote_head:
-        return outcomes._finalize_already_published_recovery(
-            context, completed,
+        return _landed_recovery._finish_published_recovery(
+            context, completed, carried,
         )
-    return _route_an_unpublished_head(
-        context, completed, transfers._carried_by(context, completed.head),
-    )
+    return _route_an_unpublished_head(context, completed, carried)
 
 
 def _route_an_unpublished_head(
     context: _AutoRebaseRecoveryContext,
     completed: _AutoRebaseRecoverySnapshot,
-    carried: _transfer_values._Handoff,
+    carried: _Handoff,
 ) -> bool:
     """Route a checkout the pull request is not standing on.
 
@@ -127,7 +126,7 @@ def _route_an_unpublished_head(
 def _route_a_moved_remote(
     context: _AutoRebaseRecoveryContext,
     completed: _AutoRebaseRecoverySnapshot,
-    carried: _transfer_values._Handoff,
+    carried: _Handoff,
 ) -> bool:
     """Route a remote neither SHA this recovery holds accounts for.
 

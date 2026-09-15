@@ -7,7 +7,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from orchestrator.git.base_sync import refresh
+from orchestrator.git.base_sync import recovery_holds, refresh
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
 from tests.git.base_sync import base_sync_helpers as fixtures
 from tests.git.base_sync.sync_test_support import _patch_base_sync
@@ -22,6 +22,17 @@ LABEL_RESOLVING_CONFLICT = "workflow:resolving_conflict"
 THREE_BEHIND_STDOUT = "3\n"
 
 STALE_ANCHOR = "stale-anchor"
+
+AUTO_REBASE_PARK = "auto_base_rebase_push_failed"
+
+UNREADABLE_RETURNCODE = 128
+
+# The two roads an anchored PR worktree takes: a base lag the refresh can
+# count, and one it cannot.
+LAG_READINGS = (
+    fixtures._git_result(stdout=THREE_BEHIND_STDOUT),
+    fixtures._git_result(returncode=UNREADABLE_RETURNCODE),
+)
 
 # The operator-owned controls the dispatcher hard-skips on, exercised against
 # a pre-PR worktree and a PR-having one because each takes its own route.
@@ -68,6 +79,29 @@ class RefreshGuardTest(unittest.TestCase):
         self.assertIsNone(
             gh.pinned_data(fixtures.ISSUE).get(fixtures.KEY_PENDING_PUSH_SHA),
         )
+
+    def test_terminal_pr_ends_an_anchor_under_a_park(self) -> None:
+        # A park this refresh left waits on a reply, but the anchor under it
+        # is still ended once the pull request is over: left standing, it holds
+        # the handler that finalizes the issue for as long as nobody replies.
+        for reading in LAG_READINGS:
+            with self.subTest(readable=not reading.returncode):
+                gh = self._seeded_client(
+                    pending_auto_base_rebase_push_sha=STALE_ANCHOR,
+                    awaiting_human=True,
+                    park_reason=AUTO_REBASE_PARK,
+                )
+                fixtures._add_pr(gh, merged=True, pr_state="closed")
+
+                self._run_sync(gh, git=MagicMock(return_value=reading))
+
+                issue = gh._issues[fixtures.ISSUE]
+                state = gh.read_pinned_state(issue)
+                self.assertIsNone(state.get(fixtures.KEY_PENDING_PUSH_SHA))
+                self.assertEqual(state.get(fixtures.KEY_PARK_REASON), AUTO_REBASE_PARK)
+                self.assertFalse(recovery_holds._recovery_holds_dispatch(
+                    issue, LABEL_IN_REVIEW, state, fixtures.WORKTREE,
+                ))
 
     def _assert_control_skips(self, control: str, pinned_pr: bool) -> None:
         gh = self._seeded_client(

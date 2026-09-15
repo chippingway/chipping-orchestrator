@@ -662,6 +662,15 @@ and a permission left standing or dropped moved no verdict and so says nothing e
 write and the record leaves the proof the settlement kept, and the reconciliation ahead of the next handler reports
 from it once.
 
+The base refresh's rebase of an accepted commit is recoverable at every one of those writes, and its recovery never
+falls back on a reading. A replay git produced before anything recorded it is vouched for by what it contributes over
+the terms the attempt pinned before git ran; a push that never went out is reissued on the permit alone, entered into
+the gate whatever `DECOMPOSE` says; a push that landed with its receipt lost is settled through the leased no-op;
+and a pull request that merged or closed over the attempt ends the attempt, its debt, and its permission in one
+write, settling the permission where the pull request ended on the rewrite it names. Every road finishes without an
+agent, a measurement, or a second adjudication, or parks where the record cannot account for what it finds
+([`../state-machine/labels-and-state.md#base-refresh`](../state-machine/labels-and-state.md#base-refresh)).
+
 The approval holds the switch back for the commit it *names* and no other, which is why the switch is asked twice —
 once at the door, cheaply, and once past the proof. An approval is a claim about one object id, and nothing can say
 whether the head is that id until the head is proved; past that proof and not it, the approval describes work this

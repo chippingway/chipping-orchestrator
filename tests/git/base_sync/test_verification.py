@@ -14,6 +14,7 @@ from tests.git.base_sync.refresh_test_support import (
     _CrashRecoveryVerificationFixture,
     _diverged,
     _git_result,
+    _pending_attempt,
     _RemoteHeadGit,
     _SyncWorktreeWithBaseFixture,
 )
@@ -130,10 +131,7 @@ class CrashRecoveryDivergenceUnitTest(
     unittest.TestCase,
 ):
     def test_landed_push_behind_falls_through(self) -> None:
-        self._seed_pr_issue(
-            pending_auto_base_rebase_push_sha=BEFORE_SHA,
-            review_round=3,
-        )
+        self._seed_pr_issue(**_pending_attempt(REBASED_SHA), review_round=3)
         # The crashed tick's own push landed, so the pull request is already
         # standing on the rebased head the fall-through leases against.
         self._add_pr(head=FakePRRef(sha=REBASED_SHA))

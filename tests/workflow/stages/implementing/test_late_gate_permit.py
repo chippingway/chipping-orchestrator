@@ -12,11 +12,14 @@ verdict may move onto it, which is what the write past the push turns on.
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.implementing import (
+    late_freeze as _freeze,
     late_gate as _gate,
     late_gate_models as _late_gate_models,
     late_gate_permission as _late_gate_permission,
@@ -73,6 +76,21 @@ class PermitOnlyGateTest(unittest.TestCase):
 
         self.assertEqual(entered.permitted_sha, MEASURED_CANDIDATE_SHA)
         self.assertEqual(entered.candidate_sha, MEASURED_CANDIDATE_SHA)
+
+    def test_the_switch_keeps_it_inside_the_gate(self) -> None:
+        # The permit is asked over the publication entry only the gate freezes,
+        # so a caller holding nothing else is entered with the switch off,
+        # while the ordinary new candidate beside it is still kept out.
+        with patch.object(config, "DECOMPOSE", False):
+            for permit_only, outside in ((True, False), (False, True)):
+                with self.subTest(permit_only=permit_only):
+                    self.assertIs(
+                        _freeze._outside_the_gate(
+                            replace(self.gate, permit_only=permit_only),
+                            LateGeneration(),
+                        ),
+                        outside,
+                    )
 
     def _decides(self) -> _late_gate_models._GateVerdict:
         return _gate._decided(
