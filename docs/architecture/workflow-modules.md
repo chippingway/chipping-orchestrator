@@ -565,7 +565,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             renews the budget for exactly one adjudication -- written down before the spawn it
                             pays for, and needing no session retirement of its own, since the pre-spawn record
                             opens a fresh conversation for every run that is not answering a question
-      late_run_reading.py   read the pinned role, locked spec, session, source pair, and validated verdict payload;
+      late_run_reading.py   read the pinned role, locked spec, session, source pair, and validated verdict payload,
+                            with a rationale only beside a `single` or `split` and within its bound, absent otherwise;
                             recover adjudications and resume only a session bound to this candidate generation
       late_result_payloads.py
                             encode verdicts, bounded rationales, and child estimates, and measure the actual
@@ -877,7 +878,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_restart.py       admit and resume an authorized restart only after cancellation and every obligation settle;
                             hard-skip controls defer it, the recorded target outranks settings, and notice plus label
                             effects must succeed before retirement
-      late_result_models.py late-run identity, adjudication answers, guarded splits, and settlement dispositions; an
+      late_result_models.py late-run identity, adjudication answers, guarded splits, and settlement dispositions, plus
+                            the rationale bound, its truncation marker, and the two verdicts that keep one; an
                             actionable answer remains bound to the exact cycle, generation, and candidate it read
       late_content_models.py
                             frozen content fingerprints, trusted authorization replies, drift signals, and the outcome

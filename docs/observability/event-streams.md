@@ -976,13 +976,14 @@ event — and every field that could otherwise smuggle text through is closed at
   `unsafe_split`, `lineage_bound`, `unknown`), not a label an agent writes. `events.verdict_category` maps a parsed
   answer onto it and answers `unknown` for everything it does not recognize, so an adjudication's rationale — the
   sentences, the file names in them — has no path into a record. Widening the vocabulary is an edit here, in review.
-- **A `single` verdict's recorded explanation.** What the agent wrote about what made splitting unsafe or unavailable
-  is durable in the issue's pinned comment (`late_result_split_blocker`,
+- **A recorded explanation or rationale.** What the agent wrote about what made splitting unsafe or unavailable, and
+  the rationale a `single` or a `split` argued with, are durable in the issue's pinned comment
+  (`late_result_split_blocker`, and `late_result_rationale` cut to a fixed bound;
   [`state-machine/labels-and-state.md#the-late-run`](../state-machine/labels-and-state.md#the-late-run)), so a tick
-  that crashed after the run recovers the answer without paying for a second one. It is not a field on any family
-  here and no argument reaches it, so what a `late_verdict` record says about where an adjudication landed stays the
-  closed `category` above: an analysis counts artifact-dominated singles on that member, and the sentence behind one
-  is read off the pinned comment.
+  that crashed after the run recovers the answer without paying for a second one. Neither is a field on any family
+  here and no argument reaches either, so what a `late_verdict` record says about where an adjudication landed stays
+  the closed `category` above: an analysis counts artifact-dominated singles on that member, and the sentences behind
+  one are read off the pinned comment.
 - **A resource's own name** — a ref, a branch, an issue number — is not recorded. What identifies it is `resource_id`,
   the bounded 12-character fingerprint `identity.resource_fingerprint` takes over the entry's kind and target. It is
   stable across retries of one resource and distinct between two of the same kind, which is what lets a consumer tell
