@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The rationale beside a late verdict: which records keep it, and how much of it."""
+"""The rationale beside a late verdict: which records keep it, how much, and what a notice shows."""
 from __future__ import annotations
 
 import itertools
@@ -8,6 +8,8 @@ import unittest
 from types import MappingProxyType
 
 from orchestrator.github.pinned_state import (
+    MAX_PINNED_BODY,
+    PINNED_STATE_MARKER,
     PinnedState,
     pinned_state_body,
     pinned_state_from_comment,
@@ -23,9 +25,14 @@ from orchestrator.workflow.stages.decomposition.late_result_models import (
     MAX_RATIONALE,
     RATIONALE_TRUNCATION_MARKER,
     _LateAdjudication,
+    _LateDisposition,
 )
 from tests.support.fakes import FakeComment
-from tests.workflow.stages.decomposition import late_test_support as _support
+from tests.workflow.stages.decomposition import (
+    late_accepted_notice_support as _notice,
+    late_settlement_support as _settlement,
+    late_test_support as _support,
+)
 
 # What ends the HTML comment the pinned state is written in, so a case can say
 # where the rendered comment closes.
@@ -166,6 +173,42 @@ _CEILING_PADDING = _session.MAX_RECORDED_BODY - len(
     pinned_state_body({_support.KEYS.plan_pr_body: "", **_ADVERSARIAL_RECORD}),
 )
 
+# The argument the answer in hand carries on the settlement road. Never what
+# the accepted notice quotes: only the record holds an argument on every road
+# that reaches it.
+_REPLIED_RATIONALE = "the answer in hand argued this, and the record never kept it"
+
+_HTML_OPEN = "<!--"
+
+# What the accepted notice owes a human ahead of any argument: the commit, the
+# count and the ceiling it was measured against, who decided, and what the
+# exemption covers.
+_ACCEPTED_TERMS = (
+    _support.CANDIDATE_SHA,
+    str(_support.ADDITIONS),
+    str(_support.THRESHOLD),
+    "authorized to publish unsplit by a human operator",
+    "Only that commit is exempt -- anything committed on top of it is measured again.",
+)
+
+# A long line of each fence character inside the bound: the quote no single
+# fence answers, so it is blocked off in pieces.
+_HALF_BOUND = (MAX_RATIONALE - 1) // 2
+
+# Rationales a record can keep that a thread would obey or a comment would pay
+# for: a fence line of each kind, the two markers this orchestrator writes,
+# fence lines on carriage returns, the widest rendering the bound allows, and
+# the adversarial argument cut with its marker -- openers, terminators, and
+# escapes included.
+_QUOTED_RATIONALES = (
+    ("prose", _support.SINGLE_RATIONALE),
+    ("a fence line of each kind", "```\n~~~\nand <!-- after it"),
+    ("this orchestrator's markers", f"{PINNED_STATE_MARKER} and {_notice.COMMENT_MARKER} quoted"),
+    ("carriage-return fence lines", "before it\r\n```\r<!-- the tail an opener would hide"),
+    ("both fence runs at the bound", "\n".join(("`" * _HALF_BOUND, "~" * _HALF_BOUND))),
+    ("cut, with every delimiter", _ADVERSARIAL_RECORD[_support.KEYS.rationale]),
+)
+
 
 class RecordedRationaleTest(unittest.TestCase):
     """Which records keep a rationale, and what a reader makes of one."""
@@ -296,6 +339,75 @@ class RationaleBoundTest(unittest.TestCase):
             _late_run_reading._read_late_run(parsed).rationale,
             _ADVERSARIAL_RECORD[_support.KEYS.rationale],
         )
+
+
+class AcceptedNoticeRationaleTest(_settlement.GuardedLateCase, unittest.TestCase):
+    """What the notice an authorized settlement posts shows of the rationale.
+
+    Quoted off the record rather than off the answer in hand, because the
+    record is the one thing every road into the settlement holds -- and
+    bounded as the record kept it, so what a human reads is what was kept.
+    """
+
+    def test_the_record_is_quoted_whole(self) -> None:
+        # Whatever the record kept reaches the thread exactly: a fence of its
+        # own, an opener, or a marker this orchestrator writes is shown rather
+        # than obeyed, a cut argument still says it was cut, and the whole
+        # body -- quote, fences, and comment marker -- fits one comment. The
+        # operator's terms all stand ahead of it, where no quote can reach.
+        for named, recorded in _QUOTED_RATIONALES:
+            with self.subTest(rationale=named):
+                said = self._accepted_notice(**{_support.KEYS.rationale: recorded})
+
+                self.assertEqual(_notice.shown_rationale(said), recorded)
+                self.assertLessEqual(len(said), MAX_PINNED_BODY)
+                self.assertIn(_notice.COMMENT_MARKER, said)
+                self.assertNotIn(_notice.UNRECORDED_RATIONALE, said)
+                terms = said.partition(_notice.RATIONALE_LABEL)[0]
+                self.assertNotIn(_HTML_OPEN, terms)
+                for term in _ACCEPTED_TERMS:
+                    self.assertIn(term, terms)
+
+    def test_an_unusable_rationale_is_said_unrecorded(self) -> None:
+        # A rationale decides nothing, so a record without one a reader can
+        # use settles all the same, and the notice says none was recorded
+        # rather than quoting nothing. That sentence is the notice's own: the
+        # record keeps exactly what it held.
+        for named, held in _UNUSABLE_RATIONALES:
+            with self.subTest(rationale=named):
+                said = self._accepted_notice(**held)
+
+                self.assertIn(_notice.UNRECORDED_RATIONALE, said)
+                self.assertNotIn(_notice.RATIONALE_LABEL, said)
+                self.assertEqual(
+                    {
+                        key: kept for key, kept in self._pinned().items()
+                        if key == _support.KEYS.rationale
+                    },
+                    held,
+                )
+
+    def _accepted_notice(self, **held) -> str:
+        """Settle a `single` recorded beside this rationale, and what it said.
+
+        The answer in hand argues something the record never kept, so a
+        notice quoting it rather than the record cannot pass for one that did.
+        """
+        self.setUp()
+        self.github.seed_state(self.issue.number, **{
+            **self._pinned(),
+            **_answered_state(**{
+                _support.KEYS.verdict: str(LateVerdict.SINGLE),
+                _support.KEYS.split_blocker: _support.SPLIT_BLOCKER,
+            }, **held),
+        })
+
+        outcome = self._settle(replied=_REPLIED_RATIONALE)
+
+        self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
+        said = self.github.posted_comments[-1][1]
+        self.assertNotIn(_REPLIED_RATIONALE, said)
+        return said
 
 
 if __name__ == "__main__":

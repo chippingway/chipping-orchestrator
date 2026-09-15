@@ -723,7 +723,8 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
   all. The `"rationale"` is kept as well, under different rules, which is why the two are separate fields rather than
   one: it is optional, it is recorded only beside a `single` or a `split`, and one past `MAX_RATIONALE` (2,048
   characters) is cut to that length with a visible truncation marker instead of costing the verdict, since nothing
-  acts on it ([`../state-machine/labels-and-state.md`](../state-machine/labels-and-state.md#the-late-run)). The
+  acts on it; what a human is shown of it is that recorded text, quoted in the notice an authorized publication posts
+  ([`../state-machine/labels-and-state.md`](../state-machine/labels-and-state.md#the-late-run)). The
   explanation is what the prompt states as an obligation and the parser enforces: a fresh reply that declares the
   verdict and names no obstacle is refused, because what would be recorded otherwise is the one answer a human has to
   act on with the one thing it turns on missing. The refusal is about a REPLY and never about a record — results
@@ -1213,9 +1214,13 @@ candidate goes on to.
 The order is chosen so every window a crash can land in is one the next tick repairs. The hold is released first,
 while nothing else has moved; the exemption and the identity beside it are written next, with the generation still
 live behind them; only then is `workflow:implementing` handed back; and only after that is the generation retired
-(`late_handback.py` owns that half) — behind the one comment naming the accepted commit and the measurement it was
-judged on, posted immediately before the write that drops the generation,
-so a crash between them costs at most a repeated comment. What that write keeps is the two external ledgers: an
+(`late_handback.py` owns that half) — behind the one comment naming the accepted commit, the measurement it was
+judged on, and the human operator who authorized it, with the decomposer's rationale quoted beneath under its own
+name, posted immediately before the write that drops the generation,
+so a crash between them costs at most a repeated comment. That quote is read off the recorded result rather than
+off a reply, fenced the way a park notice quotes an explanation, so the retry says exactly what the first attempt
+would have; where the record holds no rationale a reader can use, the comment says `Decomposer rationale was not
+recorded.` instead. What that write keeps is the two external ledgers: an
 obligation the remote is owed does not stop being owed because the adjudication that recorded it ended well. A
 `decomposing` issue with no generation on it is one the INITIAL decomposer would pick up and re-decompose, and an
 `implementing` issue with a live generation is one the relabel guard puts back and the next tick re-settles — so the

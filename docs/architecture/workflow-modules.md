@@ -778,7 +778,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_handback.py      the effects a settled decision licenses, in the order a crash in them is safe in:
                             the push, the label handed to the stage the record names rather than to implementing
                             -- a pre-publication candidate goes back to the ordinary publication -- the accepted
-                            notice, worded on the operator whose authorization is the only road here, and the
+                            notice, worded on the operator whose authorization is the only road here and quoting
+                            the decomposer's rationale off the record through `late_notice`'s fencing, with a
+                            display-only stand-in where the record holds none a reader can use, and the
                             retirement behind them answered by REINSTATING the cycle rather than
                             refusing, since past that write there is none left to end, with the write and that
                             barrier held inside the observations owner's retirement window so a poll reading the
