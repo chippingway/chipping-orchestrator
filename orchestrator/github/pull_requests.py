@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Pull-request creation, editing, labeling, merging, and branch deletion.
 
-The complete client surface includes the read and retirement owners through
-this mixin. Reads preserve unknown publication evidence, and retirement
-keeps its notice and close ordered; these mutation methods retain the exact
-SHA and ref the caller proved before asking GitHub to change them.
+The complete client surface includes the read, developer-report, and
+retirement owners through this mixin. Reads preserve unknown publication
+evidence, reports are appended beside the description rather than written into
+it, and retirement keeps its notice and close ordered; these mutation methods
+retain the exact SHA and ref the caller proved before asking GitHub to change
+them.
 """
 from __future__ import annotations
 
@@ -15,7 +17,11 @@ from github import GithubException
 from github.IssueComment import IssueComment
 from github.PullRequest import PullRequest
 
-from orchestrator.github import pull_request_reads as _pr_reads, pull_request_retirement as _pr_retirement
+from orchestrator.github import (
+    pull_request_reads as _pr_reads,
+    pull_request_reports as _pr_reports,
+    pull_request_retirement as _pr_retirement,
+)
 from orchestrator.github.aliases import StaticMethodAlias
 
 log = logging.getLogger("orchestrator.github")
@@ -27,8 +33,12 @@ PR_STATE_METHOD = StaticMethodAlias(_pr_reads.pr_state)
 PR_IS_MERGEABLE_METHOD = StaticMethodAlias(_pr_reads.pr_is_mergeable)
 
 
-class GitHubPullRequestMixin(_pr_retirement.GitHubPullRequestRetirement, _pr_reads.GitHubPullRequestReads):
-    """Pull-request mutations with inherited lookup and guarded retirement operations."""
+class GitHubPullRequestMixin(
+    _pr_reports.GitHubPullRequestReports,
+    _pr_retirement.GitHubPullRequestRetirement,
+    _pr_reads.GitHubPullRequestReads,
+):
+    """Pull-request mutations with inherited lookup, report, and guarded retirement operations."""
 
     pr_has_label = PR_HAS_LABEL_METHOD
     pr_state = PR_STATE_METHOD

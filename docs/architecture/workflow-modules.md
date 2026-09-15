@@ -69,8 +69,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             what leaks; the same ordering puts it ahead of the `rstrip`, so a multi-line env value
                             ending in a newline still matches verbatim. The block is quoted through
                             `messages.py`'s blockquote, so it reads as the last-message body it is appended under
-    comments.py             the orchestrator marker and bounded id ledger shared by issue and pull-request comment
-                            posts; callers persist the ledger, and shared token accounts are never treated as
+    comments.py             the orchestrator marker, bound from the GitHub trust owner, and the bounded id ledger
+                            shared by issue and pull-request comment posts; a developer report enters the ledger on
+                            whichever reading finds it on the thread, since a post whose response was lost hands
+                            back no id; callers persist the ledger, and shared token accounts are never treated as
                             exclusively automated
     prompt_context.py       trusted-author thread reads, retained orchestrator comment ids, quoted comment lines, and
                             bounded tracked-repository awareness for agent prompts; marker text alone cannot admit a

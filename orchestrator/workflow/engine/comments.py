@@ -4,17 +4,22 @@
 
 The hidden marker survives eviction from the bounded id ledger. Both identify
 our comments without treating a shared token account as exclusively automated.
+A developer report carries the marker in its own rendering and enters the
+ledger on whichever reading finds it on the thread.
 Callers persist the modified ledger; prompt_context owns trusted thread reads."""
 from __future__ import annotations
 
 from github.Issue import Issue
+from github.PullRequest import PullRequest
 
+from orchestrator.github import comments as _trust, pull_request_reports as _pr_reports
 from orchestrator.github.client import GitHubClient
+from orchestrator.github.developer_reports import DeveloperReport
 from orchestrator.github.pinned_state import PinnedState
 
 _ORCH_COMMENT_ID_CAP = 500
 
-_ORCH_COMMENT_MARKER = "<!--orchestrator-comment-->"
+_ORCH_COMMENT_MARKER = _trust.ORCHESTRATOR_COMMENT_MARKER
 
 
 def _orchestrator_ids(state: PinnedState) -> set[int]:
@@ -104,3 +109,25 @@ def _post_pr_comment(
     if cid is not None:
         _track_orchestrator_comment(state, int(cid))
     return pr_comment
+
+
+def _publish_developer_report(
+    gh: GitHubClient, pr: PullRequest, state: PinnedState, report: DeveloperReport,
+) -> _pr_reports.ReportLookup:
+    """Publish one developer report onto `pr` and record its comment as ours.
+
+    Recorded whenever the reading shows the report on the thread, not only
+    after the post that made it. A post whose response was lost hands back no
+    id, so the retry that finds the comment an earlier attempt landed is the
+    ledger's one chance to learn it; readings after that add nothing, since
+    recording an id twice keeps one entry. Caller is still responsible for
+    `gh.write_pinned_state`.
+
+    The marker is not appended here: the report's own rendering carries it,
+    because that rendering is what a retry compares byte for byte.
+    """
+    lookup = gh.publish_developer_report(pr, report)
+    posted_id = getattr(lookup.found, "id", None)
+    if lookup.presence is _pr_reports.ReportPresence.PRESENT and posted_id is not None:
+        _track_orchestrator_comment(state, int(posted_id))
+    return lookup

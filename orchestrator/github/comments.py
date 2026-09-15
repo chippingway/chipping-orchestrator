@@ -52,6 +52,13 @@ from orchestrator import config
 # a claim, invisible in the rendered thread, that a step already happened.
 RECEIPT_MARKER_PREFIX = "<!--orchestrator-"
 
+# What every comment this orchestrator posts carries, whatever else it says.
+# The bounded id ledger forgets old comments, and this is what still tells them
+# from a human's once it has. It is defined below the workflow layer that stamps
+# most comments because a GitHub-layer owner rendering a whole comment body --
+# a developer report -- has to write it too.
+ORCHESTRATOR_COMMENT_MARKER = "<!--orchestrator-comment-->"
+
 
 def _allowed_logins(allowed: Iterable[str] | None) -> set[str]:
     """Lower-cased allowlist set, defaulting to `config.ALLOWED_ISSUE_AUTHORS`.

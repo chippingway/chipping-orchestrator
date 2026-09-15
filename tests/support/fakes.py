@@ -26,4 +26,5 @@ FakePRRepo = _pull_request_models.FakePRRepo
 FakePRReview = _pull_request_models.FakePRReview
 FakeUser = _models.FakeUser
 LazyPullRequest = _lazy.LazyPullRequest
+make_developer_report = _factories.make_developer_report
 make_issue = _factories.make_issue

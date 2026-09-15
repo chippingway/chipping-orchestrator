@@ -26,6 +26,7 @@ _MODULES = (
     "orchestrator.github.checks",
     "orchestrator.github.client",
     "orchestrator.github.comments",
+    "orchestrator.github.developer_reports",
     "orchestrator.github.events",
     "orchestrator.github.issue_polling",
     "orchestrator.github.issues",
@@ -33,6 +34,7 @@ _MODULES = (
     "orchestrator.github.pinned_state",
     "orchestrator.github.pull_requests",
     "orchestrator.github.pull_request_reads",
+    "orchestrator.github.pull_request_reports",
     "orchestrator.github.pull_request_retirement",
     "orchestrator.github.reviews",
 )

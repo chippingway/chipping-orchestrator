@@ -18,8 +18,16 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pull_request_reports import ReportPresence
 from orchestrator.workflow.engine import comments, prompt_context as _prompt_context
-from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
+from tests.support.fakes import (
+    FakeComment,
+    FakeGitHubClient,
+    FakePR,
+    FakeUser,
+    make_developer_report,
+    make_issue,
+)
 from tests.workflow.engine import comment_trust_test_support as trust
 
 _LEDGER_KEY = "orchestrator_comment_ids"
@@ -37,6 +45,35 @@ class OrchestratorCommentLedgerTest(unittest.TestCase):
         self.issue = make_issue(_LEDGER_ISSUE_NUMBER)
         self.gh.add_issue(self.issue)
         self.state = PinnedState(state_data={})
+
+    def test_a_report_enters_the_ledger_once(self) -> None:
+        # A post whose response was lost hands back no id, so the retry that
+        # finds the comment is where it is recorded -- once, however many
+        # readings find it after -- and its body carries the marker the
+        # user-content filters pass over.
+        pull_request = FakePR(number=_LEDGER_PR_NUMBER)
+        self.gh.add_pr(pull_request)
+        report = make_developer_report(_LEDGER_PR_NUMBER)
+        self.gh.report_failures.lost.add(_LEDGER_PR_NUMBER)
+        with self.assertLogs("orchestrator.github", "WARNING"):
+            lost = comments._publish_developer_report(
+                self.gh, pull_request, self.state, report,
+            )
+        self.gh.report_failures.lost.clear()
+
+        found = [
+            comments._publish_developer_report(self.gh, pull_request, self.state, report)
+            for _ in range(2)
+        ]
+
+        posted = pull_request.issue_comments[-1]
+        self.assertIs(lost.presence, ReportPresence.UNCONFIRMED)
+        self.assertEqual(
+            [(reading.presence, reading.found) for reading in found],
+            [(ReportPresence.PRESENT, posted), (ReportPresence.PRESENT, posted)],
+        )
+        self.assertEqual(self.state.get(_LEDGER_KEY), [posted.id])
+        self.assertIn(comments._ORCH_COMMENT_MARKER, posted.body)
 
     def test_both_surfaces_land_in_one_id_list(self) -> None:
         # Issue and PR-conversation comments share the IssueComment id space,
