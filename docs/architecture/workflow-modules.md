@@ -812,12 +812,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_prompt.py        the late-only prompt: the committed candidate, the frozen diff, the measurement, the
                             lineage, and the three outcomes with the bounds they are judged against and the two
                             field names they are answered under, read off the owners that read the reply -- the
-                            human decision a `single` requires and the explanation it owes for it, the
-                            dependency-ordered slices and dormant prerequisites a split has to consider before
-                            that answer, what every child body owns, and the addition budget each child declares
-                            under this generation's own ceiling -- the figure its own JSON template shows scaled
-                            to that ceiling, since a template is copied verbatim and a standing one would be a
-                            child the reply contract refuses wherever the ceiling is narrower than it
+                            human decision a `single` requires and the explanation it owes for it, the optional
+                            rationale a `single` or a `split` keeps apart from that explanation, with the length the
+                            record cuts it at read off `late_result_models`, the dependency-ordered slices and
+                            dormant prerequisites a split has to consider before that answer, what every child body
+                            owns, and the addition budget each child declares under this generation's own ceiling
+                            -- the figure its own JSON template shows scaled to that ceiling, since a template is
+                            copied verbatim and a standing one would be a child the reply contract refuses wherever
+                            the ceiling is narrower than it
       late_reply.py         the late reply envelope and its three structured decisions; fresh split replies use the
                             shared child validator and budget bounds, and a single decision must explain why no safe
                             split exists before it can be presented for a human decision
