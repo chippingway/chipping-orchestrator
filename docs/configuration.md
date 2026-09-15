@@ -314,7 +314,9 @@ examples.
 A single fine-grained PAT gets **5000 REST requests/hour** (the GitHub *primary* rate limit). Each tick spends a roughly
 fixed number of `GET /repos/…` requests **per repo**, independent of how much real work the repo has:
 
-- the open-issue poll (`list_pollable_issues`): 1+ requests,
+- the open-issue poll (`list_pollable_issues`): one `GET …/issues` request per page of open issues, pull requests
+  included — each listed row is told apart from a pull request by what its page carried, so an open issue adds no
+  detail read of its own,
 - the closed-issue sweep: one `GET …/issues?state=closed&labels=<L>` per non-terminal workflow label (10 today —
   the six PR-carrying stages plus `question` and `discussion`, each of which has a terminal a closed issue may still
   owe, and `workflow:decomposing` / `workflow:umbrella`, whose closed issues are swept for snapshot cleanup only),
