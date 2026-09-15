@@ -720,16 +720,12 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
   and gets this verdict with `"category": "generated_artifacts"`. The `"split_blocker"` beside it says what makes a
   safe split unavailable — the prerequisite that cannot be landed dormant, the artifact that cannot land apart from
   what generates it, the invariant a half-landed slice would break — and the pinned comment keeps it whole or not at
-  all. The `"rationale"` is kept as well, under different rules, which is why the two are separate fields rather than
-  one: it is optional, it is recorded only beside a `single` or a `split`, and one past `MAX_RATIONALE` (2,048
-  characters) is cut to that length with a visible truncation marker instead of costing the verdict, since nothing
-  acts on it; what a human is shown of it is that recorded text, quoted in the notice an authorized publication posts
-  ([`../state-machine/labels-and-state.md`](../state-machine/labels-and-state.md#the-late-run)). The
-  explanation is what the prompt states as an obligation and the parser enforces: a fresh reply that declares the
-  verdict and names no obstacle is refused, because what would be recorded otherwise is the one answer a human has to
-  act on with the one thing it turns on missing. The refusal is about a REPLY and never about a record — results
-  predating the key are on live issues, still decide their candidate, and are read back with a fixed stand-in sentence
-  rather than sent round for a second run to recover prose.
+  all. It is REQUIRED: the prompt states it as an obligation and the parser enforces it, so a fresh reply that
+  declares the verdict and names no obstacle is refused whatever its `"rationale"` says, because what would be
+  recorded otherwise is the one answer a human has to act on with the one thing it turns on missing. The refusal is
+  about a REPLY and never about a record — results predating the key are on live issues, still decide their
+  candidate, and are read back with a fixed stand-in sentence rather than sent round for a second run to recover
+  prose.
 - `split` — a child manifest that partitions the declared scope completely, held to the same rules the initial mode
   uses: the child cap, each child's shape, and the acyclicity of the graph they declare. The prompt requires
   dependency-ordered implementation slices to be considered *before* a `single` is answered, because that is the way
@@ -753,6 +749,27 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
 - `question` — a categorized question for a human, which is also where artifacts that look like they should NOT have
   been committed go. The category is mapped onto the closed vocabulary, so an agent's own spelling records as
   `unknown` rather than widening the field.
+
+The `"rationale"` — at most two sentences on why the work is one change, or why it divides the way the children do —
+is optional on a `single` and a `split` and **retained** with either. The prompt says so, and says it is a separate
+field from the `"split_blocker"` rather than part of it: the two answer different questions under different rules, and
+an agent told its argument is thrown away would leave it out or fold it into the explanation, where it restates the
+verdict instead of naming an obstacle. It decides nothing, so no reply is refused over it. It is written as
+`late_result_rationale` in the same result write as the verdict it argued for and dropped with that result; a
+`question` keeps none, and neither does a split refused at the lineage bound, which is recorded as the question it
+became. One longer than `MAX_RATIONALE` (2,048 characters of the value, a bound the prompt reads off the record's
+owner like its others) is stored as a prefix ending in the visible marker `[... rationale truncated by the
+orchestrator]`, inside the bound, instead of costing the verdict — while the explanation, the question, and the
+manifest still go in whole, or the result is refused (`late_result_unrecordable`) with nothing of it written. A record
+with no rationale a reader can use — one written before the key existed, a blank or non-string value, one past the
+bound — is still this candidate's answer: no second run is paid for to recover the argument, and nothing writes a
+stand-in, or anything derived from the explanation or the category, into the pinned comment. Where it is shown is
+the notice an authorized publication posts ([below](#authorizing-one-oversized-candidate-to-publish)), which quotes
+the record rather than a reply, so a process that dies after the result write or after the authorization settles with
+the same words and no agent run. It stays issue prose: no late event and no analytics record carries it
+([`../observability/event-streams.md`](../observability/event-streams.md#late-split-records-both-sinks)), and the
+field-by-field contract is in
+[`../state-machine/labels-and-state.md`](../state-machine/labels-and-state.md#the-late-run).
 
 Unlike the initial mode, prose alone is not an outcome: a reply with no block, or with more than one, parks for a
 human rather than being read as the agent asking a question, because a late question has its own structured decision
@@ -1214,13 +1231,20 @@ candidate goes on to.
 The order is chosen so every window a crash can land in is one the next tick repairs. The hold is released first,
 while nothing else has moved; the exemption and the identity beside it are written next, with the generation still
 live behind them; only then is `workflow:implementing` handed back; and only after that is the generation retired
-(`late_handback.py` owns that half) — behind the one comment naming the accepted commit, the measurement it was
-judged on, and the human operator who authorized it, with the decomposer's rationale quoted beneath under its own
-name, posted immediately before the write that drops the generation,
-so a crash between them costs at most a repeated comment. That quote is read off the recorded result rather than
-off a reply, fenced the way a park notice quotes an explanation, so the retry says exactly what the first attempt
-would have; where the record holds no rationale a reader can use, the comment says `Decomposer rationale was not
-recorded.` instead. What that write keeps is the two external ledgers: an
+(`late_handback.py` owns that half) — behind the one comment naming the accepted commit, the additions measured and
+the ceiling they were judged against, the human operator who authorized it, and the exemption's scope (that commit
+only; anything committed on top of it is measured again), with the decomposer's rationale quoted beneath under its
+own name, posted immediately before the write that drops the generation,
+so a crash between them costs at most a repeated comment. That quote is `late_result_rationale` as the record kept it
+rather than a reply, fenced the way a park notice quotes an explanation (`late_notice.py`), so a fence line or an
+HTML-comment opener in it is shown rather than obeyed and a cut one still ends in its marker. The authorization's own
+tick and a fresh process finishing the settlement after a crash — whether or not the candidate had been published —
+quote the same text, and neither pays for an agent run. Where the record holds no rationale a reader can use, the
+comment says `Decomposer rationale was not recorded.` instead, and that sentence exists only in the comment: the
+pinned state keeps the absence it has, and the settlement proceeds exactly as it would with one. The quote changes
+nothing around it — the park a `single` takes, the command that lifts it, this order, and the label handed on are
+what they are without one, and no late event or analytics record carries it. What that write keeps is the two
+external ledgers: an
 obligation the remote is owed does not stop being owed because the adjudication that recorded it ended well. A
 `decomposing` issue with no generation on it is one the INITIAL decomposer would pick up and re-decompose, and an
 `implementing` issue with a live generation is one the relabel guard puts back and the next tick re-settles — so the

@@ -3200,23 +3200,41 @@ explanation stays distinguishable from one that does.
 
 The rationale is looser still, because it decides nothing. `late_result_rationale` is written only beside a `single`
 or a `split`, and only where the reply gave one: a `question` asks rather than argues, and a split refused at the
-lineage bound is recorded as the question it became. It is bounded on its own. One longer than `MAX_RATIONALE` —
+lineage bound is recorded as the question it became. It is optional, and it never stands in for the explanation: a
+fresh `single` whose reply names no obstacle is refused whatever rationale it carries, and the late prompt tells the
+agent both. It is bounded on its own. One longer than `MAX_RATIONALE` —
 2,048 characters, counted on the value rather than on what JSON escaping makes of it — is stored as its prefix, a
 space, and `[... rationale truncated by the orchestrator]`, with the marker inside the bound, so no recorded
 rationale is longer than that and a reader shown one can tell a shortened argument from a whole one (both constants
-live in [`late_result_models.py`](../../orchestrator/workflow/stages/decomposition/late_result_models.py)). It is the
+live in [`late_result_models.py`](../../orchestrator/workflow/stages/decomposition/late_result_models.py), and the
+prompt states the bound read off the same owner). It is the
 only result field ever shortened, and it is cut before the record is measured. Read back, a missing, blank, or
 non-string value, one longer than the bound, and one beside a `question` all read as no rationale while the verdict
 stays actionable — re-adjudicating to recover an argument would buy a second run free to decide differently — and
-nothing rewrites the comment or writes a stand-in into it, so an absent key stays distinguishable from a value nobody
-can use. It is written and dropped with the rest of the result: a fresh spawn and every road that throws an answer
-away remove it, which is what binds it to the same cycle, generation, and commit. It is issue prose. The one place it
-reaches the thread is the notice an authorized publication posts
-([`late_handback.py`](../../orchestrator/workflow/stages/decomposition/late_handback.py)), which quotes it as the
-decomposer's rationale off this record rather than off any reply — so the authorization's own tick and a retry after
-a crash show the same bounded text, a cut one with its marker — fenced the way a park notice quotes an explanation,
-and which says `Decomposer rationale was not recorded.` wherever the reading above answers none. No late event or
-analytics record carries it.
+nothing rewrites the comment or writes a stand-in into it, nor anything derived from the explanation or the category,
+so an absent key stays distinguishable from a value nobody can use. It is written and dropped with the rest of the
+result: a fresh spawn and every road that throws an answer away remove it, which is what binds it to the same cycle,
+generation, and commit. A recovered outcome carries it back beside the verdict as the text the record kept
+(`_recovered_adjudication`, in
+[`late_run_reading.py`](../../orchestrator/workflow/stages/decomposition/late_run_reading.py)), so a process that died
+past the result write — before the authorization or after it — settles with the same rationale and pays for no second
+run.
+
+It is issue prose, and the one place it reaches the thread is the notice an authorized publication posts
+([`late_handback.py`](../../orchestrator/workflow/stages/decomposition/late_handback.py)). Beneath the sentence naming
+the accepted commit, its measured additions and the recorded ceiling, the human operator's authorization, and the
+exemption's scope, that notice quotes it under `Decomposer rationale:` off this record rather than off any reply — so
+the authorization's own tick and a retry after a crash, onto either publication, show the same bounded text, a cut
+one with its marker. The quote is fenced the way a park notice quotes an explanation, so a fence line or an
+HTML-comment opener in it is shown rather than obeyed, and it is held inside one comment by the room a delivered quote
+may take (`MAX_QUOTED_BLOCK`), which is far larger than the rationale's own bound. Wherever the reading above answers
+none, the notice says `Decomposer rationale was not recorded.` — a sentence that exists only on the thread. Keeping
+the rationale moves none of the contracts around it: a `single` still parks `late_single_decision` until a trusted
+`/orchestrator authorize-oversized <commit>`, the settlement keeps its order and hands on the label the record names,
+and the notice is posted where it always was, immediately before the write that retires the generation. It is
+outside the closed late-event and analytics schemas: no late-split record on either sink has a field for it, and no
+argument reaches one
+([`../observability/event-streams.md`](../observability/event-streams.md#late-split-records-both-sinks)).
 
 Half of an outcome is not one, in either direction. On the way in, what is measured is the whole comment the write
 would produce — the preserved held-PR body and every other stage's keys included, since a result small on its own can
