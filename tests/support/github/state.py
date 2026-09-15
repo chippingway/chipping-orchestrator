@@ -35,7 +35,25 @@ class _FakePullHistory:
 
 
 @dataclass
+class _FakeReportFailures:
+    """Pull requests whose developer-report requests GitHub leaves unanswered.
+
+    Three ways, because each leaves GitHub holding something different. A read
+    that failed says nothing about the thread; a refused post landed nothing;
+    a lost response landed the comment and still raised, which is the accepted
+    write a retry has to find rather than post again.
+    """
+
+    unreadable: set[int] = field(default_factory=set)
+    refused: set[int] = field(default_factory=set)
+    lost: set[int] = field(default_factory=set)
+
+
+@dataclass
 class _FakePullState:
+    # The pull requests whose developer-report requests go unanswered, which
+    # the real client reports as unconfirmed rather than as absent.
+    _report_failures: _FakeReportFailures = field(default_factory=_FakeReportFailures)
     _existing_open_pr: dict[str, FakePR] = field(default_factory=dict)
     _pulls: dict[int, FakePR] = field(default_factory=dict)
     _merge_returns_ok: bool = True

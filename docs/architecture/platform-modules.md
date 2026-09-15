@@ -188,7 +188,17 @@ orchestrator/
                         hidden marker and one recognized by its whole sentence are alike text anybody may post and
                         so alike text anybody may use to suppress what it stands for -- and the reserved prefix
                         every receipt this orchestrator hides shares, so content somebody else wrote can be refused
-                        before it is embedded; the low-level comment and review readers stay raw
+                        before it is embedded, plus the ordinary marker every comment this orchestrator posts
+                        carries, defined here so a GitHub-layer owner can render a whole comment body; the
+                        low-level comment and review readers stay raw
+    developer_reports.py
+                        the developer-report comment format: a report is appended as its own comment rather than
+                        written into a description that carries closing references, attribution, a legacy
+                        `_Last agent message:_` tail, and human text; it names its commit, requirements revision,
+                        report revision, and what it supersedes, and ends with a hidden header carrying that
+                        identity, the transaction receipt, and the text digest. A report the header cannot carry,
+                        one quoting a receipt marker, and one past a comment's length are refused rather than cut,
+                        and a comment reads back as a report only when it is ours and re-renders byte for byte
     events.py           audit event record construction and the optional JSONL sink
     issue_polling.py    the one walk over a repository's issues a tick is served from: the open poll, the
                         cadenced closed sweep beside it, and the shared number set both filter through so an
@@ -239,6 +249,14 @@ orchestrator/
                         PR status, open and commit-pinned lookup, branch enumeration, and unreadable-publication
                         evidence; a caller choosing its publication thread can narrow to a base, while a caller
                         proving any publication leaves the base unrestricted
+    pull_request_reports.py
+                        finding, posting, and rereading developer reports on a pull request's conversation; every
+                        reading is present, absent, changed, or unconfirmed, and only absent is posted onto, so a
+                        retry finds the comment an earlier attempt landed -- scoped by its transaction receipt, so a
+                        later report on the same commit is a comment of its own -- while a pasted copy is not ours
+                        and a post whose response was lost stays unconfirmed until a read settles it. A human's
+                        report is reread by its exact pull request and comment (or description) against the
+                        content digest somebody verified, and the description is never written
     pull_request_retirement.py
                         idempotent supersession notices followed by closure; an authenticated marker read can travel
                         from the caller so no extra request intervenes between its final proof and the write

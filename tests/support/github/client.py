@@ -6,7 +6,12 @@ from __future__ import annotations
 from collections.abc import Iterable
 from itertools import count
 
-from tests.support.github import issues as issue_service, pr_service as pull_service, pr_views as pull_views
+from tests.support.github import (
+    issues as issue_service,
+    pr_service as pull_service,
+    pr_views as pull_views,
+    report_service as pull_reports,
+)
 from tests.support.github.comment_ids import _FIRST_COMMENT_ID, _CommentIdAllocator
 from tests.support.github.models import FakeIssue
 from tests.support.github.state import (
@@ -51,7 +56,7 @@ class _PullServices(
     """Combine pull-request operations behind one inheritance branch."""
 
 
-class _PullClient(_PullViews, _PullServices):
+class _PullClient(_PullViews, _PullServices, pull_reports._PullReportService):
     """Compose the complete pull-request-side fake surface."""
 
 
