@@ -13,6 +13,8 @@ from orchestrator.workflow.stages.decomposition import (
     late_budget as _budget,
     late_prompt as _prompt,
     late_reply as _late_reply,
+    late_result_models as _result_models,
+    late_result_payloads as _payloads,
 )
 from orchestrator.workflow.stages.decomposition.late_reply import _SPLIT_BLOCKER
 from orchestrator.workflow.stages.decomposition.validation import _MAX_CHILDREN
@@ -197,6 +199,43 @@ class LatePromptContractTest(unittest.TestCase):
         composed = _prompt_for(_support.late_generation(lineage_depth=None))
 
         self.assertIn("lineage depth: unknown", composed)
+
+
+class LateRationaleContractTest(unittest.TestCase):
+    """The argument a verdict may carry: optional, kept, and not the explanation."""
+
+    def test_it_says_the_rationale_is_kept(self) -> None:
+        # Told the argument is thrown away, an agent would leave it out or
+        # fold it into the explanation a `single` owes, where it restates the
+        # verdict. So the prompt says it is kept on both verdicts that keep
+        # one, apart from that explanation, and cut at the bound the record
+        # is cut at.
+        composed = _prompt_for()
+
+        for fragment in (
+            '`"rationale"` (<= 2 sentences) is OPTIONAL on `"single"` and `"split"`, and it is KEPT',
+            f'separate field from `"{_SPLIT_BLOCKER}"` and never stands in for it',
+            f"longer than {_result_models.MAX_RATIONALE} characters is kept cut short",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, composed)
+        self.assertNotIn("is not kept", composed)
+
+    def test_the_named_rationale_is_recorded(self) -> None:
+        # The key the prompt names is the key a record keeps on both verdicts,
+        # beside the explanation a `single` still owes rather than in place
+        # of it.
+        for reply, rationale, blocker in (
+            (_support.SINGLE_REPLY, _support.SINGLE_RATIONALE, _support.SPLIT_BLOCKER),
+            (_support.SPLIT_REPLY, _support.SPLIT_RATIONALE, None),
+        ):
+            with self.subTest(rationale=rationale):
+                recorded = _payloads._result_payload(
+                    _late_reply._parse_late_reply(reply, _support.THRESHOLD)[0],
+                )
+
+                self.assertEqual(recorded.get(_support.KEYS.rationale), rationale)
+                self.assertEqual(recorded.get(_support.KEYS.split_blocker), blocker)
 
 
 class LateSplitPlanTest(unittest.TestCase):

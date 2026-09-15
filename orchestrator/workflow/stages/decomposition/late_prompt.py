@@ -56,6 +56,16 @@ safe split was unavailable hands them the decision without the one thing it
 turns on. The parser refuses such a reply, so the obligation this prompt states
 is the one the answer is judged by rather than advice beside it.
 
+The rationale is named beside that explanation and kept apart from it, since
+the two answer different questions under different rules. The explanation is
+what a `single` is refused without; the rationale is optional on a `single`
+and a `split`, is kept with either verdict, and is what the notice an
+authorized publication posts quotes. An agent told the argument is thrown
+away would leave it out or fold it into the explanation, where "it is one
+coherent change" restates the verdict instead of naming an obstacle. The
+length it is cut at is one more number read off the owner that enforces it,
+so the bound the prompt states is the bound the record cuts at.
+
 The way out of that decision is named beside it, because it is the one an
 agent otherwise talks itself out of. Work that will not cut across features
 almost always cuts along its dependencies: a prerequisite lands first and may
@@ -102,6 +112,7 @@ from orchestrator.workflow.late_split.events import LateVerdictCategory
 from orchestrator.workflow.late_split.models import MAX_LINEAGE_DEPTH, LateGeneration
 from orchestrator.workflow.stages.decomposition import late_budget as _budget
 from orchestrator.workflow.stages.decomposition.late_reply import _SPLIT_BLOCKER
+from orchestrator.workflow.stages.decomposition.late_result_models import MAX_RATIONALE
 from orchestrator.workflow.stages.decomposition.validation import _MAX_CHILDREN
 
 _NO_BODY = "(no body)"
@@ -332,10 +343,9 @@ def _block_rules(threshold: int | None) -> str:
         "guessed at, so ask through `\"question\"` instead.\n\n"
         f'- On `"single"`: omit `"children"`. Give `"{_SPLIT_BLOCKER}"` -- '
         "one or two sentences on what makes splitting this work unsafe or "
-        "unavailable. That is the part of a `single` answer the orchestrator "
-        "keeps, and the only account anybody looking at this oversized "
-        'candidate later has of why it was not split; `"rationale"` (<= 2 '
-        'sentences) says why the work is one change and is not kept. '
+        "unavailable. It is REQUIRED -- a `single` without it is refused -- "
+        "and it is the account anybody looking at this oversized candidate "
+        "later has of why it was not split. "
         '`"category"` is optional and worth setting when the verdict has a '
         "reason worth counting.\n"
         f'- On `"split"`: `"children"` is a non-empty list of at most '
@@ -346,6 +356,15 @@ def _block_rules(threshold: int | None) -> str:
         "cycles are rejected.\n"
         '- On `"question"`: omit `"children"`, and give `"question"` (the one '
         'specific thing you are asking) and `"category"`.\n\n'
+        '`"rationale"` (<= 2 sentences) is OPTIONAL on `"single"` and '
+        '`"split"`, and it is KEPT with either verdict: it says why the work '
+        "is one change, or why it divides the way the children do, and on a "
+        "`single` it is quoted in the notice posted if a human authorizes "
+        "publishing the candidate unsplit. It is a separate field from "
+        f'`"{_SPLIT_BLOCKER}"` and never stands in for it -- a `single` whose '
+        "only reason is in its rationale is still refused. One longer than "
+        f"{MAX_RATIONALE} characters is kept cut short, with a visible marker "
+        "where it was cut.\n\n"
         f'`"{_budget.ESTIMATE}"` is REQUIRED on every child: your estimate of the '
         "lines that child will ADD, counted over ALL of its paths -- "
         "implementation, tests, documentation, fixtures, generated files, "

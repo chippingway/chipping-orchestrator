@@ -2087,6 +2087,27 @@ read as this settlement's push having landed. The head it replaced has to be the
 over, and the pull request it names has to be the one the verdict was frozen on: a branch pushed from that head onto
 a publication since closed and *replaced* by another on the same ref agrees with both of the others.
 
+**An authorized settlement says what it accepted, then retires the cycle.** Past the handoff label, on either road —
+a candidate nothing had published, or one measured onto a pull request the remote already carries — one comment goes
+on the issue immediately before the write that drops the generation (`late_handback.py`), so a crash between them
+costs at most a repeated comment. It names the accepted commit, the additions measured and the ceiling recorded on
+the generation, the human operator whose `/orchestrator authorize-oversized <commit>` is the only road here, and the
+exemption's scope: that commit only, with anything committed on top of it measured again. Beneath that, under
+`Decomposer rationale:`, it quotes `late_result_rationale` exactly as the record kept it — never a reply, so the
+authorization's own tick and a fresh process finishing the settlement after a crash quote the same text, a rationale
+cut at `MAX_RATIONALE` still ending in its truncation marker, and neither spawns an agent — through the rendering a
+park notice quotes an explanation with (`late_notice.py`): blocked off so a fence line or HTML-comment opener in it is
+shown rather than obeyed, with the whole body inside one comment. Where the record holds no rationale a reader can use
+— a result written before the key existed, or a blank, non-string, or over-bound value — the comment says
+`Decomposer rationale was not recorded.` instead. That sentence is display only: nothing writes it, or anything
+derived from the explanation or the verdict category, into the pinned state, and the settlement proceeds exactly as it
+would with a rationale. None of this moves the contracts around it — a `single` still parks `late_single_decision`
+until that authorization, the barriers and step order above stand, and the label handed on is still
+`late_source_stage`, or `workflow:implementing` for a candidate nothing had published. The rationale remains issue
+prose and is outside the closed late-event and analytics schemas: no late-split record on either sink carries it
+([`../observability/event-streams.md`](../observability/event-streams.md#late-split-records-both-sinks)). Its storage
+contract is in [`labels-and-state.md`](labels-and-state.md#the-late-run).
+
 **An authorized settlement proves its publication before it hands the candidate back.** A pre-publication verdict
 searches for the pull request its commit is on and drops a recorded pointer that turns out settled, because losing it
 costs nothing: the publication opens the pull request the work needs. A post-publication verdict knows which pull
