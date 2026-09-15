@@ -128,9 +128,10 @@ def _publish_dev_fix(
     overwritten by work measured against the head it used to be on.
 
     The state the gate freezes is the run's own where it carries one. A route
-    that relabels remotely and then publishes in the same tick reads its own
-    cached labels back, so the record would name the state the issue has left
-    -- and a settled adjudication continues at whatever the record names.
+    that relabels remotely and then publishes in the same tick names the state
+    it moved to, because an issue object that relabel did not go through
+    still carries the state the issue has left -- and a settled adjudication
+    continues at whatever the record names.
 
     The approval the gate leaves behind is spent HERE, on the push that pays
     it. It says one commit is still owed a publication, and a record left

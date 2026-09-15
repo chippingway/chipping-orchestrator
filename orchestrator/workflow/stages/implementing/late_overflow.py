@@ -219,11 +219,12 @@ def _frozen_entry(
     reason: a fact this owner would re-read is a fact that can have moved
     since the caller acted on it.
 
-    The stage, because the label is a cached object. A route that relabels
-    remotely and then publishes in the same tick -- the reviewer's
-    `CHANGES_REQUESTED`, which flips to `fixing` before the dev spawn -- reads
-    back the label it was fetched with, so a record built from it would name
-    the state the issue has LEFT and a settled verdict would continue there.
+    The stage, because the label is a cached object, current only on the
+    object the last relabel went through. A route that relabels remotely and
+    then publishes in the same tick -- the reviewer's `CHANGES_REQUESTED`,
+    which flips to `fixing` before the dev spawn -- knows the state it moved
+    to, and a record built from an object that missed the flip would name the
+    state the issue has LEFT and a settled verdict would continue there.
     Whatever the caller names is still checked, and against the exact
     predicate rather than the transition graph: the five states that publish
     onto a pull request the remote already carries, not every label with an

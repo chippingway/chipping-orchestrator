@@ -28,16 +28,16 @@ and treating the intent as proof would start a fresh cycle on a gesture nobody
 made.
 
 The proof is that the label IS on the issue, and it is reached three ways. The
-pass that made the write takes it returning, and has to: a client's cached
-labels survive the write that changes them, so reading the issue back would
-answer with the label it wore a moment ago -- and a closed owner leaves the
-sweep on that write with no second visit to correct it. Any later pass takes
-it by SEEING `rejected` on the issue, which is what backfills a cancellation
-that ended before this record existed. And where the decision stands with
-neither -- a process that died between the label and the flag -- the remote's
-own label history is asked, because that window is the one thing no local
-record can answer for and an operator's removal would otherwise be spent
-re-applying a terminal that had already landed.
+pass that made the write takes it returning, and has to: reading the issue
+back proves no more than what that write left on the object it went through,
+and on any other object answers with the label it wore a moment ago -- and a
+closed owner leaves the sweep on that write with no second visit to correct
+it. Any later pass takes it by SEEING `rejected` on the issue, which is what
+backfills a cancellation that ended before this record existed. And where the
+decision stands with neither -- a process that died between the label and
+the flag -- the remote's own label history is asked, because that window is
+the one thing no local record can answer for and an operator's removal would
+otherwise be spent re-applying a terminal that had already landed.
 
 Every field here is read through the domain's own readers, so a hand-edited
 identity or a `"true"` string reads back as no ending at all -- which refuses

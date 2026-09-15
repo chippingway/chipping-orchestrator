@@ -73,8 +73,9 @@ class DevResumeStageTest(unittest.TestCase):
                 self.assertEqual(request.resolved_stage, expected)
 
     def test_override_skips_the_label_read(self) -> None:
-        # The caller that passes one relabeled the issue and resumed on the same
-        # cached `Issue`, so the label read would report the stage it just left.
+        # The caller that passes one names the stage it just relabeled to, so
+        # the attribution does not rest on the label the `Issue` it hands down
+        # reports -- which, on one the relabel missed, is the stage it just left.
         request = self._request(label=_VALIDATING_LABEL, stage=_FIXING)
         self.assertEqual(request.resolved_stage, _FIXING)
         request.gh.workflow_label.assert_not_called()

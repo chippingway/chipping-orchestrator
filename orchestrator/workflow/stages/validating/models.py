@@ -82,10 +82,10 @@ class _DevFixRun:
     before_sha: str
     after_sha: str | None = None
     # The state this run belongs to, where the caller relabelled the issue
-    # remotely in the same tick. PyGithub does not refresh a fetched issue's
-    # labels after `set_labels`, so the size gate reading them back would
-    # freeze the state the issue has LEFT -- and a settled adjudication
-    # continues at whatever the record names. The reviewer's
+    # remotely in the same tick. Named rather than read back, because the
+    # size gate reading the label off an issue object the relabel did not go
+    # through would freeze the state the issue has LEFT -- and a settled
+    # adjudication continues at whatever the record names. The reviewer's
     # `CHANGES_REQUESTED` route is the one that flips before it publishes;
     # every other reaches this with the label already current and names none.
     stage: WorkflowLabel | None = None

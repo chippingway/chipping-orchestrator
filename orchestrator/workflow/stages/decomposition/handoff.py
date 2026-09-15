@@ -9,9 +9,9 @@ already been ANSWERED -- and both end the same way: the label moves, and the
 implementing handler runs on the same tick rather than a poll later.
 
 That last step is what the two share and why they are one owner. A label write
-leaves the object it was made against reporting the label it arrived with, so
-the handler has to be given a freshly read issue or the relabel IT ends in is
-checked against a state that is no longer true.
+keeps only the labels of the object it was made against current, and nothing
+else on it has been read since the tick was dispatched, so the handler is given
+a freshly read issue to publish on rather than the one the tick started with.
 """
 from __future__ import annotations
 
@@ -122,15 +122,13 @@ def _hand_on_to_implementing(
     """Run the implementing tick this relabel hands the issue to.
 
     The issue is FETCHED again first, and that is the whole of what this owner
-    adds. A label write does not refresh the object it was made against, so
-    the one in hand still reports `workflow:decomposing` -- and the handler
-    below it ends in a relabel of its own, which the transition guard reads
-    against whatever the issue says it currently is. Handed the stale object
-    it sees `decomposing -> validating`, an edge the graph does not declare,
-    and under `WORKFLOW_TRANSITION_GUARD=enforce` it raises -- after the
-    branch is pushed and the pull request is open.
+    adds. The relabel keeps the labels of the object in hand in step with its
+    own write, but that object is otherwise the one this tick was dispatched
+    with, and anything a human changed on the issue since is on GitHub rather
+    than on it. The handler below publishes on the issue it is handed, so it
+    is handed GitHub's.
 
-    A read that fails ends the tick instead of running on the stale object.
+    A read that fails ends the tick instead of running on the object in hand.
     The label is already durable, so the next tick dispatches this issue to
     the implementing handler on a freshly read one and nothing is lost but a
     poll.

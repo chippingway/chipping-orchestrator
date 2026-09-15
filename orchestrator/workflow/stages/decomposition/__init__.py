@@ -91,7 +91,7 @@ all -- so the four labels above are still the whole of what this package
 answers for. `handoff` owns both of those routes, together because neither is a
 decomposition and both end the same way: the label moves and the implementing
 handler runs on the same tick, against an issue read back after the write
-rather than the stale object that write was made against.
+rather than the object the tick was dispatched with.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per label, and an eager binding here would

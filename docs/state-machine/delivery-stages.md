@@ -2002,9 +2002,9 @@ reason one step earlier, rather than falling back to the read: a caller that est
 decision on it, and a fallback would pin the push to a fact that decision was never taken over.
 
 The *stage* is the caller's on the one route that relabels remotely and then publishes in the same tick (the
-reviewer's `CHANGES_REQUESTED`, which flips to `fixing` before the dev spawn): PyGithub does not refresh a fetched
-issue's labels, so reading them back would freeze the state the issue has left and a settled verdict would continue
-there. Whatever the caller names is still checked, and against the five states that publish onto a pull request the
+reviewer's `CHANGES_REQUESTED`, which flips to `fixing` before the dev spawn): read off an issue object that flip did
+not go through, the label would freeze the state the issue has left and a settled verdict would continue there.
+Whatever the caller names is still checked, and against the five states that publish onto a pull request the
 remote already carries rather than against the transition graph. Where the switch kept the candidate out of the gate
 no entry was frozen, so this owner read no pull request and has no head of its own — but the push is neither unnamed
 nor unleased. The COMMIT is named off the checkout, because the switch keeps candidates out of the measurement and

@@ -152,11 +152,11 @@ def _post_reviewer_feedback(context: _models._RequestedChanges) -> None:
 
 def _run_requested_fix(context: _models._RequestedChanges) -> _models._AwaitingDevAttempt:
     before_sha = _verification_probes._head_sha(context.decision.run.wt)
-    # The caller flipped the label validating -> fixing on the SAME `issue`
-    # object; PyGithub does not refresh its cached `labels` after
-    # `set_labels`, so pass `fixing` explicitly rather than let the resume
-    # helper read the stale `validating` back off the issue and attribute this
-    # developer run to the reviewer's stage.
+    # The caller flipped the label validating -> fixing just before this.
+    # Pass `fixing` explicitly rather than let the resume helper read the
+    # label back off the issue: on any object that flip did not go through it
+    # still reads `validating`, which would attribute this developer run to
+    # the reviewer's stage.
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(
         context.gh,
         context.spec,
@@ -185,12 +185,12 @@ def _finish_requested_fix(
         attempt.run.worktree,
         attempt.run.agent_result,
         attempt.run.before_sha,
-        # The caller flipped this issue to `fixing` remotely before the spawn
-        # and PyGithub does not refresh the cached labels, so the size gate
-        # reading them back would freeze `validating` -- the state the issue
-        # has LEFT -- and a settled adjudication would continue there instead
-        # of finishing the fix loop. Named for the same reason the resume
-        # above is.
+        # The caller flipped this issue to `fixing` remotely before the spawn,
+        # and the size gate reading the label off an object that flip did not
+        # go through would freeze `validating` -- the state the issue has
+        # LEFT -- and a settled adjudication would continue there instead of
+        # finishing the fix loop. Named for the same reason the resume above
+        # is.
         stage=WorkflowLabel.FIXING,
         # The round this route counts on a landed fix, handed to the gate for
         # the exit where this caller never reaches the line below: a hold

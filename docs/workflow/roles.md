@@ -1937,11 +1937,11 @@ two-phase terminal record, and it is there because the gesture cannot be read of
 strips a workflow label mid-cleanup, and an ending whose terminal write GitHub refused, both leave the same unlabeled
 issue an operator's removal does. The decision to write the label goes down before the write; the proof goes down
 only for a label that landed, so an attempt never reads as a terminal. The pass that makes the write takes that proof
-from the write returning rather than by reading the issue back, since a client's cached labels outlive the write that
-changes them and a closed owner gets no second visit. Where the proof is missing the ending writes the terminal it
-still owes instead, and the handshake becomes available from there — which is also how a cancellation that ended
-before this record existed is brought into it, since any visit that finds the issue still wearing `rejected` writes
-the proof down.
+from the write returning rather than by reading the issue back, since a read proves no more than what the write left
+on the object it went through and a closed owner gets no second visit. Where the proof is missing the ending writes
+the terminal it still owes instead, and the handshake becomes available from there — which is also how a cancellation
+that ended before this record existed is brought into it, since any visit that finds the issue still wearing
+`rejected` writes the proof down.
 
 Everything else stays inert, and inert means *undispatched*. A cancellation still owing the remote a branch, a ref,
 a child receipt, or a held pull request belongs to the cleanup above until it does not, unlabeled or otherwise; a
