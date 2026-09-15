@@ -379,6 +379,9 @@ class _SettingsResolver:
             "SQUASH_ON_APPROVAL": env.get(
                 "SQUASH_ON_APPROVAL", _DEFAULT_ENABLED,
             ).strip().lower() in _TRUE_VALUES,
+            "PR_REF_IN_SUBJECT": env.get(
+                "PR_REF_IN_SUBJECT", _DEFAULT_ENABLED,
+            ).strip().lower() in _TRUE_VALUES,
             "EXPOSE_TRACKED_REPOS": env.get(
                 "EXPOSE_TRACKED_REPOS", _DEFAULT_ENABLED,
             ).strip().lower() in _TRUE_VALUES,

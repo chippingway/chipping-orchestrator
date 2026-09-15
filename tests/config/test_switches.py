@@ -2,90 +2,48 @@
 # SPDX-License-Identifier: Apache-2.0
 """Focused configuration behavior tests."""
 
+import itertools
 import unittest
 
 from tests.config import config_reload_helpers as _reload, config_test_values as _config_cases
 
+# Default-on boolean switches, each resolved onto the config attribute its
+# environment key names.
+_BOOLEAN_SWITCHES = (
+    _config_cases._DECOMPOSE_ENV,
+    _config_cases._EXPOSE_REPOS_ENV,
+    _config_cases._PR_REF_IN_SUBJECT_ENV,
+)
+_TRUTHY_SPELLINGS = ("on", "ON", " on ", _config_cases._ENABLED_ENV, "true", "True", "yes")
+# Explicit off, the other falsy spellings, and an unrecognized value.
+_DISABLING_SPELLINGS = (_config_cases._OFF, _config_cases._DISABLED_ENV, "false", "no", "enabled")
 
-class DecomposeKillSwitchConfigTest(unittest.TestCase):
-    """The DECOMPOSE kill switch defaults on; truthy spellings keep it on,
-    explicit off / typos disable it. Strict parser semantics so a typo
-    doesn't silently flip the user's intent.
+
+class BooleanSwitchConfigTest(unittest.TestCase):
+    """The DECOMPOSE, EXPOSE_TRACKED_REPOS, and PR_REF_IN_SUBJECT switches
+    default on and share SQUASH_ON_APPROVAL's strict parser: truthy spellings
+    keep a switch on, and explicit off, the other falsy spellings, and any
+    unrecognized value disable it, so a typo cannot silently flip the
+    operator's intent.
     """
 
     def test_default_is_on(self) -> None:
         config = _reload.load_config()
-        self.assertTrue(config.DECOMPOSE)
-
-    def test_explicit_off(self) -> None:
-        config = _reload.load_config({_config_cases._DECOMPOSE_ENV: _config_cases._OFF})
-        self.assertFalse(config.DECOMPOSE)
+        for switch in _BOOLEAN_SWITCHES:
+            with self.subTest(switch=switch):
+                self.assertTrue(getattr(config, switch))
 
     def test_truthy_spellings_keep_on(self) -> None:
-        for spelling in (
-            "on",
-            "ON",
-            " on ",
-            _config_cases._ENABLED_ENV,
-            "true",
-            "True",
-            "yes",
-        ):
-            with self.subTest(value=spelling):
-                config = _reload.load_config({_config_cases._DECOMPOSE_ENV: spelling})
-                self.assertTrue(config.DECOMPOSE)
+        for switch, spelling in itertools.product(_BOOLEAN_SWITCHES, _TRUTHY_SPELLINGS):
+            with self.subTest(switch=switch, value=spelling):
+                config = _reload.load_config({switch: spelling})
+                self.assertTrue(getattr(config, switch))
 
-    def test_falsy_spellings_disable(self) -> None:
-        for spelling in (_config_cases._DISABLED_ENV, "false", "no", _config_cases._OFF):
-            with self.subTest(value=spelling):
-                config = _reload.load_config({_config_cases._DECOMPOSE_ENV: spelling})
-                self.assertFalse(config.DECOMPOSE)
-
-    def test_typo_defaults_to_off(self) -> None:
-        # Strict parser: any unrecognized value disables decomposition.
-        config = _reload.load_config({_config_cases._DECOMPOSE_ENV: "enabled"})
-        self.assertFalse(config.DECOMPOSE)
-
-
-class ExposeTrackedReposConfigTest(unittest.TestCase):
-    """The EXPOSE_TRACKED_REPOS kill switch defaults on (but is inert for
-    single-repo hosts, where the context builder gates on `len(specs) > 1`).
-    Parsed exactly like DECOMPOSE / SQUASH_ON_APPROVAL: truthy spellings keep
-    it on, explicit off / typos disable it.
-    """
-
-    def test_default_is_on(self) -> None:
-        config = _reload.load_config()
-        self.assertTrue(config.EXPOSE_TRACKED_REPOS)
-
-    def test_explicit_off(self) -> None:
-        config = _reload.load_config({_config_cases._EXPOSE_REPOS_ENV: _config_cases._OFF})
-        self.assertFalse(config.EXPOSE_TRACKED_REPOS)
-
-    def test_truthy_spellings_keep_on(self) -> None:
-        for spelling in (
-            "on",
-            "ON",
-            " on ",
-            _config_cases._ENABLED_ENV,
-            "true",
-            "True",
-            "yes",
-        ):
-            with self.subTest(value=spelling):
-                config = _reload.load_config({_config_cases._EXPOSE_REPOS_ENV: spelling})
-                self.assertTrue(config.EXPOSE_TRACKED_REPOS)
-
-    def test_falsy_spellings_disable(self) -> None:
-        for spelling in (_config_cases._DISABLED_ENV, "false", "no", _config_cases._OFF):
-            with self.subTest(value=spelling):
-                config = _reload.load_config({_config_cases._EXPOSE_REPOS_ENV: spelling})
-                self.assertFalse(config.EXPOSE_TRACKED_REPOS)
-
-    def test_typo_defaults_to_off(self) -> None:
-        # Strict parser: any unrecognized value disables the disclosure.
-        config = _reload.load_config({_config_cases._EXPOSE_REPOS_ENV: "enabled"})
-        self.assertFalse(config.EXPOSE_TRACKED_REPOS)
+    def test_off_falsy_and_unrecognized_disable(self) -> None:
+        for switch, spelling in itertools.product(_BOOLEAN_SWITCHES, _DISABLING_SPELLINGS):
+            with self.subTest(switch=switch, value=spelling):
+                config = _reload.load_config({switch: spelling})
+                self.assertFalse(getattr(config, switch))
 
 
 class InReviewDebounceConfigTest(unittest.TestCase):

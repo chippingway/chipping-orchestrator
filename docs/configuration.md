@@ -338,6 +338,21 @@ examples.
   between the rewrite and the push does not abandon reviewer-approved work off the pull request. An issue with no
   squash recorded costs such an install nothing at all — no probe, no reading, and no write. Parsed as a boolean:
   `1` / `true` / `on` / `yes` enable, anything else disables.
+- `PR_REF_IN_SUBJECT` — default `on`. end the subject of each commit the orchestrator publishes onto a pull request
+  with a reference to that pull request — exactly one space, `(#`, the number, and `)` — so a rebase-merged `main`
+  shows `<subject> (#N)` and github.com renders the number as a link to the pull request. The commits it covers are
+  the ones that land on `main` in the default configuration: the approval squash, a branch carrying a single commit
+  included, and the documenting pass's `docs:` commit. With `SQUASH_ON_APPROVAL=off` the dev's own commits are not
+  rewritten for it, while the `docs:` commit still is, since that one is published by the orchestrator. The suffix is
+  idempotent: a subject already ending in ` (#N)` for the same pull request is left as it is, so a second approval
+  round, a retried tick, or a recovered commit never doubles it, and a suffix naming a different number is ordinary
+  subject text. It is a plain reference, never a closing keyword such as `Fixes #N`, so GitHub does not treat the
+  number as an issue to close. `off` suffixes nothing, leaves a single-commit branch unrewritten, and does not amend
+  the `docs:` commit. Turn it off on a target repo that lands pull requests with GitHub's **Squash and merge** and its
+  default commit message: GitHub appends its own `(#N)` to the squash commit title, so a single-commit pull request
+  would carry the number twice. The switch is dormant for now — it is parsed and published on `orchestrator.config`,
+  but no publication road reads it yet, so neither value changes a published subject today. Parsed as a boolean:
+  `1` / `true` / `on` / `yes` enable, anything else disables.
 - `EXPOSE_TRACKED_REPOS` — default `on`. tell working agents about the *other* repos this orchestrator tracks (slug,
   local `target_root`, base branch) for cross-repo reference. Inert for single-repo hosts — the awareness block is
   emitted only when more than one repo is configured, so a default deployment sees zero added prompt tokens. The
