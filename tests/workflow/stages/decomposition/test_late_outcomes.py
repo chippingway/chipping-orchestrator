@@ -141,6 +141,11 @@ class DecidedOutcomeTest(LateCase, unittest.TestCase):
         self.assertEqual(
             self._pinned().get(_support.KEYS.split_blocker), _support.SPLIT_BLOCKER,
         )
+        # The argument for the verdict is a different answer from what
+        # stopped a split, so it is kept beside it under its own key.
+        self.assertEqual(
+            self._pinned().get(_support.KEYS.rationale), _support.SINGLE_RATIONALE,
+        )
         # What is reported is read back off pinned state, so a caller asking
         # the run for its session gets the one a later resume would land on.
         self.assertEqual(outcome.run.session_id, _support.LATE_SESSION_ID)
@@ -189,6 +194,9 @@ class DecidedOutcomeTest(LateCase, unittest.TestCase):
         self.assertEqual(decided.get("additions"), _support.ADDITIONS)
         self.assertEqual(decided.get("threshold"), _support.THRESHOLD)
         self.assertEqual(decided.get("source_sha"), _support.CANDIDATE_SHA)
+        # The rationale is issue prose the pinned comment keeps, and the
+        # closed event contract has no field for it.
+        self.assertNotIn(_support.SINGLE_RATIONALE, repr(decided))
 
     def test_a_later_generation_re_adjudicates(self) -> None:
         # A recorded answer names the generation it answered, so the next

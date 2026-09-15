@@ -716,13 +716,16 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
   that human is being handed. A diff dominated by legitimate generated or data artifacts is the named false positive
   and gets this verdict with `"category": "generated_artifacts"`. The `"split_blocker"` beside it says what makes a
   safe split unavailable — the prerequisite that cannot be landed dormant, the artifact that cannot land apart from
-  what generates it, the invariant a half-landed slice would break — and it is the one part of a `single` reply's prose
-  the pinned comment keeps; the `"rationale"` is dropped, which is why the two are separate fields rather than one. The
-  prompt states it as an obligation and the parser enforces it: a fresh reply that declares the verdict and names no
-  obstacle is refused, because what would be recorded otherwise is the one answer a human has to act on with the one
-  thing it turns on missing. The refusal is about a REPLY and never about a record — results predating the key are on
-  live issues, still decide their candidate, and are read back with a fixed stand-in sentence rather than sent round
-  for a second run to recover prose.
+  what generates it, the invariant a half-landed slice would break — and the pinned comment keeps it whole or not at
+  all. The `"rationale"` is kept as well, under different rules, which is why the two are separate fields rather than
+  one: it is optional, it is recorded only beside a `single` or a `split`, and one past `MAX_RATIONALE` (2,048
+  characters) is cut to that length with a visible truncation marker instead of costing the verdict, since nothing
+  acts on it ([`../state-machine/labels-and-state.md`](../state-machine/labels-and-state.md#the-late-run)). The
+  explanation is what the prompt states as an obligation and the parser enforces: a fresh reply that declares the
+  verdict and names no obstacle is refused, because what would be recorded otherwise is the one answer a human has to
+  act on with the one thing it turns on missing. The refusal is about a REPLY and never about a record — results
+  predating the key are on live issues, still decide their candidate, and are read back with a fixed stand-in sentence
+  rather than sent round for a second run to recover prose.
 - `split` — a child manifest that partitions the declared scope completely, held to the same rules the initial mode
   uses: the child cap, each child's shape, and the acyclicity of the graph they declare. The prompt requires
   dependency-ordered implementation slices to be considered *before* a `single` is answered, because that is the way

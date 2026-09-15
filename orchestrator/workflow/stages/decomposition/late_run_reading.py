@@ -3,7 +3,9 @@
 """Read frozen late-run records and recover their adjudication and resume identity.
 
 Stored children pass manifest validation, stored agent specs stay locked,
-and a session resumes only against the same candidate generation.
+a stored rationale reads back only where it is one a `single` or `split`
+could have recorded, and a session resumes only against the same candidate
+generation.
 """
 from __future__ import annotations
 
@@ -20,7 +22,13 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.decomposition import (
     validation as _split_validation,
 )
-from orchestrator.workflow.stages.decomposition.late_result_models import _DECOMPOSER_ROLE, _LateAdjudication, _LateRun
+from orchestrator.workflow.stages.decomposition.late_result_models import (
+    _DECOMPOSER_ROLE,
+    _RATIONALE_VERDICTS,
+    MAX_RATIONALE,
+    _LateAdjudication,
+    _LateRun,
+)
 
 _LATE_AGENT_ROLE = "late_agent_role"
 _LATE_AGENT = "late_agent"
@@ -33,6 +41,7 @@ _LATE_RESULT_CATEGORY = "late_result_category"
 _LATE_RESULT_QUESTION = "late_result_question"
 _LATE_RESULT_SPLIT_BLOCKER = "late_result_split_blocker"
 _LATE_RESULT_CHILDREN = "late_result_children"
+_LATE_RESULT_RATIONALE = "late_result_rationale"
 
 
 def _read_late_run(state: _pinned_state.PinnedState) -> _LateRun:
@@ -45,6 +54,9 @@ def _read_late_run(state: _pinned_state.PinnedState) -> _LateRun:
     recorded.
     """
     spec, backend, extra_args = _locked_spec(state)
+    verdict = _payloads.as_member(
+        _late_models.LateVerdict, state.get(_LATE_RESULT_VERDICT),
+    )
     return _LateRun(
         role=_payloads.as_text(
             state.get(_LATE_AGENT_ROLE),
@@ -55,9 +67,7 @@ def _read_late_run(state: _pinned_state.PinnedState) -> _LateRun:
             state.get(_LATE_SOURCE_SHA), _formats.COMMIT_LENGTHS,
         ) or "",
         generation=_payloads.as_count(state.get(_LATE_RUN_GENERATION)) or 0,
-        verdict=_payloads.as_member(
-            _late_models.LateVerdict, state.get(_LATE_RESULT_VERDICT),
-        ),
+        verdict=verdict,
         category=_payloads.as_member(
             _events.LateVerdictCategory, state.get(_LATE_RESULT_CATEGORY),
         ),
@@ -66,10 +76,38 @@ def _read_late_run(state: _pinned_state.PinnedState) -> _LateRun:
             state.get(_LATE_RESULT_SPLIT_BLOCKER),
         ) or "",
         children=_recorded_children(state),
+        rationale=_recorded_rationale(state, verdict),
         spec=spec,
         backend=backend,
         extra_args=extra_args,
     )
+
+
+def _recorded_rationale(
+    state: _pinned_state.PinnedState,
+    verdict: _late_models.LateVerdict | None,
+) -> str:
+    """Return the rationale a `single` or `split` recorded, or nothing.
+
+    Read as absent rather than refused, because a rationale decides nothing:
+    a value no reader can use leaves the verdict beside it this candidate's
+    answer, and never sends the adjudicator round again to recover prose. A
+    record written before this key existed carries none. A blank value and
+    one that is not a string are not an argument anybody can be shown; one
+    longer than a record is ever written at would hand a reader more than the
+    bound it relies on; and one beside a `question` is not a record this
+    binary writes.
+
+    Nothing is rewritten on the way: the comment keeps whatever it holds, so
+    a record carrying an unusable value stays distinguishable from one with
+    nothing under the key.
+    """
+    if verdict not in _RATIONALE_VERDICTS:
+        return ""
+    recorded = _payloads.as_text(state.get(_LATE_RESULT_RATIONALE)) or ""
+    if not recorded.strip() or len(recorded) > MAX_RATIONALE:
+        return ""
+    return recorded
 
 
 def _recorded_children(state: _pinned_state.PinnedState) -> tuple[dict, ...]:
@@ -114,18 +152,20 @@ def _recovered_adjudication(run: _LateRun) -> _LateAdjudication:
 
     Everything a caller acts on comes back: the verdict, the category, the
     question to announce, the explanation a `single` gave for not splitting,
-    and the manifest to create children from. Only the agent's rationale for
-    accepting the change does not, because that prose is the part of a reply
-    the pinned comment deliberately never kept.
+    and the manifest to create children from. The rationale a `single` or a
+    `split` argued with comes back beside them, as the bounded text the record
+    kept rather than the reply the agent sent.
 
     A record with no explanation is rebuilt with none, and the carrier answers
-    for the absence: what the record holds is what an agent wrote, and a
-    rebuilt outcome that manufactured a sentence would be indistinguishable
-    from one that had it all along.
+    for the absence; a record with no rationale is rebuilt with none either,
+    and a reader showing one says so for itself. What the record holds is what
+    an agent wrote, and a rebuilt outcome that manufactured a sentence would
+    be indistinguishable from one that had it all along.
     """
     return _LateAdjudication(
         verdict=run.verdict,
         category=run.category,
+        rationale=run.rationale,
         question=run.question,
         split_blocker=run.split_blocker,
         children=run.children,

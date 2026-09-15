@@ -126,6 +126,7 @@ class _StateKeys:
     question: str = "late_result_question"
     split_blocker: str = "late_result_split_blocker"
     children: str = "late_result_children"
+    rationale: str = "late_result_rationale"
     plan_pr_number: str = "late_plan_pr_number"
     plan_pr_head: str = "late_plan_pr_head"
     plan_pr_body: str = "late_plan_pr_body"
@@ -194,8 +195,14 @@ IDENTITY_KEYS = (
 # record, and the recovery over them are all read against the same words.
 SPLIT_BLOCKER = "the generated client cannot land without its schema"
 
+# What each verdict argues with, worded apart from the explanation above: the
+# two are different answers under different keys, so a fixture spelling them
+# alike could not tell a record that kept both from one that swapped them.
+SINGLE_RATIONALE = "one coherent change"
+SPLIT_RATIONALE = "two slices"
+
 SINGLE_REPLY = _reply_support.late_block(
-    '{"decision": "single", "rationale": "one coherent change",'
+    f'{{"decision": "single", "rationale": "{SINGLE_RATIONALE}",'
     f' "split_blocker": "{SPLIT_BLOCKER}",'
     ' "category": "generated_artifacts"}'
 )
@@ -207,14 +214,19 @@ FIRST_ESTIMATE = 400
 SECOND_ESTIMATE = 600
 
 
-SPLIT_REPLY = _reply_support.late_block(json.dumps({
-    "decision": "split",
-    "rationale": "two slices",
-    "children": [
-        _reply_support.proposed_slice("A", "a", FIRST_ESTIMATE),
-        _reply_support.proposed_slice("B", "b", SECOND_ESTIMATE, depends_on=(0,)),
-    ],
-}))
+def split_reply(rationale: str = SPLIT_RATIONALE) -> str:
+    """The standard two-slice split, arguing for itself with this rationale."""
+    return _reply_support.late_block(json.dumps({
+        "decision": "split",
+        "rationale": rationale,
+        "children": [
+            _reply_support.proposed_slice("A", "a", FIRST_ESTIMATE),
+            _reply_support.proposed_slice("B", "b", SECOND_ESTIMATE, depends_on=(0,)),
+        ],
+    }))
+
+
+SPLIT_REPLY = split_reply()
 
 QUESTION_ASKED = "which half of this is in scope?"
 

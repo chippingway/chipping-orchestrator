@@ -13,7 +13,11 @@ from orchestrator.workflow.stages.decomposition import (
     late_session as _session,
 )
 from orchestrator.workflow.stages.decomposition.late_budget import ESTIMATE
-from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
+from orchestrator.workflow.stages.decomposition.late_result_models import (
+    MAX_RATIONALE,
+    RATIONALE_TRUNCATION_MARKER,
+    _LateDisposition,
+)
 from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     LateCase,
@@ -65,6 +69,11 @@ _OVERSIZED_OUTCOMES = (
 # `single` adds; a notice that named only the other two would send a human
 # looking for a question nobody asked.
 _NAMES_THE_EXPLANATION = "an explanation of what stopped a split"
+
+# A split arguing for itself at more length than the whole outcome budget.
+# Its children are the standard ones, so the only thing past any bound is
+# prose nothing acts on.
+_LONG_RATIONALE_SPLIT = _support.split_reply("r" * _session.MAX_RECORDED_BODY)
 
 
 class _CommentSnapshot:
@@ -133,6 +142,7 @@ class SplitRecoveryTest(LateCase, unittest.TestCase):
             [child[ESTIMATE] for child in outcome.adjudication.children],
             [_support.FIRST_ESTIMATE, _support.SECOND_ESTIMATE],
         )
+        self.assertEqual(outcome.adjudication.rationale, _support.SPLIT_RATIONALE)
 
     def test_a_manifest_without_budgets_answers(self) -> None:
         # A live issue's split was recorded before this domain kept budgets.
@@ -160,6 +170,39 @@ class SplitRecoveryTest(LateCase, unittest.TestCase):
             ["A", "B"],
         )
         self.assertNotIn(ESTIMATE, recovered.adjudication.children[0])
+
+
+class RationaleRecoveryTest(LateCase, unittest.TestCase):
+    """The argument a verdict came with, as the record keeps it."""
+
+    def test_a_crashed_single_keeps_its_rationale(self) -> None:
+        # A later tick reads the verdict back rather than paying for a second
+        # run, and the argument it finds is the one the first run recorded --
+        # still apart from what stopped the split.
+        self._adjudicate(agent_reply(_support.SINGLE_REPLY))
+
+        recovered, unspawned = self._adjudicate()
+
+        unspawned.assert_not_called()
+        self.assertEqual(recovered.run.rationale, _support.SINGLE_RATIONALE)
+        self.assertEqual(recovered.run.split_blocker, _support.SPLIT_BLOCKER)
+        self.assertEqual(
+            self._pinned().get(_support.KEYS.rationale), _support.SINGLE_RATIONALE,
+        )
+
+    def test_a_long_rationale_is_cut_not_parked(self) -> None:
+        # Cut rather than refused: a refusal would take the split into a park
+        # the next attempt supersedes, for a second run free to decide
+        # differently -- and what is kept says it was cut.
+        decided, spawned = self._adjudicate(agent_reply(_LONG_RATIONALE_SPLIT))
+
+        spawned.assert_called_once()
+        self.assertEqual(decided.disposition, _LateDisposition.DECIDED)
+        self.assertEqual(self._pinned().get(_support.KEYS.verdict), LateVerdict.SPLIT)
+        kept = self._pinned()[_support.KEYS.rationale]
+        self.assertEqual(len(kept), MAX_RATIONALE)
+        self.assertTrue(kept.endswith(RATIONALE_TRUNCATION_MARKER))
+        self.assertEqual(decided.run.rationale, kept)
 
 
 class AnnouncementRecoveryTest(LateCase, unittest.TestCase):

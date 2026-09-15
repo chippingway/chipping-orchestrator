@@ -5,6 +5,8 @@
 Recorded answers retain their exact source commit, cycle, and generation.
 A split carries its children, a question needs its category and text, and a
 legacy single answer retains the explanation fallback used by park notices.
+A single or a split also keeps the agent's rationale, cut to a fixed bound
+with a visible marker where it was cut.
 """
 from __future__ import annotations
 
@@ -30,6 +32,28 @@ _DECOMPOSER_ROLE = "decomposer"
 UNRECORDED_SPLIT_BLOCKER = (
     "no explanation of what stopped a split was recorded with this verdict"
 )
+
+# The verdicts a record keeps a rationale for. A `question` asks rather than
+# argues, and a split refused at the lineage bound is recorded as the question
+# it became -- so the argument for a split nobody may act on is not kept.
+_RATIONALE_VERDICTS = frozenset((LateVerdict.SINGLE, LateVerdict.SPLIT))
+
+# How much of a rationale a record keeps, in characters of the value. It is
+# prose a human reads and nothing acts on, so a longer one is cut to this
+# rather than refused: a refusal would take the verdict it argued for into a
+# park the next attempt supersedes, and buy another agent run to recover an
+# argument. The fields a verdict IS acted on through are never cut.
+#
+# Fixed rather than derived from the room a comment has left, so one reply
+# records the same text whatever else the comment holds. What JSON escaping
+# makes of those characters is not bounded here; the whole-comment preflight
+# measures the rendered write, and a record it cannot hold is refused whole.
+MAX_RATIONALE = 2048
+
+# What ends a rationale that was cut. It sits INSIDE the bound, so no recorded
+# rationale is longer than `MAX_RATIONALE`, and it says so in words, so a
+# reader shown the value can tell a shortened argument from a whole one.
+RATIONALE_TRUNCATION_MARKER = " [... rationale truncated by the orchestrator]"
 
 
 class _LateDisposition(Enum):
@@ -58,9 +82,16 @@ class _LateAdjudication:
     `split_blocker` is the `single` verdict's own: what the agent said made
     splitting unsafe or unavailable, verbatim. It is what a reader shows
     somebody deciding what to do about an oversized candidate, and it is kept
-    apart from `rationale` -- the prose arguing the change is acceptable as
-    one -- because they answer different questions and only this one survives
-    the pinned comment.
+    apart from `rationale` -- the prose arguing for the verdict -- because
+    they answer different questions and are held to different rules. The
+    explanation is required of a fresh `single` and recorded whole or not at
+    all; the rationale is optional, is recorded only beside a `single` or a
+    `split`, and is cut to `MAX_RATIONALE` on its way into the record.
+
+    A fresh answer carries the rationale as the agent wrote it, and one
+    rebuilt from the record carries the bounded text the record kept -- so a
+    caller that has to show the same words on both roads reads them off the
+    record.
     """
 
     verdict: LateVerdict
@@ -119,6 +150,13 @@ class _LateRun:
     split decided and the issues it becomes state those sizes -- a record
     without them would refuse the re-run while the answer it stands for was
     gone.
+
+    A `single` or a `split` also carries the rationale it argued with, as the
+    record bounded it. That decides nothing: a record written before this
+    domain kept one, or holding a value no reader can use, is still this
+    candidate's answer, so the field reads empty rather than the verdict
+    reading incomplete. It is written and dropped with the result, which is
+    what binds it to the same cycle, generation, and commit.
     """
 
     role: str = _DECOMPOSER_ROLE
@@ -134,6 +172,7 @@ class _LateRun:
     question: str = ""
     split_blocker: str = ""
     children: tuple[dict, ...] = ()
+    rationale: str = ""
 
     @property
     def is_actionable(self) -> bool:
@@ -232,9 +271,7 @@ class _LateAdjudicationRun:
     `adjudication` is present on every `DECIDED` answer, whether this tick's
     own agent produced it or a crashed one already had: a recovered outcome is
     rebuilt from the record, which carries the whole of what each verdict
-    decided. Only the agent's rationale for accepting the change is missing
-    from a rebuilt one -- prose the pinned comment deliberately does not
-    keep.
+    decided and the bounded rationale beside a `single` or a `split`.
 
     `guarded_split` is set on exactly one path: a `split` verdict that a fresh
     owner read found open. It is absent everywhere else, so a caller cannot

@@ -3,7 +3,8 @@
 """Encode late adjudication results and check their pinned-comment size.
 
 Child payloads retain declared estimates and only their persisted fields.
-The size check uses the actual pinned-state serialization.
+A rationale is cut to its fixed bound before anything is measured, and the
+size check uses the actual pinned-state serialization.
 """
 from __future__ import annotations
 
@@ -12,7 +13,12 @@ from orchestrator.workflow.stages.decomposition import (
     late_budget as _budget,
     late_run_reading as _late_run_reading,
 )
-from orchestrator.workflow.stages.decomposition.late_result_models import _LateAdjudication
+from orchestrator.workflow.stages.decomposition.late_result_models import (
+    _RATIONALE_VERDICTS,
+    MAX_RATIONALE,
+    RATIONALE_TRUNCATION_MARKER,
+    _LateAdjudication,
+)
 
 
 def _fits_the_comment(state_data: dict, ceiling: int) -> bool:
@@ -46,6 +52,12 @@ def _result_payload(adjudication: _LateAdjudication) -> dict:
     a stand-in here would put this binary's own number in the comment as
     though an agent had estimated it, and spend the comment budget saying
     nothing.
+
+    The rationale is the one field shortened, and it is cut here, before the
+    comment is measured, so what the preflight measures is what gets written.
+    Only a `single` and a `split` keep one. Every field a verdict is acted on
+    through reaches the measurement whole: a truncated question, explanation,
+    or manifest would say something nobody did.
     """
     recorded = {_late_run_reading._LATE_RESULT_VERDICT: str(adjudication.verdict)}
     if adjudication.category is not None:
@@ -58,7 +70,24 @@ def _result_payload(adjudication: _LateAdjudication) -> dict:
         recorded[_late_run_reading._LATE_RESULT_CHILDREN] = [
             _recorded_child(child) for child in adjudication.children
         ]
+    if adjudication.verdict in _RATIONALE_VERDICTS and adjudication.rationale.strip():
+        recorded[_late_run_reading._LATE_RESULT_RATIONALE] = _bounded_rationale(
+            adjudication.rationale,
+        )
     return recorded
+
+
+def _bounded_rationale(rationale: str) -> str:
+    """The rationale as a record keeps it: whole, or a prefix and the marker.
+
+    Cut on characters of the value rather than on its serialized length, so
+    the same argument keeps the same words whatever it escapes to; the marker
+    takes its room out of the bound rather than past it.
+    """
+    if len(rationale) <= MAX_RATIONALE:
+        return rationale
+    prefix = rationale[:MAX_RATIONALE - len(RATIONALE_TRUNCATION_MARKER)]
+    return f"{prefix}{RATIONALE_TRUNCATION_MARKER}"
 
 
 def _recorded_child(child: dict) -> dict:
