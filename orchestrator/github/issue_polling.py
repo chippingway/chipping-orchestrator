@@ -21,7 +21,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 
+from github.GithubObject import _ValuedAttribute, is_undefined
 from github.Issue import Issue
+from github.IssuePullRequest import IssuePullRequest
 
 from orchestrator import config
 from orchestrator.github.issues import (
@@ -68,14 +70,47 @@ CLEANUP_SWEEP_LOOKUPS = _sweep_lookups(CLEANUP_ROUTE_LABELS)
 # what it finds on the issue rather than by which query produced it.
 SWEEP_LOOKUPS = CLOSED_SWEEP_LOOKUPS + CLEANUP_SWEEP_LOOKUPS
 
+# What a row carrying no PyGithub ``_pull_request`` slot at all reads as.
+_NO_RECORDED_PULL_REQUEST = object()
+
+
+def _is_pull_request(issue: Issue) -> bool:
+    """Whether a listed row is a pull request, answered without completing it.
+
+    The issue list endpoint puts a ``pull_request`` object on a pull request's
+    row and leaves the key off a real issue's, and PyGithub keeps a key the
+    payload never carried as ``NotSet``. Its public ``pull_request`` property
+    reads ``NotSet`` as a field still to fetch, so asking it would spend one
+    detail GET per open issue on a question the page already answered. On a
+    list row the private slot is exact: ``NotSet`` is an issue, and a valued
+    slot holds the pull-request object or ``None``.
+
+    Anything else -- a row with no such slot, as a plain test double has, or a
+    slot in a shape this PyGithub does not produce -- is asked through the
+    public property, which is right on every object and only costlier on a
+    PyGithub one.
+    """
+    recorded = getattr(issue, "_pull_request", _NO_RECORDED_PULL_REQUEST)
+    if is_undefined(recorded):
+        return False
+    if isinstance(recorded, _ValuedAttribute):
+        listed = recorded.value
+        if listed is None or isinstance(listed, IssuePullRequest):
+            return listed is not None
+    return issue.pull_request is not None
+
 
 def iter_new_non_pr_issues(
     issues: Iterable[Issue],
     seen_numbers: set[int],
 ) -> Iterable[Issue]:
-    """Yield unseen non-PR issues while updating the shared number set."""
+    """Yield unseen non-PR issues while updating the shared number set.
+
+    Every row is classified from what its list page carried, so a walk costs
+    the query's pages and nothing per issue.
+    """
     for issue in issues:
-        if issue.pull_request is None and issue.number not in seen_numbers:
+        if not _is_pull_request(issue) and issue.number not in seen_numbers:
             seen_numbers.add(issue.number)
             yield issue
 

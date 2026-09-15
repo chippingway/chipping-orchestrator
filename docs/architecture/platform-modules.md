@@ -202,7 +202,11 @@ orchestrator/
     events.py           audit event record construction and the optional JSONL sink
     issue_polling.py    the one walk over a repository's issues a tick is served from: the open poll, the
                         cadenced closed sweep beside it, and the shared number set both filter through so an
-                        issue two queries return is dispatched once -- plus the pairing of every swept label with
+                        issue two queries return is dispatched once, and which drops the pull requests those
+                        queries also list by the `_pull_request` slot PyGithub filled from the page, since the
+                        public property would spend a detail GET on every real issue to answer, asking that
+                        property only of a row whose slot is missing or in a shape it does not recognize -- plus
+                        the pairing of every swept label with
                         its pre-namespace spelling and with whether a miss on that spelling is the expected
                         answer, since a closed issue is the one case no other pass revisits and a repository the
                         rename did not reach has nothing else left to find it by. Sits directly above `issues`
