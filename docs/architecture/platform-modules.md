@@ -124,17 +124,22 @@ orchestrator/
                         drains
     loop.py             one-shot vs recurring polling, the interruptible wait, the artifact-maintenance step the
                         recurring form fits between passes, and the guaranteed scheduler drain
-    artifacts.py        when the artifacts of finished issues may be reclaimed and what the pass is allowed to see:
-                        the in-memory monotonic due gate between polling passes, the three gates a pass defers whole
-                        without -- a claim on this host at all, then the scheduler hold over this process's own
-                        workers, and only inside that the exclusive hold on the host, since a presence may only be
-                        handed over by a process that has already gone quiet and has to be back before admission
-                        reopens -- and the split of one host-wide discovery back
+    artifacts.py        whether the artifacts of finished issues may be reclaimed now and what the pass is allowed to
+                        see: the gates a pass defers whole without -- a claim on this host at all, then the scheduler
+                        hold over this process's own workers, and only inside that the exclusive hold on the host,
+                        since a presence may only be handed over by a process that has already gone quiet and has to
+                        be back before admission reopens, and last a scheduled pass's own due gate asked again from
+                        inside both -- and the split of one host-wide discovery back
                         into the client of the repository each candidate belongs to. Two of this process's own
                         readings go down with it, asked per candidate: whether anything is running for that issue,
                         and whether the run may still act at all -- the run's stop flag, the scheduler's close, and
                         the budget bounding how long one pass may hold the host, which is what the process waiting
                         for it is owed
+    artifact_schedule.py when a polling run owes itself that pass: the in-memory due gate between polling passes,
+                        on the monotonic interval or -- taking precedence where set -- the local window, named by the
+                        date it opened on and read again from inside both holds, so only a pass that starts spends
+                        it, a deferral before that is retried no sooner than 15 elapsed minutes later, and nothing is
+                        caught up outside the window
     artifact_records.py the one bounded record each of those candidates is reported to the analytics sink as, and the
                         only thing the pass leaves anywhere but the log: exactly one per candidate DECIDED about --
                         never one per artifact, phase, or deletion step -- carrying the repository, the issue, the

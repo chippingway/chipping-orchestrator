@@ -106,22 +106,30 @@ class RecordedPass:
     because the split between repositories is what a caller of that owner is
     responsible for: the client is authenticated against one repository, and a
     candidate that reached the wrong one is the failure worth catching.
+
+    Every candidate is kept as unproven unless a test asks for another answer,
+    such as a teardown that was refused.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        outcome: MaintenanceOutcome = MaintenanceOutcome.RETAINED,
+        reason: MaintenanceReason = MaintenanceReason.UNPROVEN,
+    ) -> None:
         self.turns: list[Turn] = []
+        self._outcome = outcome
+        self._reason = reason
 
     def __call__(self, github_client, candidates, *, claimed, going):
         taken = tuple(candidates)
         self.turns.append(Turn(github_client, taken, claimed, going))
-        return tuple(self.kept(one) for one in taken)
+        return tuple(self.answered(one) for one in taken)
 
-    def kept(self, taken: MaintenanceCandidate) -> MaintenanceResult:
-        """The answer a pass that decided to keep a candidate gives."""
+    def answered(self, taken: MaintenanceCandidate) -> MaintenanceResult:
+        """The answer this pass gives a candidate it was handed."""
         return MaintenanceResult(
-            candidate=taken,
-            outcome=MaintenanceOutcome.RETAINED,
-            reason=MaintenanceReason.UNPROVEN,
+            candidate=taken, outcome=self._outcome, reason=self._reason,
         )
 
     @property

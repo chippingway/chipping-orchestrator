@@ -31,8 +31,11 @@ future caller that did it the other way round would publish this host with a
 worker still live in it.
 
 Which way the waiting runs is the whole of the safety argument. A pass NEVER
-waits: refused the host, it defers whole, and what that costs is one interval
-of a finished issue's disk. A poller ALWAYS waits: it may not start submitting
+waits: refused the host, it defers whole, and what that costs is a finished
+issue's disk until the next scheduled attempt -- the polling process's next
+interval, fifteen elapsed minutes later inside its window while that is still
+open, or whenever a one-shot run is next asked for. A poller ALWAYS waits: it
+may not start submitting
 while another process is deleting, and there is no length of wait that makes
 doing so safe. What keeps that wait finite is not a timeout here -- it is that
 a pass bounds its own hold and gives the host back at a candidate boundary, so
@@ -224,7 +227,9 @@ def artifact_exclusivity() -> Iterator[HostClaim]:
     Not waited for. A refusal means a process that may be running work for an
     issue is live here, and no length of waiting makes acting safe -- a polling
     run holds its presence for as long as it runs. So the run defers whole,
-    which costs one interval of a finished issue's disk.
+    which costs a finished issue's disk until the next pass anything schedules:
+    the polling process's own, on its interval or inside its window, or the
+    next time a one-shot run is asked for.
     """
     lock_file = _host_lock._opened()
     if lock_file is None:

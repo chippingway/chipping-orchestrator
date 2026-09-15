@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.agents import processes as _agent_processes
-from orchestrator.runtime import artifacts, loop, self_update, ticks
+from orchestrator.runtime import artifact_schedule, artifacts, loop, self_update, ticks
 from orchestrator.runtime.startup import PollingOptions
 from orchestrator.runtime.state import RuntimeState
 
@@ -153,7 +153,7 @@ class MaintenanceBetweenPassesTest(unittest.TestCase):
     the scheduler quiet and the tick is what fills it -- the far end of the
     interval is where the short handlers of the last pass have already
     finished. Through the gate rather than directly, because it is owed once an
-    interval and this loop comes round once a poll. A single-tick run asks for
+    interval or once a window and this loop comes round once a poll. A single-tick run asks for
     none of it: an operator who asked for one tick gets one tick, and the
     maintenance-only launch mode is where a host asks for the reclamation on
     its own.
@@ -189,7 +189,7 @@ class MaintenanceBetweenPassesTest(unittest.TestCase):
             gates = {id(call.args[-1]) for call in when_due.call_args_list}
             self.assertEqual(len(gates), 1)
             self.assertIsInstance(
-                when_due.call_args.args[-1], artifacts.DueGate,
+                when_due.call_args.args[-1], artifact_schedule.DueGate,
             )
 
     def test_one_tick_asks_for_no_maintenance(self) -> None:

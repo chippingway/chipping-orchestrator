@@ -14,7 +14,7 @@ holds for the run. There, because the pass needs the scheduler quiet and a tick
 is what makes it busy -- the far end of the interval is the quietest moment
 this loop has, where the short handlers the last pass submitted have had the
 whole wait to finish. Behind a gate, because the pass is owed once an interval
-and this loop comes round once a poll. `--once` is a single tick and nothing
+or once a window and this loop comes round once a poll. `--once` is a single tick and nothing
 besides -- an operator asking for one pass gets one pass, and the
 maintenance-only launch mode is where a host asks for the reclamation on its
 own.
@@ -28,7 +28,7 @@ from collections.abc import Iterator
 
 from orchestrator import config
 from orchestrator.agents import processes as _agent_processes
-from orchestrator.runtime import artifacts, self_update, ticks
+from orchestrator.runtime import artifact_schedule, artifacts, self_update, ticks
 from orchestrator.runtime.startup import PollingOptions, RepoClients
 from orchestrator.runtime.state import RuntimeState
 from orchestrator.scheduler.service import IssueScheduler
@@ -54,7 +54,7 @@ def run_polling_loop(
     """Poll until signaled or a self-modifying merge requests restart."""
     own_sha = self_update.own_head_sha()
     log.info("own HEAD=%s", own_sha)
-    due_gate = artifacts.DueGate()
+    due_gate = artifact_schedule.DueGate()
     while state.running:
         if own_sha and self_update.self_modifying_merge_happened(own_sha):
             log.info(

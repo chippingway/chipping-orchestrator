@@ -21,6 +21,7 @@ _MODULES = tuple(
     f"{_PACKAGE}.{owner}"
     for owner in (
         "artifact_records",
+        "artifact_schedule",
         "artifacts",
         "exclusion",
         "host_lock",

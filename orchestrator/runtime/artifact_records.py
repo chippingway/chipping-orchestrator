@@ -14,7 +14,7 @@ issue.
 
 A candidate the pass never reached has no record, exactly as it has no result:
 an interrupted pass answers for the prefix it got to, and the discovery that
-found the rest finds them again next interval. Nothing here is a retry list.
+found the rest finds them again next pass. Nothing here is a retry list.
 
 What may travel is closed and short: the repository and the issue the envelope
 already spells, the outcome, the reason that fixes it, the layout the artifacts

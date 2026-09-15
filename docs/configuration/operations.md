@@ -274,10 +274,12 @@ those rules do not name is cleared by widening them or by hand rather than by wa
   running waits for it (no deadline, because polling through a teardown is never safe — though only for a lock
   something is holding: one that does not work at all is reported instead, and the pass simply does not act); a
   pass gives the host back
-  at a candidate boundary once it has held it for 120s, with whatever it did not reach owed to the next interval.
+  at a candidate boundary once it has held it for 120s, with whatever it did not reach owed to the next pass.
   Point a nightly service
   timer at it for hosts whose orchestrator is not always up; a host running the daemon continuously already gets a
-  pass between polling passes every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS`, and the timer will simply defer.
+  pass between polling passes — every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS`, or inside
+  `TERMINAL_ARTIFACT_CLEANUP_WINDOW` where one is set ([When it runs](#when-it-runs)) — and the timer will simply
+  defer.
 - `python -m orchestrator --log-level DEBUG` — verbose logs.
 
 Both forms above call `orchestrator/cli.py`, which is also what the `chipping-orchestrator` console script declared in
@@ -572,24 +574,49 @@ cannot change what GitHub says happened.
 
 ### When it runs
 
-- **On the daily interval.** The polling loop fits one pass in at the end of the wait between two polling passes —
-  never inside a tick — at most once every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` (default `86400`, one day; see
+- **On the daily interval, when no window is set.** With `TERMINAL_ARTIFACT_CLEANUP_WINDOW` unset or blank, the
+  polling loop fits one pass in at the end of the wait between two polling passes — never inside a tick — at most
+  once every `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` (default `86400`, one day; see
   [`../configuration.md`](../configuration.md#cadence-and-budgets)). The due gate is in memory on a monotonic
   clock, so an NTP step, a suspend, or a timezone change cannot bring a pass forward or push it out, and nothing is
-  persisted: a restart costs at most one extra pass.
+  persisted: a restart costs at most one extra pass. A turn is spent when it is handed out, so a pass that defers
+  waits for the next interval.
+- **In a local window, when one is set.** `TERMINAL_ARTIFACT_CLEANUP_WINDOW` takes precedence and the interval is not
+  consulted. The same boundary between polling passes attempts a pass at its first opportunity inside the window, read
+  off the wall clock in `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE` — the start inclusive, the end exclusive:
+  - **The window decides when a pass may start, and is read twice.** Once between polling passes, and again after
+    the pass has drained its own workers and taken the host lock, since both of those wait. A window that closed
+    during that wait starts nothing. A pass that did start keeps its usual bounds — the 120s host-hold budget below —
+    whatever the clock does next.
+  - **A started pass spends the window.** It is spent as the last thing before discovery, so a pass that then finds
+    no candidate, keeps or fails every candidate, raises, or runs out of budget has had its night. Only a deferral
+    before that point — workers that would not drain within 30s, or a host lock another process holds — leaves the
+    window owed, and the next attempt comes **no sooner than 15 elapsed minutes** later, timed on the monotonic clock
+    so a stepped wall clock cannot make attempts more frequent.
+  - **Nothing is caught up.** A window the host stayed busy through, or the process was down for, is missed; the
+    next attempt is the next window, never a daytime pass.
+  - **A window is named by the local date it opened on.** An overnight `23:00-01:00` is one window on both sides of
+    midnight, and an hour a daylight-saving fall-back repeats is that same window again, so neither owes a second
+    pass. An hour a spring-forward transition skips never occurs, so a window lying wholly inside it is missed that
+    night.
+  - **Scheduling state is in memory only.** A restart outside the window waits for the next one; a restart inside it
+    may repeat a pass the previous process already made that night, which is safe — the pass reads the host again
+    and reports whatever is already gone as done. Nothing guarantees exactly one pass per window across restarts.
 - **On demand.** `python -m orchestrator --cleanup-terminal-artifacts` runs exactly the same pass once and exits,
-  regardless of the interval — the form to point a nightly service timer at on hosts whose orchestrator is not always
-  up. See [Run modes](#run-modes) for what that mode connects and why it exits 0 when it defers.
+  regardless of the interval or the window — the form to point a nightly service timer at on hosts whose orchestrator
+  is not always up. See [Run modes](#run-modes) for what that mode connects and why it exits 0 when it defers.
 - **Only on a quiet host.** Before it reads anything, the pass closes its own scheduler's admission (`submit` refuses
   with `reason=maintenance`, `track_active` hands back `claimed=False`), waits up to 30s for the work already admitted
   to drain, and acts only if the host went quiet inside that bound. Nothing running is cancelled or hurried. A bound
   that expires, a shutdown that started, or a barrier it could not take **defers the whole pass** — which costs one
-  interval of one finished issue's disk and nothing else. Admission always reopens afterwards, whatever the pass did.
+  finished issue's disk until the next scheduled attempt and nothing else: the next interval with no window set, or no
+  sooner than 15 elapsed minutes later inside a window that is still open. Admission always reopens afterwards,
+  whatever the pass did.
 - **Only one process at a time.** The barrier answers for this process's own workers; a second orchestrator on the
   same host is outside it. So every pass also holds `WORKTREES_DIR/.artifact-maintenance.lock` exclusively while it
   acts, and every polling run holds that same lock shared for its whole life. A pass refused the lock defers; a poller
   that wants it back waits without a deadline. What bounds that wait is the pass itself: it gives the host back at a
-  candidate boundary once it has held it for 120s, with whatever it did not reach owed to the next interval. The whole
+  candidate boundary once it has held it for 120s, with whatever it did not reach owed to the next pass. The whole
   mechanism is in [`../configuration.md#parallel-processing`](../configuration.md#parallel-processing).
 
 Both of those are in-application coordination between orchestrator processes. Neither is an OS boundary: see
@@ -754,9 +781,11 @@ killed outright. Whichever it is, **recovery is nothing**:
 - The pass that ran can leave a checkout removed with its branch still standing, or a branch gone from the remote and
   still in the clone. Both are discoverable states, and the next pass finishes them.
 
-So an interrupted pass costs one interval, and a crashed one costs the same. If a host was killed mid-pass often
-enough to matter, the thing to check is not the artifacts but why: the pass gives the host back on its own at a
-candidate boundary, and never blocks workflow progress either way.
+So an interrupted pass costs the wait for the next scheduled pass — the next interval with no window set, or the next
+night's window, since a pass that started has spent its own — and a crashed one costs no more: the process that comes
+back is owed a pass at once on the interval, and inside the window may repeat that night's. If a host was killed
+mid-pass often enough to matter, the thing to check is not the artifacts but why: the pass gives the host back on its
+own at a candidate boundary, and never blocks workflow progress either way.
 
 ## Applying `.env` changes
 
@@ -841,11 +870,13 @@ Each `--once` invocation is a fresh Python process and reads the current `.env` 
 When each setting's change takes effect:
 
 - `TERMINAL_ARTIFACT_CLEANUP_INTERVAL_SECONDS` — next Python start, like the settings below, and the restart also
-  starts a fresh due gate: the cadence is held in memory, so the run that comes back is owed a pass at once rather
-  than at the end of an interval it cannot remember. A repeated pass costs one discovery and reports whatever is
-  already gone as done.
+  starts a fresh due gate: the cadence is held in memory, so with no window set the run that comes back is owed a
+  pass at once rather than at the end of an interval it cannot remember. A repeated pass costs one discovery and
+  reports whatever is already gone as done.
 - `TERMINAL_ARTIFACT_CLEANUP_WINDOW`, `TERMINAL_ARTIFACT_CLEANUP_TIMEZONE` — next Python start, where both are
-  validated again: a malformed window, or a blank or unresolvable timezone beside a set one, stops that start.
+  validated again: a malformed window, or a blank or unresolvable timezone beside a set one, stops that start. The
+  restart also forgets which window was spent: a run that comes back outside the window waits for the next one, and
+  one that comes back inside it may repeat that night's pass.
 - `POLL_INTERVAL`, `AGENT_TIMEOUT`, `REVIEW_TIMEOUT`, `SHUTDOWN_GRACE_SECONDS`, `MAX_REVIEW_ROUNDS`,
   `MAX_CONFLICT_ROUNDS`, `MAX_RETRIES_PER_DAY`, `MAX_ADDED_LINES`, `DEV_SESSION_MAX_RESUMES`,
   `MAX_AGENT_RUNS_PER_ISSUE`, `IN_REVIEW_DEBOUNCE_SECONDS`, `DECOMPOSE`, `SQUASH_ON_APPROVAL`,
