@@ -125,7 +125,31 @@ class InterruptedSubprocessClassificationTest(unittest.TestCase):
     shutdown sweep (`terminate_all_running`) produces when it kills an
     in-flight agent group -- must surface as `interrupted=True`, distinct from
     a normal completion and from the orchestrator's own `timed_out` path.
+    That holds whether the child dies from the signal (negative returncode) or
+    traps it and exits with the shell's 128+N, as `claude` does on SIGTERM.
     """
+
+    def test_returncode_classification(self) -> None:
+        # The raw returncode is kept as-is on the result either way; only the
+        # `interrupted` flag reads the signal forms, and no other non-zero code.
+        cases = (
+            (_agent_cases._SHELL_SIGNAL_EXIT_BASE + signal.SIGTERM, True),
+            (_agent_cases._SHELL_SIGNAL_EXIT_BASE + signal.SIGKILL, True),
+            (-signal.SIGTERM, True),
+            (-signal.SIGKILL, True),
+            (0, False),
+            (1, False),
+        )
+        for returncode, expected_interrupted in cases:
+            with self.subTest(returncode=returncode):
+                proc = _support.completed(returncode=returncode)
+                with patch(_agent_cases._POPEN_TARGET, return_value=proc):
+                    run_result = _processes.run_subprocess(
+                        [_agent_cases._AGENT_COMMAND], _agent_cases._CWD, {}, 10,
+                    )
+                self.assertEqual(run_result.exit_code, returncode)
+                self.assertFalse(run_result.timed_out)
+                self.assertEqual(run_result.interrupted, expected_interrupted)
 
     def test_signal_exit_marked_interrupted(self) -> None:
         # Both shutdown-sweep signals produce a completed-but-interrupted run:

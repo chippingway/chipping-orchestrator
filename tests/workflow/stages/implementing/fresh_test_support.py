@@ -4,9 +4,28 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 from orchestrator import config
+from orchestrator.agents.backends import claude
+from orchestrator.agents.models import AgentResult
 from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES
 from tests.workflow.stages import implementing_fixing_test_cases
+
+
+def claude_run_exiting(returncode: int) -> AgentResult:
+    """Return the result `run_claude` builds for an empty run exiting `returncode`.
+
+    The child is a double, but the classification and result assembly are the
+    real ones, so a stage test sees exactly the fields such an exit yields.
+    """
+    process = MagicMock()
+    process.communicate.return_value = ("", "")
+    process.returncode = returncode
+    with patch("orchestrator.agents.processes.subprocess.Popen", return_value=process):
+        return claude.run_claude("implement", Path(tempfile.gettempdir()))
 
 
 def assert_pr_routing(test_case, scenario) -> None:
@@ -59,6 +78,27 @@ def assert_human_reply_resume(
     test_case.assertFalse(
         github.pinned_data(2).get("awaiting_human"),
     )
+
+
+def assert_interrupted_spawn_state(
+    test_case,
+    github,
+    before_writes,
+    issue_number,
+) -> None:
+    test_case.assertEqual(
+        github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
+    )
+    test_case.assertEqual(github.opened_prs, [])
+    test_case.assertEqual(github.label_history, [])
+    test_case.assertEqual(github.posted_comments, [])
+    state = github.pinned_data(issue_number)
+    # The interrupted spawn's session id is NOT persisted -- the next
+    # process re-spawns fresh rather than resuming a half-built session.
+    test_case.assertNotIn("dev_session_id", state)
+    test_case.assertFalse(state.get("awaiting_human"))
+    test_case.assertIsNone(state.get("park_reason"))
+    test_case.assertFalse(state.get("silent_park_count"))
 
 
 def assert_interrupted_resume_state(

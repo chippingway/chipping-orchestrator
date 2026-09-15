@@ -27,7 +27,17 @@ from orchestrator.agents import models as _agent_models, process_groups as _proc
 _running_procs: set[subprocess.Popen] = set()
 _running_procs_lock = threading.Lock()
 
-_INTERRUPTED_RETURNCODES = frozenset((-signal.SIGTERM, -signal.SIGKILL))
+# A child the signal itself kills reports `-N` through `Popen`; a CLI that
+# traps it (`claude` exits 143 on SIGTERM) or a wrapper reporting a
+# signal-killed child exits with the shell's 128+N. Both are the shutdown
+# sweep's kill, and the dev-resume stages must retry rather than park on either.
+_SHELL_SIGNAL_EXIT_BASE = 128
+_INTERRUPTED_RETURNCODES = frozenset((
+    -signal.SIGTERM,
+    -signal.SIGKILL,
+    _SHELL_SIGNAL_EXIT_BASE + signal.SIGTERM,
+    _SHELL_SIGNAL_EXIT_BASE + signal.SIGKILL,
+))
 
 
 def register_proc(proc: subprocess.Popen) -> None:

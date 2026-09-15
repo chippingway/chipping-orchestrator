@@ -6,6 +6,7 @@ recovered-worktree shortcut that skips the dev agent."""
 
 from __future__ import annotations
 
+import signal
 import unittest
 
 from orchestrator.workflow.engine import content_hash as _content_hash
@@ -16,7 +17,6 @@ from tests.support.fakes import (
     make_issue,
 )
 from tests.workflow.fixtures import (
-    AGENT_RUN_CHARGE_WRITES,
     LABEL_IMPLEMENTING,
     _agent,
     _PatchedWorkflowMixin,
@@ -31,6 +31,8 @@ ACTION_COMMENT_ID = 900
 HUMAN_REPLY_ID = 1100
 INTERRUPTED_RESUME_ISSUE = 70
 INTERRUPTED_SPAWN_ISSUE = 71
+SHELL_SIGNAL_EXIT_BASE = 128
+TRAPPED_SIGTERM_EXIT = SHELL_SIGNAL_EXIT_BASE + signal.SIGTERM
 DIRTY_FILE_COUNT = 15
 
 
@@ -297,6 +299,21 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
     def test_interrupted_spawn_keeps_session_pr_clear(
         self,
     ) -> None:
+        # A trapped SIGTERM -- `claude` exiting 143 with no output -- reaches
+        # the stage through the real classification and takes the same quiet
+        # retry as a run the signal killed outright, never the silent park.
+        agent_results = (
+            ("signal_death", _agent(session_id="sess-new", interrupted=True)),
+            (
+                "trapped_sigterm",
+                fresh_test_support.claude_run_exiting(TRAPPED_SIGTERM_EXIT),
+            ),
+        )
+        for case, agent_result in agent_results:
+            with self.subTest(case=case):
+                self._assert_spawn_ignored(agent_result)
+
+    def _assert_spawn_ignored(self, agent_result) -> None:
         gh = FakeGitHubClient()
         issue = make_issue(INTERRUPTED_SPAWN_ISSUE, label=LABEL_IMPLEMENTING)
         gh.add_issue(issue)
@@ -311,7 +328,7 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
         mocks = self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id="sess-new", interrupted=True),
+            run_agent=agent_result,
             # First probe: not a recovered worktree -> the dev runs and is
             # then seen to be interrupted; the post-agent commit check must
             # never be reached.
@@ -319,15 +336,12 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
         )
 
         mocks[RUN_AGENT].assert_called_once()
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
+        fresh_test_support.assert_interrupted_spawn_state(
+            self,
+            gh,
+            before_writes,
+            INTERRUPTED_SPAWN_ISSUE,
         )
-        self.assertEqual(gh.opened_prs, [])
-        self.assertEqual(gh.label_history, [])
-        state = gh.pinned_data(INTERRUPTED_SPAWN_ISSUE)
-        # The interrupted spawn's session id is NOT persisted -- the next
-        # process re-spawns fresh rather than resuming a half-built session.
-        self.assertNotIn("dev_session_id", state)
 
 
 class HandleImplementingRecoveredWorktreeTest(unittest.TestCase, _PatchedWorkflowMixin):

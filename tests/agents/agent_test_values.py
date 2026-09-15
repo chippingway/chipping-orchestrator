@@ -26,6 +26,8 @@ _SYSTEM_PATH = "/usr/bin"
 _ANTHROPIC_API_KEY = "ANTHROPIC_API_KEY"
 _ENV_KWARG = "env"
 _SUBPROCESS_TIMEOUT_SECONDS = 30
+# The shell's "stopped by signal N" exit is this base plus N.
+_SHELL_SIGNAL_EXIT_BASE = 128
 _TERMINATION_GRACE_SECONDS = 0.05
 _KILLPG = "killpg"
 # The shutdown sweep sends its own SIGTERM while the group owner beside it

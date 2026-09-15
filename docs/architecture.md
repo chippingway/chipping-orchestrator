@@ -390,8 +390,11 @@ per-handler routing in
 misuse fails loudly. Both runners return a unified
 `AgentResult(session_id, last_message, exit_code, timed_out, stdout, stderr, interrupted, usage, invoked)`.
 `interrupted`
-(default `False`) flags a run the runner observed exiting on SIGTERM/SIGKILL — the shape the orchestrator's
-shutdown sweep (`terminate_all_running`) produces when it kills an in-flight agent group — and is distinct
+(default `False`) flags a run the runner observed exiting on SIGTERM/SIGKILL, in either form: the negative
+returncode `Popen` reports when the child itself dies from the signal (`-15` / `-9`), or the shell-convention
+128+N exit (`143` / `137`) of a CLI that traps the signal or a wrapper reporting a signal-killed child. Either is
+the shape the orchestrator's shutdown sweep (`terminate_all_running`) produces when it kills an in-flight agent
+group; `exit_code` keeps the raw code, and `interrupted` is distinct
 from `timed_out` (the orchestrator's own `AGENT_TIMEOUT` firing). `invoked` (default `True`) says whether a process
 existed at all: every result either backend produced carries `True`, including the killed and timed-out ones, and
 only a launch the agent-run circuit turned away before the spawn carries `False`. The two are not the same
