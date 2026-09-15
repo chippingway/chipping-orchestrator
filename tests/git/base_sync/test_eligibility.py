@@ -10,7 +10,7 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator import config
-from orchestrator.git.base_sync import eligibility, recovery
+from orchestrator.git.base_sync import eligibility, recovery, terminal_handoff as _terminal_handoff
 from orchestrator.git.verification import status as _worktree_status
 from tests.git.base_sync import base_sync_helpers as fixtures
 
@@ -251,6 +251,21 @@ class OpenPrTest(unittest.TestCase):
             self.assertIsNone(eligibility._open_auto_rebase_pr(context))
 
         write.assert_not_called()
+
+    def test_terminal_pr_ends_the_whole_handoff(self) -> None:
+        # The anchor is the least of what an attempt leaves: the debt and the
+        # permission beside it are ended too, from the head the pull request
+        # ended on, since that head may be the rewrite the permission names.
+        context = self._anchored_context()
+        merged, pr_state = TERMINAL_PR_STATES[0]
+        fixtures._add_pr(context.gh, merged=merged, pr_state=pr_state)
+        pull_request = context.gh.pulls[fixtures.PR_NUMBER]
+        retired = MagicMock()
+
+        with patch.object(_terminal_handoff, "_retires_the_terminal_handoff", retired):
+            self.assertIsNone(eligibility._open_auto_rebase_pr(context))
+
+        retired.assert_called_once_with(context, pull_request.head.sha)
 
     def _anchored_context(self):
         return fixtures._sync_context(

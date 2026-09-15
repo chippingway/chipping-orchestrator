@@ -1672,13 +1672,17 @@ such pushes and no others:
   through the shared dev-fix seam, are what
   [`workflow:resolving_conflict`'s content updates](#content-updates-onto-the-pull-request-this-stage-already-has)
   are made of;
-- the base-sync auto rebase `git/base_sync/publication._publish_auto_rebase` and its own crash recovery
-  `git/base_sync/recovery_push._retry_recovery_push`, both of which reach the gate through
-  `base_sync/publication._gated_publication()` so the sync layer keeps its call-time hop upward. The recovery is the
-  one caller that can enter `permit_only`, and it does so for the replay of an adjudicated commit: it is finishing a
-  publication rather than deciding one, so the cumulative reading is the wrong answer twice over and `late_gate`'s
-  `_permitted_only` asks the permit and nothing else. A refusal there is handed back as `refused` rather than parked
-  or routed — nothing was measured, nothing was decided — and the recovery resets onto its anchor and parks;
+- the base-sync auto rebase `git/base_sync/publication._publish_auto_rebase` and the two roads of its own crash
+  recovery — `git/base_sync/recovery_push._retry_recovery_push` for a push that never went out, and
+  `git/base_sync/landed_settlement._settle_published_recovery` for the leased no-op that receipts one that did — all
+  of which reach the gate through `base_sync/publication._gated_publication()` so the sync layer keeps its call-time
+  hop upward. The recovery is the one caller that can enter `permit_only`, and it does so for the replay of an
+  adjudicated commit: it is finishing a publication rather than deciding one, so the cumulative reading is the wrong
+  answer twice over and `late_gate`'s `_permitted_only` asks the permit and nothing else. `late_freeze` keeps such a
+  caller inside the gate whatever `DECOMPOSE` says, since the permit is asked over the entry only the gate freezes. A
+  refusal is handed back as `refused` rather than parked or routed — nothing was measured, nothing was decided — and
+  the recovery parks: the reissued push resets onto its anchor first, and the no-op keeps HEAD where the remote
+  already carries it;
 - and the final documentation pass `documenting/publication._push_docs_and_advance`.
 
 One more seam pushes without measuring, and it skips the reading for a reason and nothing else beside it.
@@ -2009,7 +2013,7 @@ empty name they read a checkout that never moved as one that did, so a landed pu
 then park the issue for a head sitting exactly where it was left.
 
 **What the caller established is applied before the switch is asked, not after.** *Answering a recorded reading* is
-one of the three states `DECOMPOSE=off` has nothing left to say about, so such a call is entered, named, and leased
+one of the states `DECOMPOSE=off` has nothing left to say about, so such a call is entered, named, and leased
 whatever the switch says. Asked over a subject the caller's terms have not been applied to, the switch would read one
 as new work and hand back a push with no commit to name and no head to pin — the two races the naming and the lease
 exist to close. That is the shape a retry lands in: an entry that refused persists no generation, deliberately, so a

@@ -1471,7 +1471,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             an unfinished base permits only that field to remain absent, preserving its original ceiling
       late_freeze.py        prove the candidate, freeze or recover its exact base, and account for failed base reads;
                             refuse a head differing from the caller's commit or a reconciling tick's record, and
-                            recover retained bases by object identity
+                            recover retained bases by object identity; a permit-only caller is never kept out
+                            of the gate by the switch
       late_evidence.py      what a recovery proves before it acts: the checkout, both recorded objects, a
                             head that is still the candidate, and a head that is still the commit an approval
                             owes a publication for -- proved ahead of every spawn

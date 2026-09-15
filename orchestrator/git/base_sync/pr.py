@@ -73,7 +73,7 @@ def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:
 
     retry = eligibility._auto_rebase_retry_decision(context)
     if not retry.should_continue:
-        _recovers_under_a_stage_park(context)
+        _answers_an_anchor_under_a_park(context)
         return
     pr = eligibility._open_auto_rebase_pr(context)
     if pr is None:
@@ -82,31 +82,38 @@ def _sync_pr_worktree_context(context: _AutoRebaseContext) -> None:
     _publish_auto_rebase_from_pr(context, pr, retry.consumed_comment_id)
 
 
-def _recovers_under_a_stage_park(context: _AutoRebaseContext) -> None:
-    """Answer an anchor a stage's park stands over, and start nothing else.
+def _answers_an_anchor_under_a_park(context: _AutoRebaseContext) -> None:
+    """Answer an anchor a park stands over, and start nothing else.
 
-    The recovery alone, with no reply spent, and only once the pull request
-    reads open -- the gate the ordinary sync asks before its own. Whatever the
-    recovery hands back, no rebase of this tick's follows it: the park is
-    still a stage's, and rebasing past one is what the retry decision exists
-    to prevent.
+    The pull request is asked first, whichever park stands. One that merged or
+    closed ends the attempt's whole handoff there, and a park this refresh
+    left is owed that as much as a stage's: the anchor holds back the handler
+    that finalizes the issue, and a park waiting on a reply nobody needs to
+    send would hold it for good.
+
+    Past a pull request that reads open, only a stage's park is owed the
+    recovery, with no reply spent. Whatever the recovery hands back, no rebase
+    of this tick's follows it: the park is still a stage's, and rebasing past
+    one is what the retry decision exists to prevent. A park this refresh left
+    goes on waiting for its reply.
     """
-    if not eligibility._answers_only_the_anchor(context):
+    if not context.pending_pre_rebase_sha:
         return
     if eligibility._open_auto_rebase_pr(context) is None:
         return
-    eligibility._auto_rebase_recovery_decision(context, None)
+    if eligibility._answers_only_the_anchor(context):
+        eligibility._auto_rebase_recovery_decision(context, None)
 
 
 def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:
     """Answer an anchor over a checkout whose lag against base cannot be read.
 
     Asked on the same gates, in the same order, as the ordinary PR sync -- an
-    ineligible label is still the recovery's own ineligible road, a park some
-    stage left is still answered past with the recovery alone, a park this
-    refresh left is still waiting on a reply, and a pull request that ended or
-    would not read is still answered as it is there. Only the step past them
-    differs. There is no lag to route on and no head worth comparing, so
+    ineligible label is still the recovery's own ineligible road, a pull
+    request that ended or would not read is still answered as it is there
+    whichever park stands, a park some stage left is still answered past with
+    the recovery alone, and a park this refresh left is still waiting on a
+    reply. Only the step past them differs. There is no lag to route on and no head worth comparing, so
     nothing is fetched and nothing is classified: the recovery takes its
     fail-closed abort directly.
     """
@@ -114,15 +121,12 @@ def _sync_unreadable_pr_worktree(request: _AutoRebaseRequest) -> None:
     if not eligibility._auto_rebase_label_is_eligible(context):
         return
     retry = eligibility._auto_rebase_retry_decision(context)
-    if not (
-        retry.should_continue or eligibility._answers_only_the_anchor(context)
-    ):
-        return
     if eligibility._open_auto_rebase_pr(context) is None:
         return
-    recovery_holds._answers_an_unreadable_checkout(
-        context, retry.consumed_comment_id,
-    )
+    if retry.should_continue or eligibility._answers_only_the_anchor(context):
+        recovery_holds._answers_an_unreadable_checkout(
+            context, retry.consumed_comment_id,
+        )
 
 
 def _sync_pr_worktree_to_base(*args: Any, **kwargs: Any) -> None:

@@ -28,7 +28,7 @@ from unittest import mock
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport
-from orchestrator.git.base_sync import recovery
+from orchestrator.git.base_sync import attempt_records as _attempt_records, recovery
 from tests.git.base_sync.gate_reads_support import _gate_base_reads
 from tests.support.fakes import (
     FakeGitHubClient,
@@ -317,16 +317,23 @@ class RecoveryGitFixtureMixin:
         )
 
     def recover(self) -> bool:
-        """Run the recovery the way the refresh flow enters it."""
+        """Run the recovery the way the refresh flow enters it.
+
+        The attempt record goes in read off the comment, as the eligibility
+        gate hands it over, since a landed head is finished only where that
+        record vouches for it.
+        """
+        state = self.gh.read_pinned_state(self.issue)
         return recovery._recover_pending_auto_base_rebase(
             self.gh,
             self.spec,
             self.issue,
-            self.gh.read_pinned_state(self.issue),
+            state,
             self.work,
             pr_number=PR_NUMBER,
             label=LABEL,
             pending_pre_rebase_sha=self.anchor,
+            pending_rewrite=_attempt_records._pending_rewrite(state),
         )
 
     def publish_recovered_head(self) -> None:

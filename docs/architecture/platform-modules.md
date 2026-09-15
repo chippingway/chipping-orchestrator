@@ -349,11 +349,13 @@ orchestrator/
                         published one), which freeze only while the checkout still stands on the commit they
                         name and only while the stage that has to act on it still holds the issue
       eligibility.py    the label, park, open-PR, recovery, and clean-tree gates one PR sync clears, and whether a
-                        park a stage left still owes a standing anchor its recovery
+                        park a stage left still owes a standing anchor its recovery; a terminal PR ends an anchored
+                        attempt's whole handoff through `terminal_handoff`
       pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
-      pr.py             the order a PR-having worktree's gates, rebase, and publication are asked in, the
-                        recovery alone an anchor a stage's park stands over is answered with, and the same gates
-                        in front of the abort a checkout whose lag cannot be counted takes
+      pr.py             the order a PR-having worktree's gates, rebase, and publication are asked in, a terminal
+                        pull request asked for ahead of any park an anchor stands under, the recovery alone an
+                        anchor a stage's park stands over is answered with, and the same gates in front of the
+                        abort a checkout whose lag cannot be counted takes
       startup.py        the pre-rebase HEAD guard, and the anchor and the attempt's terms persisted before git
                         runs
       attempts.py       the replay and announcement checkpoints, their presence checks, and the whole-record
@@ -403,7 +405,7 @@ orchestrator/
                         the measured gate; a replay carrying a verdict may require a transfer permit before and inside
                         the gate, then verify that the verdict rotated before finalizing the push
       landed_recovery.py
-                        the dormant route for a head the pull request already carries: a foreign publication, a
+                        the route for a head the pull request already carries: a foreign publication, a
                         foreign mark, a landing nothing of the attempt's vouches for, a tree not provably clean under
                         a verdict, and an unaccounted transfer park without a reset; past them a lost settlement
                         record is reported once, and an announced route is only written, an outstanding permission
@@ -412,13 +414,13 @@ orchestrator/
                         the permitted, leased no-op that receipts an outstanding permission over a landed rewrite and
                         reads the rotation back; every unsettled outcome parks with HEAD and the anchor kept
       terminal_handoff.py
-                        the dormant end of an attempt whose PR merged or closed: the attempt and its debt dropped, a
+                        the end of an attempt whose PR merged or closed: the attempt and its debt dropped, a
                         shipped rewrite's permission settled with its receipt, any other dropped on the rollback's
                         rule, in one write
       replay_recovery.py
                         the record-based coordinator the refresh enters through `recovery`. Label and unmoved
-                        cleanup precede comparison, a published head precedes retry checks, and proven replay evidence
-                        precedes the divergence fallback
+                        cleanup precede comparison, a published head goes to `landed_recovery` ahead of retry
+                        checks, and proven replay evidence precedes the divergence fallback
       replay_cleanup.py the clear-or-park decision for an ineligible label or a checkout back on the anchor. Records
                         that describe a replay, announcement, or unspent transfer prevent a silent clear
       replay_evidence.py

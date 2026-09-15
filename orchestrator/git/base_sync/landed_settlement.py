@@ -3,11 +3,11 @@
 """Receipt a landed rewrite whose transfer permission is still outstanding.
 
 The window between a push that landed and the write that receipts it, reached
-through the dormant `landed_recovery` route. The permit is asked before the
-gate and the gate is told it is the only licence, so a refusal is never
-measured. Standing on the commit already, the push is the leased no-op the push
-tail makes anyway, and the receipt, the paid debt, the rotation, and its proof
-ride that tail's one write. The rotation is read back afterwards, since a permit
+through the `landed_recovery` route. The permit is asked before the gate and
+the gate is told it is the only licence, so a refusal is never measured.
+Standing on the commit already, the push is the leased no-op the push tail
+makes anyway, and the receipt, the paid debt, the rotation, and its proof ride
+that tail's one write. The rotation is read back afterwards, since a permit
 that stopped holding inside the gate leaves the verdict where it was. Nothing
 here resets: the remote carries the checkout's head, so every refusal keeps
 HEAD and the anchor for a human.

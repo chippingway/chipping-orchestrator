@@ -110,12 +110,14 @@ worktree rebases locally; a PR-having one in `workflow:validating` / `workflow:d
 That push goes through the size gate, and where the branch was standing on the commit an authorized settlement
 accepted the refresh hands the gate the same rewrite evidence a squash does, so a replay that contributes what a human
 already ruled on carries the exemption — and the operator authorization that made it a bypass — over instead of being
-adjudicated again. A transfer of an exemption nothing authorizes is refused, since moving one would hand the
-rewritten commit a permission the accepted one never had. The `question` and `discussion` labels
-— and the parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto
-rebase's anchor, of the records and parks that freeze a branch only the late size-gate claims keep the refresh away,
-so its recovery answers the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens,
-and the refresh-owned retry are in
+adjudicated again. A transfer of an exemption nothing authorizes is refused, since moving one would hand the rewritten
+commit a permission the accepted one never had. A process lost anywhere in that rebase comes back to the record the
+attempt pinned, and the recovery finishes it on the permit alone — reissuing a push that never went out, receipting one
+that landed through a leased no-op — so the replay is never measured or adjudicated again. The `question` and
+`discussion` labels — and the parks and in-flight discussion records that outlive them — skip both paths. Beside an
+interrupted auto rebase's anchor, of the records and parks that freeze a branch only the late size-gate claims keep the
+refresh away, so its recovery answers the anchor ahead of any stage handler. The failure modes, their durable
+`park_reason` tokens, and the refresh-owned retry are in
 [`state-machine/labels-and-state.md#base-refresh`](state-machine/labels-and-state.md#base-refresh).
 
 ### Pollable issues and finalization
@@ -318,7 +320,9 @@ ends it, and the hold is asked again once the reconciliation has run, so a claim
 the tick. Every other record and park the refresh freezes on holds: a stage's handler takes its park down on a reply
 and runs on into the agent it was holding back, and a timeout, a reading nobody could take, or a collapse mid-rewrite
 is likewise ended by a handler the hold keeps back. So beside an anchor none of them keeps the refresh away, and the
-refresh answers the anchor under them with the recovery alone, no reply spent, leaving each for its owner. A checkout
+refresh answers the anchor under them with the recovery alone, no reply spent, leaving each for its owner. A pull
+request that merged or closed is asked for first under any park, the refresh's own included, and ends the attempt's
+whole handoff there, so the hold never outlives it. A checkout
 whose HEAD names a commit nothing can read stays held until the refresh has reset and parked it, and one that is not
 on disk is restored, so the next refresh walks it.
 Both roads that reconciliation takes end in a push, so an issue that is closed and a pull request that has merged or

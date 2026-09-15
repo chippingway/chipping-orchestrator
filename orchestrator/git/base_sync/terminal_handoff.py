@@ -2,13 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """End an interrupted auto-rebase attempt whose pull request is over.
 
-Dormant: eligibility still clears only the attempt record for a merged or
-closed pull request, and nothing in production reaches this owner until the
-activation does. What it ends is the whole handoff, in one write: the attempt,
-the debt the gate recorded for a push no terminal pull request can receive, and
-the permission beside it -- settled from the head the pull request ended on
-where that head is the rewrite the permission names, and dropped on the
-rollback's own rule everywhere else.
+Eligibility's open-PR gate hands this owner every anchored attempt whose pull
+request merged or closed. What it ends is the whole handoff, in one write: the
+attempt, the debt the gate recorded for a push no terminal pull request can
+receive, and the permission beside it -- settled from the head the pull request
+ended on where that head is the rewrite the permission names, and dropped on
+the rollback's own rule everywhere else.
 """
 from __future__ import annotations
 

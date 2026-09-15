@@ -379,7 +379,9 @@ same pinned-state write that publishes real progress, so an early-return path ca
 Every PR-stage handler short-circuits at its `awaiting_human` gate when `park_reason in _AUTO_REBASE_PARK_REASONS` so
 the refresh owns the operator's retry comment. A park some STAGE left is kept intact rather than rebased past, but an
 anchor standing under one is answered all the same: the recovery runs alone, with no reply spent and no rebase of its
-own behind it, and a finish leaves the stage's park where it was.
+own behind it, and a finish leaves the stage's park where it was. Under every park, the refresh's own included, the
+pull request is asked for first, and one that merged or closed ends the attempt's whole handoff rather than leaving
+its anchor to hold back the handler that finalizes the issue.
 
 Before rebasing, the flow fetches `gh.get_pr(pr_number)` and skips when `pr_state != "open"`: a just-merged PR advances
 `<remote>/<base>`, so the stale worktree is naturally behind base; without this gate the refresh would push and relabel
@@ -1283,7 +1285,9 @@ The keys that matter for the state machine fall into a few groups:
   the agent it was holding back, and a timeout, a reading nobody could take, a read-only baseline, or a collapse
   mid-rewrite is ended the same way. Beside an anchor none of them freezes the refresh out, so it answers the anchor
   under them with the recovery alone — no reply spent, no rebase of its own started — and a finish leaves each where
-  its owner put it. A checkout whose HEAD names a commit this store cannot read is held until the refresh has
+  its owner put it. A pull request that merged or closed is asked for ahead of every park, the refresh's own
+  included, and ends the attempt's whole handoff there rather than leaving the anchor to hold its handler back.
+  A checkout whose HEAD names a commit this store cannot read is held until the refresh has
   answered it — a base lag it cannot count over a pinned anchor is reset and parked, trusting no comparison of what
   the attempt left, and a reset git refuses keeps every record — and one that is not on disk is restored for the
   next refresh to walk, since the handler that would recreate it rebuilds it from the local branch, which may still
@@ -1346,10 +1350,9 @@ The keys that matter for the state machine fall into a few groups:
   `auto_base_rebase_push_failed` where the push, the remote, or an announced publication the remote lost is what
   refused, and `auto_base_rebase_failed` where the pinned comment is; the foreign-publication, the
   unfinished-route, and the stranded relabel parks leave HEAD and every record exactly where they stand.
-  **The post-publication route is built and dormant.** `landed_recovery` answers a head the pull request already
-  carries and `terminal_handoff` an attempt whose pull request is over, both tested directly, while the selector still
-  finalizes a published head as it always has and eligibility still clears only the attempt for a terminal one. Their
-  invariants are what the activation takes on. A landed head is finished only where something the attempt wrote
+  **The post-publication route is live too.** The selector hands `landed_recovery` every head the pull request
+  already carries, beside how far the transfer got, and eligibility's open-PR gate hands `terminal_handoff` every
+  anchored attempt whose pull request merged or closed. A landed head is finished only where something the attempt wrote
   vouches for it — the record naming the head, or, for a replay the permit alone published, a permission bound to this
   attempt — and only where the comment accounts for it: a foreign publication, a mark naming another head, a tree not
   provably clean beneath a verdict, a mark beside a permission still outstanding, and a receipt or debt that does not
@@ -1364,7 +1367,15 @@ The keys that matter for the state machine fall into a few groups:
   rebase a base that advanced again still owes. A pull request that merged or closed over an attempt ends its whole
   handoff in one write: the attempt and its debt go, a permission whose rewrite is the head the pull request ended on,
   pushed from this anchor onto that pull request, settles from that head with its receipt, and any other permission is
-  dropped on the rollback's rule.
+  dropped on the rollback's rule. Both permit-only roads, the reissued push and the leased no-op, are entered into the
+  size gate whatever `DECOMPOSE` says, since the permit is asked over the publication entry only the gate freezes.
+  The whole journey is proved on a real repository:
+  [`tests/git/base_sync/test_real_git_journey.py`](../../tests/git/base_sync/test_real_git_journey.py) takes an
+  oversized `workflow:validating` candidate through the real gate, a `single`, and its authorization, advances the
+  base, and has the reviewer re-run over the leased replay with the exemption and receipt rotated onto it and nothing
+  measured, adjudicated, run, or said on the issue a second time; and
+  [`tests/git/base_sync/test_real_git_journey_recovery.py`](../../tests/git/base_sync/test_real_git_journey_recovery.py)
+  loses the tick at every durable boundary of that rebase and requires the next refresh to reach the same finish.
 - **Counters / timestamps.** `retry_window_start` + `retry_count` (24h fresh-spawn budget shared between implementing
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since
@@ -2424,7 +2435,7 @@ rather than preserving.
   inside it is answered on the next dispatched tick: `late_reconcile` asks `_reports_a_settled_transfer` ahead of every
   other answer, which reads `unreported_transfer` and makes the one record still owed before the drop. The presence
   reading is taken on two roads: that reconciliation's claim check parks once on a proof nothing can report from, and
-  the recovery's transfer classification above answers the same proof *unvouched*. The dormant post-publication and
+  the recovery's transfer classification above answers the same proof *unvouched*. The post-publication and
   terminal-handoff routes call the same reporter, so wherever a settled transfer is reached it is reported once.
 - **Operator-authorized publication.** `late_override_candidate_sha`, `late_override_base_sha`,
   `late_override_fingerprint`, `late_override_fingerprint_format`, `late_override_additions`,

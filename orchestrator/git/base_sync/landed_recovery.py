@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Finish an interrupted rebase whose push the pull request already carries.
 
-The post-publication half of the vouched-replay recovery, and dormant: the
-coordinator in `replay_recovery` still finalizes a published head directly,
-and nothing in production enters this route until the activation reaches it.
+The post-publication half of the vouched-replay recovery: the coordinator in
+`replay_recovery` hands this owner every head the pull request is already
+standing on, with how far the transfer beside it got.
 
 A landed rewrite is finished once and only where the pinned comment accounts
 for it. A foreign publication, a mark naming another head, a head nothing this

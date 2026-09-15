@@ -11,7 +11,9 @@ next, and a trusted reply that would release it is only *reported* from here:
 the park stays on disk until a rebase is actually attempted, so a later gate
 that early-returns cannot consume the operator's comment without acting on it.
 A PR that is no longer open, or cannot be read at all, belongs to the stage
-handler that finalizes it rather than to the refresh. Only then may crash
+handler that finalizes it rather than to the refresh -- once an attempt still
+anchored to a terminal one has had its whole handoff ended, since the debt it
+leaves would otherwise hold that handler back. Only then may crash
 recovery claim the tick, and only a clean worktree that is genuinely behind
 base earns a rebase of its own.
 """
@@ -21,8 +23,8 @@ from github.PullRequest import PullRequest
 
 from orchestrator.git.base_sync import (
     attempt_records as _attempt_records,
-    attempts,
     recovery,
+    terminal_handoff as _terminal_handoff,
 )
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
@@ -141,7 +143,7 @@ def _answers_only_the_anchor(context: _AutoRebaseContext) -> bool:
 def _open_auto_rebase_pr(
     context: _AutoRebaseContext,
 ) -> PullRequest | None:
-    """Return the open PR or leave terminal and unreadable PRs untouched."""
+    """Return the open PR, ending the handoff a terminal one leaves in flight."""
     try:
         pr = context.gh.get_pr(context.pr_number)
     except Exception:  # noqa: BLE001 - an unreadable PR is retried on the next tick
@@ -157,11 +159,13 @@ def _open_auto_rebase_pr(
     if pr_status == "open":
         return pr
     if context.pending_pre_rebase_sha:
-        attempts._clears_the_attempt(context.state)
-        context.gh.write_pinned_state(context.issue, context.state)
+        _terminal_handoff._retires_the_terminal_handoff(
+            context, getattr(pr.head, "sha", None) or "",
+        )
         log.info(
             "issue=#%d PR #%d is %s and an attempt was still in flight for "
-            "it; ending the whole record it left",
+            "it; ending the anchor, the debt it owed that pull request, and "
+            "the permission granted for the push it made or never made",
             context.issue.number,
             context.pr_number,
             pr_status,

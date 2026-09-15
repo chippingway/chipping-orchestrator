@@ -92,6 +92,9 @@ PARK_FAILED = "auto_base_rebase_failed"
 KEY_AWAITING_HUMAN = "awaiting_human"
 KEY_PARK_REASON = "park_reason"
 KEY_PENDING_PUSH_SHA = "pending_auto_base_rebase_push_sha"
+KEY_PENDING_REWRITE_SHA = "pending_auto_base_rebase_rewrite_sha"
+KEY_PENDING_REWRITE_PR = "pending_auto_base_rebase_rewrite_pr"
+KEY_PENDING_REWRITE_STAGE = "pending_auto_base_rebase_rewrite_stage"
 KEY_REVIEW_ROUND = "review_round"
 KEY_CONFLICT_ROUND = "conflict_round"
 KEY_LAST_ACTION_COMMENT_ID = "last_action_comment_id"
@@ -119,6 +122,21 @@ UNREAD_COMMENT_ID = 500
 GIT_FAILURE_EXIT_CODE = 128
 MISSING_ISSUE_NUMBER = 9999
 NEW_REBASED_SHA = "9ea5eba0" * 5
+
+
+def _pending_attempt(rewrite: str) -> dict:
+    """The whole record one interrupted auto-rebase attempt leaves behind.
+
+    The anchor pinned before git ran, and the replay it produced with the
+    publication it produced it for, since a landed head is finished only where
+    that record names it.
+    """
+    return {
+        KEY_PENDING_PUSH_SHA: BEFORE_SHA,
+        KEY_PENDING_REWRITE_SHA: rewrite,
+        KEY_PENDING_REWRITE_PR: PR_NUMBER,
+        KEY_PENDING_REWRITE_STAGE: LABEL_IN_REVIEW,
+    }
 
 
 def _patched(test_case, owner, name: str, replacement) -> None:

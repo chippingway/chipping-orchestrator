@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport, commands as _commands
 from orchestrator.git.base_sync import (
+    landed_recovery as _landed_recovery,
     outcomes,
     persistence,
     recovery,
@@ -60,7 +61,7 @@ LOCAL_HEAD = "local_head"
 
 LEFTOVERS = ("scratch.txt",)
 
-ALREADY_PUBLISHED = "_finalize_already_published_recovery"
+LANDED = "_finish_published_recovery"
 
 UNKNOWN_COMPARISON = "_reject_unknown_recovery_comparison"
 
@@ -69,7 +70,7 @@ DIVERGED = "_park_diverged_recovery"
 # Every answer a completed comparison can resolve into, and the owner it is
 # selected on.
 ANSWERS = (
-    (outcomes, ALREADY_PUBLISHED),
+    (_landed_recovery, LANDED),
     (outcomes, UNKNOWN_COMPARISON),
     (outcomes, DIVERGED),
     (_recovery_push, RETRY_PUSH),
@@ -81,7 +82,7 @@ ANSWERS = (
 ROUTE_CASES = (
     (
         fixtures._snapshot(remote_head=fixtures.RECOVERED_SHA),
-        ALREADY_PUBLISHED,
+        LANDED,
     ),
     (fixtures._snapshot(), UNKNOWN_COMPARISON),
     (fixtures._snapshot(ahead=1, behind=2), DIVERGED),
