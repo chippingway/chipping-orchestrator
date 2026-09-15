@@ -141,7 +141,8 @@ lifetime agent-run ledger beside it — what the issue is allowed, what it has s
 charged at the one boundary every agent process is invoked from —
 the `agent_run_limit` park a spent one leaves and the sentence that park owes the thread,
 the additive `late_*` group a late generation is adjudicated under, the one commit an accepted candidate publishes
-under, and the `decomposing` stage's own record of the run that adjudicates one.
+under with the semantic identity of the change it was accepted for and the bounded authorization a workflow rewrite
+carries that exemption over with, and the `decomposing` stage's own record of the run that adjudicates one.
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
 
@@ -336,6 +337,15 @@ directly and its pull request was last read several steps back. That same readin
 retried by: it retakes the parked pair once a poll and asks nobody first, so a transport that comes back settles the
 park without the human it mentioned ever replying, and each of those readings is held silently while it goes on
 stopping at the step the standing notice named. Full flow: [`state-machine/delivery-stages.md`][published-gate].
+
+Three of those pushes are REWRITES of the commit an adjudication accepted, and each may carry that exemption onto the
+commit it produced instead of being measured: the squash on approval, the base refresh's clean rebase, and the clean
+replay `workflow:resolving_conflict` runs — each only by the owner that ran it, over two canonical fingerprints that
+agree. `late_exempt_sha` stays the exact commit a publication is matched against, the semantic identity beside it is
+what a rewrite is proved against, and the rotation between them is a permission written before the push and settled
+by the receipt of the landed push in one write, reported by one `late_transfer` record and no second verdict. A
+descendant, a fix, the docs pass, a conflict resolution, and a heuristic match earn nothing and are measured afresh:
+[`state-machine/labels-and-state.md#exemption-identity-and-rotation`](state-machine/labels-and-state.md#exemption-identity-and-rotation).
 
 ### `_handle_in_review` (label `in_review`)
 

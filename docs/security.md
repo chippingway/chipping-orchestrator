@@ -609,7 +609,12 @@ carries — so the publication side proves the record against the remote rather 
   ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)). Both halves are bound to
   one commit on one issue, and neither travels: work committed on top of the authorized commit is measured as the
   fresh candidate it is, and a child a split creates carries neither record — so no decision an operator made about
-  one change reaches work nobody has read.
+  one change reaches work nobody has read. A workflow rewrite moves both only from one exact commit onto one other, and
+  only where the owner that ran it proved the rewritten contribution fingerprints canonically to the accepted one: a
+  reviewer's fix, the documentation pass, an agent's conflict resolution, and a replay that changed one covered byte
+  are each measured afresh, and no addition count, commit subject, similarity score, or `git patch-id` is ever read as
+  that proof
+  ([`state-machine/labels-and-state.md#exemption-identity-and-rotation`](state-machine/labels-and-state.md#exemption-identity-and-rotation)).
 - **A base-relative reading is only as good as the base, and the base ref is agent-writable.** A transfer moves an
   exemption onto a rewritten commit only where both contributions fingerprint alike, and a contribution is what a
   candidate adds *over its base*. A rebase chooses that base, and the fork point behind the object it produces is

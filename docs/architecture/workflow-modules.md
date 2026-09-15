@@ -1380,7 +1380,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             refuses ends the tick and reports nothing, and a rotation that moved no verdict -- a
                             permission left standing, one the publication went past -- says nothing either. A
                             settlement whose record was lost is reported from the proof the comment kept, with the
-                            proof dropped durably behind it, so a later poll has nothing left to report.
+                            proof dropped durably behind it, so a later poll has nothing left to report once that
+                            drop lands.
                             Deliberately no second `late_verdict` beside it, which would read as a second
                             adjudication of work nobody was asked about twice. The proof the settlement kept for
                             this record is dropped by this owner's own write, ordered after it: a comment still

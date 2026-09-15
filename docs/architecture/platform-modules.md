@@ -409,8 +409,8 @@ orchestrator/
                         the route for a head the pull request already carries: a foreign publication, a
                         foreign mark, a landing nothing of the attempt's vouches for, a tree not provably clean under
                         a verdict, and an unaccounted transfer park without a reset; past them a lost settlement
-                        record is reported once, and an announced route is only written, an outstanding permission
-                        is settled, and anything else takes the ordinary finish
+                        record is reported, best effort, from the proof it kept, and an announced route is only
+                        written, an outstanding permission is settled, and anything else takes the ordinary finish
       landed_settlement.py
                         the permitted, leased no-op that receipts an outstanding permission over a landed rewrite and
                         reads the rotation back; every unsettled outcome parks with HEAD and the anchor kept

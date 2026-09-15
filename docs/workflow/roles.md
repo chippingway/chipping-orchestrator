@@ -580,7 +580,7 @@ about what is already in it or already through it. Bypassing an approved commit 
 publication is handed a candidate the gate never looked at while the record beside it names a different commit as the
 one still owed a push.
 
-The fifth is the only one no record names in advance, and the only one that has to *earn* its way past the reading: a
+The sixth is the only one no record names in advance, and the only one that has to *earn* its way past the reading: a
 workflow rewrite of the exact commit an authorized settlement accepted. Three of them replace that commit with an
 object carrying the identical contribution: a squash on approval, on the last push before the merge button; the clean
 base rebase the per-tick refresh force-pushes once the stage that had to act on the exempt commit has handed the issue
@@ -660,16 +660,30 @@ twice. That record is `late_transfer_telemetry.py`'s rather than the rotation's,
 the far side of the write the rotation stages into: a receipt GitHub refuses ends the tick having reported nothing,
 and a permission left standing or dropped moved no verdict and so says nothing either. A process lost between that
 write and the record leaves the proof the settlement kept, and the reconciliation ahead of the next handler reports
-from it once.
+from it — best effort, since a sink that refuses the record loses it and a proof drop that does not land lets a later
+tick report it again.
 
 The base refresh's rebase of an accepted commit is recoverable at every one of those writes, and its recovery never
 falls back on a reading. A replay git produced before anything recorded it is vouched for by what it contributes over
 the terms the attempt pinned before git ran; a push that never went out is reissued on the permit alone, entered into
 the gate whatever `DECOMPOSE` says; a push that landed with its receipt lost is settled through the leased no-op;
 and a pull request that merged or closed over the attempt ends the attempt, its debt, and its permission in one
-write, settling the permission where the pull request ended on the rewrite it names. Every road finishes without an
+write, settling the permission where the pull request ended on the rewrite it names — on the record's own binding,
+since that push is behind it and there is no permit left to re-ask. Every road finishes without an
 agent, a measurement, or a second adjudication, or parks where the record cannot account for what it finds
 ([`../state-machine/labels-and-state.md#base-refresh`](../state-machine/labels-and-state.md#base-refresh)).
+
+None of this widens the exemption. A rotation moves it from one exact commit onto one other, and only where the owner
+that ran the rewrite proved two canonical fingerprints equal; equivalence is never inferred from a matching addition
+count, a commit subject, a timestamp, tree or rename similarity, or a `git patch-id`, each of which can agree over a
+different change
+([`../architecture.md`](../architecture.md#fingerprinting-a-prospective-contribution-gitmeasurementfingerprintpy)).
+A descendant of the exempt commit, a developer's or reviewer's fix, the documentation pass, an agent's conflict
+resolution, a child a split creates, and a replay that changed one covered byte are each measured as the fresh
+candidate they are, and an oversized one is adjudicated afresh. How the exact commit, the semantic identity, and the
+rotation relate, which phases a rotation passes through, what each crash leaves behind, and what a legacy or damaged
+record reads back as are mapped in
+[`../state-machine/labels-and-state.md#exemption-identity-and-rotation`](../state-machine/labels-and-state.md#exemption-identity-and-rotation).
 
 The approval holds the switch back for the commit it *names* and no other, which is why the switch is asked twice —
 once at the door, cheaply, and once past the proof. An approval is a claim about one object id, and nothing can say

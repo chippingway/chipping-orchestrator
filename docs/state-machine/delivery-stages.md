@@ -1716,7 +1716,8 @@ pairs, the pull request, the rewrite kind, and which reading proved the publicat
 it, or the leased no-op a recovery finds it already standing on. That record is `late_transfer_telemetry`'s rather
 than the rotation's, asked by the push tail past the settling write, so nothing is reported for a move GitHub
 refused — and a process lost past that write is reported by the reconciliation ahead of the next handler, from the
-proof the settlement kept, once. A digest the standing permission already recorded is held to the reading the permit
+proof the settlement kept — best effort, and repeated only where the drop of that proof does not land. A digest the
+standing permission already recorded is held to the reading the permit
 just took, since a grant that carried on would write its own answer over evidence nobody checked. Refused, nothing
 changes and the squash is measured exactly as above. And the permission is droppable in exactly one window — a
 force-push the remote refuses
@@ -1764,7 +1765,10 @@ rather than a probe is what the recovery turns on. Past the grant the permission
 back to it when a caller presents nothing and re-asks the whole permit over it. The dev-fix publications, the
 reviewer's fix loop, and the documentation pass are the same rule one stage over. All of them go through the
 ordinary cumulative gate — and a replay that changed a single covered byte joins them, since it fingerprints to a
-different contribution and earns the fresh late adjudication any oversized candidate is owed.
+different contribution and earns the fresh late adjudication any oversized candidate is owed. So does a descendant of
+the exempt commit, and so does a rewrite judged alike on anything short of the fingerprint: an addition count, a commit
+subject, a similarity score, and a `git patch-id` can each agree over a different change
+([`labels-and-state.md#exemption-identity-and-rotation`](labels-and-state.md#exemption-identity-and-rotation)).
 
 A candidate whose count never came back keeps the rewrite too, and for the same reason read one step earlier: the
 freeze is durable and the diff is not, so a reading that fails leaves a live generation naming the **squash** with no

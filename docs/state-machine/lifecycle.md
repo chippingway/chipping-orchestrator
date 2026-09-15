@@ -64,15 +64,30 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                      and only the relabel this tick finishes
                                      was ever owed
      an authorized rewrite of it  ─► publish unmeasured on a permit earned
-                                     this tick: a squash on approval whose
-                                     contribution fingerprints to the digest
-                                     the adjudication recorded, over a clean
-                                     checkout, an unmoved publication, and an
-                                     issue re-read open. What goes down before
-                                     the push is the PERMISSION; the exemption
-                                     itself stays on the commit a human ruled
-                                     on, and the receipt of the landed push is
-                                     what carries it over
+                                     this tick by the owner that RAN the
+                                     rewrite -- a squash on approval, the
+                                     clean rebase the base refresh publishes,
+                                     or the clean replay resolving_conflict
+                                     runs -- whose contribution fingerprints
+                                     to the digest the adjudication recorded,
+                                     over a clean checkout, an unmoved
+                                     publication, a base the remote reaches,
+                                     and an issue re-read unchanged. What goes
+                                     down before the push is the PERMISSION
+                                     (late_rewrite_phase authorized); the
+                                     exemption stays on the commit a human
+                                     ruled on, and the receipt of the landed
+                                     push carries it, its identity, and the
+                                     authorization over in ONE write
+                                     (published), reported as one
+                                     late_transfer and no second verdict
+     ... any other commit         ─► measured as the fresh candidate it is:
+                                     a descendant, a developer or reviewer
+                                     fix, the docs pass, an agent's conflict
+                                     resolution, and a replay that changed
+                                     one covered byte earn no waiver, and no
+                                     count, subject, similarity score, or
+                                     patch-id stands in for the fingerprint
      DECOMPOSE=off, no generation ─► publish unmeasured; a candidate already
                                      recorded is measured with the switch
                                      either way
