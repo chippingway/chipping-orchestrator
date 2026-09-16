@@ -1193,7 +1193,11 @@ The keys that matter for the state machine fall into a few groups:
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one
-  is only starting on, which the in_review merge gate reads as a head this orchestrator has documented and pings. The
+  is only starting on, which the in_review merge gate reads as a head this orchestrator has documented and pings.
+  Under `PR_REF_IN_SUBJECT` a pass that publishes re-anchors it once more before the size gate, on the commit whose
+  subject it hands that gate, so the hold, the failed-push approval, and the receipt that gate writes each sit beside
+  the commit the rest of the record names rather than beside the head the spawn began on; a hold the gate REFUSES
+  rather than routes measures, records and publishes nothing, so that anchor goes back to the pre-spawn head. The
   success exits announce first, then persist, then relabel: the notice's id has to ride a write or nothing
   records it, and `in_review` repairs nothing it is handed — its merge gate pings only for a head `docs_checked_sha`
   names with a `docs_verdict` beside it, so a relabel taken ahead of the write would strand the issue there on the
