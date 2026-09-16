@@ -15,8 +15,9 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   [`event-streams.md#audit-event-log`](../observability/event-streams.md#audit-event-log-event_log_path).
 - `ANALYTICS_LOG_PATH` — default `LOG_DIR/analytics.jsonl`. project-local analytics JSONL sink. Set to empty / `off` /
   `disabled` / `none` to disable. Which kinds land here — the per-tick and per-run records, the one bounded record
-  each candidate of the daily terminal-artifact maintenance pass earns, and the two families
-  written to this sink and the audit log alike — is inventoried on
+  each candidate of the daily terminal-artifact maintenance pass earns, and the three families
+  written to this sink and the audit log alike (human-wait transitions, agent-run budget, and late-split events) — is
+  inventoried on
   [`event-streams.md#analytics-sink`](../observability/event-streams.md#analytics-sink-analytics_log_path) rather than
   repeated here, so the list has one home as it grows.
 - `ANALYTICS_RETENTION_DAYS` — default `90`. retention window for `ANALYTICS_LOG_PATH`. The polling loop calls

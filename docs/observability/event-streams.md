@@ -60,6 +60,7 @@ file is the durable record.
 - `park_awaiting_human` — every `_park_awaiting_human` (in `workflow/engine/guards.py`) call site, plus
   `_on_question`, `_on_dirty_worktree`, `_on_unreadable_worktree`,
   `_park_verify_failure`, and the question- and discussion-stage `_park_question` / `_park_discussion` funnels;
+  fanned out to `ANALYTICS_LOG_PATH` alongside this audit log through the shared `GitHubClient.emit_event` chokepoint;
   extras: `stage` (read from the current
   workflow label, not passed in), `reason` (e.g. `agent_timeout`, `push_failed`, `failed_checks`, `agent_question`,
   `agent_session_limit` (a quota-exhausted agent message, parked retryably as `agent_silent`),
@@ -248,6 +249,9 @@ foundation layer for the Postgres aggregation step.
   evaluation per due dependency poll rather than one per tick.
 - `agent_exit` — `_run_agent_tracked` (in `workflow/engine/usage.py`); one record per tracked agent invocation; agent
   context + parsed token / model / cost details (see below).
+- `park_awaiting_human` — `GitHubClient.emit_event` (and the in-memory fake client) alongside the audit
+  `park_awaiting_human`; one record per human-wait transition; carries `stage`, `reason`, and structured extras (e.g.
+  `agent_role`, `backend`, `review_round`, `retry_count`, `pr_number`, `dirty_files`).
 - `repo_skill_catalog` — `orchestrator.skills.catalog._emit_repo_skill_catalog`, driven once per tick per spec by the
   tick owner (`workflow.engine.tick.tick`); repo-level (not issue-scoped, so
   `issue` is

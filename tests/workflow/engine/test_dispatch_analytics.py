@@ -1,10 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Stage analytics records emitted by the dispatcher and label flips:
+"""Stage analytics records emitted by the dispatcher, label flips, and parks:
 `_process_issue` writes one `stage_evaluation` record per handler call
 (happy-path, no-stage pickup, error path, backlog-skip short-circuit,
 disabled-sink no-op); `set_workflow_label` writes one `stage_enter`
-analytics record per non-None label transition."""
+analytics record per non-None label transition; emitted `park_awaiting_human`
+events fan out to the analytics recorder."""
 from __future__ import annotations
 
 import tempfile
@@ -15,11 +16,16 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.github.labels import BACKLOG_LABEL, PAUSED_LABEL
 from orchestrator.observability.analytics import settings as analytics_settings
-from orchestrator.workflow.engine import issue_processing as _issue_processing, pickup
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    issue_processing as _issue_processing,
+    pickup,
+)
 from orchestrator.workflow.stages.implementing import handler as implementing
-from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
+from tests.support.fakes import FakeGitHubClient, FakeIssue, FakeLabel, make_issue
 from tests.workflow.fixtures import (
     _TEST_SPEC,
+    EVENT_PARK_AWAITING_HUMAN,
     EVENT_STAGE_ENTER,
     EVENT_STAGE_EVALUATION,
     LABEL_IMPLEMENTING,
@@ -41,6 +47,7 @@ _VALIDATING_HANDLER = (
 )
 _ANALYTICS_PATH_ATTR = "ANALYTICS_LOG_PATH"
 _STAGE_KEY = "stage"
+_EVENT_KEY = "event"
 _HARD_SKIPPED_ISSUE = 8004
 _SUCCESS_ISSUE = 8001
 _UNLABELED_ISSUE = 8002
@@ -48,12 +55,20 @@ _ERROR_ISSUE = 8003
 _DISABLED_SINK_ISSUE = 8005
 _STAGE_ENTER_ISSUE = 8101
 _LABEL_CLEAR_ISSUE = 8102
+_PARK_ISSUE = 8201
+_PARK_REASON = "agent_timeout"
+_PARK_MESSAGE = "please advise"
+_PARK_LOG = "park_analytics.jsonl"
+_RECORD_PARK_TARGET = (
+    "orchestrator.observability.analytics.recording.events"
+    ".record_park_awaiting_human"
+)
 
 
 def _stage_evaluations(path: Path, issue_number: int) -> list[dict]:
     return [
         record for record in _analytics_records(path)
-        if record.get("event") == EVENT_STAGE_EVALUATION
+        if record.get(_EVENT_KEY) == EVENT_STAGE_EVALUATION
         and record.get("issue") == issue_number
     ]
 
@@ -81,11 +96,6 @@ def _process_error(gh: FakeGitHubClient, issue) -> RuntimeError:
     except RuntimeError as error:
         return error
     raise AssertionError("the stage handler did not propagate its error")
-
-
-def _stage_enter_projection(record: dict) -> tuple:
-    datetime.fromisoformat(record["ts"])
-    return record["event"], record["issue"], record["repo"]
 
 
 class StageEvaluationAnalyticsTest(unittest.TestCase):
@@ -218,7 +228,7 @@ class StageEnterAnalyticsRecordTest(unittest.TestCase):
             [_IMPLEMENTING_STAGE, _VALIDATING_STAGE],
         )
         self.assertEqual(
-            list(map(_stage_enter_projection, records)),
+            list(map(self._stage_enter_projection, records)),
             [
                 (EVENT_STAGE_ENTER, _STAGE_ENTER_ISSUE, TEST_REPO_SLUG),
                 (EVENT_STAGE_ENTER, _STAGE_ENTER_ISSUE, TEST_REPO_SLUG),
@@ -237,6 +247,63 @@ class StageEnterAnalyticsRecordTest(unittest.TestCase):
                 gh.add_issue(issue)
                 gh.set_workflow_label(issue, None)
         self.assertEqual(_analytics_records(path), [])
+
+    def _stage_enter_projection(self, record: dict) -> tuple:
+        datetime.fromisoformat(record["ts"])
+        return record[_EVENT_KEY], record["issue"], record["repo"]
+
+
+class ParkAwaitingHumanAnalyticsRecordTest(unittest.TestCase):
+    """Every emitted `park_awaiting_human` event fans out to analytics."""
+
+    def test_park_writes_analytics_record(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="analytics-park-") as park_dir:
+            log_file = Path(park_dir, _PARK_LOG)
+            with patch.object(analytics_settings, _ANALYTICS_PATH_ATTR, log_file):
+                self._run_park(FakeGitHubClient())
+            rec = _analytics_records(log_file)[0]
+        self.assertEqual(rec[_EVENT_KEY], EVENT_PARK_AWAITING_HUMAN)
+        self.assertEqual(rec["repo"], TEST_REPO_SLUG)
+        self.assertEqual(rec["issue"], _PARK_ISSUE)
+        self.assertEqual(rec[_STAGE_KEY], _IMPLEMENTING_STAGE)
+        self.assertEqual(rec["reason"], _PARK_REASON)
+
+    def test_disabled_sink_writes_no_record(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="analytics-park-off-") as park_dir:
+            sentinel = Path(park_dir, "must-not-exist.jsonl")
+            with patch.object(analytics_settings, _ANALYTICS_PATH_ATTR, None):
+                self._run_park(FakeGitHubClient())
+            self.assertFalse(sentinel.exists())
+            self.assertEqual(list(Path(park_dir).iterdir()), [])
+
+    def test_park_failure_leaves_state_intact(self) -> None:
+        client = FakeGitHubClient()
+        state = MagicMock()
+        with (
+            patch(
+                _RECORD_PARK_TARGET,
+                side_effect=RuntimeError("disk full"),
+            ),
+            self.assertLogs("orchestrator.github", level="WARNING"),
+        ):
+            park_issue = self._run_park(client, state=state)
+        self.assertEqual(len(park_issue.comments), 1)
+        self.assertIn(_PARK_MESSAGE, park_issue.comments[0].body)
+        state.set.assert_any_call("awaiting_human", True)
+        self.assertEqual(client.workflow_label(park_issue), LABEL_IMPLEMENTING)
+
+    def _run_park(
+        self,
+        client: FakeGitHubClient,
+        state: MagicMock | None = None,
+    ) -> FakeIssue:
+        park_issue = make_issue(_PARK_ISSUE, label=LABEL_IMPLEMENTING)
+        client.add_issue(park_issue)
+        target_state = MagicMock() if state is None else state
+        _guards._park_awaiting_human(
+            client, park_issue, target_state, _PARK_MESSAGE, reason=_PARK_REASON,
+        )
+        return park_issue
 
 
 if __name__ == "__main__":
