@@ -1,10 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Trust-filtered thread text and bounded repository context for agent prompts.
+"""Trust-filtered thread text, input delivery, and repository context.
 
 Only trusted authors and explicitly retained orchestrator comment ids may enter
 a rebuilt conversation. Marker text alone cannot admit a comment. Repository
-context contains configured source paths and branches, with a bounded listing."""
+context contains configured source paths and branches, with a bounded listing.
+Process-local delivery snapshots record exact delivered inputs and conservative
+settlement watermarks.
+"""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -12,6 +15,7 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.github.comments import is_trusted_author
+from orchestrator.workflow.engine import prompt_delivery
 
 # The blank line between quoted comments is the paragraph break the prompt
 # builders assemble their own sections with, so it keeps one definition.
@@ -149,3 +153,39 @@ def _recent_comments_text(issue: Issue, max_chars: int = 4000) -> str:
     to `_thread_text` with the snapshot it already has.
     """
     return _thread_text(issue.get_comments(), max_chars)
+
+
+def _thread_delivery(
+    issue_comments,
+    max_chars: int = 4000,
+    *,
+    retained_ids: frozenset = _NO_RETAINED_IDS,
+    pat_login: str | None = None,
+    requirements_revision: str | None = None,
+) -> prompt_delivery.PromptDeliverySnapshot:
+    """Build a delivery snapshot for an already-read list of comments."""
+    return prompt_delivery.create_prompt_delivery_snapshot(
+        issue_comments=issue_comments,
+        max_chars=max_chars,
+        retained_ids=retained_ids,
+        pat_login=pat_login,
+        requirements_revision=requirements_revision,
+    )
+
+
+def _recent_comments_delivery(
+    issue: Issue,
+    max_chars: int = 4000,
+    *,
+    retained_ids: frozenset = _NO_RETAINED_IDS,
+    pat_login: str | None = None,
+    requirements_revision: str | None = None,
+) -> prompt_delivery.PromptDeliverySnapshot:
+    """Build a delivery snapshot from current issue comments."""
+    return _thread_delivery(
+        issue.get_comments(),
+        max_chars=max_chars,
+        retained_ids=retained_ids,
+        pat_login=pat_login,
+        requirements_revision=requirements_revision,
+    )
