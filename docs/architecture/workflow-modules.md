@@ -227,7 +227,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
-                            ENDED for a pull request that is over
+                            ENDED for a pull request that is over. The vocabulary heads the five evidence owners
+                            below, and all five are DORMANT: each is proved by its own tests, nothing composes them
+                            into a tick, and the reconciliation that would ask them lands with the owner that
+                            drives it
     report_evidence.py      the affirmative evidence a completion needs, in two entry points: the pull-request
                             reading, which every other one stands behind, and the rest composed behind it cheapest
                             first. The requirements revision closes it, held against the one the run was handed and
@@ -251,8 +254,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             beside all of it, as one group through the receipt's own damage reader and then on both
                             of its members, since standing on a commit says it is there and nothing about how it
                             got there. Both those owners are reached through `stage_targets.py`, resolved when
-                            called. This whole group is DORMANT: it is proved by its own tests, and the
-                            reconciliation that would ask it lands with the owner that drives it
+                            called
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
     prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, the
