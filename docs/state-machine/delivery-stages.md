@@ -2974,7 +2974,10 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        on top of base (`_already_rebased_onto_base` re-fetches base and checks `HEAD..<remote>/<base>` is empty) AND the
        stale remote head is one the orchestrator itself produced (`_pr_head_orchestrator_produced`:
        `pr.head.sha == docs_checked_sha` — the only key production code persists for an orchestrator-pushed head,
-       written by `_handle_documenting`'s success exits), the "behind" commits are the orchestrator's own superseded
+       written by `_handle_documenting`'s success exits and, under `PR_REF_IN_SUBJECT`, by a publishing pass that
+       re-anchors it on the commit it hands the size gate; a commit that gate held or failed to push is on no remote,
+       so it is the equality with the pull request's own head that makes the key proof here, not where it was
+       written), the "behind" commits are the orchestrator's own superseded
        pre-rebase commits — there is nothing external to lose, so fall through to the `ahead > 0` push and
        force-publish instead of parking. PR heads from earlier in the lifecycle (the initial implementing push, an
        intermediate fixing push) are not currently recorded anywhere in pinned state, so the exception declines those by
