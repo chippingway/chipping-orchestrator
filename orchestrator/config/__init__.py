@@ -442,9 +442,12 @@ SQUASH_ON_APPROVAL: bool = _RESOLVED["SQUASH_ON_APPROVAL"]
 # subject that already carries the same number. Default on. Off is the escape
 # for a target repo that lands pull requests with GitHub's squash merge and its
 # default message, where GitHub appends its own `(#N)` to the squash commit
-# title and a single-commit pull request would carry the number twice. The
-# multi-commit approval squash and the documenting pass's commit read it so
-# far: a single-commit branch is not suffixed yet, whatever the value.
+# title and a single-commit pull request would carry the number twice. Every
+# commit the orchestrator publishes reads it: the approval squash, the
+# documenting pass's commit, and a single-commit branch whose subject lacks
+# the reference, which goes through the approval squash's own reset, gate, and
+# leased push for the subject alone. Off leaves each of them exactly as it was
+# committed.
 PR_REF_IN_SUBJECT: bool = _RESOLVED["PR_REF_IN_SUBJECT"]
 
 # Whether working agents are told about the *other* repos this orchestrator

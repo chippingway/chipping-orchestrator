@@ -337,8 +337,10 @@ examples.
   PR branch into a single subject-only commit and force-push with lease. The subject reuses the dev's first commit
   subject when it carries a reusable `<prefix>:` form (Conventional **or** repo-local such as `event:`/`career:`);
   otherwise it is synthesized with a prefix inferred from recent base-branch history. Either one ends in the pull
-  request reference `PR_REF_IN_SUBJECT` describes. `off` leaves the per-step commit history intact (useful when
-  downstream tooling depends on it). What the switch decides is whether a **new** collapse
+  request reference `PR_REF_IN_SUBJECT` describes, and that reference is also what puts a **one-commit** branch
+  through the same rewrite when its subject does not already carry it. `off` leaves the per-step commit history
+  intact and rewrites none of the developer's commits, for the reference or anything else (useful when
+  downstream tooling depends on that history). What the switch decides is whether a **new** rewrite
   is made: one an earlier tick already made is finished either way, because the commits it replaced are off the branch
   and the remote either carries the object that replaced them or does not, so an install that flips the switch off
   between the rewrite and the push does not abandon reviewer-approved work off the pull request. An issue with no
@@ -356,14 +358,17 @@ examples.
   number as an issue to close. `off` suffixes nothing, leaves a single-commit branch unrewritten, and does not amend
   the `docs:` commit. Turn it off on a target repo that lands pull requests with GitHub's **Squash and merge** and its
   default commit message: GitHub appends its own `(#N)` to the squash commit title, so a single-commit pull request
-  would carry the number twice. The multi-commit approval squash and the documenting pass read it so far. On the
-  squash, the reused first-commit subject and the synthesized one alike end in the reference to the pull request the
-  reviewer approved — or to the one the pinned comment records, when the recovery of an unfinished squash collapses
-  the branch afresh — and `off` leaves that message exactly as it was selected, while a collapse the recovery
-  finishes keeps the subject it was committed under. On the docs pass, the `docs:` commit is amended in place before
-  every road that publishes it, keeping its author, tree, and body; one whose amendment fails is never published
-  without the reference — the issue parks `subject_amend_failed` with the commit still on the branch. A single-commit
-  branch is not suffixed yet, whichever value is set. Parsed as a boolean:
+  would carry the number twice. The approval squash and the documenting pass both read it. On the squash, the reused
+  first-commit subject and the synthesized one alike end in the reference to the pull request the reviewer approved —
+  or to the one the pinned comment records, when the recovery of an unfinished squash rewrites the branch afresh — and
+  `off` leaves that message exactly as it was selected, while a rewrite the recovery finishes keeps the subject it was
+  committed under. A branch of **one** commit is decided by this switch alone: `on`, a subject that does not already
+  end in the reference is rewritten to carry it, through the same `reset --soft`, hardened commit, size gate, and
+  `--force-with-lease` push a collapse goes through, reported as one commit replaced and announced by no `:package:`
+  notice; a subject that already carries it, and every one-commit branch with the switch `off`, is left exactly as the
+  developer committed it. On the docs pass, the `docs:` commit is amended in place before every road that publishes
+  it, keeping its author, tree, and body; one whose amendment fails is never published without the reference — the
+  issue parks `subject_amend_failed` with the commit still on the branch. Parsed as a boolean:
   `1` / `true` / `on` / `yes` enable, anything else disables.
 - `EXPOSE_TRACKED_REPOS` — default `on`. tell working agents about the *other* repos this orchestrator tracks (slug,
   local `target_root`, base branch) for cross-repo reference. Inert for single-repo hosts — the awareness block is

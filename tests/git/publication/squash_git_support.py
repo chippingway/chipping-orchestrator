@@ -58,6 +58,12 @@ PINNED_PR_NUMBER = "pr_number"
 # the second is taken once this has run.
 _SQUASH_COMMIT_HELPER = "_create_squash_commit"
 
+# What the one commit a rebuilt single-commit branch carries says by default,
+# and the reference this fixture's pull request would end it in.
+SINGLE_SUBJECT = "feat: only one"
+
+PR_REFERENCE = f" (#{SQUASH_PR_NUMBER})"
+
 
 def run_git(*args: str, cwd: Path, env_extra: dict | None = None) -> str:
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
@@ -207,14 +213,21 @@ class _SquashScenarioMixin:
         run_git(GIT_RESET, HARD_RESET, REMOTE_BASE_REF, cwd=self.work)
         commit_files(self.work, messages, prefix)
 
-    def _rebuild_single_commit(self) -> None:
+    def _rebuild_single_commit(self, subject: str = SINGLE_SUBJECT) -> None:
+        """Throw the branch back to one commit, under `subject`.
+
+        The subject is the case's because it is what decides whether such a
+        branch is rewritten at all: one already ending in this pull request's
+        reference is owed nothing, and one ending in another number is
+        ordinary text the current reference is still appended after.
+        """
         run_git(GIT_RESET, HARD_RESET, REMOTE_BASE_REF, cwd=self.work)
         (self.work / "only.txt").write_text("only\n")
         run_git(GIT_ADD, ".", cwd=self.work)
         run_git(
             GIT_COMMIT,
             GIT_MESSAGE_FLAG,
-            "feat: only one",
+            subject,
             cwd=self.work,
             env_extra=author_env(),
         )

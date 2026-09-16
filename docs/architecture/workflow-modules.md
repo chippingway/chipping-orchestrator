@@ -371,16 +371,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             some other commit, are each left exactly as found. The terms a caller offers answer for
                             themselves through `unusable_terms`, so a caller that has not decided to record yet
                             gets the same refusal the write would have raised
-    collapses.py            the three terms a squash says it is about to collapse, written before the reset that
+    collapses.py            the three terms a squash says it is about to replace, written before the reset that
                             destroys them and deliberately outside the group a cleared generation drops: the head
-                            being collapsed -- the rollback target, and the head the force-push behind it is leased
-                            against -- the base it is collapsed over, and how many commits go in, which is the one
-                            fact no reading past the rewrite could recover and what the handoff's notice is worded
-                            from. Read whole or not at all, so a missing member, an end that is not a whole object
-                            id, and a count no squash collapses each read back as no pending collapse -- while
+                            being replaced -- the rollback target, and the head the force-push behind it is leased
+                            against -- the base it is rewritten over, and how many commits go in, which is the one
+                            fact no reading past the rewrite could recover, what the walk proving the record is
+                            held to, and what the handoff's notice is worded from. The wire names are a
+                            compatibility contract live issues already carry, so one record covers every rewrite
+                            this workflow makes: a collapse of several commits, and the subject rewrite of a
+                            one-commit branch, which records a count of one and is the shape whose interruption
+                            the branch itself cannot show at all. Read whole or not at all, so a missing member,
+                            an end that is not a whole object id, and a count no squash replaces -- zero replaces
+                            nothing -- each read back as no pending collapse, while
                             CARRYING one of those is a separate question the recovery has to ask, since a comment
-                            claiming a collapse it cannot produce describes a branch that reads as having nothing
-                            to squash. What ENDS one is here too, and the write that does hands what it leaves
+                            claiming a rewrite it cannot produce describes a branch that reads as having nothing
+                            left to do. What ENDS one is here too, and the write that does hands what it leaves
                             to `handoffs` beside it: the claim goes first and its successor is staged second, so
                             no comment a write could land from carries both -- a reader finding the pair would be
                             told a rewrite is outstanding over a branch already published, and refuse to resume

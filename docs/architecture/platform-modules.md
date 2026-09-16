@@ -516,10 +516,15 @@ orchestrator/
                         message they select, ended in the ` (#N)` reference `pr_references` formats for the pull
                         request the squash is handed, where one is -- the count WALKED rather than taken from the
                         subjects beside it, since a commit written with no message contributes no subject and still
-                        contributes one commit, and a count short by those decides both whether there is anything
-                        to collapse at all and what a human is told their history was collapsed from --
-                        and the pre-squash head pinned beside them -- the rollback target, the head the entry takes
-                        its lease from, and the commit the gate is told this rewrite collapsed, none of which a
+                        contributes one commit, and a count short by those decides both which rewrite the branch is
+                        owed and what a human is told their history was collapsed from -- and the DECISION those
+                        come to, which the count alone does not make: more than one commit is a collapse whatever
+                        the subjects say, exactly one is a rewrite of its SUBJECT and only where that subject does
+                        not already end in the reference -- asked through `pr_references`' own idempotent formatter,
+                        so what counts as already referenced cannot drift from what the rewrite would write -- and
+                        anything else is a branch left alone, which the plan says by carrying no message at all.
+                        And the pre-squash head pinned beside them -- the rollback target, the head the entry takes
+                        its lease from, and the commit the gate is told this rewrite replaced, none of which a
                         reading taken past the reset could recover
       pr_references.py  the ` (#N)` pull-request reference a published commit subject ends in, formatted once for
                         every publisher: a subject already ending in the same reference comes back unchanged, so a
@@ -614,9 +619,11 @@ orchestrator/
                         behind it is exactly the one commit that reads as nothing to squash
       squash.py         the plan-then-resume-then-enter-then-record-then-rewrite entry point a stage handler
                         calls, over the gate subject that handler builds and the pull request number it hands in --
-                        which the plan's message references only while `PR_REF_IN_SUBJECT` is on -- and the owner
+                        which the plan's message references only while `PR_REF_IN_SUBJECT` is on, and which on a
+                        one-commit branch is what decides whether there is a rewrite at all, for `count=1` and no
+                        `:package:` notice -- and the owner
                         of `SQUASH_ON_APPROVAL`:
-                        the switch decides whether a NEW collapse is made, and one an earlier tick already made
+                        the switch decides whether a NEW rewrite is made, and one an earlier tick already made
                         is finished either way, since the commits are off the branch and the remote either has
                         the object that replaced them or does not. An issue with nothing recorded costs an
                         install with the switch off no probe, no reading, and no write -- but one that CLAIMED a
@@ -630,8 +637,9 @@ orchestrator/
                         proved AGAIN once the reading comes back, because the read is a REQUEST and the worktree
                         is writable for the whole of it -- a commit landing there is work no reviewer saw, and
                         this road reports the head it planned over. The resume is asked
-                        before the commit count is read as a verdict, since a collapsed branch and a branch with
-                        nothing to collapse carry the same one commit; the record goes down between the entry and
+                        before what is on the branch is read as a verdict, since a rewritten branch and a branch
+                        with nothing left to rewrite carry the same one commit under the same kind of subject;
+                        the record goes down between the entry and
                         the reset, so no write is spent on a publication the entry refuses and none is owed once
                         the evidence is gone -- and a write GitHub refuses stops the squash rather than leaving a
                         rewrite nothing could account for. Every failure is stamped on the way out with WHERE

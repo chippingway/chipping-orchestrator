@@ -46,11 +46,15 @@ BRANCH_UNKNOWN = "unknown"
 class _SquashOutcome:
     """What one squash-and-publish did.
 
-    `success` with a `sha` is the ordinary shape: the branch was collapsed and
-    the remote force-pushed to match, `count` naming how many commits went
-    into it and 0 meaning there was nothing to squash. A failure carries the
-    `error` its caller parks with and leaves the original commits on the
-    branch.
+    `success` with a `sha` is the ordinary shape: the branch was rewritten and
+    the remote force-pushed to match, `count` naming how many commits the one
+    commit on it replaced and 0 meaning there was nothing for this call to
+    rewrite -- no commits over the base, or a single one already committed
+    under the subject a publication gives it. One is the branch rewritten for
+    its SUBJECT alone: a commit was made and pushed, and no history was
+    replaced by less of it, which is why the notice a handoff posts is owed
+    only above that. A failure carries the `error` its caller parks with and
+    leaves the original commits on the branch.
 
     `standing` is what a FAILURE says about the branch it is leaving behind,
     and it names one of three places rather than answering yes or no. The

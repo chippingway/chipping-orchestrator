@@ -139,29 +139,35 @@ class SquashOnApprovalTest(
         # final-docs hop) regardless of SQUASH_ON_APPROVAL.
         self.assertIn((_support.APPROVAL_ISSUE, _support.LABEL_DOCUMENTING), gh.label_history)
 
-    def test_single_commit_posts_no_notice(self) -> None:
-        # The helper returns `squashed_count=0` when there's only one
-        # commit on top of base -- nothing to squash. The orchestrator
-        # must skip the squash PR comment (the helper returns the same
-        # SHA back).
-        gh, issue, pr = self._setup()
-        pr.head = FakePRRef(sha=_support.REVIEWED_SHA)
+    def test_a_collapse_of_nothing_posts_no_notice(self) -> None:
+        # The notice says how much history the force-push replaced, so the two
+        # counts that replaced none of it owe nothing: 0 is the branch this
+        # call left alone, and 1 is the one commit rewritten for its subject
+        # -- one commit on the branch before and one after, on both. The
+        # approval still flips to `documenting` for the final-docs hop either
+        # way.
+        for squashed_count in (0, 1):
+            with self.subTest(squashed_count=squashed_count):
+                gh, issue, pr = self._setup()
+                pr.head = FakePRRef(sha=_support.REVIEWED_SHA)
 
-        with patch.object(config, _support.SQUASH_ON_APPROVAL, True):
-            self._run_validating(
-                gh,
-                issue,
-                run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
-                head_shas=(_support.REVIEWED_SHA,),
-                # Helper success no-op: nothing to squash.
-                squash_result=(True, _support.REVIEWED_SHA, 0, None),
-            )
+                with patch.object(config, _support.SQUASH_ON_APPROVAL, True):
+                    self._run_validating(
+                        gh,
+                        issue,
+                        run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+                        head_shas=(_support.REVIEWED_SHA,),
+                        squash_result=(
+                            True, _support.REVIEWED_SHA, squashed_count, None,
+                        ),
+                    )
 
-        for _, body in gh.posted_pr_comments:
-            self.assertNotIn(":package: squashed", body)
-        # Approval still flips to `documenting` (the final-docs hop)
-        # even when there's only one commit (so no squash notice).
-        self.assertIn((_support.APPROVAL_ISSUE, _support.LABEL_DOCUMENTING), gh.label_history)
+                for _, body in gh.posted_pr_comments:
+                    self.assertNotIn(":package: squashed", body)
+                self.assertIn(
+                    (_support.APPROVAL_ISSUE, _support.LABEL_DOCUMENTING),
+                    gh.label_history,
+                )
 
 
 class SquashParkNoticeTest(

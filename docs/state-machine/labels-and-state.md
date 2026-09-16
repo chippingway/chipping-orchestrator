@@ -2565,30 +2565,34 @@ rather than preserving.
   never held the content between the pair. A record the candidate has moved under, a digest that disagrees, and a
   reading nobody could take each authorize nothing, and the issue goes on waiting on its park with the record intact.
 - **Pending collapse.** `late_collapse_head`, `late_collapse_base_sha`, and `late_collapse_count` are what a
-  squash-on-approval says it is about to do, written on the
+  squash-on-approval says it is about to do — whether that is collapsing a history or rewriting the subject of the
+  one commit already on the branch — written on the
   [`collapses`](../../orchestrator/workflow/late_split/collapses.py) owner and outside `LATE_STATE_KEYS` on the same
   terms as the four groups above — the gate retires the generation a squash is measured under the moment it
   approves the commit, so a record cleared with one would be gone before the push it exists to recover ever
-  happened. They go down **before** the reset, and they have to: a squash collapses the approved commits into one
-  object with the same tree, so past that reset the head it replaced is off the branch, the base it was read over is
-  not derivable from the object that replaced it, and the count is gone with the commits it counted — while what is
-  left on the branch is indistinguishable from a branch nobody ever squashed. Read as the second, an interrupted
-  rotation takes the *nothing to squash* road and is reported as a success that measured nothing and pushed nothing,
-  with reviewer-approved work reaching the merge button neither counted nor on the remote.
+  happened. They go down **before** the reset, and they have to: a squash replaces the approved commits with one
+  object carrying the same tree, so past that reset the head it replaced is off the branch, the base it was read over
+  is not derivable from the object that replaced it, and the count is gone with the commits it counted — while what
+  is left on the branch is indistinguishable from a branch nobody ever squashed. Read as the second, an interrupted
+  rotation takes the *nothing to rewrite* road and is reported as a success that measured nothing and pushed nothing,
+  with reviewer-approved work reaching the merge button neither counted nor on the remote. A one-commit branch
+  rewritten for its subject is the sharpest case of that and records exactly the same three fields: one commit before
+  the reset and one after, so not even the shape of the branch changed.
 
   Three fields and no more, because what a recovery may act on is what it can check: the pull request is re-read,
   the checkout is re-proved, the contribution is re-fingerprinted, and the ceiling is this build's own. What the
   record supplies is only what no reading taken afterwards could. The head is the rollback target and the head the
   force-push is leased against; the base is the end both contributions are read from when
   [`late_transfer`](../../orchestrator/workflow/stages/implementing/late_transfer.py) decides whether an
-  adjudication's exemption may move onto the rewrite; the count is what the handoff's `:package: squashed N commits`
-  notice is worded from.
+  adjudication's exemption may move onto the rewrite; the count is what the walk proving the record is held to and
+  what the handoff's `:package: squashed N commits` notice is worded from — the notice being owed only where history
+  was replaced by less of it, so a recorded count of `1` announces nothing.
 
   Read whole or not at all, like every other late record: a missing member, an end that is not a whole object id,
-  and a count no squash collapses (one is the branch a squash *leaves*) each read back as no pending collapse. Being
-  unreadable is not being absent here either, and the caller asks both — a comment CARRYING one of those members is
-  claiming a collapse it cannot produce, and the branch behind that claim is exactly the one commit that reads as
-  having nothing to squash, so the squash refuses rather than reporting success.
+  and a count no squash replaces (zero replaces nothing, so it describes no rewrite anybody made) each read back as
+  no pending collapse. Being unreadable is not being absent here either, and the caller asks both — a comment
+  CARRYING one of those members is claiming a rewrite it cannot produce, and the branch behind that claim is exactly
+  the one commit that reads as having nothing left to rewrite, so the squash refuses rather than reporting success.
 
   Shape is not enough to ACT on either. Before a resumed publication runs, both recorded ends are peeled as objects
   this host really holds, the base has to be a commit the head was really built on — a walk between two histories
@@ -2602,7 +2606,8 @@ rather than preserving.
   `late_collapse_count` is the number of commits the branch really carried, walked rather than counted from their
   subjects: `git commit --allow-empty-message` makes a commit that contributes no subject, so a count taken from
   the subjects is short by however many of those there are — and the recovery would then refuse a collapse this
-  workflow really made as miscounted.
+  workflow really made as miscounted. `1` is the subject rewrite of a one-commit branch, and it is a record like any
+  other: the same walk proves it, the same resume finishes it, and the only thing it does not buy is the notice.
 
   The record is ended by the write that ends what it claims and by no other: the reset a rollback made, the reset
   that never ran, and — for a push that landed — the approval handoff's own write, which is deliberately the write

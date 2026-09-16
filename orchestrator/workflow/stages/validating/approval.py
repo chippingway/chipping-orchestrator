@@ -145,10 +145,12 @@ def _squash_notice_posted(
 ) -> bool:
     """Tell the pull request how much history the force-push replaced.
 
-    Nothing is owed where nothing was collapsed, which is every branch that
-    reached approval with one commit on it -- and every tick that finished a
-    collapse an earlier one already announced. An issue with no pull request
-    has nowhere to say it.
+    Nothing is owed where no history was replaced by less of it, which is
+    every branch that reached approval with one commit on it -- whether that
+    commit was left alone or rewritten to reference the pull request, since
+    either way the branch carried one commit before and carries one now -- and
+    every tick that finished a collapse an earlier one already announced. An
+    issue with no pull request has nowhere to say it.
 
     A post that fails answers False rather than being swallowed, because the
     count behind it is recoverable state: it is on the pinned record of the

@@ -90,7 +90,7 @@ class SquashSubjectsTest(unittest.TestCase):
 
 
 class SquashMessageTest(unittest.TestCase):
-    """`_squash_message` builds the subject-only squash commit message."""
+    """`_squash_message` decides the rewrite and builds its commit message."""
 
     def test_reusable_first_subject_is_kept_verbatim(self) -> None:
         infer = MagicMock()
@@ -124,14 +124,57 @@ class SquashMessageTest(unittest.TestCase):
                     f"{subject}{PLAN_PR_REFERENCE}\n",
                 )
 
+    def test_a_lone_commit_gains_the_reference(self) -> None:
+        # A branch of one is already the shape a collapse leaves, so what it
+        # can still be owed is the subject -- picked by the same selection a
+        # collapse uses, the synthesis a commit written with no subject at all
+        # falls back to included.
+        for subjects, subject in (
+            ((PREFIXED_SUBJECT,), PREFIXED_SUBJECT),
+            ((), f"event: {ISSUE_TITLE}"),
+        ):
+            with (
+                self.subTest(subjects=subjects),
+                patch.object(titles, INFER_HELPER, return_value="event"),
+            ):
+                self.assertEqual(
+                    self._planned(subjects, 1, PLAN_PR),
+                    f"{subject}{PLAN_PR_REFERENCE}\n",
+                )
+
+    def test_a_branch_owed_nothing_gets_no_message(self) -> None:
+        # The three shapes with no rewrite to make: a single subject already
+        # ending in this pull request's reference, a squash referencing no
+        # pull request at all, and a branch carrying no commits over its base.
+        for subjects, count, pr_number in (
+            ((f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}",), 1, PLAN_PR),
+            ((PREFIXED_SUBJECT,), 1, None),
+            ((), 0, PLAN_PR),
+        ):
+            with self.subTest(subjects=subjects, pr_number=pr_number):
+                self.assertEqual(
+                    self._planned(subjects, count, pr_number), "",
+                )
+
     def _message(
         self, first_subject: str, pr_number: int | None = None,
+    ) -> str:
+        """The message a collapse of two commits is committed under."""
+        return self._planned((first_subject, PLAIN_SUBJECT), 2, pr_number)
+
+    def _planned(
+        self,
+        subjects: tuple[str, ...],
+        count: int,
+        pr_number: int | None,
     ) -> str:
         return planning._squash_message(
             _spec(),
             WORKTREE,
             make_issue(PLAN_ISSUE, title=ISSUE_TITLE),
-            (first_subject, PLAIN_SUBJECT),
+            planning._SquashPlan(
+                BASE_SHA, ORIGINAL_HEAD, subjects=subjects, count=count,
+            ),
             pr_number,
         )
 
@@ -146,14 +189,24 @@ class PrepareSquashTest(unittest.TestCase):
         self.assertEqual(plan.subjects, (PREFIXED_SUBJECT, PLAIN_SUBJECT))
         self.assertEqual(plan.count, 2)
         self.assertEqual(plan.message, f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}\n")
+        self.assertTrue(plan.rewrites)
 
-    def test_single_commit_plan_carries_no_message(self) -> None:
-        # Nothing to squash, so no message is built -- the caller reads the
-        # subject count and returns the untouched head.
-        plan = self._prepare(self._git_reading(PREFIXED_SUBJECT))
-        self.assertEqual(plan.subjects, (PREFIXED_SUBJECT,))
-        self.assertEqual(plan.count, 1)
-        self.assertEqual(plan.message, "")
+    def test_one_commit_plans_on_its_own_subject(self) -> None:
+        # Nothing is collapsed either way, so what such a branch is owed is
+        # decided by the subject already on it: one missing this pull
+        # request's reference is rewritten to carry it, and one that has it
+        # already -- the retry, and the second approval round -- is left where
+        # it is, which the plan says by carrying no message.
+        for subject, message in (
+            (PREFIXED_SUBJECT, f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}\n"),
+            (f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}", ""),
+        ):
+            with self.subTest(subject=subject):
+                plan = self._prepare(self._git_reading(subject))
+                self.assertEqual(plan.subjects, (subject,))
+                self.assertEqual(plan.count, 1)
+                self.assertEqual(plan.message, message)
+                self.assertEqual(plan.rewrites, bool(message))
 
     def test_unreadable_head_aborts_before_log_read(self) -> None:
         self._assert_aborts_after_merge_base("original HEAD", head="")
