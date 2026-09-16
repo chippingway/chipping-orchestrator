@@ -13,6 +13,7 @@ GIT_LOG = "log"
 LAST_COMMIT = "-1"
 SUBJECT_FORMAT = "--pretty=%s"
 FULL_MESSAGE_FORMAT = "--pretty=%B"
+TREE_FORMAT = "--pretty=%T"
 SCRATCH_FILE = "scratch.txt"
 
 # The switch the subject cases run under, set rather than inherited so an
@@ -20,6 +21,16 @@ SCRATCH_FILE = "scratch.txt"
 # and the reference it ends each of their subjects in.
 PR_REF_IN_SUBJECT = "PR_REF_IN_SUBJECT"
 REFERENCE = f" (#{SQUASH_PR_NUMBER})"
+
+# The two keywords a gated push names its commit and pins its ref by.
+REVISION = "revision"
+LEASE = "force_with_lease"
+
+# What the one commit a single-commit branch carries, and a reference to some
+# other pull request, which is ordinary subject text the current one is still
+# appended after.
+SINGLE_SUBJECT = squash_support.SINGLE_SUBJECT
+ANOTHER_REFERENCE = " (#12)"
 
 
 def _last_commit(worktree, pretty: str) -> str:
@@ -32,7 +43,19 @@ def _last_commit(worktree, pretty: str) -> str:
     ).strip()
 
 
+class _ReferencedSquashMixin:
+    """One squash run with the pull-request reference switched on.
+
+    Set rather than inherited, so an operator environment that turned the
+    switch off cannot change what these cases read back.
+    """
+
+    def _referenced_squash(self, **squash_options):
+        return self._squash(**squash_options, **{PR_REF_IN_SUBJECT: True})
+
+
 class SquashSubjectSelectionTest(
+    _ReferencedSquashMixin,
     squash_support.SquashGitFixtureMixin,
     unittest.TestCase,
 ):
@@ -137,30 +160,103 @@ class SquashSubjectSelectionTest(
             f"event: redesign the homepage{REFERENCE}",
         )
 
-    def _referenced_squash(self, **squash_options):
-        """One squash run with the pull-request reference switched on."""
-        return self._squash(**squash_options, **{PR_REF_IN_SUBJECT: True})
+
+class SquashSingleCommitSubjectTest(
+    _ReferencedSquashMixin,
+    squash_support.SquashGitFixtureMixin,
+    unittest.TestCase,
+):
+    """A branch of one commit, rewritten for its subject or left where it is.
+
+    Nothing is collapsed on either road: the branch carries one commit before
+    and one after. What decides between them is whether that subject already
+    ends in this pull request's reference, so the rewrite is of the subject
+    and the subject alone -- same tree, same reset, same gate, same leased
+    push a collapse goes through.
+    """
+
+    def test_an_unreferenced_commit_is_rewritten(self) -> None:
+        self._rebuild_single_commit()
+        original_head = self._head_sha()
+        original_tree = _last_commit(self.work, TREE_FORMAT)
+
+        squash_run = self._referenced_squash()
+
+        self.assertTrue(squash_run.success, squash_run.error)
+        self.assertEqual(squash_run.count, 1)
+        self.assertEqual(
+            self._commits_on_branch(), [f"{SINGLE_SUBJECT}{REFERENCE}"],
+        )
+        # The subject is the whole of the rewrite: the commit the reviewer
+        # approved is republished with the same tree under a new message.
+        self.assertEqual(_last_commit(self.work, TREE_FORMAT), original_tree)
+        pushed = squash_run.push_mock.call_args.kwargs
+        self.assertEqual(pushed[REVISION], self._head_sha())
+        self.assertEqual(pushed[LEASE], original_head)
+
+    def test_a_foreign_reference_is_ordinary_text(self) -> None:
+        # The formatter's own rule, one road over: only this pull request's
+        # reference counts as already carried, so a subject naming another is
+        # rewritten and the current reference is appended after it.
+        self._rebuild_single_commit(f"{SINGLE_SUBJECT}{ANOTHER_REFERENCE}")
+
+        squash_run = self._referenced_squash()
+
+        self.assertEqual(squash_run.count, 1)
+        self.assertEqual(
+            self._commits_on_branch(),
+            [f"{SINGLE_SUBJECT}{ANOTHER_REFERENCE}{REFERENCE}"],
+        )
+
+    def test_a_referenced_commit_is_a_no_op(self) -> None:
+        # The branch is already committed under the subject a publication
+        # gives it, so there is nothing to rewrite and nothing to push.
+        self._rebuild_single_commit(f"{SINGLE_SUBJECT}{REFERENCE}")
+        original_head = self._head_sha()
+
+        squash_run = self._referenced_squash()
+
+        self.assertTrue(squash_run.success, squash_run.error)
+        self.assertEqual(squash_run.count, 0)
+        self.assertEqual(squash_run.sha, original_head)
+        squash_run.push_mock.assert_not_called()
+        self.assertEqual(self._head_sha(), original_head)
+
+    def test_a_branch_carrying_nothing_is_a_no_op(self) -> None:
+        # No commit over the base is no commit to carry a subject either.
+        self._rebuild_topic((), "n")
+        original_head = self._head_sha()
+
+        squash_run = self._referenced_squash()
+
+        self.assertTrue(squash_run.success, squash_run.error)
+        self.assertEqual(squash_run.count, 0)
+        squash_run.push_mock.assert_not_called()
+        self.assertEqual(self._head_sha(), original_head)
+
+    def test_a_second_round_doubles_nothing(self) -> None:
+        # The approval that follows one this squash already published finds
+        # the subject it wrote, so the rewrite is not made a second time.
+        self._rebuild_single_commit()
+        self._referenced_squash()
+        rewritten = self._head_sha()
+
+        squash_run = self._referenced_squash()
+
+        self.assertTrue(squash_run.success, squash_run.error)
+        self.assertEqual(squash_run.count, 0)
+        squash_run.push_mock.assert_not_called()
+        self.assertEqual(self._head_sha(), rewritten)
+        self.assertEqual(
+            self._commits_on_branch(), [f"{SINGLE_SUBJECT}{REFERENCE}"],
+        )
 
 
 class SquashSkipsRewriteTest(
     squash_support.SquashGitFixtureMixin,
     unittest.TestCase,
 ):
-    """Branch shapes and plan failures that must never reach the rewrite."""
-
-    def test_squash_with_only_one_commit_is_a_no_op(self) -> None:
-        # Reset to a single commit on top of base.
-        self._rebuild_single_commit()
-        original_head = self._head_sha()
-
-        squash_run = self._squash()
-        self.assertTrue(squash_run.success)
-        self.assertEqual(squash_run.count, 0)
-        self.assertEqual(squash_run.sha, original_head)
-        # Single-commit branch must NOT trigger a push at all.
-        squash_run.push_mock.assert_not_called()
-        # HEAD unchanged.
-        self.assertEqual(self._head_sha(), original_head)
+    """Plan failures that must never reach the rewrite."""
 
     def test_dirty_worktree_aborts_before_reset(self) -> None:
         # An uncommitted change in the worktree (the agent left work

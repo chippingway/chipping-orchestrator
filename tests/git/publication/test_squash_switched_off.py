@@ -32,7 +32,11 @@ the gate reads it as answering a reading the gate itself recorded.
 `PR_REF_IN_SUBJECT=off` is the other switch run here, and it reaches far less:
 no reading, no refusal, and no push is its to decide. What it keeps is the
 multi-commit message exactly as the subject selection picked it, on the road
-that reuses the first subject and on the one that synthesizes one alike.
+that reuses the first subject and on the one that synthesizes one alike -- and
+a branch of ONE commit, whose only reason to be rewritten is that reference,
+exactly as the developer committed it. `SQUASH_ON_APPROVAL=off` leaves such a
+branch alone too, and for a different reason: that switch rewrites none of the
+developer's commits, and the reference is no exception to it.
 """
 from __future__ import annotations
 
@@ -263,6 +267,44 @@ class SquashUnreferencedRealGitTest(
                 "log", "-1", "--pretty=%B", cwd=self.work,
             ).strip(),
             subject,
+        )
+
+
+class SquashLeavesOneCommitAloneTest(
+    squash_support.SquashGitFixtureMixin,
+    unittest.TestCase,
+):
+    """The two switches that leave a branch of one commit as it was committed.
+
+    Neither answers the same question. `PR_REF_IN_SUBJECT=off` says no
+    published subject references its pull request, so the one thing such a
+    branch could still be owed is not owed at all. `SQUASH_ON_APPROVAL=off`
+    says this install rewrites none of the developer's commits, and the
+    reference is no exception it makes. Both come back as the no-op a
+    one-commit branch has always been, with nothing measured and nothing sent.
+    """
+
+    def test_no_reference_is_no_rewrite(self) -> None:
+        self._assert_left_alone(**{PR_REF_IN_SUBJECT: False})
+
+    def test_no_new_collapse_is_no_rewrite_either(self) -> None:
+        self._assert_left_alone(**{
+            SQUASH_ON_APPROVAL: False, PR_REF_IN_SUBJECT: True,
+        })
+
+    def _assert_left_alone(self, **config_overrides) -> None:
+        """One squash over an unreferenced one-commit branch changes nothing."""
+        self._rebuild_single_commit()
+        original_head = self._head_sha()
+
+        squash_run = self._squash(**config_overrides)
+
+        self.assertTrue(squash_run.success, squash_run.error)
+        self.assertEqual(squash_run.count, 0)
+        squash_run.push_mock.assert_not_called()
+        self.assertEqual(self._head_sha(), original_head)
+        self.assertEqual(
+            self._commits_on_branch(), [squash_support.SINGLE_SUBJECT],
         )
 
 

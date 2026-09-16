@@ -3,22 +3,28 @@
 """The squash a process died part way through, finished or put back.
 
 A squash is the one rewrite here that leaves the branch unable to say what
-happened to it. It collapses the commits a reviewer approved into a single
-object with the same tree, so the branch it leaves behind and the branch a
+happened to it. It replaces the commits a reviewer approved with a single
+object carrying the same tree, so the branch it leaves behind and the branch a
 developer simply made one commit on read identically -- and read identically,
-the interrupted one takes the nothing-to-squash road and is reported as a
+the interrupted one takes the nothing-to-rewrite road and is reported as a
 success nobody counted and nothing published, with reviewer-approved work
 reaching the merge button neither measured nor on the remote.
 
+That is true of the smallest rewrite as much as of the largest. A branch of
+one commit whose subject was rewritten to reference its pull request is one
+commit before and one commit after, so the branch cannot say even that its
+shape changed.
+
 What tells them apart is the record the squash wrote before it ran: the head
-it was collapsing, the base it was collapsing over, and how many commits went
+it was replacing, the base it was rewriting over, and how many commits went
 in. This owner is what reads it back, and what it answers is which of seven
 states the branch is actually in.
 
 * An UNTOUCHED original branch. The head the record names is the head the
-  checkout is on, so the reset never landed -- the record went down and the
-  process died before anything destructive ran. Nothing is owed: the record is
-  dropped and the ordinary squash runs over the commits that are still there.
+  checkout is on over the commits it counted, so the reset never landed -- the
+  record went down and the process died before anything destructive ran.
+  Nothing is owed: the record is dropped and the ordinary squash runs over the
+  commits that are still there.
 * A branch something MOVED while the collapse was outstanding. The head is no
   longer the one the record names and the branch carries more than one commit,
   so work nobody here made is on it: the recovery owns the tick from the
@@ -29,10 +35,10 @@ states the branch is actually in.
   looking for the approved commits finds them under the stray work where the
   recorded head is still reachable and only in the reflog where it is not.
 * A branch carrying NOTHING over its base, which is the one shape that road
-  could not be trusted with. There is no collapse left to finish and no
-  history left to squash, so the retry would report success having measured
-  and published nothing while the remote still carries the history the record
-  says was collapsed. It refuses instead.
+  could not be trusted with. There is no rewrite left to finish and no history
+  left to rewrite, so the retry would report success having measured and
+  published nothing while the remote still carries the history the record says
+  was replaced. It refuses instead.
 * A squash COMPLETED locally and never pushed. The publication is resumed:
   entered on the recorded head, leased against it, and handed the pair the
   record holds so the transfer that carries an adjudication's exemption is
@@ -106,8 +112,8 @@ _UNREADABLE_COLLAPSE = (
 
 _VANISHED_COLLAPSE = (
     "this issue records a squash of `{head}` and the branch carries nothing "
-    "over its base at all, so there is no collapse here to finish and no "
-    "history left to squash afresh"
+    "over its base at all, so there is no rewrite here to finish and no "
+    "history left to rewrite afresh"
 )
 
 
@@ -121,8 +127,8 @@ _ABSENT_END = "{side} (`{end}`) is not a commit this host holds"
 
 
 _MISCOUNTED_HISTORY = (
-    "the record says `{head}` collapsed {recorded} commits over `{base}` and "
-    "this host counts {counted}"
+    "the record says `{head}` was rewritten over `{base}` from a history of "
+    "length {recorded} and this host walks {counted}"
 )
 
 
@@ -152,9 +158,10 @@ _UNRELATED_PAIR = (
 
 
 _UNCOLLAPSED_BRANCH = (
-    "the record says `{head}` was collapsed from {recorded} commits and the "
-    "branch is standing on that head over {standing} -- so something rewrote "
-    "it while the record went on naming the tip it had before"
+    "the record says `{head}` was rewritten from a history of length "
+    "{recorded} and the branch is standing on that head over {standing} -- so "
+    "something rewrote it while the record went on naming the tip it had "
+    "before"
 )
 
 
@@ -178,9 +185,10 @@ def _resumed_squash(
 ) -> models._SquashOutcome | None:
     """Finish the squash this issue began, or None where none is outstanding.
 
-    Asked BEFORE the count of commits on the branch is read as a verdict,
-    because a collapsed branch and a branch with nothing to collapse carry the
-    same one commit and only the record tells them apart.
+    Asked BEFORE what is on the branch is read as a verdict, because a
+    rewritten branch and a branch with nothing left to rewrite carry the same
+    one commit under the same kind of subject, and only the record tells them
+    apart.
 
     None is the ordinary answer and means the branch is this call's to squash,
     and it is only ever reached over a record this repository can still show.
@@ -194,10 +202,13 @@ def _resumed_squash(
     That order is the whole of the safety. A record whose head was edited to
     the commit a finished collapse left reads as a rewrite that never
     happened, so the shortcut for one would drop it and hand on a branch of
-    ONE commit -- which is the nothing-to-squash road reporting success over a
-    remote still carrying the history the record names. Proved first, the same
-    record is refused: the walk between its ends does not come to the number
-    it counts.
+    ONE commit -- which is the nothing-to-rewrite road reporting success over
+    a remote still carrying the history the record names. Proved first, the
+    same record is refused: the walk between its ends does not come to the
+    number it counts. What is left over past that proof is answered by the
+    entry rather than here -- a branch handed back is entered on its
+    publication before it is handed on, so a remote still carrying what the
+    record named refuses there.
 
     The claim this build cannot read whole is the other refusal, and it comes
     first because it is the one thing the proof cannot be taken over. The
@@ -231,8 +242,10 @@ def _outstanding_collapse(
 ) -> models._SquashOutcome | None:
     """What a proved record is owed over the branch in front of it.
 
-    One commit the checkout has MOVED onto is the collapse this record is
-    about, and finishing it is the whole of the recovery. The one branch the
+    One commit the checkout has MOVED onto is the rewrite this record is
+    about, and finishing it is the whole of the recovery -- whether that
+    rewrite replaced a history or only the subject over it, since both leave
+    exactly one commit the branch cannot account for. The one branch the
     record may simply be DROPPED over is the one it still describes exactly --
     untouched, on the head it names, over the commits it counted -- which is
     the tick that died before the reset ever ran. Everything else is a branch
@@ -274,9 +287,9 @@ def _unaccountable_branch(gate, plan: planning._SquashPlan, recorded) -> str:
     three.
 
     A branch with NOTHING over its base is the shape the ordinary squash could
-    not be trusted with. There is no collapse left to finish and no history
-    left to squash, while the remote still carries every commit the record
-    names -- so handed on, the nothing-to-squash road reports success over
+    not be trusted with. There is no rewrite left to finish and no history
+    left to rewrite, while the remote still carries every commit the record
+    names -- so handed on, the nothing-to-rewrite road reports success over
     exactly that.
 
     And a branch that MOVED off the recorded head is refused whichever way it

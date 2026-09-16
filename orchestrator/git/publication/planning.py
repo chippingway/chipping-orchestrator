@@ -8,15 +8,23 @@ to undo. How many commits are on the branch is one of them and is walked
 rather than derived from the subjects beside it: a commit written with no
 message contributes no subject and is still a commit, so a count taken from
 the subjects is short by however many of those there are -- which decides
-both whether there is anything to collapse and what a human is told their
+both what kind of rewrite the branch is owed and what a human is told their
 history was collapsed from. The plan also pins `original_head` -- the rollback target, the head
 the entry takes its lease from, and the commit the gate is told this rewrite
 collapsed -- so the rewrite never has to re-read a HEAD its own reset has
 already moved.
+
+Whether a rewrite is owed at all is decided here too, and the count alone
+does not decide it. More than one commit is a collapse whatever the subjects
+say. Exactly one is a rewrite only of its SUBJECT, owed where that subject
+does not already end in the reference this publication puts on a commit -- so
+the same reset-and-recommit answers a branch that has to be flattened and a
+branch that only has to be referenced, and a branch already carrying the
+reference is left exactly as the developer committed it.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from github.Issue import Issue
@@ -37,20 +45,33 @@ class _SquashPlan:
 
     `count` and `subjects` are not two spellings of one fact. The count is how
     many commits are really on the branch over its base, and it is what says
-    whether there is anything to collapse and what a human is told their
-    history was collapsed from. The subjects are what the squash message is
-    BUILT from, and a commit with an empty message contributes none -- so a
-    branch of three where one was committed with no subject offers two
-    subjects and is still three commits. Counted from the subjects, that
-    branch reads as two, and a branch of two where one is blank reads as
-    nothing to squash at all.
+    which rewrite the branch is owed and what a human is told their history
+    was collapsed from. The subjects are what the squash message is BUILT
+    from, and a commit with an empty message contributes none -- so a branch
+    of three where one was committed with no subject offers two subjects and
+    is still three commits. Counted from the subjects, that branch reads as
+    two, and a branch of two where one is blank reads as nothing to squash at
+    all.
     """
 
     base_sha: str
     original_head: str
-    subjects: tuple[str, ...]
-    message: str
+    subjects: tuple[str, ...] = ()
+    message: str = ""
     count: int = 0
+
+    @property
+    def rewrites(self) -> bool:
+        """Whether this plan has a rewrite for the branch at all.
+
+        The message answers it rather than a flag beside it, because the
+        message is what the rewrite COMMITS: a plan carrying one has a subject
+        this branch is not already standing on, and a plan carrying none has
+        nothing to write. Held as two facts they could disagree, and a plan
+        claiming a rewrite with no message would commit an empty subject over
+        the work a reviewer approved.
+        """
+        return bool(self.message)
 
 
 def _squash_base_sha(spec: _config_models.RepoSpec, worktree: Path) -> str:
@@ -89,10 +110,10 @@ def _squash_commit_count(worktree: Path, base_sha: str) -> int:
 
     Walked rather than counted from the subjects beside it, because a commit
     with an empty message is still a commit: it contributes no subject and it
-    contributes one to this. What turns on the answer is whether there is
-    anything to collapse at all and what the notice behind a landed squash
-    announces, and neither may be short by the number of commits somebody
-    wrote no message for.
+    contributes one to this. What turns on the answer is which rewrite this
+    branch is owed -- a collapse, a subject, or nothing -- and what the notice
+    behind a landed squash announces, and neither may be short by the number
+    of commits somebody wrote no message for.
 
     A walk that did not happen, or one whose output is not a number, raises
     rather than defaulting: a count nothing produced is not one this squash
@@ -117,10 +138,29 @@ def _squash_message(
     spec: _config_models.RepoSpec,
     worktree: Path,
     issue: Issue,
-    subjects: tuple[str, ...],
+    planned: _SquashPlan,
     pr_number: int | None,
 ) -> str:
-    """Build the subject-only message for a multi-commit squash.
+    """The subject-only message `planned`'s rewrite commits, or "" for none.
+
+    Handed the plan rather than the subjects alone, because what the branch
+    is owed is not a question the subjects answer: the COUNT decides which of
+    the two rewrites is on the table, and the two are owed on different terms.
+    More than one commit is a collapse, owed whatever the subjects on it say,
+    since the history itself is what is being replaced. Exactly one commit is
+    already the shape a collapse leaves, so the only thing left to rewrite is
+    the subject over it -- and it is owed that only where the subject does not
+    already end in this pull request's reference, asked through
+    `pr_references`, so what counts as already referenced cannot drift from
+    what the line below writes. A branch an earlier round referenced, one on
+    an install that references nothing, and a branch carrying no commits at
+    all each come back with no message, which is how a plan says there is
+    nothing to do.
+
+    One selection serves both rewrites. A collapse takes the first of the
+    commits it is replacing; a one-commit branch has that same first subject
+    and only the reference to add to it, so neither road may pick a different
+    line for the same work.
 
     A branch whose commits were all written with no subject at all offers
     nothing to reuse, so the message is inferred from the issue exactly as it
@@ -132,7 +172,13 @@ def _squash_message(
     a second one. None is a squash whose subject references no pull request,
     and it gets the selected subject back exactly as it was picked.
     """
-    first_subject = subjects[0] if subjects else ""
+    if not planned.count:
+        return ""
+    first_subject = planned.subjects[0] if planned.subjects else ""
+    if planned.count == 1 and not pr_references._subject_owes_the_reference(
+        first_subject, pr_number,
+    ):
+        return ""
     if titles._is_prefixed_subject(first_subject):
         subject = first_subject
     else:
@@ -154,8 +200,15 @@ def _prepare_squash(
     """Collect every precondition before the branch rewrite begins.
 
     `pr_number` is the pull request the squash message references, or None
-    where it references none. Only a branch with something to collapse spends
-    it, since a single commit builds no message at all.
+    where it references none. On a branch of several commits it decides that
+    subject alone; on a branch of one it decides whether there is a rewrite at
+    all, since such a branch is rewritten only to carry the reference.
+
+    The plan is taken before the message and the message is folded into it,
+    rather than both being assembled at once, because the message is decided
+    FROM the plan: what the branch is owed turns on the count and the subjects
+    together, and reading them out of a half-built argument list is how the
+    two come apart.
     """
     base_sha = _squash_base_sha(spec, worktree)
     original_head = verification_probes._head_sha(worktree)
@@ -163,10 +216,16 @@ def _prepare_squash(
         raise _SquashPreparationError("could not read original HEAD")
     if _worktree_status._worktree_dirty_files(worktree):
         raise _SquashPreparationError("worktree has uncommitted changes")
-    count = _squash_commit_count(worktree, base_sha)
-    subjects = _squash_subjects(worktree, base_sha)
-    message = (
-        _squash_message(spec, worktree, issue, subjects, pr_number)
-        if count > 1 else ""
+    planned = _SquashPlan(
+        base_sha,
+        original_head,
+        # Walked first and read second, because the two are not one fact: a
+        # commit written with no message contributes no subject and still
+        # contributes one commit.
+        count=_squash_commit_count(worktree, base_sha),
+        subjects=_squash_subjects(worktree, base_sha),
     )
-    return _SquashPlan(base_sha, original_head, subjects, message, count)
+    return replace(
+        planned,
+        message=_squash_message(spec, worktree, issue, planned, pr_number),
+    )

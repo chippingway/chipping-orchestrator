@@ -62,5 +62,39 @@ class SubjectPrReferenceTest(unittest.TestCase):
                 )
 
 
+class SubjectOwesTheReferenceTest(unittest.TestCase):
+    """`_subject_owes_the_reference` answers the formatter's own rule backwards.
+
+    What a publisher deciding whether to rewrite a commit asks. It has to
+    agree with the formatter exactly: a subject said to owe nothing and then
+    handed to the formatter unchanged would keep a reference it never got,
+    and one said to owe a reference it already carries would be given a
+    second.
+    """
+
+    def test_a_subject_the_formatter_changes_owes_one(self) -> None:
+        for subject in (SUBJECT, "", f"{SUBJECT} (#11)", f"{SUBJECT}(#12)"):
+            with self.subTest(subject=subject):
+                self.assertTrue(
+                    pr_references._subject_owes_the_reference(
+                        subject, PR_NUMBER,
+                    ),
+                )
+
+    def test_a_subject_already_carrying_it_owes_none(self) -> None:
+        for subject in (SUFFIXED_SUBJECT, f"{SUFFIXED_SUBJECT} \t"):
+            with self.subTest(subject=subject):
+                self.assertFalse(
+                    pr_references._subject_owes_the_reference(
+                        subject, PR_NUMBER,
+                    ),
+                )
+
+    def test_no_pull_request_is_owed_nothing(self) -> None:
+        self.assertFalse(
+            pr_references._subject_owes_the_reference(SUBJECT, None),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

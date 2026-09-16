@@ -3,25 +3,30 @@
 """What a squash says it is about to do, before it destroys the evidence of it.
 
 A squash is the one rewrite in this workflow that leaves the branch unable to
-describe itself. It collapses the commits a reviewer approved into a single
-object with the same tree, so the head it replaced, the base it was read over,
-and how many commits went into it are all gone the moment the reset lands --
-and a one-commit branch is exactly what a branch nobody ever squashed looks
-like. Read afterwards, the two are indistinguishable: the retry takes the
-nothing-to-squash road and reports success without measuring or pushing
+describe itself. It replaces the commits a reviewer approved with a single
+object carrying the same tree, so the head it replaced, the base it was read
+over, and how many commits went into it are all gone the moment the reset
+lands -- and a one-commit branch is exactly what a branch nobody ever squashed
+looks like. Read afterwards, the two are indistinguishable: the retry takes
+the nothing-to-rewrite road and reports success without measuring or pushing
 anything, so reviewer-approved work reaches the merge button neither counted
 nor on the remote.
+
+That holds however much history went in. Collapsing three commits and
+rewriting the subject of one both end on a commit nothing on the branch can
+account for, and the second is the sharper of the two: the branch is one
+commit before and one commit after, so not even the shape changed.
 
 So the rewrite says what it is about to do first, and this is the record it
 says it in. It goes down BEFORE the reset and it is the whole of what a later
 tick has to tell an interrupted rotation from a finished one:
 
-* the HEAD the squash is collapsing, which is the rollback target and the head
+* the HEAD the squash is replacing, which is the rollback target and the head
   the force-push behind it is leased against;
-* the BASE it is collapsed over, which is the end the contribution a transfer
+* the BASE it is rewritten over, which is the end the contribution a transfer
   is granted on is read from;
 * the COUNT of commits going into it, which is the one fact no reading past
-  the reset could recover -- the collapsed commits are off the branch, and
+  the reset could recover -- the commits it replaced are off the branch, and
   only the reflog still has them.
 
 Three fields and no more, because what a recovery may act on is what it can
@@ -33,11 +38,11 @@ push nobody measured.
 
 Read fail-closed and whole or not at all, like every other late record. A
 member that is missing, a value that is not a whole object id, and a count
-that is not a number of commits a squash collapses each read back as no
+that is not a number of commits a squash replaces each read back as no
 pending collapse -- and a comment CARRYING one of those is not the same as one
 carrying none, which is the question `carries_pending_collapse` answers for
-the caller that would otherwise wave a collapsed branch past as having nothing
-to squash.
+the caller that would otherwise wave a rewritten branch past as having nothing
+to do.
 
 One boundary is left over once the rewrite is finished, and it is why the
 record does not simply go when the push lands. The write that ends the claim
@@ -67,17 +72,21 @@ from orchestrator.workflow.late_split import (
     payloads as _payloads,
 )
 
-# The head the squash is collapsing and the base it is collapsed over, spelled
+# The head the squash is replacing and the base it is rewritten over, spelled
 # here because this is the record's owner and deliberately outside the keys
-# `clear_late_generation` drops.
+# `clear_late_generation` drops. The wire names are a compatibility contract
+# live issues already carry, so they stay as they are however much history the
+# rewrite they describe replaces.
 LATE_COLLAPSE_HEAD = "late_collapse_head"
 
 LATE_COLLAPSE_BASE_SHA = "late_collapse_base_sha"
 
 # How many commits go into it. The one field that is not a commit, and the one
-# nothing past the reset could re-derive: what it is spent on is the notice a
-# finished handoff owes the pull request, which says how much history the
-# force-push replaced.
+# nothing past the reset could re-derive: what it is spent on is the walk that
+# proves the record against the objects, and the notice a finished handoff
+# owes the pull request -- which is owed only where history was actually
+# replaced by less of it, so a rewrite of one commit's subject announces
+# nothing and still records the one commit it replaced.
 LATE_COLLAPSE_COUNT = "late_collapse_count"
 
 # What the two recorded ends have to be, at their exact length. An
@@ -93,9 +102,11 @@ _HEX_SHAPES = MappingProxyType({
 # member describes a rewrite this issue cannot show the terms of.
 _COLLAPSE_KEYS = (*_HEX_SHAPES, LATE_COLLAPSE_COUNT)
 
-# The fewest commits a squash collapses. One is the branch a squash leaves
-# behind, so a record claiming it describes no rewrite anybody made.
-_COLLAPSED_AT_LEAST = 2
+# The fewest commits a squash replaces. One is both the branch a squash leaves
+# behind and the branch whose single commit is rewritten for its subject, so
+# the floor is what a rewrite of nothing at all would claim: a record counting
+# no commits describes no rewrite anybody made.
+_REWRITTEN_AT_LEAST = 1
 
 
 @dataclass(frozen=True)
@@ -105,10 +116,12 @@ class LateCollapse:
     Handed out whole or not at all, so nothing downstream has to decide what
     half of one means. `head` is the commit the branch stood on before the
     reset -- the rollback target, and the head the push is leased against.
-    `base_sha` is the fork point it was collapsed onto, which is the end both
+    `base_sha` is the fork point it was rewritten onto, which is the end both
     contributions are read from when a transfer is decided. `count` is how
-    many commits went in, which is what the handoff behind a resumed
-    publication announces.
+    many commits went in, which is what the walk proving this record is held
+    to and what the handoff behind a resumed publication announces -- one
+    being the branch whose single commit was rewritten for its subject, which
+    replaced no history and so announces nothing.
     """
 
     head: str
@@ -124,8 +137,8 @@ def carries_pending_collapse(state: PinnedState) -> bool:
     unfinished rewrite -- which a record a crash left half written, or one a
     hand edit damaged, claims just as loudly as a whole one. Asked through the
     fail-closed reader instead, a damaged claim would read as no claim, and
-    the branch it is about -- one commit, collapsed, unpushed -- would be
-    waved past as having nothing to squash.
+    the branch it is about -- one commit, rewritten, unpushed -- would be
+    waved past as having nothing to do.
 
     The key being THERE is the whole test, rather than the value under it
     being something. A pinned comment is JSON, so a field can be present and
@@ -141,7 +154,7 @@ def read_pending_collapse(state: PinnedState) -> LateCollapse | None:
     None wherever the record cannot vouch for itself, which is every way it
     can fail to: a field that is missing, a group where only some of them are
     there, an end that is not a whole object id, and a count that is not a
-    number of commits a squash collapses. Each of those is a record nothing
+    number of commits a squash replaces. Each of those is a record nothing
     may act on, and what acting on one would do is publish -- under a lease
     nobody can check -- a commit no reading here established.
 
@@ -156,7 +169,7 @@ def read_pending_collapse(state: PinnedState) -> LateCollapse | None:
     collapsed = _payloads.as_identity(state.get(LATE_COLLAPSE_COUNT))
     if not all(recorded.values()) or collapsed is None:
         return None
-    if collapsed < _COLLAPSED_AT_LEAST:
+    if collapsed < _REWRITTEN_AT_LEAST:
         return None
     return LateCollapse(
         head=recorded[LATE_COLLAPSE_HEAD],
@@ -170,24 +183,25 @@ def record_pending_collapse(
 ) -> None:
     """Record the squash this branch is about to become, before it becomes it.
 
-    Written while the collapsed commits are still on the branch, because that
-    is the only moment every term of it can be read: past the reset the head
-    is off the branch, the count is gone with the commits it counted, and the
-    base is not derivable from the object that replaced them.
+    Written while the commits being replaced are still on the branch, because
+    that is the only moment every term of it can be read: past the reset the
+    head is off the branch, the count is gone with the commits it counted, and
+    the base is not derivable from the object that replaced them.
 
     Every field is held to the shape it claims for the reason each pinned end
     in this domain is -- a value that cannot name a commit is not one, and a
-    count of one collapses nothing -- and writing one would move the failure
-    onto a reader whose only move is to publish under it.
+    rewrite that replaces no commit at all is not one either -- and writing
+    one would move the failure onto a reader whose only move is to publish
+    under it.
     """
     for given in (head, base_sha):
         if not _formats.is_hex_of(given, _formats.COMMIT_LENGTHS):
             raise _formats.InvalidLateValue(
                 f"a pending collapse is not one ({type(given).__name__})",
             )
-    if not _formats.whole_number(count) or count < _COLLAPSED_AT_LEAST:
+    if not _formats.whole_number(count) or count < _REWRITTEN_AT_LEAST:
         raise _formats.InvalidLateValue(
-            f"a squash does not collapse {count!r} commits",
+            f"a squash does not replace {count!r} commits",
         )
     state.set(LATE_COLLAPSE_HEAD, head)
     state.set(LATE_COLLAPSE_BASE_SHA, base_sha)

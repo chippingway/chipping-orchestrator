@@ -1868,7 +1868,7 @@ below stops answering and the pull request is left on the history the record say
 already force-pushed over it. The freeze ends when the record does.
 
 A squash says what it is about to do before it does it, and that is what closes the window neither reading covers:
-the process itself dying. The head being collapsed, the base it is collapsed over, and how many commits go in are
+the process itself dying. The head being replaced, the base it is rewritten over, and how many commits go in are
 written to the pinned comment between the entry and the reset (`late_collapse_head`, `late_collapse_base_sha`,
 `late_collapse_count` — see
 [`labels-and-state.md`](labels-and-state.md)), because past the reset none of the three can be read
@@ -1877,8 +1877,10 @@ count is gone with the commits it counted. That count is **walked** rather than 
 beside it: `git commit --allow-empty-message` makes a commit that contributes no subject and one commit, so a count
 derived from the subjects is short by however many of those a branch carries — which would record three commits as
 two and have the recovery refuse a collapse it really made as miscounted, and read a branch of two as the single
-commit that takes the nothing-to-squash road. A write GitHub refuses stops the squash rather than running it
-unrecorded — the approved commits stay where they are and the next tick tries again.
+commit that takes the nothing-to-rewrite road. The record covers the **one-commit subject rewrite** on identical
+terms and records `late_collapse_count=1` for it: that branch carries one commit before the reset and one after, so
+it is the shape whose interruption the branch itself cannot show at all. A write GitHub refuses stops the squash
+rather than running it unrecorded — the approved commits stay where they are and the next tick tries again.
 
 That write is a **request**, so the head and the tree are proved once more when it comes back. The worktree is
 writable for the whole of it, and the reset behind it is `--soft`: the commit that follows takes the INDEX, so a
@@ -1887,20 +1889,22 @@ reviewer approved. Both halves refuse, the record of a rewrite that never happen
 notice says which of the two moved — a tree that went dirty leaves the approved commits exactly where a human will
 look for them, a head that moved has not been shown to.
 
-The tick that comes back reads that record before it reads the commit count, and the order is the whole point: a
-collapsed branch and a branch with nothing to collapse both carry one commit. It also proves the record before it
-compares it to anything, the road that DROPS the record included — a head edited onto the commit a finished
-collapse left reads as a reset that never landed, so a shortcut taken for one would drop the record and hand on a
-branch of one commit, which is the nothing-to-squash road reporting success over a remote still carrying the history
-the record names. Past that proof, exactly one branch may be dropped over: the one the record still describes
-exactly, standing on the head it names over the commits it counted, which is the tick that died before the reset
-ever ran. That drop is safe because the branch is the one the record was written over — the ordinary squash
-collapses exactly the commits an approval was given for, and it cannot report success without pushing them, since it
-goes through the entry, the rewrite, and the push and refuses if any of them will not have it.
+The tick that comes back reads that record before it reads what is on the branch, and the order is the whole point:
+a rewritten branch and a branch with nothing left to rewrite both carry one commit, under a subject of the same
+shape. It also proves the record before it compares it to anything, the road that DROPS the record included — a head
+edited onto the commit a finished collapse left reads as a reset that never landed, so a shortcut taken for one
+would drop the record and hand on a branch of one commit, which is the nothing-to-rewrite road reporting success
+over a remote still carrying the history the record names. What that road still owes is read rather than skipped:
+the branch a record is dropped over is entered on its publication before it is handed on, so a remote that moved off
+what the record named refuses there. Past that proof, exactly one branch may be dropped over: the one the record
+still describes exactly, standing on the head it names over the commits it counted, which is the tick that died
+before the reset ever ran. That drop is safe because the branch is the one the record was written over — the ordinary
+squash collapses exactly the commits an approval was given for, and it cannot report success without pushing them,
+since it goes through the entry, the rewrite, and the push and refuses if any of them will not have it.
 
 Every other shape refuses. A head that matches over a different number of commits is a branch something rewrote
 while the record went on naming its old tip. A branch carrying **nothing** over its base is the shape the ordinary
-squash could not be trusted with: there is no collapse left to finish and no history left to squash, while the
+squash could not be trusted with: there is no rewrite left to finish and no history left to rewrite, while the
 remote still carries every commit the record names. And a branch that MOVED off the recorded head is refused
 whichever way it went, because nothing here can say who moved it — this recovery owns the tick from the moment a
 record goes down, ahead of every route that could resume a developer, so work on top of the recorded head is work
@@ -1955,8 +1959,10 @@ fire on a fresh squash, whose entry was frozen before the commit existed; and th
 push, and the permission a transfer holds, are records a reset is *supposed* to drop, so neither is asked.
 
 The record outlives the push, and the **handoff** is what ends it. The count on it is what the
-`:package: squashed N commits to 1` notice is worded from and nothing else on the issue has one, so a notice that
-was owed and did not post leaves the record standing and the label where it is — the next tick republishes the
+`:package: squashed N commits to 1` notice is worded from and nothing else on the issue has one, and the notice is
+owed only where history was actually replaced by less of it — a recorded count of one is the subject rewrite, which
+collapsed nothing and announces nothing. A notice that was owed and did not post leaves the record standing and the
+label where it is — the next tick republishes the
 commit the remote already carries as the leased no-op it is and words the notice again. The write that ends it
 lands **before** the relabel, because past the label the issue belongs to `documenting`, a stage that never runs
 this recovery: a tick dying between the two would strand a claim nothing there could answer and lose the watermarks
@@ -2620,8 +2626,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        `fix:`/`feat:` only when no repo-local prefix dominates; with `PR_REF_IN_SUBJECT` on (default) either subject
        then ends in ` (#N)` through `_subject_with_pr_reference`, which leaves one already ending in that reference
        alone — `N` is the reviewer run's `pr_number` here, and the pinned one when `_recovers_a_recorded_collapse`
-       collapses the branch afresh — while `off` keeps the selected subject exactly, and a single-commit branch is not
-       rewritten for it; pushed with `--force-with-lease`). That call answers
+       rewrites the branch afresh — while `off` keeps the selected subject exactly; pushed with
+       `--force-with-lease`). A branch of **one** commit is put through that same path for its subject alone whenever
+       `PR_REF_IN_SUBJECT` is on and that subject does not already end in the reference: same `reset --soft`, same
+       hardened commit, same gate, same leased push, `squashed_count=1`, and no `:package:` notice, since nothing was
+       collapsed. With the switch off, or with a subject already carrying the reference, or with no commits over the
+       base at all, the call is the `squashed_count=0` no-op it has always been and HEAD is untouched. That call
+       answers
        a squash an earlier tick did not finish first, from the record that squash wrote before it ran, so a
        collapsed-but-unpublished branch is resumed rather than reported as having nothing to squash — and it does
        so whatever `SQUASH_ON_APPROVAL` says, since the switch decides whether a NEW collapse is made and one
@@ -2642,7 +2653,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        all read, since an outstanding record is not proof the rewrite happened, a recorded head this host does not
        hold is a reflog entry nobody could look in, and one still reachable from HEAD was never rewritten at all.
        (4) On success,
-       if `squashed_count > 1` post `:package: squashed N commits to 1`, seed the in_review watermarks (inside the
+       if `squashed_count > 1` post `:package: squashed N commits to 1` — a count of 0 or 1 replaced no history and
+       posts nothing — seed the in_review watermarks (inside the
        `gh.get_pr()` try so a snapshot failure leaves them untouched), then end the collapse record and persist —
        leaving `late_collapse_handoff_sha` in its place — and only then relabel to `workflow:documenting`, dropping
        that record in a write of its own behind the label. A relabel that does not land is not raised past the

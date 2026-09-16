@@ -6,9 +6,14 @@ Sequencing the steps is the whole job: `planning` runs every probe while the
 branch is still intact, `resume` answers a squash an earlier tick did not
 finish, the size gate is entered on the publication the squash is about to
 force-push onto, the terms of the rewrite go onto the pinned comment, and only
-a plan that survived all of it and carries more than one commit reaches the
-destructive `rewrite`. Keeping that order here means no owner has to know when
-the next one is safe to run.
+a plan that survived all of it and has a rewrite to make reaches the destructive
+`rewrite`. Keeping that order here means no owner has to know when the next one
+is safe to run.
+
+Whether there is a rewrite to make is the plan's answer rather than this
+owner's. Several commits are collapsed into one; a single commit is rewritten
+where its subject does not yet reference the pull request it is being
+published onto; and a branch with neither is handed back untouched.
 
 The gate sits BEFORE the rewrite deliberately. A squash is one of the pushes
 onto a pull request the remote already carries, and the refusals it owes --
@@ -17,10 +22,11 @@ is not provably clean, a head that moved out from under the reading -- are all
 answerable while the branch is intact. Asked after the reset instead, every
 one of them would cost a rewrite and a rollback to learn.
 
-The recovery sits BEFORE the commit count for the same kind of reason. A
-branch a squash already collapsed carries exactly one commit, which is what a
-branch with nothing to squash carries too, so reading the count first would
-report an unpushed collapse as a success that measured and published nothing.
+The recovery sits BEFORE what is on the branch is read as a verdict, for the
+same kind of reason. A branch a squash already rewrote carries one commit
+under the subject that rewrite committed, which is exactly what a branch the
+squash has nothing left to do to carries, so reading the branch first would
+report an unpushed rewrite as a success that measured and published nothing.
 The record the rewrite wrote before it ran is what tells the two apart, and it
 is read before anything is concluded from what is on the branch.
 
@@ -86,10 +92,14 @@ def _squash_and_force_push(
     where there is no number to reference.
 
     Returns one `_SquashOutcome`, in the four shapes a squash can end in:
-      * `success` with `sha` and `count=0` — nothing to squash (zero or one
-        commit on top of base). Caller should leave state alone.
-      * `success` with `sha` and `count=N>1` — squashed N commits into one.
+      * `success` with `sha` and `count=0` — nothing for this call to rewrite:
+        no commit on top of base, or the one commit there already carries the
+        subject a publication would give it. Caller should leave state alone.
+      * `success` with `sha` and `count=N>=1` — N commits were replaced by one.
         `sha` is the new local HEAD; the remote was force-pushed to match.
+        `count=1` is the branch whose single commit was rewritten for its
+        subject alone, so nothing was collapsed and no notice is owed; only
+        `count>1` says history was replaced by less of it.
       * `error` — squash refused, or squash / push failed. Caller parks
         awaiting_human and the remote was not updated. `standing` says where
         that leaves the branch, in one of three: INTACT is the ordinary
@@ -161,12 +171,19 @@ def _squash_and_force_push(
     `pr_references`, the formatter every publisher shares, so a reused subject
     an earlier approval round already squashed to is not given a second
     reference; off, or with no number, the selected subject is committed
-    exactly as it was picked. A branch carrying one commit is not rewritten
-    here at all, and a collapse the recovery finishes keeps the subject it was
-    committed under. The message is subject-only -- no body, no trailers --
-    so the orchestrator-authored squash matches the repo's subject-only commit
-    rule. The commit is authored under the AGENT_GIT_* identity (via env vars)
-    so attribution matches the per-step commits this squash replaces.
+    exactly as it was picked.
+
+    That switch also decides the one-commit branch. On, such a branch is put
+    through this same reset, commit, gate, and leased push for its subject
+    alone whenever that subject does not already end in the reference -- the
+    tree is untouched, the count is 1, and nothing is collapsed. Off, or with
+    no number, a one-commit branch is not rewritten here at all. A rewrite the
+    recovery finishes keeps the subject it was committed under either way.
+
+    The message is subject-only -- no body, no trailers -- so the
+    orchestrator-authored squash matches the repo's subject-only commit rule.
+    The commit is authored under the AGENT_GIT_* identity (via env vars) so
+    attribution matches the per-step commits this squash replaces.
     """
     return standing._tells_the_caller_where_the_branch_is(
         gate, _squashed_or_resumed(gate, branch, pr_number),
@@ -195,9 +212,13 @@ def _squashed_or_resumed(
     would hand a divergent branch on having read nothing. So the branch that
     is NOT going to be rewritten is answered by its own owner below.
 
-    `PR_REF_IN_SUBJECT` is asked here as well, and it decides only whether the
-    plan's message references `pr_number`: off, the plan is built with no
-    number at all, so nothing but that subject can change with it.
+    `PR_REF_IN_SUBJECT` is asked here as well, and what it decides is the
+    plan's message: off, the plan is built with no number at all. On a branch
+    of several commits that changes the subject alone. On a branch of one it
+    decides whether there is a rewrite at all, since a subject already
+    carrying the reference -- and every subject on an install that references
+    nothing -- leaves the plan with no message and this call with the no-op it
+    has always been.
     """
     claimed = standing._claims_a_collapse(gate)
     if not config.SQUASH_ON_APPROVAL and not claimed:
@@ -212,7 +233,7 @@ def _squashed_or_resumed(
     resumed = resume._resumed_squash(gate, branch, plan)
     if resumed is not None:
         return resumed
-    if plan.count > 1 and config.SQUASH_ON_APPROVAL:
+    if plan.rewrites and config.SQUASH_ON_APPROVAL:
         return _rewrites_the_branch(gate, branch, plan)
     return _handed_back(gate, plan, claimed)
 
@@ -222,9 +243,11 @@ def _handed_back(
 ) -> models._SquashOutcome:
     """The branch this call will not rewrite, once a record is off it.
 
-    Nothing here collapses anything: either there was nothing to collapse, or
-    the switch says a new collapse is not this install's mechanism. What the
-    road still owes is the reading the rewrite would have taken.
+    Nothing here rewrites anything: either the plan found nothing to do -- no
+    commits over the base, or the one commit there already committed under the
+    subject a publication gives it -- or the switch says a new rewrite is not
+    this install's mechanism. What the road still owes is the reading the
+    rewrite would have taken.
 
     A branch that never CLAIMED a collapse owes none, and that is the whole of
     what an install with `SQUASH_ON_APPROVAL=off` has always cost: no probe,
@@ -327,12 +350,14 @@ def _rewrites_the_branch(
 ) -> models._SquashOutcome:
     """Enter the publication, say what the rewrite is, and then make it.
 
-    The three steps a squash with something to collapse still owes, in the one
-    order that is safe. The entry refuses every publication this rewrite could
-    not be pushed onto while the branch is still intact. The record goes down
-    behind it, because the rewrite destroys the only evidence of what it was
-    about and a write spent ahead of the entry would be spent on publications
-    the entry refuses. And the rewrite runs last, when both have answered.
+    The three steps a squash with a rewrite to make still owes, in the one
+    order that is safe, and the same three whether the rewrite replaces a
+    history or only the subject over it. The entry refuses every publication
+    this rewrite could not be pushed onto while the branch is still intact.
+    The record goes down behind it, because the rewrite destroys the only
+    evidence of what it was about and a write spent ahead of the entry would
+    be spent on publications the entry refuses. And the rewrite runs last,
+    when both have answered.
 
     A record GitHub would not take stops the squash rather than being skipped.
     What it buys is the whole of the recovery: without it a process that dies

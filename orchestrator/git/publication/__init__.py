@@ -12,7 +12,9 @@ hardened envelope every orchestrator-made commit is created under, with the
 message read and the bound, message-only replacement of the docs commit the
 documenting stage publishes, lives in ``commits``; the
 preconditions a squash is
-planned from, the commit count among them, live in ``planning``; the reset,
+planned from, the commit count among them and the decision they come to --
+collapse a history, rewrite one commit's subject onto the pull request's
+reference, or leave the branch alone -- live in ``planning``; the reset,
 commit, force-push, and rollback that spend that plan live in ``rewrite``;
 what a squash an earlier tick did not finish is owed lives in ``resume``;
 which of the four places a refusal left the branch in lives in ``standing``;
@@ -22,11 +24,12 @@ owner they need directly, so this initializer binds nothing and importing
 ``probes`` never drags the rewrite path in.
 
 ``resume`` is the owner no fresh squash runs through. A rewrite destroys the
-evidence of what it was about, so the terms go onto the pinned comment before
-the reset and that record is what a later tick reads back -- told apart from a
-branch with nothing to squash, proved against the objects it names, and either
-finished through the same leased publication the interrupted tick owed or left
-exactly where it was found. It reaches the size gate through ``rewrite``'s own
+evidence of what it was about -- a subject rewrite of one commit as completely
+as a collapse of several -- so the terms go onto the pinned comment before the
+reset and that record is what a later tick reads back -- told apart from a
+branch with nothing left to rewrite, proved against the objects it names, and
+either finished through the same leased publication the interrupted tick owed
+or left exactly where it was found. It reaches the size gate through ``rewrite``'s own
 call-time hop rather than a second one, and so does ``standing`` for the record
 a refusal is classified against, which is why the workflow layer above is named
 in one place here.

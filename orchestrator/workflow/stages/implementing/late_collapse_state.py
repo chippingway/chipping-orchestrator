@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Persist and read the pre-squash head, base, and count before a destructive reset.
+"""Persist and read the pre-rewrite head, base, and count before a destructive reset.
 
 A failed pinned write restores the caller's in-memory state and refuses
 the rewrite. The claim stays until the publication handoff or a proved
@@ -28,7 +28,7 @@ class _Collapsed:
     """What the plan taken before the reset says this squash replaced.
 
     The two facts the rewrite destroys and nothing past it can recover: the
-    head that was collapsed, and the merge base it was read over. They travel
+    head that was replaced, and the merge base it was read over. They travel
     together because they are one reading -- the plan takes both while the
     branch is still intact -- and as a record rather than as two arguments so
     the seam that hands them over cannot transpose them.
@@ -54,8 +54,10 @@ def _records_the_collapse(
     left looks exactly like a branch nobody ever squashed. A process that dies
     in that window comes back to a one-commit branch, a remote still standing
     on the head it replaced, and nothing on the comment saying a rewrite was
-    begun -- and the retry takes the nothing-to-squash road and reports
-    success without measuring or pushing anything.
+    begun -- and the retry takes the nothing-to-rewrite road and reports
+    success without measuring or pushing anything. A branch of one commit
+    rewritten for its subject leaves exactly that too, and leaves it without
+    even a change of shape to notice.
 
     So the terms go down first. They are what a later tick tells an
     interrupted rotation from a finished one BY, and they are the whole of
@@ -102,8 +104,8 @@ def _claims_a_collapse(state) -> bool:
     nothing to squash.
 
     It is also what a failure asks before it words a human's notice: an issue
-    still claiming a collapse is one whose branch may be standing on it rather
-    than on the commits a reviewer approved.
+    still claiming a collapse is one whose branch may be standing on the
+    rewrite rather than on the commits a reviewer approved.
     """
     return _collapses.carries_pending_collapse(state)
 
@@ -139,10 +141,10 @@ def _collapse_of(
 
     Built here rather than by the caller that took them, so the plan a fresh
     squash makes and the record a resumed one reads back are the same shape
-    all the way down: the head that is being collapsed, the base it is
-    collapsed over, and how many commits go in. The publication tail past the
+    all the way down: the head that is being replaced, the base it is
+    rewritten over, and how many commits go in. The publication tail past the
     reset is handed one of these whichever of the two produced it, and nothing
-    below has to know which.
+    below has to know which -- or how much history the rewrite replaced.
     """
     return _collapses.LateCollapse(
         head=head, base_sha=base_sha, count=count,

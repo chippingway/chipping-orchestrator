@@ -20,9 +20,12 @@ from tests.workflow.late_split.generation_test_support import (
     measured_generation,
 )
 
-# How many commits the recorded squash collapses. Two is the fewest that is a
-# squash at all, so it is what the boundary is read at.
+# How many commits the recorded squash replaces. Two is the ordinary collapse,
+# and one is the branch whose single commit is rewritten for its subject --
+# the fewest a squash replaces, so it is what the boundary is read at.
 COLLAPSED_COMMITS = 2
+
+REWRITTEN_COMMITS = 1
 
 # How short an abbreviation has to be to still look like a commit: git prints
 # one at this width, and it is not an id this domain ever recorded.
@@ -46,20 +49,20 @@ _UNUSABLE_ENDS = (
     1,
 )
 
-# Every value the count can carry and not be a number of collapsed commits.
-# One is the branch a squash LEAVES, so a record claiming it describes no
+# Every value the count can carry and not be a number of commits a squash
+# replaced. Zero replaces nothing, so a record claiming it describes no
 # rewrite anybody made.
-_UNUSABLE_COUNTS = (None, 0, 1, -2, True, 2.0, "2")
+_UNUSABLE_COUNTS = (None, 0, -2, True, 2.0, "2")
 
 
-def _recorded() -> PinnedState:
+def _recorded(count: int = COLLAPSED_COMMITS) -> PinnedState:
     """A pinned comment carrying one whole pending collapse."""
     state = PinnedState(data={})
     _collapses.record_pending_collapse(
         state,
         head=CANDIDATE_SHA,
         base_sha=BASE_SHA,
-        count=COLLAPSED_COMMITS,
+        count=count,
     )
     return state
 
@@ -68,11 +71,17 @@ class RecordedCollapseTest(unittest.TestCase):
     """The three terms one squash says it is about to collapse."""
 
     def test_a_whole_record_reads_back_whole(self) -> None:
-        collapse = _collapses.read_pending_collapse(_recorded())
+        # Both counts a squash replaces, since the record is the same either
+        # way: two is the ordinary collapse, and one is the branch whose
+        # single commit was rewritten for its subject -- which leaves the
+        # recovery exactly as little to tell it from an untouched branch by.
+        for count in (REWRITTEN_COMMITS, COLLAPSED_COMMITS):
+            with self.subTest(count=count):
+                collapse = _collapses.read_pending_collapse(_recorded(count))
 
-        self.assertEqual(collapse.head, CANDIDATE_SHA)
-        self.assertEqual(collapse.base_sha, BASE_SHA)
-        self.assertEqual(collapse.count, COLLAPSED_COMMITS)
+                self.assertEqual(collapse.head, CANDIDATE_SHA)
+                self.assertEqual(collapse.base_sha, BASE_SHA)
+                self.assertEqual(collapse.count, count)
 
     def test_a_comment_with_no_claim_reads_absent(self) -> None:
         state = PinnedState(data={})
@@ -112,7 +121,7 @@ class UnusableCollapseTest(unittest.TestCase):
                         _collapses.carries_pending_collapse(state),
                     )
 
-    def test_a_count_no_squash_makes_is_absent(self) -> None:
+    def test_a_count_no_squash_replaces_is_absent(self) -> None:
         for unusable in _UNUSABLE_COUNTS:
             with self.subTest(value=unusable):
                 state = _recorded()
@@ -147,7 +156,7 @@ class RefusedCollapseWriteTest(unittest.TestCase):
                     _collapses.carries_pending_collapse(state),
                 )
 
-    def test_a_count_no_squash_makes_refuses(self) -> None:
+    def test_a_count_no_squash_replaces_refuses(self) -> None:
         for unusable in _UNUSABLE_COUNTS:
             with self.subTest(value=unusable):
                 state = PinnedState(data={})
