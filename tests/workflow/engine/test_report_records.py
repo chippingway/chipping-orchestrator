@@ -10,7 +10,11 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
+from orchestrator.github.pinned_state import (
+    MAX_PINNED_BODY,
+    PinnedState,
+    pinned_state_body,
+)
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_record_state as _record_state,
@@ -129,6 +133,33 @@ class BoundedRecordTest(unittest.TestCase):
         )
 
         self.assertIsNone(support.reads_back(state))
+
+    def test_an_unsettleable_record_is_refused(self) -> None:
+        # The settling write happens AFTER the report is posted, so a record
+        # accepted at the ceiling and settled past it would leave a published
+        # comment, a record still claiming it is owed, and a retry that fails
+        # identically for the rest of the issue's life.
+        measured = PinnedState()
+        _record_state.record_pending_report(measured, support.PUBLISHED)
+        recorded = measured.get(_records.PENDING_REPORT)
+        room = (
+            MAX_PINNED_BODY
+            - len(pinned_state_body(measured.data))
+            - _record_state._SETTLEMENT_RESERVE // 2
+        )
+        crowded = PinnedState(state_data={"filler": "y" * room})
+
+        self.assertFalse(
+            _record_state.record_pending_report(crowded, support.PUBLISHED),
+        )
+        # The record itself would have fitted: it is the room settlement needs
+        # that this refusal is about.
+        self.assertLessEqual(
+            len(pinned_state_body({
+                **crowded.data, _records.PENDING_REPORT: recorded,
+            })),
+            MAX_PINNED_BODY,
+        )
 
     def test_an_unfittable_record_is_not_written(self) -> None:
         half = MAX_PINNED_BODY // 2

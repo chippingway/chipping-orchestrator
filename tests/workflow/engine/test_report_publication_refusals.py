@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_records as _records,
@@ -25,6 +26,8 @@ from orchestrator.workflow.engine import (
 )
 from tests.support.fakes import FakePR
 from tests.workflow.engine import report_transaction_test_support as support
+
+_FETCH_REFUSED = 128
 
 
 class PublicationRefusalTest(unittest.TestCase, support.ReportTransactionCase):
@@ -108,6 +111,33 @@ class PullRequestIdentityTest(unittest.TestCase, support.ReportTransactionCase):
 
         self.assertFalse(self.reconcile())
 
+        self._assert_retired()
+
+    def test_a_merge_retires_it_past_failed_reads(self) -> None:
+        # The case the ordering exists for. A merge auto-deletes its branch, so
+        # the fetch fails and the worktree may be gone with it -- and this guard
+        # runs AHEAD of the stage terminal that drains a merged pull request.
+        # Any refusal taken before the pull request is read would hold the tick
+        # in front of that terminal, and the issue would never finalize.
+        self.pull_request.merged = True
+        self.checkout.status = _WorktreeStatus(readable=False)
+        self.checkout.fetched = _FETCH_REFUSED
+
+        self.assertFalse(self.reconcile())
+
+        self._assert_retired()
+
+    def test_a_close_retires_it_past_failed_reads(self) -> None:
+        self.pull_request.state = "closed"
+        self.checkout.status = _WorktreeStatus(readable=False)
+        self.checkout.fetched = _FETCH_REFUSED
+
+        self.assertFalse(self.reconcile())
+
+        self._assert_retired()
+
+    def _assert_retired(self) -> None:
+        """Nothing published, nothing owed, and the tick left to the terminal."""
         self.assertEqual(support.report_comments(self), [])
         self.assertIsNone(_record_state.read_pending_report(self.state))
         self.assertIsNone(_settlement.read_handoff(self.state))

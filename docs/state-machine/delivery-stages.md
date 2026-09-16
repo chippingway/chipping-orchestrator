@@ -570,13 +570,20 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   the debt beside it, is left exactly as it stands for that terminal — and for the reopen that may yet make it live
   again. A `paused` / `backlog` issue never reaches this guard at all: the hard-skip screen is one level up, in
   `_process_issue`, and returns before the routing that runs the dispatch guards.
-- **What it proves before completing anything**: a checkout on this host, clean by a `git status` that actually
-  ANSWERED, standing on the recorded commit; the recorded branch fetched, and one divergence reading against the tip
-  it resolves showing no unpushed commits, no remote that has moved on, and a tip that IS the recorded commit; the
-  pull request found by that commit on the recorded branch, held against the recorded number, still open, in this
-  repository, and still standing on that commit; the code-publication receipt read as one sound group and then naming
-  both that commit and that pull request; and the issue's requirements still hashing to the revision the developer
-  run was handed. Nothing is inferred from an absence.
+- **What it proves before completing anything**, in this order: the pull request found by the recorded commit on the
+  recorded branch, held against the recorded number, still open, in this repository, and still standing on that
+  commit; then a checkout on this host, clean by a `git status` that actually ANSWERED, standing on that commit; then
+  the recorded branch fetched, and one divergence reading against the tip it resolves showing no unpushed commits, no
+  remote that has moved on, and a tip that IS the recorded commit; then the code-publication receipt read as one sound
+  group and then naming both that commit and that pull request; and finally the issue's requirements still hashing to
+  the revision the developer run was handed. Nothing is inferred from an absence.
+
+  **The pull request is read first, and that is a correctness rule rather than a cost preference.** The terminal that
+  drains a merged or closed pull request runs *inside* a stage handler, which is behind this guard — so any refusal
+  taken before the pull request has been looked at can hold the tick in front of that terminal. A merge whose branch
+  GitHub auto-deleted is the case that bites: the fetch the remote reading takes fails, the tick holds, and an issue
+  whose work is finished never reaches the handler that would finalize it. Asked first, a finished pull request
+  retires the transaction and the stage runs.
 
   Two of those are easy to under-ask and are worth naming. *Carrying* the commit is what finds the pull request and is
   not enough to settle on: a head pushed past it leaves the commit in history while the work under review is no longer

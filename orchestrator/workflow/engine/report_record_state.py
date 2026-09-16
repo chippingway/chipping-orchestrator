@@ -49,6 +49,19 @@ _WATERMARKS = "watermarks"
 
 _SPENDS = "spends"
 
+# What settling this transaction will add to the comment once the report is
+# published: one current-report record and one handoff receipt. The pending
+# record it replaces is written as `null` rather than removed, so a settlement
+# is very nearly always a net shrink -- but only where the report text it drops
+# is larger than the two records it adds, and nothing bounds it from below.
+#
+# Reserved at RECORD time rather than checked at settlement, because by
+# settlement the report has already been posted: a write refused there leaves a
+# transaction whose comment is on the thread, whose record still says it is
+# owed, and whose every retry fails the same way. Refused here instead, the
+# caller hears it while it can still do something about it.
+_SETTLEMENT_RESERVE = 2048
+
 
 def carries_pending_report(state: _pinned_state.PinnedState) -> bool:
     """Whether this issue CLAIMS a transaction, whatever the record holds.
@@ -99,13 +112,20 @@ def record_pending_report(
     that has to be readable afterwards. Nothing is written on a refusal, so the
     caller's state is exactly as it was found.
 
+    The room SETTLEMENT will need is reserved in the same measurement, because
+    the settling write happens after the report is on the thread. A record
+    accepted at the ceiling and settled past it would leave a published comment,
+    a record still claiming it is owed, and a retry that fails identically for
+    the rest of the issue's life.
+
     The caller still owns `gh.write_pinned_state`, as every stage-facing writer
     here does, so the record rides whatever else that caller staged rather than
     landing in a write of its own ahead of it.
     """
     recorded = _encoded(pending)
     staged = {**state.data, _records.PENDING_REPORT: recorded}
-    if len(_pinned_state.pinned_state_body(staged)) > _pinned_state.MAX_PINNED_BODY:
+    written = len(_pinned_state.pinned_state_body(staged))
+    if written + _SETTLEMENT_RESERVE > _pinned_state.MAX_PINNED_BODY:
         return False
     state.set(_records.PENDING_REPORT, recorded)
     return True

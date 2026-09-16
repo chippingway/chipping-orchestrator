@@ -48,20 +48,31 @@ def evidence_for(
 ) -> _evidence_models.ReportEvidence:
     """Prove -- or refuse -- everything one transaction needs to complete.
 
-    The proved pull request is what comes back on success, because the caller
-    publishes against it rather than fetching one of its own: two fetches are
-    two moments, and a pull request somebody closes between them would be
-    proved open and written to closed.
+    The pull request is read FIRST, and that order is a correctness rule rather
+    than a cost preference. This guard runs ahead of every stage handler, and
+    the terminal that drains a merged or closed pull request runs INSIDE one --
+    so any answer this owner gives before it has looked at the pull request is
+    an answer that can hold the tick in front of that terminal. A merge whose
+    branch GitHub auto-deleted is the case that bites: the fetch the remote
+    reading takes fails, the tick holds, and an issue whose work is finished
+    never reaches the handler that would finalize it. Asked first, a pull
+    request that has ended retires the transaction and the stage runs.
+
+    The local readings follow, cheapest of the rest first, and the proved pull
+    request is what comes back on success, because the caller publishes against
+    it rather than fetching one of its own: two fetches are two moments, and a
+    pull request somebody closes between them would be proved open and written
+    to closed.
     """
+    found = _publication.publication_verdict(gh, pending)
+    if not found.proved:
+        return found
     refused = _checkout.checkout_verdict(spec, issue, pending)
     if refused is not None:
         return refused
     adrift = _remote.remote_verdict(spec, issue, pending)
     if adrift is not None:
         return adrift
-    found = _publication.publication_verdict(gh, pending)
-    if not found.proved:
-        return found
     receipted = _publication.receipt_verdict(state, pending)
     if receipted is not None:
         return receipted

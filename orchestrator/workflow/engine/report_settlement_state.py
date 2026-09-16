@@ -107,7 +107,16 @@ def record_handoff(
 
 
 def _current_from(recorded: dict) -> _records.CurrentReport | None:
-    """Return the current report one recorded object is, or None for damage."""
+    """Return the current report one recorded object is, or None for damage.
+
+    The location is bound to the subject's pull request, exactly as a pending
+    verification's is. A location is exact in both halves and still names a
+    place anywhere in the repository, so a record whose subject says one pull
+    request and whose location sits on another says the report this pull
+    request carries is somewhere else -- which is what a reviewer would then be
+    handed, and what a later transaction would compare its own revision
+    against.
+    """
     subject = _fields.subject_from(recorded)
     location = _fields.location_from(recorded)
     revision = _payloads.as_identity(recorded.get(_REVISION))
@@ -115,6 +124,8 @@ def _current_from(recorded: dict) -> _records.CurrentReport | None:
         recorded.get(_CONTENT_DIGEST), _formats.DIGEST_LENGTHS,
     )
     if subject is None or location is None or not revision or not digest:
+        return None
+    if location.pr_number != subject.pr_number:
         return None
     return _records.CurrentReport(
         subject=subject,

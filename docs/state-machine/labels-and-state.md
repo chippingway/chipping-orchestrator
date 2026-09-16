@@ -635,8 +635,10 @@ The keys that matter for the state machine fall into a few groups:
   every split between them is a window a crash turns into a second report or a round spent twice.
 
   Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record.
-  A verification's location is bound to the subject's pull request, since a location is exact in both halves and still
-  names a place anywhere in the repository. The watermark and bookkeeping arrays are written on *every* record, so an
+  Both a pending verification's location and the settled `developer_report_current` location are bound to their own
+  subject's pull request, since a location is exact in both halves and still names a place anywhere in the repository —
+  a subject naming one pull request beside a location on another would say the report this pull request carries is
+  somewhere else. The watermark and bookkeeping arrays are written on *every* record, so an
   empty array is "nothing owed" and an absent or `null` one is damage — the only legacy-safe absence is the whole
   additive record.
   Because that is also what an issue with nothing recorded reads as, presence is asked separately: an issue that

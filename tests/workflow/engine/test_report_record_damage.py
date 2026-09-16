@@ -20,6 +20,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     drift as _drift,
     report_consumed_values as _consumed,
+    report_record_fields as _fields,
     report_record_state as _record_state,
     report_records as _records,
     report_settlement_state as _settlement,
@@ -88,6 +89,23 @@ class DamagedRecordTest(unittest.TestCase):
         )
 
         self.assertIsNone(support.reads_back(state))
+
+    def test_a_settled_location_elsewhere_refuses(self) -> None:
+        # The same binding the pending verification gets: a subject naming one
+        # pull request beside a location on another says the report this pull
+        # request carries is somewhere else -- which is what a reviewer would
+        # be handed, and what a later transaction would compare against.
+        state = PinnedState(state_data={
+            _records.CURRENT_REPORT: {
+                **_fields.subject_fields(support.SUBJECT),
+                "revision": 1,
+                "content": support.CONTENT_DIGEST,
+                "location_pr": support.PR_NUMBER + 1,
+                "location_comment": support.COMMENT_ID,
+            },
+        })
+
+        self.assertIsNone(_settlement.read_current_report(state))
 
     def test_a_damaged_handoff_proves_nothing(self) -> None:
         state = PinnedState(state_data={
