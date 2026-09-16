@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from orchestrator import config
+from orchestrator.git.publication.commits import _Amendment
 from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
@@ -14,6 +17,7 @@ from tests.workflow.stages.documenting import (
     documenting_test_support as documenting_support,
 )
 from tests.workflow.stages.documenting.documenting_assertion_test_support import (
+    _assert_referenced_publication,
     _lifecycle_events,
     _pr_comment_text,
 )
@@ -24,6 +28,18 @@ from tests.workflow.stages.documenting.documenting_test_support import (
 DOCUMENTING = "workflow:documenting"
 IN_REVIEW = "in_review"
 LATE_APPROVED_SHA = "late_approved_sha"
+
+# --- The reference a published docs commit's subject is amended to end in --
+AMEND_COMMIT_MESSAGE = documenting_support.AMEND_COMMIT_MESSAGE
+COMMIT_MESSAGE = documenting_support.COMMIT_MESSAGE
+COUNT_ADDED_LINES = documenting_support.COUNT_ADDED_LINES
+HEAD_SHA = documenting_support.HEAD_SHA
+PARK_SUBJECT_AMEND_FAILED = documenting_support.PARK_SUBJECT_AMEND_FAILED
+PR_REF_IN_SUBJECT = documenting_support.PR_REF_IN_SUBJECT
+REVISION = documenting_support.REVISION
+SETTLED_DOCS_SHA = documenting_support.SETTLED_DOCS_SHA
+SHA_UNREFERENCED = documenting_support.SHA_UNREFERENCED
+SQUASH_ON_APPROVAL = documenting_support.SQUASH_ON_APPROVAL
 VALIDATING = "workflow:validating"
 
 # --- Dev agent identity pinned into per-issue state ---------------------
@@ -296,3 +312,145 @@ class HandleDocumentingFreshOutcomeTest(
         self.assertTrue(state.get(AWAITING_HUMAN))
         self.assertEqual(state.get(PARK_REASON), PARK_AGENT_TIMEOUT)
         self.assertIn("agent timed out", gh.posted_comments[-1][1])
+
+
+
+# A head somewhere other than the replacement HEAD was just moved onto:
+# something landed on the checkout after the swap.
+SHA_ELSEWHERE = "5ca1ab1e" * 5
+
+# Each way the reference could fail to reach a committed subject: a message
+# that did not read, a replacement git would not create, a checkout that moved
+# off the docs commit before HEAD could be swapped onto its replacement -- the
+# race the replacement is bound against -- and a HEAD that, read back after the
+# swap, is not standing on the replacement or could not be read at all.
+UNREFERENCED_FAILURES = (
+    {"commit_message": None},
+    {"amended_commit": _Amendment(error="fatal: could not write the object")},
+    {"amended_commit": _Amendment(moved=True, error="cannot lock ref 'HEAD'")},
+    {"head_shas": [SHA_BEFORE, SHA_UNREFERENCED, SHA_ELSEWHERE]},
+    {"head_shas": [SHA_BEFORE, SHA_UNREFERENCED, ""]},
+)
+
+# The reference a fresh pass's pull request is named by in a subject.
+PR_REFERENCE = f" (#{_FreshDocumentingFixture.pr_number})"
+
+# Messages a pass committed, and what the replacement is handed for each: the
+# subject's own text rewritten and every other character left as written, or
+# None where the subject already carries the reference and nothing is amended.
+SUBJECT_REWRITES = (
+    (
+        "docs: explain flag X\r\n\r\nWhy it exists.\r\n",
+        f"docs: explain flag X{PR_REFERENCE}\r\n\r\nWhy it exists.\r\n",
+    ),
+    (
+        "docs: explain flag X\n\nWhy\rit exists.\n",
+        f"docs: explain flag X{PR_REFERENCE}\n\nWhy\rit exists.\n",
+    ),
+    (f"docs: explain flag X{PR_REFERENCE}\r\n\r\nWhy it exists.\r\n", None),
+)
+
+
+class PullRequestReferenceTest(unittest.TestCase, _FreshDocumentingFixture):
+    """The subject a fresh docs commit is published under."""
+
+    def test_published_under_the_pr_reference(self) -> None:
+        # The docs commit lands on the base exactly as it is published, so it
+        # is replaced by one whose subject names the pull request before
+        # anything names the commit. The replacement is bound to the commit
+        # this pass read rather than to HEAD, and what is pushed and stamped is
+        # the replacement, never the commit the agent made. The body goes back
+        # as written, and the switch that keeps a developer's own history
+        # intact does not reach it -- this commit is the orchestrator's to
+        # publish.
+        for squash_on_approval in (True, False):
+            with (
+                self.subTest(squash_on_approval=squash_on_approval),
+                patch.object(config, SQUASH_ON_APPROVAL, squash_on_approval),
+            ):
+                gh, mocks = self._committed_pass(
+                    commit_message="docs: explain flag X\n\nWhy it exists.\n",
+                )
+
+                _assert_referenced_publication(
+                    self,
+                    mocks,
+                    self._pinned(gh),
+                    (
+                        SHA_UNREFERENCED,
+                        f"docs: explain flag X (#{self.pr_number})\n\nWhy it exists.\n",
+                    ),
+                    SHA_AFTER,
+                )
+
+    def test_switched_off_publishes_as_made(self) -> None:
+        # `PR_REF_IN_SUBJECT=off` publishes the commit the agent made: no
+        # message is read, nothing is amended, and the head is read only the
+        # two times a pass takes to tell whether it committed.
+        with patch.object(config, PR_REF_IN_SUBJECT, False):
+            gh, mocks = self._committed_pass(head_shas=[SHA_BEFORE, SHA_AFTER])
+
+        mocks[COMMIT_MESSAGE].assert_not_called()
+        mocks[AMEND_COMMIT_MESSAGE].assert_not_called()
+        self.assertEqual(mocks[HEAD_SHA].call_count, 2)
+        self.assertEqual(mocks[PUSH_BRANCH].call_args.kwargs[REVISION], SHA_AFTER)
+        self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
+
+    def test_unreferenced_subject_never_published(self) -> None:
+        # Where the reference could not be put on the subject, the issue parks
+        # before the size gate is entered: nothing is measured or pushed --
+        # neither the docs commit nor anything a moved checkout now stands on.
+        for failure in UNREFERENCED_FAILURES:
+            with self.subTest(**failure):
+                gh, mocks = self._committed_pass(**failure)
+
+                mocks[COUNT_ADDED_LINES].assert_not_called()
+                mocks[PUSH_BRANCH].assert_not_called()
+                self.assertNotIn((self.issue_number, IN_REVIEW), gh.label_history)
+                state = self._pinned(gh)
+                self.assertTrue(state.get(AWAITING_HUMAN))
+                self.assertEqual(state.get(PARK_REASON), PARK_SUBJECT_AMEND_FAILED)
+                self.assertIsNone(state.get(SETTLED_DOCS_SHA))
+
+    def test_only_the_subject_text_changes(self) -> None:
+        # Everything but the subject's own text goes back as it was written:
+        # a CR LF ending on the subject line and in the body, and a carriage
+        # return inside it, are kept rather than normalized -- and a subject
+        # already carrying the reference is not amended again, whatever line
+        # ending follows it.
+        for message, amended in SUBJECT_REWRITES:
+            with self.subTest(message=message):
+                _gh, mocks = self._committed_pass(commit_message=message)
+
+                if amended is None:
+                    mocks[AMEND_COMMIT_MESSAGE].assert_not_called()
+                    continue
+                self.assertEqual(
+                    mocks[AMEND_COMMIT_MESSAGE].call_args.args[2], amended,
+                )
+
+    def _pinned(self, gh) -> dict:
+        """What the pinned comment says once the pass has finished."""
+        return gh.pinned_data(self.issue_number)
+
+    def _committed_pass(self, **run_options):
+        """A docs agent that ran on a branch in sync and committed.
+
+        Its head is read before the run, after it, and once more after the
+        amendment, where it stands on the replacement.
+        """
+        run_options.setdefault(
+            "head_shas", [SHA_BEFORE, SHA_UNREFERENCED, SHA_AFTER],
+        )
+        gh, issue = self._seeded()
+        return gh, self._run_documenting(
+            gh,
+            issue,
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message="docs: updated README",
+            ),
+            push_branch=True,
+            branch_ahead_behind=(0, 0),
+            **run_options,
+        )

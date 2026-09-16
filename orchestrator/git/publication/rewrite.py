@@ -15,17 +15,20 @@ commit the squash produced, and pinned to the head the entry froze -- the same
 pre-rebase SHA, checked against the head the publication was standing on
 before any of this ran. A remote that moved underneath the rewrite rejects the
 push instead of losing the update.
+
+The squash commit itself is created through ``commits``, which spells the one
+hardened envelope the documenting stage's replacement of its docs commit is
+created under too, so the two cannot drift apart on what a planted hook or
+signing program may do.
 """
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
 from pathlib import Path
 
-from orchestrator import config
 from orchestrator.git import commands
-from orchestrator.git.publication import models, planning
+from orchestrator.git.publication import commits, models, planning
 from orchestrator.git.verification import probes as verification_probes
 
 # The channel is named for the branch-publication domain rather than for this
@@ -46,21 +49,6 @@ _UNCONFIRMED_PUBLICATION = (
 def _squash_failure(error: str) -> models._SquashOutcome:
     """Return the uniform failure result while leaving commits intact."""
     return models._SquashOutcome(error=error)
-
-
-def _squash_commit_env() -> dict[str, str]:
-    """Return the hardened agent identity used for the squash commit."""
-    return {
-        **os.environ,
-        **commands._GIT_NO_PROMPT_ENV,
-        "GIT_AUTHOR_NAME": config.AGENT_GIT_NAME,
-        "GIT_AUTHOR_EMAIL": config.AGENT_GIT_EMAIL,
-        "GIT_COMMITTER_NAME": config.AGENT_GIT_NAME,
-        "GIT_COMMITTER_EMAIL": config.AGENT_GIT_EMAIL,
-        "GIT_CONFIG_GLOBAL": os.devnull,
-        "GIT_CONFIG_SYSTEM": os.devnull,
-        "GIT_CONFIG_NOSYSTEM": "1",
-    }
 
 
 def _rollback_squash(
@@ -135,20 +123,7 @@ def _create_squash_commit(
     worktree: Path, message: str,
 ) -> subprocess.CompletedProcess:
     """Create the orchestrator-owned commit with hooks and signing disabled."""
-    return subprocess.run(
-        [
-            "git",
-            "-c", "core.hooksPath=/dev/null",
-            "-c", "core.fsmonitor=",
-            "-c", "commit.gpgsign=false",
-            "commit", "-m", message,
-        ],
-        cwd=str(worktree),
-        capture_output=True,
-        text=True,
-        env=_squash_commit_env(),
-        check=False,
-    )
+    return commits._orchestrator_git(worktree, "commit", "-m", message)
 
 
 def _gated_rewrite():

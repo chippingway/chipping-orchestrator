@@ -1618,9 +1618,37 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
         path once the label is removed (the recovered path itself runs no agent, so it observes no live-pause window).
       - `timed_out` → park (`agent_timeout`).
       - dirty worktree → `_on_dirty_worktree`: park.
-      - new commit on a clean tree → the **size gate** every push onto an open pull request goes through
-        (`implementing/late_push._publishes`, reached from `documenting/publication._push_docs_and_advance`). What it
-        counts is what the pull request comes to WITH the docs commit in it, against `MAX_ADDED_LINES`; the push it
+      - new commit on a clean tree → **its subject amended to name the pull request**, then the **size gate** every
+        push onto an open pull request goes through (`implementing/late_push._publishes`, reached from
+        `documenting/publication._push_docs_and_advance`). Under `PR_REF_IN_SUBJECT` (default on)
+        `documenting/subject` gives the subject of the commit this pass read ` (#N)` through the shared
+        `git/publication/pr_references` formatter and replaces that commit through `git/publication/commits`, under
+        the same hardened envelope the approval squash is made with (detached global and system config; hooks,
+        fsmonitor, and signing off; `AGENT_GIT_*` as the committer). The replacement is bound to that commit by id,
+        never to HEAD: `git commit-tree` rebuilds it from the commit's own tree, parents, and author, so only the
+        subject and the committer differ and no landing commit is added, and `git update-ref` moves HEAD onto it only
+        if HEAD is still that commit. A checkout something committed on after the pass read its head refuses the move
+        instead of having the newer commit rewritten and handed to a gate that would accept it for being named. HEAD
+        is then read back before the gate is entered, and the replacement's id — the one git created, not the one
+        HEAD reads — is handed on only where HEAD is standing on it. The message is read and written back as the
+        bytes git stored, so a CR LF body or a lone carriage return survives the rebuild, and only the subject's own
+        text changes, its line ending kept. That replacement is what every id past it
+        names: the candidate measured, the `docs_settled_sha` a hold leaves, the approval and receipt a push leaves,
+        and the pushed revision. `docs_checked_sha` is re-anchored on the published commit before the gate is
+        entered, so a routed hold, a failed push, and a receipt each go down beside the commit the rest of the record
+        names rather than beside a head the pass merely began at — taken whenever the switch is on rather than only
+        where the id moved, since the recovered road anchors no head of its own and would otherwise leave a stale one
+        there. A hold the gate REFUSED rather than routed measures, records, and publishes nothing, so that anchor
+        goes back to the head the pass began at. A subject already ending in the
+        reference — a commit an earlier tick amended and never pushed, or the retry of a failed push — is published
+        by the id already read, with nothing amended, and the gate still proves the checkout against it; `off` reads
+        no message and publishes the commit as made; and `SQUASH_ON_APPROVAL=off` does not reach it, since this is
+        the orchestrator's publication either way. A message that cannot be read, a replacement git will not create,
+        a moved checkout, or a HEAD that does not read back as the replacement parks `subject_amend_failed` before
+        the gate, with nothing measured or pushed. The drift
+        unwind (step 4) amends nothing, because the commit it resets away is never published. What the gate counts
+        is what the pull request comes to WITH the docs commit in it, against
+        `MAX_ADDED_LINES`; the push it
         licenses is named to the commit this pass made and pinned to the head the pass was entered on — the tip the
         step 7 fetch read — so a pull request somebody pushed to while the agent was out refuses the push instead of
         being adopted as its lease. What comes back is `held`, `landed`, or neither, and `held` is **not** one
@@ -1640,13 +1668,15 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
           the push) so the reconciliation ahead of the next handler restores the checkout rather than handing a
           reviewer one nobody read.
 
-        **Landed**: record `docs_checked_sha=after_sha`, `docs_verdict="updated"`, reset `silent_park_count=0`,
-        drop `docs_settled_sha`, post `:books: documenting pass: pushed docs commit.`, persist, and advance — once.
+        **Landed**: record `docs_checked_sha` as the commit that went out — the amended one where the subject was
+        amended — plus `docs_verdict="updated"`, reset `silent_park_count=0`, drop `docs_settled_sha`, post
+        `:books: documenting pass: pushed docs commit.`, persist, and advance — once.
         **Neither** (allowed, and the push itself failed): park
         (`push_failed`), with the commit that is owed a publication and the head to pin it against left on the record
         for the retry.
-      - no commit + `DOCS: NO_CHANGE` verdict: when `ahead > 0` the recovered commit goes through that same gate and
-        earns the same answers — the verdict certifies the local tree and says nothing about what the remote carries;
+      - no commit + `DOCS: NO_CHANGE` verdict: when `ahead > 0` the recovered commit goes through that same amendment
+        and gate and earns the same answers — the verdict certifies the local tree and says nothing about what the
+        remote carries or what its subject names;
         otherwise persist `docs_verdict="no_change"`, post `:books: no docs changes required.`, and advance without
         pushing.
       - no commit + unknown verdict → `_on_question`: park.

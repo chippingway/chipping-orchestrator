@@ -23,6 +23,7 @@ from tests.workflow.stages.documenting import (
 )
 from tests.workflow.stages.documenting.documenting_assertion_test_support import (
     _agent_prompt,
+    _assert_referenced_publication,
     _pr_comment_text,
 )
 from tests.workflow.stages.documenting.documenting_test_support import (
@@ -204,8 +205,10 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             # The awaiting-human path captures `before_sha` from the PR
             # worktree BEFORE the resume, then reads `after_sha` post-
             # spawn. before_sha != after_sha means a docs commit
-            # landed.
-            head_shas=[SHA_BEFORE, SHA_AFTER],
+            # landed, and the last read is HEAD standing on the
+            # replacement its subject was amended into.
+            head_shas=[SHA_BEFORE, documenting_support.SHA_UNREFERENCED, SHA_AFTER],
+            commit_message="docs: flag X explained\n",
             branch_ahead_behind=(0, 0),
         )
 
@@ -220,13 +223,24 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             COMMIT_REPLY_ISSUE_NUMBER,
             branch=_branch(COMMIT_REPLY_ISSUE_NUMBER),
         )
-        mocks[PUSH_BRANCH].assert_called_once()
         self.assertIn(
             (COMMIT_REPLY_ISSUE_NUMBER, IN_REVIEW),
             gh.label_history,
         )
         state = gh.pinned_data(COMMIT_REPLY_ISSUE_NUMBER)
         self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
+        # The resumed commit is published under its pull request's reference,
+        # and what is pushed and stamped is the replacement it was amended into.
+        _assert_referenced_publication(
+            self,
+            mocks,
+            state,
+            (
+                documenting_support.SHA_UNREFERENCED,
+                f"docs: flag X explained (#{COMMIT_REPLY_PR_NUMBER})\n",
+            ),
+            SHA_AFTER,
+        )
         # The pre-park comment id was consumed by the resume.
         self.assertEqual(
             state.get(LAST_ACTION_COMMENT_ID),
@@ -334,21 +348,37 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             push_branch=True,
             # Same SHA before/after -- dev added nothing. The SHA
             # holds the prior tick's docs commit (which the remote
-            # does not yet have).
-            head_shas=[SHA_DOCS, SHA_DOCS],
+            # does not yet have), and the last read is HEAD standing
+            # on the replacement its subject was amended into.
+            head_shas=[
+                documenting_support.SHA_UNREFERENCED,
+                documenting_support.SHA_UNREFERENCED,
+                SHA_DOCS,
+            ],
+            commit_message="docs: note flag X\n",
             # ahead = 1 means the unpushed docs commit is still
             # waiting to land on the PR.
             branch_ahead_behind=(1, 0),
         )
 
-        mocks[PUSH_BRANCH].assert_called_once()
         self.assertIn(
             (RECOVERED_REPLY_ISSUE_NUMBER, IN_REVIEW),
             gh.label_history,
         )
         state = gh.pinned_data(RECOVERED_REPLY_ISSUE_NUMBER)
         self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
-        self.assertEqual(state.get(DOCS_CHECKED_SHA), SHA_DOCS)
+        # A `DOCS: NO_CHANGE` verdict certifies the tree, not the subject:
+        # the waiting commit still goes out under its reference.
+        _assert_referenced_publication(
+            self,
+            mocks,
+            state,
+            (
+                documenting_support.SHA_UNREFERENCED,
+                f"docs: note flag X (#{RECOVERED_REPLY_PR_NUMBER})\n",
+            ),
+            SHA_DOCS,
+        )
         # The PR comment names the recovery-on-no-change path so a
         # reviewer scanning the PR can see why we advanced.
         self.assertIn("recovered docs commit", _pr_comment_text(gh))

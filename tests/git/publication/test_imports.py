@@ -17,8 +17,8 @@ from orchestrator.git import publication as _publication_package
 _PACKAGE = "orchestrator.git.publication"
 
 _OWNERS = (
-    "models", "planning", "pr_references", "probes", "resume", "rewrite",
-    "squash", "standing", "titles",
+    "commits", "models", "planning", "pr_references", "probes", "resume",
+    "rewrite", "squash", "standing", "titles",
 )
 
 _MODULES = (_PACKAGE, *(f"{_PACKAGE}.{owner}" for owner in _OWNERS))
@@ -36,6 +36,19 @@ _DIVERGENCE = "_branch_divergence"
 # What each owner defines: the whole publication surface, split by the module a
 # patch aimed at one of these names has to land on.
 _DEFINED = MappingProxyType({
+    "commits": (
+        "_AUTHOR_RE",
+        "_Amendment",
+        "_PARENT_RE",
+        "_REPLACEMENT_REFLOG",
+        "_TREE_RE",
+        "_amend_commit_message",
+        "_commit_message",
+        "_commit_parts",
+        "_orchestrator_commit_env",
+        "_orchestrator_git",
+        "_replacement",
+    ),
     "planning": (
         "_SquashPlan",
         "_SquashPreparationError",
@@ -59,7 +72,6 @@ _DEFINED = MappingProxyType({
         "_published_squash",
         "_rewrite_squash",
         "_rollback_squash",
-        "_squash_commit_env",
         "_squash_failure",
         "log",
     ),
@@ -176,9 +188,9 @@ def _defined_here(owner: str) -> tuple:
 class CleanProcessImportTest(unittest.TestCase):
     """Each owner imports standalone in a fresh interpreter.
 
-    `pr_references` depends on nothing, `probes` and `titles` each only on the
-    config and git command owners, `planning` on `titles` and `pr_references`
-    plus the verification probes, and
+    `pr_references` depends on nothing, `commits`, `probes`, and `titles` each
+    only on the config and git command owners, `planning` on `titles` and
+    `pr_references` plus the verification probes, and
     `rewrite` / `resume` / `standing` / `squash` layer on top, so importing any
     one of them first must not need a name a half-run module has not defined
     yet. A subprocess per module gives each a clean `sys.modules` no other test

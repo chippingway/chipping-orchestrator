@@ -19,7 +19,8 @@ refuses a diverged worktree, and picks between the awaiting-human resume, the
 recovered-commit shortcut, and a fresh docs spawn. `outcomes` reads what the
 run left behind -- timeout, dirty tree, new commit, or a bare
 `DOCS: NO_CHANGE` -- and `publication` turns the surviving two into a push,
-a PR notice, and the stamped `docs_verdict`. `handoff` is separate from both
+a PR notice, and the stamped `docs_verdict`, entered on the commit `subject`
+hands it once that commit's subject names the pull request. `handoff` is separate from both
 because it protects a stage this one does not run: the `pr_last_comment_id`
 ratchet is what stops in_review from replaying a human reply the docs pass
 already consumed as fresh PR feedback.

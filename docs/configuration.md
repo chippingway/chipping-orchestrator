@@ -356,11 +356,14 @@ examples.
   number as an issue to close. `off` suffixes nothing, leaves a single-commit branch unrewritten, and does not amend
   the `docs:` commit. Turn it off on a target repo that lands pull requests with GitHub's **Squash and merge** and its
   default commit message: GitHub appends its own `(#N)` to the squash commit title, so a single-commit pull request
-  would carry the number twice. Only the multi-commit approval squash reads it so far: the reused first-commit subject
-  and the synthesized one alike end in the reference to the pull request the reviewer approved — or to the one the
-  pinned comment records, when the recovery of an unfinished squash collapses the branch afresh — and `off` leaves
-  that message exactly as it was selected. A collapse the recovery finishes keeps the subject it was committed under,
-  and a single-commit branch and the `docs:` commit are not suffixed yet, whichever value is set. Parsed as a boolean:
+  would carry the number twice. The multi-commit approval squash and the documenting pass read it so far. On the
+  squash, the reused first-commit subject and the synthesized one alike end in the reference to the pull request the
+  reviewer approved — or to the one the pinned comment records, when the recovery of an unfinished squash collapses
+  the branch afresh — and `off` leaves that message exactly as it was selected, while a collapse the recovery
+  finishes keeps the subject it was committed under. On the docs pass, the `docs:` commit is amended in place before
+  every road that publishes it, keeping its author, tree, and body; one whose amendment fails is never published
+  without the reference — the issue parks `subject_amend_failed` with the commit still on the branch. A single-commit
+  branch is not suffixed yet, whichever value is set. Parsed as a boolean:
   `1` / `true` / `on` / `yes` enable, anything else disables.
 - `EXPOSE_TRACKED_REPOS` — default `on`. tell working agents about the *other* repos this orchestrator tracks (slug,
   local `target_root`, base branch) for cross-repo reference. Inert for single-repo hosts — the awareness block is
@@ -609,9 +612,12 @@ error.
 - `LOG_DIR` — default `<REPO_ROOT>/logs`. directory `runtime/logs.py` attaches its `FileHandler` under
   (`orchestrator.log`, rotated ~10 MiB × 5). Also the default parent for `ANALYTICS_LOG_PATH`
   (`LOG_DIR/analytics.jsonl`). Already covered by the `*.log` `.gitignore` rule.
-- `AGENT_GIT_NAME` — default `chipping-orchestrator`. `GIT_AUTHOR_NAME`/`GIT_COMMITTER_NAME` injected into agent spawns
+- `AGENT_GIT_NAME` — default `chipping-orchestrator`. `GIT_AUTHOR_NAME`/`GIT_COMMITTER_NAME` injected into agent
+  spawns, and the name on the commits the orchestrator creates itself: the approval squash is authored and committed
+  under it, and the documenting pass's `PR_REF_IN_SUBJECT` replacement of the `docs:` commit is committed under it
+  while keeping that commit's own author
 - `AGENT_GIT_EMAIL` — default `chipping-orchestrator@users.noreply.github.com`. `GIT_AUTHOR_EMAIL`/`GIT_COMMITTER_EMAIL`
-  injected into agent spawns
+  injected into agent spawns, and the email on those same orchestrator-created commits
 
 ## In-review behavior
 

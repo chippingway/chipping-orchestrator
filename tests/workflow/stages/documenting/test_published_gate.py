@@ -19,7 +19,9 @@ head the pass was entered on, and only then stamped, announced, and handed on.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.git.measurement.models import FrozenCommit
 from tests.support.fakes import FakeLabel
 from tests.workflow import fixtures
@@ -39,6 +41,22 @@ MEASURED_CANDIDATE_SHA = gate.MEASURED_CANDIDATE_SHA
 PAST_THE_CEILING = gate.PAST_THE_CEILING
 UNDER_THE_CEILING = gate.UNDER_THE_CEILING
 PICKUP_COMMENT_ID = documenting.PICKUP_COMMENT_ID
+
+# A recovered commit an earlier tick already amended: the road where the
+# subject needs nothing and no head moves.
+FRESH_PR_NUMBER = documenting._FreshDocumentingFixture.pr_number
+RECOVERED_REFERENCED_MESSAGE = f"docs: recovered notes (#{FRESH_PR_NUMBER})\n"
+
+# The two ways a tick ends with the record written and nothing on the remote --
+# the gate holding the candidate, and a push it allowed that did not go out --
+# each beside the field naming the commit it was about.
+UNPUBLISHED_RECORDS = (
+    ({"added_lines": PAST_THE_CEILING}, gate.KEY_SETTLED_DOCS_SHA),
+    (
+        {"added_lines": UNDER_THE_CEILING, "push_branch": False},
+        gate.KEY_APPROVED_SHA,
+    ),
+)
 
 
 class CumulativeDocsReadingTest(unittest.TestCase, gate._DocsGateFixtureMixin):
@@ -411,6 +429,117 @@ class DocsHandoffCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
                 last_message=gate.NO_CHANGE_REPLY,
             ),
             head_shas=[MEASURED_CANDIDATE_SHA, MEASURED_CANDIDATE_SHA],
+        )
+
+
+class AmendedCandidateTest(unittest.TestCase, gate._DocsGateFixtureMixin):
+    """The docs commit the gate is entered on is the one its subject became."""
+
+    def test_the_gate_names_only_the_amended_commit(self) -> None:
+        # An amendment is a new commit, so it comes before anything names one.
+        # Held, the candidate the adjudication is handed and the receipt the
+        # handoff is owed are the amended commit; allowed, so are the push and
+        # the receipt saying what reached the remote. The commit the agent made
+        # is never measured, recorded, or published -- handed to the gate
+        # instead, it would be refused as a checkout standing somewhere else.
+        for added in (UNDER_THE_CEILING, PAST_THE_CEILING):
+            with self.subTest(added=added):
+                github, mocks = self._fresh_pass(
+                    added_lines=added,
+                    head_shas=[
+                        ENTERED_HEAD,
+                        documenting.SHA_UNREFERENCED,
+                        MEASURED_CANDIDATE_SHA,
+                    ],
+                )
+
+                self.assertEqual(
+                    mocks[documenting.AMEND_COMMIT_MESSAGE].call_args.args[1],
+                    documenting.SHA_UNREFERENCED,
+                )
+                self.assertEqual(
+                    mocks[gate.COUNT_ADDED_LINES].call_args.args[1:],
+                    (MEASURED_BASE_SHA, MEASURED_CANDIDATE_SHA),
+                )
+                pinned = self._pinned(github)
+                if added > AT_THE_CEILING:
+                    self.assertEqual(
+                        pinned[gate.KEY_CANDIDATE_SHA], MEASURED_CANDIDATE_SHA,
+                    )
+                    self.assertEqual(
+                        pinned[gate.KEY_SETTLED_DOCS_SHA], MEASURED_CANDIDATE_SHA,
+                    )
+                    self.assertEqual(
+                        pinned[documenting.DOCS_CHECKED_SHA],
+                        MEASURED_CANDIDATE_SHA,
+                    )
+                    continue
+                self.assertEqual(
+                    mocks[documenting.PUSH_BRANCH].call_args.kwargs[gate.REVISION],
+                    MEASURED_CANDIDATE_SHA,
+                )
+                self.assertEqual(
+                    pinned[gate.KEY_RECEIPT_SHA], MEASURED_CANDIDATE_SHA,
+                )
+                self._assert_handed_off_once(github)
+
+    def test_a_failed_push_pins_the_amended_head(self) -> None:
+        # The approval goes down before the push and the park behind it writes
+        # the record as it stands, so a retry reading either back finds the
+        # commit that was measured rather than the head the pass began at.
+        github, _mocks = self._fresh_pass(
+            added_lines=UNDER_THE_CEILING,
+            push_branch=False,
+            head_shas=[
+                ENTERED_HEAD,
+                documenting.SHA_UNREFERENCED,
+                MEASURED_CANDIDATE_SHA,
+            ],
+        )
+
+        pinned = self._pinned(github)
+        self.assertEqual(pinned[gate.KEY_APPROVED_SHA], MEASURED_CANDIDATE_SHA)
+        self.assertEqual(
+            pinned[documenting.DOCS_CHECKED_SHA], MEASURED_CANDIDATE_SHA,
+        )
+        self.assertEqual(
+            pinned[documenting.PARK_REASON], documenting.PARK_PUSH_FAILED,
+        )
+
+    def test_recovered_referenced_records_its_head(self) -> None:
+        # The idempotent road: a commit an earlier tick already amended needs
+        # no replacement, and this one anchors no head of its own -- no agent
+        # ran for it to be anchored against. The record still has to name what
+        # the tick publishes, so `docs_checked_sha` is that recovered commit
+        # wherever the tick ends with the record written and nothing pushed.
+        for run_options, named in UNPUBLISHED_RECORDS:
+            with self.subTest(**run_options):
+                github, mocks = self._recovered_pass(
+                    commit_message=RECOVERED_REFERENCED_MESSAGE, **run_options,
+                )
+
+                mocks[documenting.AMEND_COMMIT_MESSAGE].assert_not_called()
+                pinned = self._pinned(github)
+                self.assertEqual(pinned[named], MEASURED_CANDIDATE_SHA)
+                self.assertEqual(
+                    pinned[documenting.DOCS_CHECKED_SHA], MEASURED_CANDIDATE_SHA,
+                )
+
+    def test_switched_off_leaves_the_head_it_began_at(self) -> None:
+        # With the switch off no reference is added and no commit is replaced,
+        # so the pass publishes the commit it made and a hold records the head
+        # the pass anchored on before its spawn.
+        with patch.object(config, documenting.PR_REF_IN_SUBJECT, False):
+            github, mocks = self._fresh_pass(
+                added_lines=PAST_THE_CEILING,
+                head_shas=[ENTERED_HEAD, MEASURED_CANDIDATE_SHA],
+            )
+
+        mocks[documenting.AMEND_COMMIT_MESSAGE].assert_not_called()
+        pinned = self._pinned(github)
+        self.assertEqual(pinned[documenting.DOCS_CHECKED_SHA], ENTERED_HEAD)
+        self.assertEqual(
+            pinned[gate.KEY_SETTLED_DOCS_SHA], MEASURED_CANDIDATE_SHA,
         )
 
 

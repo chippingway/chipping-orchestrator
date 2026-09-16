@@ -251,6 +251,9 @@ class HandleDocumentingDriftRouteTest(unittest.TestCase, _DocumentingDriftFixtur
 
         mocks[RUN_AGENT].assert_not_called()
         mocks[PUSH_BRANCH].assert_not_called()
+        # Nor is its subject amended: the unwind discards that commit rather
+        # than publishing it, so there is nothing to give a reference to.
+        mocks[documenting_support.AMEND_COMMIT_MESSAGE].assert_not_called()
         self.assertIn((self.issue_number, VALIDATING), gh.label_history)
         self.assertNotIn((self.issue_number, IN_REVIEW), gh.label_history)
         self.assertIn(
@@ -281,9 +284,11 @@ class HandleDocumentingDriftRouteTest(unittest.TestCase, _DocumentingDriftFixtur
             probe_stdout="0\t1\n",
         )
 
-        # No docs agent ran; no push happened. Routed to validating.
+        # No docs agent ran; no push happened, and the unpushed commit is
+        # reset away rather than amended. Routed to validating.
         capture.mocks[RUN_AGENT].assert_not_called()
         capture.mocks[PUSH_BRANCH].assert_not_called()
+        capture.mocks[documenting_support.AMEND_COMMIT_MESSAGE].assert_not_called()
         self.assertIn((self.issue_number, VALIDATING), gh.label_history)
         self.assertNotIn((self.issue_number, IN_REVIEW), gh.label_history)
 
