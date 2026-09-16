@@ -15,6 +15,16 @@ evidence something newer is on the pull request -- so ignored, a stale record
 settles over it and the pull request's newest report is replaced by an older
 one.
 
+A third question stands ahead of both and does not involve the receipt at all:
+whether the two settled records agree with EACH OTHER. They are written in one
+write off one pending record, so the pull request, the revision and the commit
+are copied into both -- and a pair that disagrees is one nothing here produced,
+whichever transaction's receipt it happens to carry. Asked only under a
+matching receipt it would be no question at all for the commonest shape: an
+older handoff beside a current report is never compared against the record in
+hand, so a disagreement there would be replaced by the next settlement rather
+than seen.
+
 Neither answers with a repair. What they answer is whether the records agree,
 and a caller that finds they do not stops rather than choosing between them:
 these are shapes nothing here produces, so the two of them disagreeing is a
@@ -28,9 +38,22 @@ from orchestrator.workflow.engine import (
     report_settlement_state as _settlement,
 )
 
+# Why a settled pair cannot be acted on, in the words its park quotes. Both
+# sentences live here rather than beside the park, because what they describe is
+# this owner's own judgement of the two records.
+UNREADABLE_COMPANIONS = (
+    "the record of what the pull request already carries, or of the last "
+    "handoff, cannot be read"
+)
 
-def companions_unreadable(state: PinnedState) -> bool:
-    """Whether a settled record is CLAIMED and cannot be read.
+DISAGREEING_COMPANIONS = (
+    "the report recorded as the pull request's own and the last handoff name "
+    "different publications"
+)
+
+
+def damaged_companions(state: PinnedState) -> str:
+    """Which way the settled pair is damaged, or "" when it is sound.
 
     Asked before anything is proved, because both companions are things a
     settlement WRITES OVER. A damaged current report waved through as an
@@ -38,13 +61,25 @@ def companions_unreadable(state: PinnedState) -> bool:
     report has been posted, so the evidence an operator would have repaired it
     from is gone. A damaged handoff waved through is a completed transaction
     nobody can recognize, and the next tick publishes its report again.
+
+    Two ways, and they need telling apart because they ask a human for
+    different repairs. A record CLAIMED and unreadable is a field to restore. A
+    pair that reads and contradicts ITSELF is two records that cannot both be
+    right, and nothing here may choose between them.
+
+    Answered about the pair alone, with no reference to the transaction in hand
+    or to any receipt. That is what makes it worth asking at all for the
+    commonest shape: a settlement under a PREVIOUS transaction's receipt is
+    never compared against the record being reconciled, so a disagreement there
+    would otherwise be replaced by the very next settlement rather than seen.
     """
     if not _settlement.carries_settled_record(state):
-        return False
-    return (
-        _settlement.read_current_report(state) is None
-        or _settlement.read_handoff(state) is None
-    )
+        return ""
+    current = _settlement.read_current_report(state)
+    handoff = _settlement.read_handoff(state)
+    if current is None or handoff is None:
+        return UNREADABLE_COMPANIONS
+    return DISAGREEING_COMPANIONS if companions_disagree(current, handoff) else ""
 
 
 def settles_this_transaction(
@@ -66,10 +101,19 @@ def settles_this_transaction(
     on the handoff alone, a receipt matching with no report recorded drops the
     pending record and leaves the pull request carrying nothing -- the exact
     outcome the whole transaction exists to prevent.
+
+    That report is held to the pending record's WHOLE subject rather than to
+    the pull request and revision it shares with the handoff. The subject is
+    what the settlement copies across verbatim, so every member of it agrees on
+    a pair this build wrote -- and the three the handoff cannot carry are
+    exactly the ones nothing else here would catch: a current report naming
+    another branch, another repository, or another requirements revision reads
+    as this transaction's completion on the two fields it does share, and drops
+    a pending record whose report was never published.
     """
     if current is None:
         return False
-    if current.subject.pr_number != pending.subject.pr_number:
+    if current.subject != pending.subject:
         return False
     if current.report_revision != pending.report_revision:
         return False
@@ -77,6 +121,39 @@ def settles_this_transaction(
         handoff.pr_number == pending.subject.pr_number
         and handoff.report_revision == pending.report_revision
         and handoff.source_sha == pending.subject.source_sha
+    )
+
+
+def companions_disagree(
+    current: _records.CurrentReport | None,
+    handoff: _records.ReportHandoff | None,
+) -> bool:
+    """Whether the two settled records contradict each other.
+
+    Asked of any readable pair, whatever receipt it carries, because the two
+    are written in ONE write off ONE pending record: the pull request, the
+    revision, and the commit are copied into both, so a pair that disagrees on
+    any of them is not a settlement this build made.
+
+    Nothing here can tell which of the two to believe, and both answers lose
+    something. Taken from the handoff, a transaction is recognized as finished
+    whose report the current record says is about some other publication.
+    Taken from the current report, a transaction is settled OVER -- replacing
+    that record after the new report is posted, which is when the evidence an
+    operator would have repaired it from is gone.
+
+    Asked ahead of the receipt comparison rather than beside it, because the
+    older-receipt pair is where this is the only question there is: a handoff
+    from a previous transaction is never compared against the record in hand,
+    so a pair left disagreeing would be silently replaced by the very next
+    settlement.
+    """
+    if current is None or handoff is None:
+        return False
+    return (
+        current.subject.pr_number != handoff.pr_number
+        or current.report_revision != handoff.report_revision
+        or current.subject.source_sha != handoff.source_sha
     )
 
 

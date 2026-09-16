@@ -83,11 +83,6 @@ _DISAGREEING_HANDOFF = (
 
 _STALE_RECORD = "a newer report is already recorded for this pull request"
 
-_UNREADABLE_COMPANION = (
-    "the record of what the pull request already carries, or of the last "
-    "handoff, cannot be read"
-)
-
 _DAMAGED_RECORD_PARK = (
     "{mentions} this issue records a developer report it still owes its pull "
     "request, and the record cannot be acted on: {detail}. Nothing was "
@@ -137,11 +132,14 @@ def _reconciles_pending_report(
     branch and the debt beside it, is left exactly as it stands for whatever
     ends the issue, and for the reopen that may yet make it live again.
 
-    The settled companions are read for their PRESENCE before any of it. Both
+    The settled companions are judged before any of it, and in two ways. Both
     are things a settlement writes over, so a damaged one waved through as an
     absence is replaced the moment the next transaction settles -- after its
     report has been posted, which is when the evidence an operator would have
-    repaired it from is gone.
+    repaired it from is gone. And a pair that reads but contradicts ITSELF is
+    two records that cannot both be right: asked here rather than beside the
+    receipt comparison, because a settlement under a previous transaction's
+    receipt is never compared against the record in hand at all.
     """
     if not _record_state.carries_pending_report(state):
         return _clears_the_damage_park(gh, issue, state)
@@ -152,8 +150,9 @@ def _reconciles_pending_report(
             "nobody wants", issue.number, label,
         )
         return False
-    if _replay.companions_unreadable(state):
-        return _parks_the_damage(gh, issue, state, _UNREADABLE_COMPANION)
+    damaged = _replay.damaged_companions(state)
+    if damaged:
+        return _parks_the_damage(gh, issue, state, damaged)
     if _answers_what_is_owed(gh, spec, issue, state):
         return True
     return _clears_the_damage_park(gh, issue, state)
@@ -180,10 +179,18 @@ def _answers_what_is_owed(
     beside the current report written with it: on its own a matching receipt
     would drop the pending record while the pull request carries nothing.
 
-    The two disagreements park rather than choosing a side. Neither is a shape
-    this build produces, so which of the two records to believe is a human's
+    The disagreements park rather than choosing a side. None is a shape this
+    build produces, so which of the two records to believe is a human's
     question, and acting on either answer loses something that cannot be got
     back.
+
+    Whether the settled pair agrees with ITSELF is asked ahead of all of it,
+    and without reference to the receipt. Both records are copied out of one
+    pending record in one write, so a readable pair that names two pull
+    requests, two revisions or two commits is not a settlement this build made
+    -- and under an OLDER receipt that question is never asked again: the pair
+    is not compared against the record in hand, so a disagreement left standing
+    is replaced by the very next settlement.
     """
     pending = _record_state.read_pending_report(state)
     if pending is None:

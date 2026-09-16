@@ -6,9 +6,7 @@ A PUBLISH posts the report it carries and is idempotent by construction: the
 post is scoped by the transaction's receipt, so a retry finds whatever an
 earlier attempt landed instead of repeating it -- including the attempt whose
 response never came back, which GitHub may well have accepted. Only a reading
-that says the report is PRESENT settles anything; everything else holds the tick
-and is asked again, since a post nobody could confirm is not a report anybody
-can prove is there.
+that says the report is PRESENT settles anything.
 
 A VERIFY posts nothing. It re-reads the exact location the developer named and
 requires the text still to hash to the revision it was verified at, which is
@@ -17,6 +15,17 @@ author is asked as well: the location is somebody else's comment, and this
 workflow trusts content by author everywhere else it reads a thread -- so a
 report at a trusted location is verified and the identical text posted by
 anybody else is not.
+
+What a refusal short of PRESENT is OWED is the same split the evidence beside
+this makes, and for the same reason. A read nobody could take stops the tick,
+because nothing was learned and the next one is as likely to succeed. Every
+other reading is a definite answer about content a human owns -- a report that
+is gone, one edited off the revision it was verified at, one whose author this
+deployment does not trust -- and each of those STANDS DOWN, so the routes
+behind this guard run while the transaction stays owed. Held instead, an issue
+whose report somebody edited would sit in front of every one of those routes
+for the rest of its life. Either way nothing is published twice and no handoff
+is written.
 
 The settlement is ONE write. The current report, the handoff receipt, the
 watermarks the run consumed, the bookkeeping its route owed, and the drop of the
@@ -72,6 +81,14 @@ def publishes_the_report(
     Recorded that way it would be a false "exact" location for every later
     reread, so the id is required and the next tick finds the landed comment by
     its receipt.
+
+    Every OTHER reading stands down and lets the tick carry on. Only
+    `UNCONFIRMED` is a reading nobody could take; a comment of ours under this
+    receipt that no longer renders as the report is an edited one, which is a
+    definite answer and a structural refusal -- so it defers to the routes
+    behind this guard rather than stopping the tick in front of them forever.
+    Nothing is posted a second time either way: the post is scoped by the
+    receipt, and a reading that is not ABSENT never reaches one.
     """
     try:
         lookup = _comments._publish_developer_report(
@@ -91,13 +108,13 @@ def publishes_the_report(
         )
         return True
     if lookup.presence is not _pr_reports.ReportPresence.PRESENT:
-        log.warning(
-            "issue=#%d could not confirm developer report revision %d on "
-            "PR #%d (%s); holding the tick",
+        return _refuses_the_reading(
+            lookup.presence,
+            "issue=#%d cannot settle developer report revision %d on PR #%d "
+            "(%s)",
             issue.number, pending.report_revision,
             pending.subject.pr_number, lookup.presence.value,
         )
-        return True
     posted = getattr(lookup.found, "id", None)
     if not isinstance(posted, int) or isinstance(posted, bool):
         log.warning(
@@ -127,33 +144,64 @@ def verifies_the_report(
     The developer's assertion proves nothing on its own, which is why this
     reads the location afresh rather than trusting the record: a report that is
     gone, that never hashed to the revision claimed, or that a human has edited
-    since is not the report anybody verified. Each of those holds the tick, so
-    the next one asks again and a human repairing the report is enough to
-    settle it without another developer run.
+    since is not the report anybody verified. The next tick asks again either
+    way, so a human repairing the report settles it without another developer
+    run.
+
+    Which of those STOPS the tick is the split that matters. A read nobody
+    could take holds, because nothing was learned and the condition usually
+    clears on its own. A report that is gone, one whose content has moved off
+    the revision verified, and one at a location this deployment does not trust
+    the author of are definite answers about a location a human owns -- so each
+    of them stands down, and the routes behind this guard run while the
+    transaction stays owed. Held instead, an issue whose report somebody edited
+    would sit in front of every one of those routes for good.
     """
     lookup = gh.reread_report_location(
         pending.location, content_sha256=pending.content_revision,
     )
     if lookup.presence is not _pr_reports.ReportPresence.PRESENT:
-        log.warning(
-            "issue=#%d could not verify the developer report at %s (%s); "
-            "holding the tick",
+        return _refuses_the_reading(
+            lookup.presence,
+            "issue=#%d cannot verify the developer report at %s (%s)",
             issue.number, pending.location, lookup.presence.value,
         )
-        return True
     if not _trust.is_trusted_author(getattr(lookup.found, "user", None)):
-        log.warning(
+        log.info(
             "issue=#%d names a developer report at %s written by an author "
-            "this deployment does not trust; holding the tick",
+            "this deployment does not trust; standing down",
             issue.number, pending.location,
         )
-        return True
+        return False
     return settles(gh, issue, state, pending, _records.CurrentReport(
         subject=pending.subject,
         report_revision=pending.report_revision,
         content_revision=pending.content_revision,
         location=pending.location,
     ))
+
+
+def _refuses_the_reading(
+    presence: _pr_reports.ReportPresence, refusal: str, *details: Any,
+) -> bool:
+    """Say whether one reading short of PRESENT stops the tick, and log it.
+
+    The whole of the difference is whether the reading HAPPENED. `UNCONFIRMED`
+    is the one that did not -- a thread GitHub would not serve, a post whose
+    response never arrived -- and it is warned about and held, since nothing
+    was learned and the comment may well be there.
+
+    Every other presence is a definite answer about content a human owns, and
+    each of them stands down onto the routes behind this guard: the transaction
+    stays owed, the tick carries on, and a repaired report settles on a later
+    one. Logged at INFO for that reason -- it is ordinary progress refused, not
+    a failure.
+    """
+    if presence is _pr_reports.ReportPresence.UNCONFIRMED:
+        log.warning(f"{refusal}; holding the tick", *details)
+        return True
+    log.info(f"{refusal}; standing down", *details)
+    return False
 
 
 def settles(

@@ -173,6 +173,21 @@ def report_comments(case: ReportTransactionCase) -> list:
     ]
 
 
+def reports_posted(case: ReportTransactionCase) -> int:
+    """How many reports the reconciliation has put on the pull request."""
+    return len(report_comments(case))
+
+
+def assert_one_report(case: ReportTransactionCase) -> None:
+    """Exactly one report reached the pull request.
+
+    The invariant the whole transaction exists for, so it is spelled once: a
+    settlement publishes one comment, and every replay of it finds that comment
+    rather than posting beside it.
+    """
+    case.assertEqual(reports_posted(case), 1)
+
+
 def assert_nothing_published(case: ReportTransactionCase) -> None:
     """No report reached the pull request and the record still claims one.
 

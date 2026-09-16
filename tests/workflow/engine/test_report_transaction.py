@@ -59,7 +59,7 @@ class SettledTransactionTest(unittest.TestCase, support.ReportTransactionCase):
 
         self.assertFalse(self.reconcile())
 
-        self.assertEqual(len(support.report_comments(self)), 1)
+        support.assert_one_report(self)
         self.assertIsNone(_record_state.read_pending_report(self.state))
         self.assertEqual(
             _settlement.read_handoff(self.state),
@@ -142,7 +142,7 @@ class ReplayedTransactionTest(unittest.TestCase, support.ReportTransactionCase):
 
         self.assertFalse(self.reconcile())
 
-        self.assertEqual(len(support.report_comments(self)), 1)
+        support.assert_one_report(self)
         self.assertEqual(self.state.get(support.REVIEW_ROUND), _SPENT_ROUND)
         self.assertIsNotNone(_settlement.read_handoff(self.state))
 
@@ -161,19 +161,19 @@ class ReplayedTransactionTest(unittest.TestCase, support.ReportTransactionCase):
 
         self.gh.report_failures.lost.discard(support.PR_NUMBER)
         self.assertFalse(self.reconcile())
-        self.assertEqual(len(support.report_comments(self)), 1)
+        support.assert_one_report(self)
 
     def test_a_finished_handoff_drops_the_record(self) -> None:
         # The settlement landed and the drop did not, which is the one window
         # where the report is on the thread and the record still claims it.
         self.record()
         self.reconcile()
-        posted = len(support.report_comments(self))
+        posted = support.reports_posted(self)
         _record_state.record_pending_report(self.state, self.pending())
 
         self.assertFalse(self.reconcile())
 
-        self.assertEqual(len(support.report_comments(self)), posted)
+        self.assertEqual(support.reports_posted(self), posted)
         self.assertIsNone(_record_state.read_pending_report(self.state))
 
     def test_a_replay_never_counts_a_round_twice(self) -> None:
@@ -223,6 +223,44 @@ class ReplayedTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         self.assertEqual(self.state.get(support.PR_WATERMARK), _LATER_ID)
 
 
+class PublishedReadingTest(unittest.TestCase, support.ReportTransactionCase):
+    """What a publish reading short of PRESENT does to the tick."""
+
+    def setUp(self) -> None:
+        support.ReportTransactionCase.setUp(self)
+
+    def test_an_edited_report_stands_down(self) -> None:
+        # The crash window with a human in it: the post landed, the settlement
+        # write never did, and the comment was edited before the retry. A
+        # comment of ours under this receipt that no longer renders as the
+        # report is a definite answer rather than a missing read, so the tick
+        # carries on to the routes behind the guard. Nothing is posted past it
+        # either -- a second comment under one receipt would leave two claims
+        # to one transaction.
+        self.record()
+        interrupted = self.state.data.copy()
+        self.reconcile()
+        self.state.data = interrupted
+        posted = support.reports_posted(self)
+        landed = self.pull_request.issue_comments[-1]
+        landed.body = f"{landed.body}\n\nedited by a human"
+
+        self.assertFalse(self.reconcile())
+
+        self.assertEqual(support.reports_posted(self), posted)
+        self.assertIsNotNone(_record_state.read_pending_report(self.state))
+        self.assertIsNone(_settlement.read_handoff(self.state))
+
+    def test_an_unreadable_thread_holds(self) -> None:
+        # Nothing was learned, and the comment may well be there, so the tick
+        # stops rather than carrying on over a report nobody could read.
+        self.record()
+        self.gh.report_failures.unreadable.add(support.PR_NUMBER)
+
+        self.assertTrue(self.reconcile())
+        support.assert_still_owed(self)
+
+
 class DamagedRecordTest(unittest.TestCase, support.ReportTransactionCase):
     """A record nobody can read holds the tick and says so once."""
 
@@ -255,7 +293,7 @@ class DamagedRecordTest(unittest.TestCase, support.ReportTransactionCase):
 
         self.assertFalse(self.reconcile())
 
-        self.assertEqual(len(support.report_comments(self)), 1)
+        support.assert_one_report(self)
         self.assertIsNone(self.state.get(support.PARK_REASON))
         self.assertFalse(self.state.get(support.AWAITING_HUMAN))
 
@@ -348,29 +386,43 @@ class VerifiedTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         )
         self.assertIsNotNone(_settlement.read_handoff(self.state))
 
-    def test_an_edited_report_is_not_accepted(self) -> None:
+    def test_an_edited_report_stands_down(self) -> None:
+        # A location a human owns, read and found to hold something else. That
+        # is a definite answer rather than a missing read, so the tick carries
+        # on to the routes behind the guard instead of stopping in front of
+        # them for as long as the edit stands.
         self._verification()
         self.human.body = f"{_HUMAN_REPORT} And a sentence added afterwards."
 
-        self.assertTrue(self.reconcile())
+        self.assertFalse(self.reconcile())
         support.assert_still_owed(self)
 
-    def test_a_report_that_is_gone_is_not_accepted(self) -> None:
+    def test_a_report_that_is_gone_stands_down(self) -> None:
         self._verification()
         self.pull_request.issue_comments.remove(self.human)
 
-        self.assertTrue(self.reconcile())
+        self.assertFalse(self.reconcile())
         support.assert_still_owed(self)
 
-    def test_an_untrusted_author_is_not_accepted(self) -> None:
+    def test_an_untrusted_author_stands_down(self) -> None:
         # The location is somebody else's comment, and the marker on it proves
         # nothing: this workflow trusts thread content by author.
         self._verification()
         self.human.user = FakeUser("mallory")
 
         with patch.object(config, "ALLOWED_ISSUE_AUTHORS", ("alice",)):
-            self.assertTrue(self.reconcile())
+            self.assertFalse(self.reconcile())
 
+        support.assert_still_owed(self)
+
+    def test_an_unreadable_location_holds(self) -> None:
+        # The one refusal on this road that stops the tick: nothing was
+        # learned, so the next tick asks again rather than carrying on over a
+        # report nobody could read.
+        self._verification()
+        self.gh.report_failures.unreadable.add(support.PR_NUMBER)
+
+        self.assertTrue(self.reconcile())
         support.assert_still_owed(self)
 
     def _verification(self) -> _records.PendingReport:

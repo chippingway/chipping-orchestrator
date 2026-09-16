@@ -242,25 +242,37 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             on the recorded branch, held against the number recorded, still open, and still
                             STANDING on that commit -- carrying it is what found the pull request and is not enough
                             to settle on, since a head pushed past it leaves the commit in history while the work
-                            under review is no longer what the report describes. The code-publication receipt is
-                            asked beside it, as one group through the receipt's own damage reader and then on both
-                            of its members, since carrying a commit says it is there and nothing about how it got
-                            there
+                            under review is no longer what the report describes. A lookup that answers with any
+                            other pull request, or with none, asks the recorded NUMBER whether it has ended before
+                            it refuses: the search is by commit, so a recorded thread force-pushed off that commit
+                            is invisible to it open or closed, and an ended one would otherwise stand down forever
+                            on work that is finished. The code-publication receipt is asked beside all of it, as
+                            one group through the receipt's own damage reader and then on both of its members,
+                            since carrying a commit says it is there and nothing about how it got there
     report_replay_guards.py whether a record and the settlement beside it are about one thing. Either settled
                             record CLAIMED and unreadable stops the tick before anything is proved, since both are
-                            records a settlement writes over. A handoff carrying this receipt is believed only
-                            beside the current report written with it, and once its pull request, commit and
-                            revision agree -- believed on the receipt alone it would drop a pending record whose
-                            report was never published -- and a current report already recorded at this revision or
-                            a later one says the transaction in hand is stale, which settled would replace the
-                            newest report on the pull request with an older one. Neither answers with a repair: a
-                            caller that finds the records disagree stops, because choosing between them loses
-                            something unrecoverable
+                            records a settlement writes over. Two READABLE settled records are then held to each
+                            other, without reference to any receipt: they are copied out of one pending record in
+                            one write, so a pair naming two pull requests, two revisions or two commits is one
+                            nothing here produced -- and under a previous transaction's receipt that is the only
+                            question there is, since such a pair is never compared against the record in hand. A
+                            handoff carrying THIS receipt is believed only beside the current report written with
+                            it, once its own pull request, commit and revision agree and once that report matches
+                            the pending record's whole subject -- believed on the receipt alone it would drop a
+                            pending record whose report was never published -- and a current report already
+                            recorded at this revision or a later one says the transaction in hand is stale, which
+                            settled would replace the newest report on the pull request with an older one. None
+                            answers with a repair: a caller that finds the records disagree stops, because choosing
+                            between them loses something unrecoverable
     report_publishing.py    the two ways a proved transaction finishes -- a receipt-scoped post that a retry finds
                             rather than repeats, and a re-read of a trusted location whose content still hashes to
                             the revision verified -- and the one write that settles either, composed whole on a
                             copy so that a settled writer's refusal lands none of itself rather than dropping the
-                            record beside a report nothing says the pull request carries
+                            record beside a report nothing says the pull request carries. A refusal short of
+                            PRESENT is split the way the evidence beside it splits one: only a read nobody could
+                            take stops the tick, while an edited report, a deleted one, and an untrusted author are
+                            definite answers about content a human owns and stand down onto the routes behind the
+                            guard
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
                             and the stage: it hands work that has ENDED straight back -- a closed issue, or one
@@ -268,8 +280,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             no-op behind this guard protects nothing -- then settles what it can prove, holds what
                             nobody could read, stands down on what a route behind it would fix, retires a
                             transaction whose pull request is over, and parks once on a record it may not act on:
-                            one that will not read, one whose handoff disagrees with it, and one a newer report has
-                            already passed. That park is its own to take and its own to retire -- the record
+                            one that will not read, a settled pair that contradicts itself, one whose handoff
+                            disagrees with it, and one a newer report has already passed. That park is its own to
+                            take and its own to retire -- the record
                             repaired and settled, or the field cleared to abandon it, both take the flags down, and
                             no other owner's park is ever touched
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the

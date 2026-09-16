@@ -37,6 +37,7 @@ written before this transaction -- vouches for nothing here.
 from __future__ import annotations
 
 import importlib
+import logging
 from typing import Any
 
 from orchestrator.github import pull_request_reads as _pr_reads
@@ -47,6 +48,8 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     stage_targets as _stage_targets,
 )
+
+log = logging.getLogger("orchestrator.workflow")
 
 _PR_OPEN = "open"
 
@@ -64,6 +67,14 @@ def publication_verdict(
 
     The repository is asked through the client rather than compared here, so
     this reading inherits the case-insensitive rule GitHub itself applies.
+
+    A lookup that does not answer with the RECORDED pull request sends the
+    question to that pull request by number before it refuses. The search is by
+    commit, so a recorded thread whose head was force-pushed off it drops out of
+    the answer entirely -- and if it was then closed, the transaction would
+    stand down for the rest of the issue's life over work that is finished. The
+    number is the one thing a moved head cannot take away, so the ending is
+    asked of it directly.
     """
     subject = pending.subject
     if not gh.is_own_repository(subject.repo_slug):
@@ -80,11 +91,56 @@ def publication_verdict(
             "the pull requests on the recorded branch could not be read",
         )
     if found is None:
-        return _evidence_models.ReportEvidence(
-            _evidence_models.ReportEvidenceVerdict.DEFER,
+        return _unfound_verdict(
+            gh, subject,
             "no pull request on the recorded branch carries the commit yet",
         )
+    if found.number != subject.pr_number:
+        return _unfound_verdict(
+            gh, subject,
+            "another pull request carries the commit the report is about",
+        )
     return _identified_verdict(found, subject)
+
+
+def _unfound_verdict(
+    gh: GitHubClient, subject: _records.ReportSubject, refusal: str,
+) -> _evidence_models.ReportEvidence:
+    """Retire a recorded pull request that has ended, or stand down.
+
+    Reached whenever the commit search did not answer with the recorded pull
+    request, which is the one case the search cannot decide an ending in: it
+    finds a pull request BY the commit, so a thread somebody force-pushed off
+    that commit is invisible to it whether it is open or closed. Closed, and
+    left to the refusal above, the transaction would be proved impossible on
+    every tick forever and the record never dropped -- a report owed to a
+    thread nobody will read, held against the issue for good.
+
+    The recorded NUMBER is what survives a moved head, so the ending is asked
+    of it. A reading that failed stands down with the refusal it was called
+    with rather than holding: what was being added here is a retirement, and a
+    tick held on a failed extra reading would sit in front of the publication
+    gate that the ordinary refusal is waiting for.
+    """
+    try:
+        recorded = gh.get_pr(subject.pr_number)
+    except Exception:
+        log.exception(
+            "could not read PR #%d to say whether the developer report it is "
+            "owed is owed to work that has ended; standing down",
+            subject.pr_number,
+        )
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER, refusal,
+        )
+    if _pr_reads.pr_state(recorded) != _PR_OPEN:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.ENDED,
+            "the recorded pull request is no longer open",
+        )
+    return _evidence_models.ReportEvidence(
+        _evidence_models.ReportEvidenceVerdict.DEFER, refusal,
+    )
 
 
 def receipt_verdict(
@@ -139,14 +195,14 @@ def receipt_verdict(
 def _identified_verdict(
     pull_request: Any, subject: _records.ReportSubject,
 ) -> _evidence_models.ReportEvidence:
-    """Hold the pull request that carries the commit to the one recorded.
+    """Prove the recorded pull request is one this report may be published onto.
 
-    A different number is a publication this transaction is not about -- a
-    replacement somebody opened after closing the original is the shape that
-    matters -- and publishing onto it would put this report on a thread the
-    record never named. One that is no longer open ends the transaction
-    instead: a report posted to a merged or closed pull request is a comment
-    nobody is going to read.
+    Reached only for the pull request the record NAMES -- a lookup answering
+    with any other is a publication this transaction is not about, and is
+    refused above through the reader that can also retire it.
+
+    One that is no longer open ends the transaction: a report posted to a
+    merged or closed pull request is a comment nobody is going to read.
 
     Carrying the commit is what FOUND this pull request, and it is not enough
     to settle on. A head that has moved past the recorded commit -- a human
@@ -155,11 +211,6 @@ def _identified_verdict(
     the report describes. The report names one commit, so the pull request has
     to be standing on it.
     """
-    if pull_request.number != subject.pr_number:
-        return _evidence_models.ReportEvidence(
-            _evidence_models.ReportEvidenceVerdict.DEFER,
-            "another pull request carries the commit the report is about",
-        )
     if _pr_reads.pr_state(pull_request) != _PR_OPEN:
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.ENDED,

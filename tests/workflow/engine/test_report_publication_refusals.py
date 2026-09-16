@@ -155,6 +155,24 @@ class PullRequestIdentityTest(unittest.TestCase, support.ReportTransactionCase):
 
                 self._assert_retired()
 
+    def test_an_ended_moved_pull_request_retires(self) -> None:
+        # The lookup finds a pull request BY the commit, so a recorded thread
+        # somebody force-pushed off it is invisible to that search whether it
+        # is open or closed. Left to the search's own refusal, an ended one
+        # would stand down on every tick for the rest of the issue's life over
+        # work that is finished -- so the ending is asked of the recorded
+        # NUMBER, which is the one thing a moved head cannot take away.
+        for ending, over in _ENDED:
+            with self.subTest(ending=ending):
+                self.setUp()
+                self.pull_request.commit_shas = ()
+                self.pull_request.head.sha = support.MOVED_SHA
+                setattr(self.pull_request, ending, over)
+
+                self.assertFalse(self.reconcile())
+
+                self._assert_retired()
+
     def _assert_retired(self) -> None:
         """Nothing published, nothing owed, and the tick left to the terminal."""
         self.assertEqual(support.report_comments(self), [])

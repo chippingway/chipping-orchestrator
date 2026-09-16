@@ -8,6 +8,13 @@ next transaction replaces it the moment it settles -- after its report has been
 posted, which is when the evidence an operator would have repaired it from is
 gone. Both are therefore asked for their presence before anything is proved.
 
+Two READABLE settled records that contradict each other are the same hazard
+one step on. They are written in one write off one pending record, so a pair
+naming two pull requests, two revisions or two commits is one nothing here
+produced -- and under a PREVIOUS transaction's receipt nothing else would ever
+ask: that pair is not compared against the record in hand, so a disagreement
+left standing is replaced by the very next settlement.
+
 The park is the mirror of the same care. The pinned flags are single, so a park
 this owner takes over one another route already holds replaces an obligation a
 stage is still waiting on -- and the retirement behind this owner would then
@@ -19,6 +26,8 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.github.developer_reports import content_digest
+from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_records as _records,
@@ -27,6 +36,16 @@ from orchestrator.workflow.engine import (
 from tests.workflow.engine import report_transaction_test_support as support
 
 _AGENT_TIMEOUT = "agent_timeout"
+
+# The receipt a PREVIOUS transaction on this issue settled under, which is what
+# makes the pair below one nothing compares against the record in hand.
+_EARLIER_RECEIPT = "issue-7-report-0"
+
+_SETTLED_REVISION = 1
+
+_NEXT_REVISION = 2
+
+_COMMENT_ID = 8080
 
 
 class CompanionDamageTest(unittest.TestCase, support.ReportTransactionCase):
@@ -79,6 +98,77 @@ class CompanionDamageTest(unittest.TestCase, support.ReportTransactionCase):
             self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
         )
         support.assert_nothing_published(self)
+
+
+class DisagreeingCompanionTest(unittest.TestCase, support.ReportTransactionCase):
+    """A settled pair that contradicts itself is a human's to resolve."""
+
+    def setUp(self) -> None:
+        support.ReportTransactionCase.setUp(self)
+
+    def test_companions_on_different_commits_park(self) -> None:
+        # Under an EARLIER receipt, which is where nothing else asks: the pair
+        # is not compared against the record in hand, so left alone it would be
+        # replaced by this settlement rather than seen.
+        self._settled(source_sha=support.MOVED_SHA)
+        self.record(report_revision=_NEXT_REVISION)
+
+        self.assertTrue(self.reconcile())
+
+        self.assertEqual(
+            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
+        )
+        support.assert_nothing_published(self)
+
+    def test_a_handoff_on_another_subject_parks(self) -> None:
+        # The handoff carries this transaction's receipt and agrees with the
+        # current report on everything it can carry -- the pull request, the
+        # revision, the commit. What disagrees is the rest of the SUBJECT, so
+        # only holding the current report to the whole of it catches this, and
+        # read as a completion it would drop a record never published.
+        pending = self.pending()
+        elsewhere = _records.ReportSubject(
+            repo_slug=pending.subject.repo_slug,
+            pr_number=support.PR_NUMBER,
+            branch=f"{support.BRANCH}-rewritten",
+            source_sha=support.SOURCE_SHA,
+            requirements_revision=pending.subject.requirements_revision,
+        )
+        self._current(elsewhere, pending.report_revision)
+        self._handoff(support.RECEIPT, pending.report_revision, support.SOURCE_SHA)
+        self.record()
+
+        self.assertTrue(self.reconcile())
+
+        self.assertEqual(
+            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
+        )
+        support.assert_nothing_published(self)
+
+    def _settled(self, *, source_sha: str) -> None:
+        """A finished earlier transaction whose handoff names another commit."""
+        self._current(self.pending().subject, _SETTLED_REVISION)
+        self._handoff(_EARLIER_RECEIPT, _SETTLED_REVISION, source_sha)
+
+    def _current(self, subject: _records.ReportSubject, revision: int) -> None:
+        """Record what the pull request is said to carry now."""
+        _settlement.record_current_report(self.state, _records.CurrentReport(
+            subject=subject,
+            report_revision=revision,
+            content_revision=content_digest(support.REPORT_TEXT),
+            location=ReportLocation(
+                pr_number=subject.pr_number, comment_id=_COMMENT_ID,
+            ),
+        ))
+
+    def _handoff(self, receipt: str, revision: int, source_sha: str) -> None:
+        """Record the receipt one transaction is said to have finished under."""
+        _settlement.record_handoff(self.state, _records.ReportHandoff(
+            receipt=receipt,
+            pr_number=support.PR_NUMBER,
+            report_revision=revision,
+            source_sha=source_sha,
+        ))
 
 
 class ForeignParkTest(unittest.TestCase, support.ReportTransactionCase):

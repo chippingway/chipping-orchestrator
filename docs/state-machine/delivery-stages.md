@@ -607,26 +607,47 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     rather than dropping the pending record beside a report nothing says the pull request carries — a refusal is a
     record this build did not write, and it holds the tick in front of a human. The tick otherwise carries on to
     the handler.
-  - **Held** (tick stops, nothing written) → a reading nobody could take: an unreadable worktree or head, a pull
-    request enumeration that failed, a post or re-read GitHub did not confirm. The next tick asks again.
-  - **Stood down** (tick carries on, transaction still owed) → anything structural: a dirty tree, a head that
-    moved, a checkout on another host, a commit the pull request does not carry yet, a missing or mismatched
-    publication receipt, requirements a human edited. Each of those is cleared by a route *behind* this guard — the
-    publication gate that pushes the commit, the drift resume that answers the edit, the dirty-worktree park — so
-    holding them would strand the issue behind the very handler that fixes them.
-  - **Retired** → the pull request has merged or closed; the record is dropped rather than retried forever.
+  - **Held** (tick stops, nothing written) → a reading nobody could take, and only that: an unreadable worktree or
+    head, a fetch that failed, a pull request enumeration that failed, a post or re-read GitHub did not confirm
+    (`ReportPresence.UNCONFIRMED`). The next tick asks again.
+  - **Stood down** (tick carries on, transaction still owed) → every *definite* refusal. The structural ones: a
+    dirty tree, a head that moved, a checkout on another host, a commit the pull request does not carry yet, a
+    missing or mismatched publication receipt, requirements a human edited. And the ones about the report itself:
+    a comment of ours under this receipt that no longer renders as the report (`CHANGED` — somebody edited it), a
+    verification whose location no longer holds anything (`ABSENT` — somebody deleted it), and a location whose
+    author this deployment does not trust. Each of those is cleared by a route *behind* this guard, or by a human
+    on the thread — the publication gate that pushes the commit, the drift resume that answers the edit, the
+    dirty-worktree park — so holding them would strand the issue behind the very handler that fixes them, or in
+    front of every route it has for as long as one edited comment stands. Nothing is ever posted twice on that
+    path: the post is scoped by the receipt and only an `ABSENT` reading reaches one.
+  - **Retired** → the recorded pull request has merged or closed; the record is dropped rather than retried
+    forever. Asked of the pull request the lookup found when that is the recorded one — and, when the lookup does
+    *not* answer with it, of the recorded **number** directly. The search finds a pull request BY the commit, so a
+    recorded thread somebody force-pushed off that commit is invisible to it whether it is open or closed; left to
+    the search's own refusal, an ended one would stand down on every tick for the rest of the issue's life over
+    work that is finished. A read that fails on that extra question stands down with the refusal it was called
+    with rather than holding, since a retirement is what was being added and a hold would sit in front of the
+    publication gate the ordinary refusal is waiting for.
   - **Parked** (`park_reason="report_record_damaged"`) → the issue CLAIMS a transaction this build may not act on,
-    or claims a settled record beside it that cannot be read. The settled companions are asked for their *presence*
-    before anything is proved, because both are records a settlement writes over: a damaged current report waved
+    or claims a settled record beside it this build did not write. The settled companions are judged *before
+    anything is proved*, because both are records a settlement writes over: a damaged current report waved
     through as an absence is replaced the moment this transaction settles — after its report has been posted, which
-    is when the evidence an operator would have repaired it from is gone. Four shapes reach the park: a record that
-    will not read; a record whose handoff carries its receipt while naming a different pull request, commit or
-    revision — believed on the receipt alone that handoff would drop a record whose report was never published — and
-    a handoff is believed only beside the current report written with it, since the two land in one write and a
-    handoff without one is a settlement that never happened; and a record a newer current report has already passed,
-    which settled would replace the pull request's newest report with an older one. None is a shape this build
-    produces, so which record to believe is a human's question. Announced once and held silently thereafter;
-    repairing the pinned comment, or clearing the field to abandon the report, resumes it with no agent run.
+    is when the evidence an operator would have repaired it from is gone. Four shapes reach the park. A record that
+    will not read. A **settled pair that contradicts itself** — both records readable, naming two pull requests,
+    two revisions or two commits; they are written in one write off one pending record, so a pair that disagrees is
+    one nothing here produced. That one is asked of the pair alone, with no reference to the transaction in hand or
+    to any receipt, because under a *previous* transaction's receipt nothing else ever would: such a pair is never
+    compared against the record being reconciled, so a disagreement left standing would be replaced by the very
+    next settlement rather than seen. A record whose handoff carries its
+    receipt while disagreeing with it — believed on the receipt alone that handoff would drop a record whose report
+    was never published; the current report beside it is held to the pending record's **whole subject**, not just
+    the pull request and revision the handoff can also carry, since a current report naming another branch,
+    repository or requirements revision would otherwise read as this transaction's completion; and a handoff is
+    believed only beside a current report at all, since the two land in one write and a handoff without one is a
+    settlement that never happened. And a record a newer current report has already passed, which settled would
+    replace the pull request's newest report with an older one. None is a shape this build produces, so which
+    record to believe is a human's question. Announced once and held silently thereafter; repairing the pinned
+    comment, or clearing the field to abandon the report, resumes it with no agent run.
 
     A park **another route** already holds is never replaced, and no park of this owner's is taken beside it: the
     pinned flags are single, so writing over an `agent_timeout` would discard an obligation a stage is still waiting
