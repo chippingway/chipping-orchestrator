@@ -11,7 +11,7 @@ is the sequence and the value the caller gets back, which is the list the
 `skill_triggered` audit events are driven by rather than a second pass over
 stdout.
 
-The producer-facing recorder is here rather than beside its three siblings on
+The producer-facing recorder is here rather than beside its four siblings on
 ``events`` because this is the only family with a sequence to own. The
 envelope and the append it ends with are the ``events`` owner's, imported at
 module scope: this composition depends on that vocabulary, and nothing under
