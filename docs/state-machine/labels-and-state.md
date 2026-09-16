@@ -1764,8 +1764,8 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
 - **There is no second road to a process.** The gate is worth what the number of places a run can start makes it
   worth, so the shape is also read off the source rather than only driven:
   [`tests/repository/test_agent_spawn_boundary.py`](../../tests/repository/test_agent_spawn_boundary.py) holds the
-  whole chain — `run_subprocess` named only by the two backends, `run_claude` / `run_codex` named only by the runner
-  that dispatches between them, and `run_agent` named only by the tracked
+  whole chain — `run_subprocess` named only by the backends, `run_claude` / `run_codex` / `run_agy` named only by
+  the runner that dispatches between them, and `run_agent` named only by the tracked
   boundary that calls it — and holds that call to `_run_agent_tracked` itself, with the circuit asked on a line above
   it. A reference counts rather than a call, because a spawn bound into a variable is invoked where its name is no
   longer written.

@@ -7,6 +7,7 @@ from __future__ import annotations
 from orchestrator.observability.usage import (
     event_stream,
     protocol,
+    trajectory_agy,
     trajectory_claude_stream,
     trajectory_claude_turns,
     trajectory_codex,
@@ -53,6 +54,8 @@ def parse_agent_trajectory(backend: str, stdout: str) -> AgentTrajectory:
         return parse_claude_trajectory(stdout)
     if backend == protocol.CODEX:
         return parse_codex_trajectory(stdout)
+    if backend == protocol.AGY:
+        return trajectory_agy.reconstruct(event_stream.iter_events(stdout))
     raise ValueError(
-        f"unknown agent backend {backend!r}; expected 'claude' or 'codex'",
+        f"unknown agent backend {backend!r}; expected 'claude', 'codex', or 'agy'",
     )

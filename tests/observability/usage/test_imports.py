@@ -22,6 +22,8 @@ _METRICS_OWNER = "metrics"
 # paragraph in the module map, which is what the inventory check compares the
 # directory against.
 _OWNERS = (
+    "agy_events",
+    "agy_summary",
     "claude_rows",
     "claude_summary",
     "codex_rows",
@@ -37,6 +39,7 @@ _OWNERS = (
     "skills_claude",
     "skills_codex",
     "trajectory",
+    "trajectory_agy",
     "trajectory_claude_blocks",
     "trajectory_claude_stream",
     "trajectory_claude_turns",

@@ -92,6 +92,9 @@ def parse_agent_skills(backend: str, stdout: str) -> SkillTriggers:
         return parse_claude_skills(stdout)
     if backend == protocol.CODEX:
         return parse_codex_skills(stdout)
+    if backend == protocol.AGY:
+        # Antigravity's stream publishes no dedicated skill-use evidence.
+        return SkillTriggers()
     raise ValueError(
-        f"unknown agent backend {backend!r}; expected 'claude' or 'codex'",
+        f"unknown agent backend {backend!r}; expected 'claude', 'codex', or 'agy'",
     )

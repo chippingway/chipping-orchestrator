@@ -4,14 +4,14 @@
 [![OpenSSF Scorecard][scorecard-badge]][scorecard-link]
 [![OpenSSF Best Practices][best-practices-badge]][best-practices-link]
 
-`chipping-orchestrator` turns local coding-agent CLIs (`codex`, `claude`) into a hands-off implementer + reviewer
+`chipping-orchestrator` turns local coding-agent CLIs (`codex`, `claude`, `agy`) into a hands-off implementer + reviewer
 loop. File an issue, and the orchestrator decomposes it if needed, spawns the dev agent in an isolated git worktree,
 opens a PR, runs a fresh reviewer pass, and pings the HITL handles when the PR is ready for a human to merge.
 
 State lives entirely in the issue itself — one workflow label plus one pinned JSON comment — so progress is
 visible on GitHub and the orchestrator can be restarted without losing context. It is meant for solo or small-team
-setups that already have a `codex` or `claude` login and want autonomy without standing up a separate planner, queue,
-or database.
+setups that already have a `codex`, `claude`, or `agy` login and want autonomy without standing up a separate planner,
+queue, or database.
 
 The analytics dashboard shows every tick, agent run, verification, and PR outcome, so you can see what the
 orchestrator is doing and why. Built-in usage and cost reporting show which repos, issues, models, and workflow stages
@@ -68,8 +68,10 @@ is in [`docs/state-machine/lifecycle.md`](docs/state-machine/lifecycle.md).
   suite on 3.12, 3.13, and 3.14, so a newer interpreter installs but is untested.
 - The CLI agents you actually route to must be authenticated on the host. Defaults:
   [`claude`](https://docs.anthropic.com/en/docs/claude-code) for decomposition + implementation,
-  [`codex`](https://github.com/openai/codex) for review; either can be remapped via `DEV_AGENT` / `REVIEW_AGENT` /
-  `DECOMPOSE_AGENT` (see [`docs/workflow/command-specs.md`](docs/workflow/command-specs.md)). They are spawned with
+  [`codex`](https://github.com/openai/codex) for review. Any role can also use
+  [Antigravity (`agy`)](https://antigravity.google/docs/cli/headless/)
+  via `DEV_AGENT` / `REVIEW_AGENT` / `DECOMPOSE_AGENT`
+  (see [`docs/workflow/command-specs.md`](docs/workflow/command-specs.md)). They are spawned with
   `--dangerously-bypass-approvals-and-sandbox` / `--dangerously-skip-permissions`, so the host is the sandbox
   boundary.
 - A GitHub repository to manage plus a fine-grained personal access token scoped to that repository (read/write on
@@ -152,6 +154,7 @@ is in [`docs/state-machine/lifecycle.md`](docs/state-machine/lifecycle.md).
    ```sh
    codex --version
    claude --version
+   agy --version  # if a role uses Antigravity
    ```
 
    If a backend is not logged in, run its login flow. Only the backends you actually route to (the first token of

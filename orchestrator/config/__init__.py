@@ -51,6 +51,7 @@ __all__ = [
     "AGENT_GIT_EMAIL",
     "AGENT_GIT_NAME",
     "AGENT_TIMEOUT",
+    "AGY_BIN",
     "ALLOWED_ISSUE_AUTHORS",
     "BASE_BRANCH",
     "CLAUDE_BIN",
@@ -305,11 +306,12 @@ HITL_MENTIONS: str = _RESOLVED["HITL_MENTIONS"]
 ALLOWED_ISSUE_AUTHORS: tuple[str, ...] = _RESOLVED["ALLOWED_ISSUE_AUTHORS"]
 CODEX_BIN: str = _RESOLVED["CODEX_BIN"]
 CLAUDE_BIN: str = _RESOLVED["CLAUDE_BIN"]
+AGY_BIN: str = _RESOLVED["AGY_BIN"]
 
 # Default split: claude implements, codex reviews. Validated at import so a
 # typo in the deployment env aborts the process before the first GitHub call.
 # Each spec is shell-like: the first token names the backend (`codex` /
-# `claude`), and any remaining tokens are forwarded as backend-CLI args
+# `claude` / `agy`), and any remaining tokens are forwarded as backend-CLI args
 # (model selection, reasoning effort, etc.) on every spawn for that role.
 # The `*_SPEC` constant holds the raw configured string -- the workflow
 # persists it verbatim in pinned state so a config flip mid-flight cannot

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from orchestrator.observability.usage import (
+    agy_summary,
     claude_rows,
     claude_summary,
     codex_summary,
@@ -86,6 +87,10 @@ def parse_agent_usage(
         return parse_claude_usage(stdout)
     if backend == protocol.CODEX:
         return parse_codex_usage(stdout, fallback_model=fallback_model)
+    if backend == protocol.AGY:
+        metrics = UsageMetrics(backend=backend)
+        agy_summary.apply_usage(event_stream.iter_events(stdout), metrics, fallback_model)
+        return metrics
     raise ValueError(
-        f"unknown agent backend {backend!r}; expected 'claude' or 'codex'",
+        f"unknown agent backend {backend!r}; expected 'claude', 'codex', or 'agy'",
     )

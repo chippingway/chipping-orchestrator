@@ -21,7 +21,7 @@ behavior belong to [`state-machine.md`](state-machine.md).
   earns, the tracked-repository awareness block the working-agent prompts carry, and the report contract every
   developer prompt teaches with the reader of its outcomes.
 - [`workflow/command-specs.md`](workflow/command-specs.md) — the spec grammar, backend selection and `CODEX_BIN` /
-  `CLAUDE_BIN`, worked examples, and what pinning a spec buys.
+  `CLAUDE_BIN` / `AGY_BIN`, worked examples, and what pinning a spec buys.
 
 For the higher-level design (multi-repo dispatch, push hardening, agent subprocess shape), see
 [`architecture.md`](architecture.md). For the audit event log and analytics sink, see
@@ -45,7 +45,7 @@ while `workflow:<tag>` is the **wire label** the GitHub issue carries. `in_revie
 - **Reviewer** — `REVIEW_AGENT` (default `codex`), spawned fresh by validating every round, so the current config
   always wins.
 
-The defaults (`claude` decomposes, `claude` implements, `codex` reviews) use both backends; both CLIs need to be
+The defaults (`claude` decomposes, `claude` implements, `codex` reviews) require those two CLIs; both need to be
 authenticated on the host before the orchestrator starts. Per-role detail:
 [`workflow/roles.md`](workflow/roles.md#the-three-roles).
 

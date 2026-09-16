@@ -33,6 +33,7 @@ ConfigWarning = Callable[[str], None]
 
 # Default value for boolean env knobs that ship enabled.
 _DEFAULT_ENABLED = "on"
+_AGY = "agy"
 _CLAUDE = "claude"
 _CODEX = "codex"
 _DEFAULT_REPO = "chippingway/orchestrator"
@@ -79,8 +80,8 @@ def parse_agent_spec(
     Accepts a bare backend (`claude`) or a backend with backend-CLI args
     (`codex -m gpt-5.5 -c 'model_reasoning_effort="xhigh"'`). Tokens are
     split with `shlex` so quoting works the same way an operator would
-    type the command in a shell. The first token must be `codex` or
-    `claude`; anything else aborts at import so a typo cannot silently
+    type the command in a shell. The first token must be `codex`, `claude`,
+    or `agy`; anything else aborts at import so a typo cannot silently
     fall back to a default backend on next restart.
 
     The same parser is reused at runtime by `orchestrator.workflow` to
@@ -92,27 +93,27 @@ def parse_agent_spec(
     if not raw_spec:
         config_error(
             f"orchestrator: {setting_name}={agent_spec!r} is empty; "
-            "expected 'codex' or 'claude' (optionally followed by CLI args)",
+            "expected 'codex', 'claude', or 'agy' (optionally followed by CLI args)",
         )
     try:
         spec_tokens = shlex.split(raw_spec)
     except ValueError as error:
         config_error(
             f"orchestrator: {setting_name}={agent_spec!r} is not a valid "
-            f"shell-like command spec ({error}); expected 'codex' or "
-            "'claude' (optionally followed by CLI args)",
+            f"shell-like command spec ({error}); expected 'codex', 'claude', "
+            "or 'agy' (optionally followed by CLI args)",
         )
     if not spec_tokens:
         config_error(
             f"orchestrator: {setting_name}={agent_spec!r} parses to no "
-            "tokens; expected 'codex' or 'claude' "
+            "tokens; expected 'codex', 'claude', or 'agy' "
             "(optionally followed by CLI args)",
         )
     backend = spec_tokens[0].lower()
-    if backend not in (_CODEX, _CLAUDE):
+    if backend not in (_CODEX, _CLAUDE, _AGY):
         config_error(
             f"orchestrator: {setting_name}={agent_spec!r} first token "
-            f"{spec_tokens[0]!r} is invalid; expected 'codex' or 'claude'",
+            f"{spec_tokens[0]!r} is invalid; expected 'codex', 'claude', or 'agy'",
         )
     return backend, tuple(spec_tokens[1:])
 
@@ -398,6 +399,7 @@ class _SettingsResolver:
         resolved.update({
             "CODEX_BIN": env.get("CODEX_BIN", _CODEX),
             "CLAUDE_BIN": env.get("CLAUDE_BIN", _CLAUDE),
+            "AGY_BIN": env.get("AGY_BIN", _AGY),
             "AGENT_GIT_NAME": env.get("AGENT_GIT_NAME", "chipping-orchestrator"),
             "AGENT_GIT_EMAIL": env.get(
                 "AGENT_GIT_EMAIL", "chipping-orchestrator@users.noreply.github.com",

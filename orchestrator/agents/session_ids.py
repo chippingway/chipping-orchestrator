@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """The session id a resume is issued against, read off any backend's output.
 
-Which session a run belongs to is the one question asked of BOTH CLIs, and it
+Which session a run belongs to is the one question asked of all supported CLIs, and it
 is asked structurally: a UUID-shaped value at a known key, anywhere in the
 event tree, whatever shape the backend wrapped it in. That is why the walk
 lives apart from the `sessions` owner beside it -- those parsers read Claude's
 stream schema by name, while this one is deliberately typed by no backend and
-stays correct for output neither CLI has published yet.
+stays correct for output no supported CLI has published yet.
 """
 from __future__ import annotations
 

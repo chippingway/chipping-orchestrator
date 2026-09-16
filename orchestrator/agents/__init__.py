@@ -11,7 +11,7 @@ spawned into it in the ``processes`` owner, the group drain, liveness probe,
 and signal escalation those teardowns spend in the ``process_groups`` owner,
 and shared dispatch -- backend selection, result assembly, and spawn logging --
 in the ``runner`` owner; per-backend command construction and execution live in
-the ``agents.backends`` subpackage (``codex`` and ``claude``). This initializer
+the ``agents.backends`` subpackage (``codex``, ``claude``, and ``agy``). This initializer
 re-exports the narrow public surface (``__all__``): the model types, the
 ``run_agent`` dispatch entry, and the ``terminate_all_running`` shutdown hook.
 

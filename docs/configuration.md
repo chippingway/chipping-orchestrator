@@ -97,8 +97,8 @@ Slugs whose repo name contains `.lock`, `..`, or a trailing `.` (all rejected by
 
 ## Agent roles
 
-The first token of each role spec selects the backend (`codex` / `claude`); any remaining tokens are forwarded as
-backend-CLI args (model, reasoning effort, etc.). See
+The first token of each role spec selects the backend (`codex` / `claude` / `agy`); remaining tokens are forwarded
+as backend-CLI args (model, reasoning effort, etc.). See
 [`workflow/command-specs.md`](workflow/command-specs.md) for the spec format, in-flight session lock, and full
 examples.
 
@@ -126,6 +126,7 @@ examples.
   not on `$PATH`
 - `CLAUDE_BIN` — default `claude`. executable launched when a role's first token is `claude`; override only if
   `claude` is not on `$PATH`
+- `AGY_BIN` — default `agy`. executable launched for the Antigravity backend; override if it is not on `$PATH`
 - `ALLOWED_ISSUE_AUTHORS` — default _(unset)_. comma-separated GitHub logins; when set, only auto-pick-up unlabeled
   issues from those authors — the one path that runs an outsider's issue anyway is the restart of a cancelled late
   split, authorized by an operator removing `rejected`, a write only a repository's own people may make
@@ -702,8 +703,8 @@ needs, and when each individual setting takes effect are in
 ### What survives a restart
 
 Per-issue progress lives in the issue's pinned JSON comment on GitHub and in the per-issue worktree, so restarting
-between ticks loses nothing. The two hazards that are not covered by that — a live `codex` / `claude` child, and the
-agent spec pinned into an in-flight session — are in
+between ticks loses nothing. The two hazards that are not covered by that — a live `codex` / `claude` / `agy` child,
+and the agent spec pinned into an in-flight session — are in
 [`configuration/operations.md#what-survives-a-restart`](configuration/operations.md#what-survives-a-restart).
 
 ## Control labels

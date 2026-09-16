@@ -13,21 +13,22 @@ from orchestrator.agents import (
     session_ids as _session_ids,
     sessions as _sessions,
 )
-from orchestrator.agents.backends import claude as _claude, codex as _codex
+from orchestrator.agents.backends import agy as _agy, claude as _claude, codex as _codex
 from tests.agents import agent_test_support as _support, agent_test_values as _agent_cases
 
 # (label, backend runner) pairs so each owner-routing assertion runs against
-# both backends without duplicating the body per backend.
+# every backend without duplicating the body per backend.
 _BACKENDS = (
+    ("agy", _agy.run_agy),
     (_agent_cases._CODEX, _codex.run_codex),
     (_agent_cases._CLAUDE, _claude.run_claude),
 )
 
 
 class RunnerOwnerRoutingTest(unittest.TestCase):
-    """Patching the `runner` / `environment` owners intercepts both backends.
+    """Patching the `runner` / `environment` owners intercepts every backend.
 
-    The Codex / Claude backends resolve run options through
+    The Codex / Claude / Antigravity backends resolve run options through
     `runner.resolve_agent_run_options` and the child environment through
     `environment.agent_env` -- the direct owners, not facade-captured
     aliases -- so a monkeypatch on the owner module is observed by the

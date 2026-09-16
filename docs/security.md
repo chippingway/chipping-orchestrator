@@ -3,8 +3,8 @@
 This page maps the project security checklist to the `chipping-orchestrator` repo: what the repo files already enforce
 and what is **operator-owned** (GitHub or org settings that no file in the repo can set).
 
-The orchestrator gives `codex` / `claude` CLI subprocesses sandbox-bypass flags on the host, so the host is the real
-trust boundary — see [`architecture.md`](architecture.md#design-constraints).
+The orchestrator gives `codex` / `claude` / `agy` CLI subprocesses sandbox-bypass flags on the host, so the host is
+the real trust boundary — see [`architecture.md`](architecture.md#design-constraints).
 
 ## Checklist mapping
 
@@ -527,8 +527,9 @@ The security posture:
 ## Bounded agent spend per issue (`MAX_AGENT_RUNS_PER_ISSUE`)
 
 The scarce resource this deployment actually spends is agent time on the host: every workflow label an issue wears can
-put a `codex` or `claude` process in front of it, with sandbox bypass, for as long as the agent takes. The comment
-trust boundary above decides *whose words* reach one of those processes; this control decides *how many of them one
+put a `codex`, `claude`, or `agy` process in front of it, with sandbox bypass, for as long as the agent takes.
+The comment trust boundary above decides *whose words* reach one of those processes;
+this control decides *how many of them one
 issue may ever start*. Both matter, because the loops that spend agent time are not all reachable by a stranger — a
 review that keeps requesting changes, a resumed session that keeps failing, a candidate that keeps coming back
 oversized, and a rebase that keeps resetting the review round are all things the workflow does to itself.
