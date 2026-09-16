@@ -351,7 +351,7 @@ the two labels an adjudication RUNS under is refetched so neither reading of it 
 two are asked about only while closed, so an open `workflow:ready` issue costs nothing it did not already. It is
 also the one route the `backlog` / `paused` hard skip steps aside for: discarding a closed owner there discards the
 close itself, so the route is taken and the control label defers only the external work behind it. The other is one
-read of the issue's own pinned comment, which answers seven questions that stop a dispatch outright: a live late
+read of the issue's own pinned comment, which answers eight questions that stop a dispatch outright: a live late
 adjudication the label was moved out from under, a child of a split whose snapshot has since been reclaimed, an
 owner whose cancelled cycle has not reached its ending — which settles the cycle and writes its `rejected`
 terminal from wherever the owner has been left, so a reopen can neither resume the cycle nor slip past the ending
@@ -369,6 +369,14 @@ adjudication's road too, and asked again once the late reconciliation has run; a
 answered on its ineligible road by the dispatcher itself, and a missing checkout on one it drives is restored for the
 refresh to walk
 ([`state-machine/labels-and-state.md`][pinned-state])
+— a developer report the issue recorded and never finished publishing, which is answered last of the
+reconciliations and ahead of the reuse guard below: the record is durable and the publication that follows it is
+not, so a tick that died in between leaves a pull request without the report the next reviewer is meant to read,
+and no stage would go back for it. It proves the world the record froze, publishes or re-reads the report, and
+settles the whole obligation in one write; short of that it holds a read nobody could take, stands down on
+anything a route behind it would fix, retires a transaction whose pull request is over, and parks once on a record
+it may not act on
+([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch))
 — and, last, an unlabeled issue that already carries a pinned comment, which is one this orchestrator has met
 before: the pickup handler behind it *greets* an issue and mints its pinned comment, so a second greeting writes a
 second comment that every later read shadows

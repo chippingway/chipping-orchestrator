@@ -89,7 +89,8 @@ what each step reads and writes are in [`state-machine/labels-and-state.md`][per
 scheduler lifecycle around them are in
 [`architecture.md#per-tick-flow-workflowengineticktick`](architecture.md#per-tick-flow-workflowengineticktick).
 
-One park is answered by the dispatcher rather than by a stage. An issue standing on `agent_run_limit` has spent every
+Two parks are answered by the dispatcher rather than by a stage. The first is the agent-run limit. An issue
+standing on `agent_run_limit` has spent every
 agent run it is allowed, and every stage below reads `awaiting_human` as the park it was written against —
 a resume on the next trusted reply, a hold waiting on guidance, a classifier that refuses a command carrying none —
 none of which buys back a run. So it is held once, ahead of the handler table and behind only the two guards that
@@ -103,6 +104,17 @@ the work is over. The one reading of
 a thread that lifts it is answered in the same place: a trusted `/orchestrator add-agent-runs N`, bounded per
 command, which persists an allowance of exactly `used + N` and lets that tick go on to the stage its label names —
 what it widens is what the issue may still spend, since nothing returns a run already taken.
+
+The second is `report_record_damaged`, taken by the developer-report reconciliation for the same kind of reason: the
+record is the dispatcher's to act on, so a record nobody can read is nobody below's to explain. It is announced once
+and then held silently, and the same guard retires it — a record repaired and settled, or the field cleared to
+abandon the report, both take the flags down, because a park nothing takes back leaves every stage behind the guard
+reading the issue as waiting on a reply nobody owes. Where another route's park already stands, this one is **not**
+taken and the tick is **not** held: the pinned flags are single, so writing over that reason would discard an
+obligation a stage is still waiting on — and what answers a foreign park is the handler behind this guard, so
+holding in front of it would leave both parks standing for the life of the issue with neither announced. It stands
+down instead, and takes its own park on the tick after that one clears
+([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch)).
 
 ### Base refresh
 
