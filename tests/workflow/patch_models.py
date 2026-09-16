@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from orchestrator.agents.models import AgentResult
+from orchestrator.git.publication.commits import _Amendment
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow.repo_values import (
     _FAKE_WT,
@@ -16,7 +17,13 @@ from tests.workflow.repo_values import (
     FORK_POINT_SHA,
     HEAD_AFTER_RUN,
     HEAD_BEFORE_RUN,
+    MEASURED_CANDIDATE_SHA,
 )
+
+# The replacement a publication's amendment lands as by default: the commit the
+# size gate proves the checkout to, since in production the replacement IS the
+# head the gate then reads.
+LANDED_AMENDMENT = _Amendment(sha=MEASURED_CANDIDATE_SHA)
 
 
 @dataclass(frozen=True)
@@ -73,6 +80,16 @@ class _WorkflowRunContext:
     commit_contains: Any = True
     unpushed_branch: str | None = None
     first_commit_subject: str = ""
+    # The whole message a commit reads back as, which a publication ending a
+    # subject in its pull request's reference reads before amending it. The
+    # default carries no reference, so the ordinary docs push amends; a case
+    # about a commit already carrying one seeds that, and None is a read that
+    # did not happen.
+    commit_message: Any = "docs: update the documentation\n"
+    # What replacing that commit with one carrying the reference comes to:
+    # `LANDED_AMENDMENT` unless a case about a replacement git refused, or a
+    # checkout that moved off the commit, seeds that instead.
+    amended_commit: Any = LANDED_AMENDMENT
     fallback_prefix: str | None = None
     # What the squash-and-publish hands back. A tuple is the historical
     # spelling every case here was written in -- `(success, sha, count,

@@ -499,15 +499,25 @@ Every local git operation inside a worktree the agent can write to runs through 
 that neutralize `core.hooksPath` / `core.fsmonitor` / `credential.helper` / commit signing, `GIT_CONFIG_GLOBAL` and
 `GIT_CONFIG_SYSTEM` detached from `~/.gitconfig` and `/etc/gitconfig`, and the orchestrator's committer identity.
 
+The commits the orchestrator creates itself — the squash on approval, and the documenting pass's replacement of its
+docs commit with one whose subject ends in ` (#N)` — are made through `git/publication/commits`, under the same `-c`
+overrides for hooks, fsmonitor, and signing, the same detached global and system config, and `AGENT_GIT_*` as the
+identity. The replacement keeps the developer's author: `git commit-tree` rebuilds it from the docs commit's own
+tree, parents, and author, and a hardened `git update-ref` moves HEAD onto it only as a compare-and-swap against that
+commit, so a checkout something committed on in the meantime refuses the move instead of having the newer commit
+rewritten and published in its place.
+
 Git's own output is decoded with `surrogateescape` rather than strictly, for the same class of reason. A repository
 path is bytes, and a committed file whose name is not valid UTF-8 makes a strict decode raise inside `subprocess`
 before any caller sees a return code -- taking the tick out where the probe should have reported the extra path and
 parked the artifact it invalidates.
 
-One caller cannot afford to decode at all, so the same envelope has an undecoded form
+Two callers cannot afford to decode at all, so the same envelope has an undecoded form
 (`_git_hardened_bytes`). Text capture folds a CR LF pair and a lone CR into a single LF, and a carriage return is a
 byte a committed path may contain: a listing read as text names two different paths identically, which is harmless
-for a probe comparing against a permitted set and fatal for a digest. A third form lives in `git.streaming`:
+for a probe comparing against a permitted set and fatal for a digest. A commit message is the other: the documenting
+pass reads its docs commit's message to rewrite the subject and writes the rest back, and a CR LF body read as text
+would go back as an LF body nobody wrote. A third form lives in `git.streaming`:
 `_git_hardened_streamed` takes the request on stdin and hands stdout to a caller-supplied consumer a chunk at a time,
 assembling none of it, for output whose size an agent decides. Its other two streams are files rather than pipes, so
 reading stdout to exhaustion cannot deadlock against a stderr nobody is draining, and what git wrote there still comes

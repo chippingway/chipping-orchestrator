@@ -25,6 +25,7 @@ from orchestrator.git.measurement import (
     fingerprint as _measurement_fingerprint,
 )
 from orchestrator.git.publication import (
+    commits as _publication_commits,
     probes as _publication_probes,
     squash as _squash,
     titles as _publication_titles,
@@ -47,6 +48,7 @@ from orchestrator.git.worktrees import (
 )
 
 GIT_SEAM_OWNERS = MappingProxyType({
+    "_amend_commit_message": _publication_commits,
     "_anchor_pr_worktree": _anchoring,
     "_authed_fetch": _branch_transport,
     "_authed_target_fetch": _branch_transport,
@@ -58,6 +60,7 @@ GIT_SEAM_OWNERS = MappingProxyType({
     "_cleanup_question_worktree": _worktree_terminal,
     "_cleanup_terminal_branch": _worktree_terminal,
     "_commit_contains": _verification_probes,
+    "_commit_message": _publication_commits,
     "_commit_present": _verification_probes,
     "_committed_paths_since": _verification_probes,
     "_count_added_lines": _measurement,

@@ -33,6 +33,7 @@ _OWNERS = (
     "publication",
     "run",
     "state",
+    "subject",
 )
 
 # Bound at module scope, so collecting this file is what plants every owner in

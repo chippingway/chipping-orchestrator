@@ -35,6 +35,11 @@ land comes back to a pass this write already called finished, with the receipt
 it dropped: nothing tells that state from a `validating` approval handing the
 same head back, so the pass runs again rather than handing off on a receipt
 that could belong to either.
+
+Ahead of all of it, `subject` gives the docs commit its pull request's
+reference, and the id that hands back is the only one anything past it names:
+an amendment is a NEW commit, so an id taken before it would name a commit the
+branch no longer carries.
 """
 from __future__ import annotations
 
@@ -53,6 +58,7 @@ from orchestrator.workflow.stages.documenting import (
     models as _models,
     parks as _parks,
     state as _state,
+    subject as _subject,
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
@@ -92,7 +98,7 @@ def _stamp_docs_verdict(
     bought, and hands the issue to `in_review` a second time. Between two
     readings nothing can tell apart, running the pass is the safe one.
     """
-    state.set("docs_checked_sha", checked_sha)
+    state.set(_state._CHECKED_DOCS_SHA, checked_sha)
     state.set("docs_verdict", verdict)
     state.set("silent_park_count", 0)
     state.set(_state._SETTLED_DOCS_SHA, None)
@@ -143,15 +149,41 @@ def _push_docs_and_advance(
     it whichever way the answer went -- so a push that landed and a process
     that died before this stage could record it comes back to a receipt naming
     the published commit rather than to a pass nothing remembers.
+
+    Every one of those ids is the commit `subject._referenced_docs_commit`
+    hands back before the gate is entered, `docs_checked_sha` among them: under
+    `PR_REF_IN_SUBJECT` the record is re-anchored on that commit, so a hold, a
+    failed push, and a receipt each go down naming what this pass publishes.
+    With the switch off the anchor is the head the pass began at, which is what
+    every road that publishes a subject as it was written records.
     """
+    candidate = _subject._referenced_docs_commit(ctx, wt, after_sha)
+    if candidate is None:
+        return
+    anchored = ctx.state.get(_state._CHECKED_DOCS_SHA)
+    if config.PR_REF_IN_SUBJECT:
+        # What this pass publishes is the commit `subject` handed back, and
+        # every write from here down carries the record as it stands: the
+        # gate's own routed write for a held candidate, the approval a push
+        # that fails leaves for the retry, and the receipt a landed one rides.
+        # Anchored anywhere else -- on the head the pass began at, or on
+        # whatever an earlier one left where this road anchors nothing of its
+        # own -- each of those goes down naming a commit the rest of the record
+        # does not describe. Asked of the switch rather than of the id, since a
+        # subject that needed no amendment is published by the head already
+        # read and has to be named by the record just the same. The stamp below
+        # writes the same id again, so a pass that gets that far agrees with
+        # what a hold already said.
+        ctx.state.set(_state._CHECKED_DOCS_SHA, candidate)
     published = _late_push._publishes(
         _late_records._gate(ctx.gh, ctx.spec, ctx.issue, ctx.state, wt),
         ctx.branch,
         _late_gate_models._Entered(
-            # The commit this pass made, so the gate measures and pushes THAT
-            # rather than whatever the checkout became between the two reads
-            # -- which the stamp below would then record as documented.
-            candidate=after_sha,
+            # The commit this pass made, as its subject was amended above, so
+            # the gate measures and pushes THAT rather than whatever the
+            # checkout became between the two reads -- which the stamp below
+            # would then record as documented.
+            candidate=candidate,
             # The head the pull request was standing on before the pass ran.
             # Left for the gate to read afterwards, a pull request somebody
             # pushed to while the agent was out becomes the lease and this
@@ -159,11 +191,21 @@ def _push_docs_and_advance(
             # merge, so what it would drop is what that human would not see.
             head=entered_head,
             spends=_late_gate_models._Spends(fields=(
-                (_state._SETTLED_DOCS_SHA, after_sha),
+                (_state._SETTLED_DOCS_SHA, candidate),
             )),
         ),
     )
     if published.held:
+        if ctx.state.get(_state._SETTLED_DOCS_SHA) != candidate:
+            # A hold is two states wearing one answer. Where the gate ROUTED
+            # this candidate it left the receipt naming it, and the record
+            # describes a commit an adjudication still publishes. Where it
+            # REFUSED instead -- a tree it could not prove, a pull request
+            # nobody could read, a checkout standing somewhere else -- nothing
+            # was measured, recorded, or published, so the head the pass was
+            # anchored on before it ran goes back rather than the pass claiming
+            # one it never put anywhere.
+            ctx.state.set(_state._CHECKED_DOCS_SHA, anchored)
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
     if not published.landed:
@@ -174,7 +216,7 @@ def _push_docs_and_advance(
             "push_failed",
         )
         return
-    _stamp_docs_verdict(ctx.state, after_sha, "updated")
+    _stamp_docs_verdict(ctx.state, candidate, "updated")
     _post_docs_notice(ctx, notice)
     _handoff._advance_after_docs_push(ctx.gh, ctx.issue, ctx.state)
 

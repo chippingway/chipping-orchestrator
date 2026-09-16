@@ -18,6 +18,13 @@ _AWAITING_HUMAN = "awaiting_human"
 
 _LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 
+# The head a docs pass was last read against, which `in_review`'s merge gate
+# pings on with a `docs_verdict` beside it. Every shape re-anchors it on the
+# head it is about, and a pass that publishes re-anchors it again on the commit
+# it hands the size gate, so the record never names one commit while the fields
+# beside it name another.
+_CHECKED_DOCS_SHA = "docs_checked_sha"
+
 # The head a docs pass produced and the size gate held before it reached the
 # pull request. Written inside the gate's own routed write, ahead of the
 # relabel to `workflow:decomposing`, because a hold is the end of this stage's

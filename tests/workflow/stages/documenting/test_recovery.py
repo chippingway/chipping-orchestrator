@@ -13,7 +13,10 @@ from tests.workflow.fixtures import (
 from tests.workflow.stages.documenting import (
     documenting_test_support as documenting_support,
 )
-from tests.workflow.stages.documenting.documenting_assertion_test_support import _pr_comment_text
+from tests.workflow.stages.documenting.documenting_assertion_test_support import (
+    _assert_referenced_publication,
+    _pr_comment_text,
+)
 from tests.workflow.stages.documenting.documenting_test_support import (
     _BasicDocumentingFixture,
 )
@@ -155,21 +158,60 @@ class HandleDocumentingRecoveryTest(unittest.TestCase, _BasicDocumentingFixture)
             issue,
             run_agent=_agent(),
             push_branch=True,
-            # _head_sha is called once to record docs_checked_sha after
-            # the push.
-            head_shas=[SHA_RECOVERED],
+            # The recovered commit is read once, and HEAD once more to prove
+            # it stands on the replacement the amendment handed back.
+            head_shas=[documenting_support.SHA_UNREFERENCED, SHA_RECOVERED],
+            commit_message="docs: recovered notes\n",
             branch_ahead_behind=(1, 0),
         )
 
         # The agent must NOT be spawned -- the recovered commits are
         # enough to advance.
         mocks[RUN_AGENT].assert_not_called()
-        mocks[PUSH_BRANCH].assert_called_once()
         self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
         state = gh.pinned_data(self.issue_number)
         self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
-        self.assertEqual(state.get(DOCS_CHECKED_SHA), SHA_RECOVERED)
+        # A commit an earlier tick made is still one this orchestrator
+        # publishes, so it goes out under its pull request's reference.
+        _assert_referenced_publication(
+            self,
+            mocks,
+            state,
+            (
+                documenting_support.SHA_UNREFERENCED,
+                f"docs: recovered notes (#{self.pr_number})\n",
+            ),
+            SHA_RECOVERED,
+        )
         self.assertIn("recovered docs commit", _pr_comment_text(gh))
+
+    def test_referenced_commit_pushed_unamended(self) -> None:
+        # A commit an earlier tick amended and then never pushed -- the tick
+        # died, or its push failed -- already ends in this pull request's
+        # reference. The retry publishes that very commit: nothing is amended,
+        # the head is not read again, and the subject never carries the
+        # number twice.
+        gh, issue = self._seeded()
+        mocks = self._run_documenting(
+            gh,
+            issue,
+            run_agent=_agent(),
+            push_branch=True,
+            head_shas=[SHA_RECOVERED, documenting_support.SHA_UNREFERENCED],
+            commit_message=f"docs: recovered notes (#{self.pr_number})\n",
+            branch_ahead_behind=(1, 0),
+        )
+
+        mocks[documenting_support.AMEND_COMMIT_MESSAGE].assert_not_called()
+        self.assertEqual(mocks[documenting_support.HEAD_SHA].call_count, 1)
+        self.assertEqual(
+            mocks[PUSH_BRANCH].call_args.kwargs[documenting_support.REVISION],
+            SHA_RECOVERED,
+        )
+        self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
+        self.assertEqual(
+            gh.pinned_data(self.issue_number).get(DOCS_CHECKED_SHA), SHA_RECOVERED,
+        )
 
     def test_a_head_moved_after_the_probe_refuses(self) -> None:
         # The ahead/behind probe fetched the branch, proved a recovered docs

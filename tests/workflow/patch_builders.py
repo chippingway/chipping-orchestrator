@@ -109,6 +109,11 @@ def _publication_mocks(context: _WorkflowRunContext) -> dict[str, object]:
             return_value=context.first_commit_subject,
         ),
         "_infer_subject_prefix": prefix_mock,
+        # The message a publication reads, and the replacement that ends its
+        # subject in the pull request's reference. Each seed is the answer, or
+        # a callable taking the seam's place.
+        "_commit_message": _support._as_mock(context.commit_message),
+        "_amend_commit_message": _support._as_mock(context.amended_commit),
     }
 
 

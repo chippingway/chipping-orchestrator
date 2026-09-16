@@ -189,7 +189,7 @@ def _resume_documenting_dev(
     # spawn for the same reason the fresh-spawn shape does: a no-change verdict
     # on this resume relies on this watermark to identify the confirmed commit.
     before_sha = _verification_probes._head_sha(wt)
-    ctx.state.set("docs_checked_sha", before_sha or "")
+    ctx.state.set(_state._CHECKED_DOCS_SHA, before_sha or "")
     wt, documentation_result, paused = _dev_resume._resume_dev_with_text(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, _documentation_prompt(ctx),
         followup_has_tracked_repos=True,
@@ -255,7 +255,7 @@ def _fresh_documenting_run(
     `_handle_implementing`'s fresh-spawn branch.
     """
     before_sha = _verification_probes._head_sha(wt)
-    ctx.state.set("docs_checked_sha", before_sha or "")
+    ctx.state.set(_state._CHECKED_DOCS_SHA, before_sha or "")
     dev_spec, _, _, _ = _dev_session_read._read_dev_session(ctx.state)
     ctx.state.set("dev_agent", dev_spec)
     wt, documentation_result, paused = _dev_resume._resume_dev_with_text(

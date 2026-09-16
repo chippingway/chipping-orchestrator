@@ -5,6 +5,34 @@ from __future__ import annotations
 from tests.support.fakes import FakeGitHubClient
 
 RUN_AGENT = "run_agent"
+PUSH_BRANCH = "_push_branch"
+AMEND_COMMIT_MESSAGE = "_amend_commit_message"
+COMMIT_MESSAGE = "_commit_message"
+DOCS_CHECKED_SHA = "docs_checked_sha"
+REVISION = "revision"
+
+
+def _assert_referenced_publication(
+    case, mocks, state, amendment: tuple[str, str], published_sha: str,
+) -> None:
+    """The one push a docs pass made, the amendment ahead of it, and its stamp.
+
+    `amendment` is the commit the pass read and the message it was to carry.
+    The message read and the amendment are both asked for that commit by id,
+    since one bound to whatever HEAD became is the race the amendment refuses;
+    the push and `docs_checked_sha` are asked for the replacement it handed
+    back -- so a pass that pushed or stamped the commit the agent made reads as
+    the failure it is.
+    """
+    amended_from, message = amendment
+    mocks[PUSH_BRANCH].assert_called_once()
+    mocks[AMEND_COMMIT_MESSAGE].assert_called_once()
+    case.assertEqual(mocks[COMMIT_MESSAGE].call_args.args[1], amended_from)
+    case.assertEqual(
+        mocks[AMEND_COMMIT_MESSAGE].call_args.args[1:], (amended_from, message),
+    )
+    case.assertEqual(mocks[PUSH_BRANCH].call_args.kwargs[REVISION], published_sha)
+    case.assertEqual(state.get(DOCS_CHECKED_SHA), published_sha)
 
 
 def _agent_prompt(mocks) -> str:

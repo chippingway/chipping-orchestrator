@@ -74,6 +74,22 @@ DOCS_ARCHITECTURE = "docs/architecture.md"
 RUN_AGENT = "run_agent"
 PUSH_BRANCH = "_push_branch"
 
+# --- The reference a published docs commit's subject is amended to end in --
+AMEND_COMMIT_MESSAGE = "_amend_commit_message"
+COMMIT_MESSAGE = "_commit_message"
+HEAD_SHA = "_head_sha"
+COUNT_ADDED_LINES = "_count_added_lines"
+# The keyword a gated push names the commit it publishes by.
+REVISION = "revision"
+PR_REF_IN_SUBJECT = "PR_REF_IN_SUBJECT"
+SQUASH_ON_APPROVAL = "SQUASH_ON_APPROVAL"
+PARK_SUBJECT_AMEND_FAILED = "subject_amend_failed"
+SETTLED_DOCS_SHA = "docs_settled_sha"
+# The commit a docs pass made before its subject was amended to name the pull
+# request. What it is amended INTO is the head the size gate proves, so a
+# fixture spells that one with the SHAs above.
+SHA_UNREFERENCED = "d0c5" * 10
+
 UNCOMMITTED_CHANGE = "uncommitted change"
 TRUSTED_AUTHOR = "alice"
 USER_CONTENT_CHANGED = "issue body changed"

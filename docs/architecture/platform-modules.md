@@ -491,6 +491,19 @@ orchestrator/
       models.py         the frozen contexts, requests, snapshots, and decisions
       state.py          the pinned-state keys, park reasons, refresh detour labels, and the shared logger
     publication/        what a branch becomes before review reads it
+      commits.py        the commits the orchestrator creates on a branch itself -- the squash, and the documenting
+                        stage's replacement of its docs commit with one whose subject names the pull request --
+                        under one hardened envelope: detached global and system config, hooks, fsmonitor, and
+                        signing off, and `AGENT_GIT_*` as the identity. The replacement is bound to the commit it
+                        replaces rather than to HEAD: rebuilt from that commit's own tree, parents, and author with
+                        `git commit-tree`, so only its message and committer differ and the index is never read,
+                        then swapped onto HEAD by `git update-ref` against that commit, so a checkout something
+                        committed on meanwhile refuses instead of having the newer commit rewritten. The
+                        whole-message read it starts from is taken off the commit object under the hardened
+                        command envelope -- a `git log` rendering is what a repository-local config could change --
+                        with None for a read that did not happen rather than an empty message, and both that read
+                        and the rebuild carry the bytes git stored, since text capture would turn a CR LF body into
+                        an LF one on the way back in
       models.py         the record a squash hands back, in the three shapes it can end in -- published, refused, or
                         held by the size gate for the adjudication -- with a refusal NAMING which of four places
                         it left the branch: the approved commits at HEAD, off the tip and reachable only from the
@@ -875,11 +888,11 @@ orchestrator/
 The six subpackages bind their collaborators directly, so the dependency direction reads off the owner rather than
 off a facade:
 
-- `publication/` — `pr_references` calls nothing; `probes` and `titles` each call `commands` and neither calls the
-  other; `planning` calls `commands`, `titles`, `pr_references`, and the verification probes; `rewrite` calls
-  `commands`, `branch_transport`, and those same verification probes; `resume` calls `rewrite` and reaches the gate
-  through the one hop that owner spells; `standing` calls `resume` for the ancestry read and reaches the gate through
-  that same hop; `squash` calls `planning`, `resume`, `rewrite`, and `standing`.
+- `publication/` — `pr_references` calls nothing; `commits`, `probes`, and `titles` each call `commands` and none
+  calls another; `planning` calls `commands`, `titles`, `pr_references`, and the verification probes; `rewrite` calls
+  `commands`, `commits`, `branch_transport`, and those same verification probes; `resume` calls `rewrite` and reaches
+  the gate through the one hop that owner spells; `standing` calls `resume` for the ancestry read and reaches the gate
+  through that same hop; `squash` calls `planning`, `resume`, `rewrite`, and `standing`.
 - `verification/` — `output` calls `models`, `process` calls `output` and `status`, and `runner` calls `process`.
   `status` shares the NUL framing and submodule arguments defined on `probes` so both path reads agree.
   Both subprocess owners reach the agent package for what a spawned child costs rather than keeping a second copy:
