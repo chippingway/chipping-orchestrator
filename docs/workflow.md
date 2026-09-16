@@ -90,7 +90,9 @@ commit, and finished work ends on exactly one outcome — the report between `RE
 or a `REPORT: VERIFIED <location> <revision>` line naming
 a report already on the pull request. A fresh respawn's preamble restates the ownership and defers the outcome to the
 task below it. `workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and no stage
-handler calls it. Full contract:
+handler calls it. The durable half is defined and dormant beside it: the additive `developer_report_*` pinned records
+(`workflow/engine/report_record*` and `report_settlement_state.py`) are what would carry one outstanding publication
+across a process that dies mid-way, and no stage produces one and no dispatcher consumes one. Full contract:
 [`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts).
 
 ## Examples
