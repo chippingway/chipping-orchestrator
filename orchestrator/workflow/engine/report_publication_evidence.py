@@ -34,9 +34,6 @@ claim about work this orchestrator published, so the receipt has to vouch for it
 in both halves: the commit it names and the pull request it names, since a
 receipt left by some other publication -- an earlier one of this issue's, or one
 written before this transaction -- vouches for nothing here.
-
-DORMANT: `report_evidence.py` composes both readings and its own tests take them
-directly, and no dispatcher or stage handler reaches either yet.
 """
 from __future__ import annotations
 

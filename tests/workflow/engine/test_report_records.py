@@ -18,10 +18,15 @@ from orchestrator.github.pinned_state import (
 )
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
+    comments as _comments,
     report_record_state as _record_state,
     report_record_values as _record_values,
     report_records as _records,
     report_settlement_state as _settlement,
+)
+from orchestrator.workflow.late_split import formats as _formats
+from orchestrator.workflow.stages.implementing import (
+    late_publication_state as _publication_state,
 )
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import report_record_test_support as support
@@ -40,6 +45,29 @@ _UNCARRIABLE_RECEIPT = "issue 7 report 2"
 
 # A number past what any identity or revision may be recorded as.
 _BEYOND_RECORDED = _record_values.MAX_RECORDED_NUMBER + 1
+
+
+def _reserved() -> int:
+    """What a record reserves on the comment for the writes that follow it.
+
+    The comment-id entry publishing the report leaves, and the receipt the
+    publication gate writes when it pushes the commit. Both are read off the
+    owners the measurement itself replays rather than spelled here, because
+    what a crowding case has to allow for IS that measurement: a number of its
+    own would pass while the reservation drifted away from it.
+    """
+    entered = PinnedState()
+    _comments._reserve_comment_slot(entered, _record_values.MAX_RECORDED_NUMBER)
+    _publication_state._record_publication(
+        entered, _WIDEST_COMMIT, _WIDEST_COMMIT, _record_values.MAX_RECORDED_NUMBER,
+    )
+    return len(pinned_state_body(entered.data)) - len(pinned_state_body({}))
+
+
+# The widest either commit member of a publication receipt is recorded at.
+_WIDEST_COMMIT = "f" * max(_formats.COMMIT_LENGTHS)
+
+_RESERVED = _reserved()
 
 
 def _published(**fields) -> _records.PendingReport:
@@ -217,11 +245,13 @@ class BoundedRecordTest(unittest.TestCase):
         # identically for the rest of the issue's life.
         #
         # The fixture owes both groups on purpose. A settlement is not the two
-        # records alone: it advances the watermarks the run consumed and closes
-        # the round and bookmarks its route spent, and those land on this same
+        # records alone: it advances the watermarks the run consumed, closes
+        # the round and bookmarks its route spent, and records the comment the
+        # published report lands as, and every one of those lands on this same
         # comment -- so a transaction that owes bookkeeping settles LARGER than
         # the pending record it drops even where the report text is the bigger
-        # half.
+        # half. The receipt the publication gate writes lands on it too, which
+        # is why the room a record needs is more than the record itself.
         measured = PinnedState()
         _record_state.record_pending_report(measured, support.PUBLISHED)
         recorded = measured.get(_records.PENDING_REPORT)
@@ -245,9 +275,12 @@ class BoundedRecordTest(unittest.TestCase):
             MAX_PINNED_BODY,
         )
         # And the bookkeeping is part of that room: the same transaction owing
-        # none of it is accepted in the space this one was refused.
+        # none of it is accepted where this one was refused, once the writes
+        # that follow a record -- the comment-id entry the publication road
+        # adds, and the receipt the publication gate writes -- are allowed for
+        # beside it.
         self.assertTrue(_record_state.record_pending_report(
-            PinnedState(state_data={_FILLER: "y" * room}),
+            PinnedState(state_data={_FILLER: "y" * (room - _RESERVED)}),
             replace(support.PUBLISHED, watermarks=(), spends=()),
         ))
 

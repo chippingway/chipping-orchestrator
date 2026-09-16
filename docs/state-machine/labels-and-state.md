@@ -621,14 +621,10 @@ The keys that matter for the state machine fall into a few groups:
   pending record and neither settled one; and an issue inside any later publication carries all three at once — the
   new transaction beside the previous report and its receipt, which are what a reader still needs while the new one
   is outstanding and are exactly what the settlement then replaces. The owners are the
-  `workflow/engine/report_record*` and `report_settlement_state` modules. The group is defined and DORMANT: no stage
-  produces a record and no dispatcher consumes one, the contract is recorded and proved by its own tests, and the
-  completion that reconciles it lands with the stage that owns it. What such a completion would have to prove is
-  dormant beside the records (`workflow/engine/report_evidence.py` and the checkout, remote, and publication
-  readings under it): it re-reads every member of the frozen subject against the world, plus the code-publication
-  receipt below, and answers PROVED, HOLD for a read nobody could take, DEFER for anything a route behind it would
-  fix, or ENDED for a pull request that is over — reading the pull request ahead of the local world so an ending
-  cannot be hidden by a failed checkout or fetch. Nothing calls it yet either.
+  `workflow/engine/report_record*` and `report_settlement_state` modules, and what reconciles them ahead of every
+  handler is [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch).
+  No stage PRODUCES a record yet, so the group is empty on every live issue; the dispatcher's reconciliation is what
+  finishes one the moment a stage does.
 
   `developer_report_pending` is one publication transaction, written **before** the report or the code it reports
   on is published — that ordering is the whole of what makes the publication recoverable. It carries the receipt
@@ -643,8 +639,10 @@ The keys that matter for the state machine fall into a few groups:
   digest — and it outlives every transaction that put one there, so a later reader can tell a report this
   orchestrator published from one a human has edited since. `developer_report_handoff` is the receipt that one
   transaction finished; a replay under the same receipt recognizes its own completed work instead of repeating it.
-  Both settled records, and the drop of the pending record, belong in ONE durable write, because every split
-  between them is a window a crash turns into a second report or a round spent twice.
+  Both settled records, the watermarks the run consumed, the bookkeeping its route owed, and the drop of the pending
+  record land in ONE durable write, because every split between them is a window a crash turns into a second report
+  or a round spent twice. That write is composed whole before any of it is installed, so a settled record its own
+  writer refuses lands none of itself rather than dropping the pending record beside a published report.
 
   Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record.
   Both a pending verification's location and the settled `developer_report_current` location are bound to their own
@@ -676,11 +674,40 @@ The keys that matter for the state machine fall into a few groups:
   unchanged, or when either the comment it writes or the one its settlement would leave is past what GitHub
   accepts. That second measurement is taken here rather than at settlement, because by then the report is already
   on the thread and a refused write would leave a published comment beside a record still claiming it is owed. It
-  measures the WHOLE settling write — the watermarks it advances and the bookkeeping it closes as well as the two
-  records it adds — replayed through the owners that perform it rather than allowed for by a margin. Both settled
-  writers refuse on the same terms: a current report or a handoff its own reader would not hand back unchanged is
-  not stored, since a settled record nobody can act on is what the issue would carry in place of the one the report
-  it just published deserved.
+  measures the WHOLE settling write — the watermarks it advances, the bookkeeping it closes, the two records it
+  adds, and the `orchestrator_comment_ids` entry that publishing the report leaves between the two — replayed
+  through the owners that perform it rather than allowed for by a margin. That ledger entry is the one piece that
+  does not happen in the settlement itself, and it is the reason a transaction accepted at the ceiling without it
+  settles past the ceiling: the write that fails then fails after the report is already on the thread, and goes on
+  failing identically for the rest of the issue's life. The entry is reserved under an id the ledger does not
+  already hold, because the writer that records a comment is idempotent — reserving one already there reserves
+  nothing, while the publication lands under an id of its own and adds an entry anyway.
+
+  **The same measurement is taken again at publication**, against the comment as it stands then, and that is not
+  belt-and-braces: it is the only one that can be right. A transaction the dispatcher's reconciliation cannot
+  complete *stands down* on purpose, so the routes behind it run — and a park taken, a retry notice recorded, a
+  ledger entry added, a watermark advanced all write to this same comment. What the record reserved can be spent by
+  work entitled to spend it, leaving a comment GitHub still accepts and a settlement that no longer fits on top of
+  it. Refused before the post, nothing has happened and a later tick settles once the room comes back; refused at
+  the write, the report is already on the pull request.
+
+  The CODE-PUBLICATION RECEIPT is reserved beside it, in *both* measurements. A transaction can be recorded before
+  the commit it reports on is pushed; its evidence then stands down to the publication gate, and that gate writes
+  `implementing_published_sha` / `implementing_published_lease` / `implementing_published_pr` onto this same
+  comment when it pushes. That write lands between the record and the settlement, so a record accepted without
+  room for it leaves the gate's own write refused — or the settlement refused after the report is on the thread.
+  It is reserved through the gate's own writer, at the widest every member of that receipt can be recorded at —
+  a record cannot know the head a push will replace, and holding the other two to its own values would model a
+  receipt narrower than one the gate could write for a commit somebody pushed past it.
+
+  **Both worlds are measured**: the comment as it stands, and the same comment carrying that widest receipt.
+  Neither is wider than the other in every field, because the reservation *replaces* what is there — so against a
+  receipt already spelled wider than anything this build records (a hand edit, an older binary), the reserved world
+  is the smaller of the two, and measuring it alone would accept a record whose own write is past the ceiling the
+  moment it lands. Measuring both is what makes the answer "this record fits whatever happens next" rather than
+  "it fits one of the things that might". Both settled writers refuse on the same terms: a current report or a
+  handoff its own reader would not hand back unchanged is not stored, since a settled record nobody can act on is
+  what the issue would carry in place of the one the report it just published deserved.
 
   The watermark fields a record may advance are not spelled in this domain at all: they are read off
   `workflow/engine/prompt_delivery.py`, the owner that produces the consumed pairs a transaction freezes. Two lists

@@ -22,7 +22,7 @@ from __future__ import annotations
 import enum
 import logging
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from github.IssueComment import IssueComment
@@ -44,15 +44,54 @@ class ReportPresence(enum.Enum):
 
 @dataclass(frozen=True)
 class ReportLookup:
-    """One reading: its presence, and what it was read off.
+    """One reading: its presence, what it was read off, and that thing's id.
 
     `found` is the comment -- or, for a description, the pull request -- that
     answered PRESENT or CHANGED, so a caller can ask who wrote it before
     trusting it. Every other answer found nothing to hand over.
+
+    `landed_id` is resolved here, ONCE, when the reading is taken, rather than
+    answered afresh to whoever asks. That is what makes it part of the reading
+    instead of a question two callers can get different answers to: the id is
+    a member of an object GitHub handed back, so on a worker that has not
+    completed it the read is a request -- and a request can fail once and
+    succeed the next time it is made. Read twice on the publication road, the
+    ledger of this orchestrator's own comments would be written from one
+    answer and the settled report's location from the other, so a report
+    recorded as published would sit at a comment nothing recorded posting --
+    and the drift hash and every feedback scan would read its own text back as
+    a human's.
+
+    None is every answer but a usable identity, and callers owe them all the
+    same thing. A reading that found nothing names no comment; so does one
+    whose id would not read. And a caller holding a DESCRIPTION reading has a
+    pull request here rather than a comment, so the identity it finds is not a
+    comment id at all -- which is why only the conversation road asks.
     """
 
     presence: ReportPresence
     found: Any = None
+    landed_id: int | None = field(init=False, default=None)
+
+    def __post_init__(self) -> None:
+        """Resolve the identity of what was found, at the moment it was found.
+
+        Guarded, because `found` is an object GitHub handed back: on a worker
+        that has not completed it this is a request, and every caller of this
+        reading runs inside a dispatch guard where one that raised would leave
+        by an exception rather than by an answer -- out of the tick entirely.
+        """
+        try:
+            identity = getattr(self.found, "id", None)
+        except Exception:
+            log.warning(
+                "could not read the id of what a developer-report reading found",
+                exc_info=True,
+            )
+            identity = None
+        if isinstance(identity, bool) or not isinstance(identity, int):
+            identity = None
+        object.__setattr__(self, "landed_id", identity)
 
 
 @dataclass(frozen=True)

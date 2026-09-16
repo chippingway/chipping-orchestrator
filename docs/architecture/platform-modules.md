@@ -269,7 +269,15 @@ orchestrator/
                         later report on the same commit is a comment of its own -- while a pasted copy is not ours
                         and a post whose response was lost stays unconfirmed until a read settles it. A human's
                         report is reread by its exact pull request and comment (or description) against the
-                        content digest somebody verified, and the description is never written
+                        content digest somebody verified, and the description is never written. A reading also
+                        carries the identity of what it found, resolved ONCE when the reading is taken rather
+                        than answered afresh to whoever asks: the id is a member of an object GitHub handed
+                        back, so it is a request that can fail once and succeed the next time -- and the
+                        publication road asks twice, to write the comment ledger and to record where the settled
+                        report sits. Two answers there leave a report recorded at a comment nothing recorded
+                        posting. The read is guarded for the same reason every reading here is, since its
+                        callers run inside a dispatch guard where a raise leaves by an exception rather than by
+                        an answer
     pull_request_retirement.py
                         idempotent supersession notices followed by closure; an authenticated marker read can travel
                         from the caller so no extra request intervenes between its final proof and the write

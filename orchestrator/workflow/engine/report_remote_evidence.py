@@ -21,9 +21,6 @@ Ahead and behind are structural and stand down: the publication gate pushes an
 unpublished commit, and the base-sync and conflict routes answer a remote that
 has moved. A fetch or a comparison that did not happen holds instead, since
 nobody could say which of those it even was.
-
-DORMANT: `report_evidence.py` composes this reading and its own tests take it
-directly, and no dispatcher or stage handler reaches either yet.
 """
 from __future__ import annotations
 

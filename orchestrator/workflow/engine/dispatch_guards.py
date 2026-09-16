@@ -4,7 +4,9 @@
 
 Restart and cancellation precede ordinary stage routing. Stage-owned
 reconciliation remains lazily resolved, and a pinned but unlabeled issue
-is not greeted again.
+is not greeted again. The developer-report transaction is the one
+reconciliation here that belongs to no stage, so it is bound at module scope
+rather than resolved through `stage_targets.py`.
 """
 from __future__ import annotations
 
@@ -20,6 +22,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    report_transaction as _report_transaction,
     run_limit_dispatch as _run_limit_dispatch,
     stage_targets as _stage_targets,
 )
@@ -39,7 +42,7 @@ def _pinned_state_refuses(
 ) -> bool:
     """True when what this issue's own pinned comment records stops the tick.
 
-    ONE read, seven questions, because the read is what costs -- a comment
+    ONE read, eight questions, because the read is what costs -- a comment
     walk per labelled issue per dispatch, on top of the one that issue's own
     handler makes.
 
@@ -113,7 +116,7 @@ def _pinned_state_refuses(
     answered out of it. Imported at call time like the handlers below, since
     the stage tree imports this module.
 
-    The last of them is the size gate's own unfinished business, and it is
+    The sixth is the size gate's own unfinished business, and it is
     asked here for the reason the others are: it belongs to no one stage. A
     pair frozen for a pull request the remote already carries is durable and
     the count that follows it is not, so a tick that died in between leaves a
@@ -124,6 +127,13 @@ def _pinned_state_refuses(
     the freeze a resumable step rather than a window; scoped by the record's
     own source stage, so it is answered on the stage it was entered on and
     nowhere else.
+
+    The seventh is a developer report this issue recorded and never
+    finished publishing, which belongs to no one stage for the same reason:
+    the record outlives the run that wrote it, and the handler about to run
+    would spawn a reviewer over a report nobody put on the pull request.
+    Where it sits among the reconciliations above it, and why, is on
+    `_record_stops_the_tick` below, which is where the two are ordered.
 
     The spent agent-run ledger is asked between those two groups, and the
     place is the whole point of it. Behind the pair that RUN, because a
@@ -199,6 +209,26 @@ def _record_stops_the_tick(
     by the leased push it earns, it leaves the pull request carrying the
     replay and the anchor still pinned, and the handler behind would run
     before the recovery that finalizes it.
+
+    A developer report this issue recorded and never finished publishing is
+    answered last of the reconciliations, and behind that one for a reason: its
+    own evidence asks whether the commit the report is about reached the pull
+    request, and the reconciliation above is what settles a push that had been
+    frozen and never counted. Asked first, it would read a candidate mid-gate
+    as one whose code was never published and stand down every tick. Asked
+    here, the world it proves is the one the tick that recorded it meant to
+    hand on.
+
+    Behind the SECOND anchor reading too, for the half of that reason the
+    reconciliation alone does not cover: a pair settled by the leased push it
+    earns leaves the pull request carrying the replay and the anchor still
+    pinned, so a report published between the two would go onto work no
+    recovery has finalized -- and its own evidence would prove that world
+    sound, since the commit did reach the thread.
+
+    It stays ahead of the reuse guard and the handler, because both are roads
+    that carry on over a report nobody published -- and the reviewer at the end
+    of them is the reader the report was written for.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
@@ -214,6 +244,10 @@ def _record_stops_the_tick(
     if late_reconcile._reconciles_published_work(
         gh, spec, issue, label, state,
     ) or _anchor_holds_the_tick(gh, spec, issue, label, state):
+        return True
+    if _report_transaction._reconciles_pending_report(
+        gh, spec, issue, label, state,
+    ):
         return True
     late_reuse = importlib.import_module(_stage_targets._LATE_REUSE_OWNER)
     return (

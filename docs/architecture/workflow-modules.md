@@ -73,7 +73,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             shared by issue and pull-request comment posts; a developer report enters the ledger on
                             whichever reading finds it on the thread, since a post whose response was lost hands
                             back no id; callers persist the ledger, and shared token accounts are never treated as
-                            exclusively automated
+                            exclusively automated. The id a report landed as is read off the LOOKUP, which
+                            resolves it once when the reading is taken: this records a comment before its caller
+                            ever sees the reading, and an id answered afresh to each of them could fail here and
+                            succeed there -- leaving the settled report at a comment the ledger never learned
     prompt_context.py       trusted-author thread reads, retained orchestrator comment ids, quoted comment lines, and
                             bounded tracked-repository awareness for agent prompts; marker text alone cannot admit a
                             comment
@@ -103,8 +106,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the branch and is read there instead. Each parser returns the slice above its marker, the
                             part a human is shown
     stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call;
-                            the unlabeled target reaches pickup through the same resolver, and the report
-                            evidence's two code-publication receipt owners are named here for it
+                            the unlabeled target reaches pickup through the same resolver, and the two
+                            code-publication receipt owners are named here for it -- the report evidence reads
+                            them, and the pending record replays the gate's own write to size one
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption
     run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;
@@ -113,7 +117,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             operator controls; an already-pinned unlabeled issue is left where its labels put it.
                             A standing auto-rebase anchor holds the handler, on the adjudication's own road too,
                             and is asked again behind the reconciliation; whether it holds and what a held tick
-                            is owed are `base_sync/recovery_holds.py`'s
+                            is owed are `base_sync/recovery_holds.py`'s. The developer-report transaction is
+                            answered last of the reconciliations -- behind that second anchor reading as well as
+                            behind the reconciliation itself -- and ahead of the reuse guard: its own evidence asks
+                            whether the commit the report is about reached the pull request, which is the question
+                            the publication reconciliation settles and which a pair it leaves on a still-pinned
+                            anchor would answer soundly over work no recovery has finalized
     poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup; drop open
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket
@@ -212,25 +221,32 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record and an issue with nothing outstanding are the same absence to the reader and
                             opposite answers to the guard -- and a write refused rather than truncated when its own
                             reader would not hand the record back, or when either the comment it writes or the one
-                            its settlement would leave is past what GitHub accepts. That second measurement is the
-                            WHOLE settling write -- the watermarks it advances and the bookkeeping it closes as well
-                            as the two records it adds -- replayed through the owners that perform it rather than
-                            allowed for by a margin, so a field added to any of them moves this refusal with it
+                            its settlement would leave is past what GitHub accepts. That second payload and the
+                            fit test over it are published as a pair, because the publication asks them again on
+                            the tick it would settle: a record that stands down lets the routes behind the guard
+                            write to this same comment, so the room proved at acceptance is not the room the
+                            settlement has. It is the
+                            WHOLE settling write -- the watermarks it advances, the bookkeeping it closes, the two
+                            records it adds, and the comment-id ledger entry that publishing the report leaves
+                            between the two, reserved under an id that ledger does not already hold since its
+                            writer is idempotent. The code-publication receipt is reserved in BOTH measurements
+                            beside it, since a record written before its commit is pushed waits for the publication
+                            gate and that gate writes onto this same comment -- reserved at the widest that receipt
+                            records, and measured in BOTH worlds, since the reservation replaces what is there and a
+                            comment can carry a receipt wider than any spelling this build writes. All of it is
+                            replayed through the owners that perform those writes rather than allowed for by a
+                            margin, so a field added to any of them moves this refusal with it
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
                             one -- so either key is claimed by its presence alone, `null` included, which is the
                             one place this parts company with the pending record whose ordinary resting state that
-                            is. No stage produces this group and no dispatcher consumes it yet: the contract is
-                            recorded and proved by its own tests, and the completion that drives it lands with the
-                            stage that owns it
+                            is. No stage PRODUCES this group yet; what consumes one is the reconciliation below
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
-                            ENDED for a pull request that is over. The vocabulary heads the five evidence owners
-                            below, and all five are DORMANT: each is proved by its own tests, nothing composes them
-                            into a tick, and the reconciliation that would ask them lands with the owner that
-                            drives it
+                            ENDED for a pull request that is over. The vocabulary heads the four evidence owners
+                            below, which the reconciliation at the end of this group composes into one tick
     report_evidence.py      the affirmative evidence a completion needs, in two entry points: the pull-request
                             reading, which every other one stands behind, and the rest composed behind it cheapest
                             first. The requirements revision closes it, held against the one the run was handed and
@@ -255,6 +271,56 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             of its members, since standing on a commit says it is there and nothing about how it
                             got there. Both those owners are reached through `stage_targets.py`, resolved when
                             called
+    report_replay_guards.py whether a record and the settlement beside it are about one thing. Either settled record
+                            CLAIMED and unreadable stops the tick before anything is proved, since both are records
+                            a settlement writes over. Two READABLE settled records are then held to each other,
+                            without reference to any receipt: they are copied out of one pending record in one
+                            write, so a pair naming two pull requests, two revisions or two commits is one nothing
+                            here produced -- and under a previous transaction's receipt that is the only question
+                            there is, since such a pair is never compared against the record in hand. A handoff
+                            carrying THIS receipt is believed only beside the current report written with it, once
+                            its own pull request, commit and revision agree and once that report matches the pending
+                            record's whole subject AND the content that transaction would have left -- a
+                            publication's own digest at a location that IS a comment, a verification's own exact
+                            location and revision -- which is the only half of a settled record that says which
+                            report actually landed and where. A `null` comment field is the pull request's
+                            description, which a verification records and a publication never writes. Believed on
+                            the receipt alone, or on the digest without the kind of place beside it, it would drop
+                            a pending record whose report was never published. A current report
+                            already recorded at this revision or a later one says the transaction in hand is stale,
+                            which settled would replace the newest report on the pull request with an older one.
+                            None answers with a repair: a caller that finds the records disagree stops, because
+                            choosing between them loses something unrecoverable
+    report_publishing.py    the two ways a proved transaction finishes -- a receipt-scoped post that a retry finds
+                            rather than repeats, and a re-read of a trusted location whose content still hashes to
+                            the revision verified -- and the one write that settles either, composed whole on a copy
+                            so that a settled writer's refusal lands none of itself rather than dropping the record
+                            beside a report nothing says the pull request carries. A refusal short of PRESENT is
+                            split the way the evidence beside it splits one: only a read nobody could take stops the
+                            tick, while an edited report, a deleted one, and an untrusted author are definite
+                            answers about content a human owns and stand down onto the routes behind the guard.
+                            The landed comment id and the verified report's author are read under boundaries of
+                            their own, since each is a lazy member that can fail on a worker holding an uncompleted
+                            object -- and an author nobody could read HOLDS rather than standing down, because it
+                            is not an author this deployment refuses. Both roads prove the room first: the
+                            settlement is re-measured against the comment as it stands before anything is posted,
+                            since what the record reserved may since have been spent by the routes a deferred
+                            transaction let run
+    report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
+                            terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
+                            and the stage: it hands work that has ENDED straight back -- a closed issue, or one
+                            wearing `done` or `rejected`, since a terminal label resolves to no handler and the
+                            no-op behind this guard protects nothing -- then settles what it can prove, holds what
+                            nobody could read, stands down on what a route behind it would fix, retires a
+                            transaction whose pull request is over, and parks once on a record it may not act on:
+                            one that will not read, a settled pair that contradicts itself, one whose handoff
+                            disagrees with it, and one a newer report has already passed. That park is its own to
+                            take and its own to retire -- the record repaired and settled, or the field cleared to
+                            abandon it, both take the flags down, and no other owner's park is ever touched. A park
+                            another route already holds STANDS THIS DOWN rather than holding in front of it: what
+                            answers one is the handler behind this guard, so a hold there would leave both parks
+                            standing for the life of the issue with neither announced, while a stand-down lets that
+                            handler run and takes this park on the tick after its own clears
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
     prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, the

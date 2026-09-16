@@ -19,6 +19,12 @@ from orchestrator.github.pinned_state import PinnedState
 
 _ORCH_COMMENT_ID_CAP = 500
 
+# The pinned field the comment-id ledger lives in. Named because a caller
+# measuring a write it has not made yet has to see what this ledger already
+# holds, and a second spelling of the field is a reservation that could be
+# reading a different one.
+_ORCH_COMMENT_IDS = "orchestrator_comment_ids"
+
 _ORCH_COMMENT_MARKER = _trust.ORCHESTRATOR_COMMENT_MARKER
 
 
@@ -30,7 +36,7 @@ def _orchestrator_ids(state: PinnedState) -> set[int]:
     review comments swallowed as bot noise (and the PR pinged ready for
     human merge over them).
     """
-    raw = state.get("orchestrator_comment_ids") or []
+    raw = state.get(_ORCH_COMMENT_IDS) or []
     return {int(comment_id) for comment_id in raw}
 
 
@@ -44,7 +50,7 @@ def _track_orchestrator_comment(state: PinnedState, comment_id: int) -> None:
     keeps the position it has: what the bound evicts is the oldest comment
     rather than the least recently re-recorded.
     """
-    raw = state.get("orchestrator_comment_ids")
+    raw = state.get(_ORCH_COMMENT_IDS)
     ids = list(raw) if isinstance(raw, list) else []
     identified = int(comment_id)
     if identified in ids:
@@ -52,7 +58,36 @@ def _track_orchestrator_comment(state: PinnedState, comment_id: int) -> None:
     ids.append(identified)
     if len(ids) > _ORCH_COMMENT_ID_CAP:
         ids = ids[-_ORCH_COMMENT_ID_CAP:]
-    state.set("orchestrator_comment_ids", ids)
+    state.set(_ORCH_COMMENT_IDS, ids)
+
+
+def _reserve_comment_slot(state: PinnedState, widest: int) -> None:
+    """Reserve what recording one more comment will cost this ledger.
+
+    For a caller MEASURING a write that has not happened yet, rather than one
+    recording a comment that has. Publishing a report records the comment it
+    landed as, so a measurement taken before that publication has to carry the
+    entry it will add.
+
+    The writer above is idempotent, which is right for it and wrong here: an id
+    the ledger already holds reserves nothing at all, and the measurement then
+    under-counts by exactly the entry the real publication goes on to add. So
+    the id reserved is one this ledger does NOT hold.
+
+    `widest` is the width the caller's domain records an id at, and the search
+    walks DOWN from it. A real comment id is never wider, so the entry reserved
+    is never narrower than the one that lands; and the walk is bounded by the
+    entries this ledger carries, which the cap above bounds in turn, so it
+    stays at that width and ends within a step per entry.
+    """
+    raw = state.get(_ORCH_COMMENT_IDS)
+    held = {
+        entry for entry in raw if isinstance(entry, int)
+    } if isinstance(raw, list) else set()
+    reserved = widest
+    while reserved in held:
+        reserved -= 1
+    _track_orchestrator_comment(state, reserved)
 
 
 def _with_orch_marker(body: str) -> str:
@@ -125,9 +160,16 @@ def _publish_developer_report(
 
     The marker is not appended here: the report's own rendering carries it,
     because that rendering is what a retry compares byte for byte.
+
+    The id is read off the LOOKUP rather than off the object it carries. That
+    read is a request on a worker holding an uncompleted object, and this runs
+    inside a dispatch guard where one that raised would leave by an exception
+    rather than by an answer -- out of the tick entirely. It happens here,
+    before the caller ever sees the reading, so a boundary the caller put
+    around its own read would be the second one and this the raise.
     """
     lookup = gh.publish_developer_report(pr, report)
-    posted_id = getattr(lookup.found, "id", None)
+    posted_id = lookup.landed_id
     if lookup.presence is _pr_reports.ReportPresence.PRESENT and posted_id is not None:
-        _track_orchestrator_comment(state, int(posted_id))
+        _track_orchestrator_comment(state, posted_id)
     return lookup
