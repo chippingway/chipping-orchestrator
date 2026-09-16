@@ -530,9 +530,13 @@ orchestrator/
                         every publisher: a subject already ending in the same reference comes back unchanged, so a
                         retried or repeated publication never doubles it, and one naming any other number is
                         ordinary text the current reference is appended after. Only the subject line comes back,
-                        never a body, trailer, or closing keyword, and a pure function reading no git, GitHub, or
-                        configuration. The PR title `titles` selects never carries it, since that title is picked
-                        before the request has a number
+                        never a body, trailer, or closing keyword. Whether a subject is still OWED that reference
+                        answers here too, and it is the same rule read backwards -- the formatter is asked whether
+                        it would change the line, so a publisher deciding WHETHER to rewrite cannot disagree with
+                        what the rewrite would write and then double a reference or leave a missing one alone; no
+                        pull request at all owes nothing. Pure functions reading no git, GitHub, or configuration.
+                        The PR title `titles` selects never carries it, since that title is picked before the
+                        request has a number
       probes.py         the two branch-geometry reads, and nothing about what a commit SAYS -- `titles` beside it owns
                         that. One is the divergence reading -- the fetched ref resolved ONCE and HEAD counted against
                         that immutable commit, since the counts are a claim about the tip and a ref something moves

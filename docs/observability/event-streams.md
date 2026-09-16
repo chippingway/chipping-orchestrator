@@ -796,8 +796,10 @@ lets a later tick emit it again (**Duplicates** below). The record names both en
 for the pair it moved off — the
 publication it happened on, which is always `post_publication`, with `published_pr_number`, `published_sha` (the head
 that pull request stood on when the permission was granted, which the push was leased against), and `source_stage`
-beside it, `rewrite_kind` for which rewrite this workflow made (`squash` for the collapse an approval earns,
-`auto_clean_rebase` for the replay the base refresh publishes, and `conflict_rebase` for the one
+beside it, `rewrite_kind` for which rewrite this workflow made (`squash` for the rewrite an approval earns —
+whether it collapsed a history or only rewrote a one-commit branch's subject onto the pull request's reference,
+since the same reset, gate, and leased push make both — `auto_clean_rebase` for the replay the base refresh
+publishes, and `conflict_rebase` for the one
 `workflow:resolving_conflict` runs when a branch has stopped merging cleanly), and `transfer_proof` for which
 reading proved the push landed: `pushed` where the leased force-push moved the publication off the head the permit
 was granted against, and `already_published` where the rewritten commit was found on the pull request already rather
