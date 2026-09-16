@@ -41,6 +41,11 @@ _LATE_RECONCILE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_reconcile"
 # import pull the handlers that import it back.
 _LATE_PUBLICATION_STATE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_publication_state"
 
+# The owner that says whether the receipt group is SOUND, as against what
+# it claims. Named here and resolved when called for the same reason as the
+# reader above it.
+_LATE_RECEIPT_DAMAGE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_receipt_damage"
+
 # The owner that tells the `discussion` stage's plan from a delivery, read
 # through rather than re-derived so what counts as a plan is decided once.
 _IMPLEMENTING_HANDLER_OWNER = f"{_IMPLEMENTING_PACKAGE}.handler"

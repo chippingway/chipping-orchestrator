@@ -77,6 +77,29 @@ class PublicationRefusalTest(unittest.TestCase, support.ReportTransactionCase):
         self.assertFalse(self.reconcile())
         support.assert_still_owed(self)
 
+    def _unpublish(self) -> None:
+        """Leave the recorded commit on no pull request at all."""
+        self.pull_request.commit_shas = ()
+        self.pull_request.head.sha = support.MOVED_SHA
+
+
+class PullRequestIdentityTest(unittest.TestCase, support.ReportTransactionCase):
+    """The pull request has to be the recorded one, and still on the commit."""
+
+    def setUp(self) -> None:
+        support.ReportTransactionCase.setUp(self)
+        self.record()
+
+    def test_a_moved_pull_request_head_stands_down(self) -> None:
+        # Carrying the commit is what FOUND the pull request; it is not enough
+        # to settle on. A head pushed past the recorded commit leaves that
+        # commit in history while the work under review is no longer the work
+        # the report describes.
+        self.pull_request.head.sha = support.MOVED_SHA
+
+        self.assertFalse(self.reconcile())
+        support.assert_still_owed(self)
+
     def test_a_finished_pull_request_retires_it(self) -> None:
         # A report posted onto a merged thread is a comment nobody reads, and
         # holding one for it forever would strand the issue on work that is
@@ -88,50 +111,6 @@ class PublicationRefusalTest(unittest.TestCase, support.ReportTransactionCase):
         self.assertEqual(support.report_comments(self), [])
         self.assertIsNone(_record_state.read_pending_report(self.state))
         self.assertIsNone(_settlement.read_handoff(self.state))
-
-    def _unpublish(self) -> None:
-        """Leave the recorded commit on no pull request at all."""
-        self.pull_request.commit_shas = ()
-        self.pull_request.head.sha = support.MOVED_SHA
-
-
-class ReceiptRefusalTest(unittest.TestCase, support.ReportTransactionCase):
-    """Completion needs confirmed repository publication, not just a commit."""
-
-    def setUp(self) -> None:
-        support.ReportTransactionCase.setUp(self)
-        self.record()
-
-    def test_no_publication_receipt_stands_down(self) -> None:
-        self.state.set(support.PUBLISHED_SHA, None)
-
-        self.assertFalse(self.reconcile())
-        support.assert_still_owed(self)
-
-    def test_a_receipt_elsewhere_stands_down(self) -> None:
-        self.state.set(support.PUBLISHED_PR, support.OTHER_PR_NUMBER)
-
-        self.assertFalse(self.reconcile())
-        support.assert_still_owed(self)
-
-    def test_edited_requirements_stand_down(self) -> None:
-        # Publishing now would put a report answering the old requirements onto
-        # the pull request stamped with the revision it was written against.
-        self.issue.body = "the human rewrote the requirements"
-
-        self.assertFalse(self.reconcile())
-        support.assert_still_owed(self)
-
-    def test_an_issue_owing_nothing_costs_nothing(self) -> None:
-        # A settled transaction leaves the key holding `null`, so this is also
-        # every issue that has ever published a report.
-        _record_state.clear_pending_report(self.state)
-        writes = self.gh.write_state_calls
-
-        self.assertFalse(self.reconcile())
-
-        self.assertEqual(support.report_comments(self), [])
-        self.assertEqual(self.gh.write_state_calls, writes)
 
 
 if __name__ == "__main__":

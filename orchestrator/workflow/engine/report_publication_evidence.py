@@ -84,8 +84,15 @@ def receipt_verdict(
 ) -> _evidence_models.ReportEvidence | None:
     """Refuse until the code-publication receipt vouches for this commit.
 
-    Both halves of the receipt, because neither answers alone: the commit says
-    what reached a remote and the pull request says which publication now
+    The group is asked whole before either member is believed. `_record_
+    publication` writes all three keys on every receipt and clears all three on
+    none, so a partial group is not a record with a gap in it but one nothing
+    here produced -- and every reader in that domain is fail-closed, so read
+    member by member a damaged group answers "no receipt" and this evidence
+    would defer forever instead of saying what a human has to repair.
+
+    Then both halves, because neither answers alone: the commit says what
+    reached a remote and the pull request says which publication now
     carries it. Deferred rather than held, because what WRITES that receipt is
     the publication gate the stage behind this evidence reaches -- so a
     transaction recorded ahead of a push waits here for exactly one tick's
@@ -97,6 +104,14 @@ def receipt_verdict(
     the handlers it drives.
     """
     subject = pending.subject
+    damaged = importlib.import_module(
+        _stage_targets._LATE_RECEIPT_DAMAGE_OWNER,
+    )._damaged_receipt(state)
+    if damaged:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD,
+            f"the code-publication receipt cannot be read ({damaged})",
+        )
     publication_state = importlib.import_module(
         _stage_targets._LATE_PUBLICATION_STATE_OWNER,
     )
@@ -124,6 +139,13 @@ def _identified_verdict(
     record never named. One that is no longer open ends the transaction
     instead: a report posted to a merged or closed pull request is a comment
     nobody is going to read.
+
+    Carrying the commit is what FOUND this pull request, and it is not enough
+    to settle on. A head that has moved past the recorded commit -- a human
+    pushing to the branch, a rebase, a squash -- leaves the commit in the
+    pull request's history while the work under review is no longer the work
+    the report describes. The report names one commit, so the pull request has
+    to be standing on it.
     """
     if pull_request.number != subject.pr_number:
         return _evidence_models.ReportEvidence(
@@ -134,6 +156,11 @@ def _identified_verdict(
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.ENDED,
             "the pull request is no longer open",
+        )
+    if getattr(pull_request.head, "sha", None) != subject.source_sha:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER,
+            "the pull request has moved off the commit the report is about",
         )
     return _evidence_models.ReportEvidence(
         _evidence_models.ReportEvidenceVerdict.PROVED,

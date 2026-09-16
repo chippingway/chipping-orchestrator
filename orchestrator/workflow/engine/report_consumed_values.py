@@ -98,18 +98,20 @@ def recorded_pairs(
     """Return one recorded `[[field, value], ...]` group, or None for damage.
 
     All or nothing, and None rather than an empty group, because the two mean
-    opposite things: a record that carries no group owes nothing, while one
-    whose group will not read owes something this build cannot say. Applied
-    half-way, the round advances while the bookmark it was spent for stays
-    pending, and the next re-entry reruns a developer over feedback that was
-    already answered.
+    opposite things: a record that owes nothing carries an empty group, while
+    one whose group will not read owes something this build cannot say.
+    Applied half-way, the round advances while the bookmark it was spent for
+    stays pending, and the next re-entry reruns a developer over feedback that
+    was already answered.
 
-    An absent field is an empty group rather than damage, since a transaction
-    whose route closes nothing is ordinary -- an initial publication has no
-    reviewer round behind it and no batch to consume.
+    An EMPTY list is the ordinary "nothing owed" -- an initial publication has
+    no reviewer round behind it and no batch to consume -- and an absent or
+    `null` group is damage. The encoder writes both arrays on every record, so
+    a group that is not there was truncated or hand-edited, and reading it as
+    an empty one would let that record publish while silently dropping the
+    watermarks and the round it was supposed to close. The only legacy-safe
+    absence is the whole additive record, which the reader above answers for.
     """
-    if raw is None:
-        return ()
     if not isinstance(raw, list):
         return None
     if not all(allowed(pair) for pair in raw):

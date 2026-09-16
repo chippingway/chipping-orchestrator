@@ -78,6 +78,17 @@ class DamagedRecordTest(unittest.TestCase):
 
         self.assertIsNone(support.reads_back(state))
 
+    def test_a_location_elsewhere_refuses(self) -> None:
+        # A location is exact in both halves and still names a place anywhere
+        # in the repository. Unbound, a transaction recorded for one pull
+        # request would reread another's comment, find trusted content at the
+        # revision claimed, and record it as the report this one carries.
+        state = support.damaged(
+            support.VERIFIED, location_pr=support.PR_NUMBER + 1,
+        )
+
+        self.assertIsNone(support.reads_back(state))
+
     def test_a_damaged_handoff_proves_nothing(self) -> None:
         state = PinnedState(state_data={
             _records.REPORT_HANDOFF: {
@@ -107,9 +118,9 @@ class BookkeepingVocabularyTest(unittest.TestCase):
 
     def test_an_empty_group_owes_nothing(self) -> None:
         # An initial publication consumed no feedback and closed no reviewer
-        # round, so an absent group is nothing owed rather than damage.
+        # round, and the encoder writes that as an empty array.
         state = support.damaged(
-            support.PUBLISHED, **{_WATERMARKS: None, _SPENDS: None},
+            support.PUBLISHED, **{_WATERMARKS: [], _SPENDS: []},
         )
 
         recovered = support.reads_back(state)
@@ -117,6 +128,29 @@ class BookkeepingVocabularyTest(unittest.TestCase):
         self.assertIsNotNone(recovered)
         self.assertEqual(recovered.watermarks, ())
         self.assertEqual(recovered.spends, ())
+
+    def test_a_missing_group_is_damage(self) -> None:
+        # The encoder writes both arrays on every record, so a group that is
+        # not there was truncated or hand-edited. Read as an empty one, the
+        # record would publish while silently dropping the watermarks and the
+        # round it was supposed to close; only the whole additive record is a
+        # legacy-safe absence.
+        for group, nulled in (
+            (_WATERMARKS, True),
+            (_WATERMARKS, False),
+            (_SPENDS, True),
+            (_SPENDS, False),
+        ):
+            with self.subTest(group=group, nulled=nulled):
+                recorded = support.recorded(support.PUBLISHED)
+                recorded[group] = None
+                if not nulled:
+                    recorded.pop(group)
+                state = PinnedState(state_data={
+                    _records.PENDING_REPORT: recorded,
+                })
+
+                self.assertIsNone(support.reads_back(state))
 
     def test_consumable_fields_match_their_owners(self) -> None:
         # The vocabulary is spelled as literals so this owner stays free of the

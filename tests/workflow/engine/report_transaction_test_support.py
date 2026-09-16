@@ -12,18 +12,15 @@ The requirements revision is computed from the issue rather than written down,
 because that is what the evidence compares against: a fixture spelling a digest
 of its own would pass or fail on the fixture rather than on the record.
 
-The three git readings the evidence takes travel together on one `checkout`
-record, so a case that moves the head does not have to know which owner answers
-it -- and so this fixture keeps the attribute count a reviewer can hold.
+Every git reading the evidence takes travels on one `checkout` record, owned by
+`report_checkout_fixture` beside this, so a case that moves the head or the
+remote does not have to know which owner answers it.
 """
 from __future__ import annotations
 
 import contextlib
 import tempfile
-from dataclasses import dataclass
-from pathlib import Path
 
-from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     content_hash as _content_hash,
@@ -33,7 +30,8 @@ from orchestrator.workflow.engine import (
     report_transaction as _transaction,
 )
 from orchestrator.workflow.state import WorkflowLabel
-from tests.support.fakes import FakeGitHubClient, FakePR, make_issue
+from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, make_issue
+from tests.workflow.engine.report_checkout_fixture import Fetched, fresh_checkout
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_VALIDATING, SHA_LENGTH
 from tests.workflow.git_owners import seam_patch
 
@@ -59,6 +57,13 @@ PUBLISHED_SHA = "implementing_published_sha"
 
 PUBLISHED_PR = "implementing_published_pr"
 
+# The third member of the receipt group. `_record_publication` writes all three
+# keys on every receipt, so a fixture that left this one off would be seeding a
+# PARTIAL group -- which the receipt's own damage reader calls damage, and
+# rightly. `None` is what an initial publication records for the head it froze
+# none of.
+PUBLISHED_LEASE = "implementing_published_lease"
+
 PARK_REASON = "park_reason"
 
 AWAITING_HUMAN = "awaiting_human"
@@ -72,35 +77,31 @@ PR_WATERMARK = "pr_last_comment_id"
 PARK_DAMAGED = _transaction._DAMAGED_RECORD
 
 
-@dataclass
-class Checkout:
-    """What the three git readings answer for this case."""
-
-    path: Path
-    head: str
-    status: _WorktreeStatus
-
-
 class ReportTransactionCase:
     """An issue with one outstanding report transaction, and its world."""
 
     def setUp(self) -> None:
         worktrees = contextlib.ExitStack()
         self.addCleanup(worktrees.close)
-        self.checkout = Checkout(
-            path=Path(worktrees.enter_context(tempfile.TemporaryDirectory())),
-            head=SOURCE_SHA,
-            status=_WorktreeStatus(readable=True),
+        self.checkout = fresh_checkout(
+            worktrees.enter_context(tempfile.TemporaryDirectory()), SOURCE_SHA,
         )
         self.issue = make_issue(ISSUE_NUMBER, label=LABEL_VALIDATING)
+        # Standing ON the recorded commit, not merely carrying it: a head
+        # that has moved past the report's commit is a pull request whose work
+        # is no longer what the report describes.
         self.pull_request = FakePR(
-            number=PR_NUMBER, head_branch=BRANCH, commit_shas=(SOURCE_SHA,),
+            number=PR_NUMBER,
+            head_branch=BRANCH,
+            head=FakePRRef(sha=SOURCE_SHA),
+            commit_shas=(SOURCE_SHA,),
         )
         self.gh = FakeGitHubClient([self.issue])
         self.gh.add_pr(self.pull_request)
         self.state = PinnedState(comment_id=1, state_data={
             PUBLISHED_SHA: SOURCE_SHA,
             PUBLISHED_PR: PR_NUMBER,
+            PUBLISHED_LEASE: None,
         })
 
     def requirements(self) -> str:
@@ -150,6 +151,13 @@ class ReportTransactionCase:
             )
             seams.enter_context(
                 seam_patch("_head_sha", lambda *_args: self.checkout.head),
+            )
+            seams.enter_context(seam_patch(
+                "_authed_fetch",
+                lambda *_args, **_kw: Fetched(self.checkout.fetched),
+            ))
+            seams.enter_context(
+                seam_patch("_branch_divergence", lambda *_args: self.checkout.remote),
             )
             yield
 

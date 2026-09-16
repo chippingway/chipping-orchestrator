@@ -17,8 +17,9 @@ refusals beside them.
 
 The groups are asked cheapest first, so a transaction that was never going to
 complete this tick spends as little of GitHub's budget as it can: the checkout
-costs no request at all, the pull request costs one, and the requirements hash
-costs the comment walk the drift owner already makes.
+costs no request at all, the remote reading costs one fetch, the pull request
+costs one API call, and the requirements hash costs the comment walk the drift
+owner already makes.
 """
 from __future__ import annotations
 
@@ -34,6 +35,7 @@ from orchestrator.workflow.engine import (
     report_evidence_models as _evidence_models,
     report_publication_evidence as _publication,
     report_records as _records,
+    report_remote_evidence as _remote,
 )
 
 
@@ -54,6 +56,9 @@ def evidence_for(
     refused = _checkout.checkout_verdict(spec, issue, pending)
     if refused is not None:
         return refused
+    adrift = _remote.remote_verdict(spec, issue, pending)
+    if adrift is not None:
+        return adrift
     found = _publication.publication_verdict(gh, pending)
     if not found.proved:
         return found

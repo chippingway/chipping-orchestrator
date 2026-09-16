@@ -195,6 +195,44 @@ class DamagedRecordTest(unittest.TestCase, support.ReportTransactionCase):
 
         self.assertEqual(len(self.gh.posted_comments), posted)
 
+    def test_a_repaired_record_clears_the_park(self) -> None:
+        # The park's notice promises the next tick resumes on its own, so a
+        # record that reads again has to take the park down with it -- left
+        # standing, every stage behind this guard reads `awaiting_human` as an
+        # issue waiting on a reply nobody owes.
+        self.state.set(_records.PENDING_REPORT, {"receipt": support.RECEIPT})
+        self.reconcile()
+        self.record()
+
+        self.assertFalse(self.reconcile())
+
+        self.assertEqual(len(support.report_comments(self)), 1)
+        self.assertIsNone(self.state.get(support.PARK_REASON))
+        self.assertFalse(self.state.get(support.AWAITING_HUMAN))
+
+    def test_an_abandoned_record_clears_the_park(self) -> None:
+        # Clearing the field is the other way the notice says the damage ends.
+        self.state.set(_records.PENDING_REPORT, {"receipt": support.RECEIPT})
+        self.reconcile()
+        _record_state.clear_pending_report(self.state)
+
+        self.assertFalse(self.reconcile())
+
+        self.assertIsNone(self.state.get(support.PARK_REASON))
+        self.assertFalse(self.state.get(support.AWAITING_HUMAN))
+
+    def test_another_owners_park_is_left_alone(self) -> None:
+        # Every other park belongs to a stage still waiting for what it asked
+        # for, and clearing one here would answer a human's question for them.
+        self.state.set(support.AWAITING_HUMAN, True)
+        self.state.set(support.PARK_REASON, "agent_timeout")
+        self.record()
+
+        self.assertFalse(self.reconcile())
+
+        self.assertEqual(self.state.get(support.PARK_REASON), "agent_timeout")
+        self.assertTrue(self.state.get(support.AWAITING_HUMAN))
+
 
 class VerifiedTransactionTest(unittest.TestCase, support.ReportTransactionCase):
     """A verification re-reads the location and never posts a report."""

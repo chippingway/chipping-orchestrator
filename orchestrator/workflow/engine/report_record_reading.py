@@ -61,9 +61,28 @@ def pending_from(recorded: dict) -> _records.PendingReport | None:
     if identity is None or routing is None:
         return None
     carried = _carried_by_mode(recorded, routing[_MODE])
-    if carried is None:
+    if carried is None or not _bound_to_subject(identity, carried):
         return None
     return _records.PendingReport(**identity, **routing, **carried)
+
+
+def _bound_to_subject(identity: dict, carried: dict) -> bool:
+    """Whether a verified location sits on the pull request this is about.
+
+    A location is exact in both halves and still names a place anywhere in the
+    repository: PR #13's description is a perfectly readable location holding
+    somebody else's text. Unbound, a transaction recorded for PR #12 would
+    reread it, find trusted content at the revision claimed, and record it as
+    the report PR #12 now carries -- a handoff for a report that is not on the
+    pull request at all.
+
+    A publication carries no location and has nothing to bind; what says where
+    it went is the comment the post returns.
+    """
+    location = carried.get("location")
+    if location is None:
+        return True
+    return location.pr_number == identity["subject"].pr_number
 
 
 def _identity_of(recorded: dict) -> dict | None:

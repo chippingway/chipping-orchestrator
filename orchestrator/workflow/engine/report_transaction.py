@@ -41,6 +41,7 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
+from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
@@ -55,6 +56,8 @@ from orchestrator.workflow.engine import (
 log = logging.getLogger("orchestrator.workflow")
 
 _PARK_REASON = "park_reason"
+
+_AWAITING_HUMAN = "awaiting_human"
 
 # What a record nobody can read is parked under. Durable, because the condition
 # does not clear on its own: what it asks for is the pinned comment repaired,
@@ -95,9 +98,43 @@ def _reconciles_pending_report(
     A handoff already naming this receipt is the replay of a transaction that
     finished -- the report landed and the process died before the record was
     dropped -- so the record goes and nothing is published a second time.
+
+    A CLOSED issue hands the tick back untouched, ahead of every reading. The
+    stage terminal that drains one runs behind this guard, so without the
+    question a human closing an issue whose pull request is still open would
+    get a report published and a handoff recorded on the way to `rejected`.
+    Nothing is written and nothing is dropped: the record, like the branch and
+    the debt beside it, is left exactly as it stands for that terminal, and for
+    the reopen that may yet make it live again.
     """
     if not _record_state.carries_pending_report(state):
+        return _clears_the_damage_park(gh, issue, state)
+    if issue_is_closed(issue):
+        log.info(
+            "issue=#%d is closed; leaving the developer report it still owes "
+            "to the stage terminal rather than publishing onto an issue "
+            "nobody wants", issue.number,
+        )
         return False
+    if _answers_what_is_owed(gh, spec, issue, state):
+        return True
+    return _clears_the_damage_park(gh, issue, state)
+
+
+def _answers_what_is_owed(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+) -> bool:
+    """Read the record this issue claims, and answer whatever it turns out to be.
+
+    Three things it can be, and only the last is a transaction to prove. A
+    record that will not read is damage a human has to repair. One whose
+    receipt a handoff already names is the replay of a transaction that
+    finished -- the report landed and the process died before the record was
+    dropped -- so the record goes and nothing is published a second time.
+    """
     pending = _record_state.read_pending_report(state)
     if pending is None:
         return _parks_the_damage(gh, issue, state)
@@ -190,8 +227,49 @@ def _drops(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
 
     The write is this owner's because no handler runs behind a drop that
     matters: a record left standing would be reconciled again on every poll,
-    and the reading that retires it is one this tick already paid for.
+    and the reading that retires it is one this tick already paid for. Any park
+    this owner took over the record goes down in that same write, since what
+    the park was waiting for is exactly what the drop settles.
     """
     _record_state.clear_pending_report(state)
+    _retires_damage_park(state)
     gh.write_pinned_state(issue, state)
     return False
+
+
+def _clears_the_damage_park(
+    gh: GitHubClient, issue: Issue, state: PinnedState,
+) -> bool:
+    """Retire a park this owner took once the record it was about is settled.
+
+    The park's own notice promises the next tick resumes on its own, and a park
+    nothing takes back is that promise unkept: the flags outlive the damage, and
+    every stage behind this guard reads `awaiting_human` as an issue waiting on
+    a reply nobody owes. So the two ways the damage ends -- the record repaired
+    and then settled, or the field cleared to abandon the report -- both come
+    through here.
+
+    False always: retiring a park finishes nothing, it only stops the tick
+    being held for something that is over.
+    """
+    if _retires_damage_park(state):
+        log.info(
+            "issue=#%d no longer carries the unreadable developer-report "
+            "record it was parked on; clearing the park", issue.number,
+        )
+        gh.write_pinned_state(issue, state)
+    return False
+
+
+def _retires_damage_park(state: PinnedState) -> bool:
+    """Clear this owner's own park, and say whether there was one.
+
+    Only ever its OWN reason. Every other park on the comment belongs to a
+    stage that is still waiting for what it asked for, and clearing one here
+    would answer a human's question on their behalf.
+    """
+    if state.get(_PARK_REASON) != _DAMAGED_RECORD:
+        return False
+    state.set(_AWAITING_HUMAN, False)
+    state.set(_PARK_REASON, None)
+    return True

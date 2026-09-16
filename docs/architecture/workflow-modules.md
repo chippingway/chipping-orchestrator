@@ -210,18 +210,30 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             revision held against the one the run was handed
     report_checkout_evidence.py the checkout half: on this host, clean by a reading that HAPPENED, and standing on
                             the commit the report is about
+    report_remote_evidence.py the remote half, which the checkout cannot answer: the recorded branch is fetched and
+                            one divergence reading decides all three of unpushed commits, a remote that moved on,
+                            and a tip that is not the commit the report is about. The branch asked for is the one
+                            the record FROZE, since the whole point of freezing it was that a later tick's answer
+                            can differ
     report_publication_evidence.py the pull-request half: the repository, then the pull request found by the COMMIT
-                            on the recorded branch and held against the number recorded, then whether it is still
-                            open -- and the code-publication receipt beside it, both halves, since carrying a
-                            commit says it is there and nothing about how it got there
+                            on the recorded branch, held against the number recorded, still open, and still
+                            STANDING on that commit -- carrying it is what found the pull request and is not enough
+                            to settle on, since a head pushed past it leaves the commit in history while the work
+                            under review is no longer what the report describes. The code-publication receipt is
+                            asked beside it, as one group through the receipt's own damage reader and then on both
+                            of its members, since carrying a commit says it is there and nothing about how it got
+                            there
     report_publishing.py    the two ways a proved transaction finishes -- a receipt-scoped post that a retry finds
                             rather than repeats, and a re-read of a trusted location whose content still hashes to
                             the revision verified -- and the one write that settles either
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
-                            and the stage: it settles what it can prove, holds what nobody could read, stands down
+                            and the stage: it hands a CLOSED issue straight back for the stage terminal that runs
+                            behind it, then settles what it can prove, holds what nobody could read, stands down
                             on what a route behind it would fix, retires a transaction whose pull request is over,
-                            and parks once on a record nobody can read
+                            and parks once on a record nobody can read. That park is its own to take and its own
+                            to retire -- the record repaired and settled, or the field cleared to abandon it, both
+                            take the flags down, and no other owner's park is ever touched
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
     prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, the
