@@ -55,6 +55,22 @@ _FILLER = "filler"
 # comment refuses on is the settling write rather than the record it drops.
 _SHORTEST_REPORT = "r"
 
+# The pinned field recording which comments this orchestrator posted.
+_LEDGER = "orchestrator_comment_ids"
+
+# The two ledgers a settlement is measured against: one with nothing in it, and
+# one already holding the widest id there is to reserve.
+_LEDGERS = (
+    ("empty", ()),
+    ("holding the widest id", (_record_values.MAX_RECORDED_NUMBER,)),
+)
+
+# The id the published comment lands under while a ceiling is being measured:
+# as wide as this domain records one, and neither of the two a reservation
+# would pick, so what the case measures is a real entry rather than the
+# modelled one happening to coincide with it.
+_POSTED_ID = 9000000000000000001
+
 # A comment id past the range every recorded number is held to, which is
 # what a settled record's own reader refuses to hand back.
 _UNRECORDABLE_ID = _record_values.MAX_RECORDED_NUMBER + 1
@@ -113,7 +129,7 @@ class SettledTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         self.reconcile()
 
         posted = _settlement.read_current_report(self.state).location.comment_id
-        self.assertIn(posted, self.state.get("orchestrator_comment_ids"))
+        self.assertIn(posted, self.state.get(_LEDGER))
 
     def test_a_refused_settlement_lands_nothing(self) -> None:
         # Both settled writers refuse what their own readers would not hand
@@ -157,18 +173,40 @@ class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         # that drops it is then nowhere near the ceiling. Crowded around a
         # report that says almost nothing, the settlement is what the record is
         # accepted or refused on -- which is the write this measurement is for.
-        self.state.set(_FILLER, "y" * self._largest_filler())
-        self.assertTrue(_record_state.record_pending_report(
-            self.state, self._at_the_ceiling(),
-        ))
+        #
+        # The second ledger is the collision: the writer that records a comment
+        # is idempotent, so a measurement reserving an id the ledger already
+        # holds reserves nothing while the real publication -- landing under an
+        # id of its own -- adds an entry anyway.
+        #
+        # The comment lands under a WIDE id, which is what the measurement
+        # models and what GitHub has been issuing for years. Left at the
+        # single-digit ids a fresh double hands out, the slack between a
+        # modelled widest id and a real narrow one absorbs the entry this is
+        # about and the case passes over its own bug.
+        for ledger, held in _LEDGERS:
+            with self.subTest(ledger=ledger):
+                self.setUp()
+                self.state.set(_LEDGER, list(held))
+                self.state.set(_FILLER, "y" * self._largest_filler())
 
-        self.assertFalse(self.reconcile())
+                self.assertTrue(_record_state.record_pending_report(
+                    self.state, self._at_the_ceiling(),
+                ))
+                with self._posting_wide():
+                    self.assertFalse(self.reconcile())
 
-        support.assert_one_report(self)
-        self.assertIsNone(_record_state.read_pending_report(self.state))
-        self.assertLessEqual(
-            len(pinned_state_body(self.state.data)), MAX_PINNED_BODY,
-        )
+                support.assert_one_report(self)
+                self.assertIsNone(
+                    _record_state.read_pending_report(self.state),
+                )
+                self.assertLessEqual(
+                    len(pinned_state_body(self.state.data)), MAX_PINNED_BODY,
+                )
+
+    def _posting_wide(self):
+        """Land the published comment under an id as wide as GitHub issues."""
+        return patch.object(self.gh, "_next_comment_id", return_value=_POSTED_ID)
 
     def _at_the_ceiling(self) -> _records.PendingReport:
         """The transaction each crowding case is measured with."""

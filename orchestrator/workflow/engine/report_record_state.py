@@ -184,10 +184,13 @@ def _settled_over(
     write that fails then fails after the report is already on the thread, and
     goes on failing identically for the rest of the issue's life.
 
-    Reserved only under PUBLISH, which is the only mode that posts. Modelled
-    through the ledger's own writer at the widest id it would record, so the
-    reservation moves with that writer -- its cap and its idempotence included
-    -- rather than standing as a second guess at what it costs.
+    Reserved only under PUBLISH, which is the only mode that posts, and through
+    the ledger's own owner rather than as a second guess at what an entry
+    costs, so the reservation moves with that owner's cap and eviction. What
+    the owner is handed is the width this domain records an id at; which id it
+    reserves at that width is the ledger's own to choose, because its writer is
+    idempotent and one it already holds would reserve nothing while the real
+    publication went on to add an entry of its own.
 
     None where either settled write refuses the record this transaction would
     hand it, which is a transaction with no settlement to measure at all. The
@@ -198,7 +201,7 @@ def _settled_over(
     """
     settled = _pinned_state.PinnedState(state_data=dict(state.data))
     if pending.mode is _records.ReportMode.PUBLISH:
-        _comments._track_orchestrator_comment(settled, _WIDEST_IDENTITY)
+        _comments._reserve_comment_slot(settled, _WIDEST_IDENTITY)
     _consumed.advance_consumed(settled, pending.watermarks)
     _consumed.close_bookkeeping(settled, pending.spends)
     recorded = _settlement.record_current_report(settled, _records.CurrentReport(

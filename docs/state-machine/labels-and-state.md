@@ -679,7 +679,9 @@ The keys that matter for the state machine fall into a few groups:
   through the owners that perform it rather than allowed for by a margin. That ledger entry is the one piece that
   does not happen in the settlement itself, and it is the reason a transaction accepted at the ceiling without it
   settles past the ceiling: the write that fails then fails after the report is already on the thread, and goes on
-  failing identically for the rest of the issue's life. Both settled
+  failing identically for the rest of the issue's life. The entry is reserved under an id the ledger does not
+  already hold, because the writer that records a comment is idempotent — reserving one already there reserves
+  nothing, while the publication lands under an id of its own and adds an entry anyway. Both settled
   writers refuse on the same terms: a current report or a handoff its own reader would not hand back unchanged is
   not stored, since a settled record nobody can act on is what the issue would carry in place of the one the report
   it just published deserved.

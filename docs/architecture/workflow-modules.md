@@ -218,8 +218,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its settlement would leave is past what GitHub accepts. That second measurement is the
                             WHOLE settling write -- the watermarks it advances, the bookkeeping it closes, the two
                             records it adds, and the comment-id ledger entry that publishing the report leaves
-                            between the two -- replayed through the owners that perform it rather than allowed for
-                            by a margin, so a field added to any of them moves this refusal with it
+                            between the two, reserved under an id that ledger does not already hold since its
+                            writer is idempotent -- replayed through the owners that perform it rather than
+                            allowed for by a margin, so a field added to any of them moves this refusal with it
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
