@@ -736,7 +736,13 @@ The keys that matter for the state machine fall into a few groups:
   and what reads it back is the recovery that took it: that route retries on every tick and stays silent while its
   own reason stands, so the reason is what tells a notice already on the thread from one to post afresh — and a park
   worded by the size gate behind it, which says its own piece on every reading it cannot take, is held for a human
-  rather than re-entered. The late
+  rather than re-entered. The developer-report reconciliation re-sets `report_record_damaged` for a reason of its
+  own: the park is the dispatcher's rather than a stage's, so the reason is the only thing that tells a tick whose
+  park it is standing over — this owner announces once, holds silently on its own, and retires *only* its own,
+  since every other reason belongs to a stage still waiting for what it asked for. Where one of those is already
+  standing it takes no park at all and does not hold either, because the route that answers a foreign park is the
+  handler behind this guard (see
+  [`delivery-stages.md`](delivery-stages.md#the-developer-report-transaction-every-dispatch)). The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,
   `late_candidate_moved`, `late_unauthorized_exemption`, `late_evidence_missing`, `late_plan_pr_hold_failed`,
   `late_generation_incomplete`, `late_worktree_missing`, `late_worktree_mutated`, `late_adjudicator_timeout`,

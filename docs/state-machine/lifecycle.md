@@ -547,7 +547,8 @@ than a second source of truth: where the two disagree, the handler pages are aut
    the same dispatch, on the same pinned read (the pair below is asked
        AHEAD of the reuse guard above, since both RUN rather than merely
        answer; the agent-run-limit hold sits between them and the reuse
-       guard, and the greeting refusal is asked behind it):
+       guard, the developer-report reconciliation sits between that hold
+       and the reuse guard, and the greeting refusal is asked behind it):
      late cycle a close ended, ─► the closed-owner ending below, run from
        cleanup unfinished          wherever the owner was left: reaches no
                                    handler, and writes that cycle's rejected
@@ -605,6 +606,45 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    earns one marker-scoped receipt; an
                                    untrusted one is answered with nothing.
                                    Neither ending returns a spent run
+     developer_report_pending  ─► the RECONCILIATION: prove the world the
+       on the pinned comment       record froze, then publish the report it
+                                   carries (idempotent by its receipt, so a
+                                   retry finds what an earlier attempt landed)
+                                   or re-read the exact location it names,
+                                   and settle one current report, one handoff,
+                                   the watermarks the run consumed, the
+                                   bookkeeping its route owed and the drop of
+                                   the record in ONE write. The record is
+                                   durable and the publication is not, so a
+                                   tick that died between them leaves a pull
+                                   request without the report the next
+                                   reviewer reads, and no stage goes back for
+                                   it. Asked LAST of the reconciliations --
+                                   behind the size gate's, whose settlement
+                                   is the very question this owner's evidence
+                                   asks, and behind the auto-rebase anchor on
+                                   both sides of it -- and ahead of the reuse
+                                   guard and the handler, which are roads that
+                                   carry on over a report nobody published.
+                                   Short of proof: a read nobody could take
+                                   HOLDS; a dirty tree, a moved head, an
+                                   unpublished commit, edited requirements, an
+                                   edited or deleted report, an untrusted
+                                   author, and a settlement the comment no
+                                   longer has room for all stand DOWN onto the
+                                   routes that fix them, with the transaction
+                                   still owed; a merged or closed pull request
+                                   RETIRES it; and a record this build may not
+                                   act on parks once
+                                   (report_record_damaged) -- unless another
+                                   route's park already stands, where it
+                                   stands down rather than overwrite one or
+                                   hold in front of the handler that answers
+                                   it. Work that has ENDED is handed back
+                                   untouched: a closed issue, or an open one
+                                   already wearing done|rejected, since a
+                                   terminal label resolves to no handler and
+                                   the no-op below would protect nothing
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every
