@@ -612,6 +612,77 @@ The keys that matter for the state machine fall into a few groups:
   may finish rather than one it merely found there.
 - **Drift baseline.** `user_content_hash` — SHA-256 over title + body + non-orchestrator comments; updated whenever
   the orchestrator reacts to a human edit.
+- **The developer report a pull request is owed and the one it carries.** The additive
+  `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group, each one nested
+  object, and each absent on every issue that predates it. They are not written together and none of them replaces
+  another: the pending record goes down when a transaction starts and is dropped when it settles, while the settled
+  pair records the last report that landed and stays until a later settlement overwrites it. So an issue between
+  publications carries the settled pair and no pending record; an issue inside its FIRST publication carries the
+  pending record and neither settled one; and an issue inside any later publication carries all three at once — the
+  new transaction beside the previous report and its receipt, which are what a reader still needs while the new one
+  is outstanding and are exactly what the settlement then replaces. The owners are the
+  `workflow/engine/report_record*` and `report_settlement_state` modules. The group is defined and DORMANT: no stage
+  produces a record and no dispatcher consumes one, the contract is recorded and proved by its own tests, and the
+  completion that reconciles it lands with the stage that owns it.
+
+  `developer_report_pending` is one publication transaction, written **before** the report or the code it reports
+  on is published — that ordering is the whole of what makes the publication recoverable. It carries the receipt
+  naming the transaction, the subject it is bound to (repository, pull request, branch, source commit, and the
+  requirements revision the developer run was actually handed), the report revision, whether it is owed a
+  publication or a verification, the route that produced it, the complete report text or the exact location and
+  content revision a verification asserts, the feedback watermarks the run consumed, and the round and bookmark
+  fields its route closes. The requirements revision is the one the run was GIVEN and never the one current when
+  publication finally lands, so a delayed report cannot be stamped as answering an edit it never saw.
+
+  `developer_report_current` is what the pull request carries now — subject, revision, exact location, and content
+  digest — and it outlives every transaction that put one there, so a later reader can tell a report this
+  orchestrator published from one a human has edited since. `developer_report_handoff` is the receipt that one
+  transaction finished; a replay under the same receipt recognizes its own completed work instead of repeating it.
+  Both settled records, and the drop of the pending record, belong in ONE durable write, because every split
+  between them is a window a crash turns into a second report or a round spent twice.
+
+  Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record.
+  Both a pending verification's location and the settled `developer_report_current` location are bound to their own
+  subject's pull request, since a location is exact in both halves and still names a place anywhere in the
+  repository — a subject naming one pull request beside a location on another would say the report this pull
+  request carries is somewhere else. Every optional-looking field is written on *every* record, so its absence is
+  damage rather than a default: an empty watermark or bookkeeping array is "nothing owed" while an absent or `null`
+  one is a truncation, and a location without its comment field is a truncation while the `null` spelled there is
+  the description. The only legacy-safe absence is the whole additive record. Because that absence is also what an
+  issue with nothing recorded reads as, presence is asked apart from meaning: an issue that CLAIMS a record nobody
+  can describe is the one answer a guard may not confuse with an issue that owes none.
+
+  What counts as a claim differs across the three, and it follows from which of them is ever cleared.
+  `developer_report_pending` is cleared on every settlement — the key stays and holds `null` — so `null` there is
+  its ordinary resting state and an absence, and only a payload that is present and is not an object is a claim.
+  Nothing clears either settled record; a settlement REPLACES one. So `developer_report_current` and
+  `developer_report_handoff` are claimed by the presence of their key alone, `null` included: a `null` there is a
+  truncated write or a hand edit, and read as an absence it would be silently replaced after the next report is
+  posted, or published over a second time because the handoff proving the first could not be seen.
+
+  The watermark and bookkeeping pairs are bounded per key and per shape, so a hand-edited record cannot write into
+  any field the workflow has, and the watermarks are ratcheted forward only. Every number is bounded too — each one
+  is copied into the records a settlement adds, and a watermark carries a second reason besides: a boundary past
+  every id GitHub will issue is one no later comment can pass, so a forward-only ratchet moved there would read
+  every human reply for the rest of the issue's life as already answered. Recorded text has to be text UTF-8 can
+  carry, which is not what `str` can hold: the comment is JSON, and JSON spells a lone surrogate as an escape that
+  round-trips here and raises where the report is hashed. A record is refused where it is declared — not truncated —
+  when it quotes a receipt marker of this orchestrator's, when this owner's own reader would not hand it back
+  unchanged, or when either the comment it writes or the one its settlement would leave is past what GitHub
+  accepts. That second measurement is taken here rather than at settlement, because by then the report is already
+  on the thread and a refused write would leave a published comment beside a record still claiming it is owed. It
+  measures the WHOLE settling write — the watermarks it advances and the bookkeeping it closes as well as the two
+  records it adds — replayed through the owners that perform it rather than allowed for by a margin. Both settled
+  writers refuse on the same terms: a current report or a handoff its own reader would not hand back unchanged is
+  not stored, since a settled record nobody can act on is what the issue would carry in place of the one the report
+  it just published deserved.
+
+  The watermark fields a record may advance are not spelled in this domain at all: they are read off
+  `workflow/engine/prompt_delivery.py`, the owner that produces the consumed pairs a transaction freezes. Two lists
+  would be two lists, and a drifted one fails silently at exactly the wrong moment — a producer surface the record
+  reader had never heard of makes one member unreadable, which refuses the whole group, which holds a transaction
+  whose report is written and whose feedback is already answered. What each field may HOLD is still bounded here,
+  because a key names a shape this domain has to prove.
 - **HITL park.** `awaiting_human`, `last_action_comment_id`, `park_reason`. `_park_awaiting_human` (on the same
   `workflow/engine/guards.py` owner as the two run refusals) sets
   `awaiting_human=True` and clears `park_reason` to `None`; a handler that needs the reason to survive into the next

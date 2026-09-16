@@ -179,11 +179,21 @@ that fence opened at the top level or in a list item (`workflow/engine/report_fe
 location and revision are parsed for shape only; completing on one is owed a fresh read of that location whose text
 still hashes to the revision.
 
-No stage handler calls `report_outcomes`, or publishes a report through the developer-report comment owners
-(`github/developer_reports.py`, `github/pull_request_reports.py`, and `workflow/engine/comments.py`'s
-`_publish_developer_report`). A developer run is still routed by its commits, its `ACK:` line, and the question parks
-the [delivery stages][delivery-stages] describe: nothing publishes the report an outcome carries, and a no-commit reply
-that ends on a report outcome is read the way its stage reads any other no-commit reply without `ACK:`.
+No stage handler calls `report_outcomes`, records a report transaction, or publishes a report through the
+developer-report comment owners (`github/developer_reports.py`, `github/pull_request_reports.py`, and
+`workflow/engine/comments.py`'s `_publish_developer_report`). A developer run is still routed by its commits, its
+`ACK:` line, and the question parks the [delivery stages][delivery-stages] describe: nothing publishes the report an
+outcome carries, and a no-commit reply that ends on a report outcome is read the way its stage reads any other
+no-commit reply without `ACK:`.
+
+The durable half of that publication is defined and dormant beside the vocabulary. The additive
+`developer_report_pending` / `developer_report_current` / `developer_report_handoff` group
+([`../state-machine/labels-and-state.md#pinned-state`](../state-machine/labels-and-state.md#pinned-state)) is what
+would carry one outstanding publication across a process that dies mid-way — the complete report text included,
+since a transaction recovered from a text nobody kept would have to ask an agent to write it again, and a second
+run is not the same report. Its owners read those records fail-closed and refuse to write one a later tick could
+not read back; no stage produces one and no dispatcher consumes one, so nothing records, reads, or settles a
+transaction yet.
 
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion
