@@ -55,6 +55,19 @@ class DisabledSinkAppendTest(unittest.TestCase):
                 _append_one()
             self.assertFalse(log_dir.exists())
 
+    def test_park_creates_no_file_when_disabled(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            sentinel = Path(td) / "must-not-be-created.jsonl"
+            _reload({_ANALYTICS_LOG_PATH: ""})
+            _recording_events.record_park_awaiting_human(
+                repo=_REPO_SHORT,
+                issue=1,
+                stage="implementing",
+                reason="agent_timeout",
+            )
+            self.assertFalse(sentinel.exists())
+            self.assertEqual(list(Path(td).iterdir()), [])
+
 
 if __name__ == "__main__":
     unittest.main()

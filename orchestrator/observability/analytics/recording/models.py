@@ -3,7 +3,7 @@
 """Typed recording requests and the keyword signatures callers bind through.
 
 One owner for what a recorder is asked to write and what it carries while
-writing it: the signature each of the three argument-bound event families is
+writing it: the signature each of the four argument-bound event families is
 reached through, the request the two renaming ones bind into, the inputs one
 completed tracked agent run is summarized from, and the two optional groups an
 `agent_exit` folds in when the run offered them.
@@ -16,9 +16,10 @@ field it lands in is named for what it holds. Binding through
 `TypeError` a missing argument raises stay exactly what a plain `def` would
 give, and the rename happens once, here, instead of at every call site.
 
-A catalog record renames nothing, so it declares a signature and no request:
-what a caller's keywords bind to is already the extras the record carries, and
-the field list stays free to grow without a producer's keywords moving.
+A catalog record and a human-park record rename nothing, so each declares a
+signature and no request: what a caller's keywords bind to is already the extras
+the record carries, and the field list stays free to grow without a producer's
+keywords moving.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     from orchestrator.agents.models import AgentResult
 
 
+REPO_FIELD = "repo"
 ISSUE_FIELD = "issue"
 RESULT_FIELD = "result"
 
@@ -115,7 +117,7 @@ def _parameter(
 
 STAGE_EVALUATION_SIGNATURE = inspect.Signature(
     (
-        _parameter("repo"),
+        _parameter(REPO_FIELD),
         _parameter(ISSUE_FIELD),
         _parameter("stage"),
         _parameter("duration_s"),
@@ -124,7 +126,7 @@ STAGE_EVALUATION_SIGNATURE = inspect.Signature(
 )
 REPO_SKILL_CATALOG_SIGNATURE = inspect.Signature(
     (
-        _parameter("repo"),
+        _parameter(REPO_FIELD),
         _parameter("base_branch"),
         _parameter("remote_name"),
         _parameter("skills_available"),
@@ -134,7 +136,7 @@ REPO_SKILL_CATALOG_SIGNATURE = inspect.Signature(
 )
 AGENT_EXIT_SIGNATURE = inspect.Signature(
     (
-        _parameter("repo"),
+        _parameter(REPO_FIELD),
         _parameter(ISSUE_FIELD),
         _parameter("stage"),
         _parameter("agent_role"),
@@ -148,6 +150,29 @@ AGENT_EXIT_SIGNATURE = inspect.Signature(
         _parameter("fallback_model", None),
         _parameter("prompt", None),
         _parameter("cwd", None),
+    )
+)
+PARK_AWAITING_HUMAN_SIGNATURE = inspect.Signature(
+    (
+        _parameter(REPO_FIELD),
+        _parameter(ISSUE_FIELD),
+        _parameter("stage", None),
+        _parameter("reason", None),
+        _parameter("route", None),
+        _parameter("agent_role", None),
+        _parameter("backend", None),
+        _parameter("agent_spec", None),
+        _parameter("session_id", None),
+        _parameter("resume_session_id", None),
+        _parameter("review_round", None),
+        _parameter("retry_count", None),
+        _parameter("pr_number", None),
+        _parameter("conflict_round", None),
+        _parameter("dirty_files", None),
+        _parameter("exit_code", None),
+        _parameter("timed_out", None),
+        _parameter("sha", None),
+        _parameter("reservation_id", None),
     )
 )
 

@@ -70,7 +70,7 @@ orchestrator/
                         knobs, the process-wide holder bound over it and the view an adapter reads one back
                         through, the record envelope and locked line both sinks reach disk through, and the by-age
                         prune that bounds each of them
-      recording/        the append side, publishing the six recorders a producer appends through (`__all__`): the
+      recording/        the append side, publishing the seven recorders a producer appends through (`__all__`): the
                         envelope and the append beneath them, and the token, cost, skill, and catalog steps a
                         finished agent run is summarized by before one of them writes
       query/            the read side of the Postgres target: the keyword vocabulary a read is called by, the

@@ -16,8 +16,8 @@ from tests.observability.observability_test_support import (
 
 _PACKAGE = "orchestrator.observability.analytics.recording"
 
-# The owner the three directly-called recorders and the sink append are
-# defined on, and the one that owns the sequenced fourth.
+# The owner the four directly-called recorders and the sink append are
+# defined on, and the one that owns the sequenced fifth.
 _EVENTS_OWNER = "events"
 
 _AGENT_EXIT_OWNER = "agent_exit"
@@ -42,13 +42,14 @@ _OWNER_MODULES = MappingProxyType({
 
 # What the package publishes, paired with the module that defines it. The
 # envelope is the shared `sink` owner's, because a trajectory record satisfies
-# it too; the append that resolves the analytics knob and the three recorders
+# it too; the append that resolves the analytics knob and the four recorders
 # a producer calls directly are `events`; and the family with a sequence to
 # run before it writes is `agent_exit`.
 _PUBLISHED_OWNERS = MappingProxyType({
     "append_record": _EVENTS_OWNER,
     "build_record": None,
     "record_agent_exit": _AGENT_EXIT_OWNER,
+    "record_park_awaiting_human": _EVENTS_OWNER,
     "record_repo_skill_catalog": _EVENTS_OWNER,
     "record_stage_enter": _EVENTS_OWNER,
     "record_stage_evaluation": _EVENTS_OWNER,

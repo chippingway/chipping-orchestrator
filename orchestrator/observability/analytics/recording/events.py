@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """The event families a run appends to the analytics sink.
 
-One owner for the analytics JSONL's own append and the three producer-facing
-recorders that reach it directly -- a stage entered, a stage evaluated, and a
-repo's skill catalog scanned. They sit together because they are one
-vocabulary: an event name, the envelope it satisfies, and the extras it adds
-are decided in the same place a reader looks for the shape a record has. The
-fourth family, a tracked agent run's exit, composes four steps before it
-writes and owns them on ``agent_exit`` beside this module, which reaches back
-here for the append. The envelope and the log channel are the shared ``sink``
-owner's, because the trajectory sink satisfies the same envelope and reports
-on the same channel; they are republished here as the import site a producer
-already names.
+One owner for the analytics JSONL's own append and the four producer-facing
+recorders that reach it directly -- a stage entered, a stage evaluated, a human
+park recorded, and a repo's skill catalog scanned. They sit together because
+they are one vocabulary: an event name, the envelope it satisfies, and the
+extras it adds are decided in the same place a reader looks for the shape a
+record has. The fifth family, a tracked agent run's exit, composes four steps
+before it writes and owns them on ``agent_exit`` beside this module, which
+reaches back here for the append. The envelope and the log channel are the
+shared ``sink`` owner's, because the trajectory sink satisfies the same envelope
+and reports on the same channel; they are republished here as the import site a
+producer already names.
 
 Where the file is and whether it exists at all is answered by the ``config``
 owner above this package, read off the ``settings`` holder beside it inside
@@ -34,6 +34,7 @@ import typing
 
 from orchestrator.observability.analytics import config as analytics_config, sink
 from orchestrator.observability.analytics.recording.models import (
+    PARK_AWAITING_HUMAN_SIGNATURE,
     REPO_SKILL_CATALOG_SIGNATURE,
     STAGE_EVALUATION_SIGNATURE,
     bind_stage_evaluation,
@@ -89,6 +90,38 @@ def record_stage_evaluation(*args: typing.Any, **kwargs: typing.Any) -> None:
 
 
 record_stage_evaluation.__signature__ = STAGE_EVALUATION_SIGNATURE
+
+
+def record_park_awaiting_human(
+    *args: typing.Any,
+    **kwargs: typing.Any,
+) -> None:
+    """Append one `park_awaiting_human` analytics record for an issue.
+
+    Carries the already-classified reason, bare stage tag, and bounded
+    structured correlation fields, dropping any whose value is None. Exposes
+    no input for comments, prompts, report bodies, command output, or secrets.
+    Disabled-sink behavior is inherited from `append_record` (no-op when the
+    sink is off).
+    """
+    park_fields = PARK_AWAITING_HUMAN_SIGNATURE.bind(*args, **kwargs)
+    park_fields.apply_defaults()
+    arguments = dict(park_fields.arguments)
+    repo = arguments.pop("repo")
+    issue = int(arguments.pop("issue"))
+    stage = arguments.pop("stage", None)
+    append_record(
+        build_record(
+            repo=repo,
+            issue=issue,
+            event="park_awaiting_human",
+            stage=stage,
+            **arguments,
+        )
+    )
+
+
+record_park_awaiting_human.__signature__ = PARK_AWAITING_HUMAN_SIGNATURE
 
 
 def record_repo_skill_catalog(
