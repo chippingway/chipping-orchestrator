@@ -24,6 +24,10 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_settlement_state as _settlement,
 )
+from orchestrator.workflow.late_split import formats as _formats
+from orchestrator.workflow.stages.implementing import (
+    late_publication_state as _publication_state,
+)
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import report_record_test_support as support
 
@@ -43,19 +47,27 @@ _UNCARRIABLE_RECEIPT = "issue 7 report 2"
 _BEYOND_RECORDED = _record_values.MAX_RECORDED_NUMBER + 1
 
 
-def _ledgered() -> int:
-    """What recording one published comment costs the pinned body, at its widest.
+def _reserved() -> int:
+    """What a record reserves on the comment for the writes that follow it.
 
-    Read off the ledger's own writer rather than spelled, because what the
-    settlement measurement reserves is that writer's growth: a case naming a
-    number of its own would pass while the reservation drifted.
+    The comment-id entry publishing the report leaves, and the receipt the
+    publication gate writes when it pushes the commit. Both are read off the
+    owners the measurement itself replays rather than spelled here, because
+    what a crowding case has to allow for IS that measurement: a number of its
+    own would pass while the reservation drifted away from it.
     """
     entered = PinnedState()
-    _comments._track_orchestrator_comment(entered, _record_values.MAX_RECORDED_NUMBER)
+    _comments._reserve_comment_slot(entered, _record_values.MAX_RECORDED_NUMBER)
+    _publication_state._record_publication(
+        entered, support.SOURCE_SHA, _WIDEST_COMMIT, support.PR_NUMBER,
+    )
     return len(pinned_state_body(entered.data)) - len(pinned_state_body({}))
 
 
-_LEDGERED = _ledgered()
+# The head a push could have replaced, at the widest a commit is recorded at.
+_WIDEST_COMMIT = "f" * max(_formats.COMMIT_LENGTHS)
+
+_RESERVED = _reserved()
 
 
 def _published(**fields) -> _records.PendingReport:
@@ -238,7 +250,8 @@ class BoundedRecordTest(unittest.TestCase):
         # published report lands as, and every one of those lands on this same
         # comment -- so a transaction that owes bookkeeping settles LARGER than
         # the pending record it drops even where the report text is the bigger
-        # half.
+        # half. The receipt the publication gate writes lands on it too, which
+        # is why the room a record needs is more than the record itself.
         measured = PinnedState()
         _record_state.record_pending_report(measured, support.PUBLISHED)
         recorded = measured.get(_records.PENDING_REPORT)
@@ -262,10 +275,12 @@ class BoundedRecordTest(unittest.TestCase):
             MAX_PINNED_BODY,
         )
         # And the bookkeeping is part of that room: the same transaction owing
-        # none of it is accepted where this one was refused, once the ledger
-        # entry the publication road adds is allowed for beside it.
+        # none of it is accepted where this one was refused, once the writes
+        # that follow a record -- the comment-id entry the publication road
+        # adds, and the receipt the publication gate writes -- are allowed for
+        # beside it.
         self.assertTrue(_record_state.record_pending_report(
-            PinnedState(state_data={_FILLER: "y" * (room - _LEDGERED)}),
+            PinnedState(state_data={_FILLER: "y" * (room - _RESERVED)}),
             replace(support.PUBLISHED, watermarks=(), spends=()),
         ))
 

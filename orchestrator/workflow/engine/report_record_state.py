@@ -17,6 +17,13 @@ opposite answers to the second. A caller settling a transaction asks both, so a
 damaged record holds the tick rather than reading as an issue with nothing
 outstanding.
 
+What that comment has to carry is measured over the whole window the record is
+outstanding for, not over the comment as it stands. A transaction can be
+recorded before the commit it reports on is pushed, and the publication gate
+behind the reconciliation writes a receipt onto this same comment when it
+pushes -- so the receipt is reserved here as well as the settlement, and a
+record is accepted only where both of the writes that follow it still fit.
+
 The write is refused rather than truncated when the record would not fit the
 comment. A transaction is worth exactly what a later tick can read back, and a
 half-written one is the shape this owner exists to refuse -- so a report too
@@ -25,6 +32,7 @@ and the caller hears that where it can still do something about it.
 """
 from __future__ import annotations
 
+import importlib
 from typing import Any
 
 from orchestrator.github import pinned_state as _pinned_state
@@ -37,6 +45,7 @@ from orchestrator.workflow.engine import (
     report_record_values as _record_values,
     report_records as _records,
     report_settlement_state as _settlement,
+    stage_targets as _stage_targets,
 )
 from orchestrator.workflow.late_split import formats as _formats
 
@@ -65,6 +74,12 @@ _SPENDS = "spends"
 _WIDEST_DIGEST = "f" * max(_formats.DIGEST_LENGTHS)
 
 _WIDEST_IDENTITY = _record_values.MAX_RECORDED_NUMBER
+
+# The one member of the code-publication receipt a record cannot know: the head
+# the push that publishes its commit will replace. Widest, for the reason the
+# two above are -- so the comment sized here is never smaller than the one the
+# gate actually writes.
+_WIDEST_COMMIT = "f" * max(_formats.COMMIT_LENGTHS)
 
 
 def carries_pending_report(state: _pinned_state.PinnedState) -> bool:
@@ -133,6 +148,24 @@ def record_pending_report(
     parks for a record this process itself produced. Refused here, the caller
     hears it while the run that wrote the report is still there to be told.
 
+    Both measurements are taken over a comment that already carries the
+    CODE-PUBLICATION RECEIPT this transaction is waiting for, because a record
+    may be written before the commit it reports on is pushed. The evidence
+    behind it then stands down to the publication gate, and that gate WRITES:
+    the commit it put on the remote, the head that push replaced, and the pull
+    request it went onto. That write lands between this record and the
+    settlement, on this same comment -- so a record accepted without room for
+    it leaves the gate's own write refused, or the settlement refused after the
+    report is already on the thread, and either way a transaction retrying
+    identically for the rest of the issue's life.
+
+    It is reserved whether or not the commit is published already, since a
+    record cannot know which and a later push onto the same commit rewrites the
+    head it replaced in any case. Written through the gate's own owner, with
+    this transaction's commit and pull request -- which are what the evidence
+    will require that receipt to name -- and the widest head it could have
+    replaced, which is the one member a record cannot know.
+
     The caller still owns `gh.write_pinned_state`, as every stage-facing writer
     here does, so the record rides whatever else that caller staged rather than
     landing in a write of its own ahead of it.
@@ -140,8 +173,17 @@ def record_pending_report(
     recorded = _encoded(pending)
     if recorded is None or _reading.pending_from(recorded) != pending:
         return False
-    staged = {**state.data, _records.PENDING_REPORT: recorded}
-    settled = _settled_over(state, pending)
+    reserved = _pinned_state.PinnedState(state_data=dict(state.data))
+    importlib.import_module(
+        _stage_targets._LATE_PUBLICATION_STATE_OWNER,
+    )._record_publication(
+        reserved,
+        pending.subject.source_sha,
+        _WIDEST_COMMIT,
+        pending.subject.pr_number,
+    )
+    staged = {**reserved.data, _records.PENDING_REPORT: recorded}
+    settled = _settled_over(reserved, pending)
     if settled is None or not _fits(staged) or not _fits(settled):
         return False
     state.set(_records.PENDING_REPORT, recorded)

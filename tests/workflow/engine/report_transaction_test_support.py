@@ -66,6 +66,9 @@ PUBLISHED_LEASE = "implementing_published_lease"
 
 PARK_REASON = "park_reason"
 
+# The pinned field recording which comments this orchestrator posted.
+LEDGER = "orchestrator_comment_ids"
+
 AWAITING_HUMAN = "awaiting_human"
 
 REVIEW_ROUND = "review_round"

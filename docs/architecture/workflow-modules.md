@@ -219,8 +219,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             WHOLE settling write -- the watermarks it advances, the bookkeeping it closes, the two
                             records it adds, and the comment-id ledger entry that publishing the report leaves
                             between the two, reserved under an id that ledger does not already hold since its
-                            writer is idempotent -- replayed through the owners that perform it rather than
-                            allowed for by a margin, so a field added to any of them moves this refusal with it
+                            writer is idempotent. The code-publication receipt is reserved in BOTH measurements
+                            beside it, since a record written before its commit is pushed waits for the
+                            publication gate and that gate writes onto this same comment. All of it is replayed
+                            through the owners that perform those writes rather than allowed for by a margin, so
+                            a field added to any of them moves this refusal with it
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces

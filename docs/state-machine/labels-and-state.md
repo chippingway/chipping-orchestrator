@@ -681,7 +681,16 @@ The keys that matter for the state machine fall into a few groups:
   settles past the ceiling: the write that fails then fails after the report is already on the thread, and goes on
   failing identically for the rest of the issue's life. The entry is reserved under an id the ledger does not
   already hold, because the writer that records a comment is idempotent — reserving one already there reserves
-  nothing, while the publication lands under an id of its own and adds an entry anyway. Both settled
+  nothing, while the publication lands under an id of its own and adds an entry anyway.
+
+  The CODE-PUBLICATION RECEIPT is reserved beside it, in *both* measurements. A transaction can be recorded before
+  the commit it reports on is pushed; its evidence then stands down to the publication gate, and that gate writes
+  `implementing_published_sha` / `implementing_published_lease` / `implementing_published_pr` onto this same
+  comment when it pushes. That write lands between the record and the settlement, so a record accepted without
+  room for it leaves the gate's own write refused — or the settlement refused after the report is on the thread.
+  It is reserved through the gate's own writer, with the transaction's commit and pull request (which are what the
+  evidence will require that receipt to name) and the widest head it could have replaced, which is the one member
+  a record cannot know. Both settled
   writers refuse on the same terms: a current report or a handoff its own reader would not hand back unchanged is
   not stored, since a settled record nobody can act on is what the issue would carry in place of the one the report
   it just published deserved.

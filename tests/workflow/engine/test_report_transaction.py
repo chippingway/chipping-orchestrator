@@ -17,11 +17,6 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.github import pull_request_reports as _pr_reports
 from orchestrator.github.developer_reports import content_digest
-from orchestrator.github.pinned_state import (
-    MAX_PINNED_BODY,
-    PinnedState,
-    pinned_state_body,
-)
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     comments as _engine_comments,
@@ -47,29 +42,6 @@ _SPENT_ROUND = 3
 _PENDING_FIX_AT = "pending_fix_at"
 
 _NEWER_REVISION = 2
-
-# What a crowding case fills the rest of the comment with.
-_FILLER = "filler"
-
-# A report that says something and almost nothing else, so that what a crowded
-# comment refuses on is the settling write rather than the record it drops.
-_SHORTEST_REPORT = "r"
-
-# The pinned field recording which comments this orchestrator posted.
-_LEDGER = "orchestrator_comment_ids"
-
-# The two ledgers a settlement is measured against: one with nothing in it, and
-# one already holding the widest id there is to reserve.
-_LEDGERS = (
-    ("empty", ()),
-    ("holding the widest id", (_record_values.MAX_RECORDED_NUMBER,)),
-)
-
-# The id the published comment lands under while a ceiling is being measured:
-# as wide as this domain records one, and neither of the two a reservation
-# would pick, so what the case measures is a real entry rather than the
-# modelled one happening to coincide with it.
-_POSTED_ID = 9000000000000000001
 
 # A comment id past the range every recorded number is held to, which is
 # what a settled record's own reader refuses to hand back.
@@ -129,7 +101,7 @@ class SettledTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         self.reconcile()
 
         posted = _settlement.read_current_report(self.state).location.comment_id
-        self.assertIn(posted, self.state.get(_LEDGER))
+        self.assertIn(posted, self.state.get(support.LEDGER))
 
     def test_a_refused_settlement_lands_nothing(self) -> None:
         # Both settled writers refuse what their own readers would not hand
@@ -151,84 +123,6 @@ class SettledTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         self.assertIsNone(self.state.get(support.REVIEW_ROUND))
         self.assertIsNotNone(_record_state.read_pending_report(self.state))
         self.assertEqual(self.gh.write_state_calls, 0)
-
-
-class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
-    """A transaction accepted at the ceiling is one its settlement fits in."""
-
-    def setUp(self) -> None:
-        support.ReportTransactionCase.setUp(self)
-        _record_state.clear_pending_report(self.state)
-
-    def test_a_record_at_the_ceiling_still_settles(self) -> None:
-        # The whole point of refusing a record the comment could not carry is
-        # that the SETTLING write happens after the report is on the thread.
-        # Publishing also RECORDS the comment the report landed as, and that
-        # entry lands between the two -- so a transaction accepted at the
-        # ceiling without it settles past the ceiling, and the write that fails
-        # then goes on failing identically for the rest of the issue's life.
-        #
-        # The comment is crowded rather than the report grown, because a long
-        # report makes the PENDING write the binding one and the settlement
-        # that drops it is then nowhere near the ceiling. Crowded around a
-        # report that says almost nothing, the settlement is what the record is
-        # accepted or refused on -- which is the write this measurement is for.
-        #
-        # The second ledger is the collision: the writer that records a comment
-        # is idempotent, so a measurement reserving an id the ledger already
-        # holds reserves nothing while the real publication -- landing under an
-        # id of its own -- adds an entry anyway.
-        #
-        # The comment lands under a WIDE id, which is what the measurement
-        # models and what GitHub has been issuing for years. Left at the
-        # single-digit ids a fresh double hands out, the slack between a
-        # modelled widest id and a real narrow one absorbs the entry this is
-        # about and the case passes over its own bug.
-        for ledger, held in _LEDGERS:
-            with self.subTest(ledger=ledger):
-                self.setUp()
-                self.state.set(_LEDGER, list(held))
-                self.state.set(_FILLER, "y" * self._largest_filler())
-
-                self.assertTrue(_record_state.record_pending_report(
-                    self.state, self._at_the_ceiling(),
-                ))
-                with self._posting_wide():
-                    self.assertFalse(self.reconcile())
-
-                support.assert_one_report(self)
-                self.assertIsNone(
-                    _record_state.read_pending_report(self.state),
-                )
-                self.assertLessEqual(
-                    len(pinned_state_body(self.state.data)), MAX_PINNED_BODY,
-                )
-
-    def _posting_wide(self):
-        """Land the published comment under an id as wide as GitHub issues."""
-        return patch.object(self.gh, "_next_comment_id", return_value=_POSTED_ID)
-
-    def _at_the_ceiling(self) -> _records.PendingReport:
-        """The transaction each crowding case is measured with."""
-        return self.pending(report=_SHORTEST_REPORT)
-
-    def _largest_filler(self) -> int:
-        """How much other state this issue can carry and still record one."""
-        low, high = 0, MAX_PINNED_BODY
-        while low < high:
-            tried = (low + high + 1) // 2
-            if self._records_beside(tried):
-                low = tried
-            else:
-                high = tried - 1
-        return low
-
-    def _records_beside(self, filling: int) -> bool:
-        """Whether the transaction fits beside `filling` characters of state."""
-        crowded = PinnedState(comment_id=1, state_data={
-            **self.state.data, _FILLER: "y" * filling,
-        })
-        return _record_state.record_pending_report(crowded, self._at_the_ceiling())
 
 
 class ReplayedTransactionTest(unittest.TestCase, support.ReportTransactionCase):
