@@ -4,7 +4,9 @@
 
 The engine names each defining module without binding the stage tree at
 import time. Cleanup has its own target, and the unlabeled entry goes to
-pickup through the same call-time resolution.
+pickup through the same call-time resolution. The two code-publication receipt
+owners the report evidence reads are named here for that reason as well, even
+though no label routes to either.
 """
 from __future__ import annotations
 
@@ -33,6 +35,18 @@ _DOCUMENTING_PACKAGE = "orchestrator.workflow.stages.documenting"
 _FIXING_PACKAGE = "orchestrator.workflow.stages.fixing"
 _IMPLEMENTING_PACKAGE = "orchestrator.workflow.stages.implementing"
 _LATE_RECONCILE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_reconcile"
+
+# The owner that reads the code-publication receipt group. Named here, and
+# resolved when called, for the reason every other stage owner on this list is:
+# the report evidence asks it whether a commit reached a pull request, and
+# binding the stage tree into the engine to ask would make the engine's own
+# import pull the handlers that import it back.
+_LATE_PUBLICATION_STATE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_publication_state"
+
+# The owner that says whether the receipt group is SOUND, as against what
+# it claims. Named here and resolved when called for the same reason as the
+# reader above it.
+_LATE_RECEIPT_DAMAGE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_receipt_damage"
 
 # The owner that tells the `discussion` stage's plan from a delivery, read
 # through rather than re-derived so what counts as a plan is decided once.

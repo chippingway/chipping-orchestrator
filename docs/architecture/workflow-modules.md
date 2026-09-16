@@ -103,7 +103,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the branch and is read there instead. Each parser returns the slice above its marker, the
                             part a human is shown
     stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call;
-                            the unlabeled target reaches pickup through the same resolver
+                            the unlabeled target reaches pickup through the same resolver, and the report
+                            evidence's two code-publication receipt owners are named here for it
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption
     run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;
@@ -223,6 +224,35 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is. No stage produces this group and no dispatcher consumes it yet: the contract is
                             recorded and proved by its own tests, and the completion that drives it lands with the
                             stage that owns it
+    report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
+                            alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
+                            for everything structural, which the routes behind the evidence are what clear; and
+                            ENDED for a pull request that is over
+    report_evidence.py      the affirmative evidence a completion needs, in two entry points: the pull-request
+                            reading, which every other one stands behind, and the rest composed behind it cheapest
+                            first. The requirements revision closes it, held against the one the run was handed and
+                            COMPUTED here rather than read, so the comment walk that computes it answers with a
+                            hold rather than leaving the reading by an exception
+    report_checkout_evidence.py the checkout half: on this host, clean by a reading that HAPPENED rather than by an
+                            empty path list, and standing on the commit the report is about
+    report_remote_evidence.py the remote half, which the checkout cannot answer: the recorded branch is fetched and
+                            one divergence reading decides all three of unpushed commits, a remote that moved on,
+                            and a tip that is not the commit the report is about. The branch asked for is the one
+                            the record FROZE, since the whole point of freezing it was that a later tick's answer
+                            can differ
+    report_publication_evidence.py the pull-request half: the repository, then ONE pull request read by the number
+                            the record froze, still open, on the recorded branch, with a head in this repository
+                            and STANDING on the recorded commit. Selected by number rather than searched for by
+                            commit, because a number is unique in a repository and a search is not -- several pull
+                            requests can stand on one branch carrying one commit, and a search answering with
+                            whichever it reached first would refuse the transaction forever while the recorded
+                            thread sits open on that very commit, and would hide an ending besides. A read that did
+                            not happen HOLDS, the lazy members included. The code-publication receipt is asked
+                            beside all of it, as one group through the receipt's own damage reader and then on both
+                            of its members, since standing on a commit says it is there and nothing about how it
+                            got there. Both those owners are reached through `stage_targets.py`, resolved when
+                            called. This whole group is DORMANT: it is proved by its own tests, and the
+                            reconciliation that would ask it lands with the owner that drives it
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
     prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, the
