@@ -92,7 +92,13 @@ a report already on the pull request. A fresh respawn's preamble restates the ow
 task below it. `workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and no stage
 handler calls it. The durable half is defined and dormant beside it: the additive `developer_report_*` pinned records
 (`workflow/engine/report_record*` and `report_settlement_state.py`) are what would carry one outstanding publication
-across a process that dies mid-way, and no stage produces one and no dispatcher consumes one. Full contract:
+across a process that dies mid-way, and no stage produces one and no dispatcher consumes one. Dormant beside those
+records is what a completion would have to PROVE first (`workflow/engine/report_evidence.py` and the checkout, remote
+and publication readings under it): an open, recorded pull request standing on the recorded commit, a clean checkout
+and an in-sync remote branch on that same commit, a code-publication receipt naming both, and requirements that have
+not moved since the run was handed them — answered PROVED, HOLD, DEFER, or ENDED, with the pull request read ahead of
+the local world so an ending cannot be hidden by a failed checkout or fetch. Nothing calls it yet either. Full
+contract:
 [`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts).
 
 ## Examples
