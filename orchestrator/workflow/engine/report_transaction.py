@@ -50,8 +50,10 @@ from orchestrator.workflow.engine import (
     report_publishing as _publishing,
     report_record_state as _record_state,
     report_records as _records,
+    report_replay_guards as _replay,
     report_settlement_state as _settlement,
 )
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -64,16 +66,32 @@ _AWAITING_HUMAN = "awaiting_human"
 # and the retry getting further is how that is answered.
 _DAMAGED_RECORD = "report_record_damaged"
 
+# The two labels whose whole meaning is that this issue is over. They are asked
+# HERE because the dispatcher runs this guard before it reads the handler table,
+# and a terminal label resolves to no handler at all -- so the no-op behind it
+# cannot protect anything. Asked here, an issue somebody has already ended
+# publishes nothing.
+_TERMINAL_LABELS = (WorkflowLabel.DONE, WorkflowLabel.REJECTED)
+
+# Why a record cannot be acted on, in the words its park quotes.
+_UNREADABLE_RECORD = "a field is missing, or is not the shape this orchestrator writes"
+
+_DISAGREEING_HANDOFF = (
+    "a handoff under its own receipt names a different pull request, commit, "
+    "or revision"
+)
+
+_STALE_RECORD = "a newer report is already recorded for this pull request"
+
 _DAMAGED_RECORD_PARK = (
     "{mentions} this issue records a developer report it still owes its pull "
-    "request, and the record cannot be read -- a field is missing, or is not "
-    "the shape this orchestrator writes. Nothing was published and nothing was "
-    "discarded: the branch, the pull request, and every other record are "
-    "exactly as they were. The workflow is held here rather than carried on, "
-    "because a report obligation nobody can describe is one the next reviewer "
-    "would be handed without. Repair the pinned comment -- or clear the "
-    "`developer_report_pending` field to abandon the report -- and the next "
-    "tick resumes on its own."
+    "request, and the record cannot be acted on: {detail}. Nothing was "
+    "published and nothing was discarded: the branch, the pull request, and "
+    "every other record are exactly as they were. The workflow is held here "
+    "rather than carried on, because a report obligation nobody can describe "
+    "is one the next reviewer would be handed without. Repair the pinned "
+    "comment -- or clear the `developer_report_pending` field to abandon the "
+    "report -- and the next tick resumes on its own."
 )
 
 
@@ -81,6 +99,7 @@ def _reconciles_pending_report(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
+    label: str | None,
     state: PinnedState,
 ) -> bool:
     """Finish a report transaction this issue recorded and never completed.
@@ -99,21 +118,27 @@ def _reconciles_pending_report(
     finished -- the report landed and the process died before the record was
     dropped -- so the record goes and nothing is published a second time.
 
-    A CLOSED issue hands the tick back untouched, ahead of every reading. The
-    stage terminal that drains one runs behind this guard, so without the
-    question a human closing an issue whose pull request is still open would
-    get a report published and a handoff recorded on the way to `rejected`.
-    Nothing is written and nothing is dropped: the record, like the branch and
-    the debt beside it, is left exactly as it stands for that terminal, and for
-    the reopen that may yet make it live again.
+    Work that has ENDED hands the tick back untouched, ahead of every reading,
+    and it is asked two ways because an issue can be over in two. A closed
+    issue is one a human ended, and the stage terminal that drains one runs
+    behind this guard. A `done` or `rejected` LABEL is the other, and it needs
+    asking here rather than being left to the dispatcher: the handler table
+    resolves a terminal label to nothing at all, so the no-op behind this guard
+    protects nothing -- an open issue somebody has already marked finished
+    would otherwise publish a report and record a handoff on its way to that
+    no-op.
+
+    Either way nothing is written and nothing is dropped: the record, like the
+    branch and the debt beside it, is left exactly as it stands for whatever
+    ends the issue, and for the reopen that may yet make it live again.
     """
     if not _record_state.carries_pending_report(state):
         return _clears_the_damage_park(gh, issue, state)
-    if issue_is_closed(issue):
+    if label in _TERMINAL_LABELS or issue_is_closed(issue):
         log.info(
-            "issue=#%d is closed; leaving the developer report it still owes "
-            "to the stage terminal rather than publishing onto an issue "
-            "nobody wants", issue.number,
+            "issue=#%d is over (label=%r); leaving the developer report it "
+            "still owes to whatever ends it rather than publishing onto work "
+            "nobody wants", issue.number, label,
         )
         return False
     if _answers_what_is_owed(gh, spec, issue, state):
@@ -129,23 +154,39 @@ def _answers_what_is_owed(
 ) -> bool:
     """Read the record this issue claims, and answer whatever it turns out to be.
 
-    Three things it can be, and only the last is a transaction to prove. A
+    Four things it can be, and only the last is a transaction to prove. A
     record that will not read is damage a human has to repair. One whose
     receipt a handoff already names is the replay of a transaction that
     finished -- the report landed and the process died before the record was
-    dropped -- so the record goes and nothing is published a second time.
+    dropped -- so the record goes and nothing is published a second time, but
+    only once that handoff proves it is about the SAME publication: believed on
+    the receipt alone it would drop a record whose report was never published.
+    And one claiming a revision the recorded current report has already passed
+    is a record nothing here wrote, which settled would replace the newest
+    report on the pull request with an older one.
+
+    The two disagreements park rather than choosing a side. Neither is a shape
+    this build produces, so which of the two records to believe is a human's
+    question, and acting on either answer loses something that cannot be got
+    back.
     """
     pending = _record_state.read_pending_report(state)
     if pending is None:
-        return _parks_the_damage(gh, issue, state)
+        return _parks_the_damage(gh, issue, state, _UNREADABLE_RECORD)
     handoff = _settlement.read_handoff(state)
     if handoff is not None and handoff.receipt == pending.receipt:
+        if not _replay.settles_this_transaction(handoff, pending):
+            return _parks_the_damage(gh, issue, state, _DISAGREEING_HANDOFF)
         log.info(
             "issue=#%d records a developer-report handoff that already "
             "finished; dropping the transaction rather than repeating it",
             issue.number,
         )
         return _drops(gh, issue, state)
+    if _replay.supersedes_the_record(
+        _settlement.read_current_report(state), pending,
+    ):
+        return _parks_the_damage(gh, issue, state, _STALE_RECORD)
     return _answers_the_transaction(gh, spec, issue, state, pending)
 
 
@@ -191,7 +232,7 @@ def _answers_the_transaction(
 
 
 def _parks_the_damage(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    gh: GitHubClient, issue: Issue, state: PinnedState, detail: str,
 ) -> bool:
     """Hold a tick whose report record nobody can read, and say so once.
 
@@ -208,13 +249,15 @@ def _parks_the_damage(
         )
         return True
     log.error(
-        "issue=#%d records a developer report this build cannot read; "
+        "issue=#%d records a developer report this build cannot act on (%s); "
         "refusing to run the stage over an obligation nobody can describe",
-        issue.number,
+        issue.number, detail,
     )
     _guards._park_awaiting_human(
         gh, issue, state,
-        _DAMAGED_RECORD_PARK.format(mentions=config.HITL_MENTIONS),
+        _DAMAGED_RECORD_PARK.format(
+            mentions=config.HITL_MENTIONS, detail=detail,
+        ),
         reason=_DAMAGED_RECORD,
     )
     state.set(_PARK_REASON, _DAMAGED_RECORD)

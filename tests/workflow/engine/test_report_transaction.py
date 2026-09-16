@@ -15,9 +15,11 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.github import pull_request_reports as _pr_reports
 from orchestrator.github.developer_reports import content_digest
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
+    comments as _engine_comments,
     report_record_state as _record_state,
     report_records as _records,
     report_settlement_state as _settlement,
@@ -37,6 +39,8 @@ _LATER_ID = 90
 _SPENT_ROUND = 3
 
 _PENDING_FIX_AT = "pending_fix_at"
+
+_NEWER_REVISION = 2
 
 
 class SettledTransactionTest(unittest.TestCase, support.ReportTransactionCase):
@@ -158,6 +162,25 @@ class ReplayedTransactionTest(unittest.TestCase, support.ReportTransactionCase):
 
         self.assertEqual(self.state.get(support.REVIEW_ROUND), _SPENT_ROUND)
 
+    def test_an_unreadable_comment_id_holds(self) -> None:
+        # This road publishes a COMMENT, so a location with no comment id is
+        # the pull request's description -- a different place holding somebody
+        # else's text. Recorded that way it would be a false "exact" location
+        # for every later reread.
+        self.record()
+        landed = _pr_reports.ReportLookup(
+            _pr_reports.ReportPresence.PRESENT, object(),
+        )
+
+        with patch.object(
+            _engine_comments, "_publish_developer_report", return_value=landed,
+        ):
+            self.assertTrue(self.reconcile())
+
+        self.assertIsNone(_settlement.read_current_report(self.state))
+        self.assertIsNone(_settlement.read_handoff(self.state))
+        self.assertIsNotNone(_record_state.read_pending_report(self.state))
+
     def test_a_replay_never_rolls_a_watermark_back(self) -> None:
         # A human commenting between the record and the replay would otherwise
         # have their comment handed to the next scan as unread feedback.
@@ -220,6 +243,47 @@ class DamagedRecordTest(unittest.TestCase, support.ReportTransactionCase):
 
         self.assertIsNone(self.state.get(support.PARK_REASON))
         self.assertFalse(self.state.get(support.AWAITING_HUMAN))
+
+    def test_a_disagreeing_handoff_parks(self) -> None:
+        # The receipt is the one field that cannot corroborate itself. Believed
+        # alone, a handoff naming another publication would drop a pending
+        # record whose report has never been published, losing it.
+        _settlement.record_handoff(self.state, _records.ReportHandoff(
+            receipt=support.RECEIPT,
+            pr_number=support.OTHER_PR_NUMBER,
+            report_revision=1,
+            source_sha=support.SOURCE_SHA,
+        ))
+        self.record()
+
+        self.assertTrue(self.reconcile())
+
+        self.assertEqual(
+            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
+        )
+        support.assert_nothing_published(self)
+
+    def test_a_stale_transaction_parks(self) -> None:
+        # Settling replaces the current report, so a record whose revision does
+        # not move that number forward would put an OLDER report on the pull
+        # request's own record of what it carries.
+        pending = self.pending()
+        _settlement.record_current_report(self.state, _records.CurrentReport(
+            subject=pending.subject,
+            report_revision=_NEWER_REVISION,
+            content_revision=content_digest(support.REPORT_TEXT),
+            location=ReportLocation(
+                pr_number=support.PR_NUMBER, comment_id=_HUMAN_COMMENT_ID,
+            ),
+        ))
+        self.record()
+
+        self.assertTrue(self.reconcile())
+
+        self.assertEqual(
+            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
+        )
+        support.assert_still_owed(self)
 
     def test_another_owners_park_is_left_alone(self) -> None:
         # Every other park belongs to a stage still waiting for what it asked

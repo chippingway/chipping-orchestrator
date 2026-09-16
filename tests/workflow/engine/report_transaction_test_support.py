@@ -87,6 +87,9 @@ class ReportTransactionCase:
             worktrees.enter_context(tempfile.TemporaryDirectory()), SOURCE_SHA,
         )
         self.issue = make_issue(ISSUE_NUMBER, label=LABEL_VALIDATING)
+        # The label the dispatcher routed this tick on. A terminal one is what
+        # says the issue is over even while it is still open.
+        self.label = LABEL_VALIDATING
         # Standing ON the recorded commit, not merely carrying it: a head
         # that has moved past the report's commit is a pull request whose work
         # is no longer what the report describes.
@@ -136,7 +139,7 @@ class ReportTransactionCase:
         """Run the dispatcher's report guard over this issue's world."""
         with self._seams():
             return _transaction._reconciles_pending_report(
-                self.gh, _TEST_SPEC, self.issue, self.state,
+                self.gh, _TEST_SPEC, self.issue, self.label, self.state,
             )
 
     @contextlib.contextmanager
@@ -168,6 +171,16 @@ def report_comments(case: ReportTransactionCase) -> list:
         posted for pr_number, posted in case.gh.posted_pr_comments
         if pr_number == PR_NUMBER
     ]
+
+
+def assert_nothing_published(case: ReportTransactionCase) -> None:
+    """No report reached the pull request and the record still claims one.
+
+    What `assert_still_owed` asserts minus the handoff, for a case that seeded
+    a handoff of its own to disagree with.
+    """
+    case.assertEqual(report_comments(case), [])
+    case.assertIsNotNone(_record_state.read_pending_report(case.state))
 
 
 def assert_still_owed(case: ReportTransactionCase) -> None:

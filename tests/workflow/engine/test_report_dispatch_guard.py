@@ -30,7 +30,12 @@ from orchestrator.workflow.engine import (
 )
 from tests.support.github.models import FakeLabel
 from tests.workflow.engine import report_transaction_test_support as support
-from tests.workflow.fixtures import _TEST_SPEC, LABEL_VALIDATING
+from tests.workflow.fixtures import (
+    _TEST_SPEC,
+    LABEL_DONE,
+    LABEL_REJECTED,
+    LABEL_VALIDATING,
+)
 
 _PAUSED = "paused"
 
@@ -66,6 +71,26 @@ class DispatchOrderingTest(unittest.TestCase, support.ReportTransactionCase):
         self.assertIsNotNone(
             _record_state.read_pending_report(self.gh.read_pinned_state(self.issue)),
         )
+
+    def test_a_terminal_label_publishes_nothing(self) -> None:
+        # A terminal label resolves to no handler at all, so the no-op behind
+        # this guard protects nothing: an OPEN issue somebody has already
+        # marked finished would otherwise publish a report and record a
+        # handoff on its way to that no-op.
+        for ended in (LABEL_DONE, LABEL_REJECTED):
+            with self.subTest(label=ended):
+                self.setUp()
+
+                with self._seams():
+                    refused = _dispatch_guards._pinned_state_refuses(
+                        self.gh, _TEST_SPEC, self.issue, ended,
+                    )
+
+                self.assertFalse(refused)
+                self.assertEqual(support.report_comments(self), [])
+                self.assertIsNotNone(_record_state.read_pending_report(
+                    self.gh.read_pinned_state(self.issue),
+                ))
 
     def test_a_paused_issue_never_reaches_the_guard(self) -> None:
         self.issue.labels.append(FakeLabel(_PAUSED))

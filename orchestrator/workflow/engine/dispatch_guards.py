@@ -227,7 +227,9 @@ def _record_stops_the_tick(
         gh, spec, issue, label, state,
     ) or _anchor_holds_the_tick(gh, spec, issue, label, state):
         return True
-    if _report_transaction._reconciles_pending_report(gh, spec, issue, state):
+    if _report_transaction._reconciles_pending_report(
+        gh, spec, issue, label, state,
+    ):
         return True
     late_reuse = importlib.import_module(_stage_targets._LATE_REUSE_OWNER)
     return (

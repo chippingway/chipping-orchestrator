@@ -86,6 +86,7 @@ _ENGINE_OWNERS = (
     "report_record_values",
     "report_records",
     "report_remote_evidence",
+    "report_replay_guards",
     "report_settlement_state",
     "report_transaction",
     "retry_budget",

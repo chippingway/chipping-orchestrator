@@ -564,12 +564,15 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   this owner's own evidence asks whether the commit the report is about reached the pull request — and a candidate
   the size gate froze and never counted is exactly the case that reconciliation settles, so asking first would read
   a commit mid-gate as one whose code was never published and stand down every tick.
-- **A closed issue is handed straight back**, ahead of every reading and without a write. The stage terminal that
-  drains one runs *behind* every dispatch guard, so without this a human closing an issue whose pull request is still
-  open would get a report published and a handoff recorded on the way to `rejected`. The record, like the branch and
-  the debt beside it, is left exactly as it stands for that terminal — and for the reopen that may yet make it live
-  again. A `paused` / `backlog` issue never reaches this guard at all: the hard-skip screen is one level up, in
-  `_process_issue`, and returns before the routing that runs the dispatch guards.
+- **Work that has ended is handed straight back**, ahead of every reading and without a write, and it is asked two
+  ways. A **closed issue** is one a human ended, and the stage terminal that drains one runs *behind* every dispatch
+  guard. A **`done` or `rejected` label** is the other, and it has to be asked here rather than left to the
+  dispatcher: the handler table resolves a terminal label to no handler at all, so the no-op behind this guard
+  protects nothing — an open issue somebody has already marked finished would otherwise publish a report and record a
+  handoff on its way to that no-op. Either way the record, like the branch and the debt beside it, is left exactly as
+  it stands — and for the reopen that may yet make it live again. A `paused` / `backlog` issue never reaches this
+  guard at all: the hard-skip screen is one level up, in `_process_issue`, and returns before the routing that runs
+  the dispatch guards.
 - **What it proves before completing anything**, in this order: the pull request found by the recorded commit on the
   recorded branch, held against the recorded number, still open, in this repository, and still standing on that
   commit; then a checkout on this host, clean by a `git status` that actually ANSWERED, standing on that commit; then
@@ -593,8 +596,11 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   to repair.
 - **Outcomes**:
   - **Settled** → for a publication, the report is posted as one comment scoped by the transaction's receipt (so a
-    retry finds what an earlier attempt landed instead of repeating it, including the post whose response was
-    lost); for a verification, nothing is posted and the named location is re-read, requiring both a trusted author
+    retry finds what an earlier attempt landed instead of repeating it, including the post whose response was lost),
+    and the comment id it landed as is required: this road publishes a *comment*, so a location with no comment id
+    would be the pull request's description — a different place holding somebody else's text — and recording that
+    would be a false "exact" location for every later reread; for a verification, nothing is posted and the named
+    location is re-read, requiring both a trusted author
     and content that still hashes to the revision verified. Either way one `developer_report_current`, one
     `developer_report_handoff`, the consumed watermarks, and the route's round / bookmark fields land in a single
     write with the drop of the pending record. The tick carries on to the handler.
@@ -606,9 +612,14 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     publication gate that pushes the commit, the drift resume that answers the edit, the dirty-worktree park — so
     holding them would strand the issue behind the very handler that fixes them.
   - **Retired** → the pull request has merged or closed; the record is dropped rather than retried forever.
-  - **Parked** (`park_reason="report_record_damaged"`) → the issue CLAIMS a transaction whose record cannot be
-    read. Announced once and held silently thereafter; repairing the pinned comment, or clearing the field to
-    abandon the report, resumes it with no agent run. That park is this owner's to retire as well as to take: both
+  - **Parked** (`park_reason="report_record_damaged"`) → the issue CLAIMS a transaction this build may not act on.
+    Three shapes reach it: a record that will not read; a record whose handoff carries its receipt while naming a
+    different pull request, commit or revision — believed on the receipt alone that handoff would drop a record whose
+    report was never published; and a record a newer current report has already passed, which settled would replace
+    the pull request's newest report with an older one. None is a shape this build produces, so which record to
+    believe is a human's question. Announced once and held silently thereafter; repairing the pinned comment, or
+    clearing the field to abandon the report, resumes it with no agent run. That park is this owner's to retire as
+    well as to take: both
     endings clear `awaiting_human` and the reason, because a park nothing takes back leaves every stage behind the
     guard reading the issue as waiting on a reply nobody owes. No other owner's park is ever touched — each of those
     belongs to a stage still waiting for what it asked for.

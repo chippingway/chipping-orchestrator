@@ -65,6 +65,13 @@ def publishes_the_report(
     A report the published format refuses is held and reported loudly rather
     than retried quietly. The record's own reader holds a text to the same
     bounds, so reaching this is a record that was written by something else.
+
+    A confirmed post whose comment id nobody could read holds too. This road
+    publishes a COMMENT, and a location with no comment id is the pull
+    request's description -- a different place, holding somebody else's text.
+    Recorded that way it would be a false "exact" location for every later
+    reread, so the id is required and the next tick finds the landed comment by
+    its receipt.
     """
     try:
         lookup = _comments._publish_developer_report(
@@ -91,13 +98,20 @@ def publishes_the_report(
             pending.subject.pr_number, lookup.presence.value,
         )
         return True
+    posted = getattr(lookup.found, "id", None)
+    if not isinstance(posted, int) or isinstance(posted, bool):
+        log.warning(
+            "issue=#%d published developer report revision %d on PR #%d and "
+            "could not read the comment it landed as; holding the tick",
+            issue.number, pending.report_revision, pending.subject.pr_number,
+        )
+        return True
     return settles(gh, issue, state, pending, _records.CurrentReport(
         subject=pending.subject,
         report_revision=pending.report_revision,
         content_revision=_reports.content_digest(pending.report),
         location=_pr_reports.ReportLocation(
-            pr_number=pending.subject.pr_number,
-            comment_id=getattr(lookup.found, "id", None),
+            pr_number=pending.subject.pr_number, comment_id=posted,
         ),
     ))
 

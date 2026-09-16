@@ -223,17 +223,27 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             asked beside it, as one group through the receipt's own damage reader and then on both
                             of its members, since carrying a commit says it is there and nothing about how it got
                             there
+    report_replay_guards.py whether a record and the settlement beside it are about one thing. A handoff carrying
+                            this receipt is believed only once its pull request, commit and revision agree --
+                            believed on the receipt alone it would drop a pending record whose report was never
+                            published -- and a current report already recorded at this revision or a later one says
+                            the transaction in hand is stale, which settled would replace the newest report on the
+                            pull request with an older one. Neither answers with a repair: a caller that finds the
+                            records disagree stops, because choosing between them loses something unrecoverable
     report_publishing.py    the two ways a proved transaction finishes -- a receipt-scoped post that a retry finds
                             rather than repeats, and a re-read of a trusted location whose content still hashes to
                             the revision verified -- and the one write that settles either
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
-                            and the stage: it hands a CLOSED issue straight back for the stage terminal that runs
-                            behind it, then settles what it can prove, holds what nobody could read, stands down
-                            on what a route behind it would fix, retires a transaction whose pull request is over,
-                            and parks once on a record nobody can read. That park is its own to take and its own
-                            to retire -- the record repaired and settled, or the field cleared to abandon it, both
-                            take the flags down, and no other owner's park is ever touched
+                            and the stage: it hands work that has ENDED straight back -- a closed issue, or one
+                            wearing `done` or `rejected`, since a terminal label resolves to no handler and the
+                            no-op behind this guard protects nothing -- then settles what it can prove, holds what
+                            nobody could read, stands down on what a route behind it would fix, retires a
+                            transaction whose pull request is over, and parks once on a record it may not act on:
+                            one that will not read, one whose handoff disagrees with it, and one a newer report has
+                            already passed. That park is its own to take and its own to retire -- the record
+                            repaired and settled, or the field cleared to abandon it, both take the flags down, and
+                            no other owner's park is ever touched
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
     prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, the

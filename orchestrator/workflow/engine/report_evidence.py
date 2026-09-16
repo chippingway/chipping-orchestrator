@@ -3,23 +3,31 @@
 """Everything a report transaction has to prove before it may complete.
 
 Nothing here is inferred from an absence. A transaction completes only when this
-owner has PROVED, on the tick that completes it, that the checkout is readable
-and clean and standing on the commit the report is about, that the pull request
-the record names is open in this repository on this branch and carries that
-commit, that the code-publication receipt vouches for that commit having reached
-that pull request, and that the requirements the run was handed are still the
-requirements the issue has.
+owner has PROVED, on the tick that completes it, that the pull request the record
+names is open in this repository on this branch and STANDING on the commit the
+report is about, that the checkout is readable and clean and standing on that
+same commit, that the remote branch is in sync with it, that the
+code-publication receipt vouches for that commit having reached that pull
+request, and that the requirements the run was handed are still the requirements
+the issue has.
 
 A missing read is never one of those. "Nobody could say" and "it is so" are
 different answers, and only one of them may be acted on -- which is why the
 readings that failed come back as their own verdict rather than folded into the
 refusals beside them.
 
-The groups are asked cheapest first, so a transaction that was never going to
-complete this tick spends as little of GitHub's budget as it can: the checkout
-costs no request at all, the remote reading costs one fetch, the pull request
-costs one API call, and the requirements hash costs the comment walk the drift
-owner already makes.
+The PULL REQUEST is asked first, and that order is a correctness rule rather than
+a cost preference. This runs ahead of every stage handler, and the terminal that
+drains a merged or closed pull request runs inside one -- so any refusal taken
+before the pull request has been looked at can hold the tick in front of that
+terminal. A merge whose branch GitHub auto-deleted is the case that bites: the
+fetch the remote reading takes fails, the tick holds, and an issue whose work is
+finished never reaches the handler that would finalize it.
+
+The local readings follow, cheapest of the rest first, so a transaction that was
+never going to complete this tick spends as little as it can: the checkout costs
+no request at all, the remote reading costs one fetch, and the requirements hash
+costs the comment walk the drift owner already makes.
 """
 from __future__ import annotations
 

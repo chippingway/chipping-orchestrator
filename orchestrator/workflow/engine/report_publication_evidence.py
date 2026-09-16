@@ -5,17 +5,22 @@
 The repository is asked first, because a slug that disagrees means every reading
 below would be taken against somebody else's pull request -- a fork carries this
 repository's ref names over its commits and would otherwise agree on everything.
+It is asked through the client's own `is_own_repository`, which compares
+case-INSENSITIVELY as GitHub does: spelled as an equality here, a record naming
+`Octo/Repo` for the repository configured as `octo/repo` would defer forever over
+a difference GitHub does not have.
 
 Then the pull request is found by the COMMIT rather than by the number the record
 names, which is what makes the answer worth having. The lookup is scoped to the
 branch the record froze and searched over every state, so what comes back is the
-pull request this exact publication landed on: a pull request standing on the
-commit says nothing about where the work was pushed, and a number read back on
-its own says nothing about whether the work ever got there. Carrying is not the
-same as standing on, either -- a human pushing to the branch, or merging the base
-into it, moves the head while the commit the report is about stays in the pull
-request, and a proof pinned to the head alone would refuse a report that is
-perfectly publishable.
+pull request this exact publication landed on: a number read back on its own says
+nothing about whether the work ever got there.
+
+Carrying the commit is what that lookup answers, and it is not what licenses a
+report. A human pushing to the branch, a rebase, or a squash moves the head while
+the commit stays in the pull request's history -- and the work under review is
+then no longer the work the report describes, so a moved head DEFERS. Carrying is
+how the pull request is found; standing on the commit is what it has to be doing.
 
 The number is then held against what came back rather than used to fetch it. A
 lookup that answers with some other pull request is a publication this
@@ -56,9 +61,12 @@ def publication_verdict(
     only the first of them means the commit still needs publishing. Read the
     other way round, a transient failure would send a finished report back to
     the publication gate on every tick.
+
+    The repository is asked through the client rather than compared here, so
+    this reading inherits the case-insensitive rule GitHub itself applies.
     """
     subject = pending.subject
-    if gh.repo_slug != subject.repo_slug:
+    if not gh.is_own_repository(subject.repo_slug):
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.DEFER,
             "the transaction was recorded against another repository",

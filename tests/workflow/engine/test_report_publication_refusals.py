@@ -80,6 +80,26 @@ class PublicationRefusalTest(unittest.TestCase, support.ReportTransactionCase):
         self.assertFalse(self.reconcile())
         support.assert_still_owed(self)
 
+    def test_repository_casing_is_not_a_difference(self) -> None:
+        # Owner and repository names are case-insensitive on GitHub, so a
+        # record spelled with different casing names the same repository.
+        # Compared exactly it would defer forever over a difference GitHub
+        # does not have.
+        _record_state.record_pending_report(self.state, self.pending(
+            subject=_records.ReportSubject(
+                repo_slug=self.gh.repo_slug.upper(),
+                pr_number=support.PR_NUMBER,
+                branch=support.BRANCH,
+                source_sha=support.SOURCE_SHA,
+                requirements_revision=self.requirements(),
+            ),
+        ))
+
+        self.assertFalse(self.reconcile())
+
+        self.assertEqual(len(support.report_comments(self)), 1)
+        self.assertIsNone(_record_state.read_pending_report(self.state))
+
     def _unpublish(self) -> None:
         """Leave the recorded commit on no pull request at all."""
         self.pull_request.commit_shas = ()
