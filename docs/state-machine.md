@@ -146,7 +146,10 @@ charged at the one boundary every agent process is invoked from —
 the `agent_run_limit` park a spent one leaves and the sentence that park owes the thread,
 the additive `late_*` group a late generation is adjudicated under, the one commit an accepted candidate publishes
 under with the semantic identity of the change it was accepted for and the bounded authorization a workflow rewrite
-carries that exemption over with, and the `decomposing` stage's own record of the run that adjudicates one.
+carries that exemption over with, the `decomposing` stage's own record of the run that adjudicates one, and the
+additive `developer_report_*` group one report publication is recorded as — the transaction a tick still owes, the
+report the pull request carries, and the receipt one finished transaction leaves. That last group is defined and
+DORMANT: its owners read and write those records fail-closed, no stage produces one, and no dispatcher consumes one.
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
 

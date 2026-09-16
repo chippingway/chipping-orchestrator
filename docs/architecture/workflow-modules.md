@@ -181,6 +181,48 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parser so that a doubt reads as fenced: a fence opens at the top level or in a list item,
                             closes only on a bare run at its opening run's column, and stays open to the end past a
                             line that may have ended its list item
+    report_records.py       the three additive pinned records one developer-report publication transaction is
+                            written as: the PENDING transaction a tick still owes, the CURRENT report the pull
+                            request carries, and the HANDOFF receipt saying one transaction finished. The subject
+                            they share -- repository, pull request, branch, source commit, and the requirements
+                            revision the run was actually handed -- is spelled apart, because it is the whole of
+                            what a completion has to prove again
+    report_record_values.py what each recorded field may be: a receipt spelled the way the published report header
+                            carries it, one repository slug, one ref-shaped branch, a number inside the range
+                            GitHub issues its identities out of, and a report that says something, fits a comment
+                            with headroom to spare, and quotes no receipt marker of this orchestrator's. Text is
+                            held to what UTF-8 can carry rather than to what `str` can hold, since a JSON escape
+                            spells lone surrogates every pattern here would pass and the digest that hashes a
+                            report would raise on
+    report_consumed_values.py the bookkeeping a recovered record may write, per key and per shape -- the delivery
+                            watermarks and the requirements baseline a completion advances, read off
+                            `prompt_delivery.py`'s own field names rather than respelled, plus the round and
+                            bookmark fields it closes through the held-pair vocabulary. A group is read
+                            all or nothing -- its members shape-checked before either table is asked, since a
+                            recorded field name JSON wrote as an array would raise out of the lookup -- and the
+                            watermarks are ratcheted forward only, which is what makes a replayed settlement a
+                            no-op and what makes their ceiling load-bearing: a boundary no later comment can pass
+                            leaves every human reply reading as already answered
+    report_record_fields.py the subject and the location groups both records share, read and written one way, so
+                            the pending spelling cannot drift from the settled one
+    report_record_reading.py what one recorded object reads back as: identity, routing, and the half its own mode
+                            owns, each refused whole rather than partly
+    report_record_state.py  the pending record's round trip, with presence asked apart from meaning -- a damaged
+                            record and an issue with nothing outstanding are the same absence to the reader and
+                            opposite answers to the guard -- and a write refused rather than truncated when its own
+                            reader would not hand the record back, or when either the comment it writes or the one
+                            its settlement would leave is past what GitHub accepts. That second measurement is the
+                            WHOLE settling write -- the watermarks it advances and the bookkeeping it closes as well
+                            as the two records it adds -- replayed through the owners that perform it rather than
+                            allowed for by a margin, so a field added to any of them moves this refusal with it
+    report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
+                            drops the pending record, each refused rather than stored when this owner's own reader
+                            would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
+                            one -- so either key is claimed by its presence alone, `null` included, which is the
+                            one place this parts company with the pending record whose ordinary resting state that
+                            is. No stage produces this group and no dispatcher consumes it yet: the contract is
+                            recorded and proved by its own tests, and the completion that drives it lands with the
+                            stage that owns it
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
     prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, the
