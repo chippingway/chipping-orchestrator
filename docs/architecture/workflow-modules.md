@@ -230,7 +230,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for everything structural, which the routes behind the guard are what clear; and ENDED
                             for a pull request that is over
     report_evidence.py      the affirmative evidence a completion needs, asked cheapest first behind the pull
-                            request, and the requirements revision held against the one the run was handed
+                            request, and the requirements revision held against the one the run was handed --
+                            computed here rather than read, so the comment walk that computes it answers with a
+                            hold rather than leaving this guard by an exception
     report_checkout_evidence.py the checkout half: on this host, clean by a reading that HAPPENED, and standing on
                             the commit the report is about
     report_remote_evidence.py the remote half, which the checkout cannot answer: the recorded branch is fetched and
@@ -238,17 +240,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and a tip that is not the commit the report is about. The branch asked for is the one
                             the record FROZE, since the whole point of freezing it was that a later tick's answer
                             can differ
-    report_publication_evidence.py the pull-request half: the repository, then the pull request found by the COMMIT
-                            on the recorded branch, held against the number recorded, still open, and still
-                            STANDING on that commit -- carrying it is what found the pull request and is not enough
-                            to settle on, since a head pushed past it leaves the commit in history while the work
-                            under review is no longer what the report describes. A lookup that answers with any
-                            other pull request, or with none, asks the recorded NUMBER whether it has ended before
-                            it refuses: the search is by commit, so a recorded thread force-pushed off that commit
-                            is invisible to it open or closed, and an ended one would otherwise stand down forever
-                            on work that is finished. The code-publication receipt is asked beside all of it, as
-                            one group through the receipt's own damage reader and then on both of its members,
-                            since carrying a commit says it is there and nothing about how it got there
+    report_publication_evidence.py the pull-request half: the repository, then ONE pull request read by the number
+                            the record froze, still open, on the recorded branch, with a head in this repository
+                            and STANDING on the recorded commit. Selected by number rather than searched for by
+                            commit, because a number is unique in a repository and a search is not -- several pull
+                            requests can stand on one branch carrying one commit, and a search answering with
+                            whichever it reached first would refuse the transaction forever while the recorded
+                            thread sits open on that very commit, and would hide an ending besides. A read that did
+                            not happen HOLDS. The code-publication receipt is asked beside all of it, as one group
+                            through the receipt's own damage reader and then on both of its members, since standing
+                            on a commit says it is there and nothing about how it got there
     report_replay_guards.py whether a record and the settlement beside it are about one thing. Either settled
                             record CLAIMED and unreadable stops the tick before anything is proved, since both are
                             records a settlement writes over. Two READABLE settled records are then held to each
@@ -258,9 +259,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             question there is, since such a pair is never compared against the record in hand. A
                             handoff carrying THIS receipt is believed only beside the current report written with
                             it, once its own pull request, commit and revision agree and once that report matches
-                            the pending record's whole subject -- believed on the receipt alone it would drop a
-                            pending record whose report was never published -- and a current report already
-                            recorded at this revision or a later one says the transaction in hand is stale, which
+                            the pending record's whole subject AND the content that transaction would have left --
+                            a publication's own digest, a verification's own location and revision, which is the
+                            only half of a settled record that says which report actually landed. Believed on the
+                            receipt alone it would drop a pending record whose report was never published. A
+                            current report already recorded at this revision or a later one says the transaction in
+                            hand is stale, which
                             settled would replace the newest report on the pull request with an older one. None
                             answers with a repair: a caller that finds the records disagree stops, because choosing
                             between them loses something unrecoverable

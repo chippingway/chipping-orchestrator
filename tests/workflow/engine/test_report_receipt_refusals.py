@@ -11,13 +11,25 @@ instead of naming the field a human has to repair.
 
 A wholly absent receipt is not damage: it is an issue that has published nothing
 yet, and what it waits for is the publication gate behind this guard.
+
+The requirements the run was handed are proved on the same road and close it, so
+the reading that computes them is here too. It walks the issue's comments, which
+is a request -- and one that raised would leave this guard by an exception
+rather than by a verdict, so it holds like every other missing read.
 """
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
-from orchestrator.workflow.engine import report_record_state as _record_state
+from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
+    report_record_state as _record_state,
+)
 from tests.workflow.engine import report_transaction_test_support as support
+
+# What a read GitHub would not answer raises.
+_REFUSED = "GitHub did not answer the read"
 
 
 class ReceiptRefusalTest(unittest.TestCase, support.ReportTransactionCase):
@@ -61,6 +73,20 @@ class ReceiptRefusalTest(unittest.TestCase, support.ReportTransactionCase):
         self.issue.body = "the human rewrote the requirements"
 
         self.assertFalse(self.reconcile())
+        support.assert_still_owed(self)
+
+    def test_an_unreadable_requirements_read_holds(self) -> None:
+        # Computing the revision walks the issue's comments, which is a request
+        # like every other reading here. Raised, it would leave the guard by an
+        # exception rather than by a verdict -- through the dispatcher and out
+        # of the tick -- and an edit nobody could look for is not an issue
+        # whose requirements are unchanged.
+        with patch.object(
+            _content_hash, "_compute_user_content_hash",
+            side_effect=RuntimeError(_REFUSED),
+        ):
+            self.assertTrue(self.reconcile())
+
         support.assert_still_owed(self)
 
     def test_an_issue_owing_nothing_costs_nothing(self) -> None:

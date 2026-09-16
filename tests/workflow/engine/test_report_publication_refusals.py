@@ -3,11 +3,17 @@
 """What the pull request and the publication receipt refuse a report over.
 
 A report is a claim about work this orchestrator published, so two things have
-to be true before one is posted: the pull request the record names is the one
-that carries the commit and is still open, and the code-publication receipt
-vouches for that commit having reached that pull request. Carrying the commit
-says it is THERE and nothing about how it got there, which is why the receipt is
-asked beside it rather than instead of it.
+to be true before one is posted: the pull request the record NAMES is open in
+this repository, on the recorded branch, and standing on the recorded commit;
+and the code-publication receipt vouches for that commit having reached that
+pull request. Standing on the commit says it is THERE and nothing about how it
+got there, which is why the receipt is asked beside it rather than instead of
+it.
+
+The pull request is selected by its number rather than searched for by the
+commit, and one case here is the whole reason: a branch can carry several pull
+requests standing on one commit, and a search answering with whichever it
+reached first would refuse this transaction for the rest of the issue's life.
 
 Every refusal here stands down rather than holding, except the one nobody could
 read. What would clear each of them is a route BEHIND this guard -- the
@@ -17,6 +23,7 @@ issue -- so holding would strand the issue in front of its own remedy.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.engine import (
@@ -24,10 +31,13 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_settlement_state as _settlement,
 )
-from tests.support.fakes import FakePR
+from tests.support.fakes import FakePR, FakePRRef
 from tests.workflow.engine import report_transaction_test_support as support
 
 _FETCH_REFUSED = 128
+
+# What a pull request read GitHub would not answer raises.
+_REFUSED = "GitHub did not answer the read"
 
 # The two ways a pull request is over, paired with the attribute each one
 # is read off. Both retire the transaction rather than holding one for work
@@ -48,27 +58,6 @@ class PublicationRefusalTest(unittest.TestCase, support.ReportTransactionCase):
         self._unpublish()
 
         self.assertFalse(self.reconcile())
-        support.assert_still_owed(self)
-
-    def test_another_pull_request_stands_down(self) -> None:
-        # A replacement somebody opened after closing the original carries the
-        # commit just as well, and is not the publication this report is about.
-        self._unpublish()
-        self.gh.add_pr(FakePR(
-            number=support.OTHER_PR_NUMBER,
-            head_branch=support.BRANCH,
-            commit_shas=(support.SOURCE_SHA,),
-        ))
-
-        self.assertFalse(self.reconcile())
-        support.assert_still_owed(self)
-
-    def test_an_unreadable_lookup_holds(self) -> None:
-        # "No pull request carries this" and "nobody could say" are different
-        # answers, and only the first means the commit still needs publishing.
-        self.gh.unreadable_pr_lookups.add(support.BRANCH)
-
-        self.assertTrue(self.reconcile())
         support.assert_still_owed(self)
 
     def test_another_repository_stands_down(self) -> None:
@@ -110,6 +99,67 @@ class PublicationRefusalTest(unittest.TestCase, support.ReportTransactionCase):
         self.pull_request.commit_shas = ()
         self.pull_request.head.sha = support.MOVED_SHA
 
+
+class PullRequestSelectionTest(unittest.TestCase, support.ReportTransactionCase):
+    """The pull request proved is the one the record names, and no other."""
+
+    def setUp(self) -> None:
+        support.ReportTransactionCase.setUp(self)
+        self.record()
+
+    def test_another_pull_request_is_not_selected(self) -> None:
+        # Several pull requests can stand on one branch carrying one commit --
+        # a replacement opened beside the original, a second thread raised
+        # against another base. A search answering with whichever it reached
+        # first would refuse this transaction forever while the pull request
+        # the record NAMES sits open on the very commit the report is about.
+        ahead = FakePR(
+            number=support.OTHER_PR_NUMBER,
+            head_branch=support.BRANCH,
+            head=FakePRRef(sha=support.SOURCE_SHA),
+            commit_shas=(support.SOURCE_SHA,),
+        )
+        # Held AHEAD of the recorded pull request, since what a search by
+        # commit answers with is whichever it reaches first.
+        self.gh.pulls.clear()
+        self.gh.add_pr(ahead)
+        self.gh.add_pr(self.pull_request)
+
+        self.assertFalse(self.reconcile())
+
+        support.assert_one_report(self)
+        self.assertIsNone(_record_state.read_pending_report(self.state))
+        self.assertEqual(
+            _settlement.read_current_report(self.state).subject.pr_number,
+            support.PR_NUMBER,
+        )
+
+    def test_an_unreadable_pull_request_holds(self) -> None:
+        # "The pull request is not what the record says" and "nobody could say"
+        # are different answers, and only the first may be acted on: read the
+        # other way round, a transient failure would retire a transaction over
+        # a thread nobody managed to look at.
+        with patch.object(self.gh, "get_pr", side_effect=RuntimeError(_REFUSED)):
+            self.assertTrue(self.reconcile())
+
+        support.assert_still_owed(self)
+
+    def test_another_branch_stands_down(self) -> None:
+        # A head ref cannot move on GitHub, so a disagreement is a record
+        # naming a number and a branch that never went together.
+        self.pull_request.head.ref = f"{support.BRANCH}-elsewhere"
+
+        self.assertFalse(self.reconcile())
+        support.assert_still_owed(self)
+
+    def test_a_forked_head_stands_down(self) -> None:
+        # A fork carries this repository's ref names over somebody else's
+        # commits, so the branch and the head sha can both agree while the work
+        # is not in this repository at all.
+        self.pull_request.head.repo.full_name = "someone/else"
+
+        self.assertFalse(self.reconcile())
+        support.assert_still_owed(self)
 
 class PullRequestIdentityTest(unittest.TestCase, support.ReportTransactionCase):
     """The pull request has to be the recorded one, and still on the commit."""

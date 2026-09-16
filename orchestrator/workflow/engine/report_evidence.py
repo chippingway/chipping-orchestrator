@@ -14,7 +14,9 @@ the issue has.
 A missing read is never one of those. "Nobody could say" and "it is so" are
 different answers, and only one of them may be acted on -- which is why the
 readings that failed come back as their own verdict rather than folded into the
-refusals beside them.
+refusals beside them, and why every reading here answers with one: a request
+that raised would otherwise leave this guard by an exception rather than by a
+verdict, through the dispatcher and out of the tick.
 
 The PULL REQUEST is asked first, and that order is a correctness rule rather than
 a cost preference. This runs ahead of every stage handler, and the terminal that
@@ -31,6 +33,8 @@ costs the comment walk the drift owner already makes.
 """
 from __future__ import annotations
 
+import logging
+
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
@@ -45,6 +49,8 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_remote_evidence as _remote,
 )
+
+log = logging.getLogger("orchestrator.workflow")
 
 
 def evidence_for(
@@ -102,10 +108,29 @@ def _requirements_verdict(
     Deferred rather than held, because the route that ANSWERS an edit is the
     drift resume behind this owner. Held, the issue would sit forever on a
     transaction nothing was allowed to reach and supersede.
+
+    The READING is the other way round, and it is the reason this is not a bare
+    comparison. Computing the revision walks the issue's comments, which is a
+    request like every other reading here -- and one that raised would
+    otherwise leave this guard by an exception rather than by a verdict,
+    through the dispatcher and out of the tick. An edit nobody could look for
+    is not an issue whose requirements are unchanged, so it holds, exactly as
+    every other missing read on this road does.
     """
-    current = _content_hash._compute_user_content_hash(
-        issue, _comments._orchestrator_ids(state),
-    )
+    try:
+        current = _content_hash._compute_user_content_hash(
+            issue, _comments._orchestrator_ids(state),
+        )
+    except Exception:
+        log.exception(
+            "issue=#%d could not be read to say whether its requirements have "
+            "moved since the run that wrote its developer report; holding the "
+            "tick", issue.number,
+        )
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD,
+            "the issue's own requirements could not be read",
+        )
     if current == pending.subject.requirements_revision:
         return None
     return _evidence_models.ReportEvidence(

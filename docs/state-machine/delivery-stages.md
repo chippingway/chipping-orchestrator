@@ -573,24 +573,36 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   it stands — and for the reopen that may yet make it live again. A `paused` / `backlog` issue never reaches this
   guard at all: the hard-skip screen is one level up, in `_process_issue`, and returns before the routing that runs
   the dispatch guards.
-- **What it proves before completing anything**, in this order: the pull request found by the recorded commit on the
-  recorded branch, held against the recorded number, still open, in this repository, and still standing on that
+- **What it proves before completing anything**, in this order: the pull request the record NAMES, read by its
+  number, still open, on the recorded branch, whose head is in this repository and is standing on the recorded
   commit; then a checkout on this host, clean by a `git status` that actually ANSWERED, standing on that commit; then
   the recorded branch fetched, and one divergence reading against the tip it resolves showing no unpushed commits, no
   remote that has moved on, and a tip that IS the recorded commit; then the code-publication receipt read as one sound
   group and then naming both that commit and that pull request; and finally the issue's requirements still hashing to
-  the revision the developer run was handed. Nothing is inferred from an absence.
+  the revision the developer run was handed. Nothing is inferred from an absence, and no reading here answers with an
+  exception: computing the requirements revision walks the issue's comments, so a request that raised would otherwise
+  leave the guard through the dispatcher and out of the tick instead of holding.
+
+  **The pull request is selected by its number, not searched for by the commit.** A number is unique in a repository
+  and a search is not: several pull requests can stand on one branch carrying one commit — a replacement opened
+  beside the original, a second thread raised against another base — and a search answering with whichever it
+  reached first would refuse this transaction on every tick for the rest of the issue's life while the pull request
+  the record names sits open on the very commit the report is about. What a search did prove and a bare number does
+  not is that the work actually got there; that is not lost, because the head read off this object has to *be* the
+  recorded commit, which is strictly more than carrying it. The branch and the head repository are asked of the same
+  object, since a fork carries this repository's ref names over somebody else's commits.
 
   **The pull request is read first, and that is a correctness rule rather than a cost preference.** The terminal that
   drains a merged or closed pull request runs *inside* a stage handler, which is behind this guard — so any refusal
   taken before the pull request has been looked at can hold the tick in front of that terminal. A merge whose branch
   GitHub auto-deleted is the case that bites: the fetch the remote reading takes fails, the tick holds, and an issue
   whose work is finished never reaches the handler that would finalize it. Asked first, a finished pull request
-  retires the transaction and the stage runs.
+  retires the transaction and the stage runs. The ending is asked before the branch and the head for the same reason:
+  a pull request that is over needs no report whatever those now say.
 
-  Two of those are easy to under-ask and are worth naming. *Carrying* the commit is what finds the pull request and is
-  not enough to settle on: a head pushed past it leaves the commit in history while the work under review is no longer
-  what the report describes. And the receipt is asked as a GROUP before either member is believed, because
+  Two of those are easy to under-ask and are worth naming. *Standing on* the commit is what licenses a report, not
+  carrying it: a head pushed past it leaves the commit in history while the work under review is no longer what the
+  report describes. And the receipt is asked as a GROUP before either member is believed, because
   `_record_publication` writes all three keys on every receipt and clears all three on none — read member by member, a
   partial group answers "no receipt" and the transaction would defer forever instead of naming the field a human has
   to repair.
@@ -608,11 +620,13 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     record this build did not write, and it holds the tick in front of a human. The tick otherwise carries on to
     the handler.
   - **Held** (tick stops, nothing written) → a reading nobody could take, and only that: an unreadable worktree or
-    head, a fetch that failed, a pull request enumeration that failed, a post or re-read GitHub did not confirm
+    head, a fetch that failed, a recorded pull request that would not read, an issue whose comments would not read
+    (the requirements revision is computed from them), a post or re-read GitHub did not confirm
     (`ReportPresence.UNCONFIRMED`). The next tick asks again.
   - **Stood down** (tick carries on, transaction still owed) → every *definite* refusal. The structural ones: a
     dirty tree, a head that moved, a checkout on another host, a commit the pull request does not carry yet, a
-    missing or mismatched publication receipt, requirements a human edited. And the ones about the report itself:
+    missing or mismatched publication receipt, a recorded pull request on another branch or built from a fork,
+    requirements a human edited. And the ones about the report itself:
     a comment of ours under this receipt that no longer renders as the report (`CHANGED` — somebody edited it), a
     verification whose location no longer holds anything (`ABSENT` — somebody deleted it), and a location whose
     author this deployment does not trust. Each of those is cleared by a route *behind* this guard, or by a human
@@ -620,14 +634,10 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     dirty-worktree park — so holding them would strand the issue behind the very handler that fixes them, or in
     front of every route it has for as long as one edited comment stands. Nothing is ever posted twice on that
     path: the post is scoped by the receipt and only an `ABSENT` reading reaches one.
-  - **Retired** → the recorded pull request has merged or closed; the record is dropped rather than retried
-    forever. Asked of the pull request the lookup found when that is the recorded one — and, when the lookup does
-    *not* answer with it, of the recorded **number** directly. The search finds a pull request BY the commit, so a
-    recorded thread somebody force-pushed off that commit is invisible to it whether it is open or closed; left to
-    the search's own refusal, an ended one would stand down on every tick for the rest of the issue's life over
-    work that is finished. A read that fails on that extra question stands down with the refusal it was called
-    with rather than holding, since a retirement is what was being added and a hold would sit in front of the
-    publication gate the ordinary refusal is waiting for.
+  - **Retired** → the recorded pull request has merged or closed; the record is dropped rather than retried forever.
+    Reading by number is what makes this reachable at all: a thread somebody force-pushed off the recorded commit is
+    invisible to a search by commit whether it is open or closed, so an ended one would otherwise stand down on
+    every tick for the rest of the issue's life over work that is finished.
   - **Parked** (`park_reason="report_record_damaged"`) → the issue CLAIMS a transaction this build may not act on,
     or claims a settled record beside it this build did not write. The settled companions are judged *before
     anything is proved*, because both are records a settlement writes over: a damaged current report waved
@@ -638,16 +648,21 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     one nothing here produced. That one is asked of the pair alone, with no reference to the transaction in hand or
     to any receipt, because under a *previous* transaction's receipt nothing else ever would: such a pair is never
     compared against the record being reconciled, so a disagreement left standing would be replaced by the very
-    next settlement rather than seen. A record whose handoff carries its
-    receipt while disagreeing with it — believed on the receipt alone that handoff would drop a record whose report
-    was never published; the current report beside it is held to the pending record's **whole subject**, not just
+    next settlement rather than seen. A record whose handoff carries its receipt while disagreeing with it —
+    believed on the receipt alone that handoff would drop a record whose report
+    was never published. The current report beside it is held to the pending record's **whole subject**, not just
     the pull request and revision the handoff can also carry, since a current report naming another branch,
-    repository or requirements revision would otherwise read as this transaction's completion; and a handoff is
-    believed only beside a current report at all, since the two land in one write and a handoff without one is a
-    settlement that never happened. And a record a newer current report has already passed, which settled would
-    replace the pull request's newest report with an older one. None is a shape this build produces, so which
-    record to believe is a human's question. Announced once and held silently thereafter; repairing the pinned
-    comment, or clearing the field to abandon the report, resumes it with no agent run.
+    repository or requirements revision would otherwise read as this transaction's completion — and to the
+    **content** as well, which is the only half of a settled record that says which report actually landed: a
+    publication to the digest of the text it carries, a verification to the exact location and revision it read,
+    both of which a settlement copies across unchanged. A subject and a revision agree between a transaction that
+    published this text and one that published some other text at the same revision on the same commit, so without
+    the content a record whose digest and location belong to nothing this transaction did would read as its
+    completion. And a handoff is believed only beside a current report at all, since the two land in one write and
+    a handoff without one is a settlement that never happened. And a record a newer current report has already
+    passed, which settled would replace the pull request's newest report with an older one. None is a shape this
+    build produces, so which record to believe is a human's question. Announced once and held silently thereafter;
+    repairing the pinned comment, or clearing the field to abandon the report, resumes it with no agent run.
 
     A park **another route** already holds is never replaced, and no park of this owner's is taken beside it: the
     pinned flags are single, so writing over an `agent_timeout` would discard an obligation a stage is still waiting

@@ -15,6 +15,13 @@ evidence something newer is on the pull request -- so ignored, a stale record
 settles over it and the pull request's newest report is replaced by an older
 one.
 
+Both are answered over the WHOLE of what a settlement copies -- the subject, the
+revision, and the content digest or location the mode in hand records -- rather
+than over the fields the two records happen to share. The identity of a
+publication and the identity of the report published on it are different
+questions, and a record that agrees on the first while disagreeing on the second
+is one this build did not write.
+
 A third question stands ahead of both and does not involve the receipt at all:
 whether the two settled records agree with EACH OTHER. They are written in one
 write off one pending record, so the pull request, the revision and the commit
@@ -32,6 +39,7 @@ human's to look at.
 """
 from __future__ import annotations
 
+from orchestrator.github import developer_reports as _reports
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_records as _records,
@@ -110,6 +118,15 @@ def settles_this_transaction(
     another branch, another repository, or another requirements revision reads
     as this transaction's completion on the two fields it does share, and drops
     a pending record whose report was never published.
+
+    And the CONTENT is held too, which is the only half of the current report
+    that says which report actually landed. Everything above it is about the
+    publication; a subject and a revision agree between a transaction that
+    published this text and one that published some other text at the same
+    revision on the same commit. Believed without it, a record whose digest and
+    location belong to nothing this transaction did reads as its completion --
+    and the pending record is dropped with its report never published and
+    nothing parked for a human to see.
     """
     if current is None:
         return False
@@ -117,11 +134,40 @@ def settles_this_transaction(
         return False
     if current.report_revision != pending.report_revision:
         return False
+    if not _settles_the_content(current, pending):
+        return False
     return (
         handoff.pr_number == pending.subject.pr_number
         and handoff.report_revision == pending.report_revision
         and handoff.source_sha == pending.subject.source_sha
     )
+
+
+def _settles_the_content(
+    current: _records.CurrentReport, pending: _records.PendingReport,
+) -> bool:
+    """Whether the report recorded is the one THIS transaction would have left.
+
+    Read off the two ways a settlement is made, because each mode knows a
+    different amount about what it will record. A PUBLISH knows its text and
+    not the comment id GitHub will answer the post with, so the digest is the
+    whole of what it can be held to -- and it is enough, since a digest is what
+    tells one report from another. A VERIFY knows BOTH: the exact location it
+    read and the revision it read there are copied into the settlement
+    unchanged, so a record differing in either is not this verification's.
+
+    A location is not asked of a PUBLISH for that reason rather than by
+    oversight: the comment id is GitHub's answer to a request this transaction
+    had not made when it was recorded, so a record carrying any id at all is
+    consistent with it. What the pull request half of that location has to be
+    is already settled by the subject the caller compares above.
+    """
+    if pending.mode is _records.ReportMode.VERIFY:
+        return (
+            current.location == pending.location
+            and current.content_revision == pending.content_revision
+        )
+    return current.content_revision == _reports.content_digest(pending.report)
 
 
 def companions_disagree(

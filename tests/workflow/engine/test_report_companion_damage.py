@@ -47,6 +47,14 @@ _NEXT_REVISION = 2
 
 _COMMENT_ID = 8080
 
+# A second comment on the same pull request, which a verification's record may
+# not be answered by: a location is exact in both halves.
+_ELSEWHERE_COMMENT_ID = 8081
+
+# Text no transaction here carries, so its digest belongs to no settlement
+# these cases could have made.
+_ANOTHER_REPORT = "Some other report, published by some other transaction."
+
 
 class CompanionDamageTest(unittest.TestCase, support.ReportTransactionCase):
     """A settled record that is claimed and unreadable stops the tick."""
@@ -134,8 +142,8 @@ class DisagreeingCompanionTest(unittest.TestCase, support.ReportTransactionCase)
             source_sha=support.SOURCE_SHA,
             requirements_revision=pending.subject.requirements_revision,
         )
-        self._current(elsewhere, pending.report_revision)
-        self._handoff(support.RECEIPT, pending.report_revision, support.SOURCE_SHA)
+        _current(self.state, elsewhere, pending.report_revision)
+        _handoff(self.state, support.RECEIPT, pending.report_revision, support.SOURCE_SHA)
         self.record()
 
         self.assertTrue(self.reconcile())
@@ -147,28 +155,100 @@ class DisagreeingCompanionTest(unittest.TestCase, support.ReportTransactionCase)
 
     def _settled(self, *, source_sha: str) -> None:
         """A finished earlier transaction whose handoff names another commit."""
-        self._current(self.pending().subject, _SETTLED_REVISION)
-        self._handoff(_EARLIER_RECEIPT, _SETTLED_REVISION, source_sha)
+        _current(self.state, self.pending().subject, _SETTLED_REVISION)
+        _handoff(self.state, _EARLIER_RECEIPT, _SETTLED_REVISION, source_sha)
 
-    def _current(self, subject: _records.ReportSubject, revision: int) -> None:
-        """Record what the pull request is said to carry now."""
-        _settlement.record_current_report(self.state, _records.CurrentReport(
-            subject=subject,
-            report_revision=revision,
-            content_revision=content_digest(support.REPORT_TEXT),
+
+def _current(
+    state,
+    subject: _records.ReportSubject,
+    revision: int,
+    *,
+    digest: str = "",
+    location: ReportLocation | None = None,
+) -> None:
+    """Record what the pull request is said to carry now."""
+    _settlement.record_current_report(state, _records.CurrentReport(
+        subject=subject,
+        report_revision=revision,
+        content_revision=digest or content_digest(support.REPORT_TEXT),
+        location=location or ReportLocation(
+            pr_number=subject.pr_number, comment_id=_COMMENT_ID,
+        ),
+    ))
+
+
+def _handoff(state, receipt: str, revision: int, source_sha: str) -> None:
+    """Record the receipt one transaction is said to have finished under."""
+    _settlement.record_handoff(state, _records.ReportHandoff(
+        receipt=receipt,
+        pr_number=support.PR_NUMBER,
+        report_revision=revision,
+        source_sha=source_sha,
+    ))
+
+
+class SettledContentTest(unittest.TestCase, support.ReportTransactionCase):
+    """The report recorded has to be the one this transaction would have left."""
+
+    def setUp(self) -> None:
+        support.ReportTransactionCase.setUp(self)
+
+    def test_a_publication_on_another_text_parks(self) -> None:
+        # Everything but the content agrees: the subject, the revision, the
+        # handoff. A digest belonging to no text this transaction carries is
+        # the only thing left that says which report actually landed -- and
+        # believed without it the record is dropped with its report never
+        # published and nothing parked for anyone to see.
+        pending = self.pending()
+        _current(
+            self.state, pending.subject, pending.report_revision,
+            digest=content_digest(_ANOTHER_REPORT),
+        )
+        _handoff(
+            self.state, support.RECEIPT, pending.report_revision,
+            support.SOURCE_SHA,
+        )
+        self.record()
+
+        self._assert_parked_unpublished()
+
+    def test_a_verification_on_another_location_parks(self) -> None:
+        # A verification records the exact place it read and the revision it
+        # read there, both copied into the settlement unchanged. A record
+        # naming another comment on the same pull request is not this
+        # verification's, so it may not stand for its completion.
+        pending = self.pending(
+            mode=_records.ReportMode.VERIFY,
+            report="",
             location=ReportLocation(
-                pr_number=subject.pr_number, comment_id=_COMMENT_ID,
+                pr_number=support.PR_NUMBER, comment_id=_COMMENT_ID,
             ),
-        ))
+            content_revision=content_digest(_ANOTHER_REPORT),
+        )
+        _current(
+            self.state, pending.subject, pending.report_revision,
+            digest=pending.content_revision,
+            location=ReportLocation(
+                pr_number=support.PR_NUMBER, comment_id=_ELSEWHERE_COMMENT_ID,
+            ),
+        )
+        _handoff(
+            self.state, support.RECEIPT, pending.report_revision,
+            support.SOURCE_SHA,
+        )
+        _record_state.record_pending_report(self.state, pending)
 
-    def _handoff(self, receipt: str, revision: int, source_sha: str) -> None:
-        """Record the receipt one transaction is said to have finished under."""
-        _settlement.record_handoff(self.state, _records.ReportHandoff(
-            receipt=receipt,
-            pr_number=support.PR_NUMBER,
-            report_revision=revision,
-            source_sha=source_sha,
-        ))
+        self._assert_parked_unpublished()
+
+    def _assert_parked_unpublished(self) -> None:
+        """The tick is held, the record is still owed, and nothing was posted."""
+        self.assertTrue(self.reconcile())
+
+        self.assertEqual(
+            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
+        )
+        support.assert_nothing_published(self)
 
 
 class ForeignParkTest(unittest.TestCase, support.ReportTransactionCase):
