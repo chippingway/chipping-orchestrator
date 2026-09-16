@@ -621,9 +621,10 @@ The keys that matter for the state machine fall into a few groups:
   pending record and neither settled one; and an issue inside any later publication carries all three at once — the
   new transaction beside the previous report and its receipt, which are what a reader still needs while the new one
   is outstanding and are exactly what the settlement then replaces. The owners are the
-  `workflow/engine/report_record*` and `report_settlement_state` modules. The group is defined and DORMANT: no stage
-  produces a record and no dispatcher consumes one, the contract is recorded and proved by its own tests, and the
-  completion that reconciles it lands with the stage that owns it.
+  `workflow/engine/report_record*` and `report_settlement_state` modules, and what reconciles them ahead of every
+  handler is [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch).
+  No stage PRODUCES a record yet, so the group is empty on every live issue; the dispatcher's reconciliation is what
+  finishes one the moment a stage does.
 
   `developer_report_pending` is one publication transaction, written **before** the report or the code it reports
   on is published — that ordering is the whole of what makes the publication recoverable. It carries the receipt
@@ -638,8 +639,10 @@ The keys that matter for the state machine fall into a few groups:
   digest — and it outlives every transaction that put one there, so a later reader can tell a report this
   orchestrator published from one a human has edited since. `developer_report_handoff` is the receipt that one
   transaction finished; a replay under the same receipt recognizes its own completed work instead of repeating it.
-  Both settled records, and the drop of the pending record, belong in ONE durable write, because every split
-  between them is a window a crash turns into a second report or a round spent twice.
+  Both settled records, the watermarks the run consumed, the bookkeeping its route owed, and the drop of the pending
+  record land in ONE durable write, because every split between them is a window a crash turns into a second report
+  or a round spent twice. That write is composed whole before any of it is installed, so a settled record its own
+  writer refuses lands none of itself rather than dropping the pending record beside a published report.
 
   Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record.
   Both a pending verification's location and the settled `developer_report_current` location are bound to their own

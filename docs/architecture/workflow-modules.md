@@ -103,7 +103,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the branch and is read there instead. Each parser returns the slice above its marker, the
                             part a human is shown
     stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call;
-                            the unlabeled target reaches pickup through the same resolver
+                            the unlabeled target reaches pickup through the same resolver, and the report
+                            evidence's two receipt owners are named here for it
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption
     run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;
@@ -112,7 +113,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             operator controls; an already-pinned unlabeled issue is left where its labels put it.
                             A standing auto-rebase anchor holds the handler, on the adjudication's own road too,
                             and is asked again behind the reconciliation; whether it holds and what a held tick
-                            is owed are `base_sync/recovery_holds.py`'s
+                            is owed are `base_sync/recovery_holds.py`'s. The developer-report transaction is
+                            answered last of the reconciliations and ahead of the reuse guard: its own evidence
+                            asks whether the commit the report is about reached the pull request, which is the
+                            question the publication reconciliation above it settles
     poll_reading.py         classify labels and hard-skip controls while admitting observed-close cleanup; drop open
                             blocked/umbrella dependency walks on the ticks `DEPENDENCY_POLL_EVERY_N_TICKS` skips;
                             a failed label read reaches per-issue exception isolation through the family bucket
@@ -220,9 +224,54 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
                             one -- so either key is claimed by its presence alone, `null` included, which is the
                             one place this parts company with the pending record whose ordinary resting state that
-                            is. No stage produces this group and no dispatcher consumes it yet: the contract is
-                            recorded and proved by its own tests, and the completion that drives it lands with the
-                            stage that owns it
+                            is. No stage PRODUCES this group yet; what consumes one is the reconciliation below
+    report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
+                            alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
+                            for everything structural, which the routes behind the guard are what clear; and ENDED
+                            for a pull request that is over
+    report_evidence.py      the affirmative evidence a completion needs, asked cheapest first behind the pull
+                            request, and the requirements revision held against the one the run was handed
+    report_checkout_evidence.py the checkout half: on this host, clean by a reading that HAPPENED, and standing on
+                            the commit the report is about
+    report_remote_evidence.py the remote half, which the checkout cannot answer: the recorded branch is fetched and
+                            one divergence reading decides all three of unpushed commits, a remote that moved on,
+                            and a tip that is not the commit the report is about. The branch asked for is the one
+                            the record FROZE, since the whole point of freezing it was that a later tick's answer
+                            can differ
+    report_publication_evidence.py the pull-request half: the repository, then the pull request found by the COMMIT
+                            on the recorded branch, held against the number recorded, still open, and still
+                            STANDING on that commit -- carrying it is what found the pull request and is not enough
+                            to settle on, since a head pushed past it leaves the commit in history while the work
+                            under review is no longer what the report describes. The code-publication receipt is
+                            asked beside it, as one group through the receipt's own damage reader and then on both
+                            of its members, since carrying a commit says it is there and nothing about how it got
+                            there
+    report_replay_guards.py whether a record and the settlement beside it are about one thing. Either settled
+                            record CLAIMED and unreadable stops the tick before anything is proved, since both are
+                            records a settlement writes over. A handoff carrying this receipt is believed only
+                            beside the current report written with it, and once its pull request, commit and
+                            revision agree -- believed on the receipt alone it would drop a pending record whose
+                            report was never published -- and a current report already recorded at this revision or
+                            a later one says the transaction in hand is stale, which settled would replace the
+                            newest report on the pull request with an older one. Neither answers with a repair: a
+                            caller that finds the records disagree stops, because choosing between them loses
+                            something unrecoverable
+    report_publishing.py    the two ways a proved transaction finishes -- a receipt-scoped post that a retry finds
+                            rather than repeats, and a re-read of a trusted location whose content still hashes to
+                            the revision verified -- and the one write that settles either, composed whole on a
+                            copy so that a settled writer's refusal lands none of itself rather than dropping the
+                            record beside a report nothing says the pull request carries
+    report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
+                            terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
+                            and the stage: it hands work that has ENDED straight back -- a closed issue, or one
+                            wearing `done` or `rejected`, since a terminal label resolves to no handler and the
+                            no-op behind this guard protects nothing -- then settles what it can prove, holds what
+                            nobody could read, stands down on what a route behind it would fix, retires a
+                            transaction whose pull request is over, and parks once on a record it may not act on:
+                            one that will not read, one whose handoff disagrees with it, and one a newer report has
+                            already passed. That park is its own to take and its own to retire -- the record
+                            repaired and settled, or the field cleared to abandon it, both take the flags down, and
+                            no other owner's park is ever touched
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
     prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, the
