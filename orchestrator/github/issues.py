@@ -24,6 +24,7 @@ from github.Label import Label
 from orchestrator import config
 from orchestrator.github import events, labels
 from orchestrator.github.comments import carries_own_marker
+from orchestrator.observability.analytics.recording import events as _recording_events
 from orchestrator.workflow import (
     label_reading as _label_reading,
     state as _workflow_state,
@@ -31,6 +32,8 @@ from orchestrator.workflow import (
 )
 
 log = logging.getLogger("orchestrator.github")
+
+_PARK_AWAITING_HUMAN = "park_awaiting_human"
 
 _STATE_ATTR = "state"
 _ISSUE_STATE_OPEN = "open"
@@ -326,7 +329,15 @@ class GitHubIssueMixin:
         stage: str | None = None,
         **extras: Any,
     ) -> None:
-        """Record an event in memory and in the optional audit JSONL sink."""
+        """Record an event in memory, in the audit sink, and fan out to analytics.
+
+        Every event is recorded in memory (capped tail) and in the optional audit
+        JSONL sink (`EVENT_LOG_PATH`). In addition, `park_awaiting_human` events
+        are fanned out to the analytics recorder (`record_park_awaiting_human`).
+        Other event families with dedicated analytics producers are excluded from
+        fan-out. Analytics recording errors are logged and swallowed so failure
+        cannot disrupt workflow progress or alter issue state.
+        """
         event_record = events.build_event_record(
             repo=self._repo_slug,
             issue_number=issue_number,
@@ -338,6 +349,20 @@ class GitHubIssueMixin:
         if len(self.recorded_events) > _RECORDED_EVENTS_CAP:
             self.recorded_events = self.recorded_events[-_RECORDED_EVENTS_CAP:]
         events.write_event_record(event_record)
+        if event == _PARK_AWAITING_HUMAN:
+            try:
+                _recording_events.record_park_awaiting_human(
+                    repo=self._repo_slug,
+                    issue=issue_number,
+                    stage=stage,
+                    **extras,
+                )
+            except Exception as error:  # noqa: BLE001 - analytics recording failure must never break event emission
+                log.warning(
+                    "issue=#%s park_awaiting_human analytics record failed: %s",
+                    issue_number,
+                    error,
+                )
 
     def comment(self, issue: Issue, body: str) -> IssueComment:
         """Post one issue comment."""

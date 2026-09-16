@@ -6,6 +6,7 @@
 EVENT_AGENT_EXIT = "agent_exit"
 EVENT_AGENT_SPAWN = "agent_spawn"
 EVENT_AGENT_TRAJECTORY = "agent_trajectory"
+EVENT_PARK_AWAITING_HUMAN = "park_awaiting_human"
 EVENT_PR_CLOSED_WITHOUT_MERGE = "pr_closed_without_merge"
 EVENT_PR_MERGED = "pr_merged"
 EVENT_SKILL_TRIGGERED = "skill_triggered"

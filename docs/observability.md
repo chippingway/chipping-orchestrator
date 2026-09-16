@@ -62,9 +62,9 @@ the Postgres column the sync loads it into. Five kinds are written today — `st
 [`repo_skill_catalog`](observability/event-streams.md#repo_skill_catalog-records), and the one record each candidate
 of the daily terminal-artifact maintenance pass earns,
 [`terminal_artifact_cleanup`](observability/event-streams.md#terminal_artifact_cleanup-records) (analytics only: that
-pass writes no workflow state, so it has no audit twin) — beside two families written to
-this sink and the audit log alike, so the JSONL copy answers offline what the database answers: the per-issue
-lifetime ledger's
+pass writes no workflow state, so it has no audit twin) — beside three families written to
+this sink and the audit log alike, so the JSONL copy answers offline what the database answers: human-wait
+transitions (`park_awaiting_human`), the per-issue lifetime ledger's
 [`agent_run_budget`](observability/event-streams.md#agent-run-budget-records-both-sinks) transitions, and the late
 size gate's eight [late-split families](observability/event-streams.md#late-split-records-both-sinks). That page
 carries each one's fields, the opt-in `TRACK_SKILL_TRIGGERS` skill evidence on `agent_exit`, the

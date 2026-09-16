@@ -26,6 +26,7 @@ from tests.support.github.models import (
 from tests.support.github.state import _CommentHistory, _LabelHistory
 
 _STATE_CLOSED = "closed"
+_PARK_AWAITING_HUMAN = "park_awaiting_human"
 
 
 def _workflow_label(
@@ -234,6 +235,12 @@ class _WorkflowStateService:
         stage: str | None = None,
         **extras: Any,
     ) -> None:
+        """Record an event in memory, in the audit sink, and fan out to analytics.
+
+        Mirrors `GitHubIssueMixin.emit_event`: every event is recorded in
+        memory and in the audit sink; `park_awaiting_human` is additionally
+        fanned out to `record_park_awaiting_human`.
+        """
         record = _events.build_event_record(
             repo=self._repo_slug,
             issue_number=issue_number,
@@ -243,6 +250,20 @@ class _WorkflowStateService:
         )
         self.recorded_events.append(record)
         _events.write_event_record(record)
+        if event == _PARK_AWAITING_HUMAN:
+            try:
+                _recording_events.record_park_awaiting_human(
+                    repo=self._repo_slug,
+                    issue=issue_number,
+                    stage=stage,
+                    **extras,
+                )
+            except Exception as error:  # noqa: BLE001 - analytics recording failure must never break event emission
+                _events.log.warning(
+                    "issue=#%s park_awaiting_human analytics record failed: %s",
+                    issue_number,
+                    error,
+                )
 
     def read_pinned_state(self, issue: FakeIssue) -> PinnedState:
         existing = self._pinned.get(issue.number)
