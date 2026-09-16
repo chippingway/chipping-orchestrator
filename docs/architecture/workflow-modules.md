@@ -177,6 +177,51 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parser so that a doubt reads as fenced: a fence opens at the top level or in a list item,
                             closes only on a bare run at its opening run's column, and stays open to the end past a
                             line that may have ended its list item
+    report_records.py       the three additive pinned records one developer-report publication transaction is
+                            written as: the PENDING transaction a tick still owes, the CURRENT report the pull
+                            request carries, and the HANDOFF receipt saying one transaction finished. The subject
+                            they share -- repository, pull request, branch, source commit, and the requirements
+                            revision the run was actually handed -- is spelled apart, because it is the whole of
+                            what a completion has to prove again
+    report_record_values.py what each recorded field may be: a receipt spelled the way the published report header
+                            carries it, one repository slug, one ref-shaped branch, and a report that says
+                            something, fits a comment with headroom to spare, and quotes no receipt marker of this
+                            orchestrator's
+    report_consumed_values.py the bookkeeping a recovered record may write, per key and per shape -- the four
+                            feedback watermarks and the requirements baseline a completion advances, plus the
+                            round and bookmark fields it closes through the held-pair vocabulary. A group is read
+                            all or nothing, and the watermarks are ratcheted forward only, which is what makes a
+                            replayed settlement a no-op
+    report_record_fields.py the subject and the location groups both records share, read and written one way, so
+                            the pending spelling cannot drift from the settled one
+    report_record_reading.py what one recorded object reads back as: identity, routing, and the half its own mode
+                            owns, each refused whole rather than partly
+    report_record_state.py  the pending record's round trip, with presence asked apart from meaning -- a damaged
+                            record and an issue with nothing outstanding are the same absence to the reader and
+                            opposite answers to the guard -- and a write refused rather than truncated when the
+                            comment could not carry it
+    report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
+                            drops the pending record
+    report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
+                            alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
+                            for everything structural, which the routes behind the guard are what clear; and ENDED
+                            for a pull request that is over
+    report_evidence.py      the affirmative evidence a completion needs, asked cheapest first, and the requirements
+                            revision held against the one the run was handed
+    report_checkout_evidence.py the checkout half: on this host, clean by a reading that HAPPENED, and standing on
+                            the commit the report is about
+    report_publication_evidence.py the pull-request half: the repository, then the pull request found by the COMMIT
+                            on the recorded branch and held against the number recorded, then whether it is still
+                            open -- and the code-publication receipt beside it, both halves, since carrying a
+                            commit says it is there and nothing about how it got there
+    report_publishing.py    the two ways a proved transaction finishes -- a receipt-scoped post that a retry finds
+                            rather than repeats, and a re-read of a trusted location whose content still hashes to
+                            the revision verified -- and the one write that settles either
+    report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
+                            terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
+                            and the stage: it settles what it can prove, holds what nobody could read, stands down
+                            on what a route behind it would fix, retires a transaction whose pull request is over,
+                            and parks once on a record nobody can read
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in
     prompt_notes.py         shared empty-context placeholders, foreground execution and commit instructions, the

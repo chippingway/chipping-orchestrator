@@ -612,6 +612,35 @@ The keys that matter for the state machine fall into a few groups:
   may finish rather than one it merely found there.
 - **Drift baseline.** `user_content_hash` — SHA-256 over title + body + non-orchestrator comments; updated whenever
   the orchestrator reacts to a human edit.
+- **The developer report a pull request is owed and the one it carries.** The additive
+  `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group, each one nested
+  object, each absent on every issue that predates them and on every issue that has published no report. The
+  owners are the `workflow/engine/report_record*` and `report_settlement_state` modules, and what reconciles them
+  is [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch).
+
+  `developer_report_pending` is one publication transaction, written **before** the report or the code it reports
+  on is published — that ordering is the whole of what makes the publication recoverable. It carries the receipt
+  naming the transaction, the subject it is bound to (repository, pull request, branch, source commit, and the
+  requirements revision the developer run was actually handed), the report revision, whether it is owed a
+  publication or a verification, the route that produced it, the complete report text or the exact location and
+  content revision a verification asserts, the feedback watermarks the run consumed, and the round and bookmark
+  fields its route closes. The requirements revision is the one the run was GIVEN and never the one current when
+  publication finally lands, so a delayed report cannot be stamped as answering an edit it never saw.
+
+  `developer_report_current` is what the pull request carries now — subject, revision, exact location, and content
+  digest — and it outlives every transaction that put one there, so a later reader can tell a report this
+  orchestrator published from one a human has edited since. `developer_report_handoff` is the receipt that one
+  transaction finished; a replay under the same receipt recognizes its own completed work instead of repeating it.
+  All three of the settlement's writes, and the drop of the pending record, land in ONE durable write, because
+  every split between them is a window a crash turns into a second report or a round spent twice.
+
+  Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record.
+  Because that is also what an issue with nothing recorded reads as, presence is asked separately: an issue that
+  CLAIMS a transaction it cannot describe parks (`park_reason="report_record_damaged"`) rather than being carried
+  past. The watermark and bookkeeping pairs are bounded per key and per shape, so a hand-edited record cannot write
+  into any field the workflow has, and the watermarks are ratcheted forward only. A report is refused where it is
+  declared — not truncated — when it would not fit the comment or when it quotes a receipt marker of this
+  orchestrator's.
 - **HITL park.** `awaiting_human`, `last_action_comment_id`, `park_reason`. `_park_awaiting_human` (on the same
   `workflow/engine/guards.py` owner as the two run refusals) sets
   `awaiting_human=True` and clears `park_reason` to `None`; a handler that needs the reason to survive into the next

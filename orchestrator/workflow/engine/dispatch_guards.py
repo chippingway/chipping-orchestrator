@@ -20,6 +20,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    report_transaction as _report_transaction,
     run_limit_dispatch as _run_limit_dispatch,
     stage_targets as _stage_targets,
 )
@@ -199,6 +200,17 @@ def _record_stops_the_tick(
     by the leased push it earns, it leaves the pull request carrying the
     replay and the anchor still pinned, and the handler behind would run
     before the recovery that finalizes it.
+
+    A developer report this issue recorded and never finished publishing is
+    answered last of the reconciliations, and behind that one for a reason: its
+    own evidence asks whether the commit the report is about reached the pull
+    request, and the reconciliation above is what settles a push that had been
+    frozen and never counted. Asked first, it would read a candidate mid-gate
+    as one whose code was never published and stand down every tick. Asked
+    here, the world it proves is the one the tick that recorded it meant to
+    hand on. It stays ahead of the reuse guard and the handler, because both
+    are roads that carry on over a report nobody published -- and the reviewer
+    at the end of them is the reader the report was written for.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
@@ -214,6 +226,8 @@ def _record_stops_the_tick(
     if late_reconcile._reconciles_published_work(
         gh, spec, issue, label, state,
     ) or _anchor_holds_the_tick(gh, spec, issue, label, state):
+        return True
+    if _report_transaction._reconciles_pending_report(gh, spec, issue, state):
         return True
     late_reuse = importlib.import_module(_stage_targets._LATE_REUSE_OWNER)
     return (

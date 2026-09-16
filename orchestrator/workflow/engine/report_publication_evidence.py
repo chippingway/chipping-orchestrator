@@ -1,0 +1,141 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""Whether the pull request a report names is the one it may be published onto.
+
+The repository is asked first, because a slug that disagrees means every reading
+below would be taken against somebody else's pull request -- a fork carries this
+repository's ref names over its commits and would otherwise agree on everything.
+
+Then the pull request is found by the COMMIT rather than by the number the record
+names, which is what makes the answer worth having. The lookup is scoped to the
+branch the record froze and searched over every state, so what comes back is the
+pull request this exact publication landed on: a pull request standing on the
+commit says nothing about where the work was pushed, and a number read back on
+its own says nothing about whether the work ever got there. Carrying is not the
+same as standing on, either -- a human pushing to the branch, or merging the base
+into it, moves the head while the commit the report is about stays in the pull
+request, and a proof pinned to the head alone would refuse a report that is
+perfectly publishable.
+
+The number is then held against what came back rather than used to fetch it. A
+lookup that answers with some other pull request is a publication this
+transaction is not about, which is exactly the case a fetch by number would have
+hidden.
+
+The code-publication receipt is asked beside all of it, because carrying the
+commit says the work is THERE and nothing about how it got there. A report is a
+claim about work this orchestrator published, so the receipt has to vouch for it
+in both halves: the commit it names and the pull request it names, since a
+receipt left by some other publication -- an earlier one of this issue's, or one
+written before this transaction -- vouches for nothing here.
+"""
+from __future__ import annotations
+
+import importlib
+from typing import Any
+
+from orchestrator.github import pull_request_reads as _pr_reads
+from orchestrator.github.client import GitHubClient
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import (
+    report_evidence_models as _evidence_models,
+    report_records as _records,
+    stage_targets as _stage_targets,
+)
+
+_PR_OPEN = "open"
+
+
+def publication_verdict(
+    gh: GitHubClient, pending: _records.PendingReport,
+) -> _evidence_models.ReportEvidence:
+    """Prove the pull request this report may be published onto, or refuse.
+
+    An enumeration nobody could complete holds rather than defers: "no pull
+    request carries this" and "nobody could say" are different answers, and
+    only the first of them means the commit still needs publishing. Read the
+    other way round, a transient failure would send a finished report back to
+    the publication gate on every tick.
+    """
+    subject = pending.subject
+    if gh.repo_slug != subject.repo_slug:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER,
+            "the transaction was recorded against another repository",
+        )
+    found = gh.find_pr_for_commit(
+        branch=subject.branch, head_sha=subject.source_sha,
+    )
+    if found is _pr_reads.PR_LOOKUP_UNREADABLE:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD,
+            "the pull requests on the recorded branch could not be read",
+        )
+    if found is None:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER,
+            "no pull request on the recorded branch carries the commit yet",
+        )
+    return _identified_verdict(found, subject)
+
+
+def receipt_verdict(
+    state: PinnedState, pending: _records.PendingReport,
+) -> _evidence_models.ReportEvidence | None:
+    """Refuse until the code-publication receipt vouches for this commit.
+
+    Both halves of the receipt, because neither answers alone: the commit says
+    what reached a remote and the pull request says which publication now
+    carries it. Deferred rather than held, because what WRITES that receipt is
+    the publication gate the stage behind this evidence reaches -- so a
+    transaction recorded ahead of a push waits here for exactly one tick's
+    worth of ordinary progress.
+
+    The receipt's owner is imported when this is called rather than above, for
+    the reason every stage owner the engine reaches is: the stage tree imports
+    the engine back, so binding it here would make importing the engine pull
+    the handlers it drives.
+    """
+    subject = pending.subject
+    publication_state = importlib.import_module(
+        _stage_targets._LATE_PUBLICATION_STATE_OWNER,
+    )
+    if publication_state._published_commit(state) != subject.source_sha:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER,
+            "no code-publication receipt names the commit the report is about",
+        )
+    if publication_state._published_pull_request(state) != subject.pr_number:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER,
+            "the code-publication receipt names another pull request",
+        )
+    return None
+
+
+def _identified_verdict(
+    pull_request: Any, subject: _records.ReportSubject,
+) -> _evidence_models.ReportEvidence:
+    """Hold the pull request that carries the commit to the one recorded.
+
+    A different number is a publication this transaction is not about -- a
+    replacement somebody opened after closing the original is the shape that
+    matters -- and publishing onto it would put this report on a thread the
+    record never named. One that is no longer open ends the transaction
+    instead: a report posted to a merged or closed pull request is a comment
+    nobody is going to read.
+    """
+    if pull_request.number != subject.pr_number:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER,
+            "another pull request carries the commit the report is about",
+        )
+    if _pr_reads.pr_state(pull_request) != _PR_OPEN:
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.ENDED,
+            "the pull request is no longer open",
+        )
+    return _evidence_models.ReportEvidence(
+        _evidence_models.ReportEvidenceVerdict.PROVED,
+        pull_request=pull_request,
+    )

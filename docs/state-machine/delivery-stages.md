@@ -549,6 +549,51 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   plan is carved out on `workflow:implementing`, where merging one is the agreement that licensed the build, and
   nowhere else — `discussion` itself drains that same pull request through its own terminal.
 
+## The developer-report transaction (every dispatch)
+- **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `developer_report_pending`. The
+  owner is `workflow/engine/report_transaction.py`; the record it reads is described under
+  [pinned state](labels-and-state.md#pinned-state).
+- **Why it is here rather than in a stage**: the record is durable and the publication that follows it is not, so a
+  tick that dies in between leaves an issue whose pinned comment says a report is owed and whose pull request does
+  not carry it. Nothing on the stage that recorded it would go back for that — the handler spawns a reviewer,
+  resumes a developer, or reads a pull request it believes is up to date, while the report the next reviewer needs
+  sits in a record nobody is reading.
+- **Where in the order**: behind the pause (the dispatcher's hard-skip screen), the terminal arcs, the
+  outstanding-publication reconciliation (`late_reconcile._reconciles_published_work`) and the adjudication guards;
+  ahead of the reuse guard below and the stage handler. Behind the publication reconciliation specifically, because
+  this owner's own evidence asks whether the commit the report is about reached the pull request — and a candidate
+  the size gate froze and never counted is exactly the case that reconciliation settles, so asking first would read
+  a commit mid-gate as one whose code was never published and stand down every tick.
+- **What it proves before completing anything**: a checkout on this host, clean by a `git status` that actually
+  ANSWERED, standing on the recorded commit; the pull request found by that commit on the recorded branch, held
+  against the recorded number, still open, in this repository; the code-publication receipt naming both that commit
+  and that pull request; and the issue's requirements still hashing to the revision the developer run was handed.
+  Nothing is inferred from an absence.
+- **Outcomes**:
+  - **Settled** → for a publication, the report is posted as one comment scoped by the transaction's receipt (so a
+    retry finds what an earlier attempt landed instead of repeating it, including the post whose response was
+    lost); for a verification, nothing is posted and the named location is re-read, requiring both a trusted author
+    and content that still hashes to the revision verified. Either way one `developer_report_current`, one
+    `developer_report_handoff`, the consumed watermarks, and the route's round / bookmark fields land in a single
+    write with the drop of the pending record. The tick carries on to the handler.
+  - **Held** (tick stops, nothing written) → a reading nobody could take: an unreadable worktree or head, a pull
+    request enumeration that failed, a post or re-read GitHub did not confirm. The next tick asks again.
+  - **Stood down** (tick carries on, transaction still owed) → anything structural: a dirty tree, a head that
+    moved, a checkout on another host, a commit the pull request does not carry yet, a missing or mismatched
+    publication receipt, requirements a human edited. Each of those is cleared by a route *behind* this guard — the
+    publication gate that pushes the commit, the drift resume that answers the edit, the dirty-worktree park — so
+    holding them would strand the issue behind the very handler that fixes them.
+  - **Retired** → the pull request has merged or closed; the record is dropped rather than retried forever.
+  - **Parked** (`park_reason="report_record_damaged"`) → the issue CLAIMS a transaction whose record cannot be
+    read. Announced once and held silently thereafter; repairing the pinned comment, or clearing the field to
+    abandon the report, resumes it with no agent run.
+- **Replay**: a handoff already naming the transaction's receipt drops the record without publishing again, which
+  is the window where the settlement landed and the process died before the drop. Watermarks only ever move
+  forward and the round is applied from the pair the transaction froze, so a replayed settlement counts nothing
+  twice and swallows no comment posted since.
+- **Output**: no label change, ever. This owner publishes a report and settles a record; which stage runs next is
+  the handler's.
+
 ## The reuse guard (every dispatch, ahead of every handler)
 - **Trigger**: `_route_issue_to_handler` on any issue whose pinned ancestry still names a snapshot ref. It shares its
   pinned read with the live-adjudication guard beside it, so it costs no extra comment walk. Both step aside for
