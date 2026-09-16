@@ -77,6 +77,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     prompt_context.py       trusted-author thread reads, retained orchestrator comment ids, quoted comment lines, and
                             bounded tracked-repository awareness for agent prompts; marker text alone cannot admit a
                             comment
+    prompt_delivery.py      shared process-local input-delivery snapshot and conservative settlement contract recording
+                            exact delivered issue-thread, PR-conversation, inline-review, and review-summary inputs;
+                            preserves distinct namespaces, watermark fields, bounded-excerpt omissions, filtering decisions,
+                            and requirements revisions without copying live thread tips or taking unrestricted maximums
     community.py            the open pull requests this orchestrator never opened, which is why the tick sweeps
                             them itself: one opened by somebody else carries no pinned state for a handler to
                             consult, so nothing dispatches it. `ALLOWED_ISSUE_AUTHORS` decides there is anything

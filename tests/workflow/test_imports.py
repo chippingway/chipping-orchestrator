@@ -47,6 +47,7 @@ _ENGINE_OWNERS = (
     "publication_holds",
 
     "prompt_context",
+    "prompt_delivery",
     "content_hash",
     "prompt_notes",
     "conversation_prompts",
