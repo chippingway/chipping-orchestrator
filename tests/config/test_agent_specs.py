@@ -5,6 +5,7 @@
 import unittest
 
 from tests.config import config_reload_helpers as _reload, config_test_values as _config_cases
+from tests.support import agy_stream
 
 
 class AgentSpecParsingConfigTest(unittest.TestCase):
@@ -75,6 +76,25 @@ class AgentSpecParsingConfigTest(unittest.TestCase):
         config = _reload.load_config({_config_cases._DEV_AGENT_ENV: "  CODEX -m foo"})
         self.assertEqual(config.DEV_AGENT, _config_cases._CODEX)
         self.assertEqual(config.DEV_AGENT_ARGS, (_config_cases._MODEL_FLAG, "foo"))
+
+
+class AntigravityConfigTest(unittest.TestCase):
+    def test_all_roles_accept_agy_specs(self) -> None:
+        specs = (
+            (agy_stream.BACKEND, ()),
+            (agy_stream.SPEC.replace("agy", "AGY", 1), agy_stream.ARGS),
+        )
+        for role in (_config_cases._DEV_AGENT_ENV, _config_cases._REVIEW_AGENT_ENV, _config_cases._DECOMPOSE_AGENT_ENV):
+            for spec, args in specs:
+                with self.subTest(role=role, spec=spec):
+                    config = _reload.load_config({role: spec})
+                    self.assertEqual(getattr(config, role), agy_stream.BACKEND)
+                    self.assertEqual(getattr(config, f"{role}_ARGS"), args)
+                    self.assertEqual(getattr(config, f"{role}_SPEC"), spec)
+
+    def test_agy_binary_path(self) -> None:
+        self.assertEqual(_reload.load_config().AGY_BIN, agy_stream.BACKEND)
+        self.assertEqual(_reload.load_config({"AGY_BIN": "/opt/agy"}).AGY_BIN, "/opt/agy")
 
 
 class AgentSpecErrorConfigTest(unittest.TestCase):

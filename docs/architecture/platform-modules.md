@@ -69,7 +69,7 @@ last is held by the loader itself rather than by a check.
   would be free to lose a protection the two runners it was taken from still have.
 - **One road to a process.** The `agents/` chain is reached at one point from above and one per hop below it: only
   `workflow/engine/usage.py` names and calls `runner.run_agent`; only `runner.py` names
-  `codex.run_codex` / `claude.run_claude`; and only the two
+  `codex.run_codex` / `claude.run_claude` / `agy.run_agy`; and only the three
   backends name `processes.run_subprocess`. That is what makes the lifetime agent-run charge taken around that single
   call a charge every role pays, since a second caller anywhere would be runs nothing counts.
   `tests/repository/test_agent_spawn_boundary.py` reads the whole chain off the source, counting a reference rather
@@ -281,7 +281,7 @@ orchestrator/
     models.py           the agent result, run-option, and subprocess-result models
     environment.py      credential filtering and the injected git identity
     session_ids.py      the backend-agnostic session-id walk: a UUID-shaped value at a known key, anywhere in
-                        either CLI's event tree, so a resume is issued against what the run actually reported
+                        any CLI's event tree, so a resume is issued against what the run actually reported
     sessions.py         Claude final-message JSONL parsing, including the terminal result event the final
                         message is taken from, published whole for the reader of the flags beside it
     provider_failures.py
@@ -300,6 +300,7 @@ orchestrator/
     backends/
       codex.py          Codex command construction, scratch output, and execution
       claude.py         Claude command construction and execution
+      agy.py            Antigravity command construction, terminal-result gating, and conversation resumes
   scheduler/            publishes `IssueScheduler` and `SubmissionRequest` from their defining owners
     models.py           the typed submission, the historical `submit` binding, and field normalization
     service.py          the concrete scheduler: the caps, the tracked claims, the family mutex, dispatch, and

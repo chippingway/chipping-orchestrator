@@ -1,7 +1,7 @@
 # Architecture
 
 Single-process **polling orchestrator** that drives GitHub issues through a label-based state machine, delegating coding
-work to a configurable coding-agent CLI (`codex` or `claude`) running as a subprocess in isolated git worktrees.
+work to a configurable coding-agent CLI (`codex`, `claude`, or `agy`) running as a subprocess in isolated git worktrees.
 
 State lives in GitHub: a workflow label exposes the current stage and a pinned JSON comment holds per-issue durable
 state. The orchestrator process is stateless and can restart at any time.
@@ -39,8 +39,9 @@ The workflow is deliberately fixed instead of planner-selected: decomposition, i
 acceptance are mandatory phases. Routing is explicit and label-driven.
 
 Agents run on the host as CLI subprocesses with broad local permissions
-(`codex --dangerously-bypass-approvals-and-sandbox`, `claude --dangerously-skip-permissions`). The host, container, or
-VM around the orchestrator is therefore the real sandbox boundary; token handling and hardened git operations are
+(`codex --dangerously-bypass-approvals-and-sandbox`, `claude` / `agy --dangerously-skip-permissions`).
+The host, container, or VM around the orchestrator is therefore the real sandbox boundary;
+token handling and hardened git operations are
 designed around that assumption.
 
 ## Top-level layout
@@ -395,17 +396,17 @@ per-handler routing in
 ## Agent subprocess (`agents.runner.run_agent`)
 
 `run_agent(backend, prompt, cwd, ...)` dispatches to the per-backend runner (`codex.run_codex` /
-`claude.run_claude`); `backend` is one of `"codex"` / `"claude"` and is re-validated at call time so a
-misuse fails loudly. Both runners return a unified
+`claude.run_claude` / `agy.run_agy`); `backend` is one of `"codex"` / `"claude"` / `"agy"` and is re-validated
+at call time so misuse fails loudly. All runners return a unified
 `AgentResult(session_id, last_message, exit_code, timed_out, stdout, stderr, interrupted, usage, invoked)`.
 `interrupted`
 (default `False`) flags a run the runner observed exiting on SIGTERM/SIGKILL, in either form: the negative
 returncode `Popen` reports when the child itself dies from the signal (`-15` / `-9`), or the shell-convention
 128+N exit (`143` / `137`) of a CLI that traps the signal or a wrapper reporting a signal-killed child. Either is
 the shape the orchestrator's shutdown sweep (`terminate_all_running`) produces when it kills an in-flight agent
-group; `exit_code` keeps the raw code, and `interrupted` is distinct
+group; `exit_code` preserves signal exits, and `interrupted` is distinct
 from `timed_out` (the orchestrator's own `AGENT_TIMEOUT` firing). `invoked` (default `True`) says whether a process
-existed at all: every result either backend produced carries `True`, including the killed and timed-out ones, and
+existed at all: every result any backend produced carries `True`, including the killed and timed-out ones, and
 only a launch the agent-run circuit turned away before the spawn carries `False`. The two are not the same
 question, and the stages that read a worktree *before* they ask about interruption need both — see
 [The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit). `usage` (default `None`) is the parsed
@@ -432,7 +433,7 @@ after the write that makes the step durable
 call" is held rather than assumed:
 [`../tests/repository/test_agent_spawn_boundary.py`](../tests/repository/test_agent_spawn_boundary.py) reads the
 production tree and fails on any second module that so much as names `run_agent`, on anything but `runner.py` naming
-a backend entry, and on anything but the two backends naming `run_subprocess`. Details in
+a backend entry, and on anything but the three backends naming `run_subprocess`. Details in
 [`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#the-agent-run-circuit).
 
 The role command specs (`DEV_AGENT` / `REVIEW_AGENT` / `DECOMPOSE_AGENT`), their parsing, the durable per-session
@@ -455,9 +456,15 @@ lock, and the resume mechanic are documented in
   for its `is_error` flag: it is what tells a provider refusal the run ENDED on from an answer that merely quotes one,
   and `agents/provider_failures.py`'s transient-provider classifier prefers it over any text match (falling back to a
   narrow message prefix beside a non-zero exit only where no flag is present).
+- **Antigravity command**:
+  `agy --dangerously-skip-permissions --output-format stream-json --input-format text --print-timeout <seconds>s`
+  followed by `--conversation <sid>` on resumes and `--print <prompt>`. The timeout matches the process budget.
+  `agy.py` reads `event: result` through `observability/usage/agy_events.py`; only a `SUCCESS` response becomes the
+  final message. Missing or failed terminal results produce a nonzero outcome, with diagnostics in `stderr`;
+  `INTERRUPTED` and `CANCELED` also mark the run interrupted. Partial text remains available in the trajectory.
 - **Input**: prompt string; optional resume session id; timeout (`AGENT_TIMEOUT` / `REVIEW_TIMEOUT`).
 - **Output**: `AgentResult(...)`. `session_id` is harvested by `agents/session_ids.py` walking the JSONL events for
-  any UUID-shaped value at `session_id` / `conversation_id` / etc. (shared between both backends).
+  any UUID-shaped value at `session_id` / `conversation_id` / etc. (shared across all backends).
 - **Timeout cleanup** (`process_groups.terminate_process_group`): on timeout expiry the runner SIGTERMs the agent's
   whole process group (every spawn uses `start_new_session=True`), waits for the leader, then — mirroring the
   shutdown sweep (`terminate_all_running`, which spends the same escalation over every registered group) — probes
@@ -822,7 +829,7 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
              ▼                                       ▼
    ┌─────────────────────────────┐         ┌─────────────────────────────┐
    │  coding-agent CLI           │         │  git push                   │
-   │  (codex or claude,          │         │  ─ GIT_ASKPASS tempfile     │
+   │  (codex / claude / agy,     │         │  ─ GIT_ASKPASS tempfile     │
    │   per-issue worktree)       │         │  ─ no global/system config  │
    │  ─ env: GH tokens stripped  │         │  ─ hooks/helper disabled    │
    │  ─ env: GIT_AUTHOR/COMMITTER│         │  ─ refuses url/http cfg     │
@@ -831,7 +838,7 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │  ─ --bypass / --skip perms  │                        │
    │  ─ JSONL → session_id       │                        │
    │  ─ last_message: -o (codex) │                        │
-   │     or stream-json (claude) │                        │
+   │     or stream-json          │                        │
    └──────────────┬──────────────┘                        │
                   │ commits to                            │ pushes branch to
                   ▼                                       ▼

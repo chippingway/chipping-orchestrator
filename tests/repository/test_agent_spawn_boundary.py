@@ -11,7 +11,7 @@ that road, because the handler it would belong to does not exist yet; so the
 shape is read off the source instead.
 
 Three hops make up the road, and each is checked for who else may name it: the
-subprocess the backend builds a command for, the two backend entries the
+subprocess the backend builds a command for, the backend entries the
 runner dispatches between, and the runner entry the workflow's charged wrapper
 calls. A stage reaching `run_claude` directly, or a helper holding `run_agent`
 in a variable to invoke a line later, is the bypass this exists to fail on --
@@ -44,7 +44,7 @@ _PACKAGE = "orchestrator"
 # command builders over it, and the dispatch entry over those.
 _SUBPROCESS_ENTRY = "run_subprocess"
 
-_BACKEND_ENTRIES = ("run_claude", "run_codex")
+_BACKEND_ENTRIES = ("run_claude", "run_codex", "run_agy")
 
 _DISPATCH_ENTRY = "run_agent"
 
@@ -54,6 +54,7 @@ _TRACKED_RUN = "_run_agent_tracked"
 _CHARGE = "_charge_launch"
 
 _BACKEND_OWNERS = (
+    f"{_PACKAGE}.agents.backends.agy",
     f"{_PACKAGE}.agents.backends.claude",
     f"{_PACKAGE}.agents.backends.codex",
 )
@@ -140,7 +141,7 @@ class AgentSpawnBoundaryTest(unittest.TestCase):
         )
 
     def test_only_the_runner_names_a_backend(self) -> None:
-        # Both backend entries build a command and run it, so naming one is
+        # All backend entries build a command and run it, so naming one is
         # starting a process. Reaching them anywhere but the dispatcher would
         # skip the entry the check above holds to one caller.
         self.assertEqual(
@@ -148,7 +149,7 @@ class AgentSpawnBoundaryTest(unittest.TestCase):
         )
 
     def test_only_backends_name_the_subprocess(self) -> None:
-        # The last hop, under both backends. A caller here that is not one of
+        # The last hop, under every backend. A caller here that is not one of
         # them would reach a CLI without a backend having chosen the command,
         # which is the same run by a road neither check above can see.
         self.assertEqual(

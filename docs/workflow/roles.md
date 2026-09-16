@@ -29,7 +29,7 @@ is attributed to — while `workflow:<tag>` is the **wire label** the GitHub iss
 - **Reviewer** (`REVIEW_AGENT`, default `codex`) — spawned by `_handle_validating` (fresh every round). Session: fresh
   per round; current config always wins.
 
-The defaults (`claude` decomposes, `claude` implements, `codex` reviews) use both backends; both CLIs need to be
+The defaults (`claude` decomposes, `claude` implements, `codex` reviews) require those two CLIs; both need to be
 authenticated on the host before the orchestrator starts.
 
 ## Where a role is spawned from

@@ -12,7 +12,7 @@ from orchestrator.observability.usage.metrics import UsageMetrics
 
 @dataclass
 class AgentResult:
-    """Normalized outcome returned by either supported agent backend."""
+    """Normalized outcome returned by any supported agent backend."""
 
     session_id: str | None
     last_message: str
@@ -23,7 +23,7 @@ class AgentResult:
     interrupted: bool = False
     usage: UsageMetrics | None = None
     # Whether a process was invoked for this result at all. True for every
-    # run either backend produced, including the ones a shutdown kill or a
+    # run any backend produced, including the ones a shutdown kill or a
     # timeout cut short -- those reached a CLI, and what they left behind on
     # disk is theirs. False only for a launch turned away before the spawn,
     # which the stages have to be able to tell apart: a worktree they would

@@ -9,8 +9,8 @@ that decides when a change to one of them reaches a running issue. Which stage s
 
 `config._parse_agent_spec` runs `shlex.split` over each role's env value and yields `(backend, extra_args)`:
 
-- **First token rule** — must match `codex` or `claude` case-insensitively (`_parse_agent_spec` compares
-  `tokens[0].lower()`, so `CODEX`, `Claude`, and `codex` all parse to the same backend). The lowercased form is used
+- **First token rule** — must match `codex`, `claude`, or `agy` case-insensitively (`_parse_agent_spec` compares
+  `tokens[0].lower()`, so `AGY` and `agy` both select Antigravity). The lowercased form is used
   only for dispatch (`agents.runner.run_agent` keys off it).
 
   Pinned state stores the **raw spec string verbatim** with its original casing — `DEV_AGENT=CODEX -m gpt-5.5` is
@@ -25,21 +25,20 @@ that decides when a change to one of them reaches a running issue. Which stage s
   rules, so values containing `=`, spaces, or nested quotes survive (e.g.
   `codex -m gpt-5.5 -c 'model_reasoning_effort="xhigh"'`).
 
-  For codex the args are placed before the `exec` subcommand (they are codex global options); for claude they are
-  placed right after the binary, before the orchestrator's own `-p` / `--dangerously-skip-permissions` /
+  For codex the args are placed before the `exec` subcommand (they are codex global options); for claude and agy they
+  are placed right after the binary, before the orchestrator's own print / `--dangerously-skip-permissions` /
   `--output-format` flags. The safety/output flags and the prompt stay where they are so operator args cannot silently
   displace them.
-- **`CODEX_BIN` / `CLAUDE_BIN` interaction** — the first token is only a backend selector. It picks the codex vs.
-  stable API in `agents/`; command construction lives in `agents/backends/codex.py` and `agents/backends/claude.py`,
-  session-id parsing in `agents/session_ids.py`, and final-message parsing in `agents/sessions.py`. The actual
-  executable launched is `CODEX_BIN` when the first token is `codex` and `CLAUDE_BIN` when it is `claude`. Set those
+- **`CODEX_BIN` / `CLAUDE_BIN` / `AGY_BIN` interaction** — the first token is only a backend selector. It picks the
+  matching runner in `agents/backends/`; session-id parsing lives in `agents/session_ids.py`. The actual
+  executable launched is `CODEX_BIN` for `codex`, `CLAUDE_BIN` for `claude`, and `AGY_BIN` for `agy`. Set those
   to a full path when the CLI is not on `$PATH`. Writing a full path as the first token of `DEV_AGENT` /
-  `REVIEW_AGENT` / `DECOMPOSE_AGENT` is rejected (it would not match `codex` / `claude`).
+  `REVIEW_AGENT` / `DECOMPOSE_AGENT` is rejected (it would not match `codex` / `claude` / `agy`).
 
 ## Examples
 
-Both backends accept model selection plus a reasoning-effort flag. Any of the lines below is a valid value for any of
-the three role env vars.
+All three backends accept model selection plus a reasoning-effort flag. Each example is a valid value for any
+of the three role env vars.
 
 ```dotenv
 # bare backends (defaults)
@@ -58,7 +57,16 @@ DECOMPOSE_AGENT=claude --model claude-opus-4-7 --effort medium
 # codex with model + reasoning effort
 DEV_AGENT=codex -m gpt-5.5 -c 'model_reasoning_effort="xhigh"'
 REVIEW_AGENT=codex -m gpt-5.5-codex -c 'model_reasoning_effort="high"'
+
+# Antigravity with model + effort
+DEV_AGENT=agy --dangerously-skip-permissions --model gemini-3.8-flash-high --effort high
 ```
+
+Antigravity must already be authenticated on the host; run `agy` interactively once to sign in. The orchestrator
+uses its [headless stream-json protocol](https://antigravity.google/docs/cli/headless/), passes the prompt as the
+value of `--print`, and resumes the captured `conversation_id` with `--conversation`. It supplies
+`--dangerously-skip-permissions` even for a bare `agy` spec and sets `--print-timeout` from the role's orchestrator
+timeout (`AGENT_TIMEOUT`, or `REVIEW_TIMEOUT` for review), overriding the CLI's five-minute default.
 
 ## In-flight session lock
 
@@ -113,8 +121,7 @@ conversation that already pinned one. Flipping `REVIEW_AGENT` takes effect on th
 
 - The spec format is parsed once at import (`config._parse_agent_spec`) and again at resume time from pinned state, so
   the same validation rules apply to both paths.
-- `CODEX_BIN` / `CLAUDE_BIN` are the only knobs for the executable path; the spec's first token is a backend selector,
-  not a path.
+- `CODEX_BIN` / `CLAUDE_BIN` / `AGY_BIN` set the executable path; the spec's first token is a backend selector.
 - The reviewer is fresh per round; the implementer and decomposer are pinned for the life of the issue session.
 - For per-stage handler internals (worktree management, prompt construction, post-spawn branching) see
   [`../state-machine.md#stage-handlers`](../state-machine.md#stage-handlers).

@@ -40,7 +40,7 @@ retention stays operator-driven for now.
 **Record shape.** One `agent_trajectory` record per tracked run carries the standard envelope (`ts`, `repo`, `issue`,
 `event`, `stage`) plus correlation context (`agent_role`, `backend`, `session_id`, `review_round`, `retry_count`) and
 the redacted trajectory: `user_input` (the orchestrator prompt), `system_prompt`, `tools` (the offered-tools set — read
-from claude's stream, and for codex backfilled with the best-effort `skills.discovery.discover_codex_tools()` baseline
+from claude's or agy's stream, and for codex backfilled with `skills.discovery.discover_codex_tools()` as a baseline
 since its stream carries no offered-tools frame), `skills_triggered` / `skills_available` (names-only — for codex the
 `skills_available` set is backfilled from the out-of-band
 `skills.discovery.discover_local_skill_sources(cwd)` filesystem scan, since its stream carries no offered-skills

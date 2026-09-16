@@ -8,17 +8,17 @@ decoder every provider reads through (``protocol``, ``event_stream``); the
 price tables and the nested model-name lookup an estimate needs (``prices``,
 ``model_names``); the per-provider frame decoding and run summary the token
 counts come from (``claude_rows``, ``claude_summary``, ``codex_rows``,
-``codex_summary``); the shell scanning and command classification a codex skill
-reference is inferred from (``shell_segments``, ``skill_commands``,
+``codex_summary``, ``agy_events``, ``agy_summary``); the shell scanning and
+command classification a codex skill reference is inferred from (``shell_segments``, ``skill_commands``,
 ``skills_claude``, ``skills_codex``); and the records and per-provider
 reconstruction one timeline is rebuilt into (``trajectory_models``,
 ``trajectory_claude_blocks``, ``trajectory_claude_stream``,
 ``trajectory_claude_turns``, ``trajectory_codex``,
-``trajectory_codex_items``, ``trajectory_codex_payloads``).
+``trajectory_codex_items``, ``trajectory_codex_payloads``, ``trajectory_agy``).
 
 This initializer re-exports the narrow public surface (``__all__``): the nine
-parsers a caller dispatches through -- a per-backend trio each for token and
-cost (``metrics``), skill evidence (``skills``), and the ordered timeline
+parsers a caller dispatches through -- dispatch plus the Codex and Claude
+parsers for token and cost (``metrics``), skill evidence (``skills``), and the ordered timeline
 (``trajectory``) -- plus the six result types they hand back: ``UsageMetrics``
 and ``SkillTriggers`` beside the parsers that fill them, and the
 ``AgentTrajectory`` / ``TrajectoryStep`` / ``SourceItem`` / ``TurnUsage``

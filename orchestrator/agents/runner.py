@@ -67,19 +67,21 @@ def run_agent(
     options: _agent_models.AgentRunOptions | None = None,
     **option_fields: Unpack[_agent_models.AgentRunOptionFields],
 ) -> _agent_models.AgentResult:
-    """Dispatch to Codex or Claude with normalized optional controls."""
+    """Dispatch to a supported CLI with normalized optional controls."""
     run_options = resolve_agent_run_options(options, option_fields)
     # Import the backend owner at call time and read its `run_*` entry then,
     # so a test that patches `codex.run_codex` / `claude.run_claude` on the
     # owner module intercepts dispatch, and reaching a sibling subpackage
     # never re-enters the package mid-initialization.
-    from orchestrator.agents.backends import claude, codex
+    from orchestrator.agents.backends import agy, claude, codex
     if backend == "codex":
         backend_runner = codex.run_codex
     elif backend == "claude":
         backend_runner = claude.run_claude
+    elif backend == "agy":
+        backend_runner = agy.run_agy
     else:
         raise ValueError(
-            f"unknown agent backend {backend!r}; expected 'codex' or 'claude'",
+            f"unknown agent backend {backend!r}; expected 'codex', 'claude', or 'agy'",
         )
     return backend_runner(prompt, cwd, options=run_options)

@@ -16,7 +16,7 @@ from orchestrator.agents import (
     provider_failures as _agent_provider_failures,
     runner as _agent_runner,
 )
-from orchestrator.agents.backends import claude as _agent_claude, codex as _agent_codex
+from orchestrator.agents.backends import agy as _agent_agy, claude as _agent_claude, codex as _agent_codex
 
 _MODULES = (
     "orchestrator.agents",
@@ -31,6 +31,7 @@ _MODULES = (
     "orchestrator.agents.backends",
     "orchestrator.agents.backends.codex",
     "orchestrator.agents.backends.claude",
+    "orchestrator.agents.backends.agy",
 )
 
 # Agent-package functions annotated against the `models` owner -- the runner
@@ -38,6 +39,9 @@ _MODULES = (
 # must resolve at runtime, so the owner stays importable at module scope rather
 # than only for static type checkers.
 _OWNER_ANNOTATED_FUNCS = (
+    _agent_agy.agy_command,
+    _agent_agy.agy_result,
+    _agent_agy.run_agy,
     _agent_codex.codex_command,
     _agent_codex.run_codex,
     _agent_claude.claude_command,

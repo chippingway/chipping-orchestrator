@@ -16,26 +16,38 @@ Where the parser sits in the package tree, and what it is responsible for beside
 [`architecture/observability-modules.md`](../architecture/observability-modules.md); the knobs are in
 [`configuration/observability.md`](../configuration/observability.md).
 
-**Module layout.** Callers import the nine parsers directly from `metrics.py`, `skills.py`, and `trajectory.py`,
-a per-backend trio each. The six result types also come from their defining modules: `UsageMetrics` and
-`SkillTriggers` from the first two, and `AgentTrajectory` / `TrajectoryStep` /
+**Module layout.** Callers import the parsers directly from `metrics.py`, `skills.py`, and `trajectory.py`.
+Each dispatches across Codex, Claude, and Antigravity. The six result types come from their defining modules:
+`UsageMetrics` and `SkillTriggers` from the first two, and `AgentTrajectory` / `TrajectoryStep` /
 `SourceItem` / `TurnUsage` from `trajectory_models.py`. Provider payload handling is split behind them: `protocol.py`
 holds the JSONL vocabulary and `event_stream.py` the resilient line decoder, `prices.py` the first-party price tables
 and `model_names.py` the nested model-name lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
 `codex_summary.py` the per-provider frame decoding and run summary, `shell_segments.py` / `skill_commands.py` /
 `skills_claude.py` / `skills_codex.py` the skill-evidence classification, and `trajectory_claude_blocks.py` /
 `trajectory_claude_stream.py` / `trajectory_claude_turns.py` plus `trajectory_codex.py` and the per-item-type
-`trajectory_codex_items.py` under it the timeline reconstruction. The
+`trajectory_codex_items.py` under it the timeline reconstruction. Antigravity's envelopes and completed-step usage
+live in `agy_events.py` / `agy_summary.py`, with its text and tool timeline in `trajectory_agy.py`. The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
-initializer binds nothing, and no flat module sits beside it to resolve a parser through.
+initializer re-exports the public parsers and result types; callers name the defining owner so patches reach it.
 
-**Two parsers, one dispatcher.** `parse_claude_usage(stdout)` consumes claude `--output-format stream-json` events,
+**Provider parsing.** `parse_claude_usage(stdout)` consumes claude `--output-format stream-json` events,
 groups assistant frames by `message.id` so the final-frame usage wins (claude streams partial counts on intermediate
 frames), and sums per-model. `parse_codex_usage(stdout, fallback_model=None)` consumes codex `--json` events and treats
 usage as cumulative across the session: the *last* non-zero usage record is the authoritative total.
 `parse_agent_usage(backend, stdout, fallback_model=None)` dispatches by backend string the same way
 `agents.runner.run_agent` does.
+
+For `agy`, token totals come from the completed `step_update` events in this invocation, deduplicated by step index.
+The terminal result's usage and turn counts include earlier conversation turns on a resume, so they are not added
+to the per-run counters. `user_input` steps count this invocation's turns; `init.model` supplies the model, falling
+back to the configured `--model`. Output tokens already include thinking tokens. The CLI supplies no USD cost;
+usage has `unknown-price`, with no estimated amount. No completed usage frames means `no-usage`.
+
+Antigravity trajectories join each response step's text deltas, retain tool parameters and outcomes, read offered
+tools from `init`, and take the final answer only from a successful terminal result. Interrupted response text is
+kept in the timeline without becoming a final answer. Skill evidence remains empty because this adapter does not
+infer skill loads from Antigravity's tools; no per-turn pricing or source-item accounting is emitted.
 
 **Cost precedence.** A `total_cost_usd` reported by the CLI itself always wins (`cost_source="reported"`); otherwise the
 parser walks first-party Anthropic / OpenAI price tables baked into the module and produces an estimate (`"estimated"`).
