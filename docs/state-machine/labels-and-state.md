@@ -623,7 +623,12 @@ The keys that matter for the state machine fall into a few groups:
   is outstanding and are exactly what the settlement then replaces. The owners are the
   `workflow/engine/report_record*` and `report_settlement_state` modules. The group is defined and DORMANT: no stage
   produces a record and no dispatcher consumes one, the contract is recorded and proved by its own tests, and the
-  completion that reconciles it lands with the stage that owns it.
+  completion that reconciles it lands with the stage that owns it. What such a completion would have to prove is
+  dormant beside the records (`workflow/engine/report_evidence.py` and the checkout, remote, and publication
+  readings under it): it re-reads every member of the frozen subject against the world, plus the code-publication
+  receipt below, and answers PROVED, HOLD for a read nobody could take, DEFER for anything a route behind it would
+  fix, or ENDED for a pull request that is over — reading the pull request ahead of the local world so an ending
+  cannot be hidden by a failed checkout or fetch. Nothing calls it yet either.
 
   `developer_report_pending` is one publication transaction, written **before** the report or the code it reports
   on is published — that ordering is the whole of what makes the publication recoverable. It carries the receipt
