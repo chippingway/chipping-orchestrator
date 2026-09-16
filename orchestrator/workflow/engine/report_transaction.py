@@ -31,6 +31,14 @@ of it. Every field is read fail-closed, so a damaged record reads as no record -
 and read that way the guard would answer "nothing outstanding" and hand the stage
 an issue whose report obligation nobody can describe. Asked for its presence
 first, it parks instead, once, for a human to repair the comment.
+
+Every OTHER way the records can be wrong is answered behind the pull request
+rather than ahead of it. Those refusals park, and a park is the one answer that
+cannot be taken back by the tick that took it -- so taken over work that has
+already merged it strands the issue in front of the terminal that would have
+finished it. The pull request is read first and an ending retires the
+transaction whatever the records beside it say; nothing is written over them on
+that road, so the evidence an operator would repair them from survives the drop.
 """
 from __future__ import annotations
 
@@ -51,7 +59,6 @@ from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_records as _records,
     report_replay_guards as _replay,
-    report_settlement_state as _settlement,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -75,13 +82,6 @@ _TERMINAL_LABELS = (WorkflowLabel.DONE, WorkflowLabel.REJECTED)
 
 # Why a record cannot be acted on, in the words its park quotes.
 _UNREADABLE_RECORD = "a field is missing, or is not the shape this orchestrator writes"
-
-_DISAGREEING_HANDOFF = (
-    "a handoff under its own receipt names a different pull request, commit, "
-    "or revision"
-)
-
-_STALE_RECORD = "a newer report is already recorded for this pull request"
 
 _DAMAGED_RECORD_PARK = (
     "{mentions} this issue records a developer report it still owes its pull "
@@ -114,10 +114,6 @@ def _reconciles_pending_report(
     record and an issue with nothing outstanding are the same answer to the
     reader and opposite answers to this guard.
 
-    A handoff already naming this receipt is the replay of a transaction that
-    finished -- the report landed and the process died before the record was
-    dropped -- so the record goes and nothing is published a second time.
-
     Work that has ENDED hands the tick back untouched, ahead of every reading,
     and it is asked two ways because an issue can be over in two. A closed
     issue is one a human ended, and the stage terminal that drains one runs
@@ -132,14 +128,11 @@ def _reconciles_pending_report(
     branch and the debt beside it, is left exactly as it stands for whatever
     ends the issue, and for the reopen that may yet make it live again.
 
-    The settled companions are judged before any of it, and in two ways. Both
-    are things a settlement writes over, so a damaged one waved through as an
-    absence is replaced the moment the next transaction settles -- after its
-    report has been posted, which is when the evidence an operator would have
-    repaired it from is gone. And a pair that reads but contradicts ITSELF is
-    two records that cannot both be right: asked here rather than beside the
-    receipt comparison, because a settlement under a previous transaction's
-    receipt is never compared against the record in hand at all.
+    A record that CLAIMS a transaction and will not read is the one damage
+    answered here rather than behind the pull request, and it is the only one
+    that can be: there is no subject to read a pull request out of, so there is
+    no ending to ask about. Everything else the records can be wrong about is
+    answered where the ending is already known.
     """
     if not _record_state.carries_pending_report(state):
         return _clears_the_damage_park(gh, issue, state)
@@ -150,10 +143,10 @@ def _reconciles_pending_report(
             "nobody wants", issue.number, label,
         )
         return False
-    damaged = _replay.damaged_companions(state)
-    if damaged:
-        return _parks_the_damage(gh, issue, state, damaged)
-    if _answers_what_is_owed(gh, spec, issue, state):
+    pending = _record_state.read_pending_report(state)
+    if pending is None:
+        return _parks_the_damage(gh, issue, state, _UNREADABLE_RECORD)
+    if _answers_what_is_owed(gh, spec, issue, state, pending):
         return True
     return _clears_the_damage_park(gh, issue, state)
 
@@ -163,93 +156,68 @@ def _answers_what_is_owed(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
-) -> bool:
-    """Read the record this issue claims, and answer whatever it turns out to be.
-
-    Four things it can be, and only the last is a transaction to prove. A
-    record that will not read is damage a human has to repair. One whose
-    receipt a handoff already names is the replay of a transaction that
-    finished -- the report landed and the process died before the record was
-    dropped -- so the record goes and nothing is published a second time, but
-    only once that handoff proves it is about the SAME publication: believed on
-    the receipt alone it would drop a record whose report was never published.
-    And one claiming a revision the recorded current report has already passed
-    is a record nothing here wrote, which settled would replace the newest
-    report on the pull request with an older one. A handoff is believed only
-    beside the current report written with it: on its own a matching receipt
-    would drop the pending record while the pull request carries nothing.
-
-    The disagreements park rather than choosing a side. None is a shape this
-    build produces, so which of the two records to believe is a human's
-    question, and acting on either answer loses something that cannot be got
-    back.
-
-    Whether the settled pair agrees with ITSELF is asked ahead of all of it,
-    and without reference to the receipt. Both records are copied out of one
-    pending record in one write, so a readable pair that names two pull
-    requests, two revisions or two commits is not a settlement this build made
-    -- and under an OLDER receipt that question is never asked again: the pair
-    is not compared against the record in hand, so a disagreement left standing
-    is replaced by the very next settlement.
-    """
-    pending = _record_state.read_pending_report(state)
-    if pending is None:
-        return _parks_the_damage(gh, issue, state, _UNREADABLE_RECORD)
-    handoff = _settlement.read_handoff(state)
-    current = _settlement.read_current_report(state)
-    if handoff is not None and handoff.receipt == pending.receipt:
-        if not _replay.settles_this_transaction(handoff, current, pending):
-            return _parks_the_damage(gh, issue, state, _DISAGREEING_HANDOFF)
-        log.info(
-            "issue=#%d records a developer-report handoff that already "
-            "finished; dropping the transaction rather than repeating it",
-            issue.number,
-        )
-        return _drops(gh, issue, state)
-    if _replay.supersedes_the_record(current, pending):
-        return _parks_the_damage(gh, issue, state, _STALE_RECORD)
-    return _answers_the_transaction(gh, spec, issue, state, pending)
-
-
-def _answers_the_transaction(
-    gh: GitHubClient,
-    spec: _config_models.RepoSpec,
-    issue: Issue,
-    state: PinnedState,
     pending: _records.PendingReport,
 ) -> bool:
-    """Prove the world this transaction named, then finish it or stand down.
+    """Answer one readable transaction, behind the pull request it is about.
 
-    A pull request that has ended retires the transaction: a report posted onto
-    a merged or closed thread is a comment nobody reads, and holding one for it
-    forever would strand the issue on work that is over.
+    The PULL REQUEST is read before anything else this owner decides, and that
+    is a correctness rule rather than a cost preference. A pull request that
+    has ENDED retires the transaction, and the terminal that drains a merged or
+    closed one runs INSIDE a stage handler, which is behind this guard -- so
+    every answer taken ahead of that reading is one that can hold the tick in
+    front of that terminal forever. The refusals this owner takes over its own
+    RECORDS are exactly that kind of answer: a damaged current report, a
+    handoff that disagrees, a revision a newer report has passed. Each of them
+    parks, and a park on work that has already merged is an issue stranded on
+    a report nobody will ever read.
 
-    Everything else short of proof refuses without writing anything. A reading
+    So the ending comes first, then the replay -- the report landed and the
+    process died before the record was dropped, so the record goes and nothing
+    is published a second time -- and only then the refusals. Those park rather
+    than choosing a side: none is a shape this build produces, so which record
+    to believe is a human's question, and acting on either answer loses
+    something that cannot be got back.
+
+    A pull request nobody could READ holds without parking anything. Damage is
+    still damage, but whether it stands in front of a terminal is exactly what
+    could not be established, and the tick that establishes it is the one that
+    should decide.
+
+    Everything short of proof refuses without writing anything. A reading
     nobody could take holds the tick, since the next one is as likely to
     succeed. Everything structural stands down, because what would clear it is
     a route behind this guard -- the publication gate that pushes the commit,
     the drift resume that answers an edited issue, the park a dirty tree earns.
     Either way no handoff is written, so the transaction is still owed.
     """
-    evidence = _evidence.evidence_for(gh, spec, issue, state, pending)
-    if evidence.verdict is _evidence_models.ReportEvidenceVerdict.ENDED:
+    found = _evidence.publication_for(gh, pending)
+    if found.verdict is _evidence_models.ReportEvidenceVerdict.ENDED:
         log.info(
             "issue=#%d owes a developer report to PR #%d, which is over (%s); "
             "dropping the transaction",
-            issue.number, pending.subject.pr_number, evidence.refusal,
+            issue.number, pending.subject.pr_number, found.refusal,
         )
         return _drops(gh, issue, state)
+    if _replay.finished_this_transaction(state, pending):
+        log.info(
+            "issue=#%d records a developer-report handoff that already "
+            "finished; dropping the transaction rather than repeating it",
+            issue.number,
+        )
+        return _drops(gh, issue, state)
+    refused = "" if found.holds else _replay.refuses_the_record(state, pending)
+    if refused:
+        return _parks_the_damage(gh, issue, state, refused)
+    evidence = _evidence.evidence_for(spec, issue, state, pending, found)
     if not evidence.proved:
         log.info(
             "issue=#%d cannot complete developer report revision %d yet: %s",
             issue.number, pending.report_revision, evidence.refusal,
         )
         return evidence.holds
-    if pending.mode is _records.ReportMode.PUBLISH:
-        return _publishing.publishes_the_report(
-            gh, issue, state, pending, evidence.pull_request,
-        )
-    return _publishing.verifies_the_report(gh, issue, state, pending)
+    return _publishing.finishes(
+        gh, issue, state, pending, evidence.pull_request,
+    )
 
 
 def _parks_the_damage(

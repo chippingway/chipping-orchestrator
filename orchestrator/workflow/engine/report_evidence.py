@@ -26,6 +26,13 @@ terminal. A merge whose branch GitHub auto-deleted is the case that bites: the
 fetch the remote reading takes fails, the tick holds, and an issue whose work is
 finished never reaches the handler that would finalize it.
 
+That reading is taken through an entry point of its own rather than inside the
+composition, because the caller has refusals of its own -- over the RECORDS
+rather than over the world -- and every one of them has to stand behind the same
+answer. A record nobody can act on parks the issue, and parked ahead of the pull
+request a transaction owed to work that has already merged would park instead of
+retiring, holding the terminal behind it for good.
+
 The local readings follow, cheapest of the rest first, so a transaction that was
 never going to complete this tick spends as little as it can: the checkout costs
 no request at all, the remote reading costs one fetch, and the requirements hash
@@ -53,32 +60,50 @@ from orchestrator.workflow.engine import (
 log = logging.getLogger("orchestrator.workflow")
 
 
+def publication_for(
+    gh: GitHubClient, pending: _records.PendingReport,
+) -> _evidence_models.ReportEvidence:
+    """Take the pull-request reading, which every other one stands behind.
+
+    Split out of the composition below because the caller has a decision to
+    make on it alone before the rest is worth paying for: a pull request that
+    has ENDED retires the transaction, and that answer has to reach the caller
+    ahead of every refusal it could otherwise take -- including the refusals it
+    takes over its own records rather than over the world. The terminal that
+    drains a merged or closed pull request runs INSIDE a stage handler, which
+    is behind this guard, so anything answered before this reading can hold the
+    tick in front of that terminal for good.
+
+    The proved pull request travels on the verdict and is handed back to
+    `evidence_for`, so the world this licenses is the world it was read in: two
+    fetches are two moments, and a pull request somebody closes between them
+    would be proved open and written to closed.
+    """
+    return _publication.publication_verdict(gh, pending)
+
+
 def evidence_for(
-    gh: GitHubClient,
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
     pending: _records.PendingReport,
+    found: _evidence_models.ReportEvidence,
 ) -> _evidence_models.ReportEvidence:
-    """Prove -- or refuse -- everything one transaction needs to complete.
+    """Prove -- or refuse -- everything else one transaction needs to complete.
 
-    The pull request is read FIRST, and that order is a correctness rule rather
-    than a cost preference. This guard runs ahead of every stage handler, and
-    the terminal that drains a merged or closed pull request runs INSIDE one --
-    so any answer this owner gives before it has looked at the pull request is
-    an answer that can hold the tick in front of that terminal. A merge whose
-    branch GitHub auto-deleted is the case that bites: the fetch the remote
-    reading takes fails, the tick holds, and an issue whose work is finished
-    never reaches the handler that would finalize it. Asked first, a pull
-    request that has ended retires the transaction and the stage runs.
+    `found` is the pull-request reading the caller already took, handed back
+    rather than re-read: it is the only reading here that cannot be repeated
+    without changing what is being proved, and it is also the one the caller
+    had to see first.
+
+    A refusal on it short-circuits the rest, so the local readings are only
+    ever taken behind a pull request that is open, ours, on the recorded
+    branch, and standing on the recorded commit.
 
     The local readings follow, cheapest of the rest first, and the proved pull
     request is what comes back on success, because the caller publishes against
-    it rather than fetching one of its own: two fetches are two moments, and a
-    pull request somebody closes between them would be proved open and written
-    to closed.
+    it rather than fetching one of its own.
     """
-    found = _publication.publication_verdict(gh, pending)
     if not found.proved:
         return found
     refused = _checkout.checkout_verdict(spec, issue, pending)

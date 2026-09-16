@@ -18,6 +18,7 @@ from orchestrator.github.pinned_state import (
 )
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
+    comments as _comments,
     report_record_state as _record_state,
     report_record_values as _record_values,
     report_records as _records,
@@ -40,6 +41,21 @@ _UNCARRIABLE_RECEIPT = "issue 7 report 2"
 
 # A number past what any identity or revision may be recorded as.
 _BEYOND_RECORDED = _record_values.MAX_RECORDED_NUMBER + 1
+
+
+def _ledgered() -> int:
+    """What recording one published comment costs the pinned body, at its widest.
+
+    Read off the ledger's own writer rather than spelled, because what the
+    settlement measurement reserves is that writer's growth: a case naming a
+    number of its own would pass while the reservation drifted.
+    """
+    entered = PinnedState()
+    _comments._track_orchestrator_comment(entered, _record_values.MAX_RECORDED_NUMBER)
+    return len(pinned_state_body(entered.data)) - len(pinned_state_body({}))
+
+
+_LEDGERED = _ledgered()
 
 
 def _published(**fields) -> _records.PendingReport:
@@ -217,8 +233,9 @@ class BoundedRecordTest(unittest.TestCase):
         # identically for the rest of the issue's life.
         #
         # The fixture owes both groups on purpose. A settlement is not the two
-        # records alone: it advances the watermarks the run consumed and closes
-        # the round and bookmarks its route spent, and those land on this same
+        # records alone: it advances the watermarks the run consumed, closes
+        # the round and bookmarks its route spent, and records the comment the
+        # published report lands as, and every one of those lands on this same
         # comment -- so a transaction that owes bookkeeping settles LARGER than
         # the pending record it drops even where the report text is the bigger
         # half.
@@ -245,9 +262,10 @@ class BoundedRecordTest(unittest.TestCase):
             MAX_PINNED_BODY,
         )
         # And the bookkeeping is part of that room: the same transaction owing
-        # none of it is accepted in the space this one was refused.
+        # none of it is accepted where this one was refused, once the ledger
+        # entry the publication road adds is allowed for beside it.
         self.assertTrue(_record_state.record_pending_report(
-            PinnedState(state_data={_FILLER: "y" * room}),
+            PinnedState(state_data={_FILLER: "y" * (room - _LEDGERED)}),
             replace(support.PUBLISHED, watermarks=(), spends=()),
         ))
 

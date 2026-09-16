@@ -188,6 +188,16 @@ def assert_one_report(case: ReportTransactionCase) -> None:
     case.assertEqual(reports_posted(case), 1)
 
 
+def assert_parked(case: ReportTransactionCase) -> None:
+    """The tick is held under this owner's own park reason.
+
+    Spelled once because it is the whole observable of every refusal that may
+    not be acted on, and a case asserting it inline says less about what it is
+    protecting than the name does.
+    """
+    case.assertEqual(case.state.get(PARK_REASON), PARK_DAMAGED)
+
+
 def assert_nothing_published(case: ReportTransactionCase) -> None:
     """No report reached the pull request and the record still claims one.
 

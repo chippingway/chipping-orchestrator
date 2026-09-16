@@ -81,27 +81,48 @@ def publication_verdict(
     finished report back to the publication gate on every tick, or retire a
     transaction over a pull request nobody managed to look at.
 
+    EVERY read of this reading is inside that boundary, not just the fetch.
+    The client resolves its repository lazily, so asking whether a slug is our
+    own can complete the repository; and the members read off the pull request
+    are lazy too, so the state, the head ref, the head repository and the head
+    sha are each a request that can fail on a worker that has not completed the
+    object yet. Left outside, any one of them leaves this guard by an exception
+    rather than by a verdict -- through the dispatcher and out of the tick --
+    which is the one answer a reading here may never give.
+
     The repository is asked through the client rather than compared here, so
     this reading inherits the case-insensitive rule GitHub itself applies.
     """
-    subject = pending.subject
-    if not gh.is_own_repository(subject.repo_slug):
-        return _evidence_models.ReportEvidence(
-            _evidence_models.ReportEvidenceVerdict.DEFER,
-            "the transaction was recorded against another repository",
-        )
     try:
-        recorded = gh.get_pr(subject.pr_number)
+        return _read_verdict(gh, pending.subject)
     except Exception:
         log.exception(
             "the pull request a developer report is recorded against (#%d) "
-            "could not be read; holding the tick", subject.pr_number,
+            "could not be read; holding the tick", pending.subject.pr_number,
         )
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.HOLD,
             "the recorded pull request could not be read",
         )
-    return _identified_verdict(gh, recorded, subject)
+
+
+def _read_verdict(
+    gh: GitHubClient, subject: _records.ReportSubject,
+) -> _evidence_models.ReportEvidence:
+    """Take the whole pull-request reading, raising where one read fails.
+
+    Spelled apart from the verdict above so that every read it makes is under
+    one boundary rather than each one being wrapped where it stands. What the
+    caller is owed on any of them failing is the same answer, and a reading
+    assembled from parts that each fell back to a verdict of their own would
+    be a publication proved against a world nobody saw whole.
+    """
+    if not gh.is_own_repository(subject.repo_slug):
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.DEFER,
+            "the transaction was recorded against another repository",
+        )
+    return _identified_verdict(gh, gh.get_pr(subject.pr_number), subject)
 
 
 def receipt_verdict(

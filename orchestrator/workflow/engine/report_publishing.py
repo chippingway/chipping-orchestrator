@@ -57,6 +57,25 @@ from orchestrator.workflow.engine import (
 log = logging.getLogger("orchestrator.workflow")
 
 
+def finishes(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    pending: _records.PendingReport,
+    pull_request: Any,
+) -> bool:
+    """Finish a proved transaction the way its own mode says it finishes.
+
+    One entry point for both roads, so the caller that proved the world hands
+    it on without re-deciding which kind of transaction it holds: the mode is
+    recorded, and reading it twice is how the two halves come to disagree about
+    which report a record is for.
+    """
+    if pending.mode is _records.ReportMode.PUBLISH:
+        return publishes_the_report(gh, issue, state, pending, pull_request)
+    return verifies_the_report(gh, issue, state, pending)
+
+
 def publishes_the_report(
     gh: GitHubClient,
     issue: Issue,

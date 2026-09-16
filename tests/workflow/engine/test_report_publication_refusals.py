@@ -26,6 +26,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.git.verification.status import _WorktreeStatus
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_records as _records,
@@ -38,6 +39,16 @@ _FETCH_REFUSED = 128
 
 # What a pull request read GitHub would not answer raises.
 _REFUSED = "GitHub did not answer the read"
+
+# Every read the pull-request evidence takes that a lazy client can refuse,
+# named by the owner the call site reads it off. `is_own_repository` can
+# complete the repository, `get_pr` is the fetch itself, and `pr_state` stands
+# for the members read off the object that comes back.
+_LAZY_READS = (
+    ("is_own_repository", lambda case: case.gh),
+    ("get_pr", lambda case: case.gh),
+    ("pr_state", lambda _case: _pr_reads),
+)
 
 # The two ways a pull request is over, paired with the attribute each one
 # is read off. Both retire the transaction rather than holding one for work
@@ -134,15 +145,28 @@ class PullRequestSelectionTest(unittest.TestCase, support.ReportTransactionCase)
             support.PR_NUMBER,
         )
 
-    def test_an_unreadable_pull_request_holds(self) -> None:
+    def test_a_read_that_did_not_happen_holds(self) -> None:
         # "The pull request is not what the record says" and "nobody could say"
         # are different answers, and only the first may be acted on: read the
         # other way round, a transient failure would retire a transaction over
         # a thread nobody managed to look at.
-        with patch.object(self.gh, "get_pr", side_effect=RuntimeError(_REFUSED)):
-            self.assertTrue(self.reconcile())
+        #
+        # Every read of this reading is inside that boundary and not just the
+        # fetch. The client resolves its repository lazily, and the members
+        # read off a pull request are lazy too, so on a worker that has not
+        # completed the object each of them is a request that can fail. Left
+        # outside, any one of them leaves the guard by an exception rather than
+        # by a verdict -- through the dispatcher and out of the tick.
+        for read, owner in _LAZY_READS:
+            with self.subTest(read=read):
+                self.setUp()
 
-        support.assert_still_owed(self)
+                with patch.object(
+                    owner(self), read, side_effect=RuntimeError(_REFUSED),
+                ):
+                    self.assertTrue(self.reconcile())
+
+                support.assert_still_owed(self)
 
     def test_another_branch_stands_down(self) -> None:
         # A head ref cannot move on GitHub, so a disagreement is a record
@@ -160,6 +184,7 @@ class PullRequestSelectionTest(unittest.TestCase, support.ReportTransactionCase)
 
         self.assertFalse(self.reconcile())
         support.assert_still_owed(self)
+
 
 class PullRequestIdentityTest(unittest.TestCase, support.ReportTransactionCase):
     """The pull request has to be the recorded one, and still on the commit."""

@@ -590,7 +590,10 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   the record names sits open on the very commit the report is about. What a search did prove and a bare number does
   not is that the work actually got there; that is not lost, because the head read off this object has to *be* the
   recorded commit, which is strictly more than carrying it. The branch and the head repository are asked of the same
-  object, since a fork carries this repository's ref names over somebody else's commits.
+  object, since a fork carries this repository's ref names over somebody else's commits. Every read of that
+  reading sits inside the hold boundary and not just the fetch: the client resolves its repository lazily, and the
+  state, head ref, head repository and head SHA read off the pull request are lazy too, so on a worker that has not
+  completed the object each is a request that can fail.
 
   **The pull request is read first, and that is a correctness rule rather than a cost preference.** The terminal that
   drains a merged or closed pull request runs *inside* a stage handler, which is behind this guard — so any refusal
@@ -622,7 +625,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   - **Held** (tick stops, nothing written) → a reading nobody could take, and only that: an unreadable worktree or
     head, a fetch that failed, a recorded pull request that would not read, an issue whose comments would not read
     (the requirements revision is computed from them), a post or re-read GitHub did not confirm
-    (`ReportPresence.UNCONFIRMED`). The next tick asks again.
+    (`ReportPresence.UNCONFIRMED`). The next tick asks again. A pull request nobody could read holds *without*
+    parking anything: the damage is still damage, but whether it stands in front of a terminal is exactly what
+    could not be established, so the tick that can establish it is the one that decides.
   - **Stood down** (tick carries on, transaction still owed) → every *definite* refusal. The structural ones: a
     dirty tree, a head that moved, a checkout on another host, a commit the pull request does not carry yet, a
     missing or mismatched publication receipt, a recorded pull request on another branch or built from a fork,
@@ -639,14 +644,21 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     invisible to a search by commit whether it is open or closed, so an ended one would otherwise stand down on
     every tick for the rest of the issue's life over work that is finished.
   - **Parked** (`park_reason="report_record_damaged"`) → the issue CLAIMS a transaction this build may not act on,
-    or claims a settled record beside it this build did not write. The settled companions are judged *before
-    anything is proved*, because both are records a settlement writes over: a damaged current report waved
-    through as an absence is replaced the moment this transaction settles — after its report has been posted, which
-    is when the evidence an operator would have repaired it from is gone. Four shapes reach the park. A record that
-    will not read. A **settled pair that contradicts itself** — both records readable, naming two pull requests,
-    two revisions or two commits; they are written in one write off one pending record, so a pair that disagrees is
-    one nothing here produced. That one is asked of the pair alone, with no reference to the transaction in hand or
-    to any receipt, because under a *previous* transaction's receipt nothing else ever would: such a pair is never
+    or claims a settled record beside it this build did not write. Every one of these is judged *before anything is
+    settled* and *behind the pull-request reading*, and both halves of that matter. Before settling, because both
+    companions are records a settlement writes over: a damaged current report waved through as an absence is
+    replaced the moment this transaction settles — after its report has been posted, which is when the evidence an
+    operator would have repaired it from is gone. Behind the pull request, because a park is the one answer the
+    tick that takes it cannot take back: taken over work that has already merged it strands the issue in front of
+    the terminal that would have finished it, for as long as the damage stands. An **ending retires the
+    transaction whatever the records beside it say**, and nothing is written over them on that road, so the
+    evidence an operator would repair them from survives the drop. Four shapes reach the park. A record that
+    will not read — the one answered *ahead* of the pull request, and the only one that can be, since a record
+    nobody can read names no pull request to ask about. A **settled pair that contradicts itself** — both records
+    readable, naming two pull requests, two revisions or two commits; they are written in one write off one
+    pending record, so a pair that disagrees is one nothing here produced. That one is asked of the pair alone,
+    with no reference to the transaction in hand or to any receipt, because under a *previous* transaction's
+    receipt nothing else ever would: such a pair is never
     compared against the record being reconciled, so a disagreement left standing would be replaced by the very
     next settlement rather than seen. A record whose handoff carries its receipt while disagreeing with it —
     believed on the receipt alone that handoff would drop a record whose report

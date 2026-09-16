@@ -30,6 +30,7 @@ from typing import Any
 from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
+    comments as _comments,
     report_consumed_values as _consumed,
     report_record_fields as _fields,
     report_record_reading as _reading,
@@ -57,9 +58,10 @@ _SPENDS = "spends"
 
 # The two values a settlement will hold that this transaction cannot yet name:
 # the digest the published text will hash to, and the comment id GitHub will
-# answer the post with. Measured at their widest -- a whole digest, and the
-# ceiling every recorded number is already held to -- so the settlement sized
-# here is never smaller than the one that actually happens.
+# answer the post with -- which is recorded twice, once as the report's exact
+# location and once in the comment-id ledger. Measured at their widest -- a
+# whole digest, and the ceiling every recorded number is already held to -- so
+# the settlement sized here is never smaller than the one that actually happens.
 _WIDEST_DIGEST = "f" * max(_formats.DIGEST_LENGTHS)
 
 _WIDEST_IDENTITY = _record_values.MAX_RECORDED_NUMBER
@@ -172,6 +174,21 @@ def _settled_over(
     published text will hash to and the comment id the post will answer with --
     so the size measured is an upper bound on the one that actually lands.
 
+    The comment-id LEDGER grows on the same road and is reserved here for the
+    same reason, which is the one piece of the settling write that does not
+    happen in the settlement itself: publishing the report records the comment
+    it landed as, so that a later drift hash and every feedback scan pass over
+    this orchestrator's own text instead of reading it back as a human's. That
+    entry lands between this measurement and the settlement, so a transaction
+    accepted at the ceiling without it settles past the ceiling -- and the
+    write that fails then fails after the report is already on the thread, and
+    goes on failing identically for the rest of the issue's life.
+
+    Reserved only under PUBLISH, which is the only mode that posts. Modelled
+    through the ledger's own writer at the widest id it would record, so the
+    reservation moves with that writer -- its cap and its idempotence included
+    -- rather than standing as a second guess at what it costs.
+
     None where either settled write refuses the record this transaction would
     hand it, which is a transaction with no settlement to measure at all. The
     values here are the pending record's own, already proved by the reader
@@ -180,6 +197,8 @@ def _settled_over(
     would report a settlement smaller than the one that has to happen.
     """
     settled = _pinned_state.PinnedState(state_data=dict(state.data))
+    if pending.mode is _records.ReportMode.PUBLISH:
+        _comments._track_orchestrator_comment(settled, _WIDEST_IDENTITY)
     _consumed.advance_consumed(settled, pending.watermarks)
     _consumed.close_bookkeeping(settled, pending.spends)
     recorded = _settlement.record_current_report(settled, _records.CurrentReport(

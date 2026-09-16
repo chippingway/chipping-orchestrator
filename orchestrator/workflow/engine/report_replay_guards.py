@@ -59,6 +59,13 @@ DISAGREEING_COMPANIONS = (
     "different publications"
 )
 
+DISAGREEING_HANDOFF = (
+    "a handoff under its own receipt names a different pull request, commit, "
+    "revision, or report"
+)
+
+STALE_RECORD = "a newer report is already recorded for this pull request"
+
 
 def damaged_companions(state: PinnedState) -> str:
     """Which way the settled pair is damaged, or "" when it is sound.
@@ -224,3 +231,48 @@ def supersedes_the_record(
     if current.subject.pr_number != pending.subject.pr_number:
         return False
     return current.report_revision >= pending.report_revision
+
+
+def refuses_the_record(
+    state: PinnedState, pending: _records.PendingReport,
+) -> str:
+    """Which disagreement between this record and the settlement stops the tick.
+
+    The three questions above, asked in the order their damage is worst in, and
+    answered as the one sentence a park quotes. Gathered here rather than
+    spelled at the call site because what each of them decides is the same
+    thing -- whether these records can be acted on at all -- and a caller
+    asking them one at a time would be re-deciding that in a place whose
+    subject is the tick rather than the records.
+
+    "" is a record and a settlement that agree, which includes the ordinary
+    issue carrying neither.
+    """
+    damaged = damaged_companions(state)
+    if damaged:
+        return damaged
+    handoff = _settlement.read_handoff(state)
+    current = _settlement.read_current_report(state)
+    if handoff is not None and handoff.receipt == pending.receipt:
+        if settles_this_transaction(handoff, current, pending):
+            return ""
+        return DISAGREEING_HANDOFF
+    return STALE_RECORD if supersedes_the_record(current, pending) else ""
+
+
+def finished_this_transaction(
+    state: PinnedState, pending: _records.PendingReport,
+) -> bool:
+    """Whether a handoff already recorded is THIS transaction's completion.
+
+    The replay: the report landed and the process died before the record was
+    dropped. True only under the same receipt and only once the pair proves it
+    is about the same publication and the same report, which is what keeps a
+    record whose report was never published from being dropped as finished.
+    """
+    handoff = _settlement.read_handoff(state)
+    if handoff is None or handoff.receipt != pending.receipt:
+        return False
+    return settles_this_transaction(
+        handoff, _settlement.read_current_report(state), pending,
+    )

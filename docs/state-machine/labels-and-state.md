@@ -674,8 +674,12 @@ The keys that matter for the state machine fall into a few groups:
   unchanged, or when either the comment it writes or the one its settlement would leave is past what GitHub
   accepts. That second measurement is taken here rather than at settlement, because by then the report is already
   on the thread and a refused write would leave a published comment beside a record still claiming it is owed. It
-  measures the WHOLE settling write — the watermarks it advances and the bookkeeping it closes as well as the two
-  records it adds — replayed through the owners that perform it rather than allowed for by a margin. Both settled
+  measures the WHOLE settling write — the watermarks it advances, the bookkeeping it closes, the two records it
+  adds, and the `orchestrator_comment_ids` entry that publishing the report leaves between the two — replayed
+  through the owners that perform it rather than allowed for by a margin. That ledger entry is the one piece that
+  does not happen in the settlement itself, and it is the reason a transaction accepted at the ceiling without it
+  settles past the ceiling: the write that fails then fails after the report is already on the thread, and goes on
+  failing identically for the rest of the issue's life. Both settled
   writers refuse on the same terms: a current report or a handoff its own reader would not hand back unchanged is
   not stored, since a settled record nobody can act on is what the issue would carry in place of the one the report
   it just published deserved.

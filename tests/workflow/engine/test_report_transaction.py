@@ -17,6 +17,11 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.github import pull_request_reports as _pr_reports
 from orchestrator.github.developer_reports import content_digest
+from orchestrator.github.pinned_state import (
+    MAX_PINNED_BODY,
+    PinnedState,
+    pinned_state_body,
+)
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     comments as _engine_comments,
@@ -42,6 +47,13 @@ _SPENT_ROUND = 3
 _PENDING_FIX_AT = "pending_fix_at"
 
 _NEWER_REVISION = 2
+
+# What a crowding case fills the rest of the comment with.
+_FILLER = "filler"
+
+# A report that says something and almost nothing else, so that what a crowded
+# comment refuses on is the settling write rather than the record it drops.
+_SHORTEST_REPORT = "r"
 
 # A comment id past the range every recorded number is held to, which is
 # what a settled record's own reader refuses to hand back.
@@ -123,6 +135,62 @@ class SettledTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         self.assertIsNone(self.state.get(support.REVIEW_ROUND))
         self.assertIsNotNone(_record_state.read_pending_report(self.state))
         self.assertEqual(self.gh.write_state_calls, 0)
+
+
+class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
+    """A transaction accepted at the ceiling is one its settlement fits in."""
+
+    def setUp(self) -> None:
+        support.ReportTransactionCase.setUp(self)
+        _record_state.clear_pending_report(self.state)
+
+    def test_a_record_at_the_ceiling_still_settles(self) -> None:
+        # The whole point of refusing a record the comment could not carry is
+        # that the SETTLING write happens after the report is on the thread.
+        # Publishing also RECORDS the comment the report landed as, and that
+        # entry lands between the two -- so a transaction accepted at the
+        # ceiling without it settles past the ceiling, and the write that fails
+        # then goes on failing identically for the rest of the issue's life.
+        #
+        # The comment is crowded rather than the report grown, because a long
+        # report makes the PENDING write the binding one and the settlement
+        # that drops it is then nowhere near the ceiling. Crowded around a
+        # report that says almost nothing, the settlement is what the record is
+        # accepted or refused on -- which is the write this measurement is for.
+        self.state.set(_FILLER, "y" * self._largest_filler())
+        self.assertTrue(_record_state.record_pending_report(
+            self.state, self._at_the_ceiling(),
+        ))
+
+        self.assertFalse(self.reconcile())
+
+        support.assert_one_report(self)
+        self.assertIsNone(_record_state.read_pending_report(self.state))
+        self.assertLessEqual(
+            len(pinned_state_body(self.state.data)), MAX_PINNED_BODY,
+        )
+
+    def _at_the_ceiling(self) -> _records.PendingReport:
+        """The transaction each crowding case is measured with."""
+        return self.pending(report=_SHORTEST_REPORT)
+
+    def _largest_filler(self) -> int:
+        """How much other state this issue can carry and still record one."""
+        low, high = 0, MAX_PINNED_BODY
+        while low < high:
+            tried = (low + high + 1) // 2
+            if self._records_beside(tried):
+                low = tried
+            else:
+                high = tried - 1
+        return low
+
+    def _records_beside(self, filling: int) -> bool:
+        """Whether the transaction fits beside `filling` characters of state."""
+        crowded = PinnedState(comment_id=1, state_data={
+            **self.state.data, _FILLER: "y" * filling,
+        })
+        return _record_state.record_pending_report(crowded, self._at_the_ceiling())
 
 
 class ReplayedTransactionTest(unittest.TestCase, support.ReportTransactionCase):

@@ -26,34 +26,18 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.github.developer_reports import content_digest
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_records as _records,
-    report_settlement_state as _settlement,
 )
-from tests.workflow.engine import report_transaction_test_support as support
+from tests.workflow.engine import (
+    report_settled_fixture as fixture,
+    report_transaction_test_support as support,
+)
 
 _AGENT_TIMEOUT = "agent_timeout"
 
-# The receipt a PREVIOUS transaction on this issue settled under, which is what
-# makes the pair below one nothing compares against the record in hand.
-_EARLIER_RECEIPT = "issue-7-report-0"
-
-_SETTLED_REVISION = 1
-
-_NEXT_REVISION = 2
-
-_COMMENT_ID = 8080
-
-# A second comment on the same pull request, which a verification's record may
-# not be answered by: a location is exact in both halves.
-_ELSEWHERE_COMMENT_ID = 8081
-
-# Text no transaction here carries, so its digest belongs to no settlement
-# these cases could have made.
-_ANOTHER_REPORT = "Some other report, published by some other transaction."
 
 
 class CompanionDamageTest(unittest.TestCase, support.ReportTransactionCase):
@@ -72,9 +56,7 @@ class CompanionDamageTest(unittest.TestCase, support.ReportTransactionCase):
         self.assertTrue(self.reconcile())
 
         self.assertEqual(self.state.get(_records.CURRENT_REPORT), unreadable)
-        self.assertEqual(
-            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
-        )
+        support.assert_parked(self)
         support.assert_nothing_published(self)
 
     def test_a_damaged_handoff_is_preserved(self) -> None:
@@ -93,18 +75,13 @@ class CompanionDamageTest(unittest.TestCase, support.ReportTransactionCase):
         # report is a settlement that never happened. Believed on the receipt
         # alone it would drop this record while the pull request carries
         # nothing -- the outcome the whole transaction exists to prevent.
-        _settlement.record_handoff(self.state, _records.ReportHandoff(
-            receipt=support.RECEIPT,
-            pr_number=support.PR_NUMBER,
-            report_revision=1,
-            source_sha=support.SOURCE_SHA,
-        ))
+        fixture.records_handoff(
+            self.state, support.RECEIPT, 1, support.SOURCE_SHA,
+        )
 
         self.assertTrue(self.reconcile())
 
-        self.assertEqual(
-            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
-        )
+        support.assert_parked(self)
         support.assert_nothing_published(self)
 
 
@@ -119,13 +96,11 @@ class DisagreeingCompanionTest(unittest.TestCase, support.ReportTransactionCase)
         # is not compared against the record in hand, so left alone it would be
         # replaced by this settlement rather than seen.
         self._settled(source_sha=support.MOVED_SHA)
-        self.record(report_revision=_NEXT_REVISION)
+        self.record(report_revision=fixture.NEXT_REVISION)
 
         self.assertTrue(self.reconcile())
 
-        self.assertEqual(
-            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
-        )
+        support.assert_parked(self)
         support.assert_nothing_published(self)
 
     def test_a_handoff_on_another_subject_parks(self) -> None:
@@ -142,50 +117,19 @@ class DisagreeingCompanionTest(unittest.TestCase, support.ReportTransactionCase)
             source_sha=support.SOURCE_SHA,
             requirements_revision=pending.subject.requirements_revision,
         )
-        _current(self.state, elsewhere, pending.report_revision)
-        _handoff(self.state, support.RECEIPT, pending.report_revision, support.SOURCE_SHA)
+        fixture.records_current(self.state, elsewhere, pending.report_revision)
+        fixture.records_handoff(self.state, support.RECEIPT, pending.report_revision, support.SOURCE_SHA)
         self.record()
 
         self.assertTrue(self.reconcile())
 
-        self.assertEqual(
-            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
-        )
+        support.assert_parked(self)
         support.assert_nothing_published(self)
 
     def _settled(self, *, source_sha: str) -> None:
         """A finished earlier transaction whose handoff names another commit."""
-        _current(self.state, self.pending().subject, _SETTLED_REVISION)
-        _handoff(self.state, _EARLIER_RECEIPT, _SETTLED_REVISION, source_sha)
-
-
-def _current(
-    state,
-    subject: _records.ReportSubject,
-    revision: int,
-    *,
-    digest: str = "",
-    location: ReportLocation | None = None,
-) -> None:
-    """Record what the pull request is said to carry now."""
-    _settlement.record_current_report(state, _records.CurrentReport(
-        subject=subject,
-        report_revision=revision,
-        content_revision=digest or content_digest(support.REPORT_TEXT),
-        location=location or ReportLocation(
-            pr_number=subject.pr_number, comment_id=_COMMENT_ID,
-        ),
-    ))
-
-
-def _handoff(state, receipt: str, revision: int, source_sha: str) -> None:
-    """Record the receipt one transaction is said to have finished under."""
-    _settlement.record_handoff(state, _records.ReportHandoff(
-        receipt=receipt,
-        pr_number=support.PR_NUMBER,
-        report_revision=revision,
-        source_sha=source_sha,
-    ))
+        fixture.records_current(self.state, self.pending().subject, fixture.SETTLED_REVISION)
+        fixture.records_handoff(self.state, fixture.EARLIER_RECEIPT, fixture.SETTLED_REVISION, source_sha)
 
 
 class SettledContentTest(unittest.TestCase, support.ReportTransactionCase):
@@ -201,11 +145,11 @@ class SettledContentTest(unittest.TestCase, support.ReportTransactionCase):
         # believed without it the record is dropped with its report never
         # published and nothing parked for anyone to see.
         pending = self.pending()
-        _current(
+        fixture.records_current(
             self.state, pending.subject, pending.report_revision,
-            digest=content_digest(_ANOTHER_REPORT),
+            digest=fixture.another_digest(),
         )
-        _handoff(
+        fixture.records_handoff(
             self.state, support.RECEIPT, pending.report_revision,
             support.SOURCE_SHA,
         )
@@ -222,18 +166,18 @@ class SettledContentTest(unittest.TestCase, support.ReportTransactionCase):
             mode=_records.ReportMode.VERIFY,
             report="",
             location=ReportLocation(
-                pr_number=support.PR_NUMBER, comment_id=_COMMENT_ID,
+                pr_number=support.PR_NUMBER, comment_id=fixture.COMMENT_ID,
             ),
-            content_revision=content_digest(_ANOTHER_REPORT),
+            content_revision=fixture.another_digest(),
         )
-        _current(
+        fixture.records_current(
             self.state, pending.subject, pending.report_revision,
             digest=pending.content_revision,
             location=ReportLocation(
-                pr_number=support.PR_NUMBER, comment_id=_ELSEWHERE_COMMENT_ID,
+                pr_number=support.PR_NUMBER, comment_id=fixture.ELSEWHERE_COMMENT_ID,
             ),
         )
-        _handoff(
+        fixture.records_handoff(
             self.state, support.RECEIPT, pending.report_revision,
             support.SOURCE_SHA,
         )
@@ -245,9 +189,7 @@ class SettledContentTest(unittest.TestCase, support.ReportTransactionCase):
         """The tick is held, the record is still owed, and nothing was posted."""
         self.assertTrue(self.reconcile())
 
-        self.assertEqual(
-            self.state.get(support.PARK_REASON), support.PARK_DAMAGED,
-        )
+        support.assert_parked(self)
         support.assert_nothing_published(self)
 
 
