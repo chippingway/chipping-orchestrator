@@ -179,46 +179,23 @@ that fence opened at the top level or in a list item (`workflow/engine/report_fe
 location and revision are parsed for shape only; completing on one is owed a fresh read of that location whose text
 still hashes to the revision.
 
-No stage handler calls `report_outcomes`, records a report transaction, or publishes a report through the
-developer-report comment owners (`github/developer_reports.py`, `github/pull_request_reports.py`, and
-`workflow/engine/comments.py`'s `_publish_developer_report`). A developer run is still routed by its commits, its
-`ACK:` line, and the question parks the [delivery stages][delivery-stages] describe: nothing publishes the report an
-outcome carries, and a no-commit reply that ends on a report outcome is read the way its stage reads any other
-no-commit reply without `ACK:`.
+No stage handler calls `report_outcomes` or records a report transaction, so nothing yet turns an outcome a developer
+emitted into one. A developer run is still routed by its commits, its `ACK:` line, and the question parks the
+[delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read the way its
+stage reads any other no-commit reply without `ACK:`.
 
-The durable half of that publication is defined and dormant beside the vocabulary. The additive
+What publication there is belongs to the dispatcher rather than to any stage. The additive
 `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group
 ([`../state-machine/labels-and-state.md#pinned-state`](../state-machine/labels-and-state.md#pinned-state)) is what
-would carry one outstanding publication across a process that dies mid-way — the complete report text included,
-since a transaction recovered from a text nobody kept would have to ask an agent to write it again, and a second
-run is not the same report. Its owners read those records fail-closed and refuse to write one a later tick could
-not read back; no stage produces one and no dispatcher consumes one, so nothing records, reads, or settles a
-transaction yet.
-
-What a settlement would have to PROVE first is dormant beside those records. `workflow/engine/report_evidence.py`
-takes one reading of the world per outstanding transaction — over the checkout, remote, and pull-request owners
-under it — and answers with one of four verdicts rather than a boolean
-(`workflow/engine/report_evidence_models.py`). PROVED alone licenses a publication, and it is the only verdict that
-carries anything: the pull request it was proved against travels on it, so a publication is made in the world it was
-read in rather than in a second one a re-fetch would see. HOLD is a reading nobody could take — a pull request
-GitHub would not serve, a `git status` that failed — and stops the tick so the next one asks again. DEFER is
-everything structural: an absent or dirty checkout, a branch ahead of or behind its remote, a head that moved, a
-commit no publication receipt names yet, requirements somebody edited. Each of those is cleared by a route *behind*
-the evidence — the publication gate that pushes, the drift resume that answers the edit, the dirty-worktree park —
-so holding one would strand the issue in front of its own remedy. ENDED is a pull request that has merged or
-closed, which needs no report at all.
-
-PROVED requires all of it on the tick that would settle: the recorded pull request open, in this repository, on the
-recorded branch, and *standing on* the recorded commit rather than merely carrying it; a readable, clean checkout on
-that same commit; a freshly fetched remote branch in sync on it; a code-publication receipt
-(`implementing_published_sha` with `implementing_published_pr`) naming both that commit and that pull request; and
-issue requirements still hashing to the revision the run was handed. The pull request is read by the NUMBER the
-record froze rather than searched for by commit, since several pull requests can stand on one branch carrying one
-commit and a search would answer with whichever it reached first. It is also read *ahead* of the local world, which
-is an ordering rule rather than a cost preference: a merge auto-deletes its branch, so a fetch or checkout that
-failed first would hide the ending behind a hold and keep the issue in front of the terminal that drains it.
-Nothing calls either entry point yet.
+carries one outstanding publication across a process that dies mid-way — the complete report text included, since a
+transaction recovered from a text nobody kept would have to ask an agent to write it again, and a second run is not
+the same report. Where such a record exists, [the developer-report transaction][report-transaction] reconciles it
+ahead of every handler and publishes through the developer-report comment owners
+(`github/developer_reports.py`, `github/pull_request_reports.py`, and `workflow/engine/comments.py`'s
+`_publish_developer_report`). It never reads an agent's message: what it acts on is the record a stage will write,
+and on an issue carrying no such record it costs one pinned read that has already happened.
 
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion
 [delivery-stages]: ../state-machine/delivery-stages.md
+[report-transaction]: ../state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch

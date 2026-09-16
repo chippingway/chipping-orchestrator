@@ -17,9 +17,6 @@ The head is compared rather than adopted. A checkout standing anywhere but on
 the commit the record names is one whose work is not what the report describes,
 and publishing from there would put a report about one commit onto a pull
 request carrying another.
-
-DORMANT: `report_evidence.py` composes this reading and its own tests take it
-directly, and no dispatcher or stage handler reaches either yet.
 """
 from __future__ import annotations
 

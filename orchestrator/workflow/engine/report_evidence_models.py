@@ -27,10 +27,6 @@ strand the issue behind the very handler that fixes them.
 ENDED is the pull request being over. A report published onto a merged or closed
 thread is a comment nobody reads, so the transaction is retired rather than
 retried.
-
-This vocabulary is DORMANT: the evidence owners beside it answer with these
-members and their own tests read them, and no dispatcher or stage handler asks
-for one yet.
 """
 from __future__ import annotations
 

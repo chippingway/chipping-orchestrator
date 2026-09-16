@@ -37,10 +37,6 @@ The local readings follow, cheapest of the rest first, so a transaction that was
 never going to complete this tick spends as little as it can: the checkout costs
 no request at all, the remote reading costs one fetch, and the requirements hash
 costs the comment walk the drift owner already makes.
-
-DORMANT: the two entry points here are proved by their own tests and nothing
-calls them. The reconciliation that would ask them, and the settlement behind
-that, land with the owners that drive them.
 """
 from __future__ import annotations
 
