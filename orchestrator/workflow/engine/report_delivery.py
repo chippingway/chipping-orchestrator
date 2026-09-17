@@ -109,6 +109,32 @@ _UNRECORDABLE_PARK = (
 )
 
 
+# The refusals that are not a contract violation: no process produced the
+# result at all, or the one that did never got to the end of its own run. Each
+# is a failure this stage answers elsewhere, and none of them is a developer
+# declining to report.
+_INCOMPLETE_RUNS = frozenset((
+    _outcome_models._ReportRefusal.NOT_INVOKED,
+    _outcome_models._ReportRefusal.INTERRUPTED,
+    _outcome_models._ReportRefusal.TIMED_OUT,
+    _outcome_models._ReportRefusal.PROVIDER_FAILURE,
+    _outcome_models._ReportRefusal.NONZERO_EXIT,
+))
+
+_UNREPORTED_PARK = (
+    "{mentions} this issue's developer run finished with committed work and "
+    "no completion report this orchestrator can publish -- no report outcome "
+    "at all, one that reached for the contract and missed, or one naming a "
+    "report on another repository. Nothing was published: the commit is still "
+    "in the worktree, the branch is untouched, and no pull request was "
+    "opened. Handing this work to review would send a reviewer an "
+    "implementation nobody described, with no record of what was done and no "
+    "session left to ask. Reply and the orchestrator resumes the session; the "
+    "report it writes then is the one that gets published, and it needs no "
+    "new commit to deliver it."
+)
+
+
 def owes_a_report(state: _pinned_state.PinnedState) -> bool:
     """Whether this issue still owes a pull request the report of a run.
 
@@ -124,10 +150,20 @@ def owes_a_report(state: _pinned_state.PinnedState) -> bool:
     cannot read, and the reconciliation ahead of every handler parks a
     transaction it cannot -- both with the record untouched for whoever
     repairs or abandons it.
+
+    The PARK is the third, and it is the debt of the two roads that have no
+    record to leave: a report this build could not write down, and a completed
+    run that handed over none at all. There is nothing on the comment then but
+    the reason itself, so the reason is what says a report is still owed --
+    which is what keeps the work here and what tells the reply that brings one
+    from an ordinary question. It is retired the moment a report IS recorded,
+    because that is the condition it was taken for; any other park replaces it
+    outright, since the flags are single.
     """
     return (
         _delivery_state.carries_delivered_report(state)
         or _record_state.carries_pending_report(state)
+        or state.get(_PARK_REASON) == UNDELIVERABLE_REPORT
     )
 
 
@@ -140,12 +176,11 @@ def recording_stops_the_tick(
 ) -> bool:
     """Record what a finished run wrote, or hold the tick over what it wrote.
 
-    True is a tick this owner ended: the run finished on a report and this
-    build cannot record it, so the issue is parked and the caller publishes
-    nothing. False is every other tick -- a run with no report outcome, which
-    is every recovery a stage makes for itself and every session that came back
-    with a question, and the ordinary run whose report is now on the pinned
-    comment.
+    True is a tick this owner ended, and there are two ways to end one: a run
+    that finished on a report this build cannot record, and a run that
+    finished and handed over no usable report at all. Both park and publish
+    nothing. False is the ordinary run whose report is now on the pinned
+    comment, and every publication no developer made.
 
     The write is this owner's rather than the caller's, and that is the whole
     point of the step: what makes the report recoverable is that it is DURABLE
@@ -162,10 +197,14 @@ def recording_stops_the_tick(
     what happened. Published instead, the reviewer would be handed work with
     no report while the only copy of what the developer said went out of
     memory with the tick.
+
+    A record that IS stored retires the park this owner may have taken, since
+    what that park asked for was exactly a report it could record -- and left
+    standing it would hold the publication it was about to make possible.
     """
     delivered = _delivered_report(gh, issue, state, agent_result, route)
     if delivered is None:
-        return False
+        return _unreported_run_holds(gh, issue, state, agent_result)
     if not _delivery_state.record_delivered_report(state, delivered):
         log.error(
             "issue=#%d wrote a developer report this build cannot record; "
@@ -180,8 +219,53 @@ def recording_stops_the_tick(
         "issue=#%d recorded developer report revision %d before publishing "
         "the code it is about", issue.number, delivered.report_revision,
     )
+    if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
+        state.set(_PARK_REASON, None)
     gh.write_pinned_state(issue, state)
     return False
+
+
+def _unreported_run_holds(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    agent_result: AgentResult,
+) -> bool:
+    """Hold a completed run that handed over no report, or let the tick carry on.
+
+    The contract every developer prompt teaches is that finished work ends on
+    a report outcome, and that a run with a question, a disagreement, or
+    nothing to say emits none and makes no commit. So a run that COMPLETED,
+    left commits, and handed over no usable report is a contract violation
+    rather than a road this workflow has an answer for -- and published
+    anyway, the reviewer at the end of it is handed an implementation nobody
+    described, with no record of what was done and no way to ask for one: the
+    session is over.
+
+    Held, nothing is published at all and a reply resumes the developer, which
+    can write the report the work is missing. The park itself is what
+    remembers the debt, since there is no report to record.
+
+    A run that did NOT complete is left exactly as this stage always left it.
+    A launch nothing invoked, a shutdown kill, a timeout, a provider refusal
+    and a nonzero exit are failures its own roads answer -- the timeout that
+    committed first publishes its commit on purpose -- and a report is not
+    what any of them is missing. The syntheses a stage makes for a publication
+    no developer ran are the first of those: no process produced them, so the
+    contract has nobody to hold to it.
+    """
+    if _outcomes._report_outcome_of_run(agent_result) in _INCOMPLETE_RUNS:
+        return False
+    log.error(
+        "issue=#%d finished a developer run with committed work and no "
+        "report this workflow can publish; publishing nothing and holding "
+        "for a human", issue.number,
+    )
+    parks_an_undeliverable_report(
+        gh, issue, state,
+        _UNREPORTED_PARK.format(mentions=config.HITL_MENTIONS),
+    )
+    return True
 
 
 def parks_an_undeliverable_report(
@@ -285,13 +369,30 @@ def _delivered_report(
     the drift check ahead of the spawn is what put it there, and a human
     editing the issue while the agent worked leaves the current content one
     revision further on than anything this session ever saw.
+
+    The revision moves past every report this issue has already recorded, the
+    settled one and any transaction still outstanding. A settlement replaces
+    the current report, so a revision that did not move forward would put an
+    older report on the pull request's own record of what it carries -- and a
+    transaction still outstanding may already have posted its comment and lost
+    the response, so a report minted at its revision would carry its receipt
+    too and read that comment as its own, edited beyond recognition. A record
+    nobody can read counts as nothing here, which is the same answer every
+    reader in this domain gives it.
     """
     carried = _carried_by_outcome(
         gh, _outcomes._report_outcome_of_run(agent_result),
     )
     if carried is None:
         return None
-    revision = _next_revision(state)
+    recorded = (
+        _settlement.read_current_report(state),
+        _record_state.read_pending_report(state),
+    )
+    revision = 1 + max(
+        (report.report_revision for report in recorded if report is not None),
+        default=0,
+    )
     requirements = state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)
     return _records.DeliveredReport(
         receipt=_RECEIPT.format(issue=issue.number, revision=revision),
@@ -338,28 +439,3 @@ def _carried_by_outcome(
         ),
         "content_revision": outcome.revision,
     }
-
-
-def _next_revision(state: _pinned_state.PinnedState) -> int:
-    """The revision a report delivered now is: one past every recorded one.
-
-    Both records are asked, and the outstanding transaction is the half that
-    matters. A settlement replaces the current report, so a revision that did
-    not move forward would put an older report on the pull request's own
-    record of what it carries -- and a transaction still outstanding may
-    already have posted its comment and lost the response, so a report minted
-    at its revision would carry its receipt too and read that comment as its
-    own, edited beyond recognition.
-
-    A record nobody can read counts as nothing here, which is the same answer
-    every reader in this domain gives it. Acting on such an issue at all is the
-    reconciliation's question, and it parks one ahead of every handler.
-    """
-    recorded = (
-        _settlement.read_current_report(state),
-        _record_state.read_pending_report(state),
-    )
-    return 1 + max(
-        (report.report_revision for report in recorded if report is not None),
-        default=0,
-    )

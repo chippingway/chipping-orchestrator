@@ -22,6 +22,7 @@ from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.stages.implementing import read_only_relabel_test_support as _support
 from tests.workflow.stages.implementing.read_only_relabel_test_support import _ReadOnlyRelabelMixin
@@ -32,7 +33,7 @@ _HANDOFF_PR_NUMBER = 5150
 
 _PLAN_PATH = f"plans/issue-{_REUSED_PLAN_ISSUE_NUMBER}.md"
 _PLAN_COMMIT = "the-commit-the-plan-pr-carried"
-_IMPLEMENTED = "implemented"
+_IMPLEMENTED = _reported()
 KEY_BRANCH = "branch"
 
 # What the discussion stage left on the PR it opened: true of the branch it
@@ -121,7 +122,9 @@ class PlanPrReuseTest(
             gh,
             issue,
             unpushed_branch=_issue_branch(issue.number),
-            run_agent=_agent(session_id=_support.DEV_SESSION, last_message=_IMPLEMENTED),
+            run_agent=_agent(
+                session_id=_support.DEV_SESSION, last_message=_IMPLEMENTED,
+            ),
             has_new_commits=True,
             branch_tip_sha=_PLAN_COMMIT,
             head_shas=(_PLAN_COMMIT, _PLAN_COMMIT, _support.HEAD_AFTER_COMMIT),

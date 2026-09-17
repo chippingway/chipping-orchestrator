@@ -270,19 +270,25 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             revision read off the pinned baseline the run was handed rather than computed now,
                             and the route its caller names. The write is this owner's, because being durable
                             before the size gate and the push is the whole of what makes the report recoverable.
-                            A run with no report outcome records nothing and the code publishes as it always did.
-                            A report this build cannot record HOLDS the tick instead, parked under
-                            `report_undeliverable`: the record is the only thing a later tick could publish from
-                            and the run that wrote it has ended, so nothing is published at all -- the commit
-                            stays in the worktree and a reply resumes the session. That park is this owner's to
-                            take for both roads that cannot deliver a report, announced once per attempt -- while
-                            that park still STANDS -- with the notice worded by whichever road took it since what
-                            differs is where the work stands. `owes_a_report` beside it is what a publication asks
-                            before it hands work on, over both records, asked as a CLAIM so a truncated one counts
-                            as a debt; and `redelivers_an_owed_report` is what the two dispositions ask of a run
-                            that moved no head -- a debt owed, a run that finished on a report outcome, and a branch
-                            that carries something -- so the reply answering such a park publishes rather than
-                            parking as a question
+                            TWO ways a run holds the tick instead, both parked under `report_undeliverable` and
+                            both before the size gate and the push, so nothing is published and the commit stays in
+                            the worktree. A report this build cannot RECORD is one no later tick could publish
+                            either -- the record is the only thing a publication reads a report from, and the run
+                            that wrote it has ended. A run that COMPLETED and handed over no usable report at all
+                            -- no marker, a malformed one, a verification on another repository -- is the contract
+                            every developer prompt teaches being broken, and published anyway it would send a
+                            reviewer an implementation nobody described. A run that did NOT complete is left
+                            exactly as this stage always left it: a launch nothing invoked (which is every
+                            synthesis a stage makes for a publication no developer ran), a shutdown kill, a
+                            timeout, a provider refusal, a nonzero exit. The park is announced once per attempt --
+                            while it still STANDS -- with the notice worded by whichever road took it, and it is
+                            retired the moment a report IS recorded. `owes_a_report` beside it is what a
+                            publication asks before it hands work on: both records asked as a CLAIM so a truncated
+                            one counts as a debt, and the park itself, which is the only debt the two roads with
+                            no record to leave have. And `redelivers_an_owed_report` is what the two dispositions
+                            ask of a run that moved no head -- a debt owed, a run that finished on a report
+                            outcome, and a branch that carries something -- so the reply answering such a park
+                            publishes rather than parking as a question
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces

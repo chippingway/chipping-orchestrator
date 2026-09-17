@@ -87,7 +87,7 @@ SPLIT_MANIFEST = _support._manifest(
     '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
-IMPLEMENTED_MESSAGE = "implemented"
+IMPLEMENTED_MESSAGE = _support._reported()
 
 
 class HandleDecomposingDecisionTest(

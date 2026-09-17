@@ -29,6 +29,7 @@ from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.stages.implementing import read_only_relabel_test_support as _support
 
@@ -43,7 +44,7 @@ PLAN_COMMIT = "the-commit-the-plan-pr-carried"
 # What a human's own work on the plan PR leaves as its head: a correction
 # pushed to the Markdown, or the base merged in to make the PR mergeable.
 AMENDED_PLAN_COMMIT = "the-commit-a-human-edit-left-on-the-plan-pr"
-IMPLEMENTED = "implemented"
+IMPLEMENTED = _reported()
 KEY_BRANCH = "branch"
 
 

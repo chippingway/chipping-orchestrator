@@ -1695,21 +1695,34 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        it would be a second unmarked, unversioned copy in a place nothing rereads. A description that already
        carries an unmarked `_Last agent message:_` tail keeps it — nothing can tell where that message ends and a
        human's words begin.
-     - **a report this build cannot deliver parks the issue rather than handing the work on.** A report that
-       cannot be RECORDED — past what the pinned comment can carry, quoting a receipt marker of ours, or naming a
-       requirements revision nothing can read — stops the call before the size gate: nothing is measured, nothing
-       pushed, no pull request opened, the commit stays in the worktree, and the issue parks under
-       `report_undeliverable`. The record is the only thing a later tick could publish a report from and the run
-       that wrote it has ended, so publishing the code anyway would hand review an implementation with no report
-       and no record of what the run said. A report that cannot be BOUND once the pull request is known — a
-       delivered record nobody can read, or a verification asserting a report on another pull request — takes the
-       same park after the push, with the record left exactly as it stands: the code is published, the handoff is
-       withheld, and the notice says both. Neither park is announced twice while it stands, and a reply resumes the
-       developer session — the resume clears the waiting, so a report that fails to be delivered again is a fresh
-       failure the human who asked for it hears about. The one refusal that does NOT park is a
+     - **a report this build cannot deliver parks the issue rather than handing the work on.** Three shapes reach
+       that park, and two of them stop the call before the size gate — nothing measured, nothing pushed, no pull
+       request opened, the commit still in the worktree. A report that cannot be RECORDED is the first: past what
+       the pinned comment can carry, quoting a receipt marker of ours, or naming a requirements revision nothing
+       can read. The record is the only thing a later tick could publish a report from and the run that wrote it
+       has ended, so publishing the code anyway would hand review an implementation with no report and no record
+       of what the run said. A run that COMPLETED and handed over no usable report AT ALL is the second — no
+       marker, one that reached for the contract and missed, or a verification naming another repository — which
+       is the contract every developer prompt teaches being broken rather than a road this workflow answers. A run
+       that did NOT complete is none of them and is left exactly as this stage always left it: a launch nothing
+       invoked — which is every synthesis a stage makes to publish work an earlier run left — a shutdown kill, a
+       timeout that committed first, a provider refusal, a nonzero exit. The third shape is a report that cannot
+       be BOUND once the pull request is known — a delivered record nobody can read, or a verification asserting a
+       report on another pull request — and it takes the same park after the push, with the record left exactly as
+       it stands: the code is published, the handoff is withheld, and the notice says both. No park is announced
+       twice while it stands, and a reply resumes the developer session — the resume clears the waiting, so a
+       report that fails to be delivered again is a fresh failure the human who asked for it hears about. The one
+       refusal that does NOT park is a
        pinned comment too full to carry the transaction: the routes a report still owed lets run are what give
        that room back, so it is reported at ERROR, the record is kept, and the next tick binds what this one
        could not.
+
+       What the park REMEMBERS is the debt itself. The two roads answered before the push leave no record — one
+       could not write it and the other was never handed one — so the reason on the pinned comment is what says a
+       report is still owed: it holds the handoff exactly as a record does, it is what tells the reply that brings
+       a report from an ordinary question, and it is retired the moment a report IS recorded. Any other park
+       replaces it outright, since the flags are single, which is also how a human who would rather ship without a
+       report gets there: a reply the developer answers with prose parks on that instead.
      - **the reply that answers such a park brings a report rather than a commit**, and both dispositions read it
        that way. A head that did not move is ordinarily a session that came back with a question, but an issue
        still owing a report it could not deliver was never waiting for code: the commits are on the branch already,

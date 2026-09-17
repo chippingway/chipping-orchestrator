@@ -24,6 +24,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.github import developer_reports as _reports
+from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_VALIDATING, _open_pr_for
 from tests.workflow.stages.implementing import report_test_support as support
@@ -40,6 +41,12 @@ DESCRIBED_PR = 63
 # report. It carries no dev-session attribution, which is exactly what would
 # otherwise have the reuse rewrite it.
 HUMAN_DESCRIPTION = "### Report\n\nThe branch adds the thing. Verified by hand."
+
+FOREIGN_PR = 3
+
+AWAITING_HUMAN = "awaiting_human"
+
+PARK_REASON = "park_reason"
 
 
 class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
@@ -202,22 +209,39 @@ class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
 
-    def test_a_run_with_no_report_publishes(self) -> None:
-        # No report outcome, so nothing is recorded, nothing is published, and
-        # the description keeps the final message it has always carried.
-        github, issue = self.seeded()
+    def test_a_run_with_no_report_publishes_nothing(self) -> None:
+        # Every developer prompt teaches the report contract, so a run that
+        # finished, committed, and handed over no report is one this stage
+        # holds rather than ships: published, a reviewer would be sent an
+        # implementation nobody described, with no session left to ask.
+        for described, message in (
+            ("no marker at all", "implemented, nothing else to say"),
+            ("a block nothing closed", "REPORT: READY\nhalf a report"),
+            (
+                "another repository",
+                support.verified_message(
+                    FOREIGN_PR, HUMAN_DESCRIPTION, slug=support.FOREIGN_SLUG,
+                ),
+            ),
+        ):
+            with self.subTest(message=described):
+                github, issue = self.seeded()
 
-        self.deliver(github, issue, "implemented, nothing else to say")
+                self.deliver(github, issue, message)
 
-        opened = github.opened_prs[0]
-        self.assertEqual(github.get_pr(opened.number).issue_comments, [])
-        recorded = github.pinned_data(support.REPORT_ISSUE)
-        self.assertNotIn(support.DELIVERY_RECORD, recorded)
-        self.assertNotIn(support.CURRENT_RECORD, recorded)
-        self.assertIn(support.LAST_MESSAGE_HEADING, opened.body)
-        self.assertIn(
-            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
-        )
+                recorded = github.pinned_data(support.REPORT_ISSUE)
+                self.assertEqual(
+                    (
+                        github.opened_prs,
+                        recorded.get(AWAITING_HUMAN),
+                        recorded.get(PARK_REASON),
+                    ),
+                    ([], True, _report_delivery.UNDELIVERABLE_REPORT),
+                )
+                self.assertNotIn(
+                    (support.REPORT_ISSUE, LABEL_VALIDATING),
+                    github.label_history,
+                )
 
 
 if __name__ == "__main__":

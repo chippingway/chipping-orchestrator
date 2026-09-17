@@ -414,8 +414,12 @@ returncode `Popen` reports when the child itself dies from the signal (`-15` / `
 the shape the orchestrator's shutdown sweep (`terminate_all_running`) produces when it kills an in-flight agent
 group; `exit_code` preserves signal exits, and `interrupted` is distinct
 from `timed_out` (the orchestrator's own `AGENT_TIMEOUT` firing). `invoked` (default `True`) says whether a process
-existed at all: every result any backend produced carries `True`, including the killed and timed-out ones, and
-only a launch the agent-run circuit turned away before the spawn carries `False`. The two are not the same
+existed at all: every result any backend produced carries `True`, including the killed and timed-out ones, while a
+launch the agent-run circuit turned away before the spawn carries `False` — and so does a result a stage
+SYNTHESIZES to publish committed work an earlier run left (the restart shortcut, the timeout recovery, the approved
+and frozen candidate recoveries). No process produced any of those, which is what two readers need to know: a stage
+reading a worktree cannot attribute its contents to such a result, and the developer-report contract has nobody to
+hold to it — a sentence the orchestrator wrote for itself is not a run declining to report. The two are not the same
 question, and the stages that read a worktree *before* they ask about interruption need both — see
 [The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit). `usage` (default `None`) is the parsed
 `UsageMetrics` -- the one on `observability/usage/metrics.py` -- that `recording.record_agent_exit` attaches during a

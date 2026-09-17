@@ -34,6 +34,10 @@ class _AgentResultSeed:
     interrupted: bool = False
     stderr: str = ""
     exit_code: int | None = None
+    # Whether a process produced this result. False is what a stage's own
+    # synthesis carries -- the sentence it writes to publish committed work an
+    # earlier run left -- which the report contract may not be held against.
+    invoked: bool = True
 
 
 @dataclass(frozen=True)
@@ -138,6 +142,22 @@ class _WorkflowRunContext:
     fork_points: Any = FORK_POINT_SHA
 
 
+# What a finished developer run's message ends on. Every developer prompt
+# teaches the report contract, and the implementing stage holds a completed run
+# to it: work published with no report reaches review with nothing describing
+# it and no session left to ask, so a fixture whose run FINISHES says so the
+# way a developer does.
+_FINISHED_REPORT = (
+    "REPORT: READY\nThe branch does what the issue asked, verified by the "
+    "suite.\nREPORT: END"
+)
+
+
+def _reported(message: str = "implemented") -> str:
+    """One finished run's last message: what it said, then its report."""
+    return f"{message}\n\n{_FINISHED_REPORT}"
+
+
 def _agent(**agent_fields) -> AgentResult:
     seed = _AgentResultSeed(**agent_fields)
     exit_code = seed.exit_code
@@ -151,6 +171,7 @@ def _agent(**agent_fields) -> AgentResult:
         stdout="",
         stderr=seed.stderr,
         interrupted=seed.interrupted,
+        invoked=seed.invoked,
     )
 
 

@@ -20,6 +20,7 @@ from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
     _agent,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.stages.implementing import fresh_test_support
 from tests.workflow.stages.implementing_fixing_test_cases import IssueScenario
@@ -53,7 +54,7 @@ class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
         self._run_implementing(
             scenario.github,
             scenario.issue,
-            run_agent=_agent(session_id="sess-1", last_message="implemented"),
+            run_agent=_agent(session_id="sess-1", last_message=_reported()),
             # First call: not a recovered worktree -> codex runs.
             # Second call: codex produced commits -> push path.
             has_new_commits=[False, True],
@@ -169,7 +170,7 @@ class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
         mocks = self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id="sess-1", last_message="done"),
+            run_agent=_agent(session_id="sess-1", last_message=_reported("done")),
             has_new_commits=[False, True],
             dirty_files=(),
             push_branch=False,
@@ -233,7 +234,7 @@ class HandleImplementingAwaitingHumanTest(unittest.TestCase, _PatchedWorkflowMix
         mocks = self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id=LEGACY_SESSION, last_message="ok"),
+            run_agent=_agent(session_id=LEGACY_SESSION, last_message=_reported("ok")),
             # awaiting_human path skips the recovered-worktree probe; only
             # the post-codex commit check runs.
             has_new_commits=[True],

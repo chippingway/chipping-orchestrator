@@ -243,6 +243,7 @@ def _dispose_approved_commit(
         timed_out=False,
         stdout="",
         stderr="",
+        invoked=False,
     )
     _publish_committed_work(
         gh, spec, issue, state, _RecoveredWork(
@@ -355,6 +356,7 @@ def _dispose_recorded_candidate(
         timed_out=False,
         stdout="",
         stderr="",
+        invoked=False,
     )
     _publish_committed_work(
         gh, spec, issue, state, _RecoveredWork(

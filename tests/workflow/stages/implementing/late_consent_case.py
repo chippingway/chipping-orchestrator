@@ -29,6 +29,7 @@ from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
     _PatchedWorkflowMixin,
+    _reported,
     _stand_opened_prs_on_the_push,
 )
 from tests.workflow.stages.implementing import (
@@ -214,7 +215,7 @@ class _ParkedCase(
         # authorization and publishes on its own count.
         run_options.setdefault("added_lines", _consent_payloads.OVERSIZED_ADDITIONS)
         run_options.setdefault(
-            "run_agent", _agent(last_message="implemented"),
+            "run_agent", _agent(last_message=_reported()),
         )
         opened_before = len(self.github.opened_prs)
         with patch.object(

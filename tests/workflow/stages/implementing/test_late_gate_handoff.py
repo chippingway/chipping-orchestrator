@@ -30,6 +30,7 @@ from tests.workflow.fixtures import (
     SHA_LENGTH,
     _agent,
     _authorized_exemption,
+    _reported,
 )
 from tests.workflow.stages.implementing import late_gate_test_support as support
 
@@ -49,7 +50,7 @@ _OPENED_PR_NUMBER = 1
 # The reply a human writes to make the developer change the work, and what a
 # resumed run says when it has.
 _GUIDANCE = "drop the generated fixtures from this"
-_FINISHED = "done"
+_FINISHED = _reported("done")
 # What a resumed run says when it answered instead of building.
 _ASKED = "which half of this did you mean?"
 

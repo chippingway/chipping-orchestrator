@@ -41,6 +41,11 @@ REPORT_TEXT = "Adds the thing the issue asked for. Verified with the suite."
 
 LAST_MESSAGE_HEADING = "_Last agent message:_"
 
+# The repository every fixture here is about, and one that is somebody else's.
+OWN_SLUG = "chippingway/orchestrator"
+
+FOREIGN_SLUG = "someone/else"
+
 # The thread read a park stamps, which a reply has to land above.
 WATERMARK = "last_action_comment_id"
 
@@ -59,17 +64,24 @@ def ready_message(report: str = REPORT_TEXT) -> str:
 
 
 def verified_message(
-    pr_number: int, body: str, *, comment_id: int | None = None,
+    pr_number: int,
+    body: str,
+    *,
+    comment_id: int | None = None,
+    slug: str = OWN_SLUG,
 ) -> str:
     """A finished run's message, asserting a report is already published.
 
     Both places one can be: a comment of the pull request's, named by its
     anchor, and the pull request's own description, named by the bare URL.
+    The repository is a parameter for the one case that is about it -- a
+    location on somebody else's repository, which this workflow will not act
+    on because the publication it would be bound to is on this one.
     """
     anchor = "" if comment_id is None else f"#issuecomment-{comment_id}"
     return (
         "implemented\n\nREPORT: VERIFIED "
-        f"https://github.com/chippingway/orchestrator/pull/{pr_number}"
+        f"https://github.com/{slug}/pull/{pr_number}"
         f"{anchor} sha256:{_reports.content_digest(body)}"
     )
 

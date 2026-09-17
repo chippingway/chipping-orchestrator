@@ -30,6 +30,7 @@ from tests.workflow.fixtures import (
     LABEL_VALIDATING,
     _agent,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.stages.implementing_fixing_test_cases import IssueScenario
 
@@ -461,7 +462,9 @@ class HandleImplementingTimeoutRecoveryTest(unittest.TestCase, _PatchedWorkflowM
             mocks = self._run_implementing(
                 scenario.github,
                 scenario.issue,
-                run_agent=_agent(session_id=RECOVERY_SESSION, last_message="done"),
+                run_agent=_agent(
+                    session_id=RECOVERY_SESSION, last_message=_reported("done"),
+                ),
                 head_shas=(PRE_TIMEOUT_SHA,),  # before_sha snapshot for the resume.
                 has_new_commits=[True],
                 dirty_files=(),
@@ -520,7 +523,10 @@ class HandleImplementingTimeoutRecoveryTest(unittest.TestCase, _PatchedWorkflowM
                 mocks = self._run_implementing(
                     gh,
                     issue,
-                    run_agent=_agent(session_id=RECOVERY_SESSION, last_message="done"),
+                    run_agent=_agent(
+                        session_id=RECOVERY_SESSION,
+                        last_message=_reported("done"),
+                    ),
                     # The resume's own watermark, then the head its dev
                     # run left: a head that has not moved is a run that
                     # committed nothing, and this one did.

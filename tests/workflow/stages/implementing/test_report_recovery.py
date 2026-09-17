@@ -12,34 +12,20 @@ runs over the world the first tick left, which is the world the size gate calls
 DELIVERED: the receipt names the commit, and the pull request is standing on
 it, so the push moves nothing and the bookkeeping is all that is left.
 
-The other two roads are the report this workflow cannot deliver at all. One is
-answered before anything is published, where holding costs nothing; the other
-after the push, where the code stands and only the handoff is withheld. Neither
-discards what the run wrote, and neither lets the work reach review without it,
-and what answers either is a reply whose developer comes back with a report
-rather than a commit.
+The other road here is the requirements moving while the run that reported on
+them worked. Nothing is published then either: the report answers an issue that
+has changed, and what supersedes it is the resume the edit earns.
 
-The last road is the requirements moving while the run that reported on them
-worked. Nothing published then either: the report answers an issue that has
-changed, and what supersedes it is the resume the edit earns.
+A report this workflow cannot deliver AT ALL is the neighbouring module's,
+`test_report_undeliverable`: those roads publish no code either, and what
+answers them is a reply rather than a poll.
 """
 
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
 
-from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import (
-    report_delivery as _report_delivery,
-    report_record_values as _record_values,
-)
-from orchestrator.workflow.stages.implementing import (
-    disposition as _disposition,
-    models as _models,
-)
-from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC, LABEL_VALIDATING, _agent, _open_pr_for
-from tests.workflow.git_owners import seam_patch
+from tests.workflow.fixtures import LABEL_VALIDATING, _agent
 from tests.workflow.stages.implementing import report_test_support as support
 
 # The pull request the first tick opens: this client numbers the ones it opens
@@ -49,28 +35,15 @@ OPENED_PR = 1
 
 RUN_AGENT = "run_agent"
 
-PUSH_BRANCH = "_push_branch"
-
 PUBLISHED_SHA_KEY = "implementing_published_sha"
 
 APPROVED_SHA_KEY = "late_approved_sha"
 
 AWAITING_HUMAN = "awaiting_human"
 
-PARK_REASON = "park_reason"
+PUSH_BRANCH = "_push_branch"
 
-# The pull request a verification names, which is not the one this issue's code
-# reaches: the transaction has to be about one pull request, so a report
-# asserted on another cannot be bound to this publication at all.
-OTHER_PR = 4200
-
-# The comment on it the developer says carries that report.
-OTHER_REPORT_ID = 9200
-
-# The report a resumed session writes in place of one that could not be
-# delivered, and the edit a human makes to the issue while a run is working.
-REPLACEMENT_REPORT = "Adds the thing, reported inline this time."
-
+# The edit a human makes to the issue while a run is working.
 EDITED_BODY = "the requirements moved while the agent was running"
 
 
@@ -166,98 +139,6 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
 
-    def test_an_unrecordable_report_publishes_nothing(self) -> None:
-        # A report past what the pinned comment can carry is one nothing could
-        # ever publish -- the record is what a later tick would publish from --
-        # and the run that wrote it has ended. Held before the size gate and
-        # the push, the refusal costs nothing: the commit is still in the
-        # worktree and a reply resumes the session that writes it again.
-        github, issue = self.seeded()
-        oversized = "x" * (_record_values.MAX_REPORT_TEXT + 1)
-
-        mocks = self.deliver(github, issue, support.ready_message(oversized))
-
-        mocks[PUSH_BRANCH].assert_not_called()
-        self.assertEqual(github.opened_prs, [])
-        recorded = github.pinned_data(support.REPORT_ISSUE)
-        self.assertNotIn(support.DELIVERY_RECORD, recorded)
-        self.assertEqual(
-            (recorded.get(AWAITING_HUMAN), recorded.get(PARK_REASON)),
-            (True, _report_delivery.UNDELIVERABLE_REPORT),
-        )
-        self.assertNotIn(
-            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
-        )
-
-    def test_an_unbindable_report_is_held(self) -> None:
-        # The developer asserted a report on another pull request, so the
-        # transaction can never be about the publication this code reached.
-        # The code stands, the report stays recorded, the work is not handed
-        # on, and a human is told once.
-        github, issue = self.seeded()
-        _open_pr_for(github, issue_number=support.REPORT_ISSUE, pr_number=OTHER_PR)
-
-        self.deliver(
-            github,
-            issue,
-            support.verified_message(
-                OTHER_PR,
-                "somebody else's report",
-                comment_id=OTHER_REPORT_ID,
-            ),
-        )
-
-        self.assertEqual(len(github.opened_prs), 1)
-        recorded = github.pinned_data(support.REPORT_ISSUE)
-        self.assertIsNotNone(recorded[support.DELIVERY_RECORD])
-        self.assertEqual(
-            (recorded.get(AWAITING_HUMAN), recorded.get(PARK_REASON)),
-            (True, _report_delivery.UNDELIVERABLE_REPORT),
-        )
-        self.assertNotIn(
-            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
-        )
-
-    def test_a_replacement_report_needs_no_commit(self) -> None:
-        # The park asked for a report, so a resumed session that writes one
-        # and touches no file is answering it rather than asking a question:
-        # its report replaces the one that could not be delivered, and the
-        # commits already on the branch are what it goes out with.
-        github, issue = self.seeded()
-        _open_pr_for(github, issue_number=support.REPORT_ISSUE, pr_number=OTHER_PR)
-        self.deliver(
-            github,
-            issue,
-            support.verified_message(
-                OTHER_PR,
-                "somebody else's report",
-                comment_id=OTHER_REPORT_ID,
-            ),
-        )
-        github.get_pr(OPENED_PR).head.sha = support.PUBLISHED_SHA
-        support.replies(github, issue)
-
-        self.redeliver(
-            github, issue, support.ready_message(REPLACEMENT_REPORT),
-        )
-
-        posted = support.published_reports(github, OPENED_PR)
-        self.assertEqual(len(posted), 1)
-        self.assertIn(REPLACEMENT_REPORT, posted[0].body)
-        recorded = github.pinned_data(support.REPORT_ISSUE)
-        self.assertEqual(
-            (
-                recorded[support.DELIVERY_RECORD],
-                recorded[support.PENDING_RECORD],
-                recorded.get(AWAITING_HUMAN),
-                recorded.get(PARK_REASON),
-            ),
-            (None, None, False, None),
-        )
-        self.assertIn(
-            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
-        )
-
     def test_edited_requirements_hold_the_report(self) -> None:
         # A human edited the issue while the developer worked, so the report
         # answers requirements the issue no longer has. Publishing it would
@@ -283,51 +164,6 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
         self.assertNotIn(
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
-
-
-class ReportOnlyReplyTest(unittest.TestCase):
-    """The seam that tells a report answering a debt from a question.
-
-    Asked of the disposition directly, because the ordinary road into it is a
-    reply that moves the requirements hash and therefore goes to the drift
-    resume instead. What reaches this one is every other resume -- a bare
-    `/orchestrator continue`, a reply that changed nothing a human wrote -- and
-    it has to read a report the same way.
-    """
-
-    def test_an_owed_report_publishes_unmoved_work(self) -> None:
-        for described, message, publishes in (
-            ("a report", support.ready_message(), True),
-            ("a question", "which database should this use?", False),
-        ):
-            with self.subTest(reply=described):
-                self.assertEqual(
-                    self._left_commits(support.owing_state(), message),
-                    publishes,
-                )
-
-    def test_an_issue_owing_nothing_reads_a_question(self) -> None:
-        # The debt is what makes a no-commit report a publication, so an issue
-        # that owes none reads the same reply exactly as it always did.
-        self.assertFalse(
-            self._left_commits(PinnedState(), support.ready_message()),
-        )
-
-    def _left_commits(self, state, message: str) -> bool:
-        """What the disposition makes of a run whose head never moved."""
-        prepared = _models._PreparedDevRun(
-            agent_result=_agent(
-                session_id=support.DEV_SESSION, last_message=message,
-            ),
-            before_sha=support.PUBLISHED_SHA,
-            paused=False,
-            worktree=_FAKE_WT,
-        )
-        with seam_patch("_has_new_commits", MagicMock(return_value=True)), \
-                seam_patch(
-                    "_head_sha", MagicMock(return_value=support.PUBLISHED_SHA),
-                ):
-            return _disposition._run_left_commits(_TEST_SPEC, state, prepared)
 
 
 class _EditsTheIssue:

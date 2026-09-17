@@ -199,6 +199,64 @@ class DeliveredReportRecordTest(unittest.TestCase):
         self.assertFalse(_delivery_state.carries_delivered_report(crowded))
 
 
+class ReportedRunTest(unittest.TestCase):
+    """What a run EARNS, which is not the same question as what a record holds.
+
+    A run that completed owes a report, because every developer prompt asks
+    for one; a result no process produced owes nothing, because there was
+    nobody to ask.
+    """
+
+    def test_a_run_that_reported_nothing_holds(self) -> None:
+        # Every way a run that COMPLETED can hand over no report: no marker at
+        # all, a question, a block nothing closed, and a verification naming
+        # another repository -- which is a location this workflow would
+        # re-read on somebody else's thread. Each holds the tick and parks,
+        # and the park is what remembers the debt, since there is no report to
+        # record.
+        seeded = _seeded_issue()
+        messages = (
+            ("no marker at all", "implemented"),
+            ("a question", "which database should this use?"),
+            ("a report block nothing closed", "REPORT: READY\nthe report"),
+            ("another repository", (
+                "REPORT: VERIFIED https://github.com/someone/else/pull/3"
+                f" sha256:{support.CONTENT_DIGEST}"
+            )),
+        )
+        for described, message in messages:
+            with self.subTest(message=described):
+                state = PinnedState(state_data={BASELINE: support.REQUIREMENTS})
+
+                self.assertTrue(_delivery.recording_stops_the_tick(
+                    *seeded, state, _agent(last_message=message),
+                    WorkflowLabel.IMPLEMENTING,
+                ))
+
+                self.assertFalse(
+                    _delivery_state.carries_delivered_report(state),
+                )
+                self.assertEqual(
+                    (state.get(PARK_REASON), _delivery.owes_a_report(state)),
+                    (_delivery.UNDELIVERABLE_REPORT, True),
+                )
+
+    def test_a_run_nothing_invoked_holds_nothing(self) -> None:
+        # The syntheses a stage makes when it publishes committed work an
+        # earlier run left: no process produced them, so there is no contract
+        # to hold them to and the publication goes out as it always did.
+        seeded = _seeded_issue()
+        state = PinnedState(state_data={BASELINE: support.REQUIREMENTS})
+
+        self.assertFalse(_delivery.recording_stops_the_tick(
+            *seeded, state,
+            _agent(last_message="(orchestrator recovery: publishing)", invoked=False),
+            WorkflowLabel.IMPLEMENTING,
+        ))
+
+        self.assertFalse(_delivery.owes_a_report(state))
+
+
 class DeliveredReportBindingTest(unittest.TestCase):
     def test_binding_exchanges_the_records(self) -> None:
         state = PinnedState()
@@ -330,34 +388,6 @@ class DeliveredReportBindingTest(unittest.TestCase):
             state.get(_records.DELIVERED_REPORT),
         )
         self.assertTrue(_delivery.owes_a_report(state))
-
-    def test_no_outcome_records_nothing(self) -> None:
-        # Every run that did not finish on a report outcome, and the
-        # verification that names another repository -- which is a location
-        # this workflow would re-read on somebody else's thread.
-        seeded = _seeded_issue()
-        messages = (
-            ("no marker at all", "implemented"),
-            ("a question", "which database should this use?"),
-            ("a report block nothing closed", "REPORT: READY\nthe report"),
-            ("another repository", (
-                "REPORT: VERIFIED https://github.com/someone/else/pull/3"
-                f" sha256:{support.CONTENT_DIGEST}"
-            )),
-        )
-        for described, message in messages:
-            with self.subTest(message=described):
-                state = PinnedState(state_data={BASELINE: support.REQUIREMENTS})
-
-                _delivery.recording_stops_the_tick(
-                    *seeded, state, _agent(last_message=message),
-                    WorkflowLabel.IMPLEMENTING,
-                )
-
-                self.assertFalse(
-                    _delivery_state.carries_delivered_report(state),
-                )
-                self.assertFalse(_delivery.owes_a_report(state))
 
     def test_no_baseline_parks_the_tick(self) -> None:
         # The requirements revision is the one member of a subject the run

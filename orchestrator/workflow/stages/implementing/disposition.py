@@ -113,6 +113,7 @@ def _try_recover_implementing_timeout_park(
         timed_out=False,
         stdout="",
         stderr="",
+        invoked=False,
     )
     _candidate_recovery._publish_committed_work(
         gh, spec, issue, state, _models._AgentWork(agent_result, wt),

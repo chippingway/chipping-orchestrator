@@ -37,6 +37,7 @@ from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
     _PatchedWorkflowMixin,
+    _reported,
     _stand_opened_prs_on_the_push,
 )
 
@@ -326,7 +327,9 @@ class _GateCase(
         and would be asserting on that park instead of on the gate.
         """
         run_options.setdefault("has_new_commits", True)
-        run_options.setdefault("run_agent", _agent(last_message="implemented"))
+        run_options.setdefault(
+            "run_agent", _agent(last_message=_reported()),
+        )
         opened_before = len(self.github.opened_prs)
         with patch.object(
             _worktree_paths, WORKTREE_PATH, return_value=worktree,

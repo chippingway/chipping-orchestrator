@@ -770,7 +770,11 @@ The keys that matter for the state machine fall into a few groups:
   deliverable by being announced again — and the reason is what a later tick reads to know the notice is there. The
   resume a human's reply earns clears the waiting, so a second attempt that fails again is announced again; the
   publication handoff spends the reason itself, beside the agent timeout's, because reaching it means the report
-  the park was about has since reached the pull request.
+  the park was about has since reached the pull request. That reason is also the DEBT for the two roads that have
+  no record to leave — a report this build could not write down, and a completed run that handed over none at all —
+  so while it stands the work is not handed on, and a resumed run that brings a report back publishes the commits
+  already on the branch rather than parking as a question. Recording a report retires it, since that is the
+  condition it was taken for.
   The developer-report reconciliation re-sets `report_record_damaged` for a reason of its
   own: the park is the dispatcher's rather than a stage's, so the reason is the only thing that tells a tick whose
   park it is standing over — this owner announces once, holds silently on its own, and retires *only* its own,
