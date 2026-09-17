@@ -201,7 +201,9 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
             github,
             issue,
             support.verified_message(
-                OTHER_PR, OTHER_REPORT_ID, "somebody else's report",
+                OTHER_PR,
+                "somebody else's report",
+                comment_id=OTHER_REPORT_ID,
             ),
         )
 
@@ -227,7 +229,9 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
             github,
             issue,
             support.verified_message(
-                OTHER_PR, OTHER_REPORT_ID, "somebody else's report",
+                OTHER_PR,
+                "somebody else's report",
+                comment_id=OTHER_REPORT_ID,
             ),
         )
         github.get_pr(OPENED_PR).head.sha = support.PUBLISHED_SHA

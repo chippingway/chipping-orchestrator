@@ -1665,7 +1665,12 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        out of `discussion` arrives with its plan PR open on the very branch these commits went to — so one whose body
        does not already name this dev session has that body rewritten to the implementation's (`Resolves #N`, the dev
        session, and the agent's closing message where no report supersedes it); one that does name it is left as it
-       stands, human annotations included.
+       stands, human annotations included. One description is never rewritten whatever it says: the one this issue's
+       own report claims as its location. A developer that verified a report on a pull request's DESCRIPTION
+       recorded the digest of what it read and nothing else, so the rewrite would destroy the only copy of it and
+       the verification behind it would read content that had moved and refuse — leaving the work here with a report
+       nothing can settle. Preserved, the pull request keeps a body this implementation did not write, and the
+       closing reference and attribution are a human's to add.
        Without the rewrite the PR would keep claiming the branch is one Markdown file that changes nothing else, under
        the decomposer's session, and would close no issue when it merged. Persists `pr_number` / `branch` and
        resets `review_round=0` and `retry_count=0` via `handoff._reset_implementing_counters`.

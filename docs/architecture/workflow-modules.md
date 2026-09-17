@@ -291,6 +291,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is. What produces one is a publication that reached its report -- the initial
                             implementation delivery through `report_binding.py` below, or the reconciliation at
                             the end of this group a poll later
+    report_locations.py     which places on a pull request this issue's reports claim, asked of all three records
+                            by the one writer that could destroy one: the body rewrite a reused pull request earns.
+                            A report verified on a DESCRIPTION records the digest of what was read and nothing
+                            else, so a rewrite loses the only copy -- the report and whatever a human wrote around
+                            it -- and the verification behind it then reads content that has moved and refuses,
+                            leaving the work on its stage with a report nothing can settle. Only descriptions: no
+                            body rewrite can reach a report in a comment
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
@@ -1885,7 +1892,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             promises nothing else about -- one whose body already names this session is adopted
                             as it stands, human annotations included, and one that does not (an operator's, or
                             the `discussion` stage's plan PR sitting on the very ref the dev commits went to) is
-                            re-bodied to the implementation's. One road names its pull request instead and may
+                            re-bodied to the implementation's -- unless that description is one this issue's own
+                            report claims, where the body is preserved whatever it says and the closing reference
+                            and attribution are left for a human to add, since a rewrite there destroys the report
+                            and strands the verification that would have settled it. One road names its pull request instead and may
                             OPEN none: a publication the gate admitted because that pull request already carries
                             the commit is finishing bookkeeping rather than publishing, so it is resolved by
                             number and re-read WHOLE -- open, in this repository, on the branch the push named,

@@ -58,12 +58,19 @@ def ready_message(report: str = REPORT_TEXT) -> str:
     return f"implemented\n\nREPORT: READY\n{report}\nREPORT: END"
 
 
-def verified_message(pr_number: int, comment_id: int, body: str) -> str:
-    """A finished run's message, asserting a report is already published."""
+def verified_message(
+    pr_number: int, body: str, *, comment_id: int | None = None,
+) -> str:
+    """A finished run's message, asserting a report is already published.
+
+    Both places one can be: a comment of the pull request's, named by its
+    anchor, and the pull request's own description, named by the bare URL.
+    """
+    anchor = "" if comment_id is None else f"#issuecomment-{comment_id}"
     return (
         "implemented\n\nREPORT: VERIFIED "
         f"https://github.com/chippingway/orchestrator/pull/{pr_number}"
-        f"#issuecomment-{comment_id} sha256:{_reports.content_digest(body)}"
+        f"{anchor} sha256:{_reports.content_digest(body)}"
     )
 
 

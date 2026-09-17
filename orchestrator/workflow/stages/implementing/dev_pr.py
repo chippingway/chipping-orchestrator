@@ -24,6 +24,14 @@ before this record existed carries its agent message under an unmarked
 and a human's own words begin -- so the tail stays where it is, historical, and
 the report comment is what a reader is pointed at.
 
+And nothing is removed on the reuse's account either where the description IS a
+report. A developer that verified one there recorded the digest of what it read
+and nothing else, so the rewrite below would destroy the only copy -- the report
+and whatever a human wrote around it -- and the verification that follows would
+find a location whose content had moved and refuse, leaving the work here for
+good. Such a body is left exactly as it stands, `Resolves #N` and all, and the
+sentence this reuse would have added is one an operator can add themselves.
+
 The attribution line is what holds the two halves of this owner together. The
 body states it, and the reuse below reads it back off a pull request of unknown
 provenance: `find_open_pr` promises only that something is open on the branch,
@@ -51,6 +59,7 @@ from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     comments as _comments,
     report_delivery as _report_delivery,
+    report_locations as _report_locations,
 )
 from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
@@ -284,8 +293,28 @@ def _attribute_reused_pr(
     means this stage already wrote it (a tick that died between `open_pr` and
     the relabel), and everything it says -- including what a human added
     underneath -- is left alone.
+
+    One body is never rewritten whatever it says: the one this issue's own
+    report claims as its location. A developer verifying a report on a pull
+    request's DESCRIPTION records the digest of what it read and nothing else,
+    so a rewrite destroys the only copy there is -- the report, and whatever a
+    human wrote around it -- and the verification behind it then reads a
+    location whose content has moved and refuses, which leaves the work on
+    this stage with a report nothing can ever settle. Preserved, the pull
+    request keeps a body this implementation did not write; what that costs is
+    the closing reference and the attribution, which a human can add and which
+    neither destroys anything nor blocks the publication.
     """
     if _dev_pr_attribution(state) in (getattr(pr, "body", "") or ""):
+        return
+    if _report_locations.claims_the_description(state, pr.number):
+        log.warning(
+            "issue=#%s is not rewriting reused PR #%d's body: a developer "
+            "report of this issue's is published there, and the rewrite would "
+            "replace it -- the pull request keeps the description it has, "
+            "without this implementation's `Resolves` line or attribution",
+            issue.number, pr.number,
+        )
         return
     log.info(
         "issue=#%s rewriting reused PR #%d body to name this implementation",

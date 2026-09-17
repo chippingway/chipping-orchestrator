@@ -12,6 +12,11 @@ developer says is already on the thread.
 The pull request the size gate proved is already STANDING on the commit is the
 recovery's world rather than this one's, and it is covered beside the
 report-debt cases in `test_report_recovery`.
+
+A reused pull request has one body this stage may not rewrite: the one a
+verification names. The rewrite that makes a reused pull request describe this
+implementation would replace the report published there, so the description is
+preserved and the verification behind it finds what it read.
 """
 
 from __future__ import annotations
@@ -28,6 +33,13 @@ REUSED_PR = 42
 VERIFIED_PR = 55
 
 HUMAN_REPORT_ID = 9100
+
+DESCRIBED_PR = 63
+
+# A description a human wrote and a developer then verified as this issue's
+# report. It carries no dev-session attribution, which is exactly what would
+# otherwise have the reuse rewrite it.
+HUMAN_DESCRIPTION = "### Report\n\nThe branch adds the thing. Verified by hand."
 
 
 class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
@@ -133,7 +145,9 @@ class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
         self.deliver(
             github,
             issue,
-            support.verified_message(reused.number, human.id, human.body),
+            support.verified_message(
+                reused.number, human.body, comment_id=human.id,
+            ),
         )
 
         self.assertEqual(github.posted_pr_comments, [])
@@ -143,6 +157,46 @@ class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
         self.assertEqual(
             (settled["content"], settled["location_comment"]),
             (_reports.content_digest(human.body), human.id),
+        )
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+    def test_a_verified_description_survives(self) -> None:
+        # The developer verified the report on this pull request's OWN body.
+        # Rewriting it to name this implementation would destroy the only copy
+        # of that report and leave the verification reading content that had
+        # moved, so the description is preserved and the transaction settles.
+        github, issue = self.seeded()
+        reused = _open_pr_for(
+            github, issue_number=support.REPORT_ISSUE, pr_number=DESCRIBED_PR,
+        )
+        reused.body = HUMAN_DESCRIPTION
+        github.existing_open_pr[support.BRANCH] = reused
+
+        self.deliver(
+            github,
+            issue,
+            support.verified_message(reused.number, HUMAN_DESCRIPTION),
+        )
+
+        self.assertEqual(github.edited_pr_bodies, [])
+        self.assertEqual(reused.body, HUMAN_DESCRIPTION)
+        self.assertEqual(github.posted_pr_comments, [])
+        settled = github.pinned_data(support.REPORT_ISSUE)[
+            support.CURRENT_RECORD
+        ]
+        self.assertEqual(
+            (
+                settled["location_pr"],
+                settled["location_comment"],
+                settled["content"],
+            ),
+            (
+                DESCRIBED_PR,
+                None,
+                _reports.content_digest(HUMAN_DESCRIPTION),
+            ),
         )
         self.assertIn(
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
