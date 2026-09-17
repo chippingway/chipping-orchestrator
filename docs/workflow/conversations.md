@@ -142,12 +142,17 @@ request reference to the orchestrator that appends it when configured to. Issue 
 carry, not the subject's. The note is unconditional, because the prompt is built with no reading of that switch and a
 repo whose history carries references from an earlier setting reads the same either way.
 
-The note is not the only guard on the one place a subject is read back out. PR-title selection
-(`git/publication/titles.py`) takes the tracked issue's own trailing reference off whichever line it reuses — the
-branch's first commit subject, or the issue title — so a commit written before this contract, one a human wrote by
-hand, and an issue title with the number typed onto the end each still yield a title without it. Nothing is appended
-in its place: a title is picked before the pull request has a number. A reference to any other number is somebody
-else's link and survives.
+The note is not the only guard, and the code enforces the same rule at each of the three places an agent-written
+subject is read back out. PR-title selection (`git/publication/titles.py`) takes the tracked issue's own trailing
+reference off whichever line it reuses — the branch's first commit subject, or the issue title — so a commit written
+before this contract, one a human wrote by hand, and an issue title with the number typed onto the end each still
+yield a title without it. Nothing is appended in its place: a title is picked before the pull request has a number.
+The two publishers decide the whole of it instead, because each has a pull request to name: the approval squash
+reads that same first commit subject for the commit it collapses or rewrites to, and the documenting pass reads the
+`docs:` commit's own. On both, the tracked issue's reference goes and the pull request's is kept exactly once, so a
+subject a developer ended in the issue's number — and the `<subject> (#issue) (#PR)` a developer commit and an
+earlier publication each wrote half of — land alike as `<subject> (#PR)`. A reference to any other number is
+somebody else's link and survives on every road.
 
 Where the contract is carried:
 
