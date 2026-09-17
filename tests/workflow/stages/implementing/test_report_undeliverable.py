@@ -9,7 +9,11 @@ report bound to no publication this code reached: one asserted on somebody
 else's pull request, and one asserted on the very description this publication
 needs for its closing reference and attribution. There the branch and the pull
 request stand and only the handoff is withheld. None of them discards what the
-run wrote, and none lets the work reach review without a report.
+run wrote, and neither lets the work reach review without a report.
+
+The record that never LANDED is the neighbouring module's,
+`test_report_lost_record`: there the run reported and the pinned write failed,
+so what the next tick recovers is committed work no record describes at all.
 
 What answers any of them is a human's reply: the developer resumes and writes a
 report that can be delivered, and the run that brings one back publishes the

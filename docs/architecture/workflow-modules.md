@@ -272,7 +272,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             before the size gate and the push is the whole of what makes the report recoverable.
                             TWO ways a run holds the tick instead, both parked under `report_undeliverable` and
                             both before the size gate and the push, so nothing is published and the commit stays in
-                            the worktree. A report this build cannot RECORD is one no later tick could publish
+                            the worktree. (`UNRECOVERED_PARK` beside them is the same park worded for a third road,
+                            which `disposition.py` takes: a tick recovering committed work an earlier run left with
+                            no report of that run anywhere on the comment.) A report this build cannot RECORD is one
+                            no later tick could publish
                             either -- the record is the only thing a publication reads a report from, and the run
                             that wrote it has ended. A run that COMPLETED and handed over no usable report at all
                             -- no marker, a malformed one, a verification on another repository -- is the contract
@@ -1338,7 +1341,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             settlement; both heads must be readable and the run must leave commits above its floor --
                             with one exception, an issue still owing a report it could not deliver, where a run that
                             comes back with a report and moved no head is publishing the commits already on the branch
-                            rather than asking a question
+                            rather than asking a question. A RECOVERED run -- no agent ran on this tick, the commits
+                            are a developer's from an earlier one -- is settled against the pinned comment as well as
+                            the tree: the report of the run that made those commits was written down before the size
+                            gate and before the push, so committed work with no report recorded anywhere (no delivery,
+                            no transaction, no settled pair) is the window that recording exists to close, a pinned
+                            write that failed or a restart inside it. That is held under `report_undeliverable` rather
+                            than published, because the session that could say what it did has ended
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
                             The report the run wrote is recorded between the tree and the gate, which is the last

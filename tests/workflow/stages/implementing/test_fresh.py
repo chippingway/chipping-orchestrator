@@ -20,6 +20,7 @@ from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
     _agent,
     _PatchedWorkflowMixin,
+    _recovered_report,
     _reported,
 )
 from tests.workflow.stages.implementing import fresh_test_support
@@ -350,7 +351,13 @@ class HandleImplementingRecoveredWorktreeTest(unittest.TestCase, _PatchedWorkflo
         gh = FakeGitHubClient()
         issue = make_issue(3, label=LABEL_IMPLEMENTING)
         gh.add_issue(issue)
-        gh.seed_state(3, codex_session_id="sess-prev")
+        # The report that previous run recorded before the size gate, which
+        # is what a branch carrying its commits also carries: a recovery
+        # finding committed work no report describes holds it for a human
+        # instead (`test_report_recovery`).
+        gh.seed_state(
+            3, codex_session_id="sess-prev", **_recovered_report(issue),
+        )
 
         mocks = self._run_implementing(
             gh,

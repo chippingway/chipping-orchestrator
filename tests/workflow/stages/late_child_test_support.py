@@ -109,6 +109,15 @@ class _SliceGateCase(_gate._GateCase):
         # tick runs: the cases about what a child inherits assert against this
         # rather than against a literal, so they are about the seeding.
         self.seeded = dict(self.github.pinned_data(self.issue.number))
+        # Past that snapshot, because it is not the split's: a child whose
+        # slice is already committed is a tick over an earlier run's work, and
+        # the report that run recorded before the gate is what an implementing
+        # tick finds on the comment. Without one the stage holds the work for
+        # a human instead of measuring it, which is a different subject.
+        self.github.seed_state(
+            self.issue.number,
+            **{**self.seeded, **_fixtures._recovered_report(self.issue)},
+        )
         self.github.set_workflow_label(self.issue, _fixtures.LABEL_IMPLEMENTING)
         self._labelled_before = len(self.github.label_history)
 

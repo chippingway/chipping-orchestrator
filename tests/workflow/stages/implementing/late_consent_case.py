@@ -32,6 +32,7 @@ from tests.workflow.fixtures import (
     _reported,
     _stand_opened_prs_on_the_push,
 )
+from tests.workflow.patch_models import _recovered_report
 from tests.workflow.stages.implementing import (
     late_consent_comments as _consent_comments,
     late_consent_payloads as _consent_payloads,
@@ -189,6 +190,10 @@ class _ParkedCase(
         self.github.seed_state(_consent_payloads.ISSUE_NUMBER, **{
             _state._LAST_ACTION_COMMENT_ID: _consent_payloads.PRIOR_ACTION_COMMENT_ID,
             _consent_payloads.KEY_EXEMPT_SHA: MEASURED_CANDIDATE_SHA,
+            # The report of the run that committed this candidate, which every
+            # tick over already-committed work carries: without one the stage
+            # holds the work rather than measuring it.
+            **_recovered_report(self.issue),
             **standing,
             **state,
         })
@@ -217,6 +222,13 @@ class _ParkedCase(
         run_options.setdefault(
             "run_agent", _agent(last_message=_reported()),
         )
+        # Re-stamped here rather than at the seed, because a case that posts a
+        # command or a reply moves the requirements the issue reads at, and a
+        # record naming an older revision is a human editing mid-run -- which
+        # holds the report rather than publishing it.
+        self.github.seed_state(_consent_payloads.ISSUE_NUMBER, **{
+            **self._pinned(), **_recovered_report(self.issue),
+        })
         opened_before = len(self.github.opened_prs)
         with patch.object(
             _worktree_paths, _consent_payloads.WORKTREE_PATH, return_value=worktree,

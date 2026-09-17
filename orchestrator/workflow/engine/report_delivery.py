@@ -24,6 +24,14 @@ every launch a shutdown, a timeout, a provider refusal or a nonzero exit ended.
 Their code still publishes exactly as it did before, and a report an earlier run
 delivered is still there to be bound onto the pull request that code reaches.
 
+A synthesis nothing INVOKED is the one of those the pinned comment can still
+hold, and the stage that recovers with one is what asks: what it republishes is
+a developer's committed work from an earlier tick, so that run's report is on
+the comment or nowhere at all. `UNRECOVERED_PARK` is the notice for nowhere --
+the recording happens before the size gate and before the push, so commits with
+no record are the window it exists to close, a pinned write that failed or a
+restart inside it.
+
 A run that DID complete and handed over no usable report is not that. Every
 developer prompt teaches the contract, so what a finished run with no report
 leaves is the contract broken rather than a road this workflow answers -- and
@@ -144,6 +152,28 @@ _UNREPORTED_PARK = (
 )
 
 
+# Why a recovered publication is held, in the words its notice quotes. Taken
+# by the road that recovers a developer run's committed work from an earlier
+# tick and finds no report of that run anywhere on the comment: the recording
+# happens before the size gate and the push, so the only way past it with
+# commits and no record is the window that recording exists to close -- a
+# pinned write that failed, or a restart between the run and it.
+UNRECOVERED_PARK = (
+    "{mentions} this issue's branch carries committed work no run of this "
+    "tick produced: a developer finished it on an earlier tick, and no "
+    "completion report of that run is recorded on this comment. The report "
+    "is written down before anything is published, so commits without one "
+    "mean the tick that made them never got the record out -- a failed write, "
+    "or a restart in the window between the two -- and the session that could "
+    "say what it did has ended. Nothing was published: the commit is still in "
+    "the worktree, the branch is untouched, and no pull request was opened, "
+    "because handing this on would send a reviewer an implementation nobody "
+    "described. Reply and the orchestrator resumes the session; the report it "
+    "writes then is the one that gets published, and it needs no new commit "
+    "to deliver it."
+)
+
+
 def owes_a_report(state: _pinned_state.PinnedState) -> bool:
     """Whether this issue still owes a pull request the report of a run.
 
@@ -261,7 +291,11 @@ def _unreported_run_holds(
     committed first publishes its commit on purpose -- and a report is not
     what any of them is missing. The syntheses a stage makes for a publication
     no developer ran are the first of those: no process produced them, so the
-    contract has nobody to hold to it.
+    contract has nobody to hold to it, and what each of them republishes is
+    work some EARLIER run made. Whether that run's report survived is a
+    question about the pinned comment rather than about the result in hand, so
+    it belongs to the road that knows which earlier run it is recovering --
+    `UNRECOVERED_PARK` below is the one that asks it.
     """
     if _outcomes._report_outcome_of_run(agent_result) in _INCOMPLETE_RUNS:
         return False

@@ -24,6 +24,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
     report_delivery as _report_delivery,
+    report_settlement_state as _report_settlement,
 )
 from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
@@ -317,6 +318,24 @@ def _dispose_agent_result(
     `before_sha` on the timeout half (`_timeout_left_commits`), and the
     certified baseline a read-only relabel left beside it on the clean one
     (`_run_left_commits`).
+
+    A RECOVERED run is the clean half's own exception, and what it turns on is
+    the pinned comment rather than the tree. No agent ran on this tick: the
+    commits are a developer's from an earlier one, and that run's report is on
+    the comment or nowhere, because recording it is the first thing that
+    happens after a run returns and it happens before the size gate and the
+    push. So committed work with no report recorded means the tick that made
+    it never got the record out -- a pinned write that failed, or a restart
+    between the run and it -- and the session that could say what it did has
+    ended. Published, that is a reviewer handed an implementation nobody
+    described; held, it is a reply away from the report it is missing.
+
+    Any record answers, and all of them as a CLAIM: a delivery waiting for a
+    pull request, a transaction waiting for its comment, and the settled pair
+    a publication that already finished left. What is being asked is whether
+    a run of this issue's reported AT ALL, and the tick that republishes work
+    whose report already went out -- a relabel that did not land, a receipt
+    being finished -- is as much an answer as one still carrying the debt.
     """
     if prepared.agent_result.timed_out:
         # The implementer can commit clean work and then get killed by the
@@ -338,14 +357,26 @@ def _dispose_agent_result(
         gh.write_pinned_state(issue, state)
         return
 
-    if _run_left_commits(spec, state, prepared):
-        _candidate_recovery._publish_committed_work(
-            gh,
-            spec,
-            issue,
-            state,
-            _models._AgentWork(prepared.agent_result, prepared.worktree),
-        )
-    else:
+    if not _run_left_commits(spec, state, prepared):
         _parks._on_question(gh, issue, state, prepared.agent_result)
+        gh.write_pinned_state(issue, state)
+        return
+    unreported = not (
+        _report_delivery.owes_a_report(state)
+        or _report_settlement.carries_settled_record(state)
+    )
+    if prepared.recovered and unreported:
+        _report_delivery.parks_an_undeliverable_report(
+            gh, issue, state, _report_delivery.UNRECOVERED_PARK.format(
+                mentions=config.HITL_MENTIONS,
+            ),
+        )
+        return
+    _candidate_recovery._publish_committed_work(
+        gh,
+        spec,
+        issue,
+        state,
+        _models._AgentWork(prepared.agent_result, prepared.worktree),
+    )
     gh.write_pinned_state(issue, state)

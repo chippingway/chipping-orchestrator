@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.git.publication.commits import _Amendment
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow.repo_values import (
     _FAKE_WT,
@@ -156,6 +157,35 @@ _FINISHED_REPORT = (
 def _reported(message: str = "implemented") -> str:
     """One finished run's last message: what it said, then its report."""
     return f"{message}\n\n{_FINISHED_REPORT}"
+
+
+def _recovered_report(issue) -> dict:
+    """The pinned record a run that committed, and died, left behind.
+
+    What every tick whose worktree ALREADY carries commits is seeded with,
+    because that is what one looks like in production: the run that made those
+    commits recorded its report before the size gate and before the push, so
+    an issue reaching a later tick with committed work carries the report of
+    the run that committed it. A tick finding commits and no record at all is
+    the window that recording exists to close -- a lost pinned write -- and
+    the stage holds it for a human rather than publishing it undescribed.
+
+    The requirements revision is the issue's own content hash, since the run
+    this stands in for was handed exactly the issue in hand: one naming an
+    older revision is an edit landing mid-run, which is a different road.
+    """
+    return {
+        "developer_report_delivery": {
+            "receipt": f"issue-{issue.number}-report-1",
+            "revision": 1,
+            "requirements": _content_hash._compute_user_content_hash(issue, ()),
+            "mode": "publish",
+            "route": "workflow:implementing",
+            "watermarks": [],
+            "spends": [],
+            "report": "the run that made this commit reported it.",
+        },
+    }
 
 
 def _agent(**agent_fields) -> AgentResult:

@@ -16,7 +16,10 @@ from unittest.mock import MagicMock, patch
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.labels import PAUSED_LABEL
-from orchestrator.workflow.engine import content_hash as _content_hash
+from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
+    report_delivery as _report_delivery,
+)
 from orchestrator.workflow.stages.implementing import resume as _implementing_resume
 from tests.support.fakes import (
     FakeComment,
@@ -35,6 +38,8 @@ from tests.workflow.fixtures import (
 )
 
 GET_ISSUE = "get_issue"
+AWAITING_HUMAN = "awaiting_human"
+PARK_REASON = "park_reason"
 POISONED_RESUME_ISSUE = 720
 RECOVERY_ISSUE = 710
 RETRY_ISSUE = 740
@@ -65,7 +70,7 @@ def _assert_fresh_pause_state(
     )
     pinned_state = github.pinned_data(1)
     test_case.assertNotIn("dev_session_id", pinned_state)
-    test_case.assertFalse(pinned_state.get("awaiting_human"))
+    test_case.assertFalse(pinned_state.get(AWAITING_HUMAN))
 
 
 def _assert_poisoned_pause_state(
@@ -87,7 +92,7 @@ def _assert_poisoned_pause_state(
         pinned_state.get("dev_session_id"),
         "sess-old",
     )
-    test_case.assertTrue(pinned_state.get("awaiting_human"))
+    test_case.assertTrue(pinned_state.get(AWAITING_HUMAN))
     test_case.assertEqual(
         pinned_state.get("last_action_comment_id"),
         ACTION_COMMENT_ID,
@@ -195,10 +200,10 @@ class ImplementingLivePauseResumeTest(unittest.TestCase, _PatchedWorkflowMixin):
 
 
 class ImplementingLivePauseRecoveryTest(unittest.TestCase, _PatchedWorkflowMixin):
-    def test_unpause_republishes_recovered_worktree(self) -> None:
+    def test_unpause_holds_an_unreported_tree(self) -> None:
         # End-to-end: tick 1 commits under a live pause and is held; tick 2,
-        # after the operator removes `paused`, publishes the stranded commit
-        # through the recovered-worktree path and relabels to `validating`.
+        # after the operator removes `paused`, finds the stranded commit
+        # through the recovered-worktree path and holds it for a report.
         gh = FakeGitHubClient()
         issue = make_issue(RECOVERY_ISSUE, label=LABEL_IMPLEMENTING)
         gh.add_issue(issue)
@@ -226,9 +231,13 @@ class ImplementingLivePauseRecoveryTest(unittest.TestCase, _PatchedWorkflowMixin
             gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
         )
 
-        # Tick 2: `paused` removed. `get_issue` now returns the live (unpaused)
-        # issue, so the recovered-worktree path skips the agent, publishes, and
-        # relabels normally.
+        # Tick 2: `paused` removed. `get_issue` now returns the live
+        # (unpaused) issue, so the recovered-worktree path skips the agent --
+        # and finds committed work with no report on the comment, because
+        # nothing tick 1 staged was persisted and the report its run wrote
+        # went with the rest. Handing that to review would send a reviewer an
+        # implementation nobody described, so it is held: a reply resumes the
+        # session, and the report it writes then publishes the commit.
         mocks = self._run_implementing(
             gh,
             issue,
@@ -239,8 +248,16 @@ class ImplementingLivePauseRecoveryTest(unittest.TestCase, _PatchedWorkflowMixin
         )
 
         mocks["run_agent"].assert_not_called()
-        self.assertEqual(len(gh.opened_prs), 1)
-        self.assertIn((RECOVERY_ISSUE, "workflow:validating"), gh.label_history)
+        pinned = gh.pinned_data(RECOVERY_ISSUE)
+        self.assertEqual(
+            (
+                gh.opened_prs,
+                gh.label_history,
+                pinned.get(AWAITING_HUMAN),
+                pinned.get(PARK_REASON),
+            ),
+            ([], [], True, _report_delivery.UNDELIVERABLE_REPORT),
+        )
 
 
 class ImplementingLivePauseRetryWindowTest(unittest.TestCase, _PatchedWorkflowMixin):
@@ -307,7 +324,7 @@ class ImplementingLivePauseRetryWindowTest(unittest.TestCase, _PatchedWorkflowMi
         # dropped and left cleared) and the park is NOT cleared, so the caller
         # returns leaving durable state untouched.
         self.assertIsNone(self._state.get("dev_session_id"))
-        self.assertTrue(self._state.get("awaiting_human"))
+        self.assertTrue(self._state.get(AWAITING_HUMAN))
 
 
 if __name__ == "__main__":

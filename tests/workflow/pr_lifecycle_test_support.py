@@ -33,6 +33,7 @@ VERDICT_UNKNOWN = _helpers.VERDICT_UNKNOWN
 _PatchedWorkflowMixin = _helpers._PatchedWorkflowMixin
 _TEST_SPEC = _helpers._TEST_SPEC
 _agent = _helpers._agent
+_reported = _helpers._reported
 
 FakeGitHubClient = _fakes.FakeGitHubClient
 FakePR = _fakes.FakePR

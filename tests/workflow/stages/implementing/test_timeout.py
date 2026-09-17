@@ -204,7 +204,10 @@ class HandleImplementingTimeoutDispositionTest(unittest.TestCase, _PatchedWorkfl
                 last_message="partial trace before the kill",
             ),
             head_shas=(PRE_TIMEOUT_SHA, POST_TIMEOUT_SHA),  # HEAD advanced.
-            has_new_commits=True,  # ... onto this branch's own commit
+            # Nothing on the branch before the run, this run's commit after:
+            # a branch already carrying commits is a previous run's work, and
+            # the tick would recover that rather than spawn this one.
+            has_new_commits=[False, True],
             dirty_files=(),
             push_branch=True,
         )
@@ -231,7 +234,7 @@ class HandleImplementingTimeoutDispositionTest(unittest.TestCase, _PatchedWorkfl
             issue,
             run_agent=_agent(timed_out=True, last_message="committed then died"),
             head_shas=(PRE_TIMEOUT_SHA, POST_TIMEOUT_SHA),  # HEAD advanced.
-            has_new_commits=True,  # onto this branch's own commit
+            has_new_commits=[False, True],  # onto this branch's own commit
             dirty_files=["leftover.py"],
         )
 

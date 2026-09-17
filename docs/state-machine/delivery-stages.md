@@ -1690,15 +1690,16 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        it — leaves the report answering requirements the issue no longer has. Such a report is left owed, and the
        drift resume that answers the edit is what buys the one that belongs there. A run that did not COMPLETE —
        every synthesis a stage makes to publish work an earlier run left, a timeout, a provider refusal, a nonzero
-       exit — produced no report outcome to record and publishes exactly as it always did; a run that completed and
-       produced none is held instead, below. Where the report IS
+       exit — produced no report outcome to record and publishes exactly as it always did, except that a synthesis
+       nothing invoked is held where the run it republishes left no report on the comment either; a run that
+       completed and produced none is held outright. Both holds are below. Where the report IS
        published, the description carries only what it alone can (the `Resolves #N` and the attribution): the
        report comment says in as many words that it supersedes any agent message there, so a capped excerpt beside
        it would be a second unmarked, unversioned copy in a place nothing rereads. A description that already
        carries an unmarked `_Last agent message:_` tail keeps it — nothing can tell where that message ends and a
        human's words begin.
-     - **a report this build cannot deliver parks the issue rather than handing the work on.** Three shapes reach
-       that park, and two of them stop the call before the size gate — nothing measured, nothing pushed, no pull
+     - **a report this build cannot deliver parks the issue rather than handing the work on.** Four shapes reach
+       that park, and three of them stop the call before the size gate — nothing measured, nothing pushed, no pull
        request opened, the commit still in the worktree. A report that cannot be RECORDED is the first: past what
        the pinned comment can carry, quoting a receipt marker of ours, or naming a requirements revision nothing
        can read. The record is the only thing a later tick could publish a report from and the run that wrote it
@@ -1706,9 +1707,16 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        of what the run said. A run that COMPLETED and handed over no usable report AT ALL is the second — no
        marker, one that reached for the contract and missed, or a verification naming another repository — which
        is the contract every developer prompt teaches being broken rather than a road this workflow answers. A run
-       that did NOT complete is none of them and is left exactly as this stage always left it: a launch nothing
-       invoked — which is every synthesis a stage makes to publish work an earlier run left — a shutdown kill, a
-       timeout that committed first, a provider refusal, a nonzero exit. The third shape is a report that cannot
+       that FAILED is neither and is left exactly as this stage always left it: a shutdown kill, a timeout that
+       committed first, a provider refusal, a nonzero exit. A launch nothing INVOKED — every synthesis a stage
+       makes to publish work an earlier run left — is the third shape, and it is the only one decided on the
+       pinned comment rather than on the run: no process produced it, so there is no contract to hold it to, but
+       what it republishes is a developer's committed work from an earlier tick and that run's report is on the
+       comment or nowhere. Recorded — a delivery still owed, a transaction outstanding, or the settled pair a
+       finished publication left — it is the ordinary recovery and it publishes. Absent, it is the window the
+       recording exists to close, since the record goes down before the size gate and before the push: a pinned
+       write that failed, or a restart inside it. Then the work is held here too, with the same reply owed and
+       the same nothing published. The fourth shape is a report that cannot
        be BOUND once the pull request is known — a delivered record nobody can read, or a verification asserting a
        report on another pull request — and it takes the same park after the push, with the record left exactly as
        it stands: the code is published, the handoff is withheld, and the notice says both. A verification asserting
@@ -1724,8 +1732,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        that room back, so it is reported at ERROR, the record is kept, and the next tick binds what this one
        could not.
 
-       What the park REMEMBERS is the debt itself. The two roads answered before the push leave no record — one
-       could not write it and the other was never handed one — so the reason on the pinned comment is what says a
+       What the park REMEMBERS is the debt itself. The three roads answered before the push leave no record — one
+       could not write it, one was never handed one, and one is defined by the record that never landed — so the
+       reason on the pinned comment is what says a
        report is still owed: it holds the handoff exactly as a record does, it is what tells the reply that brings
        a report from an ordinary question, and it is retired the moment a report IS recorded. Any other park
        replaces it outright, since the flags are single, which is also how a human who would rather ship without a
