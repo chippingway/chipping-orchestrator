@@ -5,8 +5,6 @@
 from __future__ import annotations
 
 import importlib
-import subprocess
-import sys
 import unittest
 from pathlib import Path
 from types import MappingProxyType
@@ -14,6 +12,7 @@ from types import MappingProxyType
 from orchestrator.workflow.engine import stage_targets as _stage_targets
 from orchestrator.workflow.stages import decomposition as _package
 from orchestrator.workflow.state import WorkflowLabel
+from tests.support.import_probes import probe_import
 
 _PACKAGE = "orchestrator.workflow.stages.decomposition"
 
@@ -138,12 +137,6 @@ _OWNER_MODULES = MappingProxyType({
     owner: importlib.import_module(f"{_PACKAGE}.{owner}") for owner in _OWNERS
 })
 
-_IMPORTED_SCRIPT = """
-import sys
-import {module}
-print(*sorted(name for name in sys.modules if name.startswith('orchestrator')))
-"""
-
 # The label -> owner pairs the dispatcher routes a decomposed issue through.
 _DISPATCHED_HANDLERS = (
     (WorkflowLabel.DECOMPOSING, "run", "_handle_decomposing"),
@@ -153,36 +146,21 @@ _DISPATCHED_HANDLERS = (
 )
 
 
-def _imported_orchestrator_modules(module: str) -> set[str]:
-    """Names of the orchestrator modules a fresh `import module` plants."""
-    completed = subprocess.run(
-        [sys.executable, "-c", _IMPORTED_SCRIPT.format(module=module)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return set(completed.stdout.split())
-
-
 class CleanProcessImportTest(unittest.TestCase):
     """The package and each owner beneath it import alone.
 
     Every owner reaches the engine, whose dispatcher reaches back into this
-    package. A subprocess per module gives each a clean `sys.modules` no other
+    package. A recording per module gives each a clean `sys.modules` no other
     test has already populated, exposing an import-order cycle a package-first
-    suite run would mask.
+    suite run would mask. The layering check below reads the package's planted
+    set off the same recording, so it costs no interpreter of its own.
     """
 
     def test_each_module_imports_standalone(self) -> None:
         for module in (_PACKAGE, *(f"{_PACKAGE}.{owner}" for owner in _OWNERS)):
             with self.subTest(module=module):
-                completed = subprocess.run(
-                    [sys.executable, "-c", f"import {module}"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+                probe = probe_import(module)
+                self.assertEqual(probe.returncode, 0, msg=probe.stderr)
 
 
 class LayeringTest(unittest.TestCase):
@@ -193,8 +171,8 @@ class LayeringTest(unittest.TestCase):
         # manifest parser and the split writer it never reaches -- and for the
         # worktree, GitHub, and analytics subsystems those sit on.
         self.assertEqual(
-            _imported_orchestrator_modules(_PACKAGE),
-            _imported_orchestrator_modules(_PARENT) | {_PACKAGE},
+            probe_import(_PACKAGE).orchestrator_modules,
+            probe_import(_PARENT).orchestrator_modules | {_PACKAGE},
         )
 
 

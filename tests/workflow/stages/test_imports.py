@@ -5,14 +5,13 @@
 from __future__ import annotations
 
 import pkgutil
-import subprocess
-import sys
 import unittest
 from importlib.util import find_spec
 from pathlib import Path
 
 from orchestrator.workflow import stages as _stages
 from orchestrator.workflow.engine import stage_targets as _stage_targets
+from tests.support.import_probes import probe_import
 
 _PACKAGE = "orchestrator.workflow.stages"
 
@@ -20,23 +19,6 @@ _WORKFLOW_PACKAGE = "orchestrator.workflow"
 
 # The flat spelling a second import site for any of these stages would take.
 _FLAT_PACKAGE = "orchestrator.stages"
-
-_IMPORTED_SCRIPT = """
-import sys
-import {module}
-print(*sorted(name for name in sys.modules if name.startswith('orchestrator')))
-"""
-
-
-def _imported_orchestrator_modules(module: str) -> set[str]:
-    """Names of the orchestrator modules a fresh `import module` plants."""
-    completed = subprocess.run(
-        [sys.executable, "-c", _IMPORTED_SCRIPT.format(module=module)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return set(completed.stdout.split())
 
 
 def _stage_packages() -> list[str]:
@@ -49,19 +31,16 @@ class CleanProcessImportTest(unittest.TestCase):
 
     Importing it runs the workflow initializer above it first, and the stage
     owners beneath it import the engine, which imports this package back. A
-    subprocess gives the package a clean `sys.modules` no other test has
-    already populated, exposing an import-order cycle a package-first suite run
-    would mask.
+    recording gives the package a clean `sys.modules` no other test has already
+    populated, exposing an import-order cycle a package-first suite run would
+    mask. The layering check below reads its planted set off that same
+    recording, so the package costs one interpreter rather than one per
+    question asked about it.
     """
 
     def test_package_imports_standalone(self) -> None:
-        completed = subprocess.run(
-            [sys.executable, "-c", f"import {_PACKAGE}"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        probe = probe_import(_PACKAGE)
+        self.assertEqual(probe.returncode, 0, msg=probe.stderr)
 
 
 class LayeringTest(unittest.TestCase):
@@ -74,8 +53,8 @@ class LayeringTest(unittest.TestCase):
         # subsystems they sit on -- into every import of the package, including
         # the ones that only want a different stage.
         self.assertEqual(
-            _imported_orchestrator_modules(_PACKAGE),
-            _imported_orchestrator_modules(_WORKFLOW_PACKAGE) | {_PACKAGE},
+            probe_import(_PACKAGE).orchestrator_modules,
+            probe_import(_WORKFLOW_PACKAGE).orchestrator_modules | {_PACKAGE},
         )
 
 
