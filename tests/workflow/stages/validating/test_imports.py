@@ -5,8 +5,6 @@
 from __future__ import annotations
 
 import importlib
-import subprocess
-import sys
 import unittest
 from pathlib import Path
 from types import MappingProxyType
@@ -14,6 +12,7 @@ from types import MappingProxyType
 from orchestrator.workflow.engine import stage_targets as _stage_targets
 from orchestrator.workflow.stages import validating as _package
 from orchestrator.workflow.state import WorkflowLabel
+from tests.support.import_probes import probe_import
 
 _PACKAGE = "orchestrator.workflow.stages.validating"
 
@@ -50,24 +49,7 @@ _OWNER_MODULES = MappingProxyType({
     owner: importlib.import_module(f"{_PACKAGE}.{owner}") for owner in _OWNERS
 })
 
-_IMPORTED_SCRIPT = """
-import sys
-import {module}
-print(*sorted(name for name in sys.modules if name.startswith('orchestrator')))
-"""
-
 _HANDLE_VALIDATING = "_handle_validating"
-
-
-def _imported_orchestrator_modules(module: str) -> set[str]:
-    """Names of the orchestrator modules a fresh `import module` plants."""
-    completed = subprocess.run(
-        [sys.executable, "-c", _IMPORTED_SCRIPT.format(module=module)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return set(completed.stdout.split())
 
 
 class CleanProcessImportTest(unittest.TestCase):
@@ -75,21 +57,17 @@ class CleanProcessImportTest(unittest.TestCase):
 
     The owners import each other and reach the engine and the verification
     runner, and the engine's dispatcher reaches back into this package. A
-    subprocess per module gives each a clean `sys.modules` no other test has
+    recording per module gives each a clean `sys.modules` no other test has
     already populated, exposing an import-order cycle a package-first suite run
-    would mask.
+    would mask. It is the recording the layering check below reads its planted
+    set off, so asking both questions costs one interpreter per module.
     """
 
     def test_each_module_imports_standalone(self) -> None:
         for module in (_PACKAGE, *(f"{_PACKAGE}.{owner}" for owner in _OWNERS)):
             with self.subTest(module=module):
-                completed = subprocess.run(
-                    [sys.executable, "-c", f"import {module}"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+                probe = probe_import(module)
+                self.assertEqual(probe.returncode, 0, msg=probe.stderr)
 
 
 class LayeringTest(unittest.TestCase):
@@ -100,8 +78,8 @@ class LayeringTest(unittest.TestCase):
         # for the reviewer spawn it never reaches -- and for the worktree,
         # GitHub, verification, and analytics subsystems those sit on.
         self.assertEqual(
-            _imported_orchestrator_modules(_PACKAGE),
-            _imported_orchestrator_modules(_PARENT) | {_PACKAGE},
+            probe_import(_PACKAGE).orchestrator_modules,
+            probe_import(_PARENT).orchestrator_modules | {_PACKAGE},
         )
 
 
