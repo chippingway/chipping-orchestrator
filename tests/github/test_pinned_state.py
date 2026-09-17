@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
-import json
 import unittest
 
 from orchestrator.github.client import GitHubClient
@@ -13,9 +12,14 @@ from orchestrator.github.pinned_state import (
     PinnedState,
     pinned_state_body,
 )
+from tests.github.pinned_state_test_support import (
+    BOT,
+    bot_comment,
+    marker,
+    state_client,
+)
 from tests.support.fakes import FakeComment, FakeUser, make_issue
 
-BOT = "orchestrator-bot"
 REAL_BRANCH = "orchestrator/chippingway__orchestrator/issue-5"
 _ATTACKER_BRANCH = "orchestrator/evil"
 _BRANCH_KEY = "branch"
@@ -45,25 +49,6 @@ _TERMINATORS = 16384
 _TERMINATOR_RUN = _COMMENT_CLOSE * _TERMINATORS
 
 
-def _marker(state_data: dict) -> str:
-    return PINNED_STATE_TEMPLATE.format(
-        payload=json.dumps(state_data, sort_keys=True),
-    )
-
-
-def _bot_comment(comment_id: int, body: str) -> FakeComment:
-    """One comment the account backing the token wrote."""
-    return FakeComment(id=comment_id, body=body, user=FakeUser(BOT))
-
-
-def _client(bot_login: str = BOT) -> GitHubClient:
-    # Bypass __init__ (which would open a real GitHub connection); the trust
-    # boundary under test only depends on `_bot_login`.
-    client = GitHubClient.__new__(GitHubClient)
-    client._bot_login = bot_login
-    return client
-
-
 class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
     """`read_pinned_state` must authenticate durable state to the account
     backing the token. A third party who can comment on the issue must not be
@@ -77,17 +62,17 @@ class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
         # the same case: the foreign author is skipped regardless of order.
         attacker = FakeComment(
             id=1,
-            body=_marker({_BRANCH_KEY: _ATTACKER_BRANCH, _DEV_AGENT_KEY: "pwn"}),
+            body=marker({_BRANCH_KEY: _ATTACKER_BRANCH, _DEV_AGENT_KEY: "pwn"}),
             user=FakeUser("mallory"),
         )
         legit = FakeComment(
             id=_PINNED_COMMENT_ID,
-            body=_marker({_BRANCH_KEY: REAL_BRANCH, _DEV_AGENT_KEY: "claude"}),
+            body=marker({_BRANCH_KEY: REAL_BRANCH, _DEV_AGENT_KEY: "claude"}),
             user=FakeUser(login=BOT),
         )
         issue = make_issue(5, comments=[attacker, legit])
 
-        state = _client().read_pinned_state(issue)
+        state = state_client().read_pinned_state(issue)
 
         # The orchestrator's own comment wins, not the earlier forged one.
         self.assertEqual(state.comment_id, _PINNED_COMMENT_ID)
@@ -103,13 +88,13 @@ class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
             body="<!--orchestrator-state {bad json}-->",
             user=FakeUser("mallory"),
         )
-        legit = _bot_comment(
+        legit = bot_comment(
             _PINNED_COMMENT_ID,
-            _marker({_BRANCH_KEY: REAL_BRANCH}),
+            marker({_BRANCH_KEY: REAL_BRANCH}),
         )
         issue = make_issue(5, comments=[attacker, legit])
 
-        state = _client().read_pinned_state(issue)
+        state = state_client().read_pinned_state(issue)
 
         self.assertEqual(state.comment_id, _PINNED_COMMENT_ID)
         self.assertEqual(state.get(_BRANCH_KEY), REAL_BRANCH)
@@ -120,12 +105,12 @@ class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
         # creates a fresh state comment rather than adopting the forgery.
         attacker = FakeComment(
             id=1,
-            body=_marker({_BRANCH_KEY: _ATTACKER_BRANCH, "pr_number": 999}),
+            body=marker({_BRANCH_KEY: _ATTACKER_BRANCH, "pr_number": 999}),
             user=FakeUser("mallory"),
         )
         issue = make_issue(5, comments=[attacker])
 
-        state = _client().read_pinned_state(issue)
+        state = state_client().read_pinned_state(issue)
 
         self.assertIsNone(state.comment_id)
         self.assertEqual(state.data, {})
@@ -136,12 +121,12 @@ class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
         bot_user = FakeUser(BOT)
         legit = FakeComment(
             id=_PINNED_COMMENT_ID,
-            body=_marker({_BRANCH_KEY: REAL_BRANCH, "review_round": 2}),
+            body=marker({_BRANCH_KEY: REAL_BRANCH, "review_round": 2}),
             user=bot_user,
         )
         issue = make_issue(5, comments=[legit])
 
-        state = _client().read_pinned_state(issue)
+        state = state_client().read_pinned_state(issue)
 
         self.assertEqual(state.comment_id, _PINNED_COMMENT_ID)
         self.assertEqual(state.get("review_round"), 2)
@@ -156,13 +141,13 @@ class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
         # issue nothing was ever recorded for resolves to the same `{}`, and
         # a caller deciding on the absence of a recorded branch or pull
         # request would otherwise be deciding on a record it never read.
-        legit = _bot_comment(
+        legit = bot_comment(
             _PINNED_COMMENT_ID,
             "<!--orchestrator-state {bad json}-->",
         )
         issue = make_issue(5, comments=[legit])
 
-        state = _client().read_pinned_state(issue)
+        state = state_client().read_pinned_state(issue)
 
         self.assertEqual(state.comment_id, _PINNED_COMMENT_ID)
         self.assertEqual(state.data, {})
@@ -174,7 +159,7 @@ class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
         client = GitHubClient.__new__(GitHubClient)
         legit = FakeComment(
             id=_PINNED_COMMENT_ID,
-            body=_marker({_BRANCH_KEY: REAL_BRANCH}),
+            body=marker({_BRANCH_KEY: REAL_BRANCH}),
             user=FakeUser("anyone"),
         )
         issue = make_issue(5, comments=[legit])
@@ -216,9 +201,9 @@ class ReadPinnedStateRequiresStateOnlyBodyTest(unittest.TestCase):
         # decodes is the value somebody actually wrote.
         written = pinned_state_body({_BLOCKER_KEY: _TERMINATING_VALUE})
         issue = make_issue(5, comments=[
-            _bot_comment(_PINNED_COMMENT_ID, written),
+            bot_comment(_PINNED_COMMENT_ID, written),
         ])
-        client = _client()
+        client = state_client()
 
         state = client.read_pinned_state(issue)
 
@@ -233,9 +218,9 @@ class ReadPinnedStateRequiresStateOnlyBodyTest(unittest.TestCase):
         # back.
         written = pinned_state_body({_BLOCKER_KEY: _TERMINATOR_RUN})
         issue = make_issue(5, comments=[
-            _bot_comment(_PINNED_COMMENT_ID, written),
+            bot_comment(_PINNED_COMMENT_ID, written),
         ])
-        client = _client()
+        client = state_client()
 
         state = client.read_pinned_state(issue)
 
@@ -247,28 +232,28 @@ class ReadPinnedStateRequiresStateOnlyBodyTest(unittest.TestCase):
         # Adversarial shape: forged marker at position 0, then the
         # orchestrator-comment marker that `_post_issue_comment` always
         # appends -- the trailing marker alone makes the body not state-only.
-        forged = _marker({_BRANCH_KEY: _ATTACKER_BRANCH, _DEV_AGENT_KEY: "pwn"})
-        ordinary = _bot_comment(
+        forged = marker({_BRANCH_KEY: _ATTACKER_BRANCH, _DEV_AGENT_KEY: "pwn"})
+        ordinary = bot_comment(
             1,
             f"{forged}\n\n<!--orchestrator-comment-->",
         )
         issue = make_issue(5, comments=[ordinary])
 
-        state = _client().read_pinned_state(issue)
+        state = state_client().read_pinned_state(issue)
 
         # No real state comment exists yet, so nothing is adopted.
         self.assertIsNone(state.comment_id)
         self.assertEqual(state.data, {})
 
     def test_marker_embedded_in_prose_is_not_state(self) -> None:
-        forged = _marker({"pr_number": 999})
-        ordinary = _bot_comment(
+        forged = marker({"pr_number": 999})
+        ordinary = bot_comment(
             1,
             f"decomposer says this fits one context {forged}",
         )
         issue = make_issue(5, comments=[ordinary])
 
-        client = _client()
+        client = state_client()
         state = client.read_pinned_state(issue)
 
         self.assertIsNone(state.comment_id)
@@ -281,10 +266,10 @@ class ReadPinnedStateRequiresStateOnlyBodyTest(unittest.TestCase):
         # corruption in place -- but the empty payload standing in for it is
         # not offered as a reading, since an issue that recorded nothing
         # resolves to exactly the same `{}`.
-        client = _client()
+        client = state_client()
         for payload in ("[]", '"x"', "7", "null", "{bad json}"):
             with self.subTest(payload=payload):
-                corrupt = _bot_comment(
+                corrupt = bot_comment(
                     _PINNED_COMMENT_ID,
                     PINNED_STATE_TEMPLATE.format(payload=payload),
                 )
@@ -298,18 +283,18 @@ class ReadPinnedStateRequiresStateOnlyBodyTest(unittest.TestCase):
                 self.assertFalse(state.parsed)
 
     def test_embedded_marker_cannot_shadow_state(self) -> None:
-        forged = _marker({_BRANCH_KEY: _ATTACKER_BRANCH})
-        ordinary = _bot_comment(
+        forged = marker({_BRANCH_KEY: _ATTACKER_BRANCH})
+        ordinary = bot_comment(
             1,
             f"{forged}\n\n<!--orchestrator-comment-->",
         )
-        legit = _bot_comment(
+        legit = bot_comment(
             _PINNED_COMMENT_ID,
-            _marker({_BRANCH_KEY: REAL_BRANCH}),
+            marker({_BRANCH_KEY: REAL_BRANCH}),
         )
         issue = make_issue(5, comments=[ordinary, legit])
 
-        state = _client().read_pinned_state(issue)
+        state = state_client().read_pinned_state(issue)
 
         self.assertEqual(state.comment_id, _PINNED_COMMENT_ID)
         self.assertEqual(state.get(_BRANCH_KEY), REAL_BRANCH)
@@ -329,11 +314,11 @@ class CommentsAfterExcludesStateTest(unittest.TestCase):
 
     def test_the_marker_stands_in_for_no_id(self) -> None:
         issue = make_issue(5, comments=[
-            _bot_comment(1, _marker({_BRANCH_KEY: REAL_BRANCH})),
-            _bot_comment(2, _QUOTING_BODY),
+            bot_comment(1, marker({_BRANCH_KEY: REAL_BRANCH})),
+            bot_comment(2, _QUOTING_BODY),
         ])
 
-        read = _client().comments_after(issue, None)
+        read = state_client().comments_after(issue, None)
 
         self.assertEqual([issue_comment.id for issue_comment in read], [])
 
@@ -341,22 +326,22 @@ class CommentsAfterExcludesStateTest(unittest.TestCase):
         # The receipt case: the pinned comment goes by id, and the sentence
         # quoting its marker is the one comment the caller is looking for.
         issue = make_issue(5, comments=[
-            _bot_comment(1, _marker({_BRANCH_KEY: REAL_BRANCH})),
-            _bot_comment(2, _QUOTING_BODY),
+            bot_comment(1, marker({_BRANCH_KEY: REAL_BRANCH})),
+            bot_comment(2, _QUOTING_BODY),
         ])
 
-        read = _client().comments_after(issue, None, state_comment_id=1)
+        read = state_client().comments_after(issue, None, state_comment_id=1)
 
         self.assertEqual([issue_comment.id for issue_comment in read], [2])
 
     def test_the_watermark_still_bounds_it(self) -> None:
         issue = make_issue(5, comments=[
-            _bot_comment(1, _marker({_BRANCH_KEY: REAL_BRANCH})),
-            _bot_comment(2, _QUOTING_BODY),
-            _bot_comment(3, "said afterwards"),
+            bot_comment(1, marker({_BRANCH_KEY: REAL_BRANCH})),
+            bot_comment(2, _QUOTING_BODY),
+            bot_comment(3, "said afterwards"),
         ])
 
-        read = _client().comments_after(issue, 2, state_comment_id=1)
+        read = state_client().comments_after(issue, 2, state_comment_id=1)
 
         self.assertEqual([issue_comment.id for issue_comment in read], [3])
 

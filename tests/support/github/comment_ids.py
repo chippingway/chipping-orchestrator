@@ -15,6 +15,11 @@ So there is exactly one allocator and every id comes out of it. It sits in its
 own module rather than on the issue-comment service because the pull-request
 service and the pinned-record service mint ids too, and an allocator owned by
 one of the three is one the other two are free to bypass.
+
+A thread handed straight to the real adapter has no client behind it at all --
+the issue is the only object in the call -- so it cannot consult that counter.
+It draws from `next_thread_comment_id` below, which holds the same floor over
+the same threads, and both sources therefore still number in one space.
 """
 
 from __future__ import annotations
@@ -64,6 +69,20 @@ class _CommentIdAllocator:
         for thread in known:
             seen.extend(posted.id for posted in _comments_on(thread))
         return max(seen)
+
+
+def next_thread_comment_id(thread: Any) -> int:
+    """The next id a thread mints for itself, with no client in the call.
+
+    The real pinned-state write is handed an issue and nothing else, so the
+    only ids in reach are the ones that thread already carries. Drawn above
+    the floor as well as above them, which is the promise the allocator makes
+    and the one that matters here: a case is free to hand-number a thread
+    below the floor, and a minted id repeating one of those is a comment some
+    reading hides.
+    """
+    seen = [_FIRST_COMMENT_ID, *(posted.id for posted in _comments_on(thread))]
+    return max(seen) + 1
 
 
 def _comments_on(thread: Any) -> tuple:

@@ -13,7 +13,7 @@ from tests.support.github import (
     report_service as pull_reports,
 )
 from tests.support.github.comment_ids import _FIRST_COMMENT_ID, _CommentIdAllocator
-from tests.support.github.models import FakeIssue
+from tests.support.github.models import DEFAULT_BOT_LOGIN, FakeIssue
 from tests.support.github.state import (
     _FakeEventHistory,
     _FakeIssueHistory,
@@ -69,7 +69,7 @@ class FakeGitHubClient(_IssueClient, _PullClient, _CommentIdAllocator):
         *,
         repo_slug: str = "chippingway/orchestrator",
         stale_label_cache: bool = False,
-        bot_login: str = "orchestrator",
+        bot_login: str = DEFAULT_BOT_LOGIN,
     ) -> None:
         self._repo_slug = repo_slug
         self._bot_login = bot_login
