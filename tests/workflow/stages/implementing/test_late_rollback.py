@@ -20,20 +20,27 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.workflow.stages.implementing import (
-    candidate_recovery as _candidate_recovery,
     late_command as _command,
     late_rollback as _rollback,
     state as _state,
 )
-from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA
 from tests.workflow.stages.implementing import (
     late_consent_case as _consent_case,
     late_consent_crashes as _consent_crashes,
     late_consent_payloads as _consent_payloads,
 )
 
-_PUBLISH_COMMITTED_WORK = "_publish_committed_work"
+# The client call the seam's own first sentence goes out through, which is the
+# earliest moment anything it does is visible from outside the call.
+_POST_COMMENT = "comment"
+
+# A tree that is clean when the guard above the seam proves it and carrying
+# work no push would publish by the time the seam proves it again: the road
+# that makes the seam refuse, and say so, on its own.
+_CLEAN_TREE = _WorktreeStatus(readable=True)
+_DIRTY_TREE = _WorktreeStatus(readable=True, paths=("src/left_behind.py",))
 
 # A watermark past the command, which is what the seam leaves behind when it
 # consumes the reply it was handed and then fails to publish.
@@ -43,30 +50,31 @@ _CONSUMED_PAST_THE_COMMAND = 4000
 # park off without anybody authorizing anything.
 _UNDER_THE_CEILING = 12
 
-# What the push is named against, and the whole of what the poll after a
-# failed one has to get right.
-_REVISION = "revision"
 
+class _ReadsTheRecordAtEachPost:
+    """What the pinned comment held the moment the seam first said anything.
 
-class _ReadsTheRecordAndDies:
-    """A publication seam that says what the record held, then dies in it.
-
-    The ordering both in-flight records rest on, asserted from inside the one
+    The ordering both in-flight records rest on, read from inside the one
     window it is about: what this park WAS, and the receipt its first sentence
-    goes out under, both have to be on the record by the time the seam can
-    write or say anything -- and nothing later can tell.
+    goes out under, both have to be durable by the time the seam can say a
+    word -- and nothing later can tell.
+
+    The DURABLE record rather than the tick's in-memory copy, because what the
+    ordering buys is what a later poll can find: a rollback that lives only in
+    the frame that made the call is gone with the process.
     """
 
     def __init__(self, case) -> None:
         self._case = case
+        self._wrapped = case.github.comment
         self.park: list = []
         self.owed: list = []
 
     def __call__(self, *called, **options):
-        entering = self._case._pinned()
-        self.park.append(entering.get(_state._HELD_PARK))
-        self.owed.append(entering.get(_state._HELD_PUBLICATION))
-        raise _consent_crashes.CrashedTick
+        saying = self._case._pinned()
+        self.park.append(saying.get(_state._HELD_PARK))
+        self.owed.append(saying.get(_state._HELD_PUBLICATION))
+        return self._wrapped(*called, **options)
 
 
 class SeamCrashRollbackTest(_consent_case._ParkedCase, unittest.TestCase):
@@ -81,20 +89,27 @@ class SeamCrashRollbackTest(_consent_case._ParkedCase, unittest.TestCase):
 
     def test_both_records_go_down_before_the_seam(self) -> None:
         # The window is closed by the ORDER. What the park WAS is on the
-        # record before the seam is entered, which is the only reason a later
-        # poll can put it back at all -- and so is the receipt its first
+        # record before the seam can say a word, which is the only reason a
+        # later poll can put it back at all -- and so is the receipt its first
         # sentence goes out under, since the seam can POST the moment it is
         # called and one minted no earlier would leave that sentence with
-        # nothing saying it may be owed.
-        entered = self._enters_the_seam()
+        # nothing saying it may be owed. Read on the road that makes the seam
+        # speak for itself: the tree passes the reading above and is carrying
+        # something by the time the seam takes its own.
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
+        saying = _ReadsTheRecordAtEachPost(self)
 
-        self.assertEqual(entered.park, [{
+        with patch.object(self.github, _POST_COMMENT, saying):
+            self._run_tick(tree_states=(_CLEAN_TREE, _DIRTY_TREE))
+
+        self.assertEqual(saying.park, [{
             _state._AWAITING_HUMAN: True,
             _state._PARK_REASON: _command.PARK_UNAUTHORIZED_EXEMPTION,
             _state._LAST_ACTION_COMMENT_ID: _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         }])
-        self.assertEqual(len(entered.owed), 1)
-        self.assertEqual(len(entered.owed[0]), 1)
+        self.assertEqual(len(saying.owed), 1)
+        self.assertEqual(len(saying.owed[0]), 1)
 
     def test_a_crash_past_the_seam_puts_the_park_back(self) -> None:
         # A push that fails after the authorization is recorded: the seam has
@@ -162,18 +177,6 @@ class SeamCrashRollbackTest(_consent_case._ParkedCase, unittest.TestCase):
         )
         self.assertIsNone(pinned[_state._HELD_PARK])
 
-    def _enters_the_seam(self) -> _ReadsTheRecordAndDies:
-        """Take one tick to the seam's own door, and say what it found there."""
-        self._seed(**_consent_payloads.measured_pair())
-        self._reply(_consent_payloads.AUTHORIZE)
-        entered = _ReadsTheRecordAndDies(self)
-        with (
-            patch.object(_candidate_recovery, _PUBLISH_COMMITTED_WORK, entered),
-            self.assertRaises(_consent_crashes.CrashedTick),
-        ):
-            self._run_tick()
-        return entered
-
     def _crashes_past_the_seam(self) -> None:
         """Record the authorization, fail the push, and lose the rollback."""
         self._seed(**_consent_payloads.measured_pair())
@@ -231,7 +234,11 @@ class PublishedHandoffCrashTest(_consent_case._ParkedCase, unittest.TestCase):
             added_lines=_consent_payloads.SMALL_ADDITIONS,
         )
 
-        self.assertGreaterEqual(
+        # To the command itself, which was the last word on the thread when
+        # the reading behind the handoff was taken: consumed short of it the
+        # reply strands on a `validating` issue, and past it the boundary
+        # swallows replies nothing has read.
+        self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID], commanded,
         )
 
@@ -244,11 +251,16 @@ class PublishedHandoffCrashTest(_consent_case._ParkedCase, unittest.TestCase):
         self._seed(**_consent_payloads.measured_pair())
         commanded = self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
+        # What the failed push said sits above the command, and it is the tip
+        # the reading behind this handoff reached -- so that is the boundary
+        # the relabel's own write spends, exactly.
+        read_to = self._thread_tip()
 
         self._dies_past_the_relabel()
 
-        self.assertGreaterEqual(
-            self._pinned()[_state._LAST_ACTION_COMMENT_ID], commanded,
+        self.assertGreater(read_to, commanded)
+        self.assertEqual(
+            self._pinned()[_state._LAST_ACTION_COMMENT_ID], read_to,
         )
 
     def _crashes_past_the_relabel(self, **run_options) -> int:
@@ -270,23 +282,6 @@ class PublishedHandoffCrashTest(_consent_case._ParkedCase, unittest.TestCase):
             self._run_tick(**run_options)
 
 
-class _ClearsTheParkAndPublishesNothing:
-    """A seam that takes the park off and comes back with nothing pushed.
-
-    Several of the gate's roads to a held verdict leave the record looking
-    exactly like this -- a bounded transport miss counting a quiet retry, a
-    close that ended the cycle, a record this commit is superseded by -- so
-    the park flags cannot say whether a publication happened. Written as a
-    double because what is under test is how the rollback READS a seam that
-    came back, and no real road can be relied on to keep leaving this shape.
-    """
-
-    def __call__(self, gh, spec, issue, state, work) -> None:
-        state.set(_state._AWAITING_HUMAN, False)
-        state.set(_state._PARK_REASON, None)
-        state.set(_state._LAST_ACTION_COMMENT_ID, _CONSUMED_PAST_THE_COMMAND)
-
-
 class HeldSeamOutcomeTest(_consent_case._ParkedCase, unittest.TestCase):
     """What a call that published nothing leaves, however it left the record.
 
@@ -299,15 +294,21 @@ class HeldSeamOutcomeTest(_consent_case._ParkedCase, unittest.TestCase):
     """
 
     def test_a_cleared_latch_is_not_a_publication(self) -> None:
+        # Driven down a road that really leaves that shape: a candidate the
+        # ceiling now lets through needs nobody's authorization, so the seam
+        # retires this park on its own count and records the commit as owed a
+        # push -- and then the push fails, and the label never moves. The
+        # flags say an issue nobody is waiting on; the held park says the
+        # write that spends it never ran.
         self._seed(**_consent_payloads.measured_pair())
         self._reply(_consent_payloads.AUTHORIZE)
 
-        with patch.object(
-            _candidate_recovery, _PUBLISH_COMMITTED_WORK,
-            _ClearsTheParkAndPublishesNothing(),
-        ):
-            self._run_tick()
+        mocks = self._run_tick(
+            added_lines=_UNDER_THE_CEILING, push_branch=False,
+        )
 
+        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
+        self.assertEqual(self.github.label_history, [])
         pinned = self._pinned()
         self.assertTrue(pinned[_state._AWAITING_HUMAN])
         self.assertEqual(
@@ -347,10 +348,15 @@ class HeldSeamOutcomeTest(_consent_case._ParkedCase, unittest.TestCase):
 
         mocks = self._run_tick(added_lines=_UNDER_THE_CEILING)
 
-        mocks[_consent_payloads.RUN_AGENT].assert_not_called()
+        self._assert_published(mocks)
+        pinned = self._pinned()
+        self.assertFalse(pinned[_state._AWAITING_HUMAN])
+        self.assertIsNone(pinned[_state._PARK_REASON])
+        # Nobody was ever asked anything on this road, so the watermark is
+        # still where the poll before it left the thread read to.
         self.assertEqual(
-            mocks[_consent_payloads.PUSH_BRANCH].call_args.kwargs[_REVISION],
-            MEASURED_CANDIDATE_SHA,
+            pinned[_state._LAST_ACTION_COMMENT_ID],
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
 
 

@@ -69,6 +69,12 @@ RUN_AGENT = "run_agent"
 PUSH_BRANCH = "_push_branch"
 WORKTREE_PATH = "_worktree_path"
 
+# What the push is named against, which is the whole of what a checkout that
+# moved under one would have changed, and the head it was leased against --
+# which is what dates the receipt it leaves to one publication attempt.
+REVISION = "revision"
+FORCE_WITH_LEASE = "force_with_lease"
+
 # A commit that types as one and that no record on this issue names: the id an
 # operator copies out of a notice about work a resumed developer moved past.
 STRANGER_SHA = "d" * SHA_LENGTH
@@ -139,6 +145,19 @@ KEY_OVERRIDE_THRESHOLD = "late_override_threshold"
 KEY_OVERRIDE_COMMENT_ID = "late_override_comment_id"
 
 KEY_EXEMPT_SHA = "late_exempt_sha"
+
+# What a publication leaves naming the work it sent out. The three receipt
+# members are read as a GROUP -- the commit this stage pushed, the head that
+# push replaced, and the pull request it went onto -- so a case that asked
+# only for the commit would pass over a receipt no later reader could date or
+# bind to a publication. `pr_number` beside them is the relabel's own write.
+KEY_PUBLISHED_SHA = "implementing_published_sha"
+KEY_PUBLISHED_LEASE = "implementing_published_lease"
+KEY_PUBLISHED_PR = "implementing_published_pr"
+KEY_PR_NUMBER = "pr_number"
+
+# What the thread is told when this stage opens a pull request over the work.
+PR_OPENED = ":sparkles: PR opened: #{number}"
 
 
 def measured() -> LateGeneration:

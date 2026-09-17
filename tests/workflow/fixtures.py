@@ -39,6 +39,7 @@ from tests.workflow.other_labels import (
     LABEL_UMBRELLA as _LABEL_UMBRELLA,
 )
 from tests.workflow.patch_models import DEFAULT_PR_HEAD_SHA as _DEFAULT_PR_HEAD_SHA, _agent as _agent_result
+from tests.workflow.patch_publication import _stand_opened_prs_on_the_push as _stood_on_the_push
 from tests.workflow.patch_runner import _PatchedWorkflowMixin as _WorkflowMixin
 
 EVENT_AGENT_EXIT = _event_values.EVENT_AGENT_EXIT
@@ -145,3 +146,4 @@ _legacy_exemption = _make_legacy_exemption
 
 _agent = _agent_result
 _PatchedWorkflowMixin = _WorkflowMixin
+_stand_opened_prs_on_the_push = _stood_on_the_push
