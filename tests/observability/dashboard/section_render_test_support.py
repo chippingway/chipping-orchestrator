@@ -17,23 +17,37 @@ The rows answer the question the name-answering reads next door cannot: a
 section pass has to render them, so each read carries a word none of the others
 does -- the cohort's backend, the matrix's skill, the adopted skill -- and a
 view drawn from the wrong family reports a word its own rows never held.
+
+The trace at the foot of the page is the one section drawn from a read of its
+own rather than from that load, so its scope entry answers here with the bounds
+it was handed: a row per event and stage the read was narrowed to, stamped with
+the window it was bound by and naming the issue it was scoped to. Every
+narrowing the sidebar resolved is then readable off the table an operator sees,
+so a section handing down the wrong window, events, or stages draws a different
+table rather than the same one.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from contextlib import nullcontext
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 
 from orchestrator.observability.analytics.query.overview_models import Summary
-from orchestrator.observability.analytics.query.run_models import AgentExitRow
+from orchestrator.observability.analytics.query.run_models import (
+    AgentExitRow,
+    IssueEventRow,
+)
 from orchestrator.observability.analytics.query.skill_models import (
     SkillAdoptionRow,
     SkillTriggerMatrixRow,
     SkillTriggerRateRow,
 )
+from orchestrator.observability.dashboard import page_models
 from tests.observability.dashboard.page_render_test_support import (
+    WINDOW,
     WINDOW_START,
     RecordingRegion,
 )
@@ -52,6 +66,17 @@ RUN_ISSUES = (ISSUE_NUMBER, 119)
 
 # What the window totalled, which the footer restates.
 AGENT_RUNS = 57
+
+# What the sidebar narrowed the trace to besides the repository and the issue.
+# Two events and one stage, so a table drawn from the wrong narrowing is a
+# different table rather than the same one shortened.
+TRACE_EVENTS = ("stage_entered", "agent_exit")
+
+TRACE_STAGES = ("implementing",)
+
+# The column the traced read reports its own scope in, so the repository and
+# the issue number the section resolved reach the table beside the rest.
+TRACE_SCOPE = "{repo}#{issue} through {end}"
 
 # The cohort the skill cells report over, sized so the numerator stays distinct
 # from the denominator.
@@ -134,6 +159,20 @@ SKILL_READS = (
     _ADOPTION_CELL.skill,
 )
 
+# The readings a traced event carries that say nothing about the bounds: the
+# stand-in below overwrites the four that do.
+_TRACED_EVENT = IssueEventRow(
+    ts=WINDOW_START,
+    event="",
+    stage=None,
+    duration_s=_RUN_SECONDS,
+    event_result=None,
+    agent_role=_ROLE,
+    backend=_BACKEND,
+    exit_code=0,
+    cost_usd=_RUN_COST,
+)
+
 
 class RecordingPage(RecordingRegion):
     """Fake `st` recording the whole surface a section pass draws onto.
@@ -171,6 +210,45 @@ class RecordingPage(RecordingRegion):
 def frames() -> SimpleNamespace:
     """The `pd` handle the listing is framed by, answering with the rows."""
     return SimpleNamespace(DataFrame=list)
+
+
+def traced_filters() -> page_models.DashboardFilters:
+    """What the sidebar resolved: a repo, an issue, and two narrowings."""
+    return page_models.DashboardFilters(
+        window=WINDOW,
+        repo=RUN_REPO,
+        issue_input=ISSUE_NUMBER,
+        events=TRACE_EVENTS,
+        stages=TRACE_STAGES,
+    )
+
+
+def traced_reads(
+    getter: Callable[..., Any], /, **read_filters: Any,
+) -> list[IssueEventRow]:
+    """Stand in for the scope entry, answering with what it was bound by.
+
+    The trace is drawn from these rows, so every narrowing the section handed
+    down is read back off the table an operator sees rather than off a record
+    of the call. The getter is the drilldown module's own contract and is
+    checked there.
+    """
+    scope = TRACE_SCOPE.format(
+        repo=read_filters["repo"],
+        issue=read_filters["issue"],
+        end=read_filters["end"].date(),
+    )
+    return [
+        replace(
+            _TRACED_EVENT,
+            ts=read_filters["start"],
+            event=event,
+            stage=stage,
+            event_result=scope,
+        )
+        for event in read_filters["events"] or ()
+        for stage in read_filters["stages"] or ()
+    ]
 
 
 def section_rows() -> dict[str, Any]:
