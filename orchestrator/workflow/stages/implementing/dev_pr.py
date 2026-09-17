@@ -180,9 +180,20 @@ def _reuse_or_open_pr(
     and here answers None and a second one is opened over the same work.
     Pinned, the same window answers None to the CALLER, which holds the tick
     and leaves the record exactly as it stands.
+
+    That road is attributed like any other reuse, and for one publication it
+    matters: the tick that opened or adopted this pull request may have been
+    refused the body rewrite because a report of this issue's was published in
+    it, and a later run whose report went somewhere this stage can manage
+    leaves that body free. Asked again here, the description finally says which
+    issue the merge closes and whose implementation it carries -- and on every
+    ordinary delivery it says so already, which is where the ask stops.
     """
     if work.delivered_pr:
-        return _delivered_pull_request(gh, issue, work)
+        delivered = _delivered_pull_request(gh, issue, work)
+        if delivered is not None:
+            _attribute_reused_pr(gh, issue, state, work, delivered)
+        return delivered
     pr = gh.find_open_pr(branch=work.branch, base=spec.base_branch)
     if pr is not None:
         log.info(

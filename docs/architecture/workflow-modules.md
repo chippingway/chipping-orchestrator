@@ -303,7 +303,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             else, so a rewrite loses the only copy -- the report and whatever a human wrote around
                             it -- and the verification behind it then reads content that has moved and refuses,
                             leaving the work on its stage with a report nothing can settle. Only descriptions: no
-                            body rewrite can reach a report in a comment
+                            body rewrite can reach a report in a comment. Preserving one is not free, so the second
+                            reading here is what a description WOULD have said: whether it already closes this
+                            issue -- in any spelling GitHub honours, a human's `Fixes #12` included -- and names
+                            the session whose branch this is. One that says neither is a publication whose merge
+                            leaves its issue open, which the binding below refuses before the work is handed on
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
@@ -390,9 +394,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             DISCARDED: the delivered record stands through every refusal, which is what keeps the
                             publication behind this owner from handing work on without its report. A comment too
                             full is reported at ERROR and retried on the next tick, since the routes a report
-                            still owed lets run are what give the room back; a record nobody can read and a
-                            verification asserting a report on another pull request are refusals no later tick
-                            would answer differently, so the issue is parked once with the record intact
+                            still owed lets run are what give the room back; a record nobody can read, a
+                            verification asserting a report on another pull request, and one asserting it on the
+                            very DESCRIPTION this publication needs for its closing reference and attribution are
+                            refusals no later tick would answer differently, so the issue is parked once with the
+                            record intact. That last one is the collision this owner refuses rather than resolves:
+                            the body a report lives in may not be rewritten and a body left alone may close no
+                            issue when it merges, so the work waits for a fresh report in a COMMENT, which frees
+                            the description and settles both at once
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
                             and the stage: it hands work that has ENDED straight back -- a closed issue, or one
@@ -1335,9 +1344,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             The report the run wrote is recorded between the tree and the gate, which is the last
                             moment it is certainly recoverable: past it the candidate can be frozen for a human, the
                             push can fail, and the process can die, and the session that wrote the report is gone on
-                            every one of those roads. A recovery records nothing, since no developer ran on it, and a
-                            report this build cannot record stops the call there -- nothing measured, nothing pushed,
-                            nothing opened, so the refusal costs only the tick
+                            every one of those roads. A run that did not COMPLETE records nothing -- a recovery ran
+                            no developer at all, and a timeout, a provider refusal or a nonzero exit left no report
+                            to record -- and a report this build cannot record stops the call there: nothing
+                            measured, nothing pushed, nothing opened, so the refusal costs only the tick. A run
+                            that DID complete and handed over no usable report stops it the same way, since every
+                            developer prompt teaches the contract and publishing that one would send review an
+                            implementation nobody described, with no session left to ask
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
                             take a fresh or resumed measurement; the verdict carries the basis admitting publication
       late_gate_permission.py
@@ -1899,9 +1912,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             as it stands, human annotations included, and one that does not (an operator's, or
                             the `discussion` stage's plan PR sitting on the very ref the dev commits went to) is
                             re-bodied to the implementation's -- unless that description is one this issue's own
-                            report claims, where the body is preserved whatever it says and the closing reference
-                            and attribution are left for a human to add, since a rewrite there destroys the report
-                            and strands the verification that would have settled it. One road names its pull request instead and may
+                            report claims, where the body is preserved whatever it says, since a rewrite there
+                            destroys the report and strands the verification that would have settled it; what the
+                            rewrite would have put there is owed rather than forgotten, and `report_binding.py`
+                            holds the work for a human instead of handing on a pull request whose merge closes
+                            nothing. One road names its pull request instead and may
                             OPEN none: a publication the gate admitted because that pull request already carries
                             the commit is finishing bookkeeping rather than publishing, so it is resolved by
                             number and re-read WHOLE -- open, in this repository, on the branch the push named,
@@ -1909,7 +1924,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since what this writes is a receipt naming that commit and a relabel handing a
                             reviewer that pull request. One somebody closed OR MOVED between the gate's proof and
                             here holds the tick rather than earning a second pull request over the same work or a
-                            receipt naming work the branch no longer carries
+                            receipt naming work the branch no longer carries. It is attributed like any other
+                            reuse, and for one publication that matters: the tick that adopted this pull request
+                            may have been refused the rewrite by a report published in its body, and a later run
+                            whose report went somewhere this stage can manage leaves that body free at last
       handoff.py            the one write and the one relabel a finished publication is handed on by, spending the
                             two park reasons whose condition reaching that line answers -- the agent timeout, and the
                             report this publication could not deliver and since did: the pull

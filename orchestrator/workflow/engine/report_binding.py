@@ -33,9 +33,17 @@ Which refusal it was decides whether anybody is told. A comment too full is
 given back by the routes a report still owed lets run, so it is reported at
 ERROR and retried on the next tick, in the place that had just proved this
 publication. Everything else -- a record nobody can read, a verification
-asserting a report on another pull request -- is a report no later tick could
-deliver either, so the issue is parked once with the record intact and a reply
-resumes the developer that can write it again.
+asserting a report on another pull request, and one asserting it on the very
+description this publication needs -- is a report no later tick could deliver
+either, so the issue is parked once with the record intact and a reply resumes
+the developer that can write it again.
+
+That last one is the collision this owner refuses rather than resolves. A
+description a report lives in may not be rewritten -- the rewrite would destroy
+the only copy of the report -- and a description that is left alone is one that
+may close no issue when it merges and name no session at all. Neither half can
+be given up quietly, so the work is held: a fresh report in a COMMENT settles
+both at once, which is what the notice asks for and what a reply buys.
 
 Publication itself is the engine's, unchanged: the post is scoped by the
 transaction's receipt, so a retry finds what an earlier attempt landed instead
@@ -76,6 +84,7 @@ from orchestrator.workflow.engine import (
     report_delivery as _delivery,
     report_delivery_state as _delivery_state,
     report_evidence as _evidence,
+    report_locations as _locations,
     report_publishing as _publishing,
     report_record_state as _record_state,
     report_records as _records,
@@ -87,6 +96,14 @@ log = logging.getLogger("orchestrator.workflow")
 # the notice quotes. This owner's own judgement rather than the record owner's,
 # since what refused is the read rather than the write.
 _UNREADABLE_DELIVERY = "the record of what the run reported cannot be read"
+
+# Why a report on a description cannot be delivered there, in the words the
+# notice quotes.
+_NEEDED_DESCRIPTION = (
+    "it is the pull request's own description, which carries no reference "
+    "closing this issue and no line naming the session that wrote the branch "
+    "-- and this orchestrator will not rewrite a description a report lives in"
+)
 
 _UNBINDABLE_PARK = (
     "{mentions} this issue's code is published on PR #{pr}, and the developer "
@@ -117,12 +134,21 @@ class ReportPublication:
     the publication that follows the binding is made onto it: fetching one
     again would be a second moment, and a pull request proved open by the
     first can be closed by the time the second answers.
+
+    `describes_the_issue` is the caller's reading of that pull request's own
+    DESCRIPTION: whether it already closes this issue and names the session
+    whose work the branch carries. It travels because a report verified on a
+    description is the one report this workflow cannot both keep and manage --
+    the body it lives in is the same body the publication needs -- and only
+    the caller knows what that body says. True for every publication whose
+    description this stage wrote or may rewrite, which is all of them but one.
     """
 
     pull_request: Any
     repo_slug: str
     branch: str
     commit: str
+    describes_the_issue: bool = True
 
 
 def binds_and_publishes(
@@ -174,6 +200,17 @@ def _binds_the_delivery(
             "holding its publication for a human", issue.number,
         )
         _parks_the_debt(gh, issue, state, published, _UNREADABLE_DELIVERY)
+        return
+    if _locations.costs_the_description(
+        delivered, _publication_number(published), published.describes_the_issue,
+    ):
+        log.error(
+            "issue=#%d verified its developer report on the description of PR "
+            "#%s, which this implementation needs for its closing reference "
+            "and attribution; holding for a human",
+            issue.number, _publication_number(published),
+        )
+        _parks_the_debt(gh, issue, state, published, _NEEDED_DESCRIPTION)
         return
     refusal = _delivery_state.binds_delivered_report(
         state, delivered, _records.ReportSubject(

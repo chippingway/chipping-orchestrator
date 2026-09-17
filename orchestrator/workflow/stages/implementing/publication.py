@@ -61,6 +61,7 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     report_binding as _report_binding,
     report_delivery as _report_delivery,
+    report_locations as _report_locations,
 )
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
@@ -332,9 +333,18 @@ def _on_commits(
     # the CHECKOUT this stage hands on, and a report is about the commit that
     # is already on the remote -- so a worktree somebody moved is no reason to
     # leave a finished report unpublished.
+    #
+    # What this pull request's own DESCRIPTION says travels with it, because a
+    # report verified on that body is the one report this stage cannot both
+    # keep and manage: the rewrite that would put the closing reference and
+    # the attribution there is the rewrite that would destroy it. Read here,
+    # where the body in hand is the one the reuse just decided about.
     _report_binding.binds_and_publishes(
         gh, issue, state, _report_binding.ReportPublication(
             pr, spec.slug, branch, published,
+            _report_locations.describes_the_issue(
+                pr, issue.number, _dev_pr._dev_pr_attribution(state),
+            ),
         ),
     )
     if (

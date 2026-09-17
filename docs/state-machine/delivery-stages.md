@@ -1688,8 +1688,10 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        tick opened with: every other term of this publication is something this tick did, but the issue was fetched
        before the developer ran, so an edit landing during that run — or during the push and the pull request after
        it — leaves the report answering requirements the issue no longer has. Such a report is left owed, and the
-       drift resume that answers the edit is what buys the one that belongs there. A run that produced
-       no report outcome records nothing and publishes exactly as it always did. Where the report IS
+       drift resume that answers the edit is what buys the one that belongs there. A run that did not COMPLETE —
+       every synthesis a stage makes to publish work an earlier run left, a timeout, a provider refusal, a nonzero
+       exit — produced no report outcome to record and publishes exactly as it always did; a run that completed and
+       produced none is held instead, below. Where the report IS
        published, the description carries only what it alone can (the `Resolves #N` and the attribution): the
        report comment says in as many words that it supersedes any agent message there, so a capped excerpt beside
        it would be a second unmarked, unversioned copy in a place nothing rereads. A description that already
@@ -1709,7 +1711,12 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        timeout that committed first, a provider refusal, a nonzero exit. The third shape is a report that cannot
        be BOUND once the pull request is known — a delivered record nobody can read, or a verification asserting a
        report on another pull request — and it takes the same park after the push, with the record left exactly as
-       it stands: the code is published, the handoff is withheld, and the notice says both. No park is announced
+       it stands: the code is published, the handoff is withheld, and the notice says both. A verification asserting
+       a report on the very DESCRIPTION of the pull request the code reached takes that park too, and it is the one
+       collision this workflow refuses rather than resolves: the body a report lives in may not be rewritten, and a
+       body left alone is one that may close no issue when it merges and name no session at all, so the work waits
+       for a fresh report in a comment, which settles both at once. A description that already closes this issue and
+       names the session costs nothing and is simply kept. No park is announced
        twice while it stands, and a reply resumes the developer session — the resume clears the waiting, so a
        report that fails to be delivered again is a fresh failure the human who asked for it hears about. The one
        refusal that does NOT park is a

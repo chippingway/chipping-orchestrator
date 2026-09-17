@@ -17,11 +17,20 @@ revision is the exception and belongs to the run: it is the issue content this
 session was actually handed, so a report held back by a failed push is still
 stamped with the requirements it answers rather than with an edit it never saw.
 
-A run that produced no report outcome records nothing at all, which is every
-recovery a stage makes on its own behalf -- none of them ran a developer, and
-the message they synthesize is the orchestrator's own. Their code still
-publishes exactly as it did before, and a report an earlier run delivered is
-still there to be bound onto the pull request that code reaches.
+A run that produced no report outcome records nothing at all where it did not
+COMPLETE: every recovery a stage makes on its own behalf -- none of them ran a
+developer, and the message they synthesize is the orchestrator's own -- and
+every launch a shutdown, a timeout, a provider refusal or a nonzero exit ended.
+Their code still publishes exactly as it did before, and a report an earlier run
+delivered is still there to be bound onto the pull request that code reaches.
+
+A run that DID complete and handed over no usable report is not that. Every
+developer prompt teaches the contract, so what a finished run with no report
+leaves is the contract broken rather than a road this workflow answers -- and
+publishing it would send a reviewer an implementation nobody described, with no
+session left to ask. So it is held here too, exactly as an unrecordable report
+is: nothing published, the commit in the worktree, and a reply that resumes the
+session that can still write one.
 
 A report this build cannot record HOLDS the tick instead, parked for a human.
 That is the one answer left: the record is what every later tick works from, so

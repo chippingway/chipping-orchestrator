@@ -25,9 +25,18 @@ caller leaves it exactly as it stands.
 
 Only the description. A report in a COMMENT is not something a body rewrite can
 touch, and nothing here ever edits a comment.
+
+Preserving one is not free, and the second reading here is what its caller owes
+the work. A description is also where a pull request says which issue it closes
+and whose implementation it carries, and the rewrite this preserves is what
+usually puts both there -- so a body left alone because a report lives in it can
+be one that closes nothing when it merges and names no session at all. Asked
+before the work is handed on, that is a publication a human can still fix; asked
+after, it is a merged pull request that left its issue open.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from orchestrator.github import pinned_state as _pinned_state
@@ -35,6 +44,15 @@ from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
     report_record_state as _record_state,
     report_settlement_state as _settlement,
+)
+
+# Every spelling GitHub closes an issue on, as it documents them: one of the
+# keywords, then the issue this publication is for. Read here rather than
+# compared against the line this workflow writes, because what is being asked
+# is whether the MERGE will close the issue -- a human's own wording does.
+_CLOSES_THE_ISSUE = re.compile(
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b\s*:?\s*#(?P<issue>[0-9]+)\b",
+    re.IGNORECASE,
 )
 
 
@@ -67,6 +85,55 @@ def claims_the_description(
         _is_the_description(record, pr_number)
         for record in claimed if record is not None
     )
+
+
+def describes_the_issue(
+    pull_request: Any, issue_number: int, attribution: str,
+) -> bool:
+    """Whether a description still says what a publication needs it to say.
+
+    Two things, and a pull request this stage may not rewrite has to carry
+    both. The CLOSING reference is what makes merging the pull request end the
+    issue, and GitHub honours it in the description and nowhere else -- no
+    comment, however worded, closes anything. The ATTRIBUTION is what says
+    whose implementation the branch is, and it is what every later reuse reads
+    to tell this stage's own pull request from one somebody else opened.
+
+    The reference is read for every spelling GitHub accepts rather than for
+    the one this stage writes: a human who wrote `Fixes #12` has done exactly
+    what is being asked for, and refusing it would ask them to write it again
+    in this orchestrator's words.
+
+    A body nobody could read says nothing, which is the answer that holds the
+    work back rather than letting it past -- what is being decided is whether
+    a description may be left as it stands, and an unread one cannot show that
+    it may.
+    """
+    body = getattr(pull_request, "body", None)
+    if not isinstance(body, str):
+        return False
+    closing = _CLOSES_THE_ISSUE.finditer(body)
+    return attribution in body and any(
+        int(reference["issue"]) == issue_number for reference in closing
+    )
+
+
+def costs_the_description(
+    record: Any, pr_number: int, describes_the_issue: bool,
+) -> bool:
+    """Whether keeping this report would leave that publication unnamed.
+
+    The two readings above asked as the one question their caller has. A
+    report anywhere but this pull request's description costs it nothing, and
+    a description that already closes the issue and names the session is one
+    nothing was going to rewrite anyway -- so the collision is exactly a
+    verification on a body that says neither.
+
+    Whether it SAYS them is the caller's reading rather than one taken here,
+    because the caller is the owner of what a description of its own would
+    have said.
+    """
+    return _is_the_description(record, pr_number) and not describes_the_issue
 
 
 def _is_the_description(record: Any, pr_number: int) -> bool:

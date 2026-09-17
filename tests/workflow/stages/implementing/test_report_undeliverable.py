@@ -5,14 +5,18 @@
 Two roads reach it. Before the push, a run that finished and handed over a
 report nothing can record -- one past what the pinned comment holds, or none at
 all -- so nothing is published and the commit stays in the worktree. After it, a
-report bound to no publication this code reached, where the branch and the pull
-request stand and only the handoff is withheld. Neither discards what the run
-wrote, and neither lets the work reach review without a report.
+report bound to no publication this code reached: one asserted on somebody
+else's pull request, and one asserted on the very description this publication
+needs for its closing reference and attribution. There the branch and the pull
+request stand and only the handoff is withheld. None of them discards what the
+run wrote, and none lets the work reach review without a report.
 
-What answers either is a human's reply: the developer resumes and writes a
+What answers any of them is a human's reply: the developer resumes and writes a
 report that can be delivered, and the run that brings one back publishes the
 commits already on the branch rather than parking as a question -- the park
-itself being the debt that tells one from the other.
+itself being the debt that tells one from the other. On the description road
+that reply buys both halves at once: the report goes in a comment, which is what
+frees the body for the rewrite that names this implementation.
 """
 
 from __future__ import annotations
@@ -50,6 +54,13 @@ OTHER_PR = 4200
 
 # The comment on it the developer says carries that report.
 OTHER_REPORT_ID = 9200
+
+# The pull request already open on the branch whose own description a
+# verification names, and the description it carries: a human's, saying neither
+# of the things this publication needs a description to say.
+DESCRIBED_PR = 4300
+
+HUMAN_DESCRIPTION = "### Report\n\nThe branch adds the thing. Verified by hand."
 
 # The report a resumed session writes in place of one that could not be
 # delivered.
@@ -138,6 +149,48 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
             (True, _report_delivery.UNDELIVERABLE_REPORT),
         )
         self.assertNotIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+    def test_a_needed_description_is_freed(self) -> None:
+        # The park a report verified on the publication's own description
+        # takes, and what the reply buys. The resumed session writes its report
+        # as text, so it goes in a COMMENT -- no report lives in the body any
+        # more, and the rewrite that was withheld puts this issue's closing
+        # reference and the session's name there after all.
+        github, issue = self.seeded()
+        reused = _open_pr_for(
+            github, issue_number=support.REPORT_ISSUE, pr_number=DESCRIBED_PR,
+        )
+        reused.body = HUMAN_DESCRIPTION
+        github.existing_open_pr[support.BRANCH] = reused
+        self.deliver(
+            github,
+            issue,
+            support.verified_message(DESCRIBED_PR, HUMAN_DESCRIPTION),
+        )
+        reused.head.sha = support.PUBLISHED_SHA
+        support.replies(github, issue, "put the report in a comment")
+
+        self.redeliver(
+            github, issue, support.ready_message(REPLACEMENT_REPORT),
+        )
+
+        posted = support.published_reports(github, DESCRIBED_PR)
+        self.assertEqual(len(posted), 1)
+        self.assertIn(REPLACEMENT_REPORT, posted[0].body)
+        self.assertIn(f"Resolves #{support.REPORT_ISSUE}", reused.body)
+        self.assertIn(support.DEV_SESSION, reused.body)
+        recorded = github.pinned_data(support.REPORT_ISSUE)
+        self.assertEqual(
+            (
+                recorded[support.DELIVERY_RECORD],
+                recorded[support.PENDING_RECORD],
+                recorded.get(AWAITING_HUMAN),
+            ),
+            (None, None, False),
+        )
+        self.assertIn(
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
 
