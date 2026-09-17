@@ -1144,15 +1144,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it would advertise a head no pass has documented as ready to merge -- plus the resume,
                             recovered-commit, and fresh-spawn shapes
       outcomes.py           the timeout / dirty / commit / `DOCS: NO_CHANGE` order a finished run is read in
-      subject.py            the ` (#N)` reference the docs commit's subject is amended to end in under
-                            `PR_REF_IN_SUBJECT`, ahead of the gate: the amendment is a new commit bound to the one this
-                            pass read rather than to HEAD, so a checkout something committed on meanwhile refuses it,
-                            and the replacement it creates -- handed on only once HEAD reads back as standing on it --
-                            is the only id the gate, a hold's receipt, the push, and the stamp may name. Only the
-                            subject's own text changes, its line ending and the rest of the message kept as written;
-                            a subject already carrying the reference is published as the commit it is, and a message
-                            that does not read, a replacement git refuses, a moved checkout, or a HEAD that does not
-                            read back as the replacement parks `subject_amend_failed` rather than publishing it
+      subject.py            the single ` (#N)` reference the docs commit's subject is normalized to end in under
+                            `PR_REF_IN_SUBJECT`, ahead of the gate. Both numbers this pass knows -- the tracked issue's
+                            and the pull request's -- go to the shared `git/publication/pr_references` owner, so the
+                            issue's own reference is dropped, alone or from beside one an earlier publication
+                            appended, and the line ends in exactly one reference to the request. The amendment is a
+                            new commit bound to the one this pass read rather than to HEAD, so a checkout something
+                            committed on meanwhile refuses it, and the replacement it creates -- handed on only once
+                            HEAD reads back as standing on it -- is the only id the gate, a hold's receipt, the push,
+                            and the stamp may name. Only the subject's own text changes, its line ending and the rest
+                            of the message kept as written; a subject the normalization hands back as written is
+                            published as the commit it is, and a message that does not read, a replacement git
+                            refuses, a moved checkout, or a HEAD that does not read back as the replacement parks
+                            `subject_amend_failed` rather than publishing it
       publication.py        the size gate a docs commit passes -- the last one before a human is asked to merge,
                             and handed the commit this pass made so a checkout something moved is refused rather than
                             measured in its place -- then the push, the docs watermarks it stamps, and the PR notice
