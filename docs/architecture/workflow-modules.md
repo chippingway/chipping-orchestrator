@@ -165,7 +165,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             happened -- what a killed run left there is the operator's to see, and what a launch
                             that never started left is nothing. The park forwards explicit bounded correlation
                             fields (`agent_role`, `session_id`, `review_round`, `retry_count`, `pr_number`) to the
-                            emitted audit event and analytics record, rejecting unsupported fields before emission.
+                            emitted audit event and analytics record, rejecting unsupported fields before emission
+                            through the same screen a park that emits for itself reaches. Also the shared park
+                            vocabulary: the allow-list, the route names the roads into a self-emitting park are
+                            spelled with, and the `_ParkedRun` four stage packages hand one of those parks --- a
+                            finished run plus the road it came off, which the workflow label cannot say
                             It marks the thread read to the id of the notice it POSTED rather than to whatever the
                             thread ends on afterwards: the two differ only for a human replying between the post and
                             that write, and on a park waiting for a reply, reading the tip there consumes the answer
@@ -1820,10 +1824,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that has moved on and a relabel that fails leaves the branch recognizable
       park_watermarks.py    advance past the unbroken run of comments claimed by the orchestrator id ledger, stopping at
                             the first unclaimed reply; only an unavailable ledger update or prior watermark uses the tip
+      park_correlation.py   the bounded payload the two parks below report beside their reason, since neither can
+                            reach the shared funnel's: the caller's route, the session and exit status off the
+                            result, and the pinned counters --- screened against the funnel's own allow-list, and
+                            built from no part of what the agent wrote
       checkout_parks.py     dirty and unreadable checkout refusals, operator messages, and staged park events; both retain
-                            the work and use the shared watermark reader after posting their notice
+                            the work and use the shared watermark reader after posting their notice; the refusal
+                            reports which half failed, how many paths git named where it named any, and whether the
+                            run had timed out
       parks.py              classify session limits, transient provider failures, real questions, and silent exits;
-                            retryable failures keep their reason and streak, while a question clears both
+                            retryable failures keep their reason and streak, while a question clears both; the
+                            reported reason is the branch that ran, never anything read back out of the message
       drift.py              a body edit mid-implementation: the resume it earns -- withheld while a continuation
                             has bought an attempt, since a resume passes no gate and the attempt is owed as a fresh
                             spawn -- and the `ACK:` that answers it

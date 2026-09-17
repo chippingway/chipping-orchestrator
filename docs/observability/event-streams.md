@@ -81,6 +81,26 @@ file is the durable record.
   `_park_awaiting_human` so audit and analytics share the same payload; `dirty_worktree` carries `dirty_files`
   (how many paths git named); `unreadable_worktree` carries none, since naming a count there would report a failed read
   as an empty tree.
+
+  The three parks that emit for themselves — `_on_question` and the two checkout refusals, each of which owns a
+  watermark read and durable state writes the funnel does not — carry the same vocabulary, screened against the same
+  allow-list: `route`, `agent_role` (always `developer`; every road into them runs or resumes the dev session, the
+  docs pass included), `session_id`, `exit_code`, `retry_count`, and `pr_number`. The checkout refusals add
+  `timed_out`, because a run the timeout killed still reaches the publication seam, while every road into the
+  question park has answered a timeout above it; the conflict route adds `conflict_round`, taken from the round the
+  resume was given rather than the durable counter, which the rebase loop advances on its success path alone.
+  `route` names the road rather than the stage, since one stage reaches these parks from several and one road is
+  reached from several stages: `dev_run` (a fresh or resumed developer run under `workflow:implementing`),
+  `dev_drift_resume` (a resume an issue-body edit earned), `dev_fix` (a fix round), `docs_pass` (the single
+  documentation pass), `conflict_resume` (a dev resume inside the rebase loop), and `candidate_publication` (the
+  shared seam every committed candidate publishes through). What the correlation payload deliberately does not do
+  is report any part of what the agent wrote: no last message, prompt, captured stream, or report body reaches
+  either sink, and every field in it is a structured identifier the caller already held. The `reason` beside it is
+  a different matter — `_on_question` picks its branch from the final message, matching the known quota and
+  provider-refusal phrasings as a prefix and reading an empty message as a silent exit — but it reports the branch
+  that ran rather than the text that selected it, so the vocabulary stays closed. That is also why an
+  `agent_question` record sits beside a pinned `park_reason` of null: the event names the classification, and null
+  on the durable field is what tells a later tick this park needs a human's actual guidance.
 - `retry_cap` — the per-issue spawn budget's park, emitted by `workflow/engine/retry_budget.py`; extras: `stage`
   (read off the park rather than off the label, since the budget is shared and a parked issue's label is not always
   the stage that ran out — dropped when the park carries none), `phase` — `delivered` (the notice said for the first
@@ -254,7 +274,10 @@ foundation layer for the Postgres aggregation step.
   context + parsed token / model / cost details (see below).
 - `park_awaiting_human` — `GitHubClient.emit_event` (and the in-memory fake client) alongside the audit
   `park_awaiting_human`; one record per human-wait transition; carries `stage`, `reason`, and structured extras (e.g.
-  `agent_role`, `session_id`, `backend`, `review_round`, `retry_count`, `pr_number`, `dirty_files`).
+  `route`, `agent_role`, `session_id`, `backend`, `review_round`, `retry_count`, `pr_number`, `conflict_round`,
+  `exit_code`, `timed_out`, `dirty_files`). One record per transition means exactly that: a later tick that finds the
+  issue already waiting takes no park and writes nothing, and an evaluation that ends in a push or a label flip
+  writes nothing here at all.
 - `repo_skill_catalog` — `orchestrator.skills.catalog._emit_repo_skill_catalog`, driven once per tick per spec by the
   tick owner (`workflow.engine.tick.tick`); repo-level (not issue-scoped, so
   `issue` is

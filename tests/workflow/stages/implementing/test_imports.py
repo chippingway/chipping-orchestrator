@@ -50,6 +50,7 @@ _OWNERS = (
 
     "candidate_recovery",
     "late_consent_state",
+    "park_correlation",
     "park_watermarks",
     "checkout_parks",
     "checkout_guards",

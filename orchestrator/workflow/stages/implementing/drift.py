@@ -174,7 +174,13 @@ def _dispose_implementing_drift(
         if ack_reason:
             _post_implementing_drift_ack(gh, issue, state, ack_reason)
         else:
-            _parks._on_question(gh, issue, state, drift.agent_result)
+            _parks._on_question(
+                gh, issue, state,
+                _guards._ParkedRun(
+                    drift.agent_result,
+                    _guards._ROUTE_DEV_DRIFT_RESUME,
+                ),
+            )
     gh.write_pinned_state(issue, state)
 
 

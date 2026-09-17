@@ -84,9 +84,16 @@ def _park_documenting_dirty(
     ctx: _models._DocumentingContext, documentation_result: AgentResult, dirty,
 ) -> None:
     """Park an uncommitted docs edit via `_on_dirty_worktree`; writes pinned
-    state."""
+    state. The reported route names the docs pass so the record says which
+    kind of developer run left the tree loose, which the shared refusal --
+    reached from a fresh run, a fix round, and a rebase resume as well -- can
+    only be told by its caller."""
     _checkout_parks._on_dirty_worktree(
-        ctx.gh, ctx.issue, ctx.state, documentation_result, dirty,
+        ctx.gh, ctx.issue, ctx.state,
+        _guards._ParkedRun(
+            documentation_result, _guards._ROUTE_DOCS_PASS,
+        ),
+        dirty,
     )
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
 
@@ -100,5 +107,10 @@ def _park_documenting_question(
     via stderr diagnostics, and tags `silent_park_count` so a poisoned session
     can be dropped on the next resume. Writes pinned state.
     """
-    _dev_parks._on_question(ctx.gh, ctx.issue, ctx.state, documentation_result)
+    _dev_parks._on_question(
+        ctx.gh, ctx.issue, ctx.state,
+        _guards._ParkedRun(
+            documentation_result, _guards._ROUTE_DOCS_PASS,
+        ),
+    )
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)

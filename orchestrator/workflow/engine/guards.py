@@ -28,13 +28,19 @@ The first two are asked in that order wherever a stage inspects the worktree
 before it asks about interruption -- and several do, deliberately. What a
 killed run left on disk is the operator's to see; what a launch that never
 started left is nothing, so the tree it would be read on says nothing about it.
+
+The correlation vocabulary a park reports beside its reason is declared here
+too, and screened here for every road -- including the implementing question
+and checkout parks, which own watermark and state writes `_park_awaiting_human`
+does not and so emit for themselves. One allow-list is what keeps the two
+sinks' payloads bounded and comparable whichever seam wrote them.
 """
 from __future__ import annotations
 
 import contextlib
 import logging
 import math
-from typing import Any
+from typing import Any, NamedTuple
 
 from github.Issue import Issue
 
@@ -152,6 +158,48 @@ def _paused_during_agent_run(gh: GitHubClient, issue: Issue) -> bool:
     return True
 
 
+# The roads a developer run reaches a self-emitting park from: the implementing
+# question park and the two checkout refusals, each of which several stages
+# hand a run to. They are the values the `route` field below may take, spelled
+# once here so a literal cannot drift between the stages that name one.
+# A fresh or resumed developer run under `workflow:implementing`.
+_ROUTE_DEV_RUN = "dev_run"
+# A resume the issue body changing mid-flight earned, from whichever stage was
+# holding the issue when the edit landed.
+_ROUTE_DEV_DRIFT_RESUME = "dev_drift_resume"
+# A fix round: reviewer feedback, or a human's reply asking for one.
+_ROUTE_DEV_FIX = "dev_fix"
+# The single documentation pass before the merge gate.
+_ROUTE_DOCS_PASS = "docs_pass"
+# A dev resume inside the rebase-conflict loop.
+_ROUTE_CONFLICT_RESUME = "conflict_resume"
+# The shared seam every committed candidate publishes through.
+_ROUTE_CANDIDATE_PUBLICATION = "candidate_publication"
+
+
+class _ParkedRun(NamedTuple):
+    """A finished run handed to a park, and the road it came off.
+
+    The route travels because nothing downstream can re-derive it: the workflow
+    label a park's record already reports says which stage held the issue, and
+    a single stage reaches the same park from a fresh run, a body-edit resume,
+    a fix round, a docs pass, a rebase resume, and the publication seam alike.
+    It lives out here with the vocabulary rather than in a stage, because four
+    stage packages hand one of these in.
+
+    `conflict_round` rides here rather than being read back out of pinned state
+    because the rebase loop counts that field on its success path alone: a
+    round that parks leaves the durable counter on the round BEFORE the one
+    that just ran, so the caller that handed the resume its number is the only
+    place the round a park belongs to is known. None everywhere else, which
+    both sinks drop.
+    """
+
+    agent_result: AgentResult
+    route: str
+    conflict_round: int | None = None
+
+
 ALLOWED_CORRELATION_FIELDS: frozenset[str] = frozenset((
     "route",
     "agent_role",
@@ -169,6 +217,30 @@ ALLOWED_CORRELATION_FIELDS: frozenset[str] = frozenset((
     "sha",
     "reservation_id",
 ))
+
+
+def _screened_correlation(correlation: dict[str, Any]) -> dict[str, Any]:
+    """Return `correlation` once every field in it is one of the above.
+
+    The allow-list is what keeps a `park_awaiting_human` record bounded. Both
+    sinks carry whatever a park hands them, so a field nobody declared would
+    reach two durable logs unreviewed -- and a free-form one would carry an
+    agent transcript into both. Raising rather than dropping is what corrects
+    the caller before anything is posted or emitted.
+
+    The direct emitters screen through here rather than repeating the list.
+    The implementing question and checkout parks cannot hand their notice to
+    `_park_awaiting_human` below -- each owns a watermark read and durable
+    state writes it does not -- so one vocabulary covering both roads is what
+    makes their records comparable to a funnelled one.
+    """
+    unsupported = set(correlation) - ALLOWED_CORRELATION_FIELDS
+    if unsupported:
+        raise TypeError(
+            f"park_awaiting_human received unsupported correlation field(s): "
+            f"{sorted(unsupported)}"
+        )
+    return correlation
 
 
 def _safe_int(candidate: object) -> int | None:
@@ -208,8 +280,9 @@ def _park_awaiting_human(
     Explicit bounded correlation fields passed via keyword arguments
     (`correlation`) forward to the emitted event and fan out to the analytics
     sink, sharing the same correlation payload across audit and analytics.
-    Unsupported correlation fields raise `TypeError` so unexpected fields
-    are rejected before audit emission.
+    They go through `_screened_correlation` above, so an unsupported field
+    raises `TypeError` before anything is posted or emitted -- and so a park
+    that emits for itself carries the same vocabulary this one does.
 
     The watermark is the id of the notice this call POSTED, not the id the
     thread happens to end on afterwards. The two differ in exactly one case
@@ -225,12 +298,7 @@ def _park_awaiting_human(
     on every dispatch after this one.
     """
     reason = correlation.pop("reason", None)
-    unsupported = set(correlation) - ALLOWED_CORRELATION_FIELDS
-    if unsupported:
-        raise TypeError(
-            f"_park_awaiting_human received unsupported correlation field(s): "
-            f"{sorted(unsupported)}"
-        )
+    screened = _screened_correlation(correlation)
     posted = _comments._post_issue_comment(gh, issue, state, message)
     state.set("awaiting_human", True)
     state.set("park_reason", None)
@@ -247,5 +315,5 @@ def _park_awaiting_human(
         issue_number=issue.number,
         stage=stage_name(gh.workflow_label(issue)),
         reason=reason,
-        **correlation,
+        **screened,
     )

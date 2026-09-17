@@ -69,18 +69,26 @@ def _post_conflict_resolution_result(
     if _park_stalled_conflict_result(ctx, run):
         return
 
+    # The round this resume was given, not the one pinned state carries: the
+    # increment below is on the success path alone, so a park here would
+    # otherwise report the round before the one that just ran.
+    parked = _guards._ParkedRun(
+        run.dev_result,
+        _guards._ROUTE_CONFLICT_RESUME,
+        conflict_round=conflict_round,
+    )
     after_sha = _verification_probes._head_sha(wt)
     if not after_sha or after_sha == before_sha:
         # Agent did not finish the rebase. Treat as a question / silence park,
         # mirroring the implementing handler.
-        _dev_parks._on_question(ctx.gh, ctx.issue, ctx.state, run.dev_result)
+        _dev_parks._on_question(ctx.gh, ctx.issue, ctx.state, parked)
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 
     dirty = _worktree_status._worktree_dirty_files(wt)
     if dirty:
         _checkout_parks._on_dirty_worktree(
-            ctx.gh, ctx.issue, ctx.state, run.dev_result, dirty,
+            ctx.gh, ctx.issue, ctx.state, parked, dirty,
         )
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return

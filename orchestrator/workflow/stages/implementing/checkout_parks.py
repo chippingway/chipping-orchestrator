@@ -5,8 +5,15 @@
 A commit may publish only from a tree proved clean. The park retains the
 agent's message, records its reason and event, and advances only over the
 owned notices that the shared watermark reader can prove.
+
+Both refusals report the tree they were taken on, never what the run said about
+it: a typed reason for which half failed, the count of paths git named where
+there is one, and the bounded correlation `park_correlation` builds from the
+route the caller named and the identifiers pinned state already holds.
 """
 from __future__ import annotations
+
+from typing import Any
 
 from github.Issue import Issue
 
@@ -15,8 +22,9 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import comments as _comments, guards as _guards
 from orchestrator.workflow.stages.implementing import (
+    park_correlation as _park_correlation,
     park_watermarks as _park_watermarks,
     session_read as _session_read,
     state as _state,
@@ -28,7 +36,7 @@ def _on_unpublishable_tree(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    agent_result: AgentResult,
+    parked: _guards._ParkedRun,
     tree: _WorktreeStatus,
 ) -> None:
     """Park a tree a push may not be taken from, by which half of it failed.
@@ -41,16 +49,16 @@ def _on_unpublishable_tree(
     literally is.
     """
     if tree.paths:
-        _on_dirty_worktree(gh, issue, state, agent_result, list(tree.paths))
+        _on_dirty_worktree(gh, issue, state, parked, list(tree.paths))
         return
-    _on_unreadable_worktree(gh, issue, state, agent_result)
+    _on_unreadable_worktree(gh, issue, state, parked)
 
 
 def _on_dirty_worktree(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    agent_result: AgentResult,
+    parked: _guards._ParkedRun,
     dirty: list[str],
 ) -> None:
     """Park instead of pushing when the agent left uncommitted changes.
@@ -59,10 +67,18 @@ def _on_dirty_worktree(
     would not match what the agent actually produced. We surface the situation
     to the human and resume the codex session on their reply, identical to the
     question path.
+
+    The record counts the paths and names none of them: a count says how much
+    is loose, which is what an operator counting these refusals needs, while
+    the paths themselves are repository content and belong in the notice on
+    the thread rather than in two durable sinks.
     """
     _park_unpushable_tree(
-        gh, issue, state, _dirty_worktree_message(agent_result, dirty),
-        {"reason": "dirty_worktree", "dirty_files": len(dirty)},
+        gh, issue, state,
+        _dirty_worktree_message(parked.agent_result, dirty),
+        _checkout_park_fields(
+            state, parked, "dirty_worktree", dirty_files=len(dirty),
+        ),
     )
 
 
@@ -70,7 +86,7 @@ def _on_unreadable_worktree(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    agent_result: AgentResult,
+    parked: _guards._ParkedRun,
 ) -> None:
     """Park instead of pushing when the tree could not be read at all.
 
@@ -81,11 +97,38 @@ def _on_unreadable_worktree(
     matches the work. So it is refused exactly as named dirty files are, and
     the comment says which of the two happened, since what an operator has to
     fix is a repository rather than a file list.
+
+    No `dirty_files` rides on this one, for the same reason the comment is
+    worded differently: a count of zero here would report a reading that never
+    happened as a tree proved to be carrying nothing.
     """
     _park_unpushable_tree(
-        gh, issue, state, _unreadable_worktree_message(agent_result),
-        {"reason": "unreadable_worktree"},
+        gh, issue, state,
+        _unreadable_worktree_message(parked.agent_result),
+        _checkout_park_fields(state, parked, "unreadable_worktree"),
     )
+
+
+def _checkout_park_fields(
+    state: PinnedState,
+    parked: _guards._ParkedRun,
+    reason: str,
+    **extra: Any,
+) -> dict[str, Any]:
+    """The typed reason for a checkout refusal, and the payload beside it.
+
+    `timed_out` is reported here and not on the question park because a run
+    the timeout killed still reaches this seam: the disposition publishes a
+    commit such a run managed to make, and the tree it is read on is refused
+    from here. Every road into the question park has answered the timeout
+    above it, so the field would be a constant there.
+    """
+    return {
+        "reason": reason,
+        **_park_correlation._correlated_fields(
+            state, parked, timed_out=parked.agent_result.timed_out, **extra,
+        ),
+    }
 
 
 def _park_unpushable_tree(

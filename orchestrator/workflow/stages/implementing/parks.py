@@ -6,6 +6,15 @@ Session limits, transient provider failures, and silent exits retain their
 retryable reason and streak. Real questions clear that reason and streak.
 Each park emits its event and leaves the state write to the caller. Its
 reply watermark stops before any unclaimed human comment from the run.
+
+The classification is what the emitted reason says, and the two deliberately
+disagree with the durable `park_reason` beside them: a quota stop and a
+provider refusal report themselves by name while pinning the retryable
+`agent_silent` the continue command keys off, and a real question reports
+`agent_question` against a `park_reason` left null, because null there is what
+tells a later tick this park needs a human's actual guidance. The correlation
+the record carries beside the reason comes from `park_correlation`, which is
+also where the road that produced the run is named.
 """
 from __future__ import annotations
 
@@ -18,8 +27,13 @@ from orchestrator.agents import provider_failures as _provider_failures
 from orchestrator.agents.models import AgentResult
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import agent_diagnostics as _agent_diagnostics, comments as _comments
+from orchestrator.workflow.engine import (
+    agent_diagnostics as _agent_diagnostics,
+    comments as _comments,
+    guards as _guards,
+)
 from orchestrator.workflow.stages.implementing import (
+    park_correlation as _park_correlation,
     park_watermarks as _park_watermarks,
     session_read as _session_read,
     state as _state,
@@ -159,12 +173,27 @@ def _on_question(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    agent_result: AgentResult,
+    parked: _guards._ParkedRun,
 ) -> None:
+    """Classify what a run with no publishable commit left, park it, report it.
+
+    The final message is what picks the branch: the two classifiers match
+    known quota and provider-refusal phrasings as a PREFIX of it, and an empty
+    one is a silent exit. What the reported reason names is the branch that
+    ran, though, so the emitted vocabulary stays the closed set above however
+    the agent phrased itself.
+
+    The correlation beside it is the part built from no prose at all. The road
+    comes off `parked`, since the stage the event reads from the label is held
+    by several of them, and every other field is a structured identifier the
+    caller already had -- never the last message, the prompt, the captured
+    streams, or anything else an operator would have to redact to read a sink.
+    """
     # Taken before anything is posted, because what separates this park's own
     # notice from a human's comment afterwards is which of them this ledger
     # gained.
     said_before = _comments._orchestrator_ids(state)
+    agent_result = parked.agent_result
     raw = agent_result.last_message.strip()
     if raw and _session_read._is_session_limit_message(agent_result):
         park_reason = _park_session_limit(gh, issue, state, raw)
@@ -182,4 +211,5 @@ def _on_question(
         issue_number=issue.number,
         stage=stage_name(gh.workflow_label(issue)),
         reason=park_reason,
+        **_park_correlation._correlated_fields(state, parked),
     )

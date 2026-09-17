@@ -7,9 +7,16 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.stages.validating import handler as _validating
 from tests.workflow import pr_lifecycle_test_support as support
+
+_KEY_ROUTE = "route"
+_KEY_AGENT_ROLE = "agent_role"
+_KEY_EXIT_CODE = "exit_code"
+_ROLE_DEVELOPER = "developer"
+_DEV_SESSION = "sess-parked"
 
 
 class ReviewVerdictEventEmissionTest(unittest.TestCase, support._PatchedWorkflowMixin):
@@ -49,7 +56,9 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
     inline `_on_question` / `_on_dirty_worktree` helpers) emits a
     `park_awaiting_human` event tagged with the current stage and an
     optional `reason` so the JSONL sink mirrors the durable `park_reason`
-    field for the operator.
+    field for the operator. The two inline helpers carry the funnel's own
+    correlation vocabulary on the audit event as well, so the road a park
+    came off is readable without the analytics sink turned on.
     """
 
     def test_question_park_has_reason_and_stage(self) -> None:
@@ -58,12 +67,17 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
         gh.add_issue(issue)
         self._run(
             lambda: _implementing._handle_implementing(gh, support._TEST_SPEC, issue),
-            run_agent=support._agent(last_message="please clarify the scope"),
+            run_agent=support._agent(
+                session_id=_DEV_SESSION, last_message="please clarify the scope",
+            ),
             has_new_commits=False,
         )
         park = support._only_event(gh, support.EVENT_PARK_AWAITING_HUMAN)
         self.assertEqual(park[support.KEY_STAGE], support.STAGE_IMPLEMENTING)
         self.assertEqual(park[support.KEY_REASON], "agent_question")
+        self.assertEqual(park[_KEY_ROUTE], _guards._ROUTE_DEV_RUN)
+        self.assertEqual(park[_KEY_AGENT_ROLE], _ROLE_DEVELOPER)
+        self.assertEqual(park["session_id"], _DEV_SESSION)
 
     def test_agent_silent_park_carries_reason(self) -> None:
         gh = support.FakeGitHubClient()
@@ -76,6 +90,11 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
         )
         park = support._only_event(gh, support.EVENT_PARK_AWAITING_HUMAN)
         self.assertEqual(park[support.KEY_REASON], "agent_silent")
+        # The exit status rides the record so a silent park can be told from a
+        # clean exit that happened to say nothing, which the reason alone
+        # cannot: both arrive here with an empty final message.
+        self.assertEqual(park[_KEY_EXIT_CODE], 1)
+        self.assertEqual(park[_KEY_ROUTE], _guards._ROUTE_DEV_RUN)
 
     def test_reviewer_timeout_park_carries_reason(self) -> None:
         # Reviewer agent timeout during validating routes through

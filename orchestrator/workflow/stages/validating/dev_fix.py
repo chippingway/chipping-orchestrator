@@ -141,7 +141,13 @@ def _publish_dev_fix(
     state.set("silent_park_count", 0)
     dirty = _worktree_status._worktree_dirty_files(run.worktree)
     if dirty:
-        _checkout_parks._on_dirty_worktree(gh, issue, state, run.agent_result, dirty)
+        _checkout_parks._on_dirty_worktree(
+            gh, issue, state,
+            _guards._ParkedRun(
+                run.agent_result, _guards._ROUTE_DEV_FIX,
+            ),
+            dirty,
+        )
         return False
     branch = _naming._resolve_branch_name(state, spec, issue.number)
     published = _late_push._publishes(
@@ -190,7 +196,12 @@ def _dispose_dev_fix_result(
         return False
     publishable = _publishable_dev_fix(spec, issue, state, run)
     if publishable is None:
-        _dev_parks._on_question(gh, issue, state, run.agent_result)
+        _dev_parks._on_question(
+            gh, issue, state,
+            _guards._ParkedRun(
+                run.agent_result, _guards._ROUTE_DEV_FIX,
+            ),
+        )
         return False
     return _publish_dev_fix(gh, spec, issue, state, publishable)
 
