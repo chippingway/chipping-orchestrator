@@ -11,12 +11,11 @@ from tests.observability.observability_test_support import (
     _PACKAGE_ROOT,
     _PACKAGES,
     _PUBLISHING_PACKAGES,
-    _imported_orchestrator_modules,
     _observability_modules,
     _observability_packages,
     _payable_import,
-    _run_import_probe,
 )
+from tests.support.import_probes import probe_import
 
 _TESTS_ROOT = Path(__file__).resolve().parents[1]
 
@@ -87,19 +86,19 @@ def _mirrored_test_package(package: str) -> Path:
 class CleanProcessImportTest(unittest.TestCase):
     """Every module in the tree imports standalone in a fresh interpreter.
 
-    A subprocess per module gives each one a `sys.modules` no earlier import
+    A recording per module gives each one a `sys.modules` no earlier import
     has populated, which is the only place a cycle between two owners shows
     up at all: a suite that has already imported half the tree resolves the
-    other half off what the first half left behind.
+    other half off what the first half left behind. The layering checks below
+    read their planted sets off that same recording, so the whole tree is
+    swept for one interpreter per module rather than one per question.
     """
 
     def test_each_module_imports_standalone(self) -> None:
         for module in _observability_modules():
             with self.subTest(module=module):
-                completed = _run_import_probe(f"import {module}")
-                self.assertEqual(
-                    completed.returncode, 0, msg=completed.stderr,
-                )
+                probe = probe_import(module)
+                self.assertEqual(probe.returncode, 0, msg=probe.stderr)
 
 
 class LayeringTest(unittest.TestCase):
@@ -113,7 +112,7 @@ class LayeringTest(unittest.TestCase):
         for package in frozenset(_PACKAGES) - _PUBLISHING_PACKAGES:
             with self.subTest(package=package):
                 self.assertEqual(
-                    _imported_orchestrator_modules(package),
+                    probe_import(package).orchestrator_modules,
                     _ROOT_PACKAGE_MODULES | _package_chain(package),
                 )
 
@@ -124,7 +123,7 @@ class LayeringTest(unittest.TestCase):
         # so a new chain behind an import is a deliberate edit. What it must
         # still not pay for is anything else.
         for package in _PUBLISHING_PACKAGES:
-            planted = _imported_orchestrator_modules(package)
+            planted = probe_import(package).orchestrator_modules
             outside = planted - _ROOT_PACKAGE_MODULES - _package_chain(package)
             for imported in outside:
                 with self.subTest(package=package, imported=imported):
@@ -132,7 +131,7 @@ class LayeringTest(unittest.TestCase):
 
     def test_no_module_reaches_the_workflow_layer(self) -> None:
         for module in _observability_modules():
-            for imported in _imported_orchestrator_modules(module):
+            for imported in probe_import(module).orchestrator_modules:
                 with self.subTest(module=module, imported=imported):
                     self.assertFalse(
                         imported.startswith(_FORBIDDEN_PREFIXES),
