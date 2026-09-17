@@ -107,8 +107,10 @@ Non-human content is filtered eight ways:
   outsider's comment can neither reach an agent nor authorize consuming the reply beside it. That one read also
   supplies the conversation a FRESH spawn is re-grounded with (a retired session — spent resume budget, silent-park
   streak, a transcript GitHub lost — turns the resume into a spawn that quotes the thread rather than continuing a
-  transcript), because a prompt that re-read the thread at spawn time would quote a comment minutes newer than the
-  batch the settlement records and hand it to the developer again on the next poll. The
+  transcript), through the SAME classification: a prompt that re-read the thread at spawn time would quote a comment
+  minutes newer than the batch the settlement records, and one rendered by a looser filter would carry the forged
+  marker every other reading here refuses — either way an agent is handed input nothing recorded. Our own comments
+  stay in that block, by recorded id, since the preamble rebuilds a conversation the orchestrator is half of. The
   `/orchestrator continue` that renews a spent spawn budget on a `retry_cap`-parked `workflow:decomposing` or
   `workflow:implementing` issue is read through the same filter (`filter_trusted` in each stage's
   `retry_cap._trusted_replies`), so what buys an agent run there is a trusted account's word and nothing else. The

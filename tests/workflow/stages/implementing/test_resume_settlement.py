@@ -18,13 +18,21 @@ Three batches are never settled at all, and not because of an outcome: while
 the authorization park, the measurement park, or the parked-continue
 classifier has a claim on the reply, it belongs to the road that acts on it
 and the whole tick is handed back unconsumed.
+
+A run that COMMITTED and then failed to publish reaches a park further from
+the resume than any of those -- the push that refused, the diff nobody could
+count -- and each of them still has the whole agent run between the batch it
+was resumed on and the notice it posts. So each owes the same bound, and the
+last cases here are the committed failure paths that prove it.
 """
 
 from __future__ import annotations
 
 import unittest
 from dataclasses import replace
+from unittest.mock import MagicMock
 
+from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.stages.implementing import (
     late_command as _late_command,
     late_measurement_state as _late_measurement_state,
@@ -39,6 +47,21 @@ from tests.workflow.stages.implementing import (
 # A reply written while the agent was out -- the minutes nothing reads the
 # thread in, and the comment a settlement taken off the tip would swallow.
 _LANDED_MID_RUN = "actually, hold on"
+
+# What a run that produced work comes back saying, and the two heads that say
+# it really did: a park past the publication seam is only reached by a commit.
+_COMMITTED = "implemented"
+_BEFORE_RUN = "before-run"
+_AFTER_RUN = "after-run"
+
+# The locked session a resume needs to be one.
+_BACKEND = "claude"
+_SESSION = "dev-sess"
+
+# The two ways publishing a committed candidate fails: a count the ceiling
+# lets through whose push refuses, and a diff this host could not read.
+_UNDER_THE_CEILING = 12
+_DIFF_FAILED = MeasurementFailure.DIFF_FAILED
 
 # How the seeded agent result is named to the resume helper, spelled once
 # because the table below hands it over for most of its cases.
@@ -234,6 +257,77 @@ class ContinueReservationTest(_support._ParkedThread, unittest.TestCase):
         resumed = self._resumes()
 
         resumed.call.assert_called_once()
+
+
+class _CommitsWhileOneLands:
+    """A run that commits, with one reply written while it is out.
+
+    A class rather than a closure because the runner this repository patches
+    is a value with a name, and what these cases need is a comment written
+    inside the minutes the run takes.
+    """
+
+    def __init__(self, case) -> None:
+        self._case = case
+        self.landed = 0
+
+    def __call__(self, *called, **options):
+        self.landed = self._case._they_say(_LANDED_MID_RUN)
+        return _agent(last_message=_COMMITTED)
+
+
+class CommittedRunParkTest(_support._ParkedThread, unittest.TestCase):
+    """What a park past the publication seam records the thread as read to.
+
+    These roads are the furthest a resumed run gets from its own batch: the
+    work is committed and the failure is a push or a reading rather than
+    anything the agent said. The park is still the thing that writes down how
+    far the thread was read, and the run it ends is still minutes long.
+    """
+
+    def test_a_failed_push_keeps_what_landed(self) -> None:
+        # Small enough to publish and the push refuses, so the tick parks
+        # holding committed work. The reply written during the run sits below
+        # that notice and is nobody's to cross.
+        landed = self._commits_over_guidance(
+            added_lines=_UNDER_THE_CEILING, push_branch=False,
+        )
+
+        self._assert_kept(landed)
+
+    def test_a_lost_count_keeps_what_landed(self) -> None:
+        # The diff this host could not read, which parks under the typed
+        # measurement reason rather than publishing a candidate nobody sized.
+        landed = self._commits_over_guidance(added_lines=_DIFF_FAILED)
+
+        self._assert_kept(landed)
+
+    def _assert_kept(self, landed: tuple) -> None:
+        """The tick read the guidance it ran on, and stopped below the rest."""
+        spoke, landing = landed
+        pinned = self.github.pinned_data(_support.ISSUE_NUMBER)
+        self.assertEqual(pinned[_state._LAST_ACTION_COMMENT_ID], spoke)
+        self.assertTrue(pinned[_state._AWAITING_HUMAN])
+        self.assertLess(spoke, landing.landed)
+
+    def _commits_over_guidance(self, **run_options) -> tuple:
+        """One whole tick: guidance resumes a developer, and it commits."""
+        self._seed(**{
+            _state._DEV_AGENT: _BACKEND,
+            _state._DEV_SESSION_ID: _SESSION,
+        })
+        spoke = self._they_say(_support.GUIDANCE)
+        landing = _CommitsWhileOneLands(self)
+        self._run_implementing(
+            self.github,
+            self.issue,
+            run_agent=MagicMock(side_effect=landing),
+            has_new_commits=True,
+            dirty_files=(),
+            head_shas=[_BEFORE_RUN, _AFTER_RUN],
+            **run_options,
+        )
+        return spoke, landing
 
 
 if __name__ == "__main__":

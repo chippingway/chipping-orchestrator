@@ -219,11 +219,13 @@ Where the contract is carried:
 - **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the report covers the
   whole branch, the previous session's commits included, ownership and publication are restated, and the outcome is
   the one the task below the preamble describes — that preamble also precedes tasks that close on markers of their
-  own. Its conversation block is the caller's FROZEN thread read wherever the caller holds one — the awaiting-human
-  resumes do, via `implementing/resume_batch.py` — because the preamble and the record of what the prompt delivered
-  have to come off one reading: taken at spawn time instead, that read is minutes newer than the batch its caller
-  settles, so a comment written in between reaches the agent and is handed to it again on the next poll. A caller
-  with no frozen read gets the read `_build_dev_spawn_prompt` takes for itself.
+  own. Its conversation block is the caller's FROZEN, classified thread read wherever the caller holds one — the
+  awaiting-human resumes do, via `implementing/resume_batch.py` — because the preamble and the record of what the
+  prompt delivered have to come off one reading and one filter. Taken at spawn time instead, that read is minutes
+  newer than the batch its caller settles, so a comment written in between reaches the agent and is handed to it
+  again on the next poll; rendered through the plain thread reader instead, it carries a forged
+  `<!--orchestrator-comment-->` the batch refuses. A caller with no frozen read gets the read
+  `_build_dev_spawn_prompt` takes for itself.
 - **Absent** from the documentation, review, and conflict-resolution prompts, which close on markers of their own, and
   from the conflict stage's own reply resume and bare-continue retry, which stays on the plain
   `_CONTINUE_RETRY_PROMPT`.

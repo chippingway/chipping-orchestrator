@@ -68,6 +68,7 @@ def _handle_pre_session_drift(
             "to discard the recovered work (reset the branch) and "
             "let a fresh agent run, or accept it as-is.",
             reason="stale_recovered_work",
+            bounded=True,
         )
         gh.write_pinned_state(issue, state)
         return True

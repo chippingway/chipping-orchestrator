@@ -178,11 +178,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that write, and on a park waiting for a reply, reading the tip there consumes the answer
                             with the question. A post whose id nothing could read falls back to the tip, since a
                             watermark that never moved leaves the park's own notice to be read back as somebody's
-                            guidance on every later tick. A park that ended an agent RUN says how far it may read
-                            instead, through a `watermark` callable taking the id ledger as it stood before this
-                            post -- popped like `reason` rather than admitted as a correlation field, since it
-                            decides a write rather than describing the run, and handed in rather than decided here
-                            because which comments are ours is a stage's ledger walk
+                            guidance on every later tick. `bounded=True` asks for the other answer, and every park
+                            that FOLLOWS an agent run asks for it: the thread is recorded read only as far as
+                            `park_watermarks.py` beside this can walk it. Popped like `reason` rather than admitted
+                            as a correlation field, since it decides a write rather than describing the run
+    park_watermarks.py      how far a park may say this thread has been read: past the unbroken run of comments the
+                            orchestrator id ledger claims, stopping at the first unclaimed reply, and only through
+                            comments the tick actually posted and identified -- a post the ledger never gained moves
+                            the mark nowhere, since taking the tip for it would spend the comment a human wrote while
+                            the agent ran, and the frozen reply batch refuses our own unrecorded notice by its marker
+                            instead; only a missing prior watermark uses the tip. The notice-id stamp the funnel
+                            defaults to is the other half of the same question and lives here beside the walk, so
+                            the funnel picks between two answers rather than writing one of them out itself. It
+                            sits here rather than in one stage because every park that waits for a human owes it:
+                            carried in per stage it let three parks drift off the rule while their docstrings still
+                            claimed it, and it cost a call site an import it could trip a ceiling on
     messages.py             the `ACK:` acknowledgement read out of an agent's last message, the one blockquote
                             form every agent output an issue carries is quoted in, and the two commands a HUMAN writes:
                             `/orchestrator continue` with the refusal a park needing real guidance owes it, and the
@@ -1940,16 +1950,6 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             implementing -- and every one of those written durably AHEAD of the
                             `workflow:validating` label, so nothing this line spends is stranded on an issue
                             that has moved on and a relabel that fails leaves the branch recognizable
-      park_watermarks.py    advance past the unbroken run of comments claimed by the orchestrator id ledger, stopping at
-                            the first unclaimed reply, and only through comments this tick actually posted and
-                            identified -- a post the ledger never gained moves the mark nowhere, since taking the tip
-                            for it would spend the comment a human wrote while the agent ran, and the frozen reply
-                            batch refuses our own unrecorded notice by its marker instead; only a missing prior
-                            watermark uses the tip. The stamping half is also the shape `engine/guards.py`'s
-                            `watermark` hook is called with, so the two timeout parks hand it to that shared funnel
-                            instead of writing the mark themselves -- keeping the one place failed-run parks are
-                            correlated from while refusing its notice-id stamp, which is right for a refusal decided
-                            between two of one tick's own steps and wrong after minutes of somebody's compute
       park_correlation.py   the bounded payload the two parks below report beside their reason, since neither can
                             reach the shared funnel's: the caller's route, the session and exit status off the
                             result, and the pinned counters -- screened against the funnel's own allow-list, and

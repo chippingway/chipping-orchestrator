@@ -22,10 +22,13 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, guards as _guards
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    guards as _guards,
+    park_watermarks as _park_watermarks,
+)
 from orchestrator.workflow.stages.implementing import (
     park_correlation as _park_correlation,
-    park_watermarks as _park_watermarks,
     session_read as _session_read,
     state as _state,
 )

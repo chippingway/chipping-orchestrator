@@ -27,7 +27,6 @@ from orchestrator.workflow.stages.implementing import (
     late_approval_reading as _late_approval_reading,
     late_park_state as _late_park_state,
     models as _models,
-    park_watermarks as _park_watermarks,
     parks as _parks,
     session_read as _session_read,
     state as _state,
@@ -61,7 +60,7 @@ def _park_agent_timeout(
         f"{config.HITL_MENTIONS} agent timed out after "
         f"{config.AGENT_TIMEOUT}s, manual intervention needed.",
         reason=_state._AGENT_TIMEOUT,
-        watermark=_park_watermarks._stamp_read_this_far,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._AGENT_TIMEOUT)
     state.set(_state._PRE_IMPLEMENT_SHA, before_sha or "")

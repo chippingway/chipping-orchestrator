@@ -30,7 +30,9 @@ from orchestrator.workflow.stages.discussion.state import (
     _ROUND_BRANCH,
     _ROUND_SHA,
 )
-from orchestrator.workflow.stages.implementing import state as _state
+from orchestrator.workflow.stages.implementing import (
+    state as _state,
+)
 from orchestrator.workflow.stages.implementing.relabel_hazard import (
     _ReadOnlyRelabelHazard,
 )
@@ -79,6 +81,7 @@ def _park_unsafe_read_only_relabel(
         f"that -- so the orchestrator refuses to push it. "
         f"{_relabel_remediation(state, hazard)}",
         reason=unsafe_reason,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, unsafe_reason)
 

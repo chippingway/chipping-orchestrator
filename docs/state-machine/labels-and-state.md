@@ -779,8 +779,8 @@ The keys that matter for the state machine fall into a few groups:
   of the two failures left — a watermark that never moved leaves the park's own notice to be read back as somebody's
   fresh guidance on every tick after.
 
-  The parks that end an agent RUN read the field differently, through
-  `implementing/park_watermarks.py`, because minutes passed inside them and a human may have written in that window:
+  The parks that FOLLOW an agent run read the field differently, through
+  `engine/park_watermarks.py`, because minutes passed inside the run and a human may have written in that window:
   the walk starts at whatever the resume settled and advances through the unbroken run of comments the
   `orchestrator_comment_ids` ledger claims, stopping at the first it does not, so a comment that landed while the
   agent was out stays unread. It advances only through comments the tick actually posted and **identified** — a post
@@ -789,14 +789,18 @@ The keys that matter for the state machine fall into a few groups:
   watermark at all falls back to the tip, where the fresh spawn behind it quoted the whole conversation to the agent
   and what sits below has been answered rather than missed.
 
-  Every run-ending park reads the field that way: the agent question and the dirty / unreadable checkout refusals
-  call the reader directly, and BOTH timeout parks (`implementing/disposition.py`'s `agent_timeout` and
-  `validating/dev_fix.py`'s) hand it to `_park_awaiting_human` as its `watermark` hook — so they stay inside the one
-  funnel failed-run parks are correlated from while refusing its notice-id stamp. The timeouts matter most of the
-  four, because each is retried by a recovery that fires only on a thread with nothing new on it — so a notice that
-  crossed the reply meant to end the park would have that reply answered by a silent rerun which never saw it.
-  `_park_awaiting_human` keeps its own stamp for every park where no agent ran underneath, since the window it covers
-  is the moment between its own post and its own write rather than minutes.
+  EVERY park the `workflow:implementing` and `workflow:validating` handlers take reads the field that way. The agent
+  question and the dirty / unreadable checkout refusals call the reader directly, because they post their own notice;
+  every other one asks `_park_awaiting_human` for it with `bounded=True` — both timeout parks, both push failures, the
+  measurement failure, the unauthorized-exemption hold, the three checkout-moved refusals, the squash failure, the
+  verify failure, the reviewer timeout and no-VERDICT parks, and the review cap. Uniform rather than picked per park,
+  because the bound is never the worse answer: where nothing is unread it IS the notice id, and where something is
+  unread the notice-id stamp crosses it. Deciding it per site is what let the push, the measurement and the
+  validating push parks drift off the rule while carrying it in their docstrings. The timeouts and the push failures
+  matter most, because each is retried by a recovery that fires only on a thread with nothing new on it — so a notice
+  that crossed the reply meant to end the park would have that reply answered by a silent rerun which never saw it.
+  `_park_awaiting_human` keeps its notice-id stamp as the default, which is what the parks of the stages outside this
+  deliverable still take.
 
   That field doubles as the record that a mention was
   posted: a transient park that later self-recovers reads it back to decide whether it owes the thread a follow-up

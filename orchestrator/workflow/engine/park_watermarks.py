@@ -1,23 +1,23 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The reply watermark a park can advance past its own recorded notices.
+"""How far a park may say this thread has been read, in both answers.
 
 A post can land above a human reply that arrived during the agent run. The
 walk stops at the first comment the orchestrator id ledger does not claim, and
 advances only through comments this tick actually posted and identified; only
-a missing prior watermark uses the thread tip.
+a missing prior watermark uses the thread tip. The other answer is the id of
+the notice the park just posted, which is right wherever no run sits under the
+decision, and both live here because choosing between them is one question.
 
-Every park that ends a RUN stamps through `_stamp_read_this_far`: the parks
-that post for themselves call it directly, and the two timeout parks hand it to
-`engine/guards.py`'s shared funnel as its `watermark` hook, so they keep the
-one place failed-run parks are correlated from while still refusing that
-funnel's own notice-id stamp. That stamp is right where no agent ran under it
--- the window it covers is the moment between its own post and its own write,
-not minutes -- and wrong after a run, where the notice lands above the comment
-a human wrote while the agent was out.
+It sits in the engine rather than in one stage because every park that waits
+for a human owes it, and the funnel those parks go through is `guards.py`
+beside this: asked for with `bounded=True`, a park stamps the walk instead of
+the notice. The alternative -- each stage passing its own walk in -- is what
+let three parks drift off the rule while carrying it in their docstrings, and
+it cost a call site an import it could trip a ceiling on.
 
-The hook's shape is this module's, not the funnel's: `(gh, issue, state,
-said_before)`, taking the id ledger as it stood before the funnel's post.
+`guards.py` reads this owner rather than the other way round, so nothing here
+may reach back for it: the park is built on the watermark, not beside it.
 """
 from __future__ import annotations
 
@@ -25,9 +25,9 @@ from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
-from orchestrator.workflow.stages.implementing import (
-    state as _state,
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    prompt_delivery as _delivery,
 )
 
 
@@ -71,7 +71,7 @@ def _read_this_far(
     ours = _comments._orchestrator_ids(state)
     if ours == said_before:
         return None
-    read_to = state.get(_state._LAST_ACTION_COMMENT_ID)
+    read_to = state.get(_delivery.PINNED_LAST_ACTION_COMMENT_ID)
     if not isinstance(read_to, int):
         return gh.latest_comment_id(issue)
     for seen in sorted(gh.comments_after(issue, read_to), key=_comment_id):
@@ -86,9 +86,8 @@ def _stamp_read_this_far(
 ) -> None:
     """Record the bounded reading on the state, where there is one to record.
 
-    One helper rather than the same two lines at every park that ends a run --
-    and the shape `engine/guards.py`'s `watermark` hook is called with, so the
-    two timeout parks name this instead of writing the mark themselves.
+    One helper rather than the same two lines at the funnel and at every park
+    that posts its own notice.
 
     The conditional IS the rule: an answer of None is a thread this tick may
     not claim to have read any further than it already had, so the mark is
@@ -96,7 +95,30 @@ def _stamp_read_this_far(
     """
     read_to = _read_this_far(gh, issue, state, said_before)
     if read_to is not None:
-        state.set(_state._LAST_ACTION_COMMENT_ID, read_to)
+        state.set(_delivery.PINNED_LAST_ACTION_COMMENT_ID, read_to)
+
+
+def _stamp_the_notice(
+    gh: GitHubClient, issue: Issue, state: PinnedState, posted: object,
+) -> None:
+    """Record the thread read as far as the notice a park just posted.
+
+    The other answer, and the default one: a refusal decided between two of
+    one tick's own steps has no window under it, so the notice is the last
+    word on the thread and reading the tip instead would only risk the comment
+    somebody wrote in the moment since. It lives beside the bounded walk
+    because the two are one decision -- how far this park may claim to have
+    read -- and a funnel choosing between them should have both in front of
+    it rather than one here and one written out at the call site.
+
+    A post whose id nothing could read falls back to the tip, which is the
+    lesser of what is left: a watermark that never moved leaves the park's own
+    notice to be read back as somebody's fresh guidance on every tick after.
+    """
+    said = getattr(posted, "id", None)
+    latest = gh.latest_comment_id(issue) if said is None else said
+    if latest is not None:
+        state.set(_delivery.PINNED_LAST_ACTION_COMMENT_ID, latest)
 
 
 def _comment_id(seen) -> int:

@@ -8,16 +8,16 @@ than whatever the thread ends on afterwards -- on a park whose whole point is
 waiting for a reply, reading the tip would throw away the answer with the
 question.
 
-A park that ended an agent RUN answers it differently, and hands the answer
-in: minutes passed inside such a park, so its own notice lands above whatever
-a human wrote in them and the notice-id floor below would cross exactly the
-reply the park is waiting for.
+A park that FOLLOWS an agent run answers it differently, and asks for that
+with `bounded=True`: minutes passed inside such a run, so the park's own
+notice lands above whatever a human wrote in them and the notice-id floor
+below would cross exactly the reply the park is waiting for.
 """
 
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from orchestrator.workflow.engine import comments as _comments, guards as _guards
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
@@ -31,9 +31,9 @@ _TRUSTED_AUTHOR = "alice"
 _POST_ISSUE_COMMENT = "_post_issue_comment"
 _WATERMARK = "last_action_comment_id"
 
-# How a park that ended a run hands its bound in, which is no part of what the
-# park reports about that run.
-_HOOK = "watermark"
+# How a park that follows a run asks for the bound, which is no part of what
+# the park reports about that run.
+_BOUNDED = "bounded"
 
 
 class ParkWatermarkTest(unittest.TestCase):
@@ -96,42 +96,61 @@ class ParkWatermarkTest(unittest.TestCase):
         )
 
 
-class ParkWatermarkHookTest(unittest.TestCase):
-    """The bound a park that ended a run hands in, in place of that floor."""
+class BoundedParkWatermarkTest(unittest.TestCase):
+    """What `bounded=True` records instead of that floor.
+
+    Every park that follows an agent run asks for it, so what it has to be is
+    the ledger walk: past our own identified comments and no further.
+    """
 
     def setUp(self) -> None:
         self.github = FakeGitHubClient()
         self.issue = make_issue(_ISSUE_NUMBER, label=LABEL_IMPLEMENTING)
         self.github.add_issue(self.issue)
-        self.state = MagicMock()
-        self.bounded = MagicMock()
+        self.github.seed_state(_ISSUE_NUMBER)
+        self.state = self.github.read_pinned_state(self.issue)
 
-    def test_the_hook_decides_the_write(self) -> None:
-        # Called with the id ledger as it stood BEFORE this call's own post,
-        # which is what tells the notice from the comments that were already
-        # there -- and it REPLACES the notice-id write rather than running
-        # beside it, since two writes would leave the later one standing.
-        self._park_with_the_hook()
+    def test_it_stops_at_a_reply_from_the_run(self) -> None:
+        # The comment a human wrote while the agent was out. The notice this
+        # park posts lands above it, so the unbounded floor would cross it.
+        self.state.set(_WATERMARK, self._reply())
+        landed = self._reply()
 
-        self.bounded.assert_called_once_with(
-            self.github, self.issue, self.state, set(),
+        self._park()
+
+        self.assertLess(self.state.get(_WATERMARK), landed)
+        self.assertTrue(self.state.get("awaiting_human"))
+
+    def test_it_still_clears_its_own_notice(self) -> None:
+        # What the bound may not cost: our own sentence still has to be read
+        # past, or every poll after this answers it as somebody's guidance.
+        self.state.set(_WATERMARK, self._reply())
+
+        self._park()
+
+        self.assertEqual(
+            self.state.get(_WATERMARK),
+            self.github.latest_comment_id(self.issue),
         )
-        self.state.set.assert_any_call("awaiting_human", True)
-        for written in self.state.set.call_args_list:
-            self.assertNotEqual(written.args[0], _WATERMARK)
 
-    def test_the_hook_is_no_correlation_field(self) -> None:
+    def test_the_flag_is_no_correlation_field(self) -> None:
         # Popped like `reason` rather than admitted to the bounded payload
-        # this park reports the run under: it decides a WRITE, and a
-        # vocabulary that carried a callable would ship one to the sink.
-        self._park_with_the_hook()
+        # this park reports the run under: it decides a WRITE, so it is no
+        # part of what either sink is told about the run.
+        self._park()
 
-        self.assertNotIn(_HOOK, self.github.recorded_events[0])
+        self.assertNotIn(_BOUNDED, self.github.recorded_events[0])
 
-    def _park_with_the_hook(self) -> None:
+    def _reply(self) -> int:
+        identified = self.github.next_reply_id(self.issue)
+        self.issue.comments.append(
+            FakeComment(identified, _REPLY, user=FakeUser(_TRUSTED_AUTHOR)),
+        )
+        return identified
+
+    def _park(self) -> None:
         _guards._park_awaiting_human(
-            self.github, self.issue, self.state, _NOTICE,
-            watermark=self.bounded,
+            self.github, self.issue, self.state, _NOTICE, bounded=True,
         )
 
 

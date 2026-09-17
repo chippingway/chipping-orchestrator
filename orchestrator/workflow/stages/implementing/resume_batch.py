@@ -25,15 +25,18 @@ the marker is an HTML comment anybody may paste, and the author login may be a
 token shared with a reviewer whose real replies this must not swallow, so the
 id is the whole of the evidence and a marker without one admits nothing.
 
-The re-grounding conversation comes out of that same read, and it has to. A
-resume whose session was retired -- the resume budget, the silent-park streak,
-a transcript GitHub lost -- is a FRESH spawn with no transcript to continue, so
-its prompt carries the whole trusted thread beside the followup. Read again at
-spawn time that text is a second reading minutes newer than the batch: a
-comment written in between enters the prompt while the settlement stops below
-it, and the next poll hands the developer the same words again. Frozen here,
-the conversation the prompt quotes and the batch the settlement records come
-off one thread.
+The re-grounding conversation comes out of that same read, through the same
+classification, and it has to on both counts. A resume whose session was
+retired -- the resume budget, the silent-park streak, a transcript GitHub lost
+-- is a FRESH spawn with no transcript to continue, so its prompt carries the
+whole trusted thread beside the followup. Read again at spawn time that text is
+a second reading minutes newer than the batch: a comment written in between
+enters the prompt while the settlement stops below it, and the next poll hands
+the developer the same words again. Rendered by a looser filter it is the same
+hole one step over -- the forged marker this owner refuses would reach the
+agent through the conversation block while staying out of everything that
+records what was delivered. So both come off one snapshot each, over one read,
+built by the owner that decides what a prompt may carry.
 
 What is settled is settled AFTER the run, from the frozen batch, and only for
 an outcome that counts the input as delivered. There is no report transaction
@@ -110,16 +113,21 @@ class _ReplyBatch:
     taken from, and a batch settled onto some other reading of the same issue
     would ratchet a watermark past comments it never saw.
 
-    `thread_text` is the whole trusted conversation as of that same read, for
-    the fresh spawn a retired session turns this resume into: that prompt
-    quotes the thread rather than continuing a transcript, and read again at
-    spawn time it would carry a comment the settlement below stops short of.
+    `regrounding` is the whole conversation as of that same read, classified
+    the same way and bounded to the excerpt a prompt carries, for the fresh
+    spawn a retired session turns this resume into: that prompt quotes the
+    thread rather than continuing a transcript. It is a snapshot rather than
+    the rendered string because it is delivered input like any other, and the
+    provenance of what reached an agent is not a thing to keep in two shapes.
+    Our own comments stay IN it, by the recorded ids -- the preamble rebuilds
+    a conversation this orchestrator is half of, and an agent reading the
+    answers without the questions is being re-grounded on half a thread.
     """
 
     state: PinnedState
     delivery: _delivery.PromptDeliverySnapshot
     comments: tuple
-    thread_text: str = ""
+    regrounding: _delivery.PromptDeliverySnapshot = _DELIVERED_NOTHING
     reserved: bool = False
 
     @property
@@ -128,6 +136,11 @@ class _ReplyBatch:
         return _conversation_prompts._build_human_reply_followup(
             list(self.comments),
         )
+
+    @property
+    def thread_text(self) -> str:
+        """The re-grounding conversation, as the snapshot rendered it."""
+        return self.regrounding.rendered_text
 
     def settle(self) -> tuple:
         """Record this batch as consumed, forward only and idempotently.
@@ -210,7 +223,7 @@ def _freeze(
         state,
         delivery,
         _quoted(read, delivery),
-        _prompt_context._thread_text(thread),
+        _prompt_context._thread_delivery(thread, retained_ids=frozenset(ours)),
     )
 
 

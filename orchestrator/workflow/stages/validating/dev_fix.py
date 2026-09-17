@@ -40,7 +40,6 @@ from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_push as _late_push,
     late_records as _late_records,
-    park_watermarks as _park_watermarks,
     parks as _dev_parks,
 )
 from orchestrator.workflow.stages.validating import (
@@ -68,7 +67,7 @@ def _park_dev_fix_timeout(
         f"{config.HITL_MENTIONS} agent timed out after {config.AGENT_TIMEOUT}s, "
         "manual intervention needed.",
         reason=_state._REASON_AGENT_TIMEOUT,
-        watermark=_park_watermarks._stamp_read_this_far,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._REASON_AGENT_TIMEOUT)
     state.set(_state._PRE_DEV_FIX_SHA, before_sha or "")
@@ -189,6 +188,7 @@ def _publish_dev_fix(
         gh, issue, state,
         f"{config.HITL_MENTIONS} git push failed; see orchestrator logs.",
         reason=_state._REASON_PUSH_FAILED,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._REASON_PUSH_FAILED)
     return False

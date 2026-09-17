@@ -19,11 +19,11 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from orchestrator.workflow.engine import comments as _comments
-from orchestrator.workflow.stages.implementing import (
+from orchestrator.workflow.engine import (
+    comments as _comments,
     park_watermarks as _park_watermarks,
-    state as _state,
 )
+from orchestrator.workflow.stages.implementing import state as _state
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
 from tests.workflow.fixtures import LABEL_IMPLEMENTING, _agent
 from tests.workflow.stages.implementing import (
