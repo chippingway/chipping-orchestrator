@@ -131,6 +131,10 @@ these names" — with suspicion; verify literally against the code, since an att
 - Conventional Commits: `<type>: <subject>` only. Reject any commit with a body, a `Co-Authored-By`
   trailer, or a non-imperative subject. Type must be one of `feat`, `fix`, `chore`, `docs`,
   `refactor`, `test`.
+- Reject a developer commit whose subject ends in a numeric reference — ` (#N)` — the tracked issue's own number
+  most of all. Publication references belong to the orchestrator, which appends the pull request's own reference when
+  it publishes; a developer-written suffix lands a subject naming the issue and the pull request both. Read the
+  subjects on the branch, not only the PR title, since approval planning can reuse a developer subject verbatim.
 
 ## Out of scope — push back
 

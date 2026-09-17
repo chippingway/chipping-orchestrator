@@ -20,6 +20,7 @@ from orchestrator.workflow.engine import (
     prompt_notes as _prompt_notes,
     prompts,
 )
+from orchestrator.workflow.stages.decomposition import late_revision as _late_revision
 from tests.support.fakes import FakeComment, FakeUser, make_issue
 from tests.workflow.fixtures import _TEST_SPEC
 
@@ -69,9 +70,12 @@ _NO_STYLE_NOTE_PROMPTS = frozenset(("conflict",))
 def _commit_producing_prompts() -> dict[str, str]:
     """Every prompt whose agent may end its turn with a commit.
 
-    `_build_user_content_change_prompt` is owned by the drift routes, but it
-    appends the same two notes, so it belongs in this sweep -- the contract is
-    the note's, not the builder's.
+    `_build_user_content_change_prompt` and the late revision's
+    `_revision_prompt` are owned by stages rather than by the prompt owner, but
+    they append the same two notes, so they belong in this sweep -- the
+    contract is the note's, not the builder's. The bare resume payloads are
+    here too: each is what a fresh rotation reads below the respawn preamble,
+    which teaches no subject contract of its own.
     """
     issue = make_issue(
         _PROMPT_ISSUE_NUMBER, title=_ISSUE_TITLE, body=_ISSUE_BODY,
@@ -107,6 +111,11 @@ def _commit_producing_prompts() -> dict[str, str]:
         "discussion_followup": _conversation_prompts._build_discussion_followup_prompt(
             comments, _PLAN_PATH,
         ),
+        "late_revision": _late_revision._revision_prompt(issue, tuple(comments)),
+        "human_reply_followup": _conversation_prompts._build_human_reply_followup(
+            comments,
+        ),
+        "continue_retry": _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
     }
 
 
@@ -165,7 +174,11 @@ class CommitProducingNotesTest(unittest.TestCase):
 
     The style note points the agent at the repo's OWN recent history rather
     than a hardcoded prefix list, because the orchestrator runs against
-    arbitrary configured repos. The foreground note spells out the one-shot
+    arbitrary configured repos. That history already carries the ` (#N)`
+    references publication appended to it, so the note reserves every numeric
+    suffix for the orchestrator: an agent copying one has only the issue
+    number to reach for, and the subject would land naming the issue and the
+    pull request both. The foreground note spells out the one-shot
     execution model: a backgrounded build ("Miri is running, I'll continue
     when it completes") outlives no session, so its result is never observed
     and the issue parks forever.
@@ -185,6 +198,21 @@ class CommitProducingNotesTest(unittest.TestCase):
                     self.assertNotIn(prefix, prompt)
                 self.assertIn("subject line only", prompt)
                 self.assertIn("Co-Authored-By", prompt)
+
+    def test_reference_suffix_is_left_to_publication(self) -> None:
+        for name, prompt in _commit_producing_prompts().items():
+            if name in _NO_STYLE_NOTE_PROMPTS:
+                continue
+            with self.subTest(prompt=name):
+                self.assertIn("publication metadata", prompt)
+                self.assertIn("no numeric suffix of your own", prompt)
+                self.assertIn(
+                    "never end the subject with the number of the issue",
+                    prompt,
+                )
+                self.assertIn(
+                    "orchestrator supplies the pull request reference", prompt,
+                )
 
     def test_every_prompt_has_the_foreground_note(self) -> None:
         for name, prompt in _commit_producing_prompts().items():

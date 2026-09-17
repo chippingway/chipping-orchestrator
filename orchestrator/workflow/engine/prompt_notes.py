@@ -22,6 +22,10 @@ _FOREGROUND_ONLY_NOTE = (
     "the foreground and wait for them to complete before you commit or reply."
 )
 
+# The history this note sends an agent to read already carries the ` (#N)`
+# references publication appended to it, so "mirror the style" has to exclude
+# them explicitly: an agent copying one has only the issue number to reach for,
+# and the subject would land naming the issue and the pull request both.
 _COMMIT_STYLE_NOTE = (
     "Before committing, run `git log --oneline -20` to see how recent commit "
     "subjects are formatted, and write your subject in the SAME "
@@ -30,6 +34,12 @@ _COMMIT_STYLE_NOTE = (
     "`<type>: <subject>` form, or a project-specific prefix such as `event:` "
     "or `career:`; the repo's own recent history is the source of truth. Keep "
     "the subject a single short, imperative line.\n\n"
+    "Mirror the descriptive part of that style only. A trailing ` (#N)` on a "
+    "subject in that history is publication metadata the orchestrator "
+    "appended when it published the change, not a convention to copy: write "
+    "no numeric suffix of your own, and never end the subject with the number "
+    "of the issue you are working on. The orchestrator supplies the pull "
+    "request reference.\n\n"
     "The commit message MUST be the subject line only -- no extended "
     "description / body and no `Co-Authored-By:` (or other) trailer. Use "
     "`git commit -m \"<subject>\"` with a single `-m`."
@@ -99,7 +109,12 @@ _CONTINUE_RETRY_PROMPT = (
     "and re-runs the reviewer."
 )
 
+# The style note rides along for the same reason the report contract does, and
+# one more: a developer resume can rotate into a FRESH session, where the only
+# text ahead of this is the respawn preamble. That preamble teaches no subject
+# contract, so a retry asking a brand-new agent to COMMIT would otherwise reach
+# it with nothing said about what its subject may carry.
 _DEVELOPER_CONTINUE_RETRY_PROMPT = (
-    f"{_CONTINUE_RETRY_PROMPT}\n\n{_DEVELOPER_REPORT_NOTE}\n\n"
-    f"{_FOREGROUND_ONLY_NOTE}"
+    f"{_CONTINUE_RETRY_PROMPT}\n\n{_COMMIT_STYLE_NOTE}\n\n"
+    f"{_DEVELOPER_REPORT_NOTE}\n\n{_FOREGROUND_ONLY_NOTE}"
 )

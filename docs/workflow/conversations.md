@@ -122,6 +122,49 @@ The default single-repo deployment (or any host with `EXPOSE_TRACKED_REPOS=off`)
 added prompt tokens and zero behavior change**. See
 [`../configuration.md#agent-roles`](../configuration.md#agent-roles) for the env var.
 
+## The commit-subject contract in commit-producing prompts
+
+Every prompt whose agent may author a commit subject carries one subject contract, `_COMMIT_STYLE_NOTE` in
+`workflow/engine/prompt_notes.py`. It enumerates no prefix vocabulary of its own, because the orchestrator drives
+arbitrary configured repos and a closed list would teach the wrong style everywhere but the one it was written for:
+the agent reads `git log --oneline -20` and mirrors whatever subject/prefix convention that repository's own recent
+history uses, as a single short imperative line with no body, no trailer, and one `-m`.
+
+What the note carves out of that history is the reference suffix. Under `PR_REF_IN_SUBJECT` — the default — every
+commit the orchestrator publishes onto a pull request ends in ` (#N)` naming that pull request
+([`../configuration.md`](../configuration.md#cadence-and-budgets)); with the switch off nothing is suffixed at all, and
+the history stays whatever the developers wrote. So on a repo this orchestrator has already published to with the
+default on, "mirror recent history" reads as an instruction to write a numeric suffix — and the only number the agent
+has is the issue it is implementing, which would land a subject naming the issue and the pull request both. So the
+note says what those suffixes are: publication metadata rather than style. The agent writes the descriptive subject
+alone, adds no numeric suffix of its own, never copies the tracked issue's number into one, and leaves the pull
+request reference to the orchestrator that appends it when configured to. Issue linkage is the pull request body's to
+carry, not the subject's. The note is unconditional, because the prompt is built with no reading of that switch and a
+repo whose history carries references from an earlier setting reads the same either way.
+
+Where the contract is carried:
+
+- **Whole** in the initial `_build_implement_prompt`, the automated-review `_build_fix_prompt`, the final pass's
+  `_build_documentation_prompt`, the requirements-drift `_build_user_content_change_prompt`, the PR-feedback
+  `_build_pr_comment_followup`, both discussion builders (`_build_discussion_prompt` and
+  `_build_discussion_followup_prompt` — whichever round the confirmation lands on commits the plan file, and that
+  subject becomes the plan pull request's title), and the late revision's `_revision_prompt`
+  (`decomposition/late_revision.py`).
+- **Whole** in the bare developer resume payloads too — `_build_human_reply_followup` and
+  `_DEVELOPER_CONTINUE_RETRY_PROMPT` — which ask for commits while resuming a transcript that may predate the contract
+  or hold another stage's prompt. They carry it for one more reason than the report contract they restate beside it: a
+  developer resume can rotate into a **fresh** session (`DEV_SESSION_MAX_RESUMES`, the consecutive-silent-park
+  fallback, or poisoned-session recovery), and the only text ahead of the payload there is
+  `_build_fresh_respawn_preamble`, which teaches no subject contract of its own. Without it a brand-new agent would be
+  told to commit with nothing said about what its subject may carry.
+- **Absent** from `_build_conflict_resolution_prompt` and from the conflict stage's own bare continue, which stays on
+  the plain `_CONTINUE_RETRY_PROMPT`: that agent finishes an in-progress rebase with `git rebase --continue` and
+  authors no subject at all.
+
+`tests/workflow/engine/test_prompts.py` sweeps the prompts listed above for both halves of the note, so removing one
+from a prompt already in the sweep fails the suite. A newly written commit-producing prompt has to be added to that
+sweep by hand — nothing enumerates the builders automatically.
+
 ## The developer report contract in developer prompts
 
 Every prompt a developer can finish work on teaches one report contract, `_DEVELOPER_REPORT_NOTE` in

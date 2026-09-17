@@ -298,16 +298,20 @@ def _build_human_reply_followup(comments: list) -> str:
     human replies on the issue thread.
 
     The replies, one per paragraph, are the whole of the new task: the session
-    already holds its stage's instructions in its transcript. The report
-    contract is restated anyway, because that transcript may predate it or
-    carry another stage's prompt, and a reply is often what lets the parked
-    work finish.
+    already holds its stage's instructions in its transcript. The subject and
+    report contracts are restated anyway, because that transcript may predate
+    them or carry another stage's prompt -- and because this text is also what
+    follows the respawn preamble when the resume rotates into a fresh session,
+    which holds no transcript at all and is taught no subject contract by the
+    preamble. A reply is often what lets the parked work finish, so the agent
+    it reaches may well commit.
     """
     replies = "\n\n".join(
         _prompt_context._quote_comment_line(comment)
         for comment in comments if comment.body
     )
     return (
-        f"{replies}\n\n{_prompt_notes._DEVELOPER_REPORT_NOTE}\n\n"
+        f"{replies}\n\n{_prompt_notes._COMMIT_STYLE_NOTE}\n\n"
+        f"{_prompt_notes._DEVELOPER_REPORT_NOTE}\n\n"
         f"{_prompt_notes._FOREGROUND_ONLY_NOTE}"
     )
