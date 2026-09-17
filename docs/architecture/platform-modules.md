@@ -535,17 +535,25 @@ orchestrator/
                         And the pre-squash head pinned beside them -- the rollback target, the head the entry takes
                         its lease from, and the commit the gate is told this rewrite replaced, none of which a
                         reading taken past the reset could recover
-      pr_references.py  the ` (#N)` pull-request reference a published commit subject ends in, formatted once for
-                        every publisher: a subject already ending in the same reference comes back unchanged, so a
-                        retried or repeated publication never doubles it, and one naming any other number is
-                        ordinary text the current reference is appended after. Only the subject line comes back,
-                        never a body, trailer, or closing keyword. Whether a subject is still OWED that reference
-                        answers here too, and it is the same rule read backwards -- the formatter is asked whether
-                        it would change the line, so a publisher deciding WHETHER to rewrite cannot disagree with
-                        what the rewrite would write and then double a reference or leave a missing one alone; no
-                        pull request at all owes nothing. Pure functions reading no git, GitHub, or configuration.
-                        The PR title `titles` selects never carries it, since that title is picked before the
-                        request has a number
+      pr_references.py  which ` (#N)` references a published commit subject is left ending in, decided once for
+                        every publisher. The trailing RUN of references is what it reads: the tracked ISSUE's
+                        reference is dropped from anywhere in that run -- alone, or ahead of a pull-request
+                        reference an earlier publication appended, which is the `subject (#issue) (#pr)` a
+                        developer commit and the orchestrator each wrote half of -- every other number stays where
+                        it stands, since that is somebody else's link, and the line ends in exactly one reference
+                        to this pull request, so a second approval round, a retried tick, or a recovered commit
+                        never doubles it. A number inside the subject's own text, or one written without the space
+                        the orchestrator puts before its own, is text rather than a reference. Only the subject
+                        line comes back, never a body, trailer, or closing keyword, and reapplying the
+                        normalization changes nothing. The tracked-issue removal is exposed on its own as well,
+                        which is what `titles` borrows: it strips that number and appends nothing, since a PR
+                        title is picked before the request has a number. Whether a subject is still OWED a rewrite
+                        answers here too, and it is the same rule read backwards -- the normalization is asked
+                        whether it would change the line, so a publisher deciding WHETHER to rewrite cannot
+                        disagree with what the rewrite would write and then double a reference, leave a missing
+                        one alone, or call a subject carrying both numbers finished. No pull request at all owes
+                        nothing, and nothing is stripped on the way to a rewrite that is never made. Pure
+                        functions reading no git, GitHub, or configuration
       probes.py         the two branch-geometry reads, and nothing about what a commit SAYS -- `titles` beside it owns
                         that. One is the divergence reading -- the fetched ref resolved ONCE and HEAD counted against
                         that immutable commit, since the counts are a claim about the tip and a ref something moves

@@ -60,8 +60,13 @@ _DEFINED = MappingProxyType({
     ),
     "models": ("_SquashOutcome",),
     "pr_references": (
+        "_REFERENCE_NUMBER_RE",
+        "_TRAILING_REFERENCES_RE",
+        "_split_trailing_references",
+        "_subject_ending_in_references",
         "_subject_owes_the_reference",
         "_subject_with_pr_reference",
+        "_subject_without_issue_reference",
     ),
     "probes": (
         "_BranchDivergence",
