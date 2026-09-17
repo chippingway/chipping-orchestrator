@@ -21,7 +21,10 @@ from orchestrator.git.worktrees import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import guards as _guards
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    report_delivery as _report_delivery,
+)
 from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
     late_approval_reading as _late_approval_reading,
@@ -163,6 +166,17 @@ def _run_left_commits(
     `_attributable_run` refuses on, and a recovered run is the one road past
     it -- it is defined by commits that predate the tick, so there is no run
     here to attribute anything to.
+
+    A head that did not move has one exception, and it is the park this stage
+    takes over a report it could not deliver. Such an issue was never waiting
+    for code: the commits are on the branch already, published or not, and
+    what was asked for was a report this workflow could record and bind. So a
+    run that comes back with one is publishing rather than asking, and the
+    seam below records its report in place of the one nothing could deliver
+    and carries the same commits through. What that exception is held to
+    belongs to the owner that spells it -- a debt owed, a report outcome, and
+    a branch that carries something -- so an ordinary reply, a question, or a
+    run that fell short is read here exactly as it always was.
     """
     if not _worktree_creation._has_new_commits(spec, prepared.worktree):
         return False
@@ -171,7 +185,11 @@ def _run_left_commits(
     head = _verification_probes._head_sha(prepared.worktree)
     if not _attributable_run(prepared, head):
         return False
-    return head != _inherited_floor(state) and head != prepared.before_sha
+    if head != _inherited_floor(state) and head != prepared.before_sha:
+        return True
+    return _report_delivery.redelivers_an_owed_report(
+        spec, state, prepared.agent_result, prepared.worktree,
+    )
 
 
 def _attributable_run(

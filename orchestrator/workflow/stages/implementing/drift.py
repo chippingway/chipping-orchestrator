@@ -17,6 +17,14 @@ this" is ACKed rather than parked, which is what keeps a no-op edit from sitting
 awaiting a human who has nothing left to say. That ACK also clears the
 silent-park streak: the session answered, so it is not the poisoned one the
 streak is counting.
+
+A commit-less reply has one more reading, and it is the same one the ordinary
+disposition makes: an issue still owing a report it could not deliver was never
+waiting for code, so a run that comes back with a report publishes the commits
+the branch already carries rather than parking as a question. A human answering
+this stage's undeliverable-report park lands HERE rather than on the park's own
+resume, because their reply is user content and moves the drift hash -- so the
+road an edit earns is the road that has to recognize it.
 """
 from __future__ import annotations
 
@@ -36,6 +44,7 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     messages as _messages,
     prompt_context as _prompt_context,
+    report_delivery as _report_delivery,
     retry_ledger as _retry_ledger,
     usage as _usage,
 )
@@ -160,7 +169,9 @@ def _dispose_implementing_drift(
         or drift.paused
     ):
         return
-    if drift.committed:
+    if drift.committed or _report_delivery.redelivers_an_owed_report(
+        spec, state, drift.agent_result, drift.worktree,
+    ):
         _candidate_recovery._publish_committed_work(
             gh, spec, issue, state,
             _models._AgentWork(drift.agent_result, drift.worktree),

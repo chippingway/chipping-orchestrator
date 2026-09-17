@@ -15,18 +15,31 @@ it, so the push moves nothing and the bookkeeping is all that is left.
 The other two roads are the report this workflow cannot deliver at all. One is
 answered before anything is published, where holding costs nothing; the other
 after the push, where the code stands and only the handoff is withheld. Neither
-discards what the run wrote, and neither lets the work reach review without it.
+discards what the run wrote, and neither lets the work reach review without it,
+and what answers either is a reply whose developer comes back with a report
+rather than a commit.
+
+The last road is the requirements moving while the run that reported on them
+worked. Nothing published then either: the report answers an issue that has
+changed, and what supersedes it is the resume the edit earns.
 """
 
 from __future__ import annotations
 
 import unittest
+from unittest.mock import MagicMock
 
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_record_values as _record_values,
 )
-from tests.workflow.fixtures import LABEL_VALIDATING, _open_pr_for
+from orchestrator.workflow.stages.implementing import (
+    disposition as _disposition,
+    models as _models,
+)
+from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC, LABEL_VALIDATING, _agent, _open_pr_for
+from tests.workflow.git_owners import seam_patch
 from tests.workflow.stages.implementing import report_test_support as support
 
 # The pull request the first tick opens: this client numbers the ones it opens
@@ -53,6 +66,12 @@ OTHER_PR = 4200
 
 # The comment on it the developer says carries that report.
 OTHER_REPORT_ID = 9200
+
+# The report a resumed session writes in place of one that could not be
+# delivered, and the edit a human makes to the issue while a run is working.
+REPLACEMENT_REPORT = "Adds the thing, reported inline this time."
+
+EDITED_BODY = "the requirements moved while the agent was running"
 
 
 class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
@@ -195,6 +214,135 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
         self.assertNotIn(
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+    def test_a_replacement_report_needs_no_commit(self) -> None:
+        # The park asked for a report, so a resumed session that writes one
+        # and touches no file is answering it rather than asking a question:
+        # its report replaces the one that could not be delivered, and the
+        # commits already on the branch are what it goes out with.
+        github, issue = self.seeded()
+        _open_pr_for(github, issue_number=support.REPORT_ISSUE, pr_number=OTHER_PR)
+        self.deliver(
+            github,
+            issue,
+            support.verified_message(
+                OTHER_PR, OTHER_REPORT_ID, "somebody else's report",
+            ),
+        )
+        github.get_pr(OPENED_PR).head.sha = support.PUBLISHED_SHA
+        support.replies(github, issue)
+
+        self.redeliver(
+            github, issue, support.ready_message(REPLACEMENT_REPORT),
+        )
+
+        posted = support.published_reports(github, OPENED_PR)
+        self.assertEqual(len(posted), 1)
+        self.assertIn(REPLACEMENT_REPORT, posted[0].body)
+        recorded = github.pinned_data(support.REPORT_ISSUE)
+        self.assertEqual(
+            (
+                recorded[support.DELIVERY_RECORD],
+                recorded[support.PENDING_RECORD],
+                recorded.get(AWAITING_HUMAN),
+                recorded.get(PARK_REASON),
+            ),
+            (None, None, False, None),
+        )
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+    def test_edited_requirements_hold_the_report(self) -> None:
+        # A human edited the issue while the developer worked, so the report
+        # answers requirements the issue no longer has. Publishing it would
+        # stamp it with the revision its run was handed and hand it to a
+        # reviewer as current, so it is left owed for the drift resume -- and
+        # the work is not handed on either.
+        github, issue = self.seeded()
+
+        self._run_implementing(
+            github,
+            issue,
+            run_agent=_EditsTheIssue(issue, support.ready_message()),
+            has_new_commits=[False, True],
+            dirty_files=(),
+            push_branch=True,
+        )
+
+        self.assertEqual(len(github.opened_prs), 1)
+        self.assertEqual(support.published_reports(github, OPENED_PR), [])
+        recorded = github.pinned_data(support.REPORT_ISSUE)
+        self.assertIsNotNone(recorded[support.PENDING_RECORD])
+        self.assertNotIn(support.CURRENT_RECORD, recorded)
+        self.assertNotIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+
+class ReportOnlyReplyTest(unittest.TestCase):
+    """The seam that tells a report answering a debt from a question.
+
+    Asked of the disposition directly, because the ordinary road into it is a
+    reply that moves the requirements hash and therefore goes to the drift
+    resume instead. What reaches this one is every other resume -- a bare
+    `/orchestrator continue`, a reply that changed nothing a human wrote -- and
+    it has to read a report the same way.
+    """
+
+    def test_an_owed_report_publishes_unmoved_work(self) -> None:
+        for described, message, publishes in (
+            ("a report", support.ready_message(), True),
+            ("a question", "which database should this use?", False),
+        ):
+            with self.subTest(reply=described):
+                self.assertEqual(
+                    self._left_commits(support.owing_state(), message),
+                    publishes,
+                )
+
+    def test_an_issue_owing_nothing_reads_a_question(self) -> None:
+        # The debt is what makes a no-commit report a publication, so an issue
+        # that owes none reads the same reply exactly as it always did.
+        self.assertFalse(
+            self._left_commits(PinnedState(), support.ready_message()),
+        )
+
+    def _left_commits(self, state, message: str) -> bool:
+        """What the disposition makes of a run whose head never moved."""
+        prepared = _models._PreparedDevRun(
+            agent_result=_agent(
+                session_id=support.DEV_SESSION, last_message=message,
+            ),
+            before_sha=support.PUBLISHED_SHA,
+            paused=False,
+            worktree=_FAKE_WT,
+        )
+        with seam_patch("_has_new_commits", MagicMock(return_value=True)), \
+                seam_patch(
+                    "_head_sha", MagicMock(return_value=support.PUBLISHED_SHA),
+                ):
+            return _disposition._run_left_commits(_TEST_SPEC, state, prepared)
+
+
+class _EditsTheIssue:
+    """A developer run a human edits the issue's body underneath.
+
+    The edit lands where the window this is about is: after the drift check
+    that opened the tick and before anything the publication reads, which is
+    exactly a human typing while an agent works.
+    """
+
+    def __init__(self, issue, message: str) -> None:
+        self._issue = issue
+        self._message = message
+
+    def __call__(self, *_args, **_kwargs):
+        """Edit the issue, then answer as the run that reported on it."""
+        self._issue.body = EDITED_BODY
+        return _agent(
+            session_id=support.DEV_SESSION, last_message=self._message,
         )
 
 

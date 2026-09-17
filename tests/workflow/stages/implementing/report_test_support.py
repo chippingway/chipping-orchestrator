@@ -11,8 +11,14 @@ outcome, the pull request the code reaches, or the way GitHub answers the post.
 from __future__ import annotations
 
 from orchestrator.github import developer_reports as _reports
-from orchestrator.workflow.engine import report_records as _records
-from tests.support.fakes import FakeGitHubClient, make_issue
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import (
+    report_delivery_state as _delivery_state,
+    report_records as _records,
+)
+from orchestrator.workflow.late_split import formats as _formats
+from orchestrator.workflow.state import WorkflowLabel
+from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
 from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
     MEASURED_CANDIDATE_SHA,
@@ -34,6 +40,12 @@ BRANCH = _issue_branch(REPORT_ISSUE)
 REPORT_TEXT = "Adds the thing the issue asked for. Verified with the suite."
 
 LAST_MESSAGE_HEADING = "_Last agent message:_"
+
+# The thread read a park stamps, which a reply has to land above.
+WATERMARK = "last_action_comment_id"
+
+# A whole digest, since that is what a requirements revision is read at.
+REQUIREMENTS_REVISION = "a" * max(_formats.DIGEST_LENGTHS)
 
 DELIVERY_RECORD = _records.DELIVERED_REPORT
 PENDING_RECORD = _records.PENDING_REPORT
@@ -75,6 +87,41 @@ def published_reports(github, pr_number: int, revision: int = 1) -> list:
     ]
 
 
+def replies(github, issue, body: str = "please deliver the report inline"):
+    """Put one trusted human reply above whatever watermark a park left.
+
+    Above it rather than at a chosen id, because a park stamps the thread read
+    to the notice it posted: a reply under that mark is one the resume has
+    already been told about and would never act on.
+    """
+    reply = FakeComment(
+        id=github.pinned_data(issue.number)[WATERMARK] + 1,
+        body=body,
+        user=FakeUser("alice"),
+    )
+    issue.comments.append(reply)
+    return reply
+
+
+def owing_state() -> PinnedState:
+    """A pinned comment carrying one delivered report nothing has bound yet.
+
+    What every road that answers an undeliverable report is read against: the
+    record is there, so the issue owes a report, and no publication has been
+    bound to it.
+    """
+    state = PinnedState()
+    _delivery_state.record_delivered_report(state, _records.DeliveredReport(
+        receipt=f"issue-{REPORT_ISSUE}-report-1",
+        report_revision=1,
+        mode=_records.ReportMode.PUBLISH,
+        route=WorkflowLabel.IMPLEMENTING,
+        requirements_revision=REQUIREMENTS_REVISION,
+        report=REPORT_TEXT,
+    ))
+    return state
+
+
 class _ReportDeliveryMixin(_PatchedWorkflowMixin):
     """One implementing tick over a worktree that carries a fresh commit."""
 
@@ -89,6 +136,26 @@ class _ReportDeliveryMixin(_PatchedWorkflowMixin):
         """Run one tick whose developer comes back with `message`."""
         options = {
             "has_new_commits": [False, True],
+            "dirty_files": (),
+            "push_branch": True,
+            **run_options,
+        }
+        return self._run_implementing(
+            github,
+            issue,
+            run_agent=_agent(session_id=DEV_SESSION, last_message=message),
+            **options,
+        )
+
+    def redeliver(self, github, issue, message: str, **run_options):
+        """Run the tick a human's reply resumes, whose developer commits nothing.
+
+        The head reads the same on both sides of the run, which is what a
+        session that rewrote its report and touched no file leaves behind.
+        """
+        options = {
+            "has_new_commits": True,
+            "head_shas": (PUBLISHED_SHA, PUBLISHED_SHA),
             "dirty_files": (),
             "push_branch": True,
             **run_options,

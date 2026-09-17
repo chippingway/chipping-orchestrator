@@ -32,6 +32,13 @@ developer said would be gone. Held here, before the size gate and the push,
 nothing is published at all: the commit stays in the worktree, the branch is
 untouched, and a reply resumes the session that can write the report again.
 
+What that resumed session comes back with is a report rather than a commit, and
+`redelivers_an_owed_report` is what keeps it from being read as a question. An
+issue owing a report was never waiting for code: the commits are already on the
+branch, and a fresh report is exactly what the park asked for -- so the run that
+brings one publishes through the ordinary seam, where its report replaces the
+one nothing could deliver.
+
 The route is the caller's, because a stage knows which road produced the run
 and this owner cannot: it is recorded on the transaction so that whatever
 finishes one -- here, or a poll later through the reconciliation -- closes the
@@ -47,11 +54,14 @@ publication, edited beyond recognition.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
@@ -69,6 +79,8 @@ from orchestrator.workflow.state import WorkflowLabel
 log = logging.getLogger("orchestrator.workflow")
 
 _PARK_REASON = "park_reason"
+
+_AWAITING_HUMAN = "awaiting_human"
 
 # What a report this workflow cannot get onto the pull request is parked
 # under. One reason for both roads that take it -- a report that cannot be
@@ -180,11 +192,13 @@ def parks_an_undeliverable_report(
 ) -> None:
     """Announce a report this workflow cannot deliver, once, and hold it.
 
-    Announced once and held silently after, for the reason the report
-    reconciliation's own park is: the condition does not clear on its own --
-    what it waits for is a human -- so a fresh notice every poll would bury
-    the first one. A tick that finds this owner's reason already standing says
-    nothing and writes nothing.
+    Announced once per attempt, not once per issue. What is asked is whether
+    this owner's park is still STANDING -- its reason on the comment and the
+    issue still waiting on a human -- because that is the state a second
+    notice would say nothing new about. A reply clears the waiting before the
+    developer is resumed, so a report that fails to be delivered again is a
+    fresh failure of a fresh attempt, and the human who asked for it hears
+    about it.
 
     Its own reason, because that is the only thing that tells a later tick
     whose park it is standing over, and because the recovery is particular: a
@@ -197,7 +211,7 @@ def parks_an_undeliverable_report(
     push. Each words its own notice, since what the work is in the middle of
     differs; what they share is the flag, the reason, and the silence.
     """
-    if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
+    if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT and state.get(_AWAITING_HUMAN):
         log.warning(
             "issue=#%d still owes a developer report this workflow cannot "
             "deliver; holding the tick without a second notice", issue.number,
@@ -208,6 +222,47 @@ def parks_an_undeliverable_report(
     )
     state.set(_PARK_REASON, UNDELIVERABLE_REPORT)
     gh.write_pinned_state(issue, state)
+
+
+def redelivers_an_owed_report(
+    spec: _config_models.RepoSpec,
+    state: _pinned_state.PinnedState,
+    agent_result: AgentResult,
+    worktree: Path,
+) -> bool:
+    """Whether this run answers a report this issue owes rather than a question.
+
+    The one road on which a run that committed nothing still has work to
+    publish. A stage reads a head that did not move as a session that came
+    back with a question, which is right for every ordinary run -- but an
+    issue holding a report it could not deliver was never waiting for code:
+    it was waiting for a report it could record and bind, and the commits the
+    earlier run made are still on the branch with nothing published from them
+    or nothing bound to them.
+
+    Three readings, asked in the order that spends least. The DEBT says what
+    the issue is waiting on, so a run that reports on an issue owing nothing
+    is the ordinary no-commit reply its stage already knows how to read -- and
+    asking it first is what keeps every other tick from paying for the two
+    below. The OUTCOME says the developer considers the work finished, so a
+    question, a disagreement, or a run that fell short is still a question:
+    what supersedes an undeliverable report is another report and nothing
+    else. And the BRANCH has to carry something, because what this licenses is
+    a publication: a checkout with nothing ahead of base would push an empty
+    branch and open a pull request with no diff in it.
+
+    Spelled here rather than at either call site, because both roads a reply
+    can take reach it -- the resume a park earns, and the drift resume an edit
+    earns -- and a rule written twice is one that comes to differ.
+    """
+    if not owes_a_report(state):
+        return False
+    if isinstance(
+        _outcomes._report_outcome_of_run(agent_result),
+        _outcome_models._ReportRefusal,
+    ):
+        return False
+    return _worktree_creation._has_new_commits(spec, worktree)
 
 
 def _delivered_report(

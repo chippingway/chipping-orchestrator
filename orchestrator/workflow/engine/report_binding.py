@@ -46,6 +46,16 @@ made, the pull request it read, the receipt it recorded -- rather than a poll
 later through the reconciliation that would otherwise have to prove all of it
 again.
 
+One term of that world is NOT the caller's to vouch for, and it is read here
+before anything is posted: the requirements the run was handed. Every other term
+is a fact this tick established, but the issue the caller holds was fetched
+before its developer ran, and a human editing it during that run -- or during
+the push and the pull request after it -- leaves a report answering
+requirements the issue no longer has. So the issue is read AGAIN, and a report
+whose requirements have moved is left owed rather than published and handed on:
+the drift resume behind this owner is what answers an edit, and the report it
+buys is the one that belongs on the pull request.
+
 A publication that does not settle leaves the transaction owed, which is what
 the caller reads to decide whether its work may be handed on. The reconciliation
 ahead of the next handler finishes what this tick could not, and nothing is
@@ -65,6 +75,7 @@ from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     report_delivery as _delivery,
     report_delivery_state as _delivery_state,
+    report_evidence as _evidence,
     report_publishing as _publishing,
     report_record_state as _record_state,
     report_records as _records,
@@ -243,6 +254,18 @@ def _publishes_what_is_owed(
     part of making it, and the receipt naming both is on the comment -- so
     what that evidence would prove is what this tick has just done.
 
+    The REQUIREMENTS are proved again before any of it, and they are the one
+    term of this publication the caller cannot vouch for. It pushed the commit,
+    read the pull request and wrote the receipt this tick, so each of those is
+    a fact rather than a reading -- but the issue it holds was fetched before
+    its developer ran, and an edit landing during that run, or during the push
+    and the pull request after it, leaves this report answering requirements
+    the issue no longer has. Published anyway it would be stamped with the
+    revision its run was handed and handed straight to a reviewer as current.
+    Left owed instead, the drift resume answers the edit and the report it buys
+    is the one that belongs there -- and the handoff is withheld meanwhile,
+    because the transaction is still outstanding.
+
     Whether the tick stops is not this owner's answer and is not asked for.
     What the caller decides on is the record: a transaction that settled is
     gone from the pinned state, and one that did not is still there for the
@@ -250,6 +273,15 @@ def _publishes_what_is_owed(
     """
     pending = _record_state.read_pending_report(state)
     if pending is None or not _names_this_publication(pending, published):
+        return
+    edited = _evidence.fresh_requirements_verdict(gh, issue, state, pending)
+    if edited is not None:
+        log.info(
+            "issue=#%d is not publishing developer report revision %d onto "
+            "PR #%s: %s; leaving it owed for the route that answers an edit",
+            issue.number, pending.report_revision,
+            _publication_number(published), edited.refusal,
+        )
         return
     _publishing.finishes(gh, issue, state, pending, published.pull_request)
 

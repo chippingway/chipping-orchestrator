@@ -1678,7 +1678,12 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        posted, and the post is scoped by the transaction's receipt, so a retry finds what an earlier attempt landed
        instead of repeating it. What the transaction will cost the pinned comment is reserved when the record is
        ACCEPTED, at the width every member of a subject is recorded at, because the binding happens after the push:
-       a report accepted before the push and refused after it is one the code went out without. A run that produced
+       a report accepted before the push and refused after it is one the code went out without. The REQUIREMENTS are
+       proved afresh before the report is posted, over an issue read again from GitHub rather than the object the
+       tick opened with: every other term of this publication is something this tick did, but the issue was fetched
+       before the developer ran, so an edit landing during that run — or during the push and the pull request after
+       it — leaves the report answering requirements the issue no longer has. Such a report is left owed, and the
+       drift resume that answers the edit is what buys the one that belongs there. A run that produced
        no report outcome records nothing and publishes exactly as it always did. Where the report IS
        published, the description carries only what it alone can (the `Resolves #N` and the attribution): the
        report comment says in as many words that it supersedes any agent message there, so a capped excerpt beside
@@ -1694,11 +1699,21 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        and no record of what the run said. A report that cannot be BOUND once the pull request is known — a
        delivered record nobody can read, or a verification asserting a report on another pull request — takes the
        same park after the push, with the record left exactly as it stands: the code is published, the handoff is
-       withheld, and the notice says both. Neither park is ever taken twice; the reason is this orchestrator's own
-       to announce once, and a reply resumes the developer session. The one refusal that does NOT park is a
+       withheld, and the notice says both. Neither park is announced twice while it stands, and a reply resumes the
+       developer session — the resume clears the waiting, so a report that fails to be delivered again is a fresh
+       failure the human who asked for it hears about. The one refusal that does NOT park is a
        pinned comment too full to carry the transaction: the routes a report still owed lets run are what give
        that room back, so it is reported at ERROR, the record is kept, and the next tick binds what this one
        could not.
+     - **the reply that answers such a park brings a report rather than a commit**, and both dispositions read it
+       that way. A head that did not move is ordinarily a session that came back with a question, but an issue
+       still owing a report it could not deliver was never waiting for code: the commits are on the branch already,
+       published or not, and what was asked for was a report this workflow could record and bind. So a run that
+       comes back with a report outcome on such an issue publishes through the same seam, where its report replaces
+       the one nothing could deliver — held to all three of a debt owed, a report outcome, and a branch that
+       carries something, so an ordinary question is still a question. The reply lands on the DRIFT resume in
+       practice, because a human's comment is user content and moves the requirements hash; `disposition` reads it
+       the same way for every other resume, `/orchestrator continue` among them.
      - **a report still owed refuses the handoff**, exactly as a moved checkout does and for the same reason: past
        the relabel the issue belongs to another stage, nothing under `validating` publishes a report or comes back
        for one, and the reviewer at the end of that road is the reader the report was written for. So the branch

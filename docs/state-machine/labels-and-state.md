@@ -766,10 +766,12 @@ The keys that matter for the state machine fall into a few groups:
   own reason stands, so the reason is what tells a notice already on the thread from one to post afresh — and a park
   worded by the size gate behind it, which says its own piece on every reading it cannot take, is held for a human
   rather than re-entered. The implementing publication re-sets `report_undeliverable` for a reason of the same
-  kind: the park is announced once and held silently after — a report this workflow cannot deliver does not become
-  deliverable by being announced again — and the reason is what a later tick reads to know the notice is there.
-  Nothing there retires it; the resume a human's reply earns is what clears the flags, as it does for every other
-  park on that stage. The developer-report reconciliation re-sets `report_record_damaged` for a reason of its
+  kind: the park is announced once while it STANDS — a report this workflow cannot deliver does not become
+  deliverable by being announced again — and the reason is what a later tick reads to know the notice is there. The
+  resume a human's reply earns clears the waiting, so a second attempt that fails again is announced again; the
+  publication handoff spends the reason itself, beside the agent timeout's, because reaching it means the report
+  the park was about has since reached the pull request.
+  The developer-report reconciliation re-sets `report_record_damaged` for a reason of its
   own: the park is the dispatcher's rather than a stage's, so the reason is the only thing that tells a tick whose
   park it is standing over — this owner announces once, holds silently on its own, and retires *only* its own,
   since every other reason belongs to a stage still waiting for what it asked for. Where one of those is already
