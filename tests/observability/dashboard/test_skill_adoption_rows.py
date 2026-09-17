@@ -72,14 +72,15 @@ class SkillAdoptionQuietCellTest(unittest.TestCase):
         self.assertNotIn("%", markup)
 
     def test_an_ignored_skill_reports_a_real_zero(self) -> None:
+        # The zero and its rate carry the offered-but-ignored finding, while
+        # the offered total is the denominator that zero is read against
+        # rather than part of it -- toning that one too would report the
+        # cohort as unoffered.
         markup = _rendered(_IGNORED_CELL)
+
         self.assertIn(_MUTED_ZERO_RATE, markup)
         self.assertIn(_MUTED_ZERO, markup)
-
-    def test_the_offered_total_stays_a_plain_number(self) -> None:
-        # It is the denominator the zero is read against rather than part of
-        # the finding, so toning it too would report the cohort as unoffered.
-        self.assertIn(_PLAIN_SESSION_TOTAL, _rendered(_IGNORED_CELL))
+        self.assertIn(_PLAIN_SESSION_TOTAL, markup)
 
 
 class SkillAdoptionCellReadingsTest(unittest.TestCase):

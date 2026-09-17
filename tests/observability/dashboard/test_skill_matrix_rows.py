@@ -54,15 +54,15 @@ def _rendered(case: CellCase) -> str:
 class SkillMatrixQuietCellTest(unittest.TestCase):
     """The offered-but-never-triggered cell the panel exists to report."""
 
-    def test_the_count_and_rate_are_both_toned(self) -> None:
+    def test_the_zero_is_toned_and_the_total_is_not(self) -> None:
+        # The count and the rate carry the finding, while the cohort total is
+        # the denominator that zero is read against rather than part of it --
+        # toning that one too would report the cohort itself as quiet.
         markup = _rendered(_QUIET_CELL)
+
         self.assertIn(_MUTED_ZERO, markup)
         self.assertIn(_MUTED_ZERO_RATE, markup)
-
-    def test_the_cohort_total_stays_a_plain_number(self) -> None:
-        # It is the denominator the zero is read against rather than part of
-        # the finding, so toning it too would report the cohort as quiet.
-        self.assertIn(_PLAIN_COHORT_TOTAL, _rendered(_QUIET_CELL))
+        self.assertIn(_PLAIN_COHORT_TOTAL, markup)
 
 
 class SkillMatrixCellReadingsTest(unittest.TestCase):

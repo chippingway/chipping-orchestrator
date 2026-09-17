@@ -63,29 +63,19 @@ class PublicSurfaceTest(unittest.TestCase):
     def setUp(self) -> None:
         self._config = importlib.import_module(_CONFIG_MODULE)
 
-    def test_all_has_no_duplicates(self) -> None:
+    def test_all_is_the_whole_export_contract(self) -> None:
         exported = self._config.__all__
+
         self.assertEqual(len(exported), len(set(exported)))
-
-    def test_all_matches_resolver_surface_plus_api(self) -> None:
-        self.assertEqual(
-            set(self._config.__all__),
-            _resolver_settings() | _API_NAMES,
-        )
-
-    def test_all_names_are_resolvable_attributes(self) -> None:
-        for name in self._config.__all__:
-            self.assertTrue(hasattr(self._config, name), name)
-
-    def test_repo_root_is_exported(self) -> None:
+        self.assertEqual(set(exported), _resolver_settings() | _API_NAMES)
+        for exported_name in exported:
+            self.assertTrue(hasattr(self._config, exported_name), exported_name)
         # `runtime.self_update` reads `config.REPO_ROOT` at runtime, so it has
         # to stay part of the exported surface.
-        self.assertIn("REPO_ROOT", self._config.__all__)
-
-    def test_all_lists_only_public_names(self) -> None:
+        self.assertIn("REPO_ROOT", exported)
         # `from orchestrator.config import *` exports exactly `__all__`, so a
         # surface free of private names keeps the internal API off it.
-        private = [name for name in self._config.__all__ if name.startswith("_")]
+        private = [name for name in exported if name.startswith("_")]
         self.assertEqual(private, [])
 
 
