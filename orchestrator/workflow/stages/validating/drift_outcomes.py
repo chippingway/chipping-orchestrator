@@ -26,7 +26,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, messages as _messages
+from orchestrator.workflow.engine import comments as _comments, guards as _guards, messages as _messages
 from orchestrator.workflow.stages.implementing import parks as _dev_parks
 from orchestrator.workflow.stages.validating import dev_fix as _dev_fix, models as _models, state as _state
 
@@ -63,7 +63,13 @@ def _dispose_user_content_change_result(
         if ack_reason:
             _post_drift_ack(gh, issue, state, ack_reason)
             return "ack"
-        _dev_parks._on_question(gh, issue, state, run.agent_result)
+        _dev_parks._on_question(
+            gh, issue, state,
+            _guards._ParkedRun(
+                run.agent_result,
+                _guards._ROUTE_DEV_DRIFT_RESUME,
+            ),
+        )
         return _state._OUTCOME_PARKED
     return (
         _state._OUTCOME_PUSHED

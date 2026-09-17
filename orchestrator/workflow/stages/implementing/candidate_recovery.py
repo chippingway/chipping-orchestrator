@@ -21,6 +21,7 @@ from orchestrator.git.worktrees import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import (
     checkout_parks as _checkout_parks,
     late_approval_reading as _late_approval_reading,
@@ -87,7 +88,12 @@ def _publish_committed_work(
     tree = _worktree_status._worktree_status(work.worktree)
     if not tree.is_clean:
         _checkout_parks._on_unpublishable_tree(
-            gh, issue, state, work.agent_result, tree,
+            gh, issue, state,
+            _guards._ParkedRun(
+                work.agent_result,
+                _guards._ROUTE_CANDIDATE_PUBLICATION,
+            ),
+            tree,
         )
         return
     verdict = _late_gate._holds_committed_work(

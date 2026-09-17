@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.git import commands as _git_commands
 from orchestrator.git.base_sync import pre_pr as _base_sync_pre_pr
+from orchestrator.workflow.engine import guards as _guards
 from tests.workflow.fixtures import (
     _agent,
 )
@@ -19,6 +20,11 @@ CONFLICT_ISSUE = 200
 PUSH_BRANCH = "_push_branch"
 AWAITING_HUMAN = "awaiting_human"
 LABEL_VALIDATING = "workflow:validating"
+EVENT_KEY = "event"
+PARK_AWAITING_HUMAN = "park_awaiting_human"
+ROUTE_KEY = "route"
+CONFLICT_ROUND_KEY = "conflict_round"
+PR_NUMBER_KEY = "pr_number"
 
 
 class ResolvingConflictDirtyParkingTest(unittest.TestCase, _ResolvingConflictMixin):
@@ -60,6 +66,7 @@ class ResolvingConflictDirtyParkingTest(unittest.TestCase, _ResolvingConflictMix
         mocks[PUSH_BRANCH].assert_not_called()
         self.assertTrue(gh.pinned_data(CONFLICT_ISSUE).get(AWAITING_HUMAN))
         self.assertNotIn((CONFLICT_ISSUE, LABEL_VALIDATING), gh.label_history)
+        self._assert_refusal_correlated(gh)
 
     def test_rebase_in_progress_parks_without_push(self) -> None:
         gh, issue, _ = self._seed()
@@ -150,6 +157,21 @@ class ResolvingConflictDirtyParkingTest(unittest.TestCase, _ResolvingConflictMix
         self.assertNotIn((CONFLICT_ISSUE, LABEL_VALIDATING), gh.label_history)
         state = gh.pinned_data(CONFLICT_ISSUE)
         self.assertTrue(state.get(AWAITING_HUMAN))
+
+    def _assert_refusal_correlated(self, gh) -> None:
+        """The refusal names the road that reached it and the round it ran in.
+
+        The round is the one the resume was handed, not the durable counter:
+        the rebase loop advances that on the success path alone, so a park
+        reading it back would report the round before the one that just ran.
+        """
+        park = next(
+            event for event in gh.recorded_events
+            if event[EVENT_KEY] == PARK_AWAITING_HUMAN
+        )
+        self.assertEqual(park[ROUTE_KEY], _guards._ROUTE_CONFLICT_RESUME)
+        self.assertEqual(park[CONFLICT_ROUND_KEY], 0)
+        self.assertEqual(park[PR_NUMBER_KEY], self.pr_number)
 
 
 if __name__ == "__main__":

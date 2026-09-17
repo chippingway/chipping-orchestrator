@@ -328,5 +328,10 @@ def _dispose_agent_result(
             _models._AgentWork(prepared.agent_result, prepared.worktree),
         )
     else:
-        _parks._on_question(gh, issue, state, prepared.agent_result)
+        _parks._on_question(
+            gh, issue, state,
+            _guards._ParkedRun(
+                prepared.agent_result, _guards._ROUTE_DEV_RUN,
+            ),
+        )
     gh.write_pinned_state(issue, state)
