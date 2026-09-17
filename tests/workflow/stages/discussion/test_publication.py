@@ -48,6 +48,10 @@ _PUBLISHED_ISSUE_NUMBER = 1250
 _INHERITED_PR_ISSUE_NUMBER = 1251
 
 _PLAN_SUBJECT = "docs: write down the sink schema decision"
+# A plan commit ending in the discussed issue's own number, which the
+# commit-subject contract reserves for publication: what a round run before
+# that contract, or a plan committed by hand, still leaves on the branch.
+_PLAN_COMMIT_SUBJECT = f"{_PLAN_SUBJECT} (#{_PUBLISH_ISSUE_NUMBER})"
 _CODE_PATH = "orchestrator/observability/analytics/sink.py"
 _OTHER_PLAN = "plans/issue-4.md"
 _INHERITED_PR_NUMBER = 4242
@@ -82,7 +86,7 @@ class _PublishedPlanCase(unittest.TestCase, _DiscussionWorkflowMixin):
             ),
             head_shas=_support.MOVED_HEAD,
             committed_paths=(self.plan_path(issue.number),),
-            first_commit_subject=_PLAN_SUBJECT,
+            first_commit_subject=_PLAN_COMMIT_SUBJECT,
         )
 
 
@@ -102,6 +106,10 @@ class DiscussionPlanPublicationTest(_PublishedPlanCase):
         self.assertEqual(push_call.kwargs.get(_REVISION), _support.HEAD_AFTER_COMMIT)
         self.assertEqual(len(self.gh.opened_prs), 1)
         plan_pr = self.gh.opened_prs[0]
+        # The title is the branch's own first commit subject, the way a dev
+        # PR's is -- less the tracked issue's reference, which this commit
+        # carried and the title does not repeat: the body below is where the
+        # plan says which issue it is for.
         self.assertEqual(
             (plan_pr.head_branch, plan_pr.base_branch, plan_pr.title),
             (self.branch, TEST_BASE_BRANCH, _PLAN_SUBJECT),

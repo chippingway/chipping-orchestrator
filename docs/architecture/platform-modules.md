@@ -682,9 +682,16 @@ orchestrator/
                         compiled prefix patterns, the two predicates read against them, the first-commit and
                         recent-base subject reads those predicates are applied to, and the prefix inference and
                         PR-title selection above them -- one owner, so a type added to the list cannot drift from
-                        the regex that recognizes it or from the title a caller picks with it. The subject reads
-                        honor the spec's own remote and base branch, so a deployment with mixed default branches
-                        samples the right history
+                        the regex that recognizes it or from the title a caller picks with it. That selection
+                        appends no reference, since a title is picked before the pull request has a number, but it
+                        does ask `pr_references` to DROP the tracked issue's reference from every line it reuses.
+                        A subject written under the commit-subject contract carries none and comes back untouched;
+                        the removal covers the lines that contract does not reach -- a commit made before it, one
+                        a human wrote by hand, an issue title with the number typed onto the end -- so the one
+                        owner that decides references decides this too and a title cannot disagree with the commit
+                        published under it; any other number is somebody else's link and survives. The subject
+                        reads honor the spec's own remote and base branch, so a deployment with mixed default
+                        branches samples the right history
     measurement/        how large a committed candidate is, which contribution it is, and why either is
                         sometimes unknown
       models.py         the two typed failure vocabularies -- one per reading, spelled apart so a park reason
@@ -917,8 +924,9 @@ orchestrator/
 The six subpackages bind their collaborators directly, so the dependency direction reads off the owner rather than
 off a facade:
 
-- `publication/` — `pr_references` calls nothing; `commits`, `probes`, and `titles` each call `commands` and none
-  calls another; `planning` calls `commands`, `titles`, `pr_references`, and the verification probes; `rewrite` calls
+- `publication/` — `pr_references` calls nothing; `commits` and `probes` each call `commands` and none calls
+  another; `titles` calls `commands` and `pr_references`, for the tracked-issue strip its selection borrows;
+  `planning` calls `commands`, `titles`, `pr_references`, and the verification probes; `rewrite` calls
   `commands`, `commits`, `branch_transport`, and those same verification probes; `resume` calls `rewrite` and reaches
   the gate through the one hop that owner spells; `standing` calls `resume` for the ancestry read and reaches the gate
   through that same hop; `squash` calls `planning`, `resume`, `rewrite`, and `standing`.

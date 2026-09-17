@@ -427,7 +427,9 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
   the label, so on a PR handed to a developer by a relabel it would let a merge of the plan alone close the issue as
   finished work. The body says what deciding it does instead: merging finishes the issue `done`, closing it unmerged
   finishes it `rejected`, and having the plan built is a relabel made before either. Its title comes from the plan
-  commit's own subject, and `pr_opened` is emitted with `stage="discussion"` only on the branch that really opened
+  commit's own subject, less the tracked issue's own trailing reference — a plan commit ending in the discussed
+  issue's number does not put that number on the title, since the body beside it is already what says which issue
+  the plan is for — and `pr_opened` is emitted with `stage="discussion"` only on the branch that really opened
   one. The label is untouched throughout: no `validating`, no `documenting`, no `in_review`.
 - **Output**: the agent's response quoted in an issue comment pinging `HITL_MENTIONS`, or the matching park comment;
   `awaiting_human=True` with the durable `park_reason` re-set after `_park_awaiting_human` clears it. Or, on the
