@@ -28,9 +28,9 @@ spawning a fresh one.
 Everything after the run is about what that run is allowed to publish. A
 `paused` label applied mid-run wins over the whole disposition, an agent that
 left commits or edits in a read-only worktree parks with the worktree kept for
-inspection, and an interrupted run is dropped entirely -- checked in that order
-so a killed run's changes stay inspectable rather than being discarded as
-untrustworthy.
+inspection (forwarding typed correlation fields to the shared park funnel), and
+an interrupted run is dropped entirely -- checked in that order so a killed
+run's changes stay inspectable rather than being discarded as untrustworthy.
 
 The worktree is torn down by an `ExitStack` callback rather than at each exit,
 because `keep_worktree` is decided in the middle of that sequence and every
@@ -105,6 +105,7 @@ def _process_decomposer_run(
     state: _pinned_state.PinnedState,
     run_plan: _DecomposerRunPlan,
 ) -> None:
+    """Process a finished decomposer run and dispatch its manifest or park."""
     decomposer_result = run_plan.agent_result
     if decomposer_result is None:
         return
@@ -134,6 +135,9 @@ def _process_decomposer_run(
             "uncommitted changes in the worktree, but it must be "
             "read-only. Reset the worktree before resuming.",
             reason="decomposer_dirty",
+            agent_role="decomposer",
+            session_id=decomposer_result.session_id,
+            retry_count=_guards._safe_int(state.get("retry_count")),
         )
         gh.write_pinned_state(issue, state)
         return

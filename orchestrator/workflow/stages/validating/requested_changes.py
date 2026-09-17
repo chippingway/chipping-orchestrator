@@ -26,7 +26,9 @@ wearing the reviewer's output slot; both are tagged transient so the next tick
 re-spawns the reviewer -- waking the dev on a human "retry" would hand the
 wrong agent a prompt with no review in it. Real text that merely omitted the
 marker is left for a human, and the stderr tail is suppressed there because
-the human is already reading model output.
+the human is already reading model output. Unknown-verdict and reviewer-failure
+parks forward typed correlation fields (`agent_role`, `session_id`,
+`review_round`, `retry_count`, `pr_number`) through the shared park funnel.
 """
 from __future__ import annotations
 
@@ -86,7 +88,12 @@ def _reviewer_no_verdict_park(review) -> tuple[str, str]:
 
 
 def _park_reviewer_no_verdict(
-    gh: GitHubClient, issue: Issue, state: PinnedState, review
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    review,
+    *,
+    reviewer_run: _models._ReviewerRun | None = None,
 ) -> None:
     """Park `validating` when the reviewer produced no VERDICT line.
 
@@ -95,23 +102,34 @@ def _park_reviewer_no_verdict(
     because `_park_awaiting_human` clears the field by contract. stderr
     diagnostics ride along only when there was no model output at all -- a
     human reading real reviewer text does not need the subprocess tail too.
+    Enriches the emitted park event with typed correlation fields
+    (`agent_role`, `session_id`, `review_round`, `retry_count`, `pr_number`)
+    drawn from the reviewer run and state.
     """
+    outcome = _reviewer_no_verdict_park(review)
     raw = (review.last_message or "").strip() or "(reviewer produced no final message)"
-    quoted = _messages._as_blockquote(raw)
-    park_reason, guidance = _reviewer_no_verdict_park(review)
     diag = (
         ""
         if (review.last_message or "").strip()
         else _agent_diagnostics._format_stderr_diagnostics(review, "Reviewer")
     )
+    round_val = state.get(_state._REVIEW_ROUND) if reviewer_run is None else reviewer_run.round_n
+    pr_val = state.get("pr_number") if reviewer_run is None else reviewer_run.pr_number
     _guards._park_awaiting_human(
-        gh, issue, state,
+        gh,
+        issue,
+        state,
         f"{config.HITL_MENTIONS} reviewer did not emit a VERDICT line; "
-        f"{guidance}\n\n_Last reviewer message:_\n\n"
-        f"{quoted}{diag}",
-        reason=park_reason,
+        f"{outcome[1]}\n\n_Last reviewer message:_\n\n"
+        f"{_messages._as_blockquote(raw)}{diag}",
+        reason=outcome[0],
+        agent_role="reviewer",
+        session_id=review.session_id,
+        review_round=_guards._safe_int(round_val),
+        retry_count=_guards._safe_int(state.get("retry_count")),
+        pr_number=_guards._safe_int(pr_val),
     )
-    if park_reason == _state._REASON_REVIEWER_FAILED:
+    if outcome[0] == _state._REASON_REVIEWER_FAILED:
         state.set(_state._PARK_REASON, _state._REASON_REVIEWER_FAILED)
     log.warning(
         "issue=#%s reviewer emitted no VERDICT; exit_code=%d "

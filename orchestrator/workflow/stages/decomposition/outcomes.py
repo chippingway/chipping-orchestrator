@@ -19,7 +19,9 @@ the parse cannot: a malformed manifest is the agent getting the contract wrong,
 while no manifest at all is the agent asking a question -- or saying nothing,
 which is a backend failure wearing a question's clothes. Only the silent case
 carries stderr diagnostics, because an operator answering a real question does
-not need to read subprocess noise to do it.
+not need to read subprocess noise to do it. All failed-run parks (timeout,
+silent, question, and invalid manifest) enrich the shared park funnel with
+typed correlation fields (`agent_role`, `session_id`, `retry_count`).
 """
 from __future__ import annotations
 
@@ -59,6 +61,8 @@ def _park_unparsed_manifest(
     Either a malformed manifest (`error` set) OR no manifest at all
     (question / silence, `error` None). Both park; the resume on the next
     comment runs through the awaiting_human branch of `_handle_decomposing`.
+    Forwards typed correlation fields (`agent_role`, `session_id`, `retry_count`)
+    through the shared park funnel.
     """
     last_msg = decomposer_result.last_message or ""
     if error is None:
@@ -79,6 +83,9 @@ def _park_unparsed_manifest(
             f"{config.HITL_MENTIONS} decomposer needs your input to "
             f"proceed:\n\n{quoted}{diag}",
             reason="decomposer_question" if stripped else "decomposer_silent",
+            agent_role="decomposer",
+            session_id=decomposer_result.session_id,
+            retry_count=_guards._safe_int(state.get("retry_count")),
         )
         if not stripped:
             log.warning(
@@ -97,6 +104,9 @@ def _park_unparsed_manifest(
             f"({error}); manual adjudication needed.\n\n"
             f"_Last decomposer message:_\n\n{quoted}",
             reason="decomposer_invalid_manifest",
+            agent_role="decomposer",
+            session_id=decomposer_result.session_id,
+            retry_count=_guards._safe_int(state.get("retry_count")),
         )
     gh.write_pinned_state(issue, state)
 
@@ -172,7 +182,9 @@ def _settle_decomposer_run(
     these paths preserve the decompose worktree: the caller's `finally`
     tears it down on return. The read-only dirty/commits park (which DOES
     preserve the worktree) stays inline in `_handle_decomposing` so
-    `keep_worktree` is set BEFORE the park's side effects run.
+    `keep_worktree` is set BEFORE the park's side effects run. Timeout
+    parks forward typed correlation fields (`agent_role`, `session_id`,
+    `retry_count`) through the shared park funnel.
     """
     # Live pause: an operator applied `paused` / `backlog` while the
     # decomposer ran (fresh spawn or awaiting-human resume). Dispatch only
@@ -206,6 +218,9 @@ def _settle_decomposer_run(
             f"{config.HITL_MENTIONS} decomposer timed out after "
             f"{config.AGENT_TIMEOUT}s, manual intervention needed.",
             reason="decomposer_timeout",
+            agent_role="decomposer",
+            session_id=decomposer_result.session_id,
+            retry_count=_guards._safe_int(state.get("retry_count")),
         )
         gh.write_pinned_state(issue, state)
         return True

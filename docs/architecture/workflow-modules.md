@@ -163,12 +163,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and freshly-read pause refusals, and the awaiting-human park. The first is asked ahead
                             of the second wherever a stage reads the worktree before it asks whether the run
                             happened -- what a killed run left there is the operator's to see, and what a launch
-                            that never started left is nothing. The park marks the thread read to the id of the
-                            notice it POSTED rather than to whatever the thread ends on afterwards: the two differ
-                            only for a human replying between the post and that write, and on a park waiting for a
-                            reply, reading the tip there consumes the answer with the question. A post whose id
-                            nothing could read falls back to the tip, since a watermark that never moved leaves the
-                            park's own notice to be read back as somebody's guidance on every later tick
+                            that never started left is nothing. The park forwards explicit bounded correlation
+                            fields (`agent_role`, `session_id`, `review_round`, `retry_count`, `pr_number`) to the
+                            emitted audit event and analytics record, rejecting unsupported fields before emission.
+                            It marks the thread read to the id of the notice it POSTED rather than to whatever the
+                            thread ends on afterwards: the two differ only for a human replying between the post and
+                            that write, and on a park waiting for a reply, reading the tip there consumes the answer
+                            with the question. A post whose id nothing could read falls back to the tip, since a
+                            watermark that never moved leaves the park's own notice to be read back as somebody's
+                            guidance on every later tick
     messages.py             the `ACK:` acknowledgement read out of an agent's last message, the one blockquote
                             form every agent output an issue carries is quoted in, and the two commands a HUMAN writes:
                             `/orchestrator continue` with the refusal a park needing real guidance owes it, and the
