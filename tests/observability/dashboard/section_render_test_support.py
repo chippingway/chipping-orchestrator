@@ -56,9 +56,10 @@ from tests.observability.dashboard.page_render_test_support import (
 # foot of the page.
 ISSUE_NUMBER = 118
 
-# The repository the listed runs were recorded against. No repository is picked
-# in the filters, which is what the trace answers with rather than a listing of
-# unrelated runs that happen to share a number.
+# The repository every row here belongs to, and the one the sidebar resolved
+# beside the issue number. GitHub issue numbers repeat across repositories, so
+# the trace opens on a number only once a repository says which of them it
+# names.
 RUN_REPO = "owner/repo"
 
 # The two runs the listing reports, told apart by the issue each ran on.
