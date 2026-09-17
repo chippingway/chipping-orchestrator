@@ -194,12 +194,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parser so that a doubt reads as fenced: a fence opens at the top level or in a list item,
                             closes only on a bare run at its opening run's column, and stays open to the end past a
                             line that may have ended its list item
-    report_records.py       the three additive pinned records one developer-report publication transaction is
-                            written as: the PENDING transaction a tick still owes, the CURRENT report the pull
-                            request carries, and the HANDOFF receipt saying one transaction finished. The subject
-                            they share -- repository, pull request, branch, source commit, and the requirements
-                            revision the run was actually handed -- is spelled apart, because it is the whole of
-                            what a completion has to prove again
+    report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
+                            report a completed run wrote before any of its code was published, the PENDING
+                            transaction that report is bound into once a pull request carries the code, the
+                            CURRENT report the pull request carries, and the HANDOFF receipt saying one
+                            transaction finished. The subject the last three share -- repository, pull request,
+                            branch, source commit, and the requirements revision the run was actually handed --
+                            is spelled apart, because it is the whole of what a completion has to prove again.
+                            The delivered record names the one member of it the RUN settles, the requirements
+                            revision, and nothing a pull request decides
     report_record_values.py what each recorded field may be: a receipt spelled the way the published report header
                             carries it, one repository slug, one ref-shaped branch, a number inside the range
                             GitHub issues its identities out of, and a report that says something, fits a comment
@@ -216,10 +219,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             watermarks are ratcheted forward only, which is what makes a replayed settlement a
                             no-op and what makes their ceiling load-bearing: a boundary no later comment can pass
                             leaves every human reply reading as already answered
-    report_record_fields.py the subject and the location groups both records share, read and written one way, so
-                            the pending spelling cannot drift from the settled one
-    report_record_reading.py what one recorded object reads back as: identity, routing, and the half its own mode
-                            owns, each refused whole rather than partly
+    report_record_fields.py the groups more than one report record shares, read and written one way, so no
+                            spelling can drift from another's: the subject and the location a transaction and the
+                            settled report both name, and the routing and the mode's own half a delivered report
+                            and the transaction it becomes both carry
+    report_record_reading.py what one recorded object reads back as, for both outstanding records: identity,
+                            routing, and the half its own mode owns, each refused whole rather than partly. A
+                            delivered report is the same reading with the subject left out, since a report
+                            waiting for a pull request names none
     report_record_state.py  the pending record's round trip, with presence asked apart from meaning -- a damaged
                             record and an issue with nothing outstanding are the same absence to the reader and
                             opposite answers to the guard -- and a write refused rather than truncated when its own
@@ -239,12 +246,32 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comment can carry a receipt wider than any spelling this build writes. All of it is
                             replayed through the owners that perform those writes rather than allowed for by a
                             margin, so a field added to any of them moves this refusal with it
+    report_delivery_state.py the delivered report's round trip and the write that BINDS one: presence asked apart
+                            from meaning as the transaction's is, a record refused rather than truncated where
+                            this owner's reader would not hand it back or the comment could not carry it, and the
+                            binding composed on a copy so the drop of the delivery and the record of the
+                            transaction land together or not at all -- two records claiming one report are two
+                            reports the next tick would publish, and a drop with no transaction beside it is a
+                            finished run's report lost
+    report_delivery.py      the report one finished run earns, recorded before its code is published: the outcome
+                            read off the run, the revision minted one past every report this issue has already
+                            recorded -- the settled one and any transaction still outstanding, since a receipt is
+                            spelled from the revision and a retry finds its own comment by it -- the requirements
+                            revision read off the pinned baseline the run was handed rather than computed now,
+                            and the route its caller names. The write is this owner's, because being durable
+                            before the size gate and the push is the whole of what makes the report recoverable.
+                            A run with no report outcome records nothing, and a report this build cannot store is
+                            reported and dropped rather than holding finished work behind a text. `owes_a_report`
+                            beside it is what a publication asks before it hands work on, over both records,
+                            asked as a CLAIM so a truncated one counts as a debt
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
                             one -- so either key is claimed by its presence alone, `null` included, which is the
                             one place this parts company with the pending record whose ordinary resting state that
-                            is. No stage PRODUCES this group yet; what consumes one is the reconciliation below
+                            is. What produces one is a publication that reached its report -- the initial
+                            implementation delivery through `report_binding.py` below, or the reconciliation at
+                            the end of this group a poll later
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
@@ -309,6 +336,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             settlement is re-measured against the comment as it stands before anything is posted,
                             since what the record reserved may since have been spent by the routes a deferred
                             transaction let run
+    report_binding.py       what a publication does with the report its run delivered, once the push has landed
+                            and a pull request carries it: the record bound to that publication -- the repository,
+                            the number, the branch and the commit the caller proved, beside the requirements
+                            revision the delivery already froze -- written durably BEFORE anything is posted, and
+                            then published. Both steps on every tick that gets here, because a publication whose
+                            post GitHub refused comes back with the transaction already bound and only the
+                            publication left: what a retry establishes is that the transaction is about the
+                            publication in hand, held to its pull request, branch and commit, so a record naming
+                            other work is left for the reconciliation that can prove it. A delivery that cannot
+                            be read, or that the transaction's own writer refuses, is DROPPED rather than parked
+                            -- the run that wrote it is long gone, so nothing a human does to the comment brings
+                            the report back, and holding pushed work behind it would strand it
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
                             and the stage: it hands work that has ENDED straight back -- a closed issue, or one
@@ -1244,7 +1283,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       disposition.py        run-output attribution, inherited floors, timeout parks and their recovery, and agent-result
                             settlement; both heads must be readable and the run must leave commits above its floor
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
-                            through a proved clean tree and the size gate; a recovery hands on the candidate it proved
+                            through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
+                            The report the run wrote is recorded between the tree and the gate, which is the last
+                            moment it is certainly recoverable: past it the candidate can be frozen for a human, the
+                            push can fail, and the process can die, and the session that wrote the report is gone on
+                            every one of those roads. A recovery records nothing, since no developer ran on it
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
                             take a fresh or resumed measurement; the verdict carries the basis admitting publication
       late_gate_permission.py
@@ -1724,10 +1767,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             push carried (decided once ahead of the push --
                             the one that passed the gate, or the checkout's own head where the switch named none
                             -- and made durable there, with a checkout that can name none at all publishing
-                            nothing), with the handoff below reached last -- held back until the checkout has
+                            nothing), the report the run delivered bound to that publication and published once
+                            the pull request is known -- ahead of the proofs below, since what those protect is
+                            the checkout this stage hands on and a report is about a commit already on the remote
+                            -- with the handoff below reached last: held back until the checkout has
                             been proved on both sides of the push, since the worktree is writable while those
-                            requests run -- and spending the record of that commit once the handoff it was owed
-                            lands
+                            requests run, AND until the report this publication owes is on the pull request,
+                            since nothing under `validating` would ever come back for one; and spending the
+                            record of that commit once the handoff it was owed lands. A report still owed refuses
+                            that handoff exactly as a moved checkout does, re-recording the debt so the next tick
+                            republishes the same commit onto the same pull request and finishes it -- no second
+                            developer run, and nothing new opened
       push_barrier.py       what may have ended between this tick's readings and the push it is about, asked
                             immediately before the transport and nowhere else: everything above spends a run, a
                             reading or a proof, and each is time a poll on another worker can find the world
@@ -1787,7 +1837,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             line it reuses since the body below is what links that issue; the body pairing the
                             `Resolves #N` that closes the issue with the dev session the branch was written by
                             and the run's closing message, cut on a paragraph, line, or word boundary and marked
-                            as clipped where it outgrows the cap, with a fence the cut left open closed first;
+                            as clipped where it outgrows the cap, with a fence the cut left open closed first --
+                            that closing message written only where the issue owes no report of its own, since a
+                            report is published as a comment with an identity, a revision and a digest that says
+                            it supersedes any agent message in the description, and a capped excerpt of the same
+                            run here would be a second unmarked copy of it in a place nothing rereads; a
+                            description that already carries an unmarked `_Last agent message:_` tail keeps it,
+                            because nothing can tell where that message ends and a human's words begin;
                             and the reuse of whatever is already open on the branch, which `find_open_pr`
                             promises nothing else about -- one whose body already names this session is adopted
                             as it stands, human annotations included, and one that does not (an operator's, or
@@ -1858,8 +1914,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       plan_handoff.py       the reconcile that keeps an accepted plan handoff in step with its PR until a
                             developer commits, and the marker that makes its own re-anchor recoverable
       models.py             the frozen records the owners hand each other
-      state.py              the pinned-state keys and CLI marker tuples they share, and the two retry bounds
-                            beside them: the silent parks a session survives, and the readings one frozen pair
+      state.py              the pinned-state keys and CLI marker tuples they share, the label a report this stage
+                            delivers records as its route -- a wire value like every key beside it -- and the two
+                            retry bounds: the silent parks a session survives, and the readings one frozen pair
                             may lose
     in_review/              `in_review`
       handler.py            the order one tick asks its questions in, and the missing-`pr_number` park asked before

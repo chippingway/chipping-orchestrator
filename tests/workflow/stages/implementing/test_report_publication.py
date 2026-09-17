@@ -1,0 +1,170 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""What one initial publication does with the report its developer wrote.
+
+The pull request the code reaches is the variable: one this tick opens and one
+already open on the branch. On either of them the report has to end up
+published, recorded as the one the pull request carries, and the issue reaches
+`validating` only once both of those are true. The two ways a run can hand a
+report over are the other variable -- one written for publication, and one the
+developer says is already on the thread.
+
+The pull request the size gate proved is already STANDING on the commit is the
+recovery's world rather than this one's, and it is covered beside the
+report-debt cases in `test_report_recovery`.
+"""
+
+from __future__ import annotations
+
+import unittest
+
+from orchestrator.github import developer_reports as _reports
+from tests.support.fakes import FakeComment, FakeUser
+from tests.workflow.fixtures import _TEST_SPEC, LABEL_VALIDATING, _open_pr_for
+from tests.workflow.stages.implementing import report_test_support as support
+
+REUSED_PR = 42
+
+VERIFIED_PR = 55
+
+HUMAN_REPORT_ID = 9100
+
+
+class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
+    def test_a_new_pr_carries_the_report(self) -> None:
+        github, issue = self.seeded()
+
+        self.deliver(github, issue, support.ready_message())
+
+        opened = github.opened_prs[0]
+        posted = support.published_reports(github, opened.number)
+        self.assertEqual(len(posted), 1)
+        self.assertIn(support.REPORT_TEXT, posted[0].body)
+        recorded = github.pinned_data(support.REPORT_ISSUE)
+        self.assertEqual(
+            recorded[support.CURRENT_RECORD],
+            {
+                "repo": _TEST_SPEC.slug,
+                "pr": opened.number,
+                "branch": support.BRANCH,
+                "sha": support.PUBLISHED_SHA,
+                "requirements": recorded["user_content_hash"],
+                "revision": 1,
+                "content": _reports.content_digest(support.REPORT_TEXT),
+                "location_pr": opened.number,
+                "location_comment": posted[0].id,
+            },
+        )
+        self.assertEqual(
+            recorded[support.HANDOFF_RECORD],
+            {
+                "receipt": f"issue-{support.REPORT_ISSUE}-report-1",
+                "pr": opened.number,
+                "revision": 1,
+                "sha": support.PUBLISHED_SHA,
+            },
+        )
+        # Both outstanding records are settled, and the issue only moves on
+        # because they are.
+        self.assertEqual(
+            (
+                recorded[support.DELIVERY_RECORD],
+                recorded[support.PENDING_RECORD],
+            ),
+            (None, None),
+        )
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+    def test_a_new_pr_body_defers_to_the_report(self) -> None:
+        # The report comment is the authority, so the description carries what
+        # only it can -- the closing reference and the attribution -- and no
+        # unmarked, unversioned copy of the report beside it.
+        github, issue = self.seeded()
+
+        self.deliver(github, issue, support.ready_message())
+
+        opened = github.opened_prs[0]
+        self.assertIn(f"Resolves #{support.REPORT_ISSUE}", opened.body)
+        self.assertIn(support.DEV_SESSION, opened.body)
+        self.assertNotIn(support.LAST_MESSAGE_HEADING, opened.body)
+        self.assertNotIn(support.REPORT_TEXT, opened.body)
+
+    def test_a_reused_pr_carries_the_report(self) -> None:
+        # A pull request already open on the branch -- a tick that died after
+        # opening one, or an operator's -- is adopted rather than opened over,
+        # and the report goes onto it.
+        github, issue = self.seeded()
+        reused = _open_pr_for(
+            github, issue_number=support.REPORT_ISSUE, pr_number=REUSED_PR,
+        )
+        github.existing_open_pr[support.BRANCH] = reused
+
+        self.deliver(github, issue, support.ready_message())
+
+        self.assertEqual(github.opened_prs, [])
+        self.assertEqual(len(support.published_reports(github, REUSED_PR)), 1)
+        recorded = github.pinned_data(support.REPORT_ISSUE)
+        self.assertEqual(recorded[support.CURRENT_RECORD]["pr"], REUSED_PR)
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+        # The body is rewritten to name this implementation, and the rewrite
+        # carries no copy of the report either.
+        self.assertIn(f"Resolves #{support.REPORT_ISSUE}", reused.body)
+        self.assertNotIn(support.LAST_MESSAGE_HEADING, reused.body)
+
+    def test_a_verified_report_posts_nothing(self) -> None:
+        # The developer read a report a human published and asserted it. The
+        # location is re-read rather than believed, and nothing is posted.
+        github, issue = self.seeded()
+        reused = _open_pr_for(
+            github, issue_number=support.REPORT_ISSUE, pr_number=VERIFIED_PR,
+        )
+        github.existing_open_pr[support.BRANCH] = reused
+        human = FakeComment(
+            id=HUMAN_REPORT_ID,
+            body="the human's own report",
+            user=FakeUser("alice"),
+        )
+        reused.issue_comments.append(human)
+
+        self.deliver(
+            github,
+            issue,
+            support.verified_message(reused.number, human.id, human.body),
+        )
+
+        self.assertEqual(github.posted_pr_comments, [])
+        settled = github.pinned_data(support.REPORT_ISSUE)[
+            support.CURRENT_RECORD
+        ]
+        self.assertEqual(
+            (settled["content"], settled["location_comment"]),
+            (_reports.content_digest(human.body), human.id),
+        )
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+    def test_a_run_with_no_report_publishes(self) -> None:
+        # No report outcome, so nothing is recorded, nothing is published, and
+        # the description keeps the final message it has always carried.
+        github, issue = self.seeded()
+
+        self.deliver(github, issue, "implemented, nothing else to say")
+
+        opened = github.opened_prs[0]
+        self.assertEqual(github.get_pr(opened.number).issue_comments, [])
+        recorded = github.pinned_data(support.REPORT_ISSUE)
+        self.assertNotIn(support.DELIVERY_RECORD, recorded)
+        self.assertNotIn(support.CURRENT_RECORD, recorded)
+        self.assertIn(support.LAST_MESSAGE_HEADING, opened.body)
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

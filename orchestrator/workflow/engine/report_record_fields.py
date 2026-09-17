@@ -1,14 +1,16 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The two groups every report record shares, read and written one way.
+"""The groups every report record shares, read and written one way.
 
 A pending transaction and the current report it settles into both name the same
-subject and both name a place on a pull request, so the spelling lives here
-rather than in each round trip. Two owners spelling one group is how the pending
-record comes to carry a field the settled one drops, and a reader of the second
-would then answer for a record the first could still write.
+subject and both name a place on a pull request; a delivered report and the
+transaction it is bound into both say how they complete and both carry one
+mode's own half. So each spelling lives here rather than in each round trip.
+Two owners spelling one group is how the pending record comes to carry a field
+the settled one drops, and a reader of the second would then answer for a record
+the first could still write.
 
-Both are read fail-closed and all-or-nothing. A subject short of any member is
+Every group is read fail-closed and all-or-nothing. A subject short of any member is
 not a weaker binding, it is no binding: a completion proves the repository, the
 pull request, the branch, the commit and the requirements revision TOGETHER, and
 a group missing one of them would have that proof silently skipped. A
@@ -44,6 +46,18 @@ _REQUIREMENTS = "requirements"
 _LOCATION_PR = "location_pr"
 
 _LOCATION_COMMENT = "location_comment"
+
+_MODE = "mode"
+
+_ROUTE = "route"
+
+_REPORT = "report"
+
+_CONTENT_DIGEST = "content"
+
+_WATERMARKS = "watermarks"
+
+_SPENDS = "spends"
 
 
 def subject_from(recorded: dict) -> _records.ReportSubject | None:
@@ -115,4 +129,51 @@ def location_fields(location: ReportLocation) -> dict[str, Any]:
     return {
         _LOCATION_PR: location.pr_number,
         _LOCATION_COMMENT: location.comment_id,
+    }
+
+
+def routing_fields(
+    record: _records.DeliveredReport | _records.PendingReport,
+) -> dict[str, Any]:
+    """Return the pinned fields one record's routing and owed bookkeeping are.
+
+    The mode and the route are vocabulary members and are written as the
+    strings their own readers admit, so a record says which road it completes
+    on rather than carrying a spelling nothing would recognize.
+
+    Both pair groups are written on EVERY record, empty included, because an
+    absent group and an empty one mean opposite things to the reader: one is a
+    transaction that owes no watermark and closes no round -- an initial
+    publication is exactly that -- and the other is a truncation.
+    """
+    return {
+        _MODE: str(record.mode),
+        _ROUTE: str(record.route),
+        _WATERMARKS: [list(pair) for pair in record.watermarks],
+        _SPENDS: [list(pair) for pair in record.spends],
+    }
+
+
+def carried_fields(
+    record: _records.DeliveredReport | _records.PendingReport,
+) -> dict[str, Any] | None:
+    """Return the fields one record's own mode carries, or None for none.
+
+    The mode's own half is written only under the mode that owns it, so a
+    record says one thing rather than carrying a text and a location that
+    could disagree about which report it is about.
+
+    None for a verification carrying no location. The field is optional on
+    both records because a publication has none, so a verification without one
+    is a value a caller can construct and this owner cannot record -- answered
+    as the refusal the round trips promise rather than raised out of the middle
+    of one, which would leave that promise unkept.
+    """
+    if record.mode is _records.ReportMode.PUBLISH:
+        return {_REPORT: record.report}
+    if record.location is None:
+        return None
+    return {
+        _CONTENT_DIGEST: record.content_revision,
+        **location_fields(record.location),
     }

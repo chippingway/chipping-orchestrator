@@ -59,18 +59,6 @@ _RECEIPT = "receipt"
 
 _REVISION = "revision"
 
-_MODE = "mode"
-
-_ROUTE = "route"
-
-_REPORT = "report"
-
-_CONTENT_DIGEST = "content"
-
-_WATERMARKS = "watermarks"
-
-_SPENDS = "spends"
-
 # The two values a settlement will hold that this transaction cannot yet name:
 # the digest the published text will hash to, and the comment id GitHub will
 # answer the post with -- which is recorded twice, once as the report's exact
@@ -307,31 +295,21 @@ def clear_pending_report(state: _pinned_state.PinnedState) -> None:
 def _encoded(pending: _records.PendingReport) -> dict[str, Any] | None:
     """Return the pinned object one transaction is recorded as, or None.
 
-    The mode's own half is written only under the mode that owns it, so a
-    record says one thing rather than carrying a text and a location that
-    could disagree about which report it is about.
+    The subject is what this record adds to the report a run delivered, and
+    the groups either of them could carry are spelled by the owner they share,
+    so a field added to one is a field on both rather than on whichever round
+    trip was edited.
 
-    None for a verification carrying no location. The field is optional on the
-    transaction because a publication has none, so a verification without one
-    is a value a caller can construct and this owner cannot record -- answered
-    as the refusal `record_pending_report` promises rather than raised out of
-    the middle of it, which would leave that promise unkept.
+    None for a verification carrying no location, which is the refusal
+    `record_pending_report` promises answered where the record is built.
     """
-    carried: dict[str, Any] = {_REPORT: pending.report}
-    if pending.mode is _records.ReportMode.VERIFY:
-        if pending.location is None:
-            return None
-        carried = {
-            _CONTENT_DIGEST: pending.content_revision,
-            **_fields.location_fields(pending.location),
-        }
+    carried = _fields.carried_fields(pending)
+    if carried is None:
+        return None
     return {
         _RECEIPT: pending.receipt,
         **_fields.subject_fields(pending.subject),
         _REVISION: pending.report_revision,
-        _MODE: str(pending.mode),
-        _ROUTE: str(pending.route),
-        _WATERMARKS: [list(pair) for pair in pending.watermarks],
-        _SPENDS: [list(pair) for pair in pending.spends],
+        **_fields.routing_fields(pending),
         **carried,
     }

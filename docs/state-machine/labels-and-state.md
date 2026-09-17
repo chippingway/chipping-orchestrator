@@ -613,18 +613,33 @@ The keys that matter for the state machine fall into a few groups:
 - **Drift baseline.** `user_content_hash` — SHA-256 over title + body + non-orchestrator comments; updated whenever
   the orchestrator reacts to a human edit.
 - **The developer report a pull request is owed and the one it carries.** The additive
-  `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group, each one nested
+  `developer_report_delivery` / `developer_report_pending` / `developer_report_current` /
+  `developer_report_handoff` group, each one nested
   object, and each absent on every issue that predates it. They are not written together and none of them replaces
-  another: the pending record goes down when a transaction starts and is dropped when it settles, while the settled
+  another: the delivery record goes down when a run finishes and is dropped by the write that binds it, the pending
+  record goes down when that binding happens and is dropped when it settles, while the settled
   pair records the last report that landed and stays until a later settlement overwrites it. So an issue between
-  publications carries the settled pair and no pending record; an issue inside its FIRST publication carries the
-  pending record and neither settled one; and an issue inside any later publication carries all three at once — the
-  new transaction beside the previous report and its receipt, which are what a reader still needs while the new one
+  publications carries the settled pair and neither outstanding record; an issue whose run has reported and whose
+  code is not published yet carries the delivery record alone; an issue inside its FIRST publication carries the
+  pending record and neither settled one; and an issue inside any later publication carries the transaction beside
+  the previous report and its receipt, which are what a reader still needs while the new one
   is outstanding and are exactly what the settlement then replaces. The owners are the
-  `workflow/engine/report_record*` and `report_settlement_state` modules, and what reconciles them ahead of every
+  `workflow/engine/report_record*`, `report_delivery_state` and `report_settlement_state` modules; what produces the
+  first two is a delivery reaching its publication (`report_delivery.py` records, `report_binding.py` binds and
+  publishes), and what reconciles an outstanding transaction ahead of every
   handler is [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch).
-  No stage PRODUCES a record yet, so the group is empty on every live issue; the dispatcher's reconciliation is what
-  finishes one the moment a stage does.
+
+  `developer_report_delivery` is what one completed run wrote, recorded **before** the size gate reads its candidate
+  and before the push sends it — which is the last moment the report is certainly recoverable, since the session
+  that wrote it ends with the tick and every road past that line can freeze the work for a human, fail, or die. It
+  carries the receipt the transaction will be named by, the report revision, whether a publication or a
+  verification is owed, the route that produced it, the complete report text or the exact location and content
+  revision a verification asserts, the feedback watermarks the run consumed, the bookkeeping its route closes, and
+  the requirements revision the run was actually handed. It names no pull request, no branch and no commit, because
+  none of those is settled until the code is published: the write that binds the record adds them as the subject
+  below and drops the delivery in the same write. The revision is minted one past every report the issue has already
+  recorded — the settled one and any transaction still outstanding — because the receipt is spelled from it and a
+  retry finds its own comment by that receipt.
 
   `developer_report_pending` is one publication transaction, written **before** the report or the code it reports
   on is published — that ordering is the whole of what makes the publication recoverable. It carries the receipt
@@ -655,9 +670,11 @@ The keys that matter for the state machine fall into a few groups:
   issue with nothing recorded reads as, presence is asked apart from meaning: an issue that CLAIMS a record nobody
   can describe is the one answer a guard may not confuse with an issue that owes none.
 
-  What counts as a claim differs across the three, and it follows from which of them is ever cleared.
-  `developer_report_pending` is cleared on every settlement — the key stays and holds `null` — so `null` there is
-  its ordinary resting state and an absence, and only a payload that is present and is not an object is a claim.
+  What counts as a claim differs across the four, and it follows from which of them is ever cleared.
+  `developer_report_delivery` is cleared by the write that binds it — and by the one that gives up on a record no
+  binding could accept — and `developer_report_pending` is cleared on every settlement. Both keep the key and hold
+  `null`, so `null` on either is its ordinary resting state and an absence, and only a payload that is present and
+  is not an object is a claim.
   Nothing clears either settled record; a settlement REPLACES one. So `developer_report_current` and
   `developer_report_handoff` are claimed by the presence of their key alone, `null` included: a `null` there is a
   truncated write or a hand edit, and read as an absence it would be silently replaced after the next report is

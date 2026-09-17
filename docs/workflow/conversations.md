@@ -229,21 +229,26 @@ that fence opened at the top level or in a list item (`workflow/engine/report_fe
 location and revision are parsed for shape only; completing on one is owed a fresh read of that location whose text
 still hashes to the revision.
 
-No stage handler calls `report_outcomes` or records a report transaction, so nothing yet turns an outcome a developer
-emitted into one. A developer run is still routed by its commits, its `ACK:` line, and the question parks the
-[delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read the way its
-stage reads any other no-commit reply without `ACK:`.
+The **initial implementation delivery** is the road that acts on an outcome: `workflow/engine/report_delivery.py`
+reads one out of the run the disposition is publishing and records it before the size gate and the push, and
+`report_binding.py` binds it to the pull request the code reaches and publishes it there
+([`../state-machine/delivery-stages.md#_handle_implementing-label-workflowimplementing`](../state-machine/delivery-stages.md#_handle_implementing-label-workflowimplementing)).
+Every other developer road is still routed by its commits, its `ACK:` line, and the question parks the
+[delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read there the
+way its stage reads any other no-commit reply without `ACK:`.
 
-What publication there is belongs to the dispatcher rather than to any stage. The additive
-`developer_report_pending` / `developer_report_current` / `developer_report_handoff` group
+Publication is recoverable because the records outlive the process. The additive
+`developer_report_delivery` / `developer_report_pending` / `developer_report_current` /
+`developer_report_handoff` group
 ([`../state-machine/labels-and-state.md#pinned-state`](../state-machine/labels-and-state.md#pinned-state)) is what
 carries one outstanding publication across a process that dies mid-way — the complete report text included, since a
 transaction recovered from a text nobody kept would have to ask an agent to write it again, and a second run is not
-the same report. Where such a record exists, [the developer-report transaction][report-transaction] reconciles it
-ahead of every handler and publishes through the developer-report comment owners
+the same report. The publication that records one also tries to complete it, and where that did not happen
+[the developer-report transaction][report-transaction] reconciles it
+ahead of every handler; both publish through the developer-report comment owners
 (`github/developer_reports.py`, `github/pull_request_reports.py`, and `workflow/engine/comments.py`'s
-`_publish_developer_report`). It never reads an agent's message: what it acts on is the record a stage will write,
-and on an issue carrying no such record it costs one pinned read that has already happened.
+`_publish_developer_report`). The reconciliation never reads an agent's message: what it acts on is the record a
+stage wrote, and on an issue carrying none it costs one pinned read that has already happened.
 
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion

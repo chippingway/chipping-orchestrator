@@ -2,13 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """What one recorded object reads back as, or why it reads back as nothing.
 
-The read half of the pending transaction's round trip, apart from the writes
-that stage one. Every member is read before any is judged, so the refusal is
-about the RECORD rather than about whichever field happened to be looked at
-first -- and a record short of any member is refused whole, because the members
-are proved together: a transaction bound to a pull request nobody checked, on a
-branch nobody resolved, over a commit nobody named is not a weaker transaction,
-it is one this build cannot act on.
+The read half of both outstanding records -- the report a run delivered and the
+transaction it is bound into -- apart from the writes that stage either. Every
+member is read before any is judged, so the refusal is about the RECORD rather
+than about whichever field happened to be looked at first -- and a record short
+of any member is refused whole, because the members are proved together: a
+transaction bound to a pull request nobody checked, on a branch nobody resolved,
+over a commit nobody named is not a weaker transaction, it is one this build
+cannot act on.
+
+The two share every group but the subject, and the reader that hands a delivered
+report back is the same three readings with that one left out: a report waiting
+for a pull request names none, and the requirements revision it does name is the
+one member of a subject the run itself settles.
 
 The two pair groups are the one place where absent and unreadable have to stay
 apart. A transaction that consumed no feedback and closes no reviewer round is
@@ -35,6 +41,8 @@ from orchestrator.workflow.state import WorkflowLabel
 _RECEIPT = "receipt"
 
 _REVISION = "revision"
+
+_REQUIREMENTS = "requirements"
 
 _MODE = "mode"
 
@@ -64,6 +72,37 @@ def pending_from(recorded: dict) -> _records.PendingReport | None:
     if carried is None or not _bound_to_subject(identity, carried):
         return None
     return _records.PendingReport(**identity, **routing, **carried)
+
+
+def delivered_from(recorded: dict) -> _records.DeliveredReport | None:
+    """Return the delivered report one recorded object is, or None for damage.
+
+    The same all-or-nothing reading the transaction gets, over the members a
+    completed run settles: what the transaction will be called, which report
+    revision it is, the requirements it answers, how and on which route it
+    completes, and the mode's own half. A record short of any of them is one
+    no publication could be bound from -- and read as an absence it would be a
+    finished run's report dropped without a word on the tick that publishes
+    its code.
+    """
+    receipt = _record_values.as_receipt(recorded.get(_RECEIPT))
+    revision = _record_values.as_recorded_number(recorded.get(_REVISION))
+    requirements = _payloads.as_hex(
+        recorded.get(_REQUIREMENTS), _formats.DIGEST_LENGTHS,
+    )
+    routing = _routing_of(recorded)
+    if not receipt or not revision or not requirements or routing is None:
+        return None
+    carried = _carried_by_mode(recorded, routing[_MODE])
+    if carried is None:
+        return None
+    return _records.DeliveredReport(
+        receipt=receipt,
+        report_revision=revision,
+        requirements_revision=requirements,
+        **routing,
+        **carried,
+    )
 
 
 def _bound_to_subject(identity: dict, carried: dict) -> bool:

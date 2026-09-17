@@ -10,6 +10,20 @@ that closes the issue on merge with the dev session that wrote the branch, and
 with the agent's closing message where the run produced one -- capped, and cut
 on a boundary that leaves the Markdown around it intact.
 
+That closing message is written only where this issue owes no developer report.
+A report of its own is published as a comment with an identity, a revision and a
+digest, and it says in as many words that it supersedes any agent message in the
+description -- so a capped excerpt of the same run written here as well would be
+a second, unmarked, unversioned copy of the report in a place nothing records or
+rereads. Where the report is the authority, the description carries what only it
+can: the closing reference and the attribution.
+
+Nothing already on a description is ever removed on that account. A body written
+before this record existed carries its agent message under an unmarked
+`_Last agent message:_` heading, and nothing can tell where that message ends
+and a human's own words begin -- so the tail stays where it is, historical, and
+the report comment is what a reader is pointed at.
+
 The attribution line is what holds the two halves of this owner together. The
 body states it, and the reuse below reads it back off a pull request of unknown
 provenance: `find_open_pr` promises only that something is open on the branch,
@@ -34,7 +48,10 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.publication import titles as _titles
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    report_delivery as _report_delivery,
+)
 from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
     models as _models,
@@ -105,13 +122,26 @@ def _build_pr_body(
     state: _pinned_state.PinnedState, issue: Issue, agent_result: AgentResult,
 ) -> str:
     """PR body: the `Resolves #N` line, the generating session's identity, and
-    the (capped) final agent message when the run produced one."""
+    the (capped) final agent message when the run produced one and this issue
+    owes no report of its own.
+
+    The two lines above the message are what the description alone can say: the
+    reference that closes the issue on merge, and the session the reuse below
+    reads back before it adopts a pull request somebody else opened.
+
+    The message is the half a report replaces. An issue that owes one is going
+    to have it published as a comment carrying its own identity, revision and
+    digest, and saying that it supersedes any agent message here -- so writing a
+    capped excerpt of the same run into the description too would leave two
+    copies of one report, one of them unmarked and unversioned, in a place
+    nothing rereads.
+    """
     body_parts = [
         f"Resolves #{issue.number}",
         "",
         _dev_pr_attribution(state),
     ]
-    if agent_result.last_message.strip():
+    if agent_result.last_message.strip() and not _report_delivery.owes_a_report(state):
         body_parts += [
             "", "---", "_Last agent message:_", "",
             _format_pr_agent_message(agent_result.last_message),

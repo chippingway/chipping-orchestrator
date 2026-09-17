@@ -1,0 +1,121 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""Fixtures for the developer report an implementing publication delivers.
+
+The world every case here runs in is the ordinary fresh publication: a clean
+worktree carrying one commit, a push that lands, and a developer whose final
+message ends on one of the two report outcomes. What each case varies is the
+outcome, the pull request the code reaches, or the way GitHub answers the post.
+"""
+
+from __future__ import annotations
+
+from orchestrator.github import developer_reports as _reports
+from orchestrator.workflow.engine import report_records as _records
+from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.workflow.fixtures import (
+    LABEL_IMPLEMENTING,
+    MEASURED_CANDIDATE_SHA,
+    _agent,
+    _issue_branch,
+    _PatchedWorkflowMixin,
+)
+
+DEV_SESSION = "sess-report"
+
+REPORT_ISSUE = 1
+
+# The commit the ordinary world publishes, which is the one the size gate
+# proves the checkout to and the one every record here is about.
+PUBLISHED_SHA = MEASURED_CANDIDATE_SHA
+
+BRANCH = _issue_branch(REPORT_ISSUE)
+
+REPORT_TEXT = "Adds the thing the issue asked for. Verified with the suite."
+
+LAST_MESSAGE_HEADING = "_Last agent message:_"
+
+DELIVERY_RECORD = _records.DELIVERED_REPORT
+PENDING_RECORD = _records.PENDING_REPORT
+CURRENT_RECORD = _records.CURRENT_REPORT
+HANDOFF_RECORD = _records.REPORT_HANDOFF
+
+
+def ready_message(report: str = REPORT_TEXT) -> str:
+    """A finished run's message, ending on a report ready for publication."""
+    return f"implemented\n\nREPORT: READY\n{report}\nREPORT: END"
+
+
+def verified_message(pr_number: int, comment_id: int, body: str) -> str:
+    """A finished run's message, asserting a report is already published."""
+    return (
+        "implemented\n\nREPORT: VERIFIED "
+        f"https://github.com/chippingway/orchestrator/pull/{pr_number}"
+        f"#issuecomment-{comment_id} sha256:{_reports.content_digest(body)}"
+    )
+
+
+def receipt_scope(revision: int = 1, issue_number: int = REPORT_ISSUE) -> str:
+    """The header prefix every comment published for one transaction carries."""
+    return _reports.DeveloperReport(
+        pr_number=1,
+        source_sha=PUBLISHED_SHA,
+        requirements_revision="r",
+        report_revision=revision,
+        receipt=f"issue-{issue_number}-report-{revision}",
+        text=REPORT_TEXT,
+    ).receipt_scope
+
+
+def published_reports(github, pr_number: int, revision: int = 1) -> list:
+    """Every comment on one pull request published for one transaction."""
+    return [
+        posted for posted in github.get_pr(pr_number).issue_comments
+        if receipt_scope(revision) in posted.body
+    ]
+
+
+class _ReportDeliveryMixin(_PatchedWorkflowMixin):
+    """One implementing tick over a worktree that carries a fresh commit."""
+
+    def seeded(self, issue_number: int = REPORT_ISSUE):
+        """An open issue labelled `implementing`, with nothing recorded yet."""
+        github = FakeGitHubClient()
+        issue = make_issue(issue_number, label=LABEL_IMPLEMENTING)
+        github.add_issue(issue)
+        return github, issue
+
+    def deliver(self, github, issue, message: str, **run_options):
+        """Run one tick whose developer comes back with `message`."""
+        options = {
+            "has_new_commits": [False, True],
+            "dirty_files": (),
+            "push_branch": True,
+            **run_options,
+        }
+        return self._run_implementing(
+            github,
+            issue,
+            run_agent=_agent(session_id=DEV_SESSION, last_message=message),
+            **options,
+        )
+
+    def republish(self, github, issue, **run_options):
+        """Run the tick that recovers a publication whose report is still owed.
+
+        No developer runs on it: the approval record names the commit that is
+        already pushed, so the recovery republishes it and finishes whatever
+        the tick before could not.
+        """
+        options = {
+            "has_new_commits": True,
+            "dirty_files": (),
+            "push_branch": True,
+            **run_options,
+        }
+        return self._run_implementing(
+            github,
+            issue,
+            run_agent=_agent(session_id=DEV_SESSION, last_message="unused"),
+            **options,
+        )

@@ -21,6 +21,7 @@ from orchestrator.git.worktrees import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import report_delivery as _report_delivery
 from orchestrator.workflow.stages.implementing import (
     checkout_parks as _checkout_parks,
     late_approval_reading as _late_approval_reading,
@@ -82,6 +83,17 @@ def _publish_committed_work(
     something different there, and the gate is told which kind of tick it is
     by the work it is handed rather than left to guess from a checkout that
     cannot say.
+
+    The report the run wrote is recorded between the tree and the gate, and
+    the placement is the whole of what makes it recoverable. Past this line
+    the candidate can be frozen for a human to adjudicate, the push can fail,
+    and the process can die -- and on every one of those the session that
+    wrote the report is gone, so a report only held in memory is a report
+    nothing can ever get back. Behind the tree reading because a tree that
+    cannot publish is one this disposition is not finishing at all. Ahead of
+    the gate because the gate is the first thing that can hold the work for a
+    human. A run that produced no report records nothing and pays nothing,
+    which is every recovery that reaches this seam.
     """
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
     tree = _worktree_status._worktree_status(work.worktree)
@@ -90,6 +102,9 @@ def _publish_committed_work(
             gh, issue, state, work.agent_result, tree,
         )
         return
+    _report_delivery.records_delivered_report(
+        gh, issue, state, work.agent_result, _state._REPORT_ROUTE,
+    )
     verdict = _late_gate._holds_committed_work(
         gh, spec, issue, state, work,
     )
