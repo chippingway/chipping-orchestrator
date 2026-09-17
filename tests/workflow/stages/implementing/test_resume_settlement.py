@@ -67,6 +67,20 @@ _DIFF_FAILED = MeasurementFailure.DIFF_FAILED
 # because the table below hands it over for most of its cases.
 _RUN = "run"
 
+# Where a whole tick's agent run is intercepted, and where its prompt sits in
+# the call: the two cases that ask what an agent was really handed run the
+# dispatched handler rather than the resume helper.
+_RUN_AGENT = "run_agent"
+_PROMPT_ARGUMENT = 1
+
+# The opening line of the prompt an explicit retry issues. It carries no
+# comment of anybody's, which is the whole difference from a generic resume.
+_RETRIED = "Resuming after a session/usage limit"
+
+# What the retried session answers with: words and no commit, the end that
+# parks again without publishing anything.
+_ASKS = "which of the two did you mean?"
+
 # The two parks a bare `/orchestrator continue` is an answer on, and so the
 # two the classifier that answers it owns a batch of: one it retries, and one
 # it refuses because the park needs words a command does not carry.
@@ -217,6 +231,11 @@ class ContinueReservationTest(_support._ParkedThread, unittest.TestCase):
     else's: fed to a developer as prose, the retry the operator bought -- or
     the refusal a park needing real guidance owes them -- is gone, and the
     watermark moves past the words that asked for it.
+
+    Which batch each of them classifies is the other half of it. Both the
+    preflight and this reservation read the replies a prompt would be built
+    from, so a comment neither would deliver cannot make one of them call the
+    batch mixed while the other hands the command over as prose.
     """
 
     def test_a_late_bare_continue_is_reserved(self) -> None:
@@ -258,22 +277,96 @@ class ContinueReservationTest(_support._ParkedThread, unittest.TestCase):
 
         resumed.call.assert_called_once()
 
+    def test_our_notice_over_a_command_still_retries(self) -> None:
+        # The whole two-tick shape: the operator writes the command while the
+        # developer is out, the timeout park posts its notice above it, and
+        # the bound leaves both unread. Counted as somebody's words, that
+        # notice makes the thread look mixed to the classifier, the command
+        # falls through as prose, and a developer is paid to read
+        # `/orchestrator continue` as requirements.
+        self._times_out_while_one_commands()
 
-class _CommitsWhileOneLands:
-    """A run that commits, with one reply written while it is out.
+        prompt = self._prompt_of_the_next_tick()
+
+        self.assertIn(_RETRIED, prompt)
+        self.assertNotIn(_consent_payloads.CONTINUE, prompt)
+
+    def test_a_forged_marker_over_it_still_retries(self) -> None:
+        # The same mismatch one step over, and the reason the marker alone
+        # settles nothing: a body anybody may paste reaches no prompt, so it
+        # may not decide who owns the batch either.
+        self._seed(**{
+            _state._PARK_REASON: _state._AGENT_TIMEOUT,
+            _state._DEV_AGENT: _BACKEND,
+            _state._DEV_SESSION_ID: _SESSION,
+        })
+        self._they_say(_consent_payloads.CONTINUE)
+        self._they_say(_support.FORGED)
+
+        prompt = self._prompt_of_the_next_tick()
+
+        self.assertIn(_RETRIED, prompt)
+        self.assertNotIn(_consent_payloads.CONTINUE, prompt)
+        self.assertNotIn(_support.FORGED, prompt)
+
+    def _times_out_while_one_commands(self) -> None:
+        """One whole tick: guidance resumes a developer, it times out, and the
+        operator writes the retry while it is still out.
+
+        The park this leaves is the premise of the tick after it -- the
+        command unread under a notice of ours that the mark stops below.
+        """
+        self._seed(**{
+            _state._DEV_AGENT: _BACKEND,
+            _state._DEV_SESSION_ID: _SESSION,
+        })
+        guided = self._they_say(_support.GUIDANCE)
+        landing = _RunsWhileOneLands(
+            self, _consent_payloads.CONTINUE, _agent(timed_out=True),
+        )
+        self._run_implementing(
+            self.github,
+            self.issue,
+            run_agent=MagicMock(side_effect=landing),
+            has_new_commits=False,
+        )
+        pinned = self.github.pinned_data(_support.ISSUE_NUMBER)
+        self.assertEqual(pinned[_state._PARK_REASON], _state._AGENT_TIMEOUT)
+        self.assertEqual(pinned[_state._LAST_ACTION_COMMENT_ID], guided)
+
+    def _prompt_of_the_next_tick(self) -> str:
+        """The one prompt the poll after that park hands an agent."""
+        mocks = self._run_implementing(
+            self.github,
+            self.issue,
+            run_agent=_agent(last_message=_ASKS),
+            has_new_commits=False,
+        )
+        mocks[_RUN_AGENT].assert_called_once()
+        return mocks[_RUN_AGENT].call_args.args[_PROMPT_ARGUMENT]
+
+
+class _RunsWhileOneLands:
+    """A developer run with one reply written inside the minutes it takes.
 
     A class rather than a closure because the runner this repository patches
     is a value with a name, and what these cases need is a comment written
-    inside the minutes the run takes.
+    while the run is out -- the only window a park's own notice can land
+    above, and so the only one that can put our sentence between a command and
+    the road that owns it.
     """
 
-    def __init__(self, case) -> None:
+    def __init__(self, case, said: str = _LANDED_MID_RUN, answers=None) -> None:
         self._case = case
+        self._said = said
+        self._answers = (
+            _agent(last_message=_COMMITTED) if answers is None else answers
+        )
         self.landed = 0
 
     def __call__(self, *called, **options):
-        self.landed = self._case._they_say(_LANDED_MID_RUN)
-        return _agent(last_message=_COMMITTED)
+        self.landed = self._case._they_say(self._said)
+        return self._answers
 
 
 class CommittedRunParkTest(_support._ParkedThread, unittest.TestCase):
@@ -317,7 +410,7 @@ class CommittedRunParkTest(_support._ParkedThread, unittest.TestCase):
             _state._DEV_SESSION_ID: _SESSION,
         })
         spoke = self._they_say(_support.GUIDANCE)
-        landing = _CommitsWhileOneLands(self)
+        landing = _RunsWhileOneLands(self)
         self._run_implementing(
             self.github,
             self.issue,

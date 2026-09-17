@@ -17,7 +17,10 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
+from orchestrator.workflow.engine import (
+    comments as _engine_comments,
+    run_ledger_values as _run_ledger_values,
+)
 from orchestrator.workflow.late_split import (
     ancestry as _ancestry,
     lineage as _lineage,
@@ -120,8 +123,16 @@ KEY_RETIRED_CYCLE = "late_retired_cycle_id"
 PHASE_MEASURING = "measuring"
 
 TRUSTED_AUTHOR = "alice"
+# The account the token belongs to, which is what our own notices are posted
+# under. Separate from the author above because the id ledger -- not the login
+# -- is what says a comment is ours.
+BOT_LOGIN = "orchestrator"
 PRIOR_ACTION_COMMENT_ID = 900
 REPLY_COMMENT_ID = 1100
+# The park's own notice, which lands ABOVE a reply written while the agent was
+# out -- comment ids ascend, and the post is the last thing the tick does.
+NOTICE_COMMENT_ID = 1200
+PARK_NOTICE = "could not measure the committed candidate"
 BARE_CONTINUE = "/orchestrator continue"
 # The session a resume continues, seeded so a resumed run is the pinned
 # one rather than a fresh spawn.
@@ -369,6 +380,25 @@ class _ParkedRetryCase(_GateCase):
         """
         self._park_state(reply=BARE_CONTINUE, **recorded_generation(
             measurement_miss_count=lost, measurement_failure=announced,
+        ))
+
+    def _park_under_our_notice(self, reply: str = BARE_CONTINUE) -> None:
+        """The same park with the notice it posted standing above the reply.
+
+        What a bounded park watermark leaves whenever an operator writes while
+        the agent is out: their command is unread, our own sentence sits over
+        it, and the mark stops below both. The notice is ours by recorded id,
+        so nothing here may read it as a second voice in the batch.
+        """
+        self._park_state(
+            reply,
+            orchestrator_comment_ids=[NOTICE_COMMENT_ID],
+            **recorded_generation(),
+        )
+        self.issue.comments.append(FakeComment(
+            NOTICE_COMMENT_ID,
+            f"{PARK_NOTICE}\n\n{_engine_comments._ORCH_COMMENT_MARKER}",
+            user=FakeUser(BOT_LOGIN),
         ))
 
     def _park_state(self, reply: str, **recorded) -> None:

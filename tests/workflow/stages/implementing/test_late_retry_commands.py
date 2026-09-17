@@ -42,6 +42,21 @@ class LateGateContinueTest(support._ParkedRetryCase, unittest.TestCase):
             pinned[support.LAST_ACTION_COMMENT_ID], support.REPLY_COMMENT_ID,
         )
 
+    def test_our_notice_over_a_command_remeasures(self) -> None:
+        # The window the park itself opens: the operator writes while the
+        # agent is out, and the notice this park posts lands above them. Read
+        # as a second voice it makes the batch mixed, so this road declines
+        # the retry and the resume behind it pays a developer to answer
+        # `/orchestrator continue` as prose -- over work that is committed
+        # already, with the command consumed for good.
+        self._park_under_our_notice()
+
+        mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
+
+        self._assert_no_agent(mocks)
+        self._assert_measured(mocks)
+        self._assert_published(mocks)
+
     def test_a_step_no_retry_can_change_parks_at_once(self) -> None:
         # A diff nothing here can pin, one git refused, one nothing could
         # read: a second reading of any of them buys the same answer, so the

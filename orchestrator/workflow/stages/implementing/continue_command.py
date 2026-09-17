@@ -25,11 +25,20 @@ also the one park that holds the tick with no command on the thread at all --
 falling through, an ordinary reply would reach the resume, which takes the
 flag down as a side effect and starts a session no budget was charged for.
 
+Which comments it classifies is the other half of the point. This road runs
+ahead of the resume, and the resume works from the batch `resume_batch.py`
+freezes -- the fresh trusted replies with our own recorded posts and any body
+carrying our marker the ledger cannot vouch for taken out. This reads the same
+batch, because whether a thread is all bare commands and whether a developer
+would be handed prose are one question: a park notice of ours lands above the
+comment a human wrote while the agent was out, and counted as somebody's words
+here it turns an explicit retry into a generic resume that spends it.
+
 The retry itself does not hand the command text to the agent: the poisoned
 session already carries the issue context in its transcript, or the resume
 rotates it to a re-grounded fresh spawn. The command comments are marked
 consumed up front so the retry cannot re-fire next tick -- safe only because
-every fresh comment being a bare continue is the retry's own precondition, so
+every fresh reply being a bare continue is the retry's own precondition, so
 nothing with content is dropped. `user_content_hash` is deliberately left alone:
 masking it here would swallow a real body edit that landed in the same window.
 """
@@ -48,11 +57,12 @@ from orchestrator.git.worktrees import (
     paths as _worktree_paths,
 )
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    comments as _comments,
     guards as _guards,
     messages as _messages,
+    prompt_delivery as _delivery,
     prompt_notes as _prompt_notes,
     usage as _usage,
 )
@@ -82,8 +92,11 @@ def _retry_parked_dev_session(
     session already carries the issue context in its transcript, or
     `_resume_dev_with_text` rotates it to a re-grounded fresh spawn. The
     command comment(s) are marked consumed up front so the retry does not
-    re-fire next tick -- every fresh comment is a bare continue here (the
-    classifier's retry precondition), so this drops no guidance.
+    re-fire next tick -- every fresh reply is a bare continue here (the
+    classifier's retry precondition), so this drops no guidance. The mark
+    lands on the last of THOSE rather than on the thread tip: a notice of ours
+    above them is ours to re-read for nothing, while a comment nothing here
+    classified as a human's would be crossed for good.
     `user_content_hash` is deliberately NOT refreshed: a bare continue never
     shifts it, and masking it here would swallow a real body edit that landed
     in the same window before the dev could see it.
@@ -180,8 +193,16 @@ def _parked_continue_decision(
     # Refresh-time auto-rebase parks own their operator retry comment.
     if park_reason in _base_sync_state._AUTO_REBASE_PARK_REASONS:
         return None
-    comments = filter_trusted(
-        gh.comments_after(issue, state.get(_state._LAST_ACTION_COMMENT_ID))
+    # The batch a developer would be HANDED, which is the batch the resume
+    # behind this would spend. Our own park notice lands above whatever a
+    # human wrote while the agent was out, and a body carrying our marker is
+    # text anybody may paste: left in, either one makes this read a thread
+    # whose fresh replies are not all bare commands, pass the batch through,
+    # and let the resume feed the command to a developer as prose -- the
+    # retry gone and the watermark moved past the words that bought it.
+    comments = _delivery.human_replies(
+        gh.comments_after(issue, state.get(_state._LAST_ACTION_COMMENT_ID)),
+        frozenset(_comments._orchestrator_ids(state)),
     )
     # Nothing to decide, and a batch that is not this road's to decide about.
     # The measurement park's own road would re-measure on one of these, and

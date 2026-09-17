@@ -103,6 +103,12 @@ _ATTR_ID = "id"
 _ATTR_USER = "user"
 _ATTR_LOGIN = "login"
 
+# What `classify_comment` answers for a comment somebody outside this process
+# wrote and nothing here refuses: admitted, with no filtering reason recorded
+# against it. Our own posts come back admitted too, under the reason that
+# names them, which is why the reason is half of the test.
+_A_HUMAN_WROTE_IT = (True, None)
+
 SurfaceBatch = tuple[str, Iterable]
 Batches = dict[str, Iterable] | Iterable[SurfaceBatch]
 
@@ -426,6 +432,35 @@ class _CandidateClassifier:
         return trusted, None if trusted else REASON_UNTRUSTED_AUTHOR
 
     @classmethod
+    def human_replies(
+        cls, read: Iterable, retained_ids: frozenset = _EMPTY_IDS,
+    ) -> list:
+        """The replies one read of a thread leaves for a prompt to be built of.
+
+        The same classification `evaluate` records per entry, asked as a list
+        question, for the roads that decide who OWNS a batch before anything
+        builds a prompt from it. One answer rather than two: a command
+        classifier reading the raw thread and a delivery record reading the
+        filtered one disagree the moment a comment is in exactly one of them
+        -- a park notice of ours above the reply a human wrote while the agent
+        was out makes the batch look mixed to the classifier, which passes it
+        through to a resume that then delivers the bare command as prose, the
+        explicit retry gone and the watermark moved past the words that asked
+        for it.
+
+        Four kinds come out: an untrusted author, the pinned state comment,
+        our own posts by recorded id, and a body carrying our marker that the
+        ledger cannot vouch for. The last two are the same evidence read in
+        both directions -- an id admits a comment as ours and a marker without
+        one admits nothing -- because the marker is an HTML comment anybody may
+        paste and the login may be a token shared with a human.
+        """
+        return [
+            reply for reply in read
+            if cls.classify_comment(reply, retained_ids) == _A_HUMAN_WROTE_IT
+        ]
+
+    @classmethod
     def classify_review(
         cls,
         review: object,
@@ -677,3 +712,4 @@ def create_prompt_delivery_snapshot(
 
 classify_comment_trust = _CandidateClassifier.classify_comment
 classify_review_trust = _CandidateClassifier.classify_review
+human_replies = _CandidateClassifier.human_replies

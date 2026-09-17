@@ -1,10 +1,17 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Reserve trusted bare-continue replies for an active measurement park.
+"""Reserve human bare-continue replies for an active measurement park.
 
 The current reason and wait must agree before a thread read can answer
 this park. Mixed feedback stays with its stage; only a batch consisting
 entirely of bare continue commands belongs to measurement recovery.
+
+Which replies are a human's is `prompt_delivery`'s one classification, the
+one the frozen reply batch is cut by: the trust filter, our own posts by
+recorded id, and a marker the ledger cannot vouch for refused as forged. Read
+any wider here and this park's own notice -- posted above the comment a human
+wrote while the agent was out -- makes the batch look mixed, so the retry
+never fires and the resume behind it spends the command as prose.
 """
 from __future__ import annotations
 
@@ -12,11 +19,12 @@ from github.Issue import Issue
 
 from orchestrator.github import (
     client as _client,
-    comments as _github_comments,
     pinned_state as _pinned_state,
 )
 from orchestrator.workflow.engine import (
+    comments as _comments,
     messages as _messages,
+    prompt_delivery as _delivery,
 )
 from orchestrator.workflow.stages.implementing import (
     late_measurement_state as _late_measurement_state,
@@ -49,8 +57,9 @@ def _answers_the_measurement_park(
         return []
     if not state.get(_state._AWAITING_HUMAN):
         return []
-    replies = _github_comments.filter_trusted(
+    replies = _delivery.human_replies(
         gh.comments_after(issue, state.get(_state._LAST_ACTION_COMMENT_ID)),
+        frozenset(_comments._orchestrator_ids(state)),
     )
     return replies if _reserved_for_the_measurement_park(replies, state) else []
 
@@ -83,10 +92,12 @@ def _reserved_for_the_measurement_park(replies: list, state) -> bool:
     ordinary resume feeding it to the developer is exactly what it is owed.
 
     Asked only while the park is standing, and only of a batch read the way
-    this owner reads one. A comment of ours above the watermark is in that
-    read, so it is in this one: reserved off a narrower batch, a tick would
-    defer what the road it deferred to then refuses, and the two would hand
-    the same thread back and forth forever.
+    this owner reads one -- the replies a prompt could be built from, with our
+    own recorded posts and any body carrying our marker the ledger cannot
+    vouch for already out. The park posts its notice above whatever a human
+    wrote while the agent was out, so a read that kept it would call this
+    batch mixed on every road at once: the retry never fires, and the resume
+    that inherits the tick hands the bare command to a developer as prose.
     """
     if state.get(_state._PARK_REASON) != _late_measurement_state.PARK_MEASUREMENT_FAILED:
         return False

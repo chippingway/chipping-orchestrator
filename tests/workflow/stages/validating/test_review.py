@@ -860,34 +860,55 @@ class HandleValidatingContinueCommandTest(
     def test_bare_continue_retries_without_literal(
         self,
     ) -> None:
-        command_github, command_issue = self._seed(7, park_reason="agent_silent")
+        # Asked of a bare thread and of the one a bounded park leaves, where
+        # the notice this stage posted stands above the command. That notice
+        # is ours by recorded id and reaches no prompt, so it may not decide
+        # who owns the batch either -- counted as somebody's words it turns
+        # the retry an operator bought into a developer run over prose.
+        for under_our_notice in (False, True):
+            with self.subTest(under_our_notice=under_our_notice):
+                command_github, command_issue = self._seed(
+                    7,
+                    park_reason="agent_silent",
+                    under_our_notice=under_our_notice,
+                )
 
-        command_patches = self._run_validating(
-            command_github,
-            command_issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message=FIXED_MESSAGE),
-            dirty_files=(),
-            push_branch=True,
-            head_shas=FIX_HEAD_SHAS,
-        )
+                command_patches = self._run_validating(
+                    command_github,
+                    command_issue,
+                    run_agent=_agent(
+                        session_id=DEV_SESSION, last_message=FIXED_MESSAGE,
+                    ),
+                    dirty_files=(),
+                    push_branch=True,
+                    head_shas=FIX_HEAD_SHAS,
+                )
 
-        self._assert_retry_result(command_github, command_patches)
+                self._assert_retry_result(command_github, command_patches)
 
     def test_bare_continue_on_question_park_refuses(self) -> None:
-        command_github, command_issue = self._seed(8, park_reason=None)
+        # The other answer only this road may give, asked over the same two
+        # threads: a park needing real words earns the refusal rather than a
+        # developer paid to read the command as guidance.
+        for under_our_notice in (False, True):
+            with self.subTest(under_our_notice=under_our_notice):
+                command_github, command_issue = self._seed(
+                    8, park_reason=None, under_our_notice=under_our_notice,
+                )
 
-        command_patches = self._run_validating(
-            command_github,
-            command_issue,
-            run_agent=_agent(),
-        )
+                command_patches = self._run_validating(
+                    command_github,
+                    command_issue,
+                    run_agent=_agent(),
+                )
 
-        command_patches[RUN_AGENT].assert_not_called()
-        self.assertTrue(
-            any(
-                "needs your actual guidance" in body
-                for _, body in command_github.posted_comments
-            )
-        )
-        command_state = command_github.pinned_data(8)
-        self.assertTrue(command_state.get(AWAITING_HUMAN))
+                command_patches[RUN_AGENT].assert_not_called()
+                self.assertTrue(
+                    any(
+                        "needs your actual guidance" in body
+                        for _, body in command_github.posted_comments
+                    )
+                )
+                self.assertTrue(
+                    command_github.pinned_data(8).get(AWAITING_HUMAN),
+                )

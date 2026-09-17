@@ -83,7 +83,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     prompt_delivery.py      shared process-local input-delivery snapshot and conservative settlement contract recording
                             exact delivered issue-thread, PR-conversation, inline-review, and review-summary inputs;
                             preserves distinct namespaces, watermark fields, bounded-excerpt omissions, filtering decisions,
-                            and requirements revisions without copying live thread tips or taking unrestricted maximums
+                            and requirements revisions without copying live thread tips or taking unrestricted maximums.
+                            `human_replies` is that same classification asked as a list question -- the trust filter,
+                            the pinned state comment, our own posts by recorded id, and a marker the ledger cannot
+                            vouch for -- for the roads that decide who OWNS a batch before anything builds a prompt
+                            from it, so a command classifier and a delivery record cannot become two readings of one
+                            thread
     community.py            the open pull requests this orchestrator never opened, which is why the tick sweeps
                             them itself: one opened by somebody else carries no pinned state for a handler to
                             consult, so nothing dispatches it. `ALLOWED_ISSUE_AUTHORS` decides there is anything
@@ -1359,11 +1364,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `implementing`'s preflight does, `validating`'s awaiting-human road classifies
                             the command itself and so says nothing -- because fed to a developer as prose
                             the explicit retry, or the refusal a park needing real guidance owes, is gone.
-                            Every reservation is asked of the batch the road it defers to reads -- the
-                            ledger's for the authorization command, the whole trusted read for the
-                            measurement retry and the continue -- because reserved off a narrower one this
-                            tick would defer what that road then refuses and the two would hand the thread
-                            back and forth forever
+                            Both of those reservations are asked of the DELIVERED replies, which is the
+                            batch the roads they defer to read and the batch this one would otherwise
+                            hand a developer: a notice of ours above a bare command, or a forged marker
+                            over one, is out of every prompt here, so it may not decide who owns the
+                            batch either. The authorization park's is the exception and reads the last
+                            reply the ID LEDGER leaves, because that is how its own road reads one --
+                            asked off any other shape, a reservation defers what that road then refuses
+                            and the two hand the thread back and forth forever
       resume_request.py     what one such call supplied, frozen and checked before a run is built: the stage
                             its records are attributed to, the frozen conversation a fresh spawn is
                             re-grounded from where the caller holds one, and the unknown option a named
@@ -1839,8 +1847,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the failure is emitted before the wait is recorded, and whether that park already stands
                             is what an announce-once refusal asks before taking it again
       late_measurement_reply.py
-                            trusted bare-continue batches reserved for the active measurement park; mixed feedback
-                            stays with its stage and the current reason and wait must agree
+                            bare-continue batches reserved for the active measurement park; mixed feedback
+                            stays with its stage and the current reason and wait must agree. Which replies count
+                            is `engine/prompt_delivery.py`'s `human_replies` -- the park's own notice lands above
+                            a command written while the agent was out, and read as a second voice it makes every
+                            road call the batch mixed at once: the retry never fires and the resume behind it
+                            spends the command as prose
       late_parks.py         quiet transport retries and announce-once measurement failure handling; changed frozen bases
                             remain durable during a quiet repeat, and a different failure earns its own notice;
                             an unreadable candidate retains its resolved object id for recovery
@@ -1973,7 +1985,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that road looked at the thread, so a command landing between the two is in this
                             batch and in nobody else's -- and classified here it is a continue on a park
                             needing real guidance, refused and consumed past the refusal, with the reading its
-                            author asked for one nothing will ever take
+                            author asked for one nothing will ever take. What it classifies is the batch the
+                            resume behind it would DELIVER (`engine/prompt_delivery.py`'s `human_replies`,
+                            the same cut `resume_batch.py` freezes), because a notice of ours or a forged
+                            marker standing above a bare command reaches no prompt and so may not turn an
+                            explicit retry into a generic resume over prose
       retry_cap.py          the same standing park on this stage's road, held against the three that would read it
                             as an ordinary one -- the continue classifier, the drift check, and the resume -- so the
                             tick ends having written, spawned, and said nothing, and the pinned session, the pull

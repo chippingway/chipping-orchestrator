@@ -25,6 +25,15 @@ the marker is an HTML comment anybody may paste, and the author login may be a
 token shared with a reviewer whose real replies this must not swallow, so the
 id is the whole of the evidence and a marker without one admits nothing.
 
+Who OWNS the batch is decided off that same filtered list. A parked thread is
+read by command roads as well -- the measurement park's retry, the parked
+`/orchestrator continue` -- and each of them asks whether every fresh reply is
+a bare command. Asked of the raw read they see our own park notice standing
+above the reply a human wrote while the agent was out, call the batch mixed,
+and pass it through; the delivery then drops the notice and hands the bare
+command to a developer as prose, with the watermark moved past the words that
+asked for the retry. One list, and the answer is the same on both sides of it.
+
 The re-grounding conversation comes out of that same read, through the same
 classification, and it has to on both counts. A resume whose session was
 retired -- the resume budget, the silent-park streak, a transcript GitHub lost
@@ -99,6 +108,8 @@ class _ReplyBatch:
     snapshot naming the same ids; they are produced together and neither is
     re-derived, which is what makes "what the developer saw" and "what the
     issue records as answered" one fact rather than two readings that agree.
+    It is also the list the command roads are asked about, so who owns a batch
+    and what a batch delivers are one reading too.
 
     `reserved` is a batch a command road owns. It is not an empty batch and
     must not be confused with one: there IS a reply, and what it says is a
@@ -170,60 +181,71 @@ def _freeze(
     fetch is a second moment, and every pair of readings minutes apart is a
     comment delivered but unrecorded or recorded but never delivered.
 
-    Three batches belong to somebody else, and each reservation is asked of
-    the batch the road it defers to reads. Reserved off a narrower one, this
-    tick would defer what that road then refuses and the two would hand the
-    same thread back and forth forever.
+    The delivery is cut FIRST, and the reservations are asked of it. Which
+    batch a command road owns is the same question as which batch a developer
+    would be handed, so the two are answered off one list: a park notice of
+    ours standing above a bare command, or a marker somebody pasted over one,
+    is out of the delivered replies, and a classifier reading it as prose
+    would pass the command through to a resume that spends it as guidance.
+    Deferring the tick costs a poll; spending it costs the retry the operator
+    bought and the watermark stops above the words that asked for it.
 
-    The measurement park's is asked of the trusted read BEFORE our own
-    comments come out of it, because that is the read the retry itself takes.
+    The measurement park's and the parked-`/orchestrator continue`
+    classifier's are the two roads that read this batch, and each reads it the
+    same way, which is what keeps the deferral from being a loop: reserved off
+    a batch the road behind it does not recognize, this tick would defer what
+    that road then refuses and the two would hand the same thread back and
+    forth forever.
 
-    The parked-`/orchestrator continue` classifier's is asked of that same
-    read, and only where the caller says that road has already looked --
-    `continue_claimed`. It is the same window the other two have: the
-    classifier ran in the preflight and handed the tick back, so a bare
-    command landing since is in this batch and in nobody else's, and fed to a
-    developer as prose the explicit retry (or the refusal a park needing real
-    guidance earns) is gone. A batch carrying real guidance beside the command
-    is `passthrough` there and an ordinary resume here, which is the same
-    answer read off the same words. The auto-rebase reasons are excluded
-    because that classifier excludes them: those parks own their operator's
-    retry comment, so deferring to a road that declines it would defer
-    forever. Not asked at all on `validating`, whose awaiting-human road
-    classifies the command itself rather than ahead of itself.
+    The continue classifier's is asked only where the caller says that road
+    has already looked -- `continue_claimed`. It is the same window the
+    measurement park's has: the classifier ran in the preflight and handed the
+    tick back, so a bare command landing since is in this batch and in nobody
+    else's, and fed to a developer as prose the explicit retry (or the refusal
+    a park needing real guidance earns) is gone. A batch carrying real
+    guidance beside the command is `passthrough` there and an ordinary resume
+    here, which is the same answer read off the same words. The auto-rebase
+    reasons are excluded because that classifier excludes them: those parks
+    own their operator's retry comment, so deferring to a road that declines
+    it would defer forever. Not asked at all on `validating`, whose
+    awaiting-human road classifies the command itself rather than ahead of
+    itself -- off this same delivered batch.
 
-    The authorization park's is asked of the LAST reply the ID LEDGER leaves,
-    which is the batch that park's own road reads and reads it by: a command
-    with guidance written over it has been replaced -- the safe reading of
-    somebody who asked to publish and then asked for a change is the one that
-    publishes nothing -- so that batch is an ordinary resume and the developer
-    answers the change. Asked of the narrower DELIVERED replies instead, the
-    two roads would disagree about which reply is last wherever a marker
-    somebody pasted sits over the command, and each would hand the tick to the
-    other: one refusing a command it does not see last, the other deferring to
-    the road that refused it.
+    The authorization park's is the third, and the one asked of a different
+    batch: the LAST reply the ID LEDGER leaves, which is what that park's own
+    road reads and reads it by. A command with guidance written over it has
+    been replaced -- the safe reading of somebody who asked to publish and
+    then asked for a change is the one that publishes nothing -- so that batch
+    is an ordinary resume and the developer answers the change. Asked of the
+    delivered replies instead, the two roads would disagree about which reply
+    is last wherever a marker somebody pasted sits over the command, and each
+    would hand the tick to the other: one refusing a command it does not see
+    last, the other deferring to the road that refused it.
     """
-    ours = _comments._orchestrator_ids(state)
+    ours = frozenset(_comments._orchestrator_ids(state))
     thread = gh.comments_after(issue, None)
-    read = filter_trusted(_since(thread, state))
-    if _reserved_elsewhere(read, state, continue_claimed=continue_claimed):
+    unclaimed = [
+        seen for seen in filter_trusted(_since(thread, state))
+        if seen.id not in ours
+    ]
+    delivery = _delivery.create_prompt_delivery_snapshot(
+        issue_comments=unclaimed,
+        max_chars=_UNBOUNDED_EXCERPT,
+        retained_ids=ours,
+        state=state,
+    )
+    quoted = _quoted(unclaimed, delivery)
+    if _reserved_elsewhere(quoted, state, continue_claimed=continue_claimed):
         return _ReplyBatch(state, _DELIVERED_NOTHING, (), reserved=True)
-    unclaimed = [seen for seen in read if seen.id not in ours]
     if unclaimed and _late_command._reserved_for_the_park(
         unclaimed[-1], state,
     ):
         return _ReplyBatch(state, _DELIVERED_NOTHING, (), reserved=True)
-    delivery = _delivery.create_prompt_delivery_snapshot(
-        issue_comments=unclaimed,
-        max_chars=_UNBOUNDED_EXCERPT,
-        retained_ids=frozenset(ours),
-        state=state,
-    )
     return _ReplyBatch(
         state,
         delivery,
-        _quoted(read, delivery),
-        _prompt_context._thread_delivery(thread, retained_ids=frozenset(ours)),
+        quoted,
+        _prompt_context._thread_delivery(thread, retained_ids=ours),
     )
 
 
@@ -236,20 +258,32 @@ def _since(thread: list, state: PinnedState) -> list:
 
 
 def _reserved_elsewhere(
-    read: list, state: PinnedState, *, continue_claimed: bool,
+    quoted: tuple, state: PinnedState, *, continue_claimed: bool,
 ) -> bool:
     """Whether a road other than this resume owns the whole of this batch.
 
-    Both answers are read off the batch those roads read, which is the trusted
-    thread with our own comments still in it -- the narrower one would defer a
-    tick they then refuse.
+    Both answers are read off the DELIVERED batch -- the replies a developer
+    would be handed -- because that is the batch the delivery beside this one
+    would spend, and the two have to be one reading. Asked of the raw trusted
+    read instead, a park notice of ours standing above a bare command makes
+    both classifiers see a batch that is not all bare continues and pass it
+    through, while the delivery drops the notice and feeds the command to a
+    developer as prose: the explicit retry is gone and the watermark moves
+    past the words that asked for it. A forged marker somebody pasted over the
+    command is the same mismatch one step over.
+
+    The roads this defers to read the batch the same way, which is what keeps
+    the deferral from being a loop: a tick that reserved off a batch the road
+    behind it does not recognize would defer what that road then refuses, and
+    the two would hand the same thread back and forth forever.
     """
-    if _late_measurement_reply._reserved_for_the_measurement_park(read, state):
+    replies = list(quoted)
+    if _late_measurement_reply._reserved_for_the_measurement_park(replies, state):
         return True
     park_reason = state.get(_state._PARK_REASON)
     if not continue_claimed or park_reason in _base_sync_state._AUTO_REBASE_PARK_REASONS:
         return False
-    return _messages._continue_command_action(read, park_reason) != _PASSTHROUGH
+    return _messages._continue_command_action(replies, park_reason) != _PASSTHROUGH
 
 
 def _quoted(

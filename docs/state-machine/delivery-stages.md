@@ -3007,6 +3007,18 @@ command itself rather than ahead of itself, so its freeze reserves nothing and `
 answers `retry` / `refuse` as it always has. The auto-rebase reasons are excluded on both, because the classifier
 excludes them: those parks own the operator's retry comment.
 
+Every one of those classifiers is asked of the batch a developer would be HANDED — the frozen replies, not the raw
+`comments_after` read. `_handle_parked_continue_command`, the measurement park's `_answers_the_measurement_park`, and
+the reservation inside the freeze all cut the thread with `prompt_delivery.human_replies`, the same classification the
+delivery record uses. This matters exactly where the bounded park watermark leaves work for the next poll: the notice
+a park posts lands ABOVE a command written while the agent was out, and a forged `<!--orchestrator-comment-->` can be
+pasted over one at any time. Counted as somebody's words, either makes the batch look like mixed feedback — every
+command road passes it through, and the resume then drops that same comment from the prompt and delivers the bare
+command to a developer as prose, consuming the operator's retry against a run nobody asked for. Neither can reach a
+prompt, so neither decides who owns the batch. The authorization park is the one reservation read differently: its own
+road names our comments by recorded id alone, so the freeze asks it of the last reply that ledger leaves, and the two
+agree about which reply is last.
+
 `_park_awaiting_human` posts on the issue (not the PR) so the HITL ping appears alongside the rest of orchestrator
 state. The PR comment that triggers a route to `workflow:fixing` is the human signal; awaiting-human is reserved for
 *unrecoverable* states (unmergeable / missing pr_number).
