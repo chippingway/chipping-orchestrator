@@ -64,6 +64,14 @@ SINGLE_SUBJECT = "feat: only one"
 
 PR_REFERENCE = f" (#{SQUASH_PR_NUMBER})"
 
+# The issue every squash here is published for, and the reference a developer
+# who copied a number out of recent history leaves on a subject. It is the one
+# reference a publication takes OFF, since the pull request's own body is
+# where this issue is linked from.
+SQUASH_ISSUE_NUMBER = 9
+
+ISSUE_REFERENCE = f" (#{SQUASH_ISSUE_NUMBER})"
+
 
 def run_git(*args: str, cwd: Path, env_extra: dict | None = None) -> str:
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
@@ -202,7 +210,9 @@ class _SquashReadsMixin:
 
 
 class _SquashScenarioMixin:
-    def _make_issue(self, title: str = "test issue", number: int = 9):
+    def _make_issue(
+        self, title: str = "test issue", number: int = SQUASH_ISSUE_NUMBER,
+    ):
         return make_issue(number, title=title)
 
     def _rebuild_topic(
@@ -217,9 +227,11 @@ class _SquashScenarioMixin:
         """Throw the branch back to one commit, under `subject`.
 
         The subject is the case's because it is what decides whether such a
-        branch is rewritten at all: one already ending in this pull request's
-        reference is owed nothing, and one ending in another number is
-        ordinary text the current reference is still appended after.
+        branch is rewritten at all: one already reading as a publication
+        writes it is owed nothing, one ending in the tracked issue's number --
+        alone or ahead of this pull request's -- is rewritten to shed it, and
+        one ending in another number is ordinary text the current reference is
+        still appended after.
         """
         run_git(GIT_RESET, HARD_RESET, REMOTE_BASE_REF, cwd=self.work)
         (self.work / "only.txt").write_text("only\n")

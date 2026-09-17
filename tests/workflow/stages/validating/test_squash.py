@@ -62,6 +62,23 @@ class SquashOnApprovalTest(
         # orchestrator-initiated merge call fires.
         self._assert_ready_ping(gh, mocks_r)
 
+    def test_the_squash_is_handed_both_numbers(self) -> None:
+        # The subject the squash publishes is normalized against the pull
+        # request AND the tracked issue, and this road is where both of them
+        # reach it: the gate carries the issue whose own reference comes off
+        # the line, and `pr_number` is the reviewer run's, which is the one
+        # the line ends in. Built over any other issue, the rewrite would
+        # strip a number this branch never carried and keep the one it did.
+        gh, issue = self._setup()[:2]
+
+        mocks = self._run_squash_approval(
+            gh, issue, (True, _support.SQUASHED_SHA, 3, None),
+        )
+
+        squashed = mocks[_support.SQUASH_SEAM].call_args.args
+        self.assertEqual(squashed[0].issue.number, _support.APPROVAL_ISSUE)
+        self.assertEqual(squashed[-1], _support.APPROVAL_PR)
+
     def test_failure_parks_without_relabel(self) -> None:
         # Push rejected / lease violation / dirty tree all surface as
         # `success=False`. The orchestrator parks awaiting_human, leaves

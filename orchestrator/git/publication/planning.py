@@ -16,11 +16,13 @@ already moved.
 
 Whether a rewrite is owed at all is decided here too, and the count alone
 does not decide it. More than one commit is a collapse whatever the subjects
-say. Exactly one is a rewrite only of its SUBJECT, owed where that subject
-does not already end in the reference this publication puts on a commit -- so
-the same reset-and-recommit answers a branch that has to be flattened and a
-branch that only has to be referenced, and a branch already carrying the
-reference is left exactly as the developer committed it.
+say. Exactly one is a rewrite only of its SUBJECT, owed wherever the shared
+normalization would write that subject differently -- a line missing this
+publication's reference, and one still carrying the tracked issue's beside a
+reference an earlier publication appended -- so the same reset-and-recommit
+answers a branch that has to be flattened and a branch that only has to be
+referenced, and a branch already committed under the subject a publication
+writes is left exactly as the developer committed it.
 """
 from __future__ import annotations
 
@@ -149,13 +151,15 @@ def _squash_message(
     More than one commit is a collapse, owed whatever the subjects on it say,
     since the history itself is what is being replaced. Exactly one commit is
     already the shape a collapse leaves, so the only thing left to rewrite is
-    the subject over it -- and it is owed that only where the subject does not
-    already end in this pull request's reference, asked through
-    `pr_references`, so what counts as already referenced cannot drift from
-    what the line below writes. A branch an earlier round referenced, one on
-    an install that references nothing, and a branch carrying no commits at
-    all each come back with no message, which is how a plan says there is
-    nothing to do.
+    the subject over it -- and it is owed that only where the shared
+    normalization would write that subject differently, asked through
+    `pr_references` with both numbers, so what counts as already published
+    cannot drift from what the line below writes. A subject missing the
+    reference is owed the rewrite and so is one still carrying the tracked
+    issue's beside it; a branch an earlier round already published, one on an
+    install that references nothing, and a branch carrying no commits at all
+    each come back with no message, which is how a plan says there is nothing
+    to do.
 
     One selection serves both rewrites. A collapse takes the first of the
     commits it is replacing; a one-commit branch has that same first subject
@@ -166,17 +170,22 @@ def _squash_message(
     nothing to reuse, so the message is inferred from the issue exactly as it
     is for a first subject carrying no reusable prefix.
 
-    Whichever of the two picked the subject, it ends in the reference to
-    `pr_number` through the formatter every publisher shares, so a reused
-    first subject an earlier approval round already squashed to is not given
-    a second one. None is a squash whose subject references no pull request,
-    and it gets the selected subject back exactly as it was picked.
+    Whichever of the two picked the subject, it is normalized against
+    `pr_number` and this issue's own number through the owner every publisher
+    shares: the line ends in exactly one reference to the pull request, so a
+    reused first subject an earlier approval round already squashed to is not
+    given a second one, and the tracked issue's reference is dropped, whether
+    a developer copied it out of recent history or an earlier publication left
+    it standing ahead of its own. None is a squash whose subject references no
+    pull request, and it gets the selected subject back exactly as it was
+    picked -- nothing appended, and nothing stripped on the way to a reference
+    that is never written.
     """
     if not planned.count:
         return ""
     first_subject = planned.subjects[0] if planned.subjects else ""
     if planned.count == 1 and not pr_references._subject_owes_the_reference(
-        first_subject, pr_number,
+        first_subject, pr_number, issue.number,
     ):
         return ""
     if titles._is_prefixed_subject(first_subject):
@@ -187,7 +196,9 @@ def _squash_message(
             issue, first_subject, fallback_prefix,
         )
     if pr_number is not None:
-        subject = pr_references._subject_with_pr_reference(subject, pr_number)
+        subject = pr_references._subject_with_pr_reference(
+            subject, pr_number, issue.number,
+        )
     return f"{subject}\n"
 
 
@@ -202,7 +213,11 @@ def _prepare_squash(
     `pr_number` is the pull request the squash message references, or None
     where it references none. On a branch of several commits it decides that
     subject alone; on a branch of one it decides whether there is a rewrite at
-    all, since such a branch is rewritten only to carry the reference.
+    all, since such a branch is rewritten only to carry the reference. The
+    tracked issue the message is normalized against is `issue`'s own number,
+    read off the issue already handed in for the subject inference rather than
+    passed beside it: the two are the same issue, and a second parameter is a
+    second thing that could name a different one.
 
     The plan is taken before the message and the message is folded into it,
     rather than both being assembled at once, because the message is decided

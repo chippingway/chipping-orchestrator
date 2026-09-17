@@ -17,8 +17,9 @@ message read and the bound, message-only replacement of the docs commit the
 documenting stage publishes, lives in ``commits``; the
 preconditions a squash is
 planned from, the commit count among them and the decision they come to --
-collapse a history, rewrite one commit's subject onto the pull request's
-reference, or leave the branch alone -- live in ``planning``; the reset,
+collapse a history, rewrite one commit's subject to the references a
+publication leaves it ending in, or leave the branch alone -- live in
+``planning``; the reset,
 commit, force-push, and rollback that spend that plan live in ``rewrite``;
 what a squash an earlier tick did not finish is owed lives in ``resume``;
 which of the four places a refusal left the branch in lives in ``standing``;
