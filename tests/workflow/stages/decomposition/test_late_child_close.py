@@ -87,18 +87,13 @@ class LatchedInsidePreparationTest(
         with self.assertLogs(_WORKFLOW_LOG), self._closing():
             outcome = self._transact()
 
+        pinned = self._pinned()
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
         self.assertEqual(self.github.created_child_issues, [])
-        self.assertTrue(self._pinned()[KEYS.cancelled])
-
-    def test_the_umbrella_it_wrote_stands(self) -> None:
-        # The write landed, and a partial split is a state the record already
-        # describes: the count says how many children were expected and the
-        # register says none exist, which is what keeps the ref.
-        with self.assertLogs(_WORKFLOW_LOG), self._closing():
-            self._transact()
-
-        pinned = self._pinned()
+        self.assertTrue(pinned[KEYS.cancelled])
+        # The umbrella write landed, and a partial split is a state the record
+        # already describes: the count says how many children were expected
+        # and the register says none exist, which is what keeps the ref.
         self.assertEqual(pinned[KEY_EXPECTED_CHILDREN], len(CHILDREN))
         self.assertTrue(pinned[KEY_UMBRELLA])
 
@@ -162,7 +157,7 @@ class LatchedInsideCreateTest(
         super().setUp()
         self._fresh_process()
 
-    def test_the_child_it_made_is_recorded(self) -> None:
+    def test_the_child_it_made_is_recorded_untouched(self) -> None:
         with self.assertLogs(_WORKFLOW_LOG), self._closing():
             outcome = self._transact()
 
@@ -173,14 +168,9 @@ class LatchedInsideCreateTest(
             pinned[KEY_SPLIT_CHILDREN],
             [self.github.created_child_issues[0].number],
         )
-
-    def test_nothing_is_written_to_it(self) -> None:
         # The seed is the one write to the child's own state, and a cancelled
         # cycle's children are not closed, not relabelled, and not written to
         # -- what happens to them next is a human's decision.
-        with self.assertLogs(_WORKFLOW_LOG), self._closing():
-            self._transact()
-
         child = self.github.created_child_issues[0]
         self.assertEqual(self.github.pinned_data(child.number), {})
 
@@ -206,7 +196,7 @@ class LatchedInsideTheChildReadTest(
         super().setUp()
         self._fresh_process()
 
-    def test_the_child_it_made_is_recorded(self) -> None:
+    def test_the_child_it_made_is_the_last_one(self) -> None:
         with self.assertLogs(_WORKFLOW_LOG), self._closing():
             outcome = self._transact()
 
@@ -215,32 +205,24 @@ class LatchedInsideTheChildReadTest(
             self._pinned()[KEY_SPLIT_CHILDREN],
             [self.github.created_child_issues[0].number],
         )
-
-    def test_nothing_is_written_to_it(self) -> None:
-        with self.assertLogs(_WORKFLOW_LOG), self._closing():
-            self._transact()
-
-        child = self.github.created_child_issues[0]
-        self.assertEqual(self.github.pinned_data(child.number), {})
-
-    def test_no_further_slice_is_opened(self) -> None:
-        # The seed is the LAST step of one child's turn, so a caller told it
-        # succeeded opens the next slice's issue against a cycle that has
-        # just ended. The manifest names more than one.
-        with self.assertLogs(_WORKFLOW_LOG), self._closing():
-            self._transact()
-
-        self.assertEqual(len(self.github.created_child_issues), 1)
-        self.assertLess(len(self.github.created_child_issues), len(CHILDREN))
-
-    def test_the_cycle_is_reported_over_once(self) -> None:
+        self._assert_nothing_is_written_to_it()
+        self._assert_no_further_slice_is_opened()
         # Several barriers reach the same closed reading in one run, and the
         # cycle ended at the first of them: one `late_cancellation` per cycle
         # is what a sink is handed, not one per barrier.
-        with self.assertLogs(_WORKFLOW_LOG), self._closing():
-            self._transact()
-
         self.assertEqual(len(self._cancellations()), 1)
+
+    def _assert_nothing_is_written_to_it(self) -> None:
+        child = self.github.created_child_issues[0]
+
+        self.assertEqual(self.github.pinned_data(child.number), {})
+
+    def _assert_no_further_slice_is_opened(self) -> None:
+        # The seed is the LAST step of one child's turn, so a caller told it
+        # succeeded opens the next slice's issue against a cycle that has
+        # just ended. The manifest names more than one.
+        self.assertEqual(len(self.github.created_child_issues), 1)
+        self.assertLess(len(self.github.created_child_issues), len(CHILDREN))
 
     def _cancellations(self) -> list:
         """Every record of the cancellation both sinks were handed."""

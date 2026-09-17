@@ -89,29 +89,23 @@ class ClosedDuringAnnouncementTest(HeldPlanPrSplitCase, unittest.TestCase):
         self.assertEqual(
             pinned[KEYS.cancelled_phase], LatePhase.SUPERSEDING.value,
         )
+        self._assert_the_announcement_it_made_is_kept()
+        self._assert_the_plan_pr_is_left_for_the_ending()
+        self._assert_nothing_below_it_runs()
 
-    def test_the_announcement_it_made_is_recorded(self) -> None:
+    def _assert_the_announcement_it_made_is_kept(self) -> None:
         # The receipt the ending reads: a cancellation past this stamp is one
         # whose supersession was reached, which is what later lets it take on
         # the branch that pull request carries.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         self.assertTrue(self._pinned()[KEY_LINKS_ANNOUNCED])
 
-    def test_the_plan_pr_is_left_for_the_ending(self) -> None:
+    def _assert_the_plan_pr_is_left_for_the_ending(self) -> None:
         # A cancelled cycle's plan PR is closed over a cancellation notice
         # rather than a supersession one, and that is the ending's to post.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         self.assertEqual(self.github.pulls[PLAN_PR_NUMBER].state, _PR_OPEN)
         self.assertEqual(self.github.posted_pr_comments, [])
 
-    def test_nothing_below_it_runs(self) -> None:
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
+    def _assert_nothing_below_it_runs(self) -> None:
         self.assertEqual(label_of(self.github, self.issue.number), _DECOMPOSING)
         self.assertEqual(
             [
@@ -147,21 +141,18 @@ class ClosedDuringSupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
             self._resources()[(_RESOURCE_PLAN_PR, str(PLAN_PR_NUMBER))],
             _STATE_RECONCILED,
         )
+        self._assert_the_parent_is_not_retired()
+        self._assert_no_child_is_started()
+        self._assert_the_branch_is_left_to_the_ending()
 
-    def test_the_parent_is_not_retired_onto_umbrella(self) -> None:
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
+    def _assert_the_parent_is_not_retired(self) -> None:
         self.assertEqual(label_of(self.github, self.issue.number), _DECOMPOSING)
         self.assertEqual(self._pinned()[KEY_PR_NUMBER], PLAN_PR_NUMBER)
 
-    def test_no_child_is_started(self) -> None:
+    def _assert_no_child_is_started(self) -> None:
         # The effect the whole re-read exists for: a settled split releases
         # the child with no dependency of its own, and a cancelled cycle
         # releases neither.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         self.assertEqual(
             [
                 label_of(self.github, child.number)
@@ -170,13 +161,10 @@ class ClosedDuringSupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
             [_BLOCKED for _ in CHILDREN],
         )
 
-    def test_the_branch_is_left_to_the_ending(self) -> None:
+    def _assert_the_branch_is_left_to_the_ending(self) -> None:
         # Nothing here deletes it and nothing here records it: the record
         # says the supersession landed, and taking the branch on from that is
         # the cancellation's own step.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         self.assertEqual(self.github.deleted_remote_branches, [])
         self.assertNotIn(
             _RESOURCE_BRANCH,
@@ -204,14 +192,14 @@ class ClosedDuringRetirementTest(HeldPlanPrSplitCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
         self.assertTrue(self._pinned()[KEYS.cancelled])
+        self.assertEqual(self.github.deleted_remote_branches, [])
+        self._assert_no_child_is_started()
+        self._assert_the_retirement_it_wrote_stands()
 
-    def test_no_child_is_started(self) -> None:
+    def _assert_no_child_is_started(self) -> None:
         # The requirement the whole barrier is here for: a settled split
         # releases the child with no dependency of its own, and a cycle a
         # close ended releases neither.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         self.assertEqual(
             [
                 label_of(self.github, child.number)
@@ -220,13 +208,10 @@ class ClosedDuringRetirementTest(HeldPlanPrSplitCase, unittest.TestCase):
             [_BLOCKED for _ in CHILDREN],
         )
 
-    def test_the_retirement_it_wrote_stands(self) -> None:
+    def _assert_the_retirement_it_wrote_stands(self) -> None:
         # The write landed, so what the record says is what the ending reads:
         # an umbrella owing a branch, which is one of the two labels the
         # cancelled cycle's own terminal is declared from.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         self.assertEqual(label_of(self.github, self.issue.number), _UMBRELLA)
         self.assertEqual(
             [
@@ -235,12 +220,6 @@ class ClosedDuringRetirementTest(HeldPlanPrSplitCase, unittest.TestCase):
             ],
             [_STATE_PENDING],
         )
-
-    def test_the_branch_is_left_to_the_ending(self) -> None:
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
-        self.assertEqual(self.github.deleted_remote_branches, [])
 
 
 class LatchedDuringActivationTest(
@@ -265,11 +244,10 @@ class LatchedDuringActivationTest(
 
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
         self.assertTrue(self._pinned()[KEYS.cancelled])
+        self._assert_the_branch_is_left_to_the_ending()
+        self._assert_the_children_it_never_reached_wait()
 
-    def test_the_branch_is_left_to_the_ending(self) -> None:
-        with self.assertLogs(_WORKFLOW_LOG), self._closing():
-            self._transact()
-
+    def _assert_the_branch_is_left_to_the_ending(self) -> None:
         self.assertEqual(self.github.deleted_remote_branches, [])
         self.assertEqual(
             [
@@ -279,13 +257,10 @@ class LatchedDuringActivationTest(
             [_STATE_PENDING],
         )
 
-    def test_the_children_it_had_not_reached_are_held(self) -> None:
+    def _assert_the_children_it_never_reached_wait(self) -> None:
         # The walk's own answer, asserted here so the two halves are one
         # description: the transaction ends the cycle BECAUSE the walk
         # stopped releasing.
-        with self.assertLogs(_WORKFLOW_LOG), self._closing():
-            self._transact()
-
         self.assertEqual(
             [
                 label_of(self.github, child.number)

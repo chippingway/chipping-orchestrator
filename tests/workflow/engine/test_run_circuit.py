@@ -32,26 +32,8 @@ class ChargedLaunchTest(unittest.TestCase):
         self.assertEqual(observed[support.USED], 1)
         self.assertEqual(observed[support.RESERVATION], support.STARTED)
         self.assertEqual(observed[support.FINGERPRINT], support.fingerprint())
-
-    def test_the_two_phases_are_written_apart(self) -> None:
-        # The window between them is the only thing a later tick can tell a
-        # launch that never ran from one that did by.
-        launch = support.run_launch(support.seeded())
-
-        self.assertEqual(
-            launch.phases, [support.RESERVED, support.STARTED],
-        )
-
-    def test_the_caller_is_handed_the_charge(self) -> None:
-        # Without it the handler's own write at the end of the run would put
-        # the count back the way its read found it, and the issue would have
-        # paid for a run its ledger no longer records.
-        launch = support.run_launch(support.seeded())
-
-        self.assertEqual(launch.state.get(support.USED), 1)
-        self.assertEqual(
-            launch.state.get(support.RESERVATION), support.STARTED,
-        )
+        self._assert_the_two_phases_were_written_apart(launch)
+        self._assert_the_caller_was_handed_the_charge(launch)
 
     def test_an_unlimited_ceiling_still_charges(self) -> None:
         # The setting decides what to do about the total, not whether runs
@@ -64,6 +46,22 @@ class ChargedLaunchTest(unittest.TestCase):
         self.assertEqual(launch.invocations, 1)
         self.assertEqual(launch.spent, 100)
         self.assertFalse(launch.durable.get(support.AWAITING_HUMAN))
+
+    def _assert_the_two_phases_were_written_apart(self, launch) -> None:
+        # The window between them is the only thing a later tick can tell a
+        # launch that never ran from one that did by.
+        self.assertEqual(
+            launch.phases, [support.RESERVED, support.STARTED],
+        )
+
+    def _assert_the_caller_was_handed_the_charge(self, launch) -> None:
+        # Without it the handler's own write at the end of the run would put
+        # the count back the way its read found it, and the issue would have
+        # paid for a run its ledger no longer records.
+        self.assertEqual(launch.state.get(support.USED), 1)
+        self.assertEqual(
+            launch.state.get(support.RESERVATION), support.STARTED,
+        )
 
 
 class CrashWindowTest(unittest.TestCase):
@@ -137,38 +135,8 @@ class RefusedLaunchTest(unittest.TestCase):
         self.assertEqual(launch.spent, 1)
         self.assertEqual(launch.events(support.EVENT_AGENT_SPAWN), [])
         self.assertEqual(launch.events(support.EVENT_AGENT_EXIT), [])
-
-    def test_a_refusal_reads_as_a_run_that_never_ran(self) -> None:
-        # Interrupted, so every spawning handler returns without writing
-        # durable state for it -- and never invoked, which is what the roads
-        # that read the worktree ahead of that guard have to be able to tell:
-        # a killed run may have written, and this one cannot have.
-        launch = support.run_launch(
-            support.seeded(**{support.USED: 1}), allowance=1,
-        )
-
-        self.assertFalse(launch.answer.invoked)
-        self.assertTrue(launch.answer.interrupted)
-        self.assertIsNone(launch.answer.session_id)
-        self.assertEqual(
-            launch.answer.exit_code, support.NO_PROCESS_EXIT_CODE,
-        )
-        self.assertFalse(launch.answer.timed_out)
-
-    def test_a_spent_allowance_parks_and_says_so(self) -> None:
-        # The park is durable before a word of it is said, and the caller
-        # keeps it too -- a handler that writes anyway must not undo it.
-        launch = support.run_launch(
-            support.seeded(**{support.USED: 1}), allowance=1,
-        )
-
-        self.assertTrue(launch.durable[support.AWAITING_HUMAN])
-        self.assertEqual(
-            launch.durable[support.PARK_REASON],
-            support.PARK_AGENT_RUN_LIMIT,
-        )
-        self.assertTrue(launch.state.get(support.AWAITING_HUMAN))
-        self.assertTrue(launch.events(support.RUN_LIMIT_EVENT))
+        self._assert_it_reads_as_a_run_that_never_ran(launch)
+        self._assert_it_parks_and_says_so(launch)
 
     def test_a_refused_charge_invokes_nothing(self) -> None:
         # A spawn the ledger would never see is exactly the run the ceiling
@@ -208,6 +176,30 @@ class RefusedLaunchTest(unittest.TestCase):
                 self.assertEqual(launch.invocations, 0)
                 self.assertEqual(launch.gh.writes, [])
                 self.assertTrue(launch.answer.interrupted)
+
+    def _assert_it_reads_as_a_run_that_never_ran(self, launch) -> None:
+        # Interrupted, so every spawning handler returns without writing
+        # durable state for it -- and never invoked, which is what the roads
+        # that read the worktree ahead of that guard have to be able to tell:
+        # a killed run may have written, and this one cannot have.
+        self.assertFalse(launch.answer.invoked)
+        self.assertTrue(launch.answer.interrupted)
+        self.assertIsNone(launch.answer.session_id)
+        self.assertEqual(
+            launch.answer.exit_code, support.NO_PROCESS_EXIT_CODE,
+        )
+        self.assertFalse(launch.answer.timed_out)
+
+    def _assert_it_parks_and_says_so(self, launch) -> None:
+        # The park is durable before a word of it is said, and the caller
+        # keeps it too -- a handler that writes anyway must not undo it.
+        self.assertTrue(launch.durable[support.AWAITING_HUMAN])
+        self.assertEqual(
+            launch.durable[support.PARK_REASON],
+            support.PARK_AGENT_RUN_LIMIT,
+        )
+        self.assertTrue(launch.state.get(support.AWAITING_HUMAN))
+        self.assertTrue(launch.events(support.RUN_LIMIT_EVENT))
 
 
 class ChargeRecordTest(unittest.TestCase):
