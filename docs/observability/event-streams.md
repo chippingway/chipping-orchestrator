@@ -275,9 +275,10 @@ foundation layer for the Postgres aggregation step.
 - `park_awaiting_human` — `GitHubClient.emit_event` (and the in-memory fake client) alongside the audit
   `park_awaiting_human`; one record per human-wait transition; carries `stage`, `reason`, and structured extras (e.g.
   `route`, `agent_role`, `session_id`, `backend`, `review_round`, `retry_count`, `pr_number`, `conflict_round`,
-  `exit_code`, `timed_out`, `dirty_files`). One record per transition means exactly that: a later tick that finds the
-  issue already waiting takes no park and writes nothing, and an evaluation that ends in a push or a label flip
-  writes nothing here at all.
+  `exit_code`, `timed_out`, `dirty_files`). One record per transition means the moment the issue ENTERS a wait: a
+  poll that meets a wait it did not open — a parked issue with nothing new on its thread — writes nothing, and an
+  evaluation that ends in a push or a label flip writes nothing here at all. A resume that answers a park and then
+  parks again is a second entry, and earns its own record.
 - `repo_skill_catalog` — `orchestrator.skills.catalog._emit_repo_skill_catalog`, driven once per tick per spec by the
   tick owner (`workflow.engine.tick.tick`); repo-level (not issue-scoped, so
   `issue` is
