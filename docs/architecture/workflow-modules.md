@@ -203,7 +203,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is spelled apart, because it is the whole of what a completion has to prove again.
                             The delivered record names the one member of it the RUN settles, the requirements
                             revision, and nothing a pull request decides
-    report_record_values.py what each recorded field may be: a receipt spelled the way the published report header
+    report_record_values.py what each recorded field may be, and the widths two of them are bounded by, published
+                            because a record written before its publication exists has to reserve the room that
+                            publication's subject will take: a receipt spelled the way the published report header
                             carries it, one repository slug, one ref-shaped branch, a number inside the range
                             GitHub issues its identities out of, and a report that says something, fits a comment
                             with headroom to spare, and quotes no receipt marker of this orchestrator's. Text is
@@ -252,7 +254,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             binding composed on a copy so the drop of the delivery and the record of the
                             transaction land together or not at all -- two records claiming one report are two
                             reports the next tick would publish, and a drop with no transaction beside it is a
-                            finished run's report lost
+                            finished run's report lost. Acceptance also reserves what the TRANSACTION will cost,
+                            since the binding happens after the push and a report refused there is one the code
+                            went out without: the subject it will be bound to is unknowable then, so the
+                            reservation is taken at the width every member of one is recorded at -- except for a
+                            verification, held to its own location's pull request, which is the number the
+                            transaction has to be about and a refusal no width could prevent. A refusal SAYS which
+                            it was, by offering the same transaction to an empty comment: accepted there the record
+                            is sound and this comment is full, which the routes behind a report still owed give
+                            back, and refused there no comment would ever hold it
     report_delivery.py      the report one finished run earns, recorded before its code is published: the outcome
                             read off the run, the revision minted one past every report this issue has already
                             recorded -- the settled one and any transaction still outstanding, since a receipt is
@@ -260,10 +270,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             revision read off the pinned baseline the run was handed rather than computed now,
                             and the route its caller names. The write is this owner's, because being durable
                             before the size gate and the push is the whole of what makes the report recoverable.
-                            A run with no report outcome records nothing, and a report this build cannot store is
-                            reported and dropped rather than holding finished work behind a text. `owes_a_report`
-                            beside it is what a publication asks before it hands work on, over both records,
-                            asked as a CLAIM so a truncated one counts as a debt
+                            A run with no report outcome records nothing and the code publishes as it always did.
+                            A report this build cannot record HOLDS the tick instead, parked under
+                            `report_undeliverable`: the record is the only thing a later tick could publish from
+                            and the run that wrote it has ended, so nothing is published at all -- the commit
+                            stays in the worktree and a reply resumes the session. That park is this owner's to
+                            take for both roads that cannot deliver a report, announced once and held silently
+                            after, with the notice worded by whichever road took it since what differs is where
+                            the work stands. `owes_a_report` beside it is what a publication asks before it hands
+                            work on, over both records, asked as a CLAIM so a truncated one counts as a debt
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
@@ -344,10 +359,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             post GitHub refused comes back with the transaction already bound and only the
                             publication left: what a retry establishes is that the transaction is about the
                             publication in hand, held to its pull request, branch and commit, so a record naming
-                            other work is left for the reconciliation that can prove it. A delivery that cannot
-                            be read, or that the transaction's own writer refuses, is DROPPED rather than parked
-                            -- the run that wrote it is long gone, so nothing a human does to the comment brings
-                            the report back, and holding pushed work behind it would strand it
+                            other work is left for the reconciliation that can prove it. Nothing is ever
+                            DISCARDED: the delivered record stands through every refusal, which is what keeps the
+                            publication behind this owner from handing work on without its report. A comment too
+                            full is reported at ERROR and retried on the next tick, since the routes a report
+                            still owed lets run are what give the room back; a record nobody can read and a
+                            verification asserting a report on another pull request are refusals no later tick
+                            would answer differently, so the issue is parked once with the record intact
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
                             and the stage: it hands work that has ENDED straight back -- a closed issue, or one
@@ -1287,7 +1305,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             The report the run wrote is recorded between the tree and the gate, which is the last
                             moment it is certainly recoverable: past it the candidate can be frozen for a human, the
                             push can fail, and the process can die, and the session that wrote the report is gone on
-                            every one of those roads. A recovery records nothing, since no developer ran on it
+                            every one of those roads. A recovery records nothing, since no developer ran on it, and a
+                            report this build cannot record stops the call there -- nothing measured, nothing pushed,
+                            nothing opened, so the refusal costs only the tick
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
                             take a fresh or resumed measurement; the verdict carries the basis admitting publication
       late_gate_permission.py

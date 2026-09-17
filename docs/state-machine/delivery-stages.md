@@ -1676,14 +1676,29 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        and it is BOUND to the publication and posted once the pull request is known, which is the first moment the
        repository, number, branch and commit it is about are settled. Both writes are durable before anything is
        posted, and the post is scoped by the transaction's receipt, so a retry finds what an earlier attempt landed
-       instead of repeating it. A run that produced no report outcome records nothing and publishes exactly as it
-       always did; a report this build cannot store — past what the pinned comment can carry, quoting a receipt
-       marker of ours — is logged and dropped rather than holding finished work behind a text. Where the report IS
+       instead of repeating it. What the transaction will cost the pinned comment is reserved when the record is
+       ACCEPTED, at the width every member of a subject is recorded at, because the binding happens after the push:
+       a report accepted before the push and refused after it is one the code went out without. A run that produced
+       no report outcome records nothing and publishes exactly as it always did. Where the report IS
        published, the description carries only what it alone can (the `Resolves #N` and the attribution): the
        report comment says in as many words that it supersedes any agent message there, so a capped excerpt beside
        it would be a second unmarked, unversioned copy in a place nothing rereads. A description that already
        carries an unmarked `_Last agent message:_` tail keeps it — nothing can tell where that message ends and a
        human's words begin.
+     - **a report this build cannot deliver parks the issue rather than handing the work on.** A report that
+       cannot be RECORDED — past what the pinned comment can carry, quoting a receipt marker of ours, or naming a
+       requirements revision nothing can read — stops the call before the size gate: nothing is measured, nothing
+       pushed, no pull request opened, the commit stays in the worktree, and the issue parks under
+       `report_undeliverable`. The record is the only thing a later tick could publish a report from and the run
+       that wrote it has ended, so publishing the code anyway would hand review an implementation with no report
+       and no record of what the run said. A report that cannot be BOUND once the pull request is known — a
+       delivered record nobody can read, or a verification asserting a report on another pull request — takes the
+       same park after the push, with the record left exactly as it stands: the code is published, the handoff is
+       withheld, and the notice says both. Neither park is ever taken twice; the reason is this orchestrator's own
+       to announce once, and a reply resumes the developer session. The one refusal that does NOT park is a
+       pinned comment too full to carry the transaction: the routes a report still owed lets run are what give
+       that room back, so it is reported at ERROR, the record is kept, and the next tick binds what this one
+       could not.
      - **a report still owed refuses the handoff**, exactly as a moved checkout does and for the same reason: past
        the relabel the issue belongs to another stage, nothing under `validating` publishes a report or comes back
        for one, and the reviewer at the end of that road is the reader the report was written for. So the branch
@@ -1709,7 +1724,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   pushed branch + open PR whose report is still owed, unparked and still on `workflow:implementing` for the next
   tick to finish; an **unpublished**
   committed candidate held under `workflow:decomposing` for size adjudication, with no branch pushed and no pull
-  request opened; or a HITL park — the ordinary question / dirty-tree / unreadable-tree / timeout ones, plus the
+  request opened; or a HITL park — the ordinary question / dirty-tree / unreadable-tree / timeout ones,
+  `report_undeliverable` for a report the publication could not deliver (before the push, where nothing is
+  published, and after it, where the code stands and only the handoff is withheld), plus the
   size gate's own
   `late_measurement_failed` (a reading nobody could take, a record too damaged to act on — a missing base where one
   was recorded, a missing ceiling or boundary either way, an identity the late domain's record gate refuses, or a

@@ -94,6 +94,13 @@ def _publish_committed_work(
     the gate because the gate is the first thing that can hold the work for a
     human. A run that produced no report records nothing and pays nothing,
     which is every recovery that reaches this seam.
+
+    A report this build cannot record HOLDS the tick there, and holding it at
+    this line is what makes the refusal cheap: nothing has been measured,
+    nothing pushed, no pull request opened, so the commit is exactly where the
+    developer left it and a reply resumes the session that writes the report
+    again. Waved through instead, the code would reach review with no report
+    and no record of what the run said.
     """
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
     tree = _worktree_status._worktree_status(work.worktree)
@@ -102,9 +109,10 @@ def _publish_committed_work(
             gh, issue, state, work.agent_result, tree,
         )
         return
-    _report_delivery.records_delivered_report(
+    if _report_delivery.recording_stops_the_tick(
         gh, issue, state, work.agent_result, _state._REPORT_ROUTE,
-    )
+    ):
+        return
     verdict = _late_gate._holds_committed_work(
         gh, spec, issue, state, work,
     )

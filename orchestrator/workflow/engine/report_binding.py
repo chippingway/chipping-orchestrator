@@ -24,11 +24,18 @@ same branch, the same commit. So the two steps are separate: one binds what was
 delivered, the other posts what this publication owes, and the ordinary tick
 does both in a row.
 
-What cannot be bound is DROPPED rather than carried. A record nobody can read,
-or one the transaction's own writer refuses, describes a publication no later
-tick could make either -- so holding the implementation behind it would strand
-finished, pushed work on a text. The code is published, the log says what was
-lost, and the issue moves on.
+What cannot be bound is never DISCARDED. The delivered record stands whatever
+happens here, so the report a run wrote survives every refusal -- and because
+it stands, the publication that reads the debt behind this owner withholds the
+handoff, and the work waits rather than reaching review with no report.
+
+Which refusal it was decides whether anybody is told. A comment too full is
+given back by the routes a report still owed lets run, so it is reported at
+ERROR and retried on the next tick, in the place that had just proved this
+publication. Everything else -- a record nobody can read, a verification
+asserting a report on another pull request -- is a report no later tick could
+deliver either, so the issue is parked once with the record intact and a reply
+resumes the developer that can write it again.
 
 Publication itself is the engine's, unchanged: the post is scoped by the
 transaction's receipt, so a retry finds what an earlier attempt landed instead
@@ -53,8 +60,10 @@ from typing import Any
 
 from github.Issue import Issue
 
+from orchestrator import config
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
+    report_delivery as _delivery,
     report_delivery_state as _delivery_state,
     report_publishing as _publishing,
     report_record_state as _record_state,
@@ -62,6 +71,24 @@ from orchestrator.workflow.engine import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+# Why a delivered record cannot be bound when nothing can read it, in the words
+# the notice quotes. This owner's own judgement rather than the record owner's,
+# since what refused is the read rather than the write.
+_UNREADABLE_DELIVERY = "the record of what the run reported cannot be read"
+
+_UNBINDABLE_PARK = (
+    "{mentions} this issue's code is published on PR #{pr}, and the developer "
+    "report recorded for it cannot be bound to that publication: {detail}. "
+    "Nothing was discarded -- the report is still on the pinned comment under "
+    "`developer_report_delivery`, and the branch and the pull request stand "
+    "exactly as they are. The work is held here rather than handed to review, "
+    "because a reviewer sent to this pull request would be reading an "
+    "implementation whose report nothing on it carries. Reply and the "
+    "orchestrator resumes the session, which can write the report again as "
+    "the report text itself; clearing `developer_report_delivery` drops the "
+    "report this workflow is holding for."
+)
 
 
 @dataclass(frozen=True)
@@ -117,41 +144,76 @@ def _binds_the_delivery(
 ) -> None:
     """Turn the report a run delivered into the transaction it goes out as.
 
-    A record nobody can read is dropped here rather than parked. What a park
-    would be asking for is a report to publish, and this one is gone whatever
-    a human does to the comment: the run that wrote it ended long before this
-    tick. So is one the transaction's own writer refuses -- a text past what
-    the comment can hold, a verification naming another pull request -- which
-    is a publication no later tick could make either.
-
     The write goes out before anything is posted, because the whole value of
     the record is that it outlives this process.
+
+    Nothing is dropped on a refusal, whichever refusal it is: the delivered
+    record is what the run left and the only copy of it there is. What differs
+    is who is told. A comment that cannot carry the transaction is freed by
+    the routes a report still owed lets run, so it is reported and left for
+    the next tick. A record nobody can read, and a verification asserting a
+    report on another pull request, are refusals no later tick would answer
+    differently -- so the issue is parked once, with the record intact, for
+    the human who can decide between a fresh report and none.
     """
     delivered = _delivery_state.read_delivered_report(state)
     if delivered is None:
         log.error(
-            "issue=#%d delivered a developer report this build cannot read; "
-            "dropping it and publishing its code without one", issue.number,
+            "issue=#%d records a developer report this build cannot read; "
+            "holding its publication for a human", issue.number,
         )
-        _drops_the_delivery(gh, issue, state)
+        _parks_the_debt(gh, issue, state, published, _UNREADABLE_DELIVERY)
         return
-    if not _delivery_state.binds_delivered_report(
+    refusal = _delivery_state.binds_delivered_report(
         state, delivered, _records.ReportSubject(
             repo_slug=published.repo_slug,
-            pr_number=getattr(published.pull_request, "number", 0) or 0,
+            pr_number=_publication_number(published),
             branch=published.branch,
             source_sha=published.commit,
             requirements_revision=delivered.requirements_revision,
         ),
-    ):
-        log.error(
-            "issue=#%d cannot bind developer report revision %d to the pull "
-            "request its code reached; dropping the report",
-            issue.number, delivered.report_revision,
-        )
-        _drops_the_delivery(gh, issue, state)
+    )
+    if not refusal:
+        gh.write_pinned_state(issue, state)
         return
-    gh.write_pinned_state(issue, state)
+    if refusal == _delivery_state.CROWDED_COMMENT:
+        log.error(
+            "issue=#%d cannot bind developer report revision %d to PR #%s "
+            "without writing a pinned comment past what GitHub accepts; "
+            "leaving the report recorded and the work unhanded-on",
+            issue.number, delivered.report_revision,
+            _publication_number(published),
+        )
+        return
+    log.error(
+        "issue=#%d cannot bind developer report revision %d to the pull "
+        "request its code reached (%s); holding for a human",
+        issue.number, delivered.report_revision, refusal,
+    )
+    _parks_the_debt(gh, issue, state, published, refusal)
+
+
+def _parks_the_debt(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    published: ReportPublication,
+    detail: str,
+) -> None:
+    """Hold a published implementation whose report cannot be delivered.
+
+    Worded here rather than by the park's own owner because what a human needs
+    to know is where the WORK stands, and on this road it is already out: the
+    branch is on the remote and a pull request carries it, so the notice says
+    so and says that nothing of the report was thrown away either.
+    """
+    _delivery.parks_an_undeliverable_report(
+        gh, issue, state, _UNBINDABLE_PARK.format(
+            mentions=config.HITL_MENTIONS,
+            pr=_publication_number(published),
+            detail=detail,
+        ),
+    )
 
 
 def _publishes_what_is_owed(
@@ -211,22 +273,20 @@ def _names_this_publication(
     """
     subject = pending.subject
     return (
-        subject.pr_number == (getattr(published.pull_request, "number", 0) or 0)
+        subject.pr_number == _publication_number(published)
         and subject.repo_slug == published.repo_slug
         and subject.branch == published.branch
         and subject.source_sha == published.commit
     )
 
 
-def _drops_the_delivery(
-    gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState,
-) -> None:
-    """Give up on a delivered report, durably, so nothing waits on it again.
+def _publication_number(published: ReportPublication) -> int:
+    """The pull request this publication reached, or 0 where none reads.
 
-    Written rather than staged, because what it settles is the question the
-    caller asks next: whether this issue still owes a report. Left in memory,
-    a tick that died before the caller's own write would come back to the same
-    unusable record and drop it again on every poll.
+    Read through one helper because four callers ask it -- the subject a
+    binding names, two diagnostics, and the comparison that keeps a retry on
+    its own publication -- and because the read is guarded: the number comes
+    off an object GitHub handed back, and 0 is the answer every reader here
+    refuses on rather than one anything is written under.
     """
-    _delivery_state.clear_delivered_report(state)
-    gh.write_pinned_state(issue, state)
+    return getattr(published.pull_request, "number", 0) or 0

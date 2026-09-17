@@ -4,10 +4,11 @@
 
 Two halves, in the order they happen. A run's outcome is recorded before its
 code is published, holding everything the session settled and nothing a pull
-request decides -- and a record this build could not publish from is refused
-where the run that wrote it is still there to be told. Then the publication
-arrives and the record is bound to it: one write that drops the delivery and
-records the transaction, or no write at all.
+request decides -- and what the transaction it becomes will cost is reserved
+there too, since the binding happens after the push and a report refused then
+is one the code went out without. Then the publication arrives and the record
+is bound to it: one write that drops the delivery and records the transaction,
+or no write at all and a refusal that says which of the two it was.
 """
 
 from __future__ import annotations
@@ -35,6 +36,23 @@ ISSUE_NUMBER = 7
 RECEIPT = "issue-7-report-1"
 
 BASELINE = "user_content_hash"
+
+PARK_REASON = "park_reason"
+
+AWAITING_HUMAN = "awaiting_human"
+
+# What a comment is crowded with, where the case is about the room left rather
+# than about what is in it.
+FILLER = "x"
+
+# How much room past the report's own length a comment is left with in the two
+# crowded cases. The wider one has room for the delivered record and not for
+# the transaction RESERVED against it, whose subject is sized at the width
+# every member of one is recorded at; the narrower one has no room for the
+# transaction an actual subject builds either.
+CROWDED_FOR_RESERVATION = 1000
+
+CROWDED_FOR_BINDING = 400
 
 # What a delivered report reads back as when the run wrote one for publication,
 # and when it says a report is already on the thread.
@@ -99,7 +117,7 @@ class DeliveredReportRecordTest(unittest.TestCase):
         # publication this build could never make -- and none of them writes
         # anything, so the caller hears it while the run is still there.
         refused = (
-            ("oversized", "x" * (_record_values.MAX_REPORT_TEXT + 1)),
+            ("oversized", FILLER * (_record_values.MAX_REPORT_TEXT + 1)),
             (
                 "a quoted receipt marker",
                 f"quoting {_trust.RECEIPT_MARKER_PREFIX}developer-report",
@@ -147,7 +165,7 @@ class DeliveredReportRecordTest(unittest.TestCase):
         # The record shares the comment with everything else this issue has
         # recorded, so what is measured is the write it would make.
         crowded = PinnedState(state_data={
-            "crowded": "x" * (MAX_PINNED_BODY - len(DELIVERED.report)),
+            "crowded": FILLER * (MAX_PINNED_BODY - len(DELIVERED.report)),
         })
 
         self.assertFalse(
@@ -159,14 +177,39 @@ class DeliveredReportRecordTest(unittest.TestCase):
         )
 
 
+    def test_a_transaction_past_the_comment(self) -> None:
+        # The delivered record fits and the transaction it will be bound into
+        # does not, which is the whole reason the second write is measured
+        # where the first one is: the binding happens after the push, so a
+        # report accepted here and refused there is one the code went out
+        # without.
+        crowded = PinnedState(state_data={
+            "crowded": FILLER * (
+                MAX_PINNED_BODY - len(DELIVERED.report)
+                - CROWDED_FOR_RESERVATION
+            ),
+        })
+
+        self.assertTrue(_record_state.fits_the_comment({
+            **crowded.data, _records.DELIVERED_REPORT: _recorded(DELIVERED),
+        }))
+        self.assertFalse(
+            _delivery_state.record_delivered_report(crowded, DELIVERED),
+        )
+        self.assertFalse(_delivery_state.carries_delivered_report(crowded))
+
+
 class DeliveredReportBindingTest(unittest.TestCase):
     def test_binding_exchanges_the_records(self) -> None:
         state = PinnedState()
         _delivery_state.record_delivered_report(state, DELIVERED)
 
-        self.assertTrue(_delivery_state.binds_delivered_report(
-            state, DELIVERED, support.SUBJECT,
-        ))
+        self.assertEqual(
+            _delivery_state.binds_delivered_report(
+                state, DELIVERED, support.SUBJECT,
+            ),
+            "",
+        )
 
         self.assertFalse(_delivery_state.carries_delivered_report(state))
         self.assertEqual(
@@ -185,7 +228,8 @@ class DeliveredReportBindingTest(unittest.TestCase):
         # A subject the transaction's own writer will not store, and a
         # verification asserting a report on another pull request. Neither may
         # half-apply: a delivery dropped with no transaction beside it is a
-        # finished run's report lost.
+        # finished run's report lost. Both answer UNBINDABLE, since no room
+        # the comment could get back would make either of them acceptable.
         refused = (
             (
                 "a subject naming no pull request",
@@ -211,15 +255,43 @@ class DeliveredReportBindingTest(unittest.TestCase):
                 state = PinnedState()
                 _delivery_state.record_delivered_report(state, delivered_report)
 
-                self.assertFalse(_delivery_state.binds_delivered_report(
-                    state, delivered_report, subject,
-                ))
+                self.assertEqual(
+                    _delivery_state.binds_delivered_report(
+                        state, delivered_report, subject,
+                    ),
+                    _delivery_state.UNBINDABLE_RECORD,
+                )
 
                 self.assertEqual(
                     _delivery_state.read_delivered_report(state),
                     delivered_report,
                 )
                 self.assertFalse(_record_state.carries_pending_report(state))
+
+    def test_a_crowded_comment_is_its_own_refusal(self) -> None:
+        # A sound record the comment cannot carry the transaction for is told
+        # apart from one nothing could ever bind, because the two are cleared
+        # by different things: room comes back as the routes behind a report
+        # still owed write to the comment, and the record is left standing for
+        # the tick that finds it.
+        crowded = PinnedState(state_data={
+            "crowded": FILLER * (
+                MAX_PINNED_BODY - len(DELIVERED.report) - CROWDED_FOR_BINDING
+            ),
+            _records.DELIVERED_REPORT: _recorded(DELIVERED),
+        })
+
+        self.assertEqual(
+            _delivery_state.binds_delivered_report(
+                crowded, DELIVERED, support.SUBJECT,
+            ),
+            _delivery_state.CROWDED_COMMENT,
+        )
+
+        self.assertEqual(
+            _delivery_state.read_delivered_report(crowded), DELIVERED,
+        )
+        self.assertFalse(_record_state.carries_pending_report(crowded))
 
     def test_the_revision_moves_forward(self) -> None:
         # A settled report and an outstanding transaction each pin a revision
@@ -231,7 +303,7 @@ class DeliveredReportBindingTest(unittest.TestCase):
         _record_state.record_pending_report(state, support.PUBLISHED)
         github, issue = _seeded_issue()
 
-        _delivery.records_delivered_report(
+        _delivery.recording_stops_the_tick(
             github, issue, state, _agent(last_message=_ready(DELIVERED.report)),
             WorkflowLabel.IMPLEMENTING,
         )
@@ -248,7 +320,7 @@ class DeliveredReportBindingTest(unittest.TestCase):
         state = github.read_pinned_state(issue)
         state.set(BASELINE, support.REQUIREMENTS)
 
-        _delivery.records_delivered_report(
+        _delivery.recording_stops_the_tick(
             github, issue, state, _agent(last_message=_ready(DELIVERED.report)),
             WorkflowLabel.IMPLEMENTING,
         )
@@ -277,7 +349,7 @@ class DeliveredReportBindingTest(unittest.TestCase):
             with self.subTest(message=described):
                 state = PinnedState(state_data={BASELINE: support.REQUIREMENTS})
 
-                _delivery.records_delivered_report(
+                _delivery.recording_stops_the_tick(
                     *seeded, state, _agent(last_message=message),
                     WorkflowLabel.IMPLEMENTING,
                 )
@@ -287,19 +359,32 @@ class DeliveredReportBindingTest(unittest.TestCase):
                 )
                 self.assertFalse(_delivery.owes_a_report(state))
 
-    def test_no_baseline_records_nothing(self) -> None:
+    def test_no_baseline_parks_the_tick(self) -> None:
         # The requirements revision is the one member of a subject the run
         # settles, and a record without it is a transaction nothing could
-        # prove again.
+        # prove again -- so the report cannot be recorded, and a report this
+        # build cannot record holds the tick rather than letting the code go
+        # out without one.
         github, issue = _seeded_issue()
         state = PinnedState()
 
-        _delivery.records_delivered_report(
+        self.assertTrue(_delivery.recording_stops_the_tick(
             github, issue, state, _agent(last_message=_ready(DELIVERED.report)),
             WorkflowLabel.IMPLEMENTING,
-        )
+        ))
 
         self.assertFalse(_delivery_state.carries_delivered_report(state))
+        self.assertEqual(
+            (state.get(AWAITING_HUMAN), state.get(PARK_REASON)),
+            (True, _delivery.UNDELIVERABLE_REPORT),
+        )
+
+
+def _recorded(delivered: _records.DeliveredReport) -> dict:
+    """The pinned object one delivered report is written as."""
+    state = PinnedState()
+    _delivery_state.record_delivered_report(state, delivered)
+    return state.get(_records.DELIVERED_REPORT)
 
 
 def _ready(report: str) -> str:

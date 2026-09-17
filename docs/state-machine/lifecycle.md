@@ -32,6 +32,14 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                      could not report on parks as
                                      unreadable_worktree, since a read that
                                      established nothing is not a clean tree
+     a report this build cannot   ─► never reaches the gate either: the run's
+       record                        report goes onto the pinned comment
+                                     between the tree and the gate, and one
+                                     that will not fit or will not read parks
+                                     report_undeliverable with nothing
+                                     measured, nothing pushed and no PR
+                                     opened -- the record is the only thing a
+                                     later tick could publish it from
      additions <= MAX_ADDED_LINES ─► publish as usual (push, PR,
                                      workflow:validating); the generation is
                                      dropped, its cycle recorded retired, and
@@ -644,7 +652,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    untouched: a closed issue, or an open one
                                    already wearing done|rejected, since a
                                    terminal label resolves to no handler and
-                                   the no-op below would protect nothing
+                                   the no-op below would protect nothing.
+                                   The record itself is left by a publication
+                                   that bound the report its run delivered
+                                   and could not put it on the thread, so
+                                   reaching this guard is the retry rather
+                                   than the first attempt
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every

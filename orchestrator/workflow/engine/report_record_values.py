@@ -56,8 +56,15 @@ _RECORD_HEADROOM = 8192
 # it is the complete report is indistinguishable from the report itself.
 MAX_REPORT_TEXT = MAX_PINNED_BODY - _RECORD_HEADROOM
 
-# How long a branch name this domain will carry may be.
-_BRANCH_LIMIT = 256
+# How long a branch name this domain will carry may be. Published, like the
+# slug halves below, because a record written BEFORE the publication it will be
+# bound to has to reserve the room that publication's subject will take -- and
+# a reservation narrower than what the field admits would accept a report whose
+# own transaction the binding then refuses, after the code is already pushed.
+MAX_BRANCH = 256
+
+# How long each half of one repository slug may be.
+MAX_SLUG_HALF = 100
 
 # The range GitHub issues its identities out of, which the revision counted
 # beside them is a small ordinal inside.
@@ -77,7 +84,9 @@ _RECEIPT = re.compile("[A-Za-z0-9_.-]{1,128}")
 # owner is one of the values a settlement copies, so an unbounded one would be
 # a record whose settling write cannot be measured. Anything else is not a
 # repository this transaction could be held against.
-_SLUG = re.compile("[A-Za-z0-9-]{1,100}/[A-Za-z0-9._-]{1,100}")
+_SLUG = re.compile(
+    f"[A-Za-z0-9-]{{1,{MAX_SLUG_HALF}}}/[A-Za-z0-9._-]{{1,{MAX_SLUG_HALF}}}",
+)
 
 # One ref line: no whitespace, no control characters, nothing that would make
 # a recorded branch two lines when something reads it back.
@@ -137,7 +146,7 @@ def as_branch(raw: object) -> str | None:
     compared against it is a ref the git layer resolved -- and encodable, since
     the pattern below admits every surrogate a JSON escape can spell.
     """
-    if not isinstance(raw, str) or len(raw) > _BRANCH_LIMIT:
+    if not isinstance(raw, str) or len(raw) > MAX_BRANCH:
         return None
     if not carries_utf8(raw):
         return None

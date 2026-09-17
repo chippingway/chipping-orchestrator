@@ -641,6 +641,16 @@ The keys that matter for the state machine fall into a few groups:
   recorded — the settled one and any transaction still outstanding — because the receipt is spelled from it and a
   retry finds its own comment by that receipt.
 
+  Accepting that record also RESERVES what the transaction bound from it will cost this comment, at the width every
+  member of a subject is recorded at. The binding happens after the push, so a record accepted against its own
+  write alone could be refused once the code is out — which is the one moment nothing can be done about it, since
+  the session that wrote the report has ended. A verification is reserved against its own location's pull request
+  instead of the widest number, because that is the number its transaction has to be about and any other is a
+  refusal no width could prevent. A report this workflow cannot record at all, and one it cannot bind, both park
+  the issue under `report_undeliverable` with whatever record exists left exactly as it stands; only a comment too
+  full for the transaction is retried silently, because the routes a report still owed lets run are what give that
+  room back.
+
   `developer_report_pending` is one publication transaction, written **before** the report or the code it reports
   on is published — that ordering is the whole of what makes the publication recoverable. It carries the receipt
   naming the transaction, the subject it is bound to (repository, pull request, branch, source commit, and the
@@ -671,10 +681,12 @@ The keys that matter for the state machine fall into a few groups:
   can describe is the one answer a guard may not confuse with an issue that owes none.
 
   What counts as a claim differs across the four, and it follows from which of them is ever cleared.
-  `developer_report_delivery` is cleared by the write that binds it — and by the one that gives up on a record no
-  binding could accept — and `developer_report_pending` is cleared on every settlement. Both keep the key and hold
+  `developer_report_delivery` is cleared by the write that binds it — and by nothing else, since a refusal that
+  dropped it would lose the only copy of what the run reported — and `developer_report_pending` is cleared on every
+  settlement. Both keep the key and hold
   `null`, so `null` on either is its ordinary resting state and an absence, and only a payload that is present and
-  is not an object is a claim.
+  is not an object is a claim. A human clearing the delivery field by hand is the one way a report obligation is
+  abandoned, which is what the `report_undeliverable` park notice offers.
   Nothing clears either settled record; a settlement REPLACES one. So `developer_report_current` and
   `developer_report_handoff` are claimed by the presence of their key alone, `null` included: a `null` there is a
   truncated write or a hand edit, and read as an absence it would be silently replaced after the next report is
@@ -753,7 +765,11 @@ The keys that matter for the state machine fall into a few groups:
   and what reads it back is the recovery that took it: that route retries on every tick and stays silent while its
   own reason stands, so the reason is what tells a notice already on the thread from one to post afresh — and a park
   worded by the size gate behind it, which says its own piece on every reading it cannot take, is held for a human
-  rather than re-entered. The developer-report reconciliation re-sets `report_record_damaged` for a reason of its
+  rather than re-entered. The implementing publication re-sets `report_undeliverable` for a reason of the same
+  kind: the park is announced once and held silently after — a report this workflow cannot deliver does not become
+  deliverable by being announced again — and the reason is what a later tick reads to know the notice is there.
+  Nothing there retires it; the resume a human's reply earns is what clears the flags, as it does for every other
+  park on that stage. The developer-report reconciliation re-sets `report_record_damaged` for a reason of its
   own: the park is the dispatcher's rather than a stage's, so the reason is the only thing that tells a tick whose
   park it is standing over — this owner announces once, holds silently on its own, and retires *only* its own,
   since every other reason belongs to a stage still waiting for what it asked for. Where one of those is already
