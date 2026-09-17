@@ -36,6 +36,10 @@ beginning of the file when there is no shebang:
 - Conventional Commits: `<type>: <subject>` with one of `feat`, `fix`, `chore`, `docs`, `refactor`, `test`.
 - Subject line only — no body, no `Co-Authored-By` trailer, no extended description. One `-m` flag.
 - Imperative mood, short and specific. Match the style in `git log --oneline -20`.
+- Descriptive subject only — write **no** numeric suffix. The trailing ` (#N)` on the subjects in that history is
+  publication metadata the orchestrator appended when it published the change, not part of the style to match: never
+  copy one, and never end a subject with the number of the issue being implemented. The orchestrator supplies the
+  pull request reference itself, and issue linkage stays in the PR body.
 
 ## Pre-push checklist
 
