@@ -73,11 +73,14 @@ file is the durable record.
   reading at all), `unreadable_head` (nothing could name a commit a `resolving_conflict` round turns on — the head a
   clean rebase left, the head it started from, the head a body-edit resume begins at, or the head recovered commits
   leave the branch on — so the push behind it would carry neither a lease nor a named candidate),
-  `reviewer_timeout`, `verify_failed` / `verify_timeout` / `verify_dirty` /
-  `verify_head_changed`, `agent_run_limit` (the issue has spent every agent run its lifetime ceiling allows),
-  `question_*`, `discussion_*`, ...). `dirty_worktree` carries `dirty_files` (how many paths
-  git named); `unreadable_worktree` carries none, since naming a count there would report a failed read as an empty
-  tree.
+  `reviewer_timeout`, `reviewer_failed`, `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
+  `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `verify_failed` / `verify_timeout` /
+  `verify_dirty` / `verify_head_changed`, `agent_run_limit` (the issue has spent every agent run its lifetime ceiling
+  allows), `question_*`, `discussion_*`, ...). Failed-run parks in validating and decomposing forward explicit,
+  bounded correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`, `pr_number`) through
+  `_park_awaiting_human` so audit and analytics share the same payload; `dirty_worktree` carries `dirty_files`
+  (how many paths git named); `unreadable_worktree` carries none, since naming a count there would report a failed read
+  as an empty tree.
 - `retry_cap` — the per-issue spawn budget's park, emitted by `workflow/engine/retry_budget.py`; extras: `stage`
   (read off the park rather than off the label, since the budget is shared and a parked issue's label is not always
   the stage that ran out — dropped when the park carries none), `phase` — `delivered` (the notice said for the first
@@ -251,7 +254,7 @@ foundation layer for the Postgres aggregation step.
   context + parsed token / model / cost details (see below).
 - `park_awaiting_human` — `GitHubClient.emit_event` (and the in-memory fake client) alongside the audit
   `park_awaiting_human`; one record per human-wait transition; carries `stage`, `reason`, and structured extras (e.g.
-  `agent_role`, `backend`, `review_round`, `retry_count`, `pr_number`, `dirty_files`).
+  `agent_role`, `session_id`, `backend`, `review_round`, `retry_count`, `pr_number`, `dirty_files`).
 - `repo_skill_catalog` — `orchestrator.skills.catalog._emit_repo_skill_catalog`, driven once per tick per spec by the
   tick owner (`workflow.engine.tick.tick`); repo-level (not issue-scoped, so
   `issue` is

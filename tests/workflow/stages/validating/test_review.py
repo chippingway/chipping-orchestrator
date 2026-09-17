@@ -38,6 +38,7 @@ _open_pr_for = review_support._open_pr_for
 _FreshReviewFixtureMixin = review_support.FreshReviewFixtureMixin
 _FixLoopFixtureMixin = review_support.FixLoopFixtureMixin
 _ContinueCommandFixtureMixin = review_support.ContinueCommandFixtureMixin
+FRESH_REVIEW_PR = review_support.FRESH_REVIEW_PR
 
 FIX_LOOP_ISSUE = 6
 RESUME_PR = 13
@@ -70,6 +71,14 @@ AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
 AGENT_ROLE = "agent_role"
 EVENT_NAME = "event"
+EVENT_PARK_AWAITING_HUMAN = "park_awaiting_human"
+REASON_REVIEWER_TIMEOUT = "reviewer_timeout"
+REASON_REVIEWER_FAILED = "reviewer_failed"
+REASON_REVIEWER_NO_VERDICT = "reviewer_no_verdict"
+DEFAULT_SESSION_ID = "sess-1"
+KEY_REASON = "reason"
+KEY_SESSION_ID = "session_id"
+KEY_PR_NUMBER = "pr_number"
 BACKEND_CLAUDE = "claude"
 BACKEND_CODEX = "codex"
 HUMAN_LOGIN = "alice"
@@ -247,10 +256,11 @@ class HandleValidatingReviewerFailureTest(
         # Tagged transient so the next tick re-spawns the reviewer instead
         # of waiting for a human comment that the timeout itself does not
         # produce.
-        self.assertEqual(failure_state.get(PARK_REASON), "reviewer_timeout")
+        self.assertEqual(failure_state.get(PARK_REASON), REASON_REVIEWER_TIMEOUT)
         last_comment = failure_github.posted_comments[-1][1]
         self.assertIn("reviewer timed out", last_comment)
         self.assertNotIn((5, LABEL_IN_REVIEW), failure_github.label_history)
+        self._assert_reviewer_park_event(failure_github, REASON_REVIEWER_TIMEOUT)
 
     def test_silent_crash_parks_reviewer_failed(self) -> None:
         # The reviewer agent crashed (e.g. codex returned `Error: No such
@@ -267,7 +277,8 @@ class HandleValidatingReviewerFailureTest(
 
         failure_state = failure_github.pinned_data(5)
         self.assertTrue(failure_state.get(AWAITING_HUMAN))
-        self.assertEqual(failure_state.get(PARK_REASON), "reviewer_failed")
+        self.assertEqual(failure_state.get(PARK_REASON), REASON_REVIEWER_FAILED)
+        self._assert_reviewer_park_event(failure_github, REASON_REVIEWER_FAILED)
 
     def test_provider_refusal_parks_reviewer_failed(self) -> None:
         # The provider refused to serve the turn, so the reviewer's output
@@ -288,10 +299,11 @@ class HandleValidatingReviewerFailureTest(
 
         failure_state = failure_github.pinned_data(5)
         self.assertTrue(failure_state.get(AWAITING_HUMAN))
-        self.assertEqual(failure_state.get(PARK_REASON), "reviewer_failed")
+        self.assertEqual(failure_state.get(PARK_REASON), REASON_REVIEWER_FAILED)
         last_comment = failure_github.posted_comments[-1][1]
         self.assertIn(PROVIDER_UNAVAILABLE_PHRASE, last_comment)
         self.assertNotIn("manual adjudication needed", last_comment)
+        self._assert_reviewer_park_event(failure_github, REASON_REVIEWER_FAILED)
 
     def test_text_unknown_verdict_not_tagged_failed(self) -> None:
         # When the reviewer DID emit text but no VERDICT line, the park
@@ -314,6 +326,7 @@ class HandleValidatingReviewerFailureTest(
                 failure_state = failure_github.pinned_data(5)
                 self.assertTrue(failure_state.get(AWAITING_HUMAN))
                 self.assertIsNone(failure_state.get(PARK_REASON))
+                self._assert_reviewer_park_event(failure_github, REASON_REVIEWER_NO_VERDICT)
 
     def test_empty_zero_exit_message_not_failed(self) -> None:
         # Defensive: empty last_message but exit_code == 0 is not a
@@ -330,6 +343,63 @@ class HandleValidatingReviewerFailureTest(
         failure_state = failure_github.pinned_data(5)
         self.assertTrue(failure_state.get(AWAITING_HUMAN))
         self.assertIsNone(failure_state.get(PARK_REASON))
+        self._assert_reviewer_park_event(failure_github, REASON_REVIEWER_NO_VERDICT)
+
+    def test_malformed_context_parks_fail_open(self) -> None:
+        for pr_value in ("malformed-pr", 1e309, True):
+            with self.subTest(case="timeout", pr_number=pr_value):
+                failure_github, failure_issue = self._seeded(pr_number=pr_value)
+                self._run_validating(
+                    failure_github,
+                    failure_issue,
+                    run_agent=_agent(timed_out=True),
+                )
+
+                failure_state = failure_github.pinned_data(5)
+                self.assertTrue(failure_state.get(AWAITING_HUMAN))
+                self.assertEqual(failure_state.get(PARK_REASON), REASON_REVIEWER_TIMEOUT)
+                last_comment = failure_github.posted_comments[-1][1]
+                self.assertIn("reviewer timed out", last_comment)
+                self._assert_reviewer_park_event(
+                    failure_github,
+                    REASON_REVIEWER_TIMEOUT,
+                    expected_pr_number=None,
+                )
+
+        with self.subTest(case="failed"):
+            failure_github, failure_issue = self._seeded(pr_number="malformed-pr")
+            self._run_validating(
+                failure_github,
+                failure_issue,
+                run_agent=_agent(last_message="", stderr="boom", exit_code=2),
+            )
+
+            failure_state = failure_github.pinned_data(5)
+            self.assertTrue(failure_state.get(AWAITING_HUMAN))
+            self.assertEqual(failure_state.get(PARK_REASON), REASON_REVIEWER_FAILED)
+            self._assert_reviewer_park_event(
+                failure_github,
+                REASON_REVIEWER_FAILED,
+                expected_pr_number=None,
+            )
+
+    def _assert_reviewer_park_event(
+        self,
+        gh: FakeGitHubClient,
+        expected_reason: str,
+        expected_pr_number: int | None = FRESH_REVIEW_PR,
+    ) -> None:
+        events = [
+            recorded_event for recorded_event in gh.recorded_events
+            if recorded_event.get(EVENT_NAME) == EVENT_PARK_AWAITING_HUMAN
+        ]
+        self.assertEqual(len(events), 1)
+        park_record = events[0]
+        self.assertEqual(park_record.get(KEY_REASON), expected_reason)
+        self.assertEqual(park_record.get(AGENT_ROLE), ROLE_REVIEWER)
+        self.assertEqual(park_record.get(KEY_SESSION_ID), DEFAULT_SESSION_ID)
+        self.assertEqual(park_record.get(REVIEW_ROUND), 0)
+        self.assertEqual(park_record.get(KEY_PR_NUMBER), expected_pr_number)
 
 
 class HandleValidatingFixLoopEdgeCasesTest(

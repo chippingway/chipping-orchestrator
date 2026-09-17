@@ -5,7 +5,9 @@ from __future__ import annotations
 import unittest
 
 from tests.support.fakes import (
+    FakeComment,
     FakeGitHubClient,
+    FakeUser,
     make_issue,
 )
 from tests.workflow.fixtures import (
@@ -43,6 +45,7 @@ DIRTY_PARK_ISSUE_NUMBER = 41
 MALFORMED_MANIFEST_ISSUE_NUMBER = 14
 QUESTION_PARK_ISSUE_NUMBER = 15
 SILENT_FAILURE_ISSUE_NUMBER = 115
+TIMEOUT_ISSUE_NUMBER = 116
 RESUME_ISSUE_NUMBER = 16
 FILTERED_RESUME_ISSUE_NUMBER = 17
 RETRY_CAP_ISSUE_NUMBER = 18
@@ -87,6 +90,46 @@ SPLIT_MANIFEST = _manifest(
 )
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
+_PARK_REASON_DIRTY = "decomposer_dirty"
+_PARK_REASON_TIMEOUT = "decomposer_timeout"
+_PARK_REASON_INVALID = "decomposer_invalid_manifest"
+_PARK_REASON_QUESTION = "decomposer_question"
+_PARK_REASON_SILENT = "decomposer_silent"
+_ROLE_DECOMPOSER = "decomposer"
+_EVENT_PARK = "park_awaiting_human"
+
+
+def _assert_resumed_timeout_park_fail_open(
+    test_case: HandleDecomposingParkTest,
+    retry_count: object,
+) -> None:
+    gh = FakeGitHubClient()
+    issue = make_issue(RESUME_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+    issue.comments.append(
+        FakeComment(
+            id=HUMAN_REPLY_COMMENT_ID,
+            body="please proceed",
+            user=FakeUser(TRUSTED_AUTHOR),
+        )
+    )
+    gh.add_issue(issue)
+    gh.seed_state(
+        RESUME_ISSUE_NUMBER,
+        awaiting_human=True,
+        last_action_comment_id=PRIOR_ACTION_COMMENT_ID,
+        decomposer_agent="claude",
+        decomposer_session_id=DECOMPOSER_SESSION,
+        retry_count=retry_count,
+    )
+    test_case._run_decomposing(
+        gh,
+        issue,
+        run_agent=_agent(session_id=DECOMPOSER_SESSION, timed_out=True),
+    )
+    test_case.assertTrue(gh.pinned_data(RESUME_ISSUE_NUMBER).get(KEY_AWAITING_HUMAN))
+    test_case._assert_decomposer_park_event(
+        gh, _PARK_REASON_TIMEOUT, expected_retry_count=None,
+    )
 
 
 class HandleDecomposingParkTest(
@@ -120,6 +163,7 @@ class HandleDecomposingParkTest(
         )
         last_comment = gh.posted_comments[-1][1]
         self.assertIn(READ_ONLY_FRAGMENT, last_comment)
+        self._assert_decomposer_park_event(gh, _PARK_REASON_DIRTY)
 
     def test_dirty_files_left_by_decomposer_park(self) -> None:
         gh = FakeGitHubClient()
@@ -142,6 +186,27 @@ class HandleDecomposingParkTest(
         )
         last_comment = gh.posted_comments[-1][1]
         self.assertIn(READ_ONLY_FRAGMENT, last_comment)
+        self._assert_decomposer_park_event(gh, _PARK_REASON_DIRTY)
+
+    def test_decompose_timeout_parks(self) -> None:
+        gh = FakeGitHubClient()
+        issue = make_issue(TIMEOUT_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
+        gh.add_issue(issue)
+
+        self._run_decomposing(
+            gh,
+            issue,
+            run_agent=_agent(session_id=DECOMPOSER_SESSION, timed_out=True),
+        )
+
+        state = gh.pinned_data(TIMEOUT_ISSUE_NUMBER)
+        self.assertTrue(state.get(KEY_AWAITING_HUMAN))
+        last_comment = gh.posted_comments[-1][1]
+        self.assertIn("decomposer timed out", last_comment)
+        self._assert_decomposer_park_event(
+            gh, _PARK_REASON_TIMEOUT, expected_retry_count=1,
+        )
+        _assert_resumed_timeout_park_fail_open(self, "not-an-int")
 
     def test_decompose_malformed_manifest_parks(self) -> None:
         gh = FakeGitHubClient()
@@ -165,6 +230,7 @@ class HandleDecomposingParkTest(
         # Decomposer session recorded so the resume on human reply uses
         # the right backend even if DECOMPOSE_AGENT flips between ticks.
         self.assertEqual(state.get(KEY_DECOMPOSER_SESSION_ID), DECOMPOSER_SESSION)
+        self._assert_decomposer_park_event(gh, _PARK_REASON_INVALID)
 
     def test_decompose_no_manifest_question_parks(self) -> None:
         gh = FakeGitHubClient()
@@ -188,6 +254,7 @@ class HandleDecomposingParkTest(
         self.assertIn("--json flag", last_comment)
         # Real decomposer text -> no stderr block (would be noise).
         self.assertNotIn("Decomposer stderr", last_comment)
+        self._assert_decomposer_park_event(gh, _PARK_REASON_QUESTION)
 
     def test_decompose_silent_failure_surfaces_stderr(self) -> None:
         # No manifest AND no final message: the decomposer subprocess
@@ -214,6 +281,8 @@ class HandleDecomposingParkTest(
             ),
         )
 
+        state = gh.pinned_data(SILENT_FAILURE_ISSUE_NUMBER)
+        self.assertTrue(state.get(KEY_AWAITING_HUMAN))
         last_comment = gh.posted_comments[-1][1]
         self.assertIn("(decomposer produced no final message)", last_comment)
         self.assertIn("_Decomposer stderr (last 1KB):_", last_comment)
@@ -225,3 +294,22 @@ class HandleDecomposingParkTest(
                 for log_line in log_lines
             )
         )
+        self._assert_decomposer_park_event(gh, _PARK_REASON_SILENT)
+
+    def _assert_decomposer_park_event(
+        self,
+        gh: FakeGitHubClient,
+        expected_reason: str,
+        expected_session: str = DECOMPOSER_SESSION,
+        expected_retry_count: int | None = 1,
+    ) -> None:
+        events = [
+            recorded_event for recorded_event in gh.recorded_events
+            if recorded_event.get("event") == _EVENT_PARK
+        ]
+        self.assertEqual(len(events), 1)
+        park_record = events[0]
+        self.assertEqual(park_record.get("reason"), expected_reason)
+        self.assertEqual(park_record.get("agent_role"), _ROLE_DECOMPOSER)
+        self.assertEqual(park_record.get("session_id"), expected_session)
+        self.assertEqual(park_record.get("retry_count"), expected_retry_count)

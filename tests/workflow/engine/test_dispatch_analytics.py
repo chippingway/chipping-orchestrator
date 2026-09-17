@@ -35,6 +35,7 @@ from tests.workflow.fixtures import (
 )
 
 # The tag each label reports itself as: what the analytics row records.
+_DECOMPOSING_STAGE = "decomposing"
 _IMPLEMENTING_STAGE = "implementing"
 _VALIDATING_STAGE = "validating"
 
@@ -48,6 +49,11 @@ _VALIDATING_HANDLER = (
 _ANALYTICS_PATH_ATTR = "ANALYTICS_LOG_PATH"
 _STAGE_KEY = "stage"
 _EVENT_KEY = "event"
+_ISSUE_KEY = "issue"
+_REPO_KEY = "repo"
+_TS_KEY = "ts"
+_KEY_REASON = "reason"
+_TIMEOUT_PR = 42
 _HARD_SKIPPED_ISSUE = 8004
 _SUCCESS_ISSUE = 8001
 _UNLABELED_ISSUE = 8002
@@ -69,7 +75,7 @@ def _stage_evaluations(path: Path, issue_number: int) -> list[dict]:
     return [
         record for record in _analytics_records(path)
         if record.get(_EVENT_KEY) == EVENT_STAGE_EVALUATION
-        and record.get("issue") == issue_number
+        and record.get(_ISSUE_KEY) == issue_number
     ]
 
 
@@ -120,7 +126,7 @@ class StageEvaluationAnalyticsTest(unittest.TestCase):
                  patch.object(implementing, "_handle_implementing"):
                 _issue_processing._process_issue(gh, _TEST_SPEC, issue)
             record = _stage_evaluations(path, _SUCCESS_ISSUE)[0]
-        self.assertEqual(record["repo"], TEST_REPO_SLUG)
+        self.assertEqual(record[_REPO_KEY], TEST_REPO_SLUG)
         self.assertEqual(record[_STAGE_KEY], _IMPLEMENTING_STAGE)
         self.assertEqual(record["result"], "ok")
         self.assertIn("duration_s", record)
@@ -250,7 +256,29 @@ class StageEnterAnalyticsRecordTest(unittest.TestCase):
 
     def _stage_enter_projection(self, record: dict) -> tuple:
         datetime.fromisoformat(record["ts"])
-        return record[_EVENT_KEY], record["issue"], record["repo"]
+        return record[_EVENT_KEY], record[_ISSUE_KEY], record[_REPO_KEY]
+
+
+def _capture_park_records(
+    client: FakeGitHubClient,
+    stage: str,
+    reason: str,
+    **correlation,
+) -> tuple[dict, dict]:
+    with tempfile.TemporaryDirectory(prefix="analytics-park-") as park_dir:
+        log_file = Path(park_dir, _PARK_LOG)
+        with patch.object(analytics_settings, _ANALYTICS_PATH_ATTR, log_file):
+            park_issue = make_issue(_PARK_ISSUE, label=stage)
+            client.add_issue(park_issue)
+            _guards._park_awaiting_human(
+                client,
+                park_issue,
+                MagicMock(),
+                _PARK_MESSAGE,
+                reason=reason,
+                **correlation,
+            )
+        return client.recorded_events[0], _analytics_records(log_file)[0]
 
 
 class ParkAwaitingHumanAnalyticsRecordTest(unittest.TestCase):
@@ -263,10 +291,10 @@ class ParkAwaitingHumanAnalyticsRecordTest(unittest.TestCase):
                 self._run_park(FakeGitHubClient())
             rec = _analytics_records(log_file)[0]
         self.assertEqual(rec[_EVENT_KEY], EVENT_PARK_AWAITING_HUMAN)
-        self.assertEqual(rec["repo"], TEST_REPO_SLUG)
-        self.assertEqual(rec["issue"], _PARK_ISSUE)
+        self.assertEqual(rec[_REPO_KEY], TEST_REPO_SLUG)
+        self.assertEqual(rec[_ISSUE_KEY], _PARK_ISSUE)
         self.assertEqual(rec[_STAGE_KEY], _IMPLEMENTING_STAGE)
-        self.assertEqual(rec["reason"], _PARK_REASON)
+        self.assertEqual(rec[_KEY_REASON], _PARK_REASON)
 
     def test_disabled_sink_writes_no_record(self) -> None:
         with tempfile.TemporaryDirectory(prefix="analytics-park-off-") as park_dir:
@@ -292,16 +320,103 @@ class ParkAwaitingHumanAnalyticsRecordTest(unittest.TestCase):
         state.set.assert_any_call("awaiting_human", True)
         self.assertEqual(client.workflow_label(park_issue), LABEL_IMPLEMENTING)
 
+    def test_failed_runs_share_payload(self) -> None:
+        event, record = _capture_park_records(
+            FakeGitHubClient(),
+            LABEL_VALIDATING,
+            "reviewer_timeout",
+            agent_role="reviewer",
+            session_id="sess-timeout-1",
+            review_round=1,
+            retry_count=0,
+            pr_number=_TIMEOUT_PR,
+        )
+        self._assert_shared_payload(
+            event,
+            record,
+            {
+                _EVENT_KEY: EVENT_PARK_AWAITING_HUMAN,
+                _REPO_KEY: TEST_REPO_SLUG,
+                _ISSUE_KEY: _PARK_ISSUE,
+                _STAGE_KEY: _VALIDATING_STAGE,
+                _KEY_REASON: "reviewer_timeout",
+                "agent_role": "reviewer",
+                "session_id": "sess-timeout-1",
+                "review_round": 1,
+                "retry_count": 0,
+                "pr_number": _TIMEOUT_PR,
+            },
+        )
+        event, record = _capture_park_records(
+            FakeGitHubClient(),
+            _DECOMPOSING_STAGE,
+            "decomposer_silent",
+            agent_role="decomposer",
+            session_id="sess-fail-2",
+            retry_count=2,
+        )
+        self._assert_shared_payload(
+            event,
+            record,
+            {
+                _EVENT_KEY: EVENT_PARK_AWAITING_HUMAN,
+                _REPO_KEY: TEST_REPO_SLUG,
+                _ISSUE_KEY: _PARK_ISSUE,
+                _STAGE_KEY: _DECOMPOSING_STAGE,
+                _KEY_REASON: "decomposer_silent",
+                "agent_role": "decomposer",
+                "session_id": "sess-fail-2",
+                "retry_count": 2,
+            },
+        )
+
+    def test_unsupported_field_rejected(self) -> None:
+        client = FakeGitHubClient()
+        state = MagicMock()
+        with self.assertRaises(TypeError):
+            self._run_park(
+                client,
+                state=state,
+                reason="reviewer_timeout",
+                agent_role="reviewer",
+                unsupported_field="unexpected_payload",
+            )
+        self.assertEqual(len(client.posted_comments), 0)
+        self.assertEqual(len(client.recorded_events), 0)
+        state.set.assert_not_called()
+
+    def _assert_shared_payload(
+        self,
+        audit_record: dict,
+        analytics_record: dict,
+        expected_fields: dict,
+    ) -> None:
+        for field_name, expected in expected_fields.items():
+            self.assertEqual(audit_record.get(field_name), expected)
+            self.assertEqual(analytics_record.get(field_name), expected)
+        self.assertEqual(
+            set(audit_record.keys()) - {_TS_KEY},
+            set(analytics_record.keys()) - {_TS_KEY},
+        )
+
     def _run_park(
         self,
         client: FakeGitHubClient,
         state: MagicMock | None = None,
+        reason: str | None = _PARK_REASON,
+        stage: str | None = LABEL_IMPLEMENTING,
+        **correlation,
     ) -> FakeIssue:
-        park_issue = make_issue(_PARK_ISSUE, label=LABEL_IMPLEMENTING)
+        park_issue = make_issue(_PARK_ISSUE, label=stage)
         client.add_issue(park_issue)
         target_state = MagicMock() if state is None else state
         _guards._park_awaiting_human(
-            client, park_issue, target_state, _PARK_MESSAGE, reason=_PARK_REASON,
+            client,
+            park_issue,
+            target_state,
+            _PARK_MESSAGE,
+            reason=reason,
+            **correlation,
         )
         return park_issue
 

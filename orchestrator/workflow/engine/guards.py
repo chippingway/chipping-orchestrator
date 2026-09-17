@@ -10,7 +10,8 @@ write. `_ignore_if_never_invoked`, `_ignore_if_interrupted`, and
 run" by returning True and letting the caller `return` without writing, so the
 in-memory `PinnedState` mutations it already staged are dropped and the next
 tick re-derives the run from the state the prior tick left. `_park_awaiting_human`
-goes the other way -- it posts the HITL comment, sets `awaiting_human`, and
+goes the other way -- it posts the HITL comment, sets `awaiting_human`, forwards
+explicit bounded correlation fields to the emitted event and analytics sink, and
 ratchets `last_action_comment_id` past it -- and still leaves the write to the
 caller, so a park composes with whatever else that handler staged rather than
 committing ahead of it.
@@ -30,7 +31,10 @@ started left is nothing, so the tree it would be read on says nothing about it.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
+import math
+from typing import Any
 
 from github.Issue import Issue
 
@@ -148,10 +152,45 @@ def _paused_during_agent_run(gh: GitHubClient, issue: Issue) -> bool:
     return True
 
 
+ALLOWED_CORRELATION_FIELDS: frozenset[str] = frozenset((
+    "route",
+    "agent_role",
+    "backend",
+    "agent_spec",
+    "session_id",
+    "resume_session_id",
+    "review_round",
+    "retry_count",
+    "pr_number",
+    "conflict_round",
+    "dirty_files",
+    "exit_code",
+    "timed_out",
+    "sha",
+    "reservation_id",
+))
+
+
+def _safe_int(candidate: object) -> int | None:
+    """Strictly normalize candidate to an int fail-open, dropping non-integers."""
+    if isinstance(candidate, bool) or candidate is None:
+        return None
+    if isinstance(candidate, int):
+        return candidate
+    if isinstance(candidate, float) and math.isfinite(candidate) and candidate.is_integer():
+        return int(candidate)
+    if isinstance(candidate, str):
+        with contextlib.suppress(ValueError, OverflowError):
+            return int(candidate)
+    return None
+
+
 def _park_awaiting_human(
-    gh: GitHubClient, issue: Issue, state: PinnedState, message: str,
-    *,
-    reason: str | None = None,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    message: str,
+    **correlation: Any,
 ) -> None:
     """Post `message` and mark the issue as awaiting a human reply.
 
@@ -166,6 +205,11 @@ def _park_awaiting_human(
     event; the durable `park_reason` field in pinned state is still cleared
     here (callers that need a transient reason re-set it themselves -- see
     above), so passing a reason does not change observable behavior.
+    Explicit bounded correlation fields passed via keyword arguments
+    (`correlation`) forward to the emitted event and fan out to the analytics
+    sink, sharing the same correlation payload across audit and analytics.
+    Unsupported correlation fields raise `TypeError` so unexpected fields
+    are rejected before audit emission.
 
     The watermark is the id of the notice this call POSTED, not the id the
     thread happens to end on afterwards. The two differ in exactly one case
@@ -180,6 +224,13 @@ def _park_awaiting_human(
     leaves the park's own notice to be read back as somebody's fresh guidance
     on every dispatch after this one.
     """
+    reason = correlation.pop("reason", None)
+    unsupported = set(correlation) - ALLOWED_CORRELATION_FIELDS
+    if unsupported:
+        raise TypeError(
+            f"_park_awaiting_human received unsupported correlation field(s): "
+            f"{sorted(unsupported)}"
+        )
     posted = _comments._post_issue_comment(gh, issue, state, message)
     state.set("awaiting_human", True)
     state.set("park_reason", None)
@@ -196,4 +247,5 @@ def _park_awaiting_human(
         issue_number=issue.number,
         stage=stage_name(gh.workflow_label(issue)),
         reason=reason,
+        **correlation,
     )

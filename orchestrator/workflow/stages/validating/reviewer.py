@@ -26,7 +26,10 @@ read-only and starts over next tick.
 The verdict itself fans out to three owners: approved goes to the approval
 arc, a missing VERDICT line to the no-verdict park, and CHANGES_REQUESTED to
 the fix route. The event is emitted for all of them, before the fan-out, so
-the analytics record exists even for the paths that park.
+the analytics record exists even for the paths that park. Failed-run parks
+(timeout and unknown verdict) enrich the shared park funnel with typed
+correlation fields (`agent_role`, `session_id`, `review_round`, `retry_count`,
+`pr_number`).
 """
 from __future__ import annotations
 
@@ -140,13 +143,20 @@ def _dispatch_reviewer_result(
     state: PinnedState,
     reviewer_run: _models._ReviewerRun,
 ) -> None:
+    """Route a finished reviewer run and enrich failed-run parks with context."""
     review = reviewer_run.agent_result
+    pr_num = _guards._safe_int(reviewer_run.pr_number)
     if review.timed_out:
         _guards._park_awaiting_human(
             gh, issue, state,
             f"{config.HITL_MENTIONS} reviewer timed out after "
             f"{config.REVIEW_TIMEOUT}s; manual intervention needed.",
             reason=_state._REASON_REVIEWER_TIMEOUT,
+            agent_role="reviewer",
+            session_id=review.session_id,
+            review_round=reviewer_run.round_n,
+            retry_count=_guards._safe_int(state.get("retry_count")),
+            pr_number=pr_num,
         )
         # Tag as transient so the next tick re-spawns the reviewer instead
         # of waiting for a human comment that the timeout itself does not
@@ -165,10 +175,7 @@ def _dispatch_reviewer_result(
         stage="validating",
         verdict=verdict,
         review_round=reviewer_run.round_n,
-        pr_number=(
-            None if reviewer_run.pr_number is None
-            else int(reviewer_run.pr_number)
-        ),
+        pr_number=pr_num,
         session_id=review.session_id,
     )
 
@@ -184,7 +191,9 @@ def _dispatch_reviewer_result(
         return
 
     if decision.verdict == "unknown":
-        _requested_changes._park_reviewer_no_verdict(gh, issue, state, review)
+        _requested_changes._park_reviewer_no_verdict(
+            gh, issue, state, review, reviewer_run=reviewer_run,
+        )
         return
 
     # CHANGES_REQUESTED: post the reviewer feedback, flip to `fixing`, and
