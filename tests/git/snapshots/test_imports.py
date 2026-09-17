@@ -4,27 +4,22 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 import unittest
 
 from orchestrator.git import snapshots as _package
 from orchestrator.git.snapshots import mirrors, namespace, refs
+from tests.support.import_probes import probe_import
 
 _PACKAGE = "orchestrator.git.snapshots"
+
+_NAMESPACE_OWNER = f"{_PACKAGE}.namespace"
 
 _MODULES = (
     _PACKAGE,
     f"{_PACKAGE}.mirrors",
-    f"{_PACKAGE}.namespace",
+    _NAMESPACE_OWNER,
     f"{_PACKAGE}.refs",
 )
-
-_NAMESPACE_SCRIPT = """
-import sys
-import orchestrator.git.snapshots.namespace
-print(*sorted(name for name in sys.modules if name.startswith('orchestrator')))
-"""
 
 # The names each owner defines. The initializer binds nothing, so a caller
 # reaches the owner it needs and a test intercepting one targets that owner.
@@ -43,18 +38,17 @@ _OWNER_DEFINED = (
 
 
 class CleanProcessImportTest(unittest.TestCase):
-    """Each module imports standalone in a fresh interpreter."""
+    """Each module imports standalone in a fresh interpreter.
+
+    The layering check below reads its planted set off the same recording, so
+    the namespace owner answers both questions for one interpreter.
+    """
 
     def test_each_module_imports_standalone(self) -> None:
         for module in _MODULES:
             with self.subTest(module=module):
-                completed = subprocess.run(
-                    [sys.executable, "-c", f"import {module}"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+                probe = probe_import(module)
+                self.assertEqual(probe.returncode, 0, msg=probe.stderr)
 
 
 class LayeringTest(unittest.TestCase):
@@ -66,12 +60,12 @@ class LayeringTest(unittest.TestCase):
     """
 
     def test_the_namespace_reaches_no_transport(self) -> None:
-        planted = subprocess.run(
-            [sys.executable, "-c", _NAMESPACE_SCRIPT],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.split()
+        # An owner that did not import at all plants nothing, and nothing
+        # satisfies every bound below, so the recording is read for what it
+        # reports before it is read for what it planted.
+        probe = probe_import(_NAMESPACE_OWNER)
+        self.assertEqual(probe.returncode, 0, msg=probe.stderr)
+        planted = probe.orchestrator_modules
 
         self.assertNotIn("orchestrator.git.branch_transport", planted)
         self.assertNotIn("orchestrator.git.ref_transport", planted)

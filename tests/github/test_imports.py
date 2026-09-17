@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 import unittest
 
 from orchestrator import github as _github
@@ -15,6 +13,9 @@ from orchestrator.github import (
     issue_polling as _issue_polling,
     pinned_state as _pinned_state,
 )
+from tests.support.import_probes import probe_import
+
+_TRUST_OWNER = "orchestrator.github.comments"
 
 # The package and every owner module. The initializer imports the `client`
 # owner, which pulls the whole mixin chain, and chain leaves import the package
@@ -25,7 +26,7 @@ _MODULES = (
     "orchestrator.github.aliases",
     "orchestrator.github.checks",
     "orchestrator.github.client",
-    "orchestrator.github.comments",
+    _TRUST_OWNER,
     "orchestrator.github.developer_reports",
     "orchestrator.github.events",
     "orchestrator.github.issue_polling",
@@ -62,12 +63,6 @@ _FORBIDDEN_PREFIXES = (
     "orchestrator.workflow.stages",
 )
 
-_LAYERING_SCRIPT = """
-import sys
-import {module}
-print(*sorted(name for name in sys.modules if name.startswith('orchestrator')))
-"""
-
 # The allowlist gate the git base-sync eligibility check and the workflow stage
 # leaves bind at import time.
 _TRUST_NAMES = ("filter_trusted", "is_trusted_author")
@@ -80,39 +75,26 @@ class CleanProcessImportTest(unittest.TestCase):
     and the mixin chain the initializer imports reach back into the package for
     their sibling owners, so importing the package or any of its submodules
     directly must run the initializer without a partially-initialized-module
-    error. A subprocess per module gives each a clean `sys.modules` no other test
+    error. A recording per module gives each a clean `sys.modules` no other test
     has already populated, exposing an import-order cycle a package-first suite
-    run would mask.
+    run would mask. The layering check below reads its planted set off that same
+    recording, so the trust owner answers both questions for one interpreter.
     """
 
     def test_each_module_imports_standalone(self) -> None:
         for module in _MODULES:
             with self.subTest(module=module):
-                completed = subprocess.run(
-                    [sys.executable, "-c", f"import {module}"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+                probe = probe_import(module)
+                self.assertEqual(probe.returncode, 0, msg=probe.stderr)
 
 
 class LayeringTest(unittest.TestCase):
     """The trust owner reaches nothing above the GitHub domain."""
 
     def test_trust_owner_stays_in_its_layer(self) -> None:
-        completed = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                _LAYERING_SCRIPT.format(module="orchestrator.github.comments"),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
-        for imported in completed.stdout.split():
+        probe = probe_import(_TRUST_OWNER)
+        self.assertEqual(probe.returncode, 0, msg=probe.stderr)
+        for imported in sorted(probe.orchestrator_modules):
             with self.subTest(imported=imported):
                 self.assertFalse(
                     imported.startswith(_FORBIDDEN_PREFIXES),
