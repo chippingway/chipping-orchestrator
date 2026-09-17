@@ -1,14 +1,25 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Tree discovery and clean-process import probes for observability."""
+"""Tree discovery and the import probes the observability guards read.
+
+Two kinds of probe answer here. The planted set is a projection of the shared
+clean-interpreter recording in `tests/support/import_probes.py`, so every
+guard asking what naming a module costs shares one run per module with the
+check that the same module imports standalone. The script runner beside it is
+for the guards that ask their interpreter something else -- a blocked import
+root, an order two imports are staged in, an exit code carrying what was found
+-- since each of those is a different environment that recording cannot answer
+for.
+"""
 from __future__ import annotations
 
 import subprocess
 import sys
-from functools import cache
 from importlib import import_module
 from pathlib import Path
 from types import MappingProxyType
+
+from tests.support.import_probes import probe_import
 
 _ROOT = "orchestrator.observability"
 _ANALYTICS = f"{_ROOT}.analytics"
@@ -58,12 +69,6 @@ _COMPOSED_PACKAGES = MappingProxyType({
 _PACKAGE_ROOT = Path(import_module(_ROOT).__file__).parent
 
 _IMPORT_ROOT = _PACKAGE_ROOT.parent.parent
-
-_IMPORTED_MODULES_SCRIPT = """
-import sys
-import {module}
-print(*sorted(name for name in sys.modules if name.startswith('orchestrator')))
-"""
 
 
 def _under(module: str, roots: tuple[str, ...]) -> bool:
@@ -121,13 +126,16 @@ def _run_import_probe(script: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-@cache
 def _imported_orchestrator_modules(module: str) -> frozenset[str]:
-    """Names of the orchestrator modules a fresh `import module` plants."""
-    completed = subprocess.run(
-        [sys.executable, "-c", _IMPORTED_MODULES_SCRIPT.format(module=module)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return frozenset(completed.stdout.split())
+    """Names of the orchestrator modules a fresh `import module` plants.
+
+    A target that does not import at all is raised on rather than answered
+    with an empty set: the callers here bound what naming a module costs, and
+    an empty set satisfies every bound. Whether each module in the tree does
+    import standalone is `tests/observability/test_imports.py`'s check, read
+    off this same recording.
+    """
+    probe = probe_import(module)
+    if probe.returncode != 0:
+        raise AssertionError(f"{module} does not import: {probe.stderr}")
+    return probe.orchestrator_modules

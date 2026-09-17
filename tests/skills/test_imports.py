@@ -3,8 +3,6 @@
 """Inventory, layering, and call-site checks for the skill owners."""
 from __future__ import annotations
 
-import subprocess
-import sys
 import unittest
 from importlib import import_module
 from pathlib import Path
@@ -12,6 +10,7 @@ from types import MappingProxyType, SimpleNamespace
 from unittest.mock import patch
 
 from orchestrator import skills as _package
+from tests.support.import_probes import probe_import
 
 _PACKAGE = "orchestrator.skills"
 
@@ -77,45 +76,25 @@ _PROBE_PATH = Path("/tmp/orchestrator-skills-owner-probe")
 # switched on is what makes the writer reach for discovery at all.
 _CODEX_CONTEXT = SimpleNamespace(cwd=_PROBE_PATH)
 
-_IMPORTED_MODULES_SCRIPT = """
-import sys
-import {module}
-print(*sorted(name for name in sys.modules if name.startswith('orchestrator')))
-"""
-
-
-def _imported_orchestrator_modules(module: str) -> frozenset[str]:
-    """Names of the orchestrator modules a fresh `import module` plants."""
-    completed = subprocess.run(
-        [sys.executable, "-c", _IMPORTED_MODULES_SCRIPT.format(module=module)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return frozenset(completed.stdout.split())
-
 
 class CleanProcessImportTest(unittest.TestCase):
     """The package and each owner import alone.
 
-    A subprocess per module gives each one a `sys.modules` no earlier import
+    A recording per module gives each one a `sys.modules` no earlier import
     has populated, which is the only place a cycle shows up at all: the
     analytics package `catalog` writes through reaches back into this one for
     a codex run's offered skills, and a suite that has already imported half
-    the tree resolves the other half off what the first half left behind.
+    the tree resolves the other half off what the first half left behind. It
+    is the same recording the layering checks below read their planted sets
+    off, so asking both questions costs one interpreter per module.
     """
 
     def test_each_module_imports_standalone(self) -> None:
         owners = (module.__name__ for module in _OWNER_MODULES.values())
         for module_name in (_PACKAGE, *owners):
             with self.subTest(module=module_name):
-                completed = subprocess.run(
-                    [sys.executable, "-c", f"import {module_name}"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+                probe = probe_import(module_name)
+                self.assertEqual(probe.returncode, 0, msg=probe.stderr)
 
 
 class LayeringTest(unittest.TestCase):
@@ -126,13 +105,13 @@ class LayeringTest(unittest.TestCase):
         # for `discovery` is not charged for the sink and the git execution
         # `catalog` is built on.
         self.assertEqual(
-            _imported_orchestrator_modules(_PACKAGE),
+            probe_import(_PACKAGE).orchestrator_modules,
             _ROOT_PACKAGE_MODULES | {_PACKAGE},
         )
 
     def test_no_owner_reaches_the_workflow_layer(self) -> None:
         for owner, module in _OWNER_MODULES.items():
-            planted = _imported_orchestrator_modules(module.__name__)
+            planted = probe_import(module.__name__).orchestrator_modules
             for imported in planted:
                 with self.subTest(owner=owner, imported=imported):
                     self.assertFalse(
@@ -146,7 +125,7 @@ class LayeringTest(unittest.TestCase):
         # run's filesystem scan pays for nothing but the standard library.
         owner = _OWNER_MODULES[_DISCOVERY_OWNER].__name__
         self.assertEqual(
-            _imported_orchestrator_modules(owner),
+            probe_import(owner).orchestrator_modules,
             _ROOT_PACKAGE_MODULES | {_PACKAGE, owner},
         )
 
@@ -218,7 +197,7 @@ class CallSiteTest(unittest.TestCase):
         # that owner at import.
         self.assertIn(
             _OWNER_MODULES[_CATALOG_OWNER].__name__,
-            _imported_orchestrator_modules(_TICK),
+            probe_import(_TICK).orchestrator_modules,
         )
 
     def test_codex_backfill_reads_the_owner(self) -> None:
