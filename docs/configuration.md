@@ -337,9 +337,10 @@ examples.
 - `SQUASH_ON_APPROVAL` — default `on`. after the reviewer emits `VERDICT: APPROVED`, squash the dev's commits on the
   PR branch into a single subject-only commit and force-push with lease. The subject reuses the dev's first commit
   subject when it carries a reusable `<prefix>:` form (Conventional **or** repo-local such as `event:`/`career:`);
-  otherwise it is synthesized with a prefix inferred from recent base-branch history. Either one ends in the pull
-  request reference `PR_REF_IN_SUBJECT` describes, and that reference is also what puts a **one-commit** branch
-  through the same rewrite when its subject does not already carry it. `off` leaves the per-step commit history
+  otherwise it is synthesized with a prefix inferred from recent base-branch history. Either one is then normalized
+  to the references `PR_REF_IN_SUBJECT` describes — the pull request's kept exactly once, the tracked issue's own
+  dropped — and that normalization is also what puts a **one-commit** branch through the same rewrite whenever it
+  would write that branch's subject differently. `off` leaves the per-step commit history
   intact and rewrites none of the developer's commits, for the reference or anything else (useful when
   downstream tooling depends on that history). What the switch decides is whether a **new** rewrite
   is made: one an earlier tick already made is finished either way, because the commits it replaced are off the branch
@@ -355,7 +356,7 @@ examples.
   rewritten for it, while the `docs:` commit still is, since that one is published by the orchestrator. The suffix is
   idempotent: a subject already ending in ` (#N)` for the same pull request is left as it is, so a second approval
   round, a retried tick, or a recovered commit never doubles it, and a suffix naming somebody else's number is left
-  where it stands — with the tracked issue's own number the exception the docs pass below drops. It is a plain
+  where it stands — with the tracked issue's own number the exception both publishers below drop. It is a plain
   reference, never a closing keyword such as `Fixes #N`, so GitHub does not treat the
   number as an issue to close. `off` suffixes nothing, leaves a single-commit branch unrewritten, and does not amend
   the `docs:` commit. Turn it off on a target repo that lands pull requests with GitHub's **Squash and merge** and its
@@ -363,12 +364,16 @@ examples.
   would carry the number twice. The approval squash and the documenting pass both read it. On the squash, the reused
   first-commit subject and the synthesized one alike end in the reference to the pull request the reviewer approved —
   or to the one the pinned comment records, when the recovery of an unfinished squash rewrites the branch afresh — and
-  `off` leaves that message exactly as it was selected, while a rewrite the recovery finishes keeps the subject it was
-  committed under. A branch of **one** commit is decided by this switch alone: `on`, a subject that does not already
-  end in the reference is rewritten to carry it, through the same `reset --soft`, hardened commit, size gate, and
-  `--force-with-lease` push a collapse goes through, reported as one commit replaced and announced by no `:package:`
-  notice; a subject that already carries it, and every one-commit branch with the switch `off`, is left exactly as the
-  developer committed it. On the docs pass, the `docs:` commit is amended in place before every road that publishes
+  the tracked issue's own reference goes with the same normalization, so a developer subject that copied the issue
+  number out of recent history, and the `<subject> (#issue) (#PR)` a developer commit and an earlier publication each
+  wrote half of, both land as `<subject> (#PR)`. `off` leaves that message exactly as it was selected — nothing
+  appended and nothing stripped — while a rewrite the recovery finishes keeps the subject it was committed under. A
+  branch of **one** commit is decided by this switch alone: `on`, a subject the normalization would write differently
+  — one missing the reference, and one still carrying the tracked issue's beside it — is rewritten, through the same
+  `reset --soft`, hardened commit, size gate, and `--force-with-lease` push a collapse goes through, reported as one
+  commit replaced and announced by no `:package:` notice; a subject that already reads as the normalization writes it,
+  and every one-commit branch with the switch `off`, is left exactly as the developer committed it. On the docs
+  pass, the `docs:` commit is amended in place before every road that publishes
   it, keeping its author, tree, and body, and its subject is normalized against the tracked issue as well as the pull
   request: the request's own body is what links that issue, so a subject the docs agent left ending in the issue's
   number — alone, or beside a reference an earlier publication had already appended — comes out ending in the pull

@@ -23,9 +23,18 @@ ORIGINAL_HEAD = "head5678"
 PLAN_ISSUE = 60
 PLAN_PR = 61
 PLAN_PR_REFERENCE = f" (#{PLAN_PR})"
+# The reference a developer subject that copied the tracked issue's number out
+# of recent history carries, which a publication takes back off.
+PLAN_ISSUE_REFERENCE = f" (#{PLAN_ISSUE})"
 ISSUE_TITLE = "add a sparkly thing"
 PREFIXED_SUBJECT = "fix: typo"
 PLAIN_SUBJECT = "add foo"
+# The subject a developer commit and an earlier publication each wrote half of:
+# this pull request's reference is already on it, and the tracked issue's is
+# still standing ahead of that.
+BOTH_REFERENCES_SUBJECT = (
+    f"{PREFIXED_SUBJECT}{PLAN_ISSUE_REFERENCE}{PLAN_PR_REFERENCE}"
+)
 GIT_FAILURE_EXIT_CODE = 128
 PREPARATION_ERROR = planning._SquashPreparationError
 HEAD_HELPER = "_head_sha"
@@ -108,12 +117,16 @@ class SquashMessageTest(unittest.TestCase):
 
     def test_both_roads_end_in_one_reference(self) -> None:
         # Equality with the whole message is what rules out a body or trailer
-        # riding along, and the last case is a first subject an earlier
-        # approval round already squashed to.
+        # riding along. The last three are the shapes a collapse finds a
+        # reference already on: the subject an earlier approval round squashed
+        # to, the tracked issue's number a developer copied out of recent
+        # history, and the two standing together.
         for first_subject, subject in (
             (PREFIXED_SUBJECT, PREFIXED_SUBJECT),
             (PLAIN_SUBJECT, f"event: {ISSUE_TITLE}"),
             (f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}", PREFIXED_SUBJECT),
+            (f"{PREFIXED_SUBJECT}{PLAN_ISSUE_REFERENCE}", PREFIXED_SUBJECT),
+            (BOTH_REFERENCES_SUBJECT, PREFIXED_SUBJECT),
         ):
             with (
                 self.subTest(first_subject=first_subject),
@@ -124,14 +137,20 @@ class SquashMessageTest(unittest.TestCase):
                     f"{subject}{PLAN_PR_REFERENCE}\n",
                 )
 
-    def test_a_lone_commit_gains_the_reference(self) -> None:
+    def test_a_lone_commit_is_normalized(self) -> None:
         # A branch of one is already the shape a collapse leaves, so what it
         # can still be owed is the subject -- picked by the same selection a
         # collapse uses, the synthesis a commit written with no subject at all
-        # falls back to included.
+        # falls back to included. The last two are the branch the tracked
+        # issue's number makes a rewrite of: alone it is a reference the
+        # publication replaces, and standing ahead of this pull request's it
+        # is the line a rewrite decided on the pull request alone would call
+        # finished and leave carrying both numbers.
         for subjects, subject in (
             ((PREFIXED_SUBJECT,), PREFIXED_SUBJECT),
             ((), f"event: {ISSUE_TITLE}"),
+            ((f"{PREFIXED_SUBJECT}{PLAN_ISSUE_REFERENCE}",), PREFIXED_SUBJECT),
+            ((BOTH_REFERENCES_SUBJECT,), PREFIXED_SUBJECT),
         ):
             with (
                 self.subTest(subjects=subjects),
@@ -143,12 +162,16 @@ class SquashMessageTest(unittest.TestCase):
                 )
 
     def test_a_branch_owed_nothing_gets_no_message(self) -> None:
-        # The three shapes with no rewrite to make: a single subject already
-        # ending in this pull request's reference, a squash referencing no
-        # pull request at all, and a branch carrying no commits over its base.
+        # The four shapes with no rewrite to make: a single subject already
+        # ending in this pull request's reference and nothing else, a squash
+        # referencing no pull request at all, the same squash over a subject
+        # carrying the tracked issue -- stripping that number is part of
+        # writing the reference, so an install that writes none strips none --
+        # and a branch carrying no commits over its base.
         for subjects, count, pr_number in (
             ((f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}",), 1, PLAN_PR),
             ((PREFIXED_SUBJECT,), 1, None),
+            ((f"{PREFIXED_SUBJECT}{PLAN_ISSUE_REFERENCE}",), 1, None),
             ((), 0, PLAN_PR),
         ):
             with self.subTest(subjects=subjects, pr_number=pr_number):
@@ -193,12 +216,18 @@ class PrepareSquashTest(unittest.TestCase):
 
     def test_one_commit_plans_on_its_own_subject(self) -> None:
         # Nothing is collapsed either way, so what such a branch is owed is
-        # decided by the subject already on it: one missing this pull
-        # request's reference is rewritten to carry it, and one that has it
-        # already -- the retry, and the second approval round -- is left where
-        # it is, which the plan says by carrying no message.
+        # decided by the subject already on it: one the normalization would
+        # write differently -- missing this pull request's reference, or
+        # carrying the tracked issue's beside one an earlier publication
+        # appended -- is rewritten, and one that already reads as a
+        # publication writes it, which is the retry and the second approval
+        # round, is left where it is, said by carrying no message.
         for subject, message in (
             (PREFIXED_SUBJECT, f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}\n"),
+            (
+                BOTH_REFERENCES_SUBJECT,
+                f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}\n",
+            ),
             (f"{PREFIXED_SUBJECT}{PLAN_PR_REFERENCE}", ""),
         ):
             with self.subTest(subject=subject):

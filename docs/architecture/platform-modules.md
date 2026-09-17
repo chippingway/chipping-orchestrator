@@ -522,15 +522,18 @@ orchestrator/
                         to, or a checkout that would not report its own head -- and an operator sent by any of the
                         others would be looking for commits that are not where the notice says
       planning.py       the merge-base, HEAD, dirty, commit-count, and subject preconditions plus the squash
-                        message they select, ended in the ` (#N)` reference `pr_references` formats for the pull
-                        request the squash is handed, where one is -- the count WALKED rather than taken from the
+                        message they select, normalized by `pr_references` against the pull request the squash is
+                        handed and the tracked issue it is being published for, where a pull request is named --
+                        the count WALKED rather than taken from the
                         subjects beside it, since a commit written with no message contributes no subject and still
                         contributes one commit, and a count short by those decides both which rewrite the branch is
                         owed and what a human is told their history was collapsed from -- and the DECISION those
                         come to, which the count alone does not make: more than one commit is a collapse whatever
-                        the subjects say, exactly one is a rewrite of its SUBJECT and only where that subject does
-                        not already end in the reference -- asked through `pr_references`' own idempotent formatter,
-                        so what counts as already referenced cannot drift from what the rewrite would write -- and
+                        the subjects say, exactly one is a rewrite of its SUBJECT and only where that normalization
+                        would write the line differently -- a subject missing the reference, and one still carrying
+                        the tracked issue's beside one an earlier publication appended -- asked through
+                        `pr_references`' own idempotent answer, so what counts as already published cannot drift
+                        from what the rewrite would write -- and
                         anything else is a branch left alone, which the plan says by carrying no message at all.
                         And the pre-squash head pinned beside them -- the rollback target, the head the entry takes
                         its lease from, and the commit the gate is told this rewrite replaced, none of which a
@@ -640,8 +643,9 @@ orchestrator/
                         behind it is exactly the one commit that reads as nothing to squash
       squash.py         the plan-then-resume-then-enter-then-record-then-rewrite entry point a stage handler
                         calls, over the gate subject that handler builds and the pull request number it hands in --
-                        which the plan's message references only while `PR_REF_IN_SUBJECT` is on, and which on a
-                        one-commit branch is what decides whether there is a rewrite at all, for `count=1` and no
+                        which the plan's message is normalized against, together with the tracked issue that gate
+                        carries, only while `PR_REF_IN_SUBJECT` is on, and which on a one-commit branch is what
+                        decides whether there is a rewrite at all, for `count=1` and no
                         `:package:` notice -- and the owner
                         of `SQUASH_ON_APPROVAL`:
                         the switch decides whether a NEW rewrite is made, and one an earlier tick already made

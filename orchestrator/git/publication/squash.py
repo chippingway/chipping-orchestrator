@@ -12,8 +12,9 @@ is safe to run.
 
 Whether there is a rewrite to make is the plan's answer rather than this
 owner's. Several commits are collapsed into one; a single commit is rewritten
-where its subject does not yet reference the pull request it is being
-published onto; and a branch with neither is handed back untouched.
+where the shared normalization would write its subject differently -- a line
+missing the pull request's reference, and one still carrying the tracked
+issue's beside it; and a branch with neither is handed back untouched.
 
 The gate sits BEFORE the rewrite deliberately. A squash is one of the pushes
 onto a pull request the remote already carries, and the refusals it owes --
@@ -167,18 +168,25 @@ def _squash_and_force_push(
     so an `event:` / `career:` subject survives); otherwise it builds one
     from the issue title with `_infer_subject_prefix` -- a repo-local prefix
     when recent base history uses one, else `fix`/`feat`. With
-    `PR_REF_IN_SUBJECT` on, either one then ends in ` (#<pr_number>)` through
-    `pr_references`, the formatter every publisher shares, so a reused subject
-    an earlier approval round already squashed to is not given a second
-    reference; off, or with no number, the selected subject is committed
-    exactly as it was picked.
+    `PR_REF_IN_SUBJECT` on, either one is then normalized through
+    `pr_references`, the owner every publisher shares, against this pull
+    request and the tracked issue together: the line ends in exactly one
+    ` (#<pr_number>)`, so a reused subject an earlier approval round already
+    squashed to is not given a second reference, and the issue's own number
+    goes -- the one a developer copied out of recent history, and the
+    `subject (#issue) (#pr)` a developer commit and an earlier publication
+    each wrote half of. Off, or with no number, the selected subject is
+    committed exactly as it was picked: nothing appended, and nothing
+    stripped on the way to a reference that is never written.
 
     That switch also decides the one-commit branch. On, such a branch is put
     through this same reset, commit, gate, and leased push for its subject
-    alone whenever that subject does not already end in the reference -- the
-    tree is untouched, the count is 1, and nothing is collapsed. Off, or with
-    no number, a one-commit branch is not rewritten here at all. A rewrite the
-    recovery finishes keeps the subject it was committed under either way.
+    alone whenever the normalization would write that subject differently --
+    a line missing the reference, and one carrying the tracked issue's beside
+    it -- with the tree untouched, the count 1, and nothing collapsed. Off, or
+    with no number, a one-commit branch is not rewritten here at all. A
+    rewrite the recovery finishes keeps the subject it was committed under
+    either way.
 
     The message is subject-only -- no body, no trailers -- so the
     orchestrator-authored squash matches the repo's subject-only commit rule.
@@ -215,10 +223,10 @@ def _squashed_or_resumed(
     `PR_REF_IN_SUBJECT` is asked here as well, and what it decides is the
     plan's message: off, the plan is built with no number at all. On a branch
     of several commits that changes the subject alone. On a branch of one it
-    decides whether there is a rewrite at all, since a subject already
-    carrying the reference -- and every subject on an install that references
-    nothing -- leaves the plan with no message and this call with the no-op it
-    has always been.
+    decides whether there is a rewrite at all, since a subject the
+    normalization hands back as written -- and every subject on an install
+    that references nothing, where nothing is normalized -- leaves the plan
+    with no message and this call with the no-op it has always been.
     """
     claimed = standing._claims_a_collapse(gate)
     if not config.SQUASH_ON_APPROVAL and not claimed:

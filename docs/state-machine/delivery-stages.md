@@ -2809,14 +2809,20 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        Conventional **or** repo-local such as `event:`/`career:` — otherwise `<inferred-prefix>: <issue title>`, where
        the prefix is inferred from recent base-branch history via `_infer_subject_prefix` and falls back to
        `fix:`/`feat:` only when no repo-local prefix dominates; with `PR_REF_IN_SUBJECT` on (default) either subject
-       then ends in ` (#N)` through `_subject_with_pr_reference`, which leaves one already ending in that reference
-       alone — `N` is the reviewer run's `pr_number` here, and the pinned one when `_recovers_a_recorded_collapse`
-       rewrites the branch afresh — while `off` keeps the selected subject exactly; pushed with
+       is then normalized by `_subject_with_pr_reference`, handed the tracked issue's number as well as the pull
+       request's: the line ends in exactly one ` (#N)` naming the request, one already reading that way is left
+       alone, and the issue's own reference is dropped — whether a developer copied it out of recent history or an
+       earlier publication left it standing ahead of its own, so `<subject> (#issue) (#PR)` lands as
+       `<subject> (#PR)`. `N` is the reviewer run's `pr_number` here, and the pinned one when
+       `_recovers_a_recorded_collapse` rewrites the branch afresh, while `off` keeps the selected subject exactly,
+       appending nothing and stripping nothing; pushed with
        `--force-with-lease`). A branch of **one** commit is put through that same path for its subject alone whenever
-       `PR_REF_IN_SUBJECT` is on and that subject does not already end in the reference: same `reset --soft`, same
+       `PR_REF_IN_SUBJECT` is on and that normalization would write the subject differently — a line missing the
+       reference, and one still carrying the tracked issue's beside it: same `reset --soft`, same
        hardened commit, same gate, same leased push, `squashed_count=1`, and no `:package:` notice, since nothing was
-       collapsed. With the switch off, or with a subject already carrying the reference, or with no commits over the
-       base at all, the call is the `squashed_count=0` no-op it has always been and HEAD is untouched. That call
+       collapsed. With the switch off, or with a subject that already reads as the normalization writes it, or with
+       no commits over the base at all, the call is the `squashed_count=0` no-op it has always been and HEAD is
+       untouched. That call
        answers
        a squash an earlier tick did not finish first, from the record that squash wrote before it ran, so a
        collapsed-but-unpublished branch is resumed rather than reported as having nothing to squash — and it does

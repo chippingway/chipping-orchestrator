@@ -26,10 +26,13 @@ REFERENCE = f" (#{SQUASH_PR_NUMBER})"
 REVISION = "revision"
 LEASE = "force_with_lease"
 
-# What the one commit a single-commit branch carries, and a reference to some
-# other pull request, which is ordinary subject text the current one is still
-# appended after.
+# What the one commit a single-commit branch carries, the tracked issue's own
+# reference -- the one number a publication takes OFF, since the pull request
+# links this issue from its body -- and a reference to some other pull
+# request, which is ordinary subject text the current one is still appended
+# after.
 SINGLE_SUBJECT = squash_support.SINGLE_SUBJECT
+ISSUE_REFERENCE = squash_support.ISSUE_REFERENCE
 ANOTHER_REFERENCE = " (#12)"
 
 
@@ -141,6 +144,28 @@ class SquashSubjectSelectionTest(
             f"fix: typo{REFERENCE}",
         )
 
+    def test_the_tracked_issue_reference_is_dropped(self) -> None:
+        # The two ways the issue's number reaches a first commit subject: a
+        # developer copied it out of recent history, and an earlier approval
+        # round appended this pull request's beside it. The collapse keeps
+        # neither, because the reference it writes names the pull request and
+        # that request's own body is what links the issue.
+        for first_subject in (
+            f"fix: typo{ISSUE_REFERENCE}",
+            f"fix: typo{ISSUE_REFERENCE}{REFERENCE}",
+        ):
+            with self.subTest(first_subject=first_subject):
+                self._rebuild_topic((first_subject, "fix wording"), "i")
+
+                squash_run = self._referenced_squash()
+
+                self.assertTrue(squash_run.success, squash_run.error)
+                self.assertEqual(squash_run.count, 2)
+                self.assertEqual(
+                    _last_commit(self.work, FULL_MESSAGE_FORMAT),
+                    f"fix: typo{REFERENCE}",
+                )
+
     def test_infers_prefix_from_base_history(self) -> None:
         # No reusable first-commit subject, so the squash subject is
         # synthesized -- and it honors the repo-local `event:` prefix that
@@ -207,6 +232,40 @@ class SquashSingleCommitSubjectTest(
             self._commits_on_branch(),
             [f"{SINGLE_SUBJECT}{ANOTHER_REFERENCE}{REFERENCE}"],
         )
+
+    def test_a_commit_carrying_the_issue_is_rewritten(self) -> None:
+        # The shape a rewrite decided on the pull request alone calls
+        # finished: one commit, already ending in this request's reference,
+        # with the tracked issue's still standing ahead of it. Rewritten, and
+        # the rewrite is idempotent -- the round after it finds nothing left
+        # to do rather than stripping or appending again.
+        for committed in (
+            f"{SINGLE_SUBJECT}{ISSUE_REFERENCE}",
+            f"{SINGLE_SUBJECT}{ISSUE_REFERENCE}{REFERENCE}",
+        ):
+            with self.subTest(committed=committed):
+                self._rebuild_single_commit(committed)
+                original_head = self._head_sha()
+
+                squash_run = self._referenced_squash()
+
+                self.assertTrue(squash_run.success, squash_run.error)
+                self.assertEqual(squash_run.count, 1)
+                self.assertEqual(
+                    self._commits_on_branch(),
+                    [f"{SINGLE_SUBJECT}{REFERENCE}"],
+                )
+                self.assertEqual(
+                    squash_run.push_mock.call_args.kwargs[LEASE],
+                    original_head,
+                )
+                rewritten = self._head_sha()
+
+                second_round = self._referenced_squash()
+
+                self.assertEqual(second_round.count, 0)
+                second_round.push_mock.assert_not_called()
+                self.assertEqual(self._head_sha(), rewritten)
 
     def test_a_referenced_commit_is_a_no_op(self) -> None:
         # The branch is already committed under the subject a publication

@@ -15,7 +15,9 @@ It is the same record, written and proved exactly as a collapse's is, which is
 what these cases pin down: the terms go down before the reset, an untouched
 branch is rewritten afresh, a rewrite that landed locally is published as it
 was committed rather than referenced twice, and one the remote already carries
-is the leased no-op it should be.
+is the leased no-op it should be. The branch carrying BOTH numbers is run
+through the same arc, because it is the one shape a rewrite asked about the
+pull request alone would call finished and hand back unrewritten.
 """
 from __future__ import annotations
 
@@ -40,6 +42,15 @@ REWRITTEN_COMMITS = 1
 
 REFERENCED_SUBJECT = (
     f"{squash_support.SINGLE_SUBJECT}{squash_support.PR_REFERENCE}"
+)
+
+# The subject a developer commit and an earlier publication each wrote half
+# of: this pull request's reference is already on it, and the tracked issue's
+# is still standing ahead of that.
+BOTH_NUMBERS_SUBJECT = (
+    f"{squash_support.SINGLE_SUBJECT}"
+    f"{squash_support.ISSUE_REFERENCE}"
+    f"{squash_support.PR_REFERENCE}"
 )
 
 
@@ -74,6 +85,26 @@ class RewrittenSubjectRealGitTest(
         self.assertEqual(pinned[_support.KEY_COLLAPSE_COUNT], REWRITTEN_COMMITS)
 
     def test_an_untouched_branch_is_rewritten_afresh(self) -> None:
+        gate = self._gate_subject()
+        accepted = self._head_sha()
+        self._crashes_before_the_reset(gate)
+
+        squash_run = self._squashes(self._next_tick(gate))
+
+        self.assertTrue(squash_run.success, squash_run.error)
+        self.assertEqual(squash_run.count, REWRITTEN_COMMITS)
+        self.assertEqual(
+            squash_run.push_mock.call_args.kwargs[_support.LEASE], accepted,
+        )
+        self.assertEqual(self._commits_on_branch(), [REFERENCED_SUBJECT])
+
+    def test_both_numbers_are_rewritten_afresh(self) -> None:
+        # The shape the pull request's reference alone cannot tell from a
+        # finished one. Interrupted before the reset, the next tick plans it
+        # over again -- and the plan it takes owes the same rewrite the dead
+        # one did, so the published subject sheds the tracked issue rather
+        # than going out with both numbers on it.
+        self._rebuild_single_commit(BOTH_NUMBERS_SUBJECT)
         gate = self._gate_subject()
         accepted = self._head_sha()
         self._crashes_before_the_reset(gate)

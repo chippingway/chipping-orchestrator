@@ -34,9 +34,12 @@ no reading, no refusal, and no push is its to decide. What it keeps is the
 multi-commit message exactly as the subject selection picked it, on the road
 that reuses the first subject and on the one that synthesizes one alike -- and
 a branch of ONE commit, whose only reason to be rewritten is that reference,
-exactly as the developer committed it. `SQUASH_ON_APPROVAL=off` leaves such a
-branch alone too, and for a different reason: that switch rewrites none of the
-developer's commits, and the reference is no exception to it.
+exactly as the developer committed it. Keeping it means keeping the tracked
+issue's own reference too: dropping that number is part of writing the pull
+request's, so an install that writes none normalizes nothing and the
+developer's subject stands as they wrote it. `SQUASH_ON_APPROVAL=off` leaves
+such a branch alone too, and for a different reason: that switch rewrites none
+of the developer's commits, and neither reference is an exception to it.
 """
 from __future__ import annotations
 
@@ -239,11 +242,22 @@ class SquashUnreferencedRealGitTest(
     The pull request is still handed in, so a subject with no reference is the
     switch answering rather than a number that never arrived -- on the road
     that reuses the first subject and on the one that synthesizes one alike.
+    Nothing is taken off such a subject either: the tracked issue's number is
+    removed on the way to writing the pull request's, and this install writes
+    none.
     """
 
     def test_a_reused_subject_is_left_as_picked(self) -> None:
         self._assert_committed_as(
             self._squash(**{PR_REF_IN_SUBJECT: False}), "fix: typo",
+        )
+
+    def test_a_tracked_issue_reference_is_left_on(self) -> None:
+        reused = f"fix: typo{squash_support.ISSUE_REFERENCE}"
+        self._rebuild_topic((reused, "add foo"), "u")
+
+        self._assert_committed_as(
+            self._squash(**{PR_REF_IN_SUBJECT: False}), reused,
         )
 
     def test_a_synthesized_subject_is_left_as_picked(self) -> None:
@@ -293,19 +307,28 @@ class SquashLeavesOneCommitAloneTest(
         })
 
     def _assert_left_alone(self, **config_overrides) -> None:
-        """One squash over an unreferenced one-commit branch changes nothing."""
-        self._rebuild_single_commit()
-        original_head = self._head_sha()
+        """One squash changes neither subject such a branch can carry.
 
-        squash_run = self._squash(**config_overrides)
+        Both are run against each switch, because the tracked issue's number
+        is the one either of them could still be read as owing something
+        about: it is removed on the way to writing the pull request's
+        reference, and neither install writes one here.
+        """
+        for committed in (
+            squash_support.SINGLE_SUBJECT,
+            f"{squash_support.SINGLE_SUBJECT}{squash_support.ISSUE_REFERENCE}",
+        ):
+            with self.subTest(committed=committed):
+                self._rebuild_single_commit(committed)
+                original_head = self._head_sha()
 
-        self.assertTrue(squash_run.success, squash_run.error)
-        self.assertEqual(squash_run.count, 0)
-        squash_run.push_mock.assert_not_called()
-        self.assertEqual(self._head_sha(), original_head)
-        self.assertEqual(
-            self._commits_on_branch(), [squash_support.SINGLE_SUBJECT],
-        )
+                squash_run = self._squash(**config_overrides)
+
+                self.assertTrue(squash_run.success, squash_run.error)
+                self.assertEqual(squash_run.count, 0)
+                squash_run.push_mock.assert_not_called()
+                self.assertEqual(self._head_sha(), original_head)
+                self.assertEqual(self._commits_on_branch(), [committed])
 
 
 if __name__ == "__main__":
