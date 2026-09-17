@@ -47,5 +47,15 @@ class _ConsentComments:
         """How many sentences of ours this thread carries."""
         return len(self.github.posted_comments)
 
+    def _thread_tip(self) -> int:
+        """The id of the last comment on this thread right now.
+
+        The whole of what a reading taken now can have LOOKED at, and so the
+        whole of what an answer to it may consume: a watermark past this is
+        one that swallowed a reply nothing read -- a retraction of the very
+        command being published on included -- unread and gone for good.
+        """
+        return self.github.latest_comment_id(self.issue)
+
     def _state(self) -> PinnedState:
         return self.github.read_pinned_state(self.issue)

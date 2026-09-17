@@ -8,149 +8,148 @@ second developer run for an implementation the first one finished. What each
 hands its answer to is the same publication seam that work came out of, so a
 recovery reaches exactly the outcomes a fresh disposition does and decides
 nothing the gate would have decided.
+
+Which is why every case here is a whole tick over a seeded issue. What a road
+did is read off the branch it pushed, the label it moved, the sentence it
+said and the pinned comment it left -- the four a fresh disposition is read by
+-- and the poll after it is run wherever holding quietly is what the road was
+for.
 """
 
 from __future__ import annotations
 
 import unittest
-from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.measurement.models import FingerprintFailure, FrozenCommit
 from orchestrator.git.verification.status import _WorktreeStatus
-from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.stages.implementing import (
-    candidate_recovery as _candidate_recovery,
-    checkout_recovery as _checkout_recovery,
     late_command as _late_command,
-    late_evidence as _late_evidence,
     late_measurement_state as _late_measurement_state,
     late_park_retirement as _late_park_retirement,
-    late_recovery as _recovery,
     state as _state,
 )
-from tests.workflow.fixtures import _TEST_SPEC, MEASURED_CANDIDATE_SHA, SHA_LENGTH
+from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA, SHA_LENGTH
 from tests.workflow.stages.implementing import (
     late_consent_case as _consent_case,
     late_consent_payloads as _consent_payloads,
 )
-
-_PUBLISH_COMMITTED_WORK = "_publish_committed_work"
-_RESTORED_CHECKOUT = "_restored_checkout"
-_OFF_THE_PARKED_COMMIT = "_off_the_parked_commit"
-_READS_THE_THREAD = "_reads_the_thread"
-_GIVES_UP_A_LOST_SENTENCE = "_gives_up_a_lost_sentence"
-_RESUME_DEV_WITH_TEXT = "_resume_dev_with_text"
-_HOLDS_MOVED_CANDIDATE = "_holds_moved_candidate"
-_WORKTREE_STATUS = "_worktree_status"
 
 # A checkout the recovery's existence probe never finds, which is the one
 # outcome the publication seam cannot reach on its own: there is no commit to
 # read there and a fresh run would answer with different work.
 _MISSING_WORKTREE = Path("/tmp/orchestrator-test-late-recovery-gone")
 
-# The three readings a checkout can give the question this road asks it: a
-# tree proved to be carrying nothing loose, one carrying work no push would
-# publish, and one nothing could read -- which is not a clean tree either.
-_CLEAN_TREE = _WorktreeStatus(readable=True)
+# The two readings that say a checkout carries something no push would
+# publish: a tree git named files in, and one nothing could read -- which is
+# not a clean tree either.
 _DIRTY_TREE = _WorktreeStatus(readable=True, paths=("src/left_behind.py",))
 _UNREADABLE_TREE = _WorktreeStatus(readable=False)
-
-# A checkout that passes every reading up to the push and is dirty by the
-# time the handoff proves it again, which is the road that says two things.
-_DIRTIED_AFTER_THE_PUSH = (
-    _CLEAN_TREE, _CLEAN_TREE, _CLEAN_TREE, _DIRTY_TREE, _DIRTY_TREE,
-)
 
 # A commit the checkout is standing on that the park's own record does not
 # name: work that replaced what an operator decided about.
 _MOVED_HEAD_SHA = "e" * SHA_LENGTH
 
-# A reading the ceiling lets through, so the seam's answer to a head nobody
-# authorized is a push rather than a park.
-_SMALL_ADDITIONS = 12
+# Every way a checkout can fail the reading taken before an authorized
+# candidate is handed over. All three earn the same answer -- none of them is
+# anybody's decision, so none may spend the one already on the thread.
+_UNPUBLISHABLE_CHECKOUTS = (
+    ("carrying uncommitted work", MappingProxyType({"tree_states": (_DIRTY_TREE,)})),
+    ("unreadable", MappingProxyType({"tree_states": (_UNREADABLE_TREE,)})),
+    ("gone from this host", MappingProxyType({"worktree": _MISSING_WORKTREE})),
+)
 
-# The bare command the measurement park is answered by, and the reply that
-# carries words instead -- which is guidance and the ordinary resume's.
-_CONTINUE = "/orchestrator continue"
-
-@dataclass
-class _Routed:
-    """Where one parked tick's committed work went, and whether it went.
-
-    The publication seam this recovery owes its answer to, beside whether the
-    tick was this owner's at all -- the two facts a case is about, since every
-    other effect a road has is on the record and read from there.
-    """
-
-    published: object
-    routed: bool = False
-
-
-class _RoutingCase(_consent_case._ParkedCase):
-    """One parked tick routed with the publication seam held still.
-
-    The seam is patched and nothing else is, so a case reads the routing off
-    one call and everything a road did to the record off the record itself.
-    """
-
-    def _recovers(
-        self,
-        worktree: Path = _consent_payloads.TEMP_WORKTREE_ROOT,
-        tree: _WorktreeStatus = _CLEAN_TREE,
-        moved: str = "",
-    ) -> _Routed:
-        """Route one parked tick, saying what it routed and where.
-
-        The tree reading is the caller's, since what this road asks the
-        checkout is the question the seam would have asked. So is the head
-        reading beside it, which has an owner of its own and answers the
-        ordinary world by default: the checkout is on the commit the park was
-        taken over. What that owner decides is asked where it lives; these are
-        about which road a parked tick takes.
-        """
-        seams = _Routed(
-            published=patch.object(_candidate_recovery, _PUBLISH_COMMITTED_WORK),
-        )
-        with (
-            patch.object(
-                _worktree_paths, _consent_payloads.WORKTREE_PATH, return_value=worktree,
-            ),
-            patch.object(
-                _worktree_status, _WORKTREE_STATUS, return_value=tree,
-            ),
-            patch.object(
-                _checkout_recovery, _OFF_THE_PARKED_COMMIT, return_value=moved,
-            ),
-            seams.published as published,
-        ):
-            seams.routed = _recovery._recovers_a_late_park(
-                self.github, _TEST_SPEC, self.issue, self._state(),
-            )
-            seams.published = published
-        return seams
+# The two ways the checkout a moved-candidate park is waiting on can fail to
+# answer it, neither of which anybody can reply their way out of.
+_UNANSWERING_CHECKOUTS = (
+    (
+        "standing somewhere else",
+        MappingProxyType({"candidate_commit": FrozenCommit(sha=_MOVED_HEAD_SHA)}),
+    ),
+    ("gone from this host", MappingProxyType({"worktree": _MISSING_WORKTREE})),
+)
 
 
-class UnauthorizedExemptionRecoveryTest(_RoutingCase, unittest.TestCase):
-    """The command that ends the authorization park, routed and no more.
+class UnauthorizedExemptionRecoveryTest(_consent_case._ParkedCase, unittest.TestCase):
+    """The command that ends the authorization park, and every reply that is not.
 
     The command is recognized here and ACTED on where the reading is, because
-    that is where the terms of an authorization come from -- so what this owes
-    is the routing, and the gate answer decides everything else.
+    that is where the terms of an authorization come from. So what a case asks
+    is which road the whole tick took: the publication the command earns, the
+    sentence a command naming another commit earns, or the developer guidance
+    buys.
     """
 
-    def test_every_command_reaches_the_seam(self) -> None:
-        # Back through the same publication seam the work came out of, so the
-        # answer reaches the outcomes a fresh disposition does -- and never
-        # the spawn below, which would pay for a developer over committed
-        # work. A command naming another commit routes too: the sentence it
-        # earns is the gate's to say, since only the owner holding a reading
-        # knows which candidate is waiting, and left unrouted the reply would
-        # fall to the ordinary resume and spawn a developer.
+    def setUp(self) -> None:
+        super().setUp()
+        self._seed(**_consent_payloads.measured_pair())
+
+    def test_the_command_publishes_the_candidate(self) -> None:
+        # The road everything else here exists to protect: the reply an
+        # operator wrote publishes the commit it names, under terms recorded
+        # from the reading this tick took, and buys no developer run over work
+        # that is committed already.
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
+
+        mocks = self._run_tick()
+
+        self._assert_published(mocks)
+        pinned = self._pinned()
+        self.assertEqual(
+            pinned[_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA],
+            MEASURED_CANDIDATE_SHA,
+        )
+        self.assertEqual(
+            pinned[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded,
+        )
+        self.assertEqual(pinned[_state._LAST_ACTION_COMMENT_ID], commanded)
+        self.assertFalse(pinned[_state._AWAITING_HUMAN])
+        self.assertIsNone(pinned[_state._PARK_REASON])
+
+    def test_the_next_poll_opens_no_second_pr(self) -> None:
+        # What the record a command-publication leaves is worth to the poll
+        # after it. The issue is `validating`'s from the relabel on, so a tick
+        # that still reaches this handler is one that re-entered a window it
+        # has already finished -- and the receipt group this road wrote is
+        # what closes it: the pull request the work is on is proved from the
+        # remote and reused, rather than a second one being opened over a
+        # branch the first already carries.
+        self._reply(_consent_payloads.AUTHORIZE)
+        self._run_tick()
+        announced = len(self.github.posted_comments)
+
+        mocks = self._run_tick()
+
+        self._assert_no_agent(mocks)
+        self.assertEqual(len(self.github.opened_prs), 1)
+        self.assertEqual(len(self.github.posted_comments), announced)
+        # The push it does make is leased against the commit already on the
+        # remote, so a branch somebody moved in between rejects it instead of
+        # being force-overwritten.
+        self.assertEqual(
+            mocks[_consent_payloads.PUSH_BRANCH].call_args.kwargs[
+                _consent_payloads.FORCE_WITH_LEASE
+            ],
+            MEASURED_CANDIDATE_SHA,
+        )
+        opened = self.github.opened_prs[0].number
+        pinned = self._pinned()
+        self.assertEqual(pinned[_consent_payloads.KEY_PR_NUMBER], opened)
+        self.assertEqual(pinned[_consent_payloads.KEY_PUBLISHED_PR], opened)
+
+    def test_a_command_for_another_commit_is_answered(self) -> None:
+        # Left unrouted, a reply that is not the exact command would fall to
+        # the ordinary resume and spend a developer over committed work. The
+        # sentence it earns is the gate's to say, since only the owner holding
+        # a reading knows which candidate is waiting -- so what lands is that
+        # sentence, spelling out the command that would have worked, over a
+        # park and a watermark the refusal leaves exactly as it found them. An
+        # abbreviation is answered the same way, since nothing in this domain
+        # writes one.
         for described, written in (
-            ("the parked candidate", _consent_payloads.AUTHORIZE),
             ("another commit", _consent_payloads.AUTHORIZE_ANOTHER),
             ("an abbreviation", _consent_payloads.AUTHORIZE_ABBREVIATED),
         ):
@@ -158,197 +157,269 @@ class UnauthorizedExemptionRecoveryTest(_RoutingCase, unittest.TestCase):
                 self.setUp()
                 self._reply(written)
 
-                routed = self._recovers()
+                mocks = self._run_tick()
+                # And the poll after it says nothing new: our own sentence is
+                # in the ledger, so nothing reads it back as fresh guidance.
+                self._run_tick()
 
-                self.assertTrue(routed.routed)
-                routed.published.assert_called_once()
+                self._assert_held(mocks)
+                self._assert_still_parked()
+                self.assertEqual(len(self.github.posted_comments), 1)
+                self.assertIn(
+                    _consent_payloads.AUTHORIZE, self.github.posted_comments[0][1],
+                )
+                self.assertEqual(
+                    self._pinned()[_state._LAST_ACTION_COMMENT_ID],
+                    _consent_payloads.PRIOR_ACTION_COMMENT_ID,
+                )
 
     def test_guidance_is_left_for_the_resume(self) -> None:
         # A reply whose last word is not the command belongs to the road that
-        # feeds it to the developer.
-        self._reply(_consent_payloads.GUIDANCE)
+        # feeds it to the developer -- so the developer runs, and the reply is
+        # consumed by the run that answered it rather than by this park.
+        guided = self._reply(_consent_payloads.GUIDANCE)
 
-        routed = self._recovers()
+        mocks = self._run_tick()
 
-        self.assertFalse(routed.routed)
-        routed.published.assert_not_called()
+        mocks[_consent_payloads.RUN_AGENT].assert_called_once()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
+        # Consumed to the sentence that run's own park posted, which is above
+        # the guidance it answered and is the last word on the thread: the
+        # reply is spent, and a watermark past it would swallow whatever the
+        # operator writes next.
+        said = self._thread_tip()
+        self.assertGreater(said, guided)
+        self.assertEqual(
+            self._pinned()[_state._LAST_ACTION_COMMENT_ID], said,
+        )
 
-    def test_a_thread_nobody_has_written_on_is_held(self) -> None:
-        # The ordinary poll of a park waiting on a person: it owns the tick so
-        # nothing below pays for a developer over committed work, and it buys
-        # no reading to say what it said last time.
-        routed = self._recovers()
+    def test_another_park_is_not_this_road(self) -> None:
+        # The door. An issue waiting on something else is not this park's to
+        # end, and a tick that claimed it would hold every other park in the
+        # stage on a thread nobody read -- so the command reaches the ordinary
+        # resume, which is what an issue parked on a timeout is owed.
+        self._seed(**{
+            _state._PARK_REASON: _state._AGENT_TIMEOUT,
+            **_consent_payloads.measured_pair(),
+        })
+        self._reply(_consent_payloads.AUTHORIZE)
 
-        self.assertTrue(routed.routed)
-        routed.published.assert_not_called()
+        mocks = self._run_tick()
+
+        mocks[_consent_payloads.RUN_AGENT].assert_called_once()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
+
+    def test_a_lost_reading_leaves_the_park(self) -> None:
+        # The write that records the authorization is the write that takes the
+        # park off, so a tick that could not fingerprint the pair leaves the
+        # issue exactly as parked as it found it rather than durably unparking
+        # one nothing published. Nothing about that is the operator's doing,
+        # so the command is still the last fresh word -- and the poll that can
+        # read the pair publishes on it without asking them twice.
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
+
+        held = self._run_tick(
+            contribution_digest=FingerprintFailure.CONTENT_ABSENT,
+        )
+
+        self._assert_held(held)
+        self._assert_still_parked()
+        self.assertEqual(
+            self._pinned()[_state._LAST_ACTION_COMMENT_ID],
+            _consent_payloads.PRIOR_ACTION_COMMENT_ID,
+        )
+        self.assertNotIn(
+            _consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned(),
+        )
         self.assertEqual(self.github.posted_comments, [])
+
+        published = self._run_tick()
+
+        self._assert_published(published)
+        self.assertEqual(
+            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded,
+        )
+
+
+class SilentParkHoldTest(_consent_case._ParkedCase, unittest.TestCase):
+    """The poll of a park nobody whose word counts has answered.
+
+    It owns the tick so nothing below pays for a developer over committed
+    work, and it buys no reading, no write and no word to say what it said
+    last time: a park waiting on a person answers the same way every poll
+    until one arrives.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._seed(**_consent_payloads.measured_pair())
+
+    def test_a_thread_nobody_wrote_on_is_held(self) -> None:
+        before = dict(self._pinned())
+
+        mocks = self._run_tick()
+
+        self._assert_held(mocks)
+        self._assert_wrote_nothing()
+        self.assertEqual(self._pinned(), before)
 
     def test_an_outsider_is_nobody_speaking(self) -> None:
         # The allowlist's rule applied where the thread is read: nothing an
-        # outsider posts is a decision or guidance, so the park is held on
-        # the same terms a silent thread is.
+        # outsider posts is a decision or guidance, so the park is held on the
+        # same terms a silent thread is -- down to the write it does not buy.
+        before = dict(self._pinned())
         with patch.object(
-            config, _consent_payloads.ALLOWLIST_CONFIG, (_consent_payloads.TRUSTED_AUTHOR,),
+            config,
+            _consent_payloads.ALLOWLIST_CONFIG,
+            (_consent_payloads.TRUSTED_AUTHOR,),
         ):
-            self._reply(_consent_payloads.AUTHORIZE, author=_consent_payloads.OUTSIDER)
+            self._reply(
+                _consent_payloads.AUTHORIZE, author=_consent_payloads.OUTSIDER,
+            )
+            mocks = self._run_tick()
 
-            routed = self._recovers()
-
-        self.assertTrue(routed.routed)
-        routed.published.assert_not_called()
-        self.assertEqual(self.github.posted_comments, [])
-
-    def test_another_park_is_not_this_road_at_all(self) -> None:
-        # The door, asserted where it is written. An issue waiting on
-        # something else is not this park's to end, and a tick that claimed it
-        # would hold every other park in the stage on a thread nobody read.
-        self._seed(**{_state._PARK_REASON: _state._AGENT_TIMEOUT})
-        self._reply(_consent_payloads.AUTHORIZE)
-
-        routed = self._recovers()
-
-        self.assertFalse(routed.routed)
-        routed.published.assert_not_called()
-
-    def test_the_park_flags_are_left_standing(self) -> None:
-        # The write that records the authorization is the write that takes
-        # them off, so a tick that could not fingerprint the pair leaves the
-        # issue exactly as parked as it found it rather than durably unparking
-        # an issue nothing published.
-        self._reply(_consent_payloads.AUTHORIZE)
-
-        self._recovers()
-
-        self._assert_still_parked()
+        self._assert_held(mocks)
+        self._assert_wrote_nothing()
+        self.assertEqual(self._pinned(), before)
 
 
-class MeasurementParkRecoveryTest(_RoutingCase, unittest.TestCase):
+class MeasurementParkRecoveryTest(_consent_case._ParkedCase, unittest.TestCase):
     """The bare continue that asks for one more reading of the candidate.
 
     Deliberately not a session retry. What failed was a READING, and the
     developer that produced the commit finished long ago -- so the committed
-    work goes back through the publication seam and nobody is spawned.
+    work goes back through the publication seam, nobody is spawned, and what
+    the reading answers is what the tick does with it.
     """
 
     def setUp(self) -> None:
         super().setUp()
         self._seed(**{
             _state._PARK_REASON: _late_measurement_state.PARK_MEASUREMENT_FAILED,
+            **_consent_payloads.measured_pair(),
         })
 
-    def test_a_bare_continue_re_measures(self) -> None:
-        self._reply(_CONTINUE)
+    def test_a_small_reading_publishes_the_commit(self) -> None:
+        # The reading is re-taken on the tick that acts, so a ceiling retuned
+        # since can put the same commit under one: it publishes without
+        # anybody's authorization and without another developer run. The
+        # command is consumed by the retry, which is safe only because every
+        # reply on this road is a bare continue.
+        commanded = self._reply(_consent_payloads.CONTINUE)
 
-        routed = self._recovers()
+        mocks = self._run_tick(added_lines=_consent_payloads.SMALL_ADDITIONS)
 
-        self.assertTrue(routed.routed)
-        routed.published.assert_called_once()
+        self._assert_published(mocks)
+        pinned = self._pinned()
+        self.assertEqual(pinned[_state._LAST_ACTION_COMMENT_ID], commanded)
+        self.assertFalse(pinned[_state._AWAITING_HUMAN])
+        self.assertIsNone(pinned[_state._PARK_REASON])
 
-    def test_the_command_is_consumed_by_the_retry(self) -> None:
-        # Safe only because every reply on this road is a bare continue:
-        # nothing with words in it is dropped here.
-        commanded = self._reply(_CONTINUE)
+    def test_an_oversized_reading_parks_again(self) -> None:
+        # The other answer the retaken reading can give, and the whole of why
+        # the retry is not a publication: a count still past the ceiling hands
+        # the issue to the park an adjudicated candidate nobody has authorized
+        # waits on, with one sentence saying so and no developer spawned.
+        commanded = self._reply(_consent_payloads.CONTINUE)
 
-        self._recovers()
+        mocks = self._run_tick()
 
+        self._assert_held(mocks)
+        self._assert_still_parked()
+        self.assertEqual(len(self.github.posted_comments), 1)
+        # The continue is spent by the retry that read it, and the notice this
+        # reading earned moves the boundary to itself and no further -- so the
+        # poll after finds the thread read to our own sentence.
+        said = self._thread_tip()
+        self.assertGreater(said, commanded)
         self.assertEqual(
-            self._pinned()[_state._LAST_ACTION_COMMENT_ID], commanded,
+            self._pinned()[_state._LAST_ACTION_COMMENT_ID], said,
         )
 
     def test_guidance_is_left_for_the_resume(self) -> None:
         # A reply carrying real words is guidance, which belongs to the
-        # ordinary resume that feeds it to the developer.
-        self._reply(_consent_payloads.GUIDANCE)
+        # ordinary resume that feeds it to the developer rather than to a
+        # retry that would re-read a pair nobody asked about again.
+        guided = self._reply(_consent_payloads.GUIDANCE)
 
-        routed = self._recovers()
+        mocks = self._run_tick()
 
-        self.assertFalse(routed.routed)
-        routed.published.assert_not_called()
+        mocks[_consent_payloads.RUN_AGENT].assert_called_once()
+        mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
+        # Consumed to the sentence that run's own park posted, which is above
+        # the guidance it answered and is the last word on the thread: the
+        # reply is spent, and a watermark past it would swallow whatever the
+        # operator writes next.
+        said = self._thread_tip()
+        self.assertGreater(said, guided)
+        self.assertEqual(
+            self._pinned()[_state._LAST_ACTION_COMMENT_ID], said,
+        )
 
     def test_a_missing_checkout_takes_its_own_park(self) -> None:
         # The one outcome the seam cannot reach on its own, and the road where
         # re-parking costs nobody anything: the answer was a bare continue,
         # spent by the tick that read it, so the next continue retries it once
-        # the worktree is back.
-        self._reply(_CONTINUE)
+        # the worktree is back. What it may not do is re-run the developer --
+        # the recorded commit is the evidence a fresh checkout cannot supply.
+        self._reply(_consent_payloads.CONTINUE)
 
-        routed = self._recovers(worktree=_MISSING_WORKTREE)
+        mocks = self._run_tick(worktree=_MISSING_WORKTREE)
 
-        self.assertTrue(routed.routed)
-        routed.published.assert_not_called()
-        self.assertTrue(self._pinned()[_state._AWAITING_HUMAN])
-
-    def _recovers(self, **routed) -> _Routed:
-        """Route the tick with the checkout standing where the record says.
-
-        The recorded-candidate proof is the caller's here rather than a real
-        git read, because what these cases are about is the road past it: the
-        park it takes when the head has moved has its own owner and its own
-        tests.
-        """
-        with patch.object(
-            _late_evidence, _HOLDS_MOVED_CANDIDATE, return_value=False,
-        ):
-            return _RoutingCase._recovers(self, **routed)
+        self._assert_held(mocks)
+        pinned = self._pinned()
+        self.assertTrue(pinned[_state._AWAITING_HUMAN])
+        self.assertEqual(
+            pinned[_state._PARK_REASON],
+            _late_measurement_state.PARK_MEASUREMENT_FAILED,
+        )
+        self.assertEqual(len(self.github.posted_comments), 1)
 
 
-class MovedCandidateRecoveryTest(_RoutingCase, unittest.TestCase):
-    """The park no reply can end, settled by the checkout coming back.
+class MovedCandidateRecoveryTest(_consent_case._ParkedCase, unittest.TestCase):
+    """The park no reply can end, left standing by a checkout that cannot answer.
 
     What that park refused was the HANDOFF -- the commit was measured and
     approved, and the checkout was somewhere else -- so what settles it is the
-    worktree, not guidance and not another developer run.
+    worktree, not guidance and not another developer run. The publication a
+    restored checkout earns is pinned down beside the handoff that takes the
+    park; what belongs here is the door, which is quiet on every tick the
+    checkout has not answered yet.
     """
 
     def setUp(self) -> None:
         super().setUp()
-        self._seed(**{_state._PARK_REASON: _state._CANDIDATE_MOVED})
+        self._seed(**{
+            _state._PARK_REASON: _state._CANDIDATE_MOVED,
+            _state._APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+        })
 
-    def test_a_restored_checkout_republishes(self) -> None:
-        routed = self._recovers_the_checkout(restored=MEASURED_CANDIDATE_SHA)
+    def test_a_checkout_that_cannot_answer_is_quiet(self) -> None:
+        # Quiet by design, and on both readings alike: every tick asks one
+        # local question and says nothing until the answer changes, so an
+        # operator who leaves the worktree where it is -- or who is waiting on
+        # the host that holds it -- is not told the same thing once a tick.
+        # The approved commit stays on the record, which is what the poll
+        # after the checkout comes back publishes against.
+        for described, held in _UNANSWERING_CHECKOUTS:
+            with self.subTest(checkout=described):
+                self.setUp()
 
-        self.assertTrue(routed.routed)
-        routed.published.assert_called_once()
-        pinned = self._pinned()
-        self.assertFalse(pinned[_state._AWAITING_HUMAN])
-        self.assertIsNone(pinned[_state._PARK_REASON])
+                mocks = self._run_tick(**held)
 
-    def test_a_checkout_still_elsewhere_says_nothing(self) -> None:
-        # Quiet by design: every tick asks one local question and says nothing
-        # until the answer changes, so an operator who leaves the worktree
-        # where it is is not told the same thing once a tick.
-        routed = self._recovers_the_checkout(restored="")
-
-        self.assertFalse(routed.routed)
-        routed.published.assert_not_called()
-        self.assertEqual(self.github.posted_comments, [])
-        self._assert_parked_for(_state._CANDIDATE_MOVED)
-
-    def test_a_missing_checkout_says_nothing(self) -> None:
-        routed = self._recovers_the_checkout(
-            restored=MEASURED_CANDIDATE_SHA, worktree=_MISSING_WORKTREE,
-        )
-
-        self.assertFalse(routed.routed)
-        routed.published.assert_not_called()
-        self._assert_parked_for(_state._CANDIDATE_MOVED)
-
-    def _recovers_the_checkout(
-        self, restored: str, worktree: Path = _consent_payloads.TEMP_WORKTREE_ROOT,
-    ) -> _Routed:
-        """Route the tick with the checkout answering what a case says it does."""
-        with patch.object(
-            _checkout_recovery, _RESTORED_CHECKOUT, return_value=restored,
-        ):
-            return self._recovers(worktree=worktree)
-
-    def _assert_parked_for(self, reason: str) -> None:
-        pinned = self._pinned()
-        self.assertTrue(pinned[_state._AWAITING_HUMAN])
-        self.assertEqual(pinned[_state._PARK_REASON], reason)
+                self._assert_held(mocks)
+                self.assertEqual(self.github.posted_comments, [])
+                pinned = self._pinned()
+                self.assertTrue(pinned[_state._AWAITING_HUMAN])
+                self.assertEqual(
+                    pinned[_state._PARK_REASON], _state._CANDIDATE_MOVED,
+                )
+                self.assertEqual(
+                    pinned[_state._APPROVED_SHA], MEASURED_CANDIDATE_SHA,
+                )
 
 
-class UnpublishableCheckoutHoldTest(_RoutingCase, unittest.TestCase):
+class UnpublishableCheckoutHoldTest(_consent_case._ParkedCase, unittest.TestCase):
     """Every road that answers the command and reaches no publication.
 
     A checkout the seam would refuse is not a decision anybody made, so
@@ -357,67 +428,47 @@ class UnpublishableCheckoutHoldTest(_RoutingCase, unittest.TestCase):
     poll that finds the worktree back.
     """
 
-    def test_an_unpublishable_tree_writes_nothing(self) -> None:
+    def setUp(self) -> None:
+        super().setUp()
+        self._seed(**_consent_payloads.measured_pair())
+
+    def test_an_unpublishable_checkout_writes_nothing(self) -> None:
         # The seam below reads the tree before a verdict can be recorded, and
-        # its refusal parks under a reason of its own. Reached on this road,
-        # that reason takes the authorization park's off and its notice moves
-        # the watermark past the command still standing -- so the operator is
-        # asked to authorize the same commit again once they clean the tree.
-        # A tree nothing could READ is refused beside a dirty one, since a
-        # reading that established nothing is not evidence of a clean tree.
-        for described, tree in (
-            ("carrying uncommitted work", _DIRTY_TREE),
-            ("unreadable", _UNREADABLE_TREE),
-        ):
-            with self.subTest(tree=described):
+        # its refusal parks under a reason of its own whose notice moves the
+        # watermark past the command still standing -- so the operator would
+        # be asked to authorize the same commit again once they fixed the
+        # checkout. Asked here instead, the tick makes no write at all: not
+        # the park, not the watermark, and not a word on the thread.
+        for described, held in _UNPUBLISHABLE_CHECKOUTS:
+            with self.subTest(checkout=described):
                 self.setUp()
                 self._reply(_consent_payloads.AUTHORIZE)
                 before = dict(self._pinned())
 
-                routed = self._recovers(tree=tree)
+                mocks = self._run_tick(**held)
 
-                self.assertTrue(routed.routed)
-                routed.published.assert_not_called()
+                self._assert_held(mocks)
+                self._assert_wrote_nothing()
                 self.assertEqual(self._pinned(), before)
-                self.assertEqual(self.github.posted_comments, [])
-
-    def test_a_missing_checkout_writes_nothing(self) -> None:
-        # There is no commit to read there, the recorded SHA is evidence no
-        # fresh checkout may stand in for, and re-running the developer would
-        # answer with different work -- so it owns the tick and publishes
-        # nothing. What it may not do is re-park under a reason of its own:
-        # the notice that would go with one moves the watermark past the
-        # command still standing, and its reason takes this park's off, so an
-        # operator who put the worktree back would be asked for the same
-        # decision again on an issue now waiting for a different reply.
-        self._reply(_consent_payloads.AUTHORIZE)
-        before = dict(self._pinned())
-
-        routed = self._recovers(worktree=_MISSING_WORKTREE)
-
-        self.assertTrue(routed.routed)
-        routed.published.assert_not_called()
-        self.assertEqual(self._pinned(), before)
-        self.assertEqual(self.github.posted_comments, [])
 
     def test_a_fixed_checkout_needs_no_command(self) -> None:
-        # The whole of what holding quietly buys, from either hold: the
+        # The whole of what holding quietly buys, from all three holds: the
         # command the operator already wrote is still the last fresh word on
         # the thread, so the poll after they fix the checkout publishes on it
         # without their being asked to decide a second time.
-        for described, held in (
-            ("a tree carrying uncommitted work", {"tree": _DIRTY_TREE}),
-            ("a checkout that was gone", {"worktree": _MISSING_WORKTREE}),
-        ):
-            with self.subTest(held=described):
+        for described, held in _UNPUBLISHABLE_CHECKOUTS:
+            with self.subTest(checkout=described):
                 self.setUp()
-                self._reply(_consent_payloads.AUTHORIZE)
-                self._recovers(**held)
+                commanded = self._reply(_consent_payloads.AUTHORIZE)
+                self._run_tick(**held)
 
-                routed = self._recovers()
+                mocks = self._run_tick()
 
-                self.assertTrue(routed.routed)
-                routed.published.assert_called_once()
+                self._assert_published(mocks)
+                self.assertEqual(
+                    self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID],
+                    commanded,
+                )
 
 
 # Which retirement may end which park, over all four pairings. A reading
@@ -448,12 +499,12 @@ _RETIREMENTS = (
 class RetiredParkTest(_consent_case._ParkedCase, unittest.TestCase):
     """Which of the two parks the size gate takes one road may take down.
 
-    Apart from the routing above because no road there can tell them apart:
-    the rollback puts back whatever a call that published nothing cleared, so
-    a retirement taken on the wrong park is invisible from a whole tick. What
-    it costs is paid on the roads that reach this gate without one -- and what
-    it would cost is an issue durably unparked whose operator never replied,
-    with the exemption nobody stands behind publishing on the next poll under
+    Apart from the roads above because no tick there can tell them apart: the
+    rollback puts back whatever a call that published nothing cleared, so a
+    retirement taken on the wrong park is invisible from a whole tick. What it
+    costs is paid on the roads that reach this gate without one -- and what it
+    would cost is an issue durably unparked whose operator never replied, with
+    the exemption nobody stands behind publishing on the next poll under
     nobody's authority at all.
     """
 

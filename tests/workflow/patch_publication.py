@@ -7,6 +7,11 @@ from unittest.mock import MagicMock
 
 from orchestrator.git.publication import models as _publication_models
 
+# The push seam, and the commit one call carried, as the hermetic mock table
+# spells them.
+_PUSH_BRANCH = "_push_branch"
+_REVISION = "revision"
+
 
 def _published_branch(push) -> MagicMock:
     """The push seam, recording its calls whichever seed drives it.
@@ -55,3 +60,29 @@ def _fetched(seed) -> MagicMock:
     if isinstance(seed, (list, tuple)):
         return MagicMock(side_effect=list(seed))
     return MagicMock(return_value=seed)
+
+
+def _stand_opened_prs_on_the_push(github, mocks, opened_before: int) -> None:
+    """Put a pull request this tick opened on the commit it was pushed.
+
+    What the double cannot derive: the push is mocked, so `open_pr` has no way
+    to know which commit the branch it is opened over now carries, while
+    GitHub answers with that commit from the moment the pull request exists.
+    The poll after a publication reads that head to tell one this issue made
+    from a branch somebody else moved -- so a fixture that left it at its
+    default would have every such reading refuse a publication this very tick
+    produced, and a case asserting on the next poll would be asserting on a
+    remote no tick could have left.
+
+    The sha alone: the ref and the repository are what `open_pr` already
+    answered with, and replacing the whole head would drop the two facts every
+    publication reading is identified by.
+    """
+    pushed = mocks[_PUSH_BRANCH].call_args
+    if pushed is None:
+        return
+    revision = pushed.kwargs.get(_REVISION)
+    if not revision:
+        return
+    for opened in github.opened_prs[opened_before:]:
+        opened.head.sha = revision

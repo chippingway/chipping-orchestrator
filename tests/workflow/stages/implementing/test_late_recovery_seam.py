@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a whole tick does with a standing park, through the real seam.
 
-The routing beside this asks which road a parked tick takes, with the
-publication seam held still. These ask what happens when it is not: a tree the
-seam reads for a second time, a head it proves for itself, a reading the seam
-takes of its own -- or cannot take at all -- and a command that lands between
-this park's own reading of the thread and the generic resume's. A double in the
-seam's place answers none of them.
+The routing beside this asks which road a parked tick takes and what each one
+leaves on the record. These ask what the seam itself does to a park it was
+entered under: a tree it reads for a second time, a head it proves for itself,
+a reading it takes of its own -- or cannot take at all -- and a command that
+lands between this park's own reading of the thread and the generic resume's.
+Every one of them is a race or a refusal inside the call, so the seeds move
+under the tick rather than around it.
 """
 
 from __future__ import annotations
@@ -30,10 +31,6 @@ from tests.workflow.stages.implementing import (
 )
 
 _READS_THE_THREAD = "_reads_the_thread"
-
-# What the push is named against, which is the whole of what a moved
-# checkout would have changed.
-_REVISION = "revision"
 
 _CLEAN_TREE = _WorktreeStatus(readable=True)
 _DIRTY_TREE = _WorktreeStatus(readable=True, paths=("src/left_behind.py",))
@@ -59,18 +56,6 @@ _POLLS_PAST_THE_BOUND = 8
 # nobody authorized: a park these cases see is the commit the record names
 # being held against the checkout.
 _SMALL_ADDITIONS = 12
-
-
-def _assert_no_agent(case, mocks) -> None:
-    """No developer was paid for on this tick, whatever else it decided."""
-    mocks[_consent_payloads.RUN_AGENT].assert_not_called()
-
-
-def _assert_held(case, mocks) -> None:
-    """The tick spent nothing and moved the issue nowhere."""
-    mocks[_consent_payloads.RUN_AGENT].assert_not_called()
-    mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
-    case.assertEqual(case.github.label_history, [])
 
 
 class _LandsOneReply:
@@ -101,24 +86,6 @@ class SeamHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
     posted and never recorded. A double in its place answers none of them.
     """
 
-    def test_the_command_publishes_on_a_whole_tick(self) -> None:
-        # The routing end to end: a parked tick with no run to dispose reaches
-        # the gate, the gate measures afresh, and the command an operator
-        # already wrote is what publishes the branch.
-        self._seed(**_consent_payloads.measured_pair())
-        commanded = self._reply(_consent_payloads.AUTHORIZE)
-
-        mocks = self._run_tick()
-
-        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
-        _assert_no_agent(self, mocks)
-        pinned = self._pinned()
-        self.assertEqual(
-            pinned[_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA], MEASURED_CANDIDATE_SHA,
-        )
-        self.assertEqual(pinned[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded)
-        self.assertFalse(pinned[_state._AWAITING_HUMAN])
-
     def test_a_second_read_keeps_the_park(self) -> None:
         # The tree is read once before the seam is entered and again inside
         # it, and everything between is time something can write in. The
@@ -131,7 +98,7 @@ class SeamHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
 
         mocks = self._run_tick(tree_states=(_CLEAN_TREE, _DIRTY_TREE))
 
-        self._assert_still_parked(mocks)
+        self._assert_held_and_parked(mocks)
         # The watermark travels with the park, and it is the half that decides
         # whether the operator has to write anything again: one the seam's
         # notice moved past the command is a decision thrown away.
@@ -154,7 +121,7 @@ class SeamHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
             added_lines=_SMALL_ADDITIONS,
         )
 
-        self._assert_still_parked(mocks)
+        self._assert_held_and_parked(mocks)
 
     def test_a_moved_head_after_a_failed_push_holds(self) -> None:
         # The same question one field over. A push that failed after the
@@ -175,7 +142,7 @@ class SeamHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
             added_lines=_SMALL_ADDITIONS,
         )
 
-        self._assert_still_parked(mocks)
+        self._assert_held_and_parked(mocks)
         self.assertEqual(
             self._pinned()[_consent_payloads.KEY_OVERRIDE_CANDIDATE_SHA],
             MEASURED_CANDIDATE_SHA,
@@ -184,19 +151,28 @@ class SeamHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
     def test_the_checkout_coming_back_publishes_it(self) -> None:
         # And what holding it buys, across the restart that follows: an
         # operator who puts the checkout back on the commit they authorized
-        # gets that commit published, under the command they already wrote.
+        # gets that commit published, under the command they already wrote --
+        # the branch out, the pull request opened and announced, the receipt
+        # group naming it, and the issue handed to `validating`.
         self._seed(**_consent_payloads.measured_pair())
-        self._reply(_consent_payloads.AUTHORIZE)
+        commanded = self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
         self._run_tick(candidate_commit=FrozenCommit(sha=_MOVED_HEAD_SHA))
+        read_to = self._thread_tip()
 
         mocks = self._run_tick()
 
-        _assert_no_agent(self, mocks)
-        self.assertEqual(
-            mocks[_consent_payloads.PUSH_BRANCH].call_args.kwargs[_REVISION],
-            MEASURED_CANDIDATE_SHA,
-        )
+        self._assert_published(mocks)
+        pinned = self._pinned()
+        self.assertFalse(pinned[_state._AWAITING_HUMAN])
+        self.assertIsNone(pinned[_state._PARK_REASON])
+        # And the reply that authorized it is spent by the write that moved
+        # the label, rather than travelling to `validating` as fresh feedback
+        # -- to exactly what the reading LOOKED at, which here is the refusal
+        # an earlier poll of this park posted above the command. A boundary
+        # past it would swallow a retraction written since, unread.
+        self.assertGreater(read_to, commanded)
+        self.assertEqual(pinned[_state._LAST_ACTION_COMMENT_ID], read_to)
 
     def test_a_head_moving_mid_tick_keeps_the_park(self) -> None:
         # The window asking first cannot close on its own: the head is proved
@@ -219,22 +195,17 @@ class SeamHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
             added_lines=_SMALL_ADDITIONS,
         )
 
-        self._assert_still_parked(mocks)
+        self._assert_held_and_parked(mocks)
         # And the operator is not asked twice: the reply they already wrote is
         # still the last fresh word for the poll the checkout settles on.
         self.assertIsNotNone(
             _command._read_the_park(self.github, self.issue, self._state()),
         )
 
-    def _assert_still_parked(self, mocks) -> None:
+    def _assert_held_and_parked(self, mocks) -> None:
         """Nobody was resumed, nothing was published, and the park stands."""
-        _assert_held(self, mocks)
-        pinned = self._pinned()
-        self.assertTrue(pinned[_state._AWAITING_HUMAN])
-        self.assertEqual(
-            pinned[_state._PARK_REASON],
-            _command.PARK_UNAUTHORIZED_EXEMPTION,
-        )
+        self._assert_held(mocks)
+        self._assert_still_parked()
 
 
 
@@ -275,14 +246,21 @@ class LostReadingHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
         self._seed(**_consent_payloads.measured_pair())
         commanded = self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(base_object_present=False)
+        # The missed poll said nothing, so the command is still the last word
+        # on the thread -- and that reply is the whole of what this poll's
+        # reading may consume to: not a comment past it, and not short of it.
+        read_to = self._thread_tip()
 
         mocks = self._run_tick()
 
-        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
-        _assert_no_agent(self, mocks)
+        self.assertEqual(read_to, commanded)
+        self._assert_published(mocks)
+        pinned = self._pinned()
         self.assertEqual(
-            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded,
+            pinned[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], commanded,
         )
+        self.assertEqual(pinned[_state._LAST_ACTION_COMMENT_ID], commanded)
+        self.assertFalse(pinned[_state._AWAITING_HUMAN])
 
     def test_a_lost_reading_keeps_a_silent_park(self) -> None:
         # The same rule where nobody has replied at all. A park still owing
@@ -333,7 +311,7 @@ class LostReadingHeldParkTest(_consent_case._ParkedCase, unittest.TestCase):
 
     def _assert_held_as_found(self, mocks) -> None:
         """Nothing ran, nothing published, and the park stands over its thread."""
-        _assert_held(self, mocks)
+        self._assert_held(mocks)
         self._assert_still_parked()
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
@@ -378,10 +356,12 @@ class SpentCommandTest(_consent_case._ParkedCase, unittest.TestCase):
         self._seed(**_consent_payloads.measured_pair())
         commanded = self._reply(_consent_payloads.AUTHORIZE)
         self._run_tick(push_branch=False)
+        read_to = self._thread_tip()
 
         mocks = self._run_tick()
 
-        self._assert_spent(mocks, commanded)
+        self.assertGreater(read_to, commanded)
+        self._assert_spent(mocks, read_to)
 
     def test_guidance_mid_handoff_keeps_the_reply(self) -> None:
         # The one state a handoff may not spend on. The thread is read here
@@ -402,20 +382,30 @@ class SpentCommandTest(_consent_case._ParkedCase, unittest.TestCase):
             mocks = self._run_tick()
 
         mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
-        _assert_no_agent(self, mocks)
+        self._assert_no_agent(mocks)
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
             _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
         self._assert_still_parked()
 
-    def _assert_spent(self, mocks, commanded: int) -> None:
-        """The branch went out, nobody was resumed, and the reply is read."""
-        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
-        _assert_no_agent(self, mocks)
-        self.assertGreaterEqual(
-            self._pinned()[_state._LAST_ACTION_COMMENT_ID], commanded,
-        )
+    def _assert_spent(self, mocks, read_to: int) -> None:
+        """The publication landed whole, and the thread is read to `read_to`.
+
+        The whole publication rather than the push alone, because what spends
+        the command is the write that moves the label: a road that pushed and
+        never handed the issue on would leave the reply unread on an issue
+        this stage still holds.
+
+        `read_to` is what the reading behind the handoff LOOKED at, which is
+        exactly what it may consume. Asserted as a bound instead, a boundary
+        written past the tip would pass while swallowing every reply posted
+        after it on the stage this issue moves to.
+        """
+        self._assert_published(mocks)
+        pinned = self._pinned()
+        self.assertEqual(pinned[_state._LAST_ACTION_COMMENT_ID], read_to)
+        self.assertFalse(pinned[_state._AWAITING_HUMAN])
 
 
 class CommandArrivalRaceTest(_consent_case._ParkedCase, unittest.TestCase):
@@ -444,7 +434,7 @@ class CommandArrivalRaceTest(_consent_case._ParkedCase, unittest.TestCase):
         ):
             mocks = self._run_tick()
 
-        _assert_held(self, mocks)
+        self._assert_held(mocks)
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
             _consent_payloads.PRIOR_ACTION_COMMENT_ID,
@@ -471,7 +461,7 @@ class CommandArrivalRaceTest(_consent_case._ParkedCase, unittest.TestCase):
         ):
             mocks = self._run_tick_with_guidance()
 
-        _assert_no_agent(self, mocks)
+        self._assert_no_agent(mocks)
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
             _consent_payloads.PRIOR_ACTION_COMMENT_ID,
@@ -488,14 +478,22 @@ class CommandArrivalRaceTest(_consent_case._ParkedCase, unittest.TestCase):
             _RacesPastTheStep(_command._reads_the_thread, landing),
         ):
             self._run_tick_with_guidance()
+        # The deferring poll consumed nothing and said nothing, so the command
+        # it stood aside for is the tip this one reads to and consumes to.
+        read_to = self._thread_tip()
 
         mocks = self._run_tick()
 
-        mocks[_consent_payloads.PUSH_BRANCH].assert_called_once()
-        _assert_no_agent(self, mocks)
+        self.assertEqual(read_to, landing.landed)
+        self._assert_published(mocks)
+        pinned = self._pinned()
         self.assertEqual(
-            self._pinned()[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], landing.landed,
+            pinned[_consent_payloads.KEY_OVERRIDE_COMMENT_ID], landing.landed,
         )
+        self.assertEqual(
+            pinned[_state._LAST_ACTION_COMMENT_ID], landing.landed,
+        )
+        self.assertFalse(pinned[_state._AWAITING_HUMAN])
 
     def test_guidance_over_a_command_is_consumed(self) -> None:
         # The case deferring may NOT touch. A command with guidance above it
@@ -510,8 +508,13 @@ class CommandArrivalRaceTest(_consent_case._ParkedCase, unittest.TestCase):
         mocks = self._run_tick()
 
         mocks[_consent_payloads.RUN_AGENT].assert_called_once()
-        self.assertGreaterEqual(
-            self._pinned()[_state._LAST_ACTION_COMMENT_ID], guided,
+        # Consumed to the sentence the resumed run's own park posted, which is
+        # above the guidance it answered -- so the superseded command beneath
+        # both can never be read as a fresh decision again.
+        said = self._thread_tip()
+        self.assertGreater(said, guided)
+        self.assertEqual(
+            self._pinned()[_state._LAST_ACTION_COMMENT_ID], said,
         )
 
     def _run_tick_with_guidance(self):

@@ -37,6 +37,7 @@ from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
     _PatchedWorkflowMixin,
+    _stand_opened_prs_on_the_push,
 )
 
 GATE_ISSUE_NUMBER = 300
@@ -333,31 +334,8 @@ class _GateCase(
             mocks = self._run_implementing(
                 self.github, self.issue, **run_options,
             )
-        self._stand_opened_prs_on_the_push(opened_before, mocks)
+        _stand_opened_prs_on_the_push(self.github, mocks, opened_before)
         return mocks
-
-    def _stand_opened_prs_on_the_push(self, opened_before, mocks) -> None:
-        """Put a pull request this tick opened on the commit it was pushed.
-
-        What the double cannot derive: the push is mocked, so `open_pr` has no
-        way to know which commit the branch it is opened over now carries,
-        while GitHub answers with that commit from the moment the pull request
-        exists. A poll after this one reads the head to tell a publication
-        this issue made from a branch somebody else moved, so a fixture that
-        left it at its default would have every such reading disagree with a
-        remote no tick could have produced.
-        """
-        pushed = mocks[PUSH_BRANCH].call_args
-        if pushed is None:
-            return
-        revision = pushed.kwargs.get("revision")
-        if not revision:
-            return
-        for opened in self.github.opened_prs[opened_before:]:
-            # The sha alone: the ref and the repository are what `open_pr`
-            # already answered with, and replacing the whole head would drop
-            # the two facts every publication reading is identified by.
-            opened.head.sha = revision
 
     def _pinned(self) -> dict:
         return self.github.pinned_data(self.issue.number)
