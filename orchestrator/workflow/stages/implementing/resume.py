@@ -189,7 +189,13 @@ def _resume_developer_on_human_reply(
     if batch.reserved or not batch.comments:
         return None
     resumed = _resume_dev_with_text(
-        gh, spec, issue, batch.state, batch.followup, pause_guard=pause_guard,
+        gh,
+        spec,
+        issue,
+        batch.state,
+        batch.followup,
+        pause_guard=pause_guard,
+        thread_text=batch.thread_text,
     )
     if _resume_batch._counts_as_delivered(resumed[1], resumed[2]):
         batch.settle()

@@ -40,6 +40,7 @@ from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_push as _late_push,
     late_records as _late_records,
+    park_watermarks as _park_watermarks,
     parks as _dev_parks,
 )
 from orchestrator.workflow.stages.validating import (
@@ -52,11 +53,22 @@ from orchestrator.workflow.stages.validating import (
 def _park_dev_fix_timeout(
     gh: GitHubClient, issue: Issue, state: PinnedState, before_sha: str,
 ) -> None:
+    """Park a fix round whose agent the timeout killed, bounded by our ledger.
+
+    Names how far it may read rather than taking the funnel's own notice-id
+    stamp, for the reason implementing's counterpart does: the run was out for
+    `AGENT_TIMEOUT` seconds, and the notice lands above anything a human wrote
+    in that window. Carried there, the watermark crosses their comment -- and
+    the transient recovery that retries this park silently fires only on a
+    thread with nothing new on it, so the reply meant to end the park would be
+    answered by a rerun that never saw it.
+    """
     _guards._park_awaiting_human(
         gh, issue, state,
         f"{config.HITL_MENTIONS} agent timed out after {config.AGENT_TIMEOUT}s, "
         "manual intervention needed.",
         reason=_state._REASON_AGENT_TIMEOUT,
+        watermark=_park_watermarks._stamp_read_this_far,
     )
     state.set(_state._PARK_REASON, _state._REASON_AGENT_TIMEOUT)
     state.set(_state._PRE_DEV_FIX_SHA, before_sha or "")

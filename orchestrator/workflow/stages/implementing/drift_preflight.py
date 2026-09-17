@@ -19,7 +19,11 @@ replied, the reply is the signal and the resume path owns the tick instead.
 The reply batch the resume runs on is frozen HERE, once, because the read is
 this stage's rather than the shared resume's: the batch is what the prompt
 quotes and what the watermark records, and a second read between the two would
-quote one thread and settle against another.
+quote one thread and settle against another. It is frozen as a batch the
+parked-continue classifier has ALREADY looked at, which is what this stage's
+preflight guarantees -- so a bare `/orchestrator continue` landing since that
+look is deferred to the poll that can retry or refuse on it rather than fed to
+a developer as prose.
 """
 from __future__ import annotations
 
@@ -105,7 +109,8 @@ def _prepare_awaiting_dev_run(
     worktree = _worktree._ensure_resume_worktree(spec, issue, state)
     before_sha = _verification_probes._head_sha(worktree)
     resumed = _resume._resume_developer_on_human_reply(
-        gh, spec, issue, _resume_batch._freeze(gh, issue, state),
+        gh, spec, issue,
+        _resume_batch._freeze(gh, issue, state, continue_claimed=True),
         pause_guard=True,
     )
     if resumed is None:

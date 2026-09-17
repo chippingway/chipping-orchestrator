@@ -104,7 +104,11 @@ Non-human content is filtered eight ways:
   refuses a body carrying `<!--orchestrator-comment-->` that the id ledger cannot vouch for — a marker is text
   anybody may paste, and the token's login may be a human's, so the id is the whole of the evidence in both
   directions. The prompt is built from the delivery record the same freeze produced, so a forged marker or an
-  outsider's comment can neither reach an agent nor authorize consuming the reply beside it. The
+  outsider's comment can neither reach an agent nor authorize consuming the reply beside it. That one read also
+  supplies the conversation a FRESH spawn is re-grounded with (a retired session — spent resume budget, silent-park
+  streak, a transcript GitHub lost — turns the resume into a spawn that quotes the thread rather than continuing a
+  transcript), because a prompt that re-read the thread at spawn time would quote a comment minutes newer than the
+  batch the settlement records and hand it to the developer again on the next poll. The
   `/orchestrator continue` that renews a spent spawn budget on a `retry_cap`-parked `workflow:decomposing` or
   `workflow:implementing` issue is read through the same filter (`filter_trusted` in each stage's
   `retry_cap._trusted_replies`), so what buys an agent run there is a trusted account's word and nothing else. The
@@ -2992,6 +2996,14 @@ stage handler records one), so the settlement is `engine/prompt_delivery.py`'s o
 `last_action_comment_id`. A batch the authorization or the measurement park reserves is not resumed on and not
 consumed at all, and an explicit `/orchestrator continue` retry keeps its own semantics: it consumes the command and
 re-issues the orchestrator's continue prompt rather than delivering the operator's words.
+
+On `workflow:implementing` a bare `/orchestrator continue` reserves the batch too, and only there. That stage's
+preflight runs `_handle_parked_continue_command` and hands the tick back, so a command landing in the window after
+that look is in the resume's batch and in nobody else's — delivered as prose, the retry an operator bought (or the
+refusal a park needing real guidance owes them) is gone. `workflow:validating`'s awaiting-human road classifies the
+command itself rather than ahead of itself, so its freeze reserves nothing and `_resume_validating_awaiting_dev`
+answers `retry` / `refuse` as it always has. The auto-rebase reasons are excluded on both, because the classifier
+excludes them: those parks own the operator's retry comment.
 
 `_park_awaiting_human` posts on the issue (not the PR) so the HITL ping appears alongside the rest of orchestrator
 state. The PR comment that triggers a route to `workflow:fixing` is the human signal; awaiting-human is reserved for

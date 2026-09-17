@@ -12,7 +12,8 @@ in-memory `PinnedState` mutations it already staged are dropped and the next
 tick re-derives the run from the state the prior tick left. `_park_awaiting_human`
 goes the other way -- it posts the HITL comment, sets `awaiting_human`, forwards
 explicit bounded correlation fields to the emitted event and analytics sink, and
-ratchets `last_action_comment_id` past it -- and still leaves the write to the
+ratchets `last_action_comment_id` past it, or as far as a park that ended an
+agent RUN says it may read -- and still leaves the write to the
 caller, so a park composes with whatever else that handler staged rather than
 committing ahead of it.
 
@@ -296,16 +297,30 @@ def _park_awaiting_human(
     is the lesser of the two failures left: a watermark that never moved
     leaves the park's own notice to be read back as somebody's fresh guidance
     on every dispatch after this one.
+
+    A park that ends an agent RUN says how far it may read instead, through a
+    `watermark` callable taking `(gh, issue, state, said_before)` -- the id
+    ledger as it stood BEFORE this call's own post. The notice-id answer above
+    is right for a refusal decided between two of one tick's own steps and
+    wrong after minutes of somebody's compute: there the notice lands above
+    whatever a human wrote while the agent was out, and crossing them is the
+    answer being thrown away by the question. Handed in as a callable rather
+    than decided here because which comments are ours is a stage's ledger walk
+    and this layer sits under the stages. It is popped like `reason` rather
+    than admitted as a correlation field: it decides a WRITE, so it belongs to
+    neither the event nor the analytics payload the rest of this blob is.
     """
     reason = correlation.pop("reason", None)
+    bounded = correlation.pop("watermark", None)
     screened = _screened_correlation(correlation)
+    said_before = _comments._orchestrator_ids(state)
     posted = _comments._post_issue_comment(gh, issue, state, message)
     state.set("awaiting_human", True)
     state.set("park_reason", None)
-    said = getattr(posted, "id", None)
-    latest = gh.latest_comment_id(issue) if said is None else said
-    if latest is not None:
-        state.set("last_action_comment_id", latest)
+    if bounded is None:
+        _stamp_the_notice(gh, issue, state, posted)
+    else:
+        bounded(gh, issue, state, said_before)
     # Read the label AFTER the comment post and state writes so the
     # captured stage reflects the handler that drove the park (the label
     # itself is unchanged by this call -- callers relabel only after the
@@ -317,3 +332,13 @@ def _park_awaiting_human(
         reason=reason,
         **screened,
     )
+
+
+def _stamp_the_notice(
+    gh: GitHubClient, issue: Issue, state: PinnedState, posted: object,
+) -> None:
+    """Record the thread read as far as the notice a park just posted."""
+    said = getattr(posted, "id", None)
+    latest = gh.latest_comment_id(issue) if said is None else said
+    if latest is not None:
+        state.set("last_action_comment_id", latest)

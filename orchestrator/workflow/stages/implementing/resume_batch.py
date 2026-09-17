@@ -25,6 +25,16 @@ the marker is an HTML comment anybody may paste, and the author login may be a
 token shared with a reviewer whose real replies this must not swallow, so the
 id is the whole of the evidence and a marker without one admits nothing.
 
+The re-grounding conversation comes out of that same read, and it has to. A
+resume whose session was retired -- the resume budget, the silent-park streak,
+a transcript GitHub lost -- is a FRESH spawn with no transcript to continue, so
+its prompt carries the whole trusted thread beside the followup. Read again at
+spawn time that text is a second reading minutes newer than the batch: a
+comment written in between enters the prompt while the settlement stops below
+it, and the next poll hands the developer the same words again. Frozen here,
+the conversation the prompt quotes and the batch the settlement records come
+off one thread.
+
 What is settled is settled AFTER the run, from the frozen batch, and only for
 an outcome that counts the input as delivered. There is no report transaction
 on this road -- nothing here records one -- so the settlement is the ordinary
@@ -44,12 +54,15 @@ from dataclasses import dataclass
 from github.Issue import Issue
 
 from orchestrator.agents.models import AgentResult
+from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     conversation_prompts as _conversation_prompts,
+    messages as _messages,
+    prompt_context as _prompt_context,
     prompt_delivery as _delivery,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -68,6 +81,11 @@ _UNBOUNDED_EXCERPT = None
 # because it is the same absence every time: no input was evaluated, so there
 # is no provenance to keep apart and nothing for a settlement to advance.
 _DELIVERED_NOTHING = _delivery.create_prompt_delivery_snapshot(entries=())
+
+# What `_continue_command_action` answers for a batch the retry classifier
+# leaves to the ordinary resume: no command on it, or a command somebody wrote
+# real guidance beside.
+_PASSTHROUGH = "passthrough"
 
 
 @dataclass(frozen=True)
@@ -91,11 +109,17 @@ class _ReplyBatch:
     passed in again: what a settlement may advance is the cursor the batch was
     taken from, and a batch settled onto some other reading of the same issue
     would ratchet a watermark past comments it never saw.
+
+    `thread_text` is the whole trusted conversation as of that same read, for
+    the fresh spawn a retired session turns this resume into: that prompt
+    quotes the thread rather than continuing a transcript, and read again at
+    spawn time it would carry a comment the settlement below stops short of.
     """
 
     state: PinnedState
     delivery: _delivery.PromptDeliverySnapshot
     comments: tuple
+    thread_text: str = ""
     reserved: bool = False
 
     @property
@@ -119,15 +143,41 @@ class _ReplyBatch:
 
 
 def _freeze(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    *,
+    continue_claimed: bool = False,
 ) -> _ReplyBatch:
     """Read this parked thread once and freeze what a resume may do with it.
 
-    The measurement park's reservation is asked of the trusted read BEFORE our
-    own comments come out of it, because that is the read the retry itself
-    takes: reserved off a narrower batch, this tick would defer what that road
-    then refuses, and the two would hand the same thread back and forth
-    forever.
+    ONE fetch, for the whole thread, and everything below is cut from it: the
+    fresh replies past the watermark, the conversation a fresh spawn is
+    re-grounded with, and the record the settlement is taken from. A second
+    fetch is a second moment, and every pair of readings minutes apart is a
+    comment delivered but unrecorded or recorded but never delivered.
+
+    Three batches belong to somebody else, and each reservation is asked of
+    the batch the road it defers to reads. Reserved off a narrower one, this
+    tick would defer what that road then refuses and the two would hand the
+    same thread back and forth forever.
+
+    The measurement park's is asked of the trusted read BEFORE our own
+    comments come out of it, because that is the read the retry itself takes.
+
+    The parked-`/orchestrator continue` classifier's is asked of that same
+    read, and only where the caller says that road has already looked --
+    `continue_claimed`. It is the same window the other two have: the
+    classifier ran in the preflight and handed the tick back, so a bare
+    command landing since is in this batch and in nobody else's, and fed to a
+    developer as prose the explicit retry (or the refusal a park needing real
+    guidance earns) is gone. A batch carrying real guidance beside the command
+    is `passthrough` there and an ordinary resume here, which is the same
+    answer read off the same words. The auto-rebase reasons are excluded
+    because that classifier excludes them: those parks own their operator's
+    retry comment, so deferring to a road that declines it would defer
+    forever. Not asked at all on `validating`, whose awaiting-human road
+    classifies the command itself rather than ahead of itself.
 
     The authorization park's is asked of the LAST reply the ID LEDGER leaves,
     which is the batch that park's own road reads and reads it by: a command
@@ -141,10 +191,9 @@ def _freeze(
     the road that refused it.
     """
     ours = _comments._orchestrator_ids(state)
-    read = filter_trusted(gh.comments_after(
-        issue, state.get(_state._LAST_ACTION_COMMENT_ID),
-    ))
-    if _late_measurement_reply._reserved_for_the_measurement_park(read, state):
+    thread = gh.comments_after(issue, None)
+    read = filter_trusted(_since(thread, state))
+    if _reserved_elsewhere(read, state, continue_claimed=continue_claimed):
         return _ReplyBatch(state, _DELIVERED_NOTHING, (), reserved=True)
     unclaimed = [seen for seen in read if seen.id not in ours]
     if unclaimed and _late_command._reserved_for_the_park(
@@ -157,7 +206,37 @@ def _freeze(
         retained_ids=frozenset(ours),
         state=state,
     )
-    return _ReplyBatch(state, delivery, _quoted(read, delivery))
+    return _ReplyBatch(
+        state,
+        delivery,
+        _quoted(read, delivery),
+        _prompt_context._thread_text(thread),
+    )
+
+
+def _since(thread: list, state: PinnedState) -> list:
+    """The slice of one whole-thread read that is past the park's watermark."""
+    watermark = state.get(_state._LAST_ACTION_COMMENT_ID)
+    if not isinstance(watermark, int):
+        return list(thread)
+    return [seen for seen in thread if seen.id > watermark]
+
+
+def _reserved_elsewhere(
+    read: list, state: PinnedState, *, continue_claimed: bool,
+) -> bool:
+    """Whether a road other than this resume owns the whole of this batch.
+
+    Both answers are read off the batch those roads read, which is the trusted
+    thread with our own comments still in it -- the narrower one would defer a
+    tick they then refuse.
+    """
+    if _late_measurement_reply._reserved_for_the_measurement_park(read, state):
+        return True
+    park_reason = state.get(_state._PARK_REASON)
+    if not continue_claimed or park_reason in _base_sync_state._AUTO_REBASE_PARK_REASONS:
+        return False
+    return _messages._continue_command_action(read, park_reason) != _PASSTHROUGH
 
 
 def _quoted(

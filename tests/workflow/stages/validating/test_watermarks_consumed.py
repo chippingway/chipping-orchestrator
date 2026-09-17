@@ -69,6 +69,7 @@ STILL_ASKING = "which of the two did you mean?"
 AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
 LAST_ACTION_COMMENT_ID = "last_action_comment_id"
+AGENT_TIMEOUT_REASON = "agent_timeout"
 
 # The author every seeded orchestrator comment carries, built once: what a
 # case varies is the body and the id, never who wrote one of ours.
@@ -414,14 +415,19 @@ class _ReplyLandsDuringTheRun:
     for, which nothing reads the thread in.
     """
 
-    def __init__(self, case, lands: str = "") -> None:
+    def __init__(
+        self, case, lands: str = "", *, timed_out: bool = False,
+    ) -> None:
         self._case = case
         self._lands = lands
+        self._timed_out = timed_out
         self.landed = 0
 
     def __call__(self, *called, **options):
         if self._lands:
             self.landed = self._case._they_say(self._lands)
+        if self._timed_out:
+            return _agent(session_id=DEV_SESSION, timed_out=True)
         return _agent(session_id=DEV_SESSION, last_message=STILL_ASKING)
 
 
@@ -501,6 +507,20 @@ class AwaitingHumanFrozenBatchTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(self._pinned()[LAST_ACTION_COMMENT_ID], spoke)
         self.assertLess(spoke, landing.landed)
         self.assertTrue(self._pinned()[AWAITING_HUMAN])
+
+    def test_a_timed_out_run_keeps_what_landed(self) -> None:
+        # The timeout park this route takes ends a run the same way, so it
+        # owes the same bound: the transient recovery that retries it fires
+        # only on a thread with nothing new on it, and a watermark carried
+        # over the mid-run reply would answer that reply with a silent rerun.
+        spoke = self._they_say(HUMAN_REPLY)
+
+        landing = _ReplyLandsDuringTheRun(self, LANDED_MID_RUN, timed_out=True)
+        self._runs(run_agent=MagicMock(side_effect=landing))
+
+        self.assertEqual(self._pinned()[LAST_ACTION_COMMENT_ID], spoke)
+        self.assertEqual(self._pinned()[PARK_REASON], AGENT_TIMEOUT_REASON)
+        self.assertLess(spoke, landing.landed)
 
     def _runs(self, **run_options):
         """One validating tick over this park, committing nothing."""

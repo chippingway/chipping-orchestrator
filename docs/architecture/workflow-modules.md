@@ -178,7 +178,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that write, and on a park waiting for a reply, reading the tip there consumes the answer
                             with the question. A post whose id nothing could read falls back to the tip, since a
                             watermark that never moved leaves the park's own notice to be read back as somebody's
-                            guidance on every later tick
+                            guidance on every later tick. A park that ended an agent RUN says how far it may read
+                            instead, through a `watermark` callable taking the id ledger as it stood before this
+                            post -- popped like `reason` rather than admitted as a correlation field, since it
+                            decides a write rather than describing the run, and handed in rather than decided here
+                            because which comments are ours is a stage's ledger walk
     messages.py             the `ACK:` acknowledgement read out of an agent's last message, the one blockquote
                             form every agent output an issue carries is quoted in, and the two commands a HUMAN writes:
                             `/orchestrator continue` with the refusal a park needing real guidance owes it, and the
@@ -1307,18 +1311,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tick that spends one is not always the tick -- or even the stage -- that granted it
       session.py            the four session retirements -- the fourth being the continuation that buys a spent
                             budget one more attempt, which is a fresh spawn by definition -- and the fresh-spawn
-                            prompt. The budget that retirement answers to is `engine/retry_budget.py`'s entire,
-                            gate and park alike, and the spawn road calls it there
+                            prompt, whose re-grounding conversation is the caller's frozen read wherever it holds
+                            one and its own read otherwise. The budget that retirement answers to is
+                            `engine/retry_budget.py`'s entire, gate and park alike, and the spawn road calls it
+                            there
       session_read.py       the locked session read plus the stale / overflow / quota classifiers and the blockquote
                             they quote with
       resume.py             the two resume entry points and the historical call shape they keep. The
                             human-reply one is handed its caller's frozen batch rather than reading the
-                            thread itself, and settles the consumed issue watermark from that batch AFTER
-                            the run -- only for an outcome that counts the input as delivered, so a launch
-                            the run circuit refused, a shutdown kill, and a live pause consume nothing while
-                            a timeout, an empty result, and a question park all do
-      resume_batch.py       the one frozen issue-comment batch an awaiting-human resume delivers and settles,
-                            shared by `implementing` and `validating` so the park-reason decisions and the
+                            thread itself, hands that batch's frozen conversation down for the re-grounding
+                            a retired session's fresh spawn needs, and settles the consumed issue watermark
+                            from the batch AFTER the run -- only for an outcome that counts the input as
+                            delivered, so a launch the run circuit refused, a shutdown kill, and a live pause
+                            consume nothing while a timeout, an empty result, and a question park all do
+      resume_batch.py       the one frozen issue-comment batch an awaiting-human resume delivers and settles --
+                            and, off the same single whole-thread read, the conversation a fresh spawn is
+                            re-grounded with, since a prompt that re-read the thread at spawn time would
+                            quote a comment minutes newer than the batch the settlement records.
+                            Shared by `implementing` and `validating` so the park-reason decisions and the
                             resume behind them read one thread once: the trust filter, the orchestrator's OWN
                             comments dropped by the recorded id ledger -- every park here posts before the
                             write that records posting it, and the default empty allowlist trusts every
@@ -1334,19 +1344,27 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             after that park's own owner classified the thread, so a command landing between
                             the two would otherwise be spent -- not by this batch, which could spare it,
                             but by the park the run it starts goes on to take, whose notice lands above the
-                            command and takes it. Both reservations are asked of the batch the road they
-                            defer to reads -- the ledger's for the command, the whole trusted read for the
-                            measurement retry -- because reserved off a narrower one this tick would defer
-                            what that road then refuses and the two would hand the thread back and forth
-                            forever
+                            command and takes it. A bare `/orchestrator continue` is deferred the same way
+                            where the caller says the parked-continue classifier has already looked --
+                            `implementing`'s preflight does, `validating`'s awaiting-human road classifies
+                            the command itself and so says nothing -- because fed to a developer as prose
+                            the explicit retry, or the refusal a park needing real guidance owes, is gone.
+                            Every reservation is asked of the batch the road it defers to reads -- the
+                            ledger's for the authorization command, the whole trusted read for the
+                            measurement retry and the continue -- because reserved off a narrower one this
+                            tick would defer what that road then refuses and the two would hand the thread
+                            back and forth forever
       resume_request.py     what one such call supplied, frozen and checked before a run is built: the stage
-                            its records are attributed to, and the unknown option a named parameter would
-                            have refused on its own
+                            its records are attributed to, the frozen conversation a fresh spawn is
+                            re-grounded from where the caller holds one, and the unknown option a named
+                            parameter would have refused on its own
       execution.py          one resume, its poisoned-session retry -- withheld on an issue a poll observed closed,
                             since that retry is a SECOND agent -- and what each attempt is allowed to persist
       worktree.py           the checkout a resume runs in, restored when reaped
       disposition.py        run-output attribution, inherited floors, timeout parks and their recovery, and agent-result
-                            settlement; both heads must be readable and the run must leave commits above its floor
+                            settlement; both heads must be readable and the run must leave commits above its floor,
+                            and the timeout park is held through the run-ending park so its notice cannot carry the
+                            watermark over a reply written while the agent was out
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
@@ -1927,7 +1945,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             identified -- a post the ledger never gained moves the mark nowhere, since taking the tip
                             for it would spend the comment a human wrote while the agent ran, and the frozen reply
                             batch refuses our own unrecorded notice by its marker instead; only a missing prior
-                            watermark uses the tip
+                            watermark uses the tip. The stamping half is also the shape `engine/guards.py`'s
+                            `watermark` hook is called with, so the two timeout parks hand it to that shared funnel
+                            instead of writing the mark themselves -- keeping the one place failed-run parks are
+                            correlated from while refusing its notice-id stamp, which is right for a refusal decided
+                            between two of one tick's own steps and wrong after minutes of somebody's compute
       park_correlation.py   the bounded payload the two parks below report beside their reason, since neither can
                             reach the shared funnel's: the caller's route, the session and exit status off the
                             result, and the pinned counters -- screened against the funnel's own allow-list, and
@@ -2055,7 +2077,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       dev_fix.py            what a finished dev fix leaves behind: the no-commit reading and the head it carries
                             on, the size gate every fix route publishes through -- told the state the run really
                             belongs to by the route that relabels before it spawns, rather than reading it off the
-                            issue object -- the push and the approval it spends, and the round bump
+                            issue object -- the push and the approval it spends, the round bump, and the timeout
+                            park held through the run-ending park so the silent retry behind it cannot be run over
+                            a reply its own notice crossed
       stranded.py           the probe under that reading, which the `fixing` handler asks off no dev run at all:
                             a clean checkout fetched and proved strictly ahead of the remote pull request branch
                             and behind nothing, answering with the head it was compared AGAINST so the push that

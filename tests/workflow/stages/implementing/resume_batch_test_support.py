@@ -22,7 +22,13 @@ from orchestrator.workflow.stages.implementing import (
     state as _state,
 )
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
-from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC, LABEL_IMPLEMENTING, _agent
+from tests.workflow.fixtures import (
+    _FAKE_WT,
+    _TEST_SPEC,
+    LABEL_IMPLEMENTING,
+    _agent,
+    _PatchedWorkflowMixin,
+)
 
 # The issue every case here is about, and how far its park had read the thread.
 ISSUE_NUMBER = 614
@@ -83,8 +89,13 @@ class _RunsWhileOneLands:
         return self._resumed
 
 
-class _ParkedThread:
-    """An implementing issue parked awaiting a human, its thread already read."""
+class _ParkedThread(_PatchedWorkflowMixin):
+    """An implementing issue parked awaiting a human, its thread already read.
+
+    The hermetic patch context comes with it, for the cases that run a whole
+    tick rather than the resume helper: what a prompt really carried is a
+    question only the dispatched handler can answer.
+    """
 
     def setUp(self) -> None:
         self.github = FakeGitHubClient(bot_login=BOT_LOGIN)
@@ -132,12 +143,18 @@ class _ParkedThread:
     def _watermark(self) -> Any:
         return self.state.get(_state._LAST_ACTION_COMMENT_ID)
 
-    def _resumes(
-        self, *, run: Any = None, paused: bool = False, lands: str = "",
-    ) -> _Resumed:
-        """Take one resume over this thread with the run's outcome seeded."""
+    def _resumes(self, *, run: Any = None, lands: str = "", **frozen) -> _Resumed:
+        """Take one resume over this thread with the run's outcome seeded.
+
+        `paused` is the live-pause flag the run comes back with; everything
+        else in `frozen` reaches the freeze -- `continue_claimed`, which is how
+        a caller says the parked-continue classifier has already looked at this
+        thread. `implementing`'s preflight guarantees that and `validating`'s
+        awaiting-human road deliberately does not, so the asymmetry is the
+        caller's to state.
+        """
         returned = (
-            _FAKE_WT, _agent() if run is None else run, paused,
+            _FAKE_WT, _agent() if run is None else run, frozen.pop("paused", False),
         )
         running = _RunsWhileOneLands(self, returned, lands)
         with patch.object(_resume, RESUME_DEV_WITH_TEXT) as resumed:
@@ -146,6 +163,8 @@ class _ParkedThread:
                 self.github,
                 _TEST_SPEC,
                 self.issue,
-                _resume_batch._freeze(self.github, self.issue, self.state),
+                _resume_batch._freeze(
+                    self.github, self.issue, self.state, **frozen,
+                ),
             )
             return _Resumed(answered, resumed, running.landed)

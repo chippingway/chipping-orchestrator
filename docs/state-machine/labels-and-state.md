@@ -789,6 +789,15 @@ The keys that matter for the state machine fall into a few groups:
   watermark at all falls back to the tip, where the fresh spawn behind it quoted the whole conversation to the agent
   and what sits below has been answered rather than missed.
 
+  Every run-ending park reads the field that way: the agent question and the dirty / unreadable checkout refusals
+  call the reader directly, and BOTH timeout parks (`implementing/disposition.py`'s `agent_timeout` and
+  `validating/dev_fix.py`'s) hand it to `_park_awaiting_human` as its `watermark` hook — so they stay inside the one
+  funnel failed-run parks are correlated from while refusing its notice-id stamp. The timeouts matter most of the
+  four, because each is retried by a recovery that fires only on a thread with nothing new on it — so a notice that
+  crossed the reply meant to end the park would have that reply answered by a silent rerun which never saw it.
+  `_park_awaiting_human` keeps its own stamp for every park where no agent ran underneath, since the window it covers
+  is the moment between its own post and its own write rather than minutes.
+
   That field doubles as the record that a mention was
   posted: a transient park that later self-recovers reads it back to decide whether it owes the thread a follow-up
   (see [`delivery-stages.md`](delivery-stages.md), **Recovery follow-up**). Park reasons that route via

@@ -53,14 +53,23 @@ class _RunsWhileOneLands:
     has to leave alone.
     """
 
-    def __init__(self, case, said: str = _consent_payloads.AUTHORIZE) -> None:
+    def __init__(
+        self,
+        case,
+        said: str = _consent_payloads.AUTHORIZE,
+        *,
+        timed_out: bool = False,
+    ) -> None:
         self._case = case
         self._said = said
+        self._timed_out = timed_out
         self.landed = 0
 
     def __call__(self, *called, **options):
         if self._said:
             self.landed = self._case._reply(self._said)
+        if self._timed_out:
+            return _agent(timed_out=True)
         return _agent(last_message=_ASKS)
 
 
@@ -82,6 +91,18 @@ class RunWindowWatermarkTest(_consent_case._ParkedCase, unittest.TestCase):
         self._assert_read_only_to(guided)
         self.assertLess(guided, landing.landed)
 
+    def test_a_timed_out_run_keeps_what_landed(self) -> None:
+        # The other end a run with no commit reaches. A timeout is a run that
+        # ENDED after minutes of somebody's compute, so its park owes the same
+        # bound the question park does -- and the recovery that retries it
+        # fires only on a thread with nothing new, so a watermark carried over
+        # the reply would answer that reply with a rerun that never saw it.
+        guided, landing = self._runs_over_guidance(timed_out=True)
+
+        self._assert_read_only_to(guided)
+        self.assertEqual(self._pinned()[_state._PARK_REASON], _state._AGENT_TIMEOUT)
+        self.assertLess(guided, landing.landed)
+
     def test_a_quiet_run_reads_past_its_own_notice(self) -> None:
         # What the bound may not cost, on the ordinary tick nobody wrote
         # anything during: the park's own notice still has to carry the
@@ -100,11 +121,16 @@ class RunWindowWatermarkTest(_consent_case._ParkedCase, unittest.TestCase):
         )
         self.assertTrue(self._pinned()[_state._AWAITING_HUMAN])
 
-    def _runs_over_guidance(self, said: str = _consent_payloads.AUTHORIZE):
+    def _runs_over_guidance(
+        self,
+        said: str = _consent_payloads.AUTHORIZE,
+        *,
+        timed_out: bool = False,
+    ):
         """One whole tick: guidance resumes a developer, and a reply lands."""
         self._seed(**_consent_payloads.measured_pair())
         guided = self._reply(_consent_payloads.GUIDANCE)
-        landing = _RunsWhileOneLands(self, said)
+        landing = _RunsWhileOneLands(self, said, timed_out=timed_out)
         self._run_tick(
             run_agent=MagicMock(side_effect=landing), has_new_commits=False,
         )

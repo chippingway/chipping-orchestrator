@@ -146,9 +146,7 @@ def _park_unpushable_tree(
     # must not auto-recover over it.
     state.set(_state._PARK_REASON, None)
     state.set(_state._SILENT_PARK_COUNT, 0)
-    read_to = _park_watermarks._read_this_far(gh, issue, state, said_before)
-    if read_to is not None:
-        state.set(_state._LAST_ACTION_COMMENT_ID, read_to)
+    _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
     gh.emit_event(
         "park_awaiting_human",
         issue_number=issue.number,

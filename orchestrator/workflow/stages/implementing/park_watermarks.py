@@ -6,6 +6,18 @@ A post can land above a human reply that arrived during the agent run. The
 walk stops at the first comment the orchestrator id ledger does not claim, and
 advances only through comments this tick actually posted and identified; only
 a missing prior watermark uses the thread tip.
+
+Every park that ends a RUN stamps through `_stamp_read_this_far`: the parks
+that post for themselves call it directly, and the two timeout parks hand it to
+`engine/guards.py`'s shared funnel as its `watermark` hook, so they keep the
+one place failed-run parks are correlated from while still refusing that
+funnel's own notice-id stamp. That stamp is right where no agent ran under it
+-- the window it covers is the moment between its own post and its own write,
+not minutes -- and wrong after a run, where the notice lands above the comment
+a human wrote while the agent was out.
+
+The hook's shape is this module's, not the funnel's: `(gh, issue, state,
+said_before)`, taking the id ledger as it stood before the funnel's post.
 """
 from __future__ import annotations
 
@@ -67,6 +79,24 @@ def _read_this_far(
             break
         read_to = _comment_id(seen)
     return read_to
+
+
+def _stamp_read_this_far(
+    gh: GitHubClient, issue: Issue, state: PinnedState, said_before: set,
+) -> None:
+    """Record the bounded reading on the state, where there is one to record.
+
+    One helper rather than the same two lines at every park that ends a run --
+    and the shape `engine/guards.py`'s `watermark` hook is called with, so the
+    two timeout parks name this instead of writing the mark themselves.
+
+    The conditional IS the rule: an answer of None is a thread this tick may
+    not claim to have read any further than it already had, so the mark is
+    left exactly where the resume settled it.
+    """
+    read_to = _read_this_far(gh, issue, state, said_before)
+    if read_to is not None:
+        state.set(_state._LAST_ACTION_COMMENT_ID, read_to)
 
 
 def _comment_id(seen) -> int:

@@ -60,10 +60,19 @@ class _DevResumeRequest:
 class _DevResumeOptions:
     followup_has_tracked_repos: bool = False
     pause_guard: bool = False
+    # The conversation a FRESH spawn is re-grounded with, where the caller
+    # froze one. A retired session turns a resume into a spawn with no
+    # transcript, so its prompt quotes the thread -- and read at spawn time
+    # that is a second reading minutes newer than the batch the caller will
+    # settle, which delivers a comment nothing records. Empty is every caller
+    # holding no frozen read, where the prompt builder takes its own.
+    thread_text: str = ""
 
     @classmethod
     def from_fields(cls, fields: dict) -> _DevResumeOptions:
-        unknown = set(fields) - {"followup_has_tracked_repos", "pause_guard"}
+        unknown = set(fields) - {
+            "followup_has_tracked_repos", "pause_guard", "thread_text",
+        }
         if unknown:
             raise TypeError(f"unexpected resume option(s): {sorted(unknown)!r}")
         return cls(**fields)

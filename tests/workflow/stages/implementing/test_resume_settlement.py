@@ -14,9 +14,10 @@ timeout, an empty message, a question -- because the prompt carrying those
 replies reached an agent and the park that follows mentions a human about what
 the agent said rather than about the input it was given.
 
-Two batches are never settled at all, and not because of an outcome: while the
-authorization or the measurement park stands, the reply belongs to the road
-that acts on it and the whole tick is handed back unconsumed.
+Three batches are never settled at all, and not because of an outcome: while
+the authorization park, the measurement park, or the parked-continue
+classifier has a claim on the reply, it belongs to the road that acts on it
+and the whole tick is handed back unconsumed.
 """
 
 from __future__ import annotations
@@ -42,6 +43,14 @@ _LANDED_MID_RUN = "actually, hold on"
 # How the seeded agent result is named to the resume helper, spelled once
 # because the table below hands it over for most of its cases.
 _RUN = "run"
+
+# The two parks a bare `/orchestrator continue` is an answer on, and so the
+# two the classifier that answers it owns a batch of: one it retries, and one
+# it refuses because the park needs words a command does not carry.
+_CONTINUE_PARKS = (
+    ("a retryable failure", _state._AGENT_TIMEOUT),
+    ("a real question", None),
+)
 
 # What each outcome does to the record, asked of the one reply the developer
 # was handed.
@@ -174,6 +183,57 @@ class ResumeSettlementTest(_support._ParkedThread, unittest.TestCase):
 
         resumed.call.assert_called_once()
         self.assertEqual(self._watermark(), spoke)
+
+
+class ContinueReservationTest(_support._ParkedThread, unittest.TestCase):
+    """The explicit retry a resume may not spend as guidance.
+
+    The parked-continue classifier runs in this stage's preflight and hands
+    the tick back, and the minutes after that are time an operator can write
+    in. A bare command landing there is in the resume's batch and in nobody
+    else's: fed to a developer as prose, the retry the operator bought -- or
+    the refusal a park needing real guidance owes them -- is gone, and the
+    watermark moves past the words that asked for it.
+    """
+
+    def test_a_late_bare_continue_is_reserved(self) -> None:
+        # Both classifications, because both are answers only that road may
+        # give: a retryable park earns the retry, and one needing real
+        # guidance earns the refusal. Either way this resume spends nothing.
+        for described, park_reason in _CONTINUE_PARKS:
+            with self.subTest(park=described):
+                self.setUp()
+                self._seed(**{_state._PARK_REASON: park_reason})
+                self._they_say(_consent_payloads.CONTINUE)
+
+                resumed = self._resumes(continue_claimed=True)
+
+                resumed.call.assert_not_called()
+                self.assertEqual(self._watermark(), _support.PARKED_AT)
+
+    def test_guidance_beside_it_is_an_ordinary_resume(self) -> None:
+        # `passthrough` there and an ordinary resume here, which is the same
+        # answer read off the same words: a command with real words beside it
+        # is guidance the developer is owed.
+        self._seed(**{_state._PARK_REASON: _state._AGENT_TIMEOUT})
+        self._they_say(_consent_payloads.CONTINUE)
+        spoke = self._they_say(_support.GUIDANCE)
+
+        resumed = self._resumes(continue_claimed=True)
+
+        resumed.call.assert_called_once()
+        self.assertEqual(self._watermark(), spoke)
+
+    def test_a_road_yet_to_look_reserves_nothing(self) -> None:
+        # `validating`'s shape. Its awaiting-human road classifies the command
+        # itself rather than ahead of itself, so a batch deferred here would
+        # be deferred to nobody and the operator's retry would never be taken.
+        self._seed(**{_state._PARK_REASON: _state._AGENT_TIMEOUT})
+        self._they_say(_consent_payloads.CONTINUE)
+
+        resumed = self._resumes()
+
+        resumed.call.assert_called_once()
 
 
 if __name__ == "__main__":

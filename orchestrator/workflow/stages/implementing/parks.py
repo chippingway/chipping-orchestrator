@@ -203,9 +203,7 @@ def _on_question(
         park_reason = _park_real_question(gh, issue, state, raw)
     else:
         park_reason = _park_silent_failure(gh, issue, state, agent_result)
-    read_to = _park_watermarks._read_this_far(gh, issue, state, said_before)
-    if read_to is not None:
-        state.set(_state._LAST_ACTION_COMMENT_ID, read_to)
+    _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
     gh.emit_event(
         "park_awaiting_human",
         issue_number=issue.number,

@@ -27,6 +27,7 @@ from orchestrator.workflow.stages.implementing import (
     late_approval_reading as _late_approval_reading,
     late_park_state as _late_park_state,
     models as _models,
+    park_watermarks as _park_watermarks,
     parks as _parks,
     session_read as _session_read,
     state as _state,
@@ -45,12 +46,22 @@ def _park_agent_timeout(
     next-tick recovery (`_try_recover_implementing_timeout_park`) can publish a
     commit a lingering descendant finishes after this point without waiting for
     a human reply.
+
+    The park names how far it may read rather than taking the funnel's own
+    notice-id stamp, because a timeout is a run that ENDED: it was out for
+    `AGENT_TIMEOUT` seconds, and a human writing in that window wrote
+    something no reading here has looked at. Carried to the notice the park
+    posts -- which lands above them, since ids ascend -- their comment is
+    crossed and skipped for good, and the quiet recovery that fires only on a
+    thread with nothing new on it would then run over the reply that was meant
+    to end the park.
     """
     _guards._park_awaiting_human(
         gh, issue, state,
         f"{config.HITL_MENTIONS} agent timed out after "
         f"{config.AGENT_TIMEOUT}s, manual intervention needed.",
         reason=_state._AGENT_TIMEOUT,
+        watermark=_park_watermarks._stamp_read_this_far,
     )
     state.set(_state._PARK_REASON, _state._AGENT_TIMEOUT)
     state.set(_state._PRE_IMPLEMENT_SHA, before_sha or "")
