@@ -777,7 +777,19 @@ The keys that matter for the state machine fall into a few groups:
   post and the write, and on a park whose whole point is waiting for a reply, reading the tip there is the answer
   being thrown away by the question. A post whose id nothing could read falls back to the tip, which is the lesser
   of the two failures left — a watermark that never moved leaves the park's own notice to be read back as somebody's
-  fresh guidance on every tick after. That field doubles as the record that a mention was
+  fresh guidance on every tick after.
+
+  The parks that end an agent RUN read the field differently, through
+  `implementing/park_watermarks.py`, because minutes passed inside them and a human may have written in that window:
+  the walk starts at whatever the resume settled and advances through the unbroken run of comments the
+  `orchestrator_comment_ids` ledger claims, stopping at the first it does not, so a comment that landed while the
+  agent was out stays unread. It advances only through comments the tick actually posted and **identified** — a post
+  the ledger never gained moves the mark nowhere, since the frozen reply batch below refuses our own unrecorded
+  notice by its body marker and taking the tip for it would spend that human's comment instead. Only a thread with no
+  watermark at all falls back to the tip, where the fresh spawn behind it quoted the whole conversation to the agent
+  and what sits below has been answered rather than missed.
+
+  That field doubles as the record that a mention was
   posted: a transient park that later self-recovers reads it back to decide whether it owes the thread a follow-up
   (see [`delivery-stages.md`](delivery-stages.md), **Recovery follow-up**). Park reasons that route via
   `_park_auto_rebase_failure` (`auto_base_rebase_failed` / `auto_base_rebase_dirty` /

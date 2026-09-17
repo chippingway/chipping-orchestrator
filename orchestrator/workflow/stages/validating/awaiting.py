@@ -28,8 +28,15 @@ a dev resume.
 match. It reads HEAD before the resume because that is the only watermark that
 can tell a commit this run produced from one already on the branch, and it
 splits `retry` from a plain reply -- a retry re-issues the orchestrator's own
-continue prompt and consumes the comment, a reply hands the human's words to
-the dev.
+continue prompt and consumes the comment outright, since what the operator
+bought is the prompt rather than a delivery of their words, while a reply
+hands the human's words to the dev and is consumed only once the run that read
+them is back.
+
+Both halves resume from the context's OWN frozen batch rather than reading the
+thread again: the decisions above were made from it, so a second read would
+hand the dev a reply no decision here considered and record a watermark over
+one it did.
 """
 from __future__ import annotations
 
@@ -159,7 +166,7 @@ def _resume_awaiting_dev_agent(
             context.gh,
             context.spec,
             context.issue,
-            context.state,
+            context.batch,
             pause_guard=True,
         )
     context.consume_comments()

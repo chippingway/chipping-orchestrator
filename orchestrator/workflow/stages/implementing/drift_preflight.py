@@ -15,6 +15,11 @@ retryable without a human, so a tick with no new comment tries the quiet
 recovery first -- publishing a commit that landed after the timeout -- and only
 then falls through. The no-comment condition is the whole gate: once a human HAS
 replied, the reply is the signal and the resume path owns the tick instead.
+
+The reply batch the resume runs on is frozen HERE, once, because the read is
+this stage's rather than the shared resume's: the batch is what the prompt
+quotes and what the watermark records, and a second read between the two would
+quote one thread and settle against another.
 """
 from __future__ import annotations
 
@@ -39,6 +44,7 @@ from orchestrator.workflow.stages.implementing import (
     disposition as _disposition,
     models as _models,
     resume as _resume,
+    resume_batch as _resume_batch,
     state as _state,
     worktree as _worktree,
 )
@@ -99,7 +105,8 @@ def _prepare_awaiting_dev_run(
     worktree = _worktree._ensure_resume_worktree(spec, issue, state)
     before_sha = _verification_probes._head_sha(worktree)
     resumed = _resume._resume_developer_on_human_reply(
-        gh, spec, issue, state, pause_guard=True,
+        gh, spec, issue, _resume_batch._freeze(gh, issue, state),
+        pause_guard=True,
     )
     if resumed is None:
         return None

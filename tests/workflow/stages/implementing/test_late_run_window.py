@@ -112,12 +112,14 @@ class RunWindowWatermarkTest(_consent_case._ParkedCase, unittest.TestCase):
 
 
 class ReadThisFarFallbackTest(unittest.TestCase):
-    """The two answers that cannot be bounded, and what each falls back to.
+    """The two answers no walk can reach, and what each of them is.
 
-    Both give up the thread's tip, and each is the lesser of what is left: a
-    watermark that does not clear this park's own notice has every tick after
-    answering our sentence as somebody's guidance, which is the failure the
-    bound above exists on the other side of.
+    A notice nothing identified advances the mark nowhere: what may be
+    advanced through is a comment actually posted and identified, and taking
+    the tip for one that was not would spend the comment a human wrote while
+    the agent ran. A thread with no watermark at all is the one answer left to
+    the tip -- the spawn behind it quoted the whole thread, so what is below
+    was answered rather than missed.
     """
 
     def setUp(self) -> None:
@@ -127,16 +129,22 @@ class ReadThisFarFallbackTest(unittest.TestCase):
         self.github.seed_state(_ISSUE_NUMBER)
         self.state = self.github.read_pinned_state(self.issue)
 
-    def test_a_post_nothing_named_takes_the_tip(self) -> None:
-        # The ledger gained nothing, so no id came back from the post: nothing
-        # here tells this park's own notice from anybody's comment, and no
-        # walk could pass it.
-        self.state.set(_state._LAST_ACTION_COMMENT_ID, self._reply())
-        standing = self._reply()
+    def test_a_post_nothing_named_moves_nothing(self) -> None:
+        # The ledger gained nothing, so no id came back from the post. The
+        # mark stays on the reply the resume settled to, and our own
+        # unrecorded sentence above it is refused by the frozen reply batch --
+        # which drops a body carrying our marker that no id vouches for --
+        # rather than by a watermark that skipped it along with everyone else.
+        settled = self._reply()
+        self.state.set(_state._LAST_ACTION_COMMENT_ID, settled)
+        self._reply()
 
         said_before = _comments._orchestrator_ids(self.state)
 
-        self.assertEqual(self._read_this_far(said_before), standing)
+        self.assertIsNone(self._read_this_far(said_before))
+        self.assertEqual(
+            self.state.get(_state._LAST_ACTION_COMMENT_ID), settled,
+        )
 
     def test_a_thread_never_read_takes_the_tip(self) -> None:
         # A tick with no watermark has nothing to bound: the spawn behind it

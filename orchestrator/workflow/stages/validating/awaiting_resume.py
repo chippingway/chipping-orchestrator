@@ -19,6 +19,13 @@ pushed fix bumps the round and emits no relabel, so the issue stays on
 the final-docs hop after approval. It always answers `"return"` -- every path
 through it has fully handled the tick -- while the decisions above may answer
 `"spawn_reviewer"` and send the caller on to the round-cap check.
+
+Everything on this road reads the context's one frozen batch, decisions and
+resume alike, and the reply is recorded as consumed by the run that read it
+rather than ahead of it. So the two outcomes this owner returns on without
+writing pinned state -- a live pause, and an interruption behind an
+unpublished fix -- leave the thread exactly as they found it, and the next
+process re-derives the same batch from the same durable watermark.
 """
 from __future__ import annotations
 

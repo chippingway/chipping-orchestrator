@@ -206,7 +206,8 @@ Where the contract is carried:
 
 - **Whole** in the initial `_build_implement_prompt`, the automated-review `_build_fix_prompt`, the requirements-drift
   `_build_user_content_change_prompt`, the PR-feedback `_build_pr_comment_followup`, the human-reply resume
-  `_build_human_reply_followup` (`_resume_developer_on_human_reply`), the late revision's `_revision_prompt`
+  `_build_human_reply_followup` (`_resume_developer_on_human_reply`, over the replies
+  `implementing/resume_batch.py` froze and recorded as delivered), the late revision's `_revision_prompt`
   (`decomposition/late_revision.py`), which resumes the developer against a human's guidance on an oversized
   candidate, and `_DEVELOPER_CONTINUE_RETRY_PROMPT`, the retry a bare `/orchestrator continue` on a session-failure
   park resumes the developer on (`implementing/continue_command.py`, `validating/awaiting.py`). The resumes carry it
@@ -239,7 +240,11 @@ No stage handler calls `report_outcomes` or records a report transaction. What t
 transaction is bound from — and nothing calls that owner either, so no developer's outcome becomes a record today.
 A developer run is still routed by its commits, its `ACK:` line, and the question parks the
 [delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read the way its
-stage reads any other no-commit reply without `ACK:`.
+stage reads any other no-commit reply without `ACK:`. That absence is also why the awaiting-human resumes settle the
+input they delivered straight into pinned state rather than freezing it onto a transaction: on those roads there is
+none to freeze it onto. What the settlement records is delivery and nothing more — the developer was handed those
+replies — so the question, the disagreement, or the publication obligation the run came back with is still the
+disposition's to answer.
 
 What publication there is belongs to the dispatcher rather than to any stage. The additive `developer_report_delivery` /
 `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group

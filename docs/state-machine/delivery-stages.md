@@ -97,7 +97,14 @@ Non-human content is filtered eight ways:
   auto-rebase retry-unpark — the filter runs on the whole `comments_after` batch up front, so it gates the non-empty
   check, the quoted follow-up, the consumed-watermark advance, and — in `workflow:validating` — the `/orchestrator
   add-review-rounds` review-cap command and the reviewer-respawn nudge; an untrusted comment resumes none of those
-  sessions and does not advance the watermark (it is re-filtered on each later tick, never marked consumed). The
+  sessions and does not advance the watermark (it is re-filtered on each later tick, never marked consumed). On the
+  `workflow:implementing` and `workflow:validating` human-reply resumes that batch is frozen ONCE, by
+  `implementing/resume_batch.py`, and everything downstream reads it: the park-reason decisions, the quoted
+  follow-up, and the settlement. Beside the trust filter it drops the orchestrator's own comments by recorded id and
+  refuses a body carrying `<!--orchestrator-comment-->` that the id ledger cannot vouch for — a marker is text
+  anybody may paste, and the token's login may be a human's, so the id is the whole of the evidence in both
+  directions. The prompt is built from the delivery record the same freeze produced, so a forged marker or an
+  outsider's comment can neither reach an agent nor authorize consuming the reply beside it. The
   `/orchestrator continue` that renews a spent spawn budget on a `retry_cap`-parked `workflow:decomposing` or
   `workflow:implementing` issue is read through the same filter (`filter_trusted` in each stage's
   `retry_cap._trusted_replies`), so what buys an agent run there is a trusted account's word and nothing else. The
@@ -2967,10 +2974,24 @@ no alarming last word to retire and a follow-up would be the first thing the epi
 its retry re-reads rather than re-running anything is in
 [`../workflow/roles.md`](../workflow/roles.md#the-owner-read-a-finished-run-has-to-pass).
 
-The same failure window is why `_AwaitingValidation.build` drops the orchestrator's own comments — by recorded id
-AND by `_ORCH_COMMENT_MARKER`, the pair `_rescan_fixing_feedback` already uses. Every awaiting-human decision helper
-reads a non-empty batch as "a human replied", and a follow-up whose id-recording write never landed is still ours;
-the marker is what says so when the id ledger cannot.
+The same failure window is why the batch `_AwaitingValidation.build` freezes drops the orchestrator's own comments
+— by recorded id AND by `_ORCH_COMMENT_MARKER`, the pair `_rescan_fixing_feedback` already uses. Every
+awaiting-human decision helper reads a non-empty batch as "a human replied", and a follow-up whose id-recording write
+never landed is still ours; the marker is what says so when the id ledger cannot. The dev resume those decisions fall
+through to is handed that same frozen batch rather than reading the thread again, so the reply a decision considered
+is the reply a developer is given — and `consume_comments` settles it through the batch, which advances the issue
+watermark alone and leaves every other surface's cursor where it is.
+
+What that settlement waits for is the RUN. `_resume_developer_on_human_reply` records the batch as consumed after
+`_resume_dev_with_text` returns, and only for an outcome that counts the input as delivered: a launch the run circuit
+refused (`invoked=False`), a shutdown-killed run (`interrupted`), and a live pause consume nothing, while a timeout,
+an empty result, and a question park all do — the prompt reached an agent, so the reply was delivered whatever the
+agent came back with. Delivery is not resolution: the park's own reason and the question it poses are written by the
+disposition behind the resume and are untouched by the settlement. There is no report transaction on this road (no
+stage handler records one), so the settlement is `engine/prompt_delivery.py`'s ordinary pinned ratchet straight into
+`last_action_comment_id`. A batch the authorization or the measurement park reserves is not resumed on and not
+consumed at all, and an explicit `/orchestrator continue` retry keeps its own semantics: it consumes the command and
+re-issues the orchestrator's continue prompt rather than delivering the operator's words.
 
 `_park_awaiting_human` posts on the issue (not the PR) so the HITL ping appears alongside the rest of orchestrator
 state. The PR comment that triggers a route to `workflow:fixing` is the human signal; awaiting-human is reserved for

@@ -1311,21 +1311,34 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             gate and park alike, and the spawn road calls it there
       session_read.py       the locked session read plus the stale / overflow / quota classifiers and the blockquote
                             they quote with
-      resume.py             the two resume entry points and the historical call shape they keep, with the
-                            orchestrator's OWN comments dropped from the batch by the recorded id ledger: every
-                            park here posts before the write that records posting it, and the default empty
-                            allowlist trusts every author, so a notice whose write was lost would otherwise
-                            reach a developer as somebody asking for a change. A batch whose LAST fresh reply
-                            is the command ending a standing authorization park defers the whole tick,
-                            unconsumed, to the poll that can act on it: this read comes after that park's own
-                            owner classified the thread, so a command landing between the two would otherwise
-                            be spent -- not by this batch, which could spare it, but by the park the run it
-                            starts goes on to take, whose notice lands above the command and takes it. A batch
-                            the measurement park's own road would re-measure on defers the same way and for
-                            the same window, asked of the trusted read BEFORE our own comments come out of it
-                            since that is the read that road takes: reserved off a narrower one, this tick
-                            would defer what that road then refuses and the two would hand the thread back and
-                            forth forever
+      resume.py             the two resume entry points and the historical call shape they keep. The
+                            human-reply one is handed its caller's frozen batch rather than reading the
+                            thread itself, and settles the consumed issue watermark from that batch AFTER
+                            the run -- only for an outcome that counts the input as delivered, so a launch
+                            the run circuit refused, a shutdown kill, and a live pause consume nothing while
+                            a timeout, an empty result, and a question park all do
+      resume_batch.py       the one frozen issue-comment batch an awaiting-human resume delivers and settles,
+                            shared by `implementing` and `validating` so the park-reason decisions and the
+                            resume behind them read one thread once: the trust filter, the orchestrator's OWN
+                            comments dropped by the recorded id ledger -- every park here posts before the
+                            write that records posting it, and the default empty allowlist trusts every
+                            author, so a notice whose write was lost would otherwise reach a developer as
+                            somebody asking for a change -- and a body carrying our marker that the ledger
+                            cannot vouch for refused as forged, since the marker is text anybody may paste
+                            and the login may be a token shared with a reviewer. The prompt is built from
+                            the delivery record, so what was quoted and what is marked answered cannot
+                            disagree, and the settlement is `engine/prompt_delivery.py`'s ordinary pinned one
+                            -- no run on this road records a report transaction. A batch whose last reply
+                            past the ID LEDGER is the command ending a standing authorization park defers
+                            the whole tick, unconsumed, to the poll that can act on it: this read comes
+                            after that park's own owner classified the thread, so a command landing between
+                            the two would otherwise be spent -- not by this batch, which could spare it,
+                            but by the park the run it starts goes on to take, whose notice lands above the
+                            command and takes it. Both reservations are asked of the batch the road they
+                            defer to reads -- the ledger's for the command, the whole trusted read for the
+                            measurement retry -- because reserved off a narrower one this tick would defer
+                            what that road then refuses and the two would hand the thread back and forth
+                            forever
       resume_request.py     what one such call supplied, frozen and checked before a run is built: the stage
                             its records are attributed to, and the unknown option a named parameter would
                             have refused on its own
@@ -1910,7 +1923,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `workflow:validating` label, so nothing this line spends is stranded on an issue
                             that has moved on and a relabel that fails leaves the branch recognizable
       park_watermarks.py    advance past the unbroken run of comments claimed by the orchestrator id ledger, stopping at
-                            the first unclaimed reply; only an unavailable ledger update or prior watermark uses the tip
+                            the first unclaimed reply, and only through comments this tick actually posted and
+                            identified -- a post the ledger never gained moves the mark nowhere, since taking the tip
+                            for it would spend the comment a human wrote while the agent ran, and the frozen reply
+                            batch refuses our own unrecorded notice by its marker instead; only a missing prior
+                            watermark uses the tip
       park_correlation.py   the bounded payload the two parks below report beside their reason, since neither can
                             reach the shared funnel's: the caller's route, the session and exit status off the
                             result, and the pinned counters -- screened against the funnel's own allow-list, and
@@ -2045,7 +2062,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             follows is pinned to it -- and refusing, on a dirty tree, a failed fetch, an unreadable
                             divergence, or a remote that moved, because pushing over a head nobody reconciled is
                             worse than one more park
-      awaiting.py           the three park-reason claims on a human reply and the dev attempt they fall through to
+      awaiting.py           the three park-reason claims on the context's one frozen reply batch, and the dev
+                            attempt they fall through to -- handed that same batch rather than reading the
+                            thread again, so the reply a decision considered is the reply a developer is given
       awaiting_resume.py    the order those claims are asked in and the resume none of them wanted
       drift.py              a body edit mid-review, the three parks that defer, and the consumed-thread watermark
       drift_models.py       the frozen record that route's resume hands the helper that finishes it

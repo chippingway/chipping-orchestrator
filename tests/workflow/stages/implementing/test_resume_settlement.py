@@ -1,0 +1,180 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""Which outcomes let a resume record the reply it was given as answered.
+
+The batch is frozen before the run and settled after it, and the difference
+between the two matters for exactly the outcomes where no developer read it. A
+launch the run circuit turned away invoked no process; a shutdown kill left no
+trustworthy result; a live pause stops before anything is persisted and the
+caller returns on the same flag. Marked answered by any of those, a human's
+reply is one nobody will ever hand to an agent again.
+
+Every other outcome does record it, whatever the agent came back with -- a
+timeout, an empty message, a question -- because the prompt carrying those
+replies reached an agent and the park that follows mentions a human about what
+the agent said rather than about the input it was given.
+
+Two batches are never settled at all, and not because of an outcome: while the
+authorization or the measurement park stands, the reply belongs to the road
+that acts on it and the whole tick is handed back unconsumed.
+"""
+
+from __future__ import annotations
+
+import unittest
+from dataclasses import replace
+
+from orchestrator.workflow.stages.implementing import (
+    late_command as _late_command,
+    late_measurement_state as _late_measurement_state,
+    state as _state,
+)
+from tests.workflow.fixtures import _agent
+from tests.workflow.stages.implementing import (
+    late_consent_payloads as _consent_payloads,
+    resume_batch_test_support as _support,
+)
+
+# A reply written while the agent was out -- the minutes nothing reads the
+# thread in, and the comment a settlement taken off the tip would swallow.
+_LANDED_MID_RUN = "actually, hold on"
+
+# How the seeded agent result is named to the resume helper, spelled once
+# because the table below hands it over for most of its cases.
+_RUN = "run"
+
+# What each outcome does to the record, asked of the one reply the developer
+# was handed.
+_SETTLES = (
+    ("a clean answer", {}, True),
+    ("a timeout", {_RUN: _agent(timed_out=True)}, True),
+    ("an empty message", {_RUN: _agent(last_message="")}, True),
+    ("a shutdown kill", {_RUN: _agent(interrupted=True)}, False),
+    ("a refused launch", {_RUN: replace(_agent(), invoked=False)}, False),
+    ("a live pause", {"paused": True}, False),
+)
+
+
+class ResumeSettlementTest(_support._ParkedThread, unittest.TestCase):
+    """What a finished resume records about the batch it was resumed on."""
+
+    def test_only_a_run_that_read_it_consumes_it(self) -> None:
+        # A refused launch is spelled on its own rather than beside the kill
+        # the run circuit pairs it with, because it is the half of the rule
+        # that says why: no process was invoked, so there is nothing that
+        # could have been read.
+        #
+        # Each case starts on its own parked issue, since what it asks about
+        # is one reply and one mark: replies left on the thread by the case
+        # before would put a second one past the park's watermark.
+        for described, outcome, consumed in _SETTLES:
+            with self.subTest(outcome=described):
+                self.setUp()
+                spoke = self._they_say(_support.GUIDANCE)
+
+                resumed = self._resumes(**outcome)
+
+                resumed.call.assert_called_once()
+                self.assertEqual(
+                    self._watermark(),
+                    spoke if consumed else _support.PARKED_AT,
+                )
+
+    def test_a_reply_landing_mid_run_stays_unread(self) -> None:
+        # The window the run opens. What is settled is the batch the prompt
+        # was built from, so a comment written while the agent was out is
+        # still there for the next poll instead of being crossed by a mark
+        # taken off whatever the thread ended on.
+        spoke = self._they_say(_support.GUIDANCE)
+
+        resumed = self._resumes(lands=_LANDED_MID_RUN)
+
+        self.assertNotIn(_LANDED_MID_RUN, resumed.followup)
+        self.assertEqual(self._watermark(), spoke)
+        self.assertLess(spoke, resumed.landed)
+
+    def test_an_authorization_command_is_reserved(self) -> None:
+        # The last fresh reply is the command that ends a standing
+        # authorization park, so this road resumes nothing and consumes
+        # nothing: its own run's park would stamp the thread read to a notice
+        # above the command and take it for good.
+        self._seed(**{
+            _state._PARK_REASON: _late_command.PARK_UNAUTHORIZED_EXEMPTION,
+        })
+        self._they_say(_consent_payloads.AUTHORIZE)
+
+        resumed = self._resumes()
+
+        resumed.call.assert_not_called()
+        self.assertEqual(self._watermark(), _support.PARKED_AT)
+
+    def test_guidance_over_it_is_an_ordinary_resume(self) -> None:
+        # Somebody who asked to publish and then asked for a change has
+        # replaced the command, so the developer answers the change and the
+        # batch is consumed whole.
+        self._seed(**{
+            _state._PARK_REASON: _late_command.PARK_UNAUTHORIZED_EXEMPTION,
+        })
+        self._they_say(_consent_payloads.AUTHORIZE)
+        spoke = self._they_say(_support.GUIDANCE)
+
+        resumed = self._resumes()
+
+        resumed.call.assert_called_once()
+        self.assertEqual(self._watermark(), spoke)
+
+    def test_a_marker_over_it_is_read_as_guidance(self) -> None:
+        # Both roads have to agree which reply is LAST or each hands the tick
+        # to the other forever. The park's own reading names our comments by
+        # the id ledger alone, so the reservation is read off that same batch:
+        # a marker somebody pasted over the command demotes it, this is an
+        # ordinary resume, and the command reaches a developer as prose -- the
+        # answer that at least moves.
+        self._seed(**{
+            _state._PARK_REASON: _late_command.PARK_UNAUTHORIZED_EXEMPTION,
+        })
+        spoke = self._they_say(_consent_payloads.AUTHORIZE)
+        self._they_say(_support.FORGED)
+
+        resumed = self._resumes()
+
+        resumed.call.assert_called_once()
+        self.assertNotIn(_support.FORGED, resumed.followup)
+        self.assertEqual(self._watermark(), spoke)
+
+    def test_a_measurement_retry_is_reserved(self) -> None:
+        # The measurement park's own retry asks for a reading rather than for
+        # a developer, and the whole batch is deferred rather than its last
+        # reply spared -- reserved off a narrower batch, this tick would defer
+        # what that road then refuses.
+        self._seed(**{
+            _state._PARK_REASON: (
+                _late_measurement_state.PARK_MEASUREMENT_FAILED
+            ),
+        })
+        self._they_say(_consent_payloads.CONTINUE)
+
+        resumed = self._resumes()
+
+        resumed.call.assert_not_called()
+        self.assertEqual(self._watermark(), _support.PARKED_AT)
+
+    def test_words_beside_that_retry_are_guidance(self) -> None:
+        # A batch carrying real words is what a developer is owed, so it is an
+        # ordinary resume rather than a reading nobody asked for.
+        self._seed(**{
+            _state._PARK_REASON: (
+                _late_measurement_state.PARK_MEASUREMENT_FAILED
+            ),
+        })
+        self._they_say(_consent_payloads.CONTINUE)
+        spoke = self._they_say(_support.GUIDANCE)
+
+        resumed = self._resumes()
+
+        resumed.call.assert_called_once()
+        self.assertEqual(self._watermark(), spoke)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git.worktrees import creation as _worktree_creation
-from orchestrator.workflow.stages.implementing import resume as _implementing_resume
+from orchestrator.workflow.engine import comments as _engine_comments
+from orchestrator.workflow.stages.implementing import (
+    resume as _implementing_resume,
+    resume_batch as _resume_batch,
+)
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -55,6 +59,24 @@ PR_LAST_COMMENT_ID = "pr_last_comment_id"
 DEBOUNCE_SETTING = "IN_REVIEW_DEBOUNCE_SECONDS"
 RUN_AGENT = "run_agent"
 LONG_AGO = datetime.now(UTC) - timedelta(hours=1)
+FROZEN_BATCH_ISSUE = 802
+FROZEN_BATCH_PR = 1602
+FROZEN_BATCH_BRANCH = "orchestrator/chippingway__orchestrator/issue-802"
+HUMAN_REPLY = "answer: use sqlite"
+LANDED_MID_RUN = "actually, hold on"
+PARKED_QUESTION = "@hitl agent needs your input to proceed"
+STILL_ASKING = "which of the two did you mean?"
+AWAITING_HUMAN = "awaiting_human"
+PARK_REASON = "park_reason"
+LAST_ACTION_COMMENT_ID = "last_action_comment_id"
+
+# The author every seeded orchestrator comment carries, built once: what a
+# case varies is the body and the id, never who wrote one of ours.
+BOT_USER = FakeUser(BOT_LOGIN)
+
+# A body somebody else pasted our own hidden marker into: the batch a park
+# decides from refuses one, so no road here reads it as a human replying.
+FORGED_REPLY = f"looks fine\n\n{_engine_comments._ORCH_COMMENT_MARKER}"
 
 
 class HandoffSkipsConsumedRepliesTest(unittest.TestCase, _PatchedWorkflowMixin):
@@ -81,13 +103,13 @@ class HandoffSkipsConsumedRepliesTest(unittest.TestCase, _PatchedWorkflowMixin):
                 FakeComment(
                     id=PICKUP_COMMENT_ID,
                     body=PICKUP_MESSAGE,
-                    user=FakeUser(BOT_LOGIN),
+                    user=BOT_USER,
                     created_at=LONG_AGO,
                 ),
                 FakeComment(
                     id=PARK_COMMENT_ID,
                     body="@hitl agent needs your input to proceed",
-                    user=FakeUser(BOT_LOGIN),
+                    user=BOT_USER,
                     created_at=LONG_AGO,
                 ),
                 FakeComment(
@@ -99,7 +121,7 @@ class HandoffSkipsConsumedRepliesTest(unittest.TestCase, _PatchedWorkflowMixin):
                 FakeComment(
                     id=PR_OPEN_AFTER_RESUME_ID,
                     body=":sparkles: PR opened: #1500",
-                    user=FakeUser(BOT_LOGIN),
+                    user=BOT_USER,
                     created_at=LONG_AGO,
                 ),
             ],
@@ -177,7 +199,7 @@ class HandoffSkipsConsumedRepliesTest(unittest.TestCase, _PatchedWorkflowMixin):
             RESUME_WATERMARK_ISSUE,
             label="workflow:implementing",
             comments=[
-                FakeComment(id=PARK_COMMENT_ID, body="park", user=FakeUser(BOT_LOGIN)),
+                FakeComment(id=PARK_COMMENT_ID, body="park", user=BOT_USER),
                 FakeComment(id=CONSUMED_REPLY_ID, body="use sqlite", user=FakeUser(HUMAN_LOGIN)),
                 FakeComment(id=LATEST_REPLY_ID, body="and add a test", user=FakeUser(HUMAN_LOGIN)),
             ],
@@ -201,7 +223,10 @@ class HandoffSkipsConsumedRepliesTest(unittest.TestCase, _PatchedWorkflowMixin):
                 _agent_runner, RUN_AGENT, lambda *args, **kwargs: _agent(),
             ),
         ):
-            resume_result = _implementing_resume._resume_developer_on_human_reply(gh, _TEST_SPEC, issue, state)
+            resume_result = _implementing_resume._resume_developer_on_human_reply(
+                gh, _TEST_SPEC, issue,
+                _resume_batch._freeze(gh, issue, state),
+            )
 
         self.assertIsNotNone(resume_result)
         self.assertEqual(
@@ -256,13 +281,13 @@ class HandoffConsumedThroughIssueThreadOnlyTest(unittest.TestCase, _PatchedWorkf
                 FakeComment(
                     id=PICKUP_COMMENT_ID,
                     body=PICKUP_MESSAGE,
-                    user=FakeUser(BOT_LOGIN),
+                    user=BOT_USER,
                     created_at=LONG_AGO,
                 ),
                 FakeComment(
                     id=PARK_COMMENT_ID,
                     body="@hitl agent needs your input to proceed",
-                    user=FakeUser(BOT_LOGIN),
+                    user=BOT_USER,
                     created_at=LONG_AGO,
                 ),
                 FakeComment(
@@ -274,7 +299,7 @@ class HandoffConsumedThroughIssueThreadOnlyTest(unittest.TestCase, _PatchedWorkf
                 FakeComment(
                     id=PR_OPEN_AFTER_RESUME_ID,
                     body=":sparkles: PR opened: #1600",
-                    user=FakeUser(BOT_LOGIN),
+                    user=BOT_USER,
                     created_at=LONG_AGO,
                 ),
             ],
@@ -378,3 +403,125 @@ class HandoffConsumedThroughIssueThreadOnlyTest(unittest.TestCase, _PatchedWorkf
             state.get(PR_LAST_COMMENT_ID),
             UNREAD_PR_COMMENT_ID,
         )
+
+
+class _ReplyLandsDuringTheRun:
+    """The dev's seeded answer, and a reply written while it was out.
+
+    A class rather than a closure because the runner this repository patches
+    is a value with a name, and the reply has to land between the prompt being
+    built and the settlement being taken -- the minutes a real agent is gone
+    for, which nothing reads the thread in.
+    """
+
+    def __init__(self, case, lands: str = "") -> None:
+        self._case = case
+        self._lands = lands
+        self.landed = 0
+
+    def __call__(self, *called, **options):
+        if self._lands:
+            self.landed = self._case._they_say(self._lands)
+        return _agent(session_id=DEV_SESSION, last_message=STILL_ASKING)
+
+
+class AwaitingHumanFrozenBatchTest(unittest.TestCase, _PatchedWorkflowMixin):
+    """The batch a validating park decides from is the batch it delivers.
+
+    One read rather than two, and one filter rather than two: the park-reason
+    decisions and the dev resume behind them are answered from the same frozen
+    replies, so a comment neither of them would accept cannot reach a prompt
+    on the strength of the laxer of two readings -- and a comment written
+    while the agent is out belongs to the next poll rather than to this one.
+    """
+
+    def setUp(self) -> None:
+        self.github = FakeGitHubClient()
+        self.issue = make_issue(
+            FROZEN_BATCH_ISSUE,
+            label=LABEL_VALIDATING,
+            comments=[
+                FakeComment(
+                    id=PARK_COMMENT_ID,
+                    body=PARKED_QUESTION,
+                    user=BOT_USER,
+                    created_at=LONG_AGO,
+                ),
+            ],
+        )
+        self.github.add_issue(self.issue)
+        self.github.add_pr(
+            FakePR(
+                number=FROZEN_BATCH_PR,
+                head_branch=FROZEN_BATCH_BRANCH,
+                head=FakePRRef(sha=REVIEWED_SHA),
+            ),
+        )
+        self.github.seed_state(
+            FROZEN_BATCH_ISSUE,
+            pr_number=FROZEN_BATCH_PR,
+            branch=FROZEN_BATCH_BRANCH,
+            dev_agent=BACKEND_CLAUDE,
+            dev_session_id=DEV_SESSION,
+            review_round=0,
+            orchestrator_comment_ids=[PARK_COMMENT_ID],
+            **{
+                AWAITING_HUMAN: True,
+                PARK_REASON: None,
+                LAST_ACTION_COMMENT_ID: PARK_COMMENT_ID,
+            },
+        )
+
+    def test_a_forged_marker_buys_nothing(self) -> None:
+        # The decisions above the resume never accepted a body carrying our
+        # marker, and now neither does the resume: read again with a looser
+        # filter it would have quoted this to the developer and recorded the
+        # thread as answered on the strength of text anybody may paste.
+        self._they_say(FORGED_REPLY)
+
+        mocks = self._runs()
+
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertEqual(self._pinned()[LAST_ACTION_COMMENT_ID], PARK_COMMENT_ID)
+        self.assertTrue(self._pinned()[AWAITING_HUMAN])
+
+    def test_a_reply_landing_mid_run_stays_unread(self) -> None:
+        # The developer answers the reply it was handed and asks a follow-up,
+        # so the tick parks again. The comment written while it was out is not
+        # in that prompt and must not be crossed by the park's watermark
+        # either -- the next poll is the first road that can read it.
+        spoke = self._they_say(HUMAN_REPLY)
+
+        landing = _ReplyLandsDuringTheRun(self, LANDED_MID_RUN)
+        mocks = self._runs(run_agent=MagicMock(side_effect=landing))
+
+        prompt = mocks[RUN_AGENT].call_args[0][1]
+        self.assertIn(HUMAN_REPLY, prompt)
+        self.assertNotIn(LANDED_MID_RUN, prompt)
+        self.assertEqual(self._pinned()[LAST_ACTION_COMMENT_ID], spoke)
+        self.assertLess(spoke, landing.landed)
+        self.assertTrue(self._pinned()[AWAITING_HUMAN])
+
+    def _runs(self, **run_options):
+        """One validating tick over this park, committing nothing."""
+        run_options.setdefault(
+            "run_agent",
+            _agent(session_id=DEV_SESSION, last_message=STILL_ASKING),
+        )
+        return self._run_validating(
+            self.github,
+            self.issue,
+            head_shas=(REVIEWED_SHA,),
+            **run_options,
+        )
+
+    def _they_say(self, body: str) -> int:
+        """Add one trusted human reply past the park's watermark."""
+        identified = self.github.next_reply_id(self.issue)
+        self.issue.comments.append(
+            FakeComment(identified, body, user=FakeUser(HUMAN_LOGIN)),
+        )
+        return identified
+
+    def _pinned(self) -> dict:
+        return self.github.pinned_data(FROZEN_BATCH_ISSUE)

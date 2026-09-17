@@ -14,16 +14,21 @@ one already on the branch -- and an optional `after_sha` for the caller that
 has already read it.
 
 `_AwaitingValidation` is the awaiting-human context: it snapshots the park
-reason and the trusted comments that arrived since the last consumed one, and
-its two mutators are the pair every route through that park owes -- clearing
-the flags, and ratcheting `last_action_comment_id` past the comments it just
-fed to an agent. Reading both once at build time is what keeps the three
-decision helpers agreeing on the same batch. The orchestrator's own comments
-are dropped from that batch by recorded id AND by the hidden body marker,
-because every helper here reads a non-empty batch as "a human replied": a
-comment this process posted and then failed to record -- the pinned write that
-would have named it never landed -- is still ours, and the marker is what says
-so when the id ledger cannot. `_RequestedChanges` and
+reason and the one frozen reply batch every route through that park reads --
+`implementing/resume_batch.py`'s, so the batch the decisions are made from is
+the batch the dev resume behind them delivers and settles. Freezing it once at
+build time is what keeps the three decision helpers and that resume agreeing:
+read again inside the resume, a comment landing between the two reads decided
+one question and was recorded against the other, and the two reads did not
+even filter alike. The orchestrator's own comments are dropped from it by
+recorded id AND by the hidden body marker, because every helper here reads a
+non-empty batch as "a human replied": a comment this process posted and then
+failed to record -- the pinned write that would have named it never landed --
+is still ours, and the marker is what says so when the id ledger cannot. Its
+two mutators are the pair every route owes: clearing the flags, and recording
+the frozen batch as consumed, which is the ordinary pinned settlement since no
+run on this road holds a report transaction to freeze it into.
+`_RequestedChanges` and
 `_AwaitingDevAttempt` bracket the fix that follows a verdict: the first
 freezes what the CHANGES_REQUESTED route needs, the second reports whether
 the resume that ran was cut short by a live pause.
@@ -43,12 +48,8 @@ from github.Issue import Issue
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
-from orchestrator.github import (
-    client as _client,
-    comments as _github_comments,
-    pinned_state as _pinned_state,
-)
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.github import client as _client, pinned_state as _pinned_state
+from orchestrator.workflow.stages.implementing import resume_batch as _resume_batch
 from orchestrator.workflow.stages.validating import state as _state
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -144,44 +145,40 @@ class _AwaitingValidation:
     issue: Issue
     state: _pinned_state.PinnedState
     park_reason: Any
-    comments: list
+    batch: _resume_batch._ReplyBatch
 
     @classmethod
     def build(
         cls, gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
     ) -> _AwaitingValidation:
-        # Filtered by recorded id AND by `_ORCH_COMMENT_MARKER`, the same
-        # pair `_rescan_fixing_feedback` uses and for the same two reasons:
-        # the id ledger is capped and evicts on long-lived issues, and a
-        # comment posted by a tick whose pinned write then failed was never
-        # recorded at all. Either one left in reads as a human reply.
-        orchestrator_ids = _comments._orchestrator_ids(state)
-        unread = [
-            issue_comment
-            for issue_comment in gh.comments_after(
-                issue, state.get("last_action_comment_id"),
-            )
-            if issue_comment.id not in orchestrator_ids
-            and _comments._ORCH_COMMENT_MARKER not in (issue_comment.body or "")
-        ]
         return cls(
             gh,
             spec,
             issue,
             state,
             state.get(_state._PARK_REASON),
-            _github_comments.filter_trusted(unread),
+            _resume_batch._freeze(gh, issue, state),
         )
+
+    @property
+    def comments(self) -> tuple:
+        """The fresh trusted replies, which is what "a human replied" means."""
+        return self.batch.comments
 
     def clear_park(self) -> None:
         self.state.set("awaiting_human", False)
         self.state.set(_state._PARK_REASON, None)
 
     def consume_comments(self) -> None:
-        self.state.set(
-            "last_action_comment_id",
-            max(comment.id for comment in self.comments),
-        )
+        """Record the frozen batch as consumed, forward only.
+
+        Through the batch rather than off a maximum taken here, so a route
+        that consumes without a dev run -- the review-cap command, the
+        reviewer respawn, a collapse the reply releases -- settles the same
+        field to the same value the resume beside it would, and advances no
+        other surface's cursor while doing it.
+        """
+        self.batch.settle()
 
 
 @dataclass(frozen=True)
