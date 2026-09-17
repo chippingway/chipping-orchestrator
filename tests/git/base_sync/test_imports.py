@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 import unittest
 from importlib.util import find_spec
 
 from orchestrator.git import base_sync
+from tests.support.import_probes import probe_import
 
 _MODELS_OWNER = "orchestrator.git.base_sync.models"
 
@@ -121,12 +120,6 @@ _FORBIDDEN_PREFIXES = (
     "orchestrator.workflow",
 )
 
-_LAYERING_SCRIPT = """
-import sys
-import {module}
-print(*sorted(name for name in sys.modules if name.startswith('orchestrator')))
-"""
-
 # The initializer binds nothing, so each name stays reachable only through the
 # owner that defines it.
 _OWNER_ONLY_NAMES = (
@@ -154,14 +147,17 @@ _OWNER_ONLY_NAMES = (
 
 
 def _imported_orchestrator_modules(module: str) -> list[str]:
-    """Names of the orchestrator modules a fresh `import module` pulls in."""
-    completed = subprocess.run(
-        [sys.executable, "-c", _LAYERING_SCRIPT.format(module=module)],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return completed.stdout.split()
+    """Names of the orchestrator modules a fresh `import module` pulls in.
+
+    A module that does not import at all is raised on rather than answered
+    with an empty list, which every bound below would pass vacuously. Whether
+    each module does import standalone is `CleanProcessImportTest`'s check,
+    read off this same recording.
+    """
+    probe = probe_import(module)
+    if probe.returncode != 0:
+        raise AssertionError(f"{module} does not import: {probe.stderr}")
+    return sorted(probe.orchestrator_modules)
 
 
 class CleanProcessImportTest(unittest.TestCase):
@@ -169,21 +165,18 @@ class CleanProcessImportTest(unittest.TestCase):
 
     The owners bind their collaborators at import time, so importing any one
     of them first must not need a name a half-run module has not defined yet.
-    A subprocess per module gives each a clean `sys.modules` no other test has
+    A recording per module gives each a clean `sys.modules` no other test has
     already populated, exposing an import-order cycle a suite run that always
-    reaches the owners in the same order would mask.
+    reaches the owners in the same order would mask. The layering checks below
+    read their planted sets off that same recording, so the package is swept
+    for one interpreter per module rather than one per question.
     """
 
     def test_each_module_imports_standalone(self) -> None:
         for module in _MODULES:
             with self.subTest(module=module):
-                completed = subprocess.run(
-                    [sys.executable, "-c", f"import {module}"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+                probe = probe_import(module)
+                self.assertEqual(probe.returncode, 0, msg=probe.stderr)
 
 
 class LayeringTest(unittest.TestCase):
