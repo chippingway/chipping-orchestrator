@@ -6,14 +6,13 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
-import subprocess
-import sys
 import unittest
 from importlib.util import find_spec
 from unittest.mock import patch
 
 from orchestrator import workflow as _workflow
 from orchestrator.workflow import state as _state, transition_guard as _transition_guard
+from tests.support.import_probes import probe_import
 
 _TICK = "tick"
 
@@ -178,12 +177,6 @@ _LAZY_IMPORTS = (
     "orchestrator.workflow.transition_guard",
 )
 
-_LAZINESS_PROBE = (
-    "import sys;"
-    "import {module};"
-    "print(' '.join(name for name in {names!r} if name in sys.modules))"
-)
-
 # The paths a second import site for anything under this package would take: a
 # flat spelling of the drift owner or of the comment, message, prompt, and
 # decomposition manifest owners, the shared-value and dependency leaves the
@@ -217,21 +210,18 @@ class CleanProcessImportTest(unittest.TestCase):
     """The package, its subpackage, and each owner beneath them import alone.
 
     The engine owners import the GitHub and git layers, which import the `state`
-    owner beside them and so run this initializer back. A subprocess per module
+    owner beside them and so run this initializer back. A recording per module
     gives each a clean `sys.modules` no other test has already populated,
-    exposing an import-order cycle a package-first suite run would mask.
+    exposing an import-order cycle a package-first suite run would mask. The
+    laziness check below is read off those same recordings, so the sweep costs
+    one interpreter per module rather than one per question asked about it.
     """
 
     def test_each_module_imports_standalone(self) -> None:
         for module in _MODULES:
             with self.subTest(module=module):
-                completed = subprocess.run(
-                    [sys.executable, "-c", f"import {module}"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+                probe = probe_import(module)
+                self.assertEqual(probe.returncode, 0, msg=probe.stderr)
 
     def test_import_reaches_no_engine_or_subsystem(self) -> None:
         # The package boundary is where an accidental eager binding is cheapest
@@ -245,20 +235,14 @@ class CleanProcessImportTest(unittest.TestCase):
                 self._assert_nothing_resolved(module)
 
     def _assert_nothing_resolved(self, module: str) -> None:
-        completed = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                _LAZINESS_PROBE.format(
-                    module=module, names=_DEFERRED_MODULES,
-                ),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
+        # The return code is read here as well as above, because a module that
+        # fails to import plants nothing at all -- and an empty planted set
+        # clears every name this check holds the import away from.
+        probe = probe_import(module)
+        self.assertEqual(probe.returncode, 0, msg=probe.stderr)
+        self.assertEqual(
+            [name for name in _DEFERRED_MODULES if name in probe.modules], [],
         )
-        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
-        self.assertEqual(completed.stdout.strip(), "")
 
 
 class PublicSurfaceTest(unittest.TestCase):
