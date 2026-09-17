@@ -63,7 +63,7 @@ class ClosedBeforeChildrenTest(LateSplitCase, unittest.TestCase):
         # from an OPEN reading and takes no other one before here.
         self.issue.closed = True
 
-    def test_no_child_is_created(self) -> None:
+    def test_the_close_creates_nothing_and_marks_it(self) -> None:
         with self.assertLogs(_WORKFLOW_LOG):
             outcome = self._transact()
 
@@ -71,36 +71,28 @@ class ClosedBeforeChildrenTest(LateSplitCase, unittest.TestCase):
         self.assertEqual(self.github.created_child_issues, [])
         self.assertIsNone(self._pinned().get(_support.KEY_CHILDREN))
         self.assertIsNone(self._pinned().get(_support.KEY_UMBRELLA))
+        self.assertEqual(len(self._events_named(EVENT_LATE_CANCELLATION)), 1)
+        self._assert_the_mark_records_its_boundary()
+        self._assert_the_ref_it_pushed_stays_owed()
 
-    def test_the_mark_records_its_boundary(self) -> None:
+    def _assert_the_mark_records_its_boundary(self) -> None:
         # `snapshotting` is where the interruption happened, and keeping it is
         # what later lets the ref go: nothing was cut from it.
-        with self.assertLogs(_WORKFLOW_LOG):
-            self._transact()
-
         pinned = self._pinned()
+
         self.assertTrue(pinned[KEYS.cancelled])
         self.assertTrue(pinned[KEYS.cancelled_at])
         self.assertEqual(
             pinned[KEYS.cancelled_phase], LatePhase.SNAPSHOTTING.value,
         )
 
-    def test_the_ref_it_pushed_stays_owed(self) -> None:
+    def _assert_the_ref_it_pushed_stays_owed(self) -> None:
         # The push landed before the read, so the remote holds an object the
         # cleanup path has to be told about rather than left to find.
-        with self.assertLogs(_WORKFLOW_LOG):
-            self._transact()
-
         self.assertEqual(
             self._resources()[(_RESOURCE_SNAPSHOT, _support.SNAPSHOT_REF)],
             _STATE_RETAINED,
         )
-
-    def test_one_cancellation_is_reported(self) -> None:
-        with self.assertLogs(_WORKFLOW_LOG):
-            self._transact()
-
-        self.assertEqual(len(self._events_named(EVENT_LATE_CANCELLATION)), 1)
 
 
 class ClosedHoldingPlanPrTest(HeldPlanPrSplitCase, unittest.TestCase):
@@ -167,33 +159,32 @@ class ClosedMidLoopTest(LateSplitCase, unittest.TestCase):
         super().setUp()
         self.closing = closes_when_children_exist(self, children=1)
 
-    def test_the_remaining_children_are_not_created(self) -> None:
+    def test_the_loop_stops_at_the_child_that_exists(self) -> None:
         with self.assertLogs(_WORKFLOW_LOG), self.closing:
             outcome = self._transact()
 
         self.assertEqual(outcome.disposition, _LateDisposition.CANCELLED)
         self.assertEqual(len(self.github.created_child_issues), 1)
+        self._assert_the_one_that_exists_is_recorded()
+        self._assert_the_boundary_says_it_was_running()
+        self._assert_nothing_is_published_over_it()
 
-    def test_the_one_that_exists_is_recorded(self) -> None:
+    def _assert_the_one_that_exists_is_recorded(self) -> None:
         # A real issue on GitHub the parent does not know about is the state
         # nothing can clean up, so the record is what the loop keeps whole.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         pinned = self._pinned()
+
         self.assertEqual(
             pinned[_support.KEY_SPLIT_CHILDREN],
             [self.github.created_child_issues[0].number],
         )
         self.assertEqual(pinned[_support.KEY_EXPECTED_CHILDREN], len(_support.CHILDREN))
 
-    def test_the_boundary_says_the_loop_was_running(self) -> None:
+    def _assert_the_boundary_says_it_was_running(self) -> None:
         # Which is what keeps the ref: one child of two is a partial split,
         # and the register the reclamation compares is short.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         pinned = self._pinned()
+
         self.assertTrue(pinned[KEYS.cancelled])
         self.assertEqual(
             pinned[KEYS.cancelled_phase], LatePhase.SPLITTING.value,
@@ -203,10 +194,7 @@ class ClosedMidLoopTest(LateSplitCase, unittest.TestCase):
             _STATE_RETAINED,
         )
 
-    def test_nothing_is_published_over_it(self) -> None:
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
+    def _assert_nothing_is_published_over_it(self) -> None:
         self.assertIsNone(self._pinned().get(_support.KEY_LINKS_ANNOUNCED))
         self.assertEqual(_support.label_of(self.github, self.issue.number), _DECOMPOSING)
 
@@ -225,7 +213,7 @@ class ClosedBeforeActivationTest(LateSplitCase, unittest.TestCase):
         super().setUp()
         self.closing = closes_when_children_exist(self, len(_support.CHILDREN))
 
-    def test_every_child_was_created_and_recorded(self) -> None:
+    def test_every_child_exists_and_none_is_started(self) -> None:
         with self.assertLogs(_WORKFLOW_LOG), self.closing:
             outcome = self._transact()
 
@@ -234,14 +222,14 @@ class ClosedBeforeActivationTest(LateSplitCase, unittest.TestCase):
         self.assertEqual(
             len(self._pinned()[_support.KEY_SPLIT_CHILDREN]), len(_support.CHILDREN),
         )
+        self._assert_none_of_them_is_started()
+        self._assert_the_parent_is_not_an_umbrella()
+        self._assert_the_record_proves_the_loop_finished()
 
-    def test_none_of_them_is_started(self) -> None:
+    def _assert_none_of_them_is_started(self) -> None:
         # A settled split releases the one child with no dependency of its
         # own; this one releases neither, so both stay where the create left
         # them and no agent is ever spawned against a closed parent's slice.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         self.assertEqual(
             [
                 _support.label_of(self.github, child.number)
@@ -250,24 +238,19 @@ class ClosedBeforeActivationTest(LateSplitCase, unittest.TestCase):
             [_BLOCKED for _ in _support.CHILDREN],
         )
 
-    def test_the_parent_is_not_made_an_umbrella(self) -> None:
+    def _assert_the_parent_is_not_an_umbrella(self) -> None:
         # The label, not the flag: the flag goes down before the first child
         # so a partial split can be read back, and the LABEL is the last
         # thing a finished transaction writes.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         self.assertEqual(_support.label_of(self.github, self.issue.number), _DECOMPOSING)
         self.assertIsNone(self._pinned().get(_support.KEY_LINKS_ANNOUNCED))
 
-    def test_the_record_proves_the_loop_finished(self) -> None:
+    def _assert_the_record_proves_the_loop_finished(self) -> None:
         # Which is what lets the ending release the ref once the children
         # end: the count and the register agree, at whatever boundary the
         # cancellation interrupted.
-        with self.assertLogs(_WORKFLOW_LOG), self.closing:
-            self._transact()
-
         pinned = self._pinned()
+
         self.assertTrue(pinned[KEYS.cancelled])
         self.assertEqual(
             pinned[_support.KEY_EXPECTED_CHILDREN], len(pinned[_support.KEY_SPLIT_CHILDREN]),

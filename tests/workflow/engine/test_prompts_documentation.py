@@ -39,45 +39,44 @@ class BuildDocumentationPromptTest(unittest.TestCase):
     accept ambiguous phrasing.
     """
 
-    def test_instructs_diff_against_readme_and_docs(self) -> None:
+    def test_one_prompt_carries_the_whole_contract(self) -> None:
         prompt = _documentation_prompt()
+
+        self.assertIn(f"#{_DOCUMENTATION_ISSUE_NUMBER}", prompt)
+        self.assertIn("add foo flag", prompt)
+        self.assertIn("DOCS: NO_CHANGE", prompt)
+        self._assert_it_diffs_against_readme_and_docs(prompt)
+        self._assert_it_steers_away_from_plans(prompt)
+        self._assert_it_leaves_the_subject_repo_local(prompt)
+        self._assert_it_warns_against_ambiguous_prose(prompt)
+
+    def _assert_it_diffs_against_readme_and_docs(self, prompt: str) -> None:
+        base_ref = f"{_TEST_SPEC.remote_name}/{_TEST_SPEC.base_branch}"
+
         self.assertIn("README.md", prompt)
         self.assertIn("docs/", prompt)
-        base_ref = f"{_TEST_SPEC.remote_name}/{_TEST_SPEC.base_branch}"
         self.assertIn(f"git diff {base_ref}...HEAD", prompt)
 
-    def test_steers_agent_away_from_plans_and_roadmap(self) -> None:
+    def _assert_it_steers_away_from_plans(self, prompt: str) -> None:
         # `plans/` and roadmap entries are working notes owned by
         # humans -- the final-docs pass must not target them. The prompt
         # has to call that out explicitly so the agent does not infer
         # `plans/` from convention.
-        prompt = _documentation_prompt()
         self.assertIn("plans/", prompt)
         self.assertIn("roadmap", prompt)
         self.assertIn("out of scope", prompt)
 
-    def test_updated_case_does_not_require_prefix(self) -> None:
+    def _assert_it_leaves_the_subject_repo_local(self, prompt: str) -> None:
         # The docs pass must not force the `docs:` Conventional-Commit type:
         # the agent mirrors the repo's own recent commit style (pinned in
         # `test_prompts.py`), so a project-specific prefix (`event:`,
         # `career:`, ...) is allowed for a documentation update just as for
         # any other commit.
-        prompt = _documentation_prompt()
         self.assertNotIn("docs:", prompt)
         self.assertNotIn('git commit -m "docs: <subject>"', prompt)
 
-    def test_specifies_machine_no_change_marker(self) -> None:
-        prompt = _documentation_prompt()
-        self.assertIn("DOCS: NO_CHANGE", prompt)
-
-    def test_warns_against_ambiguous_no_change_text(self) -> None:
+    def _assert_it_warns_against_ambiguous_prose(self, prompt: str) -> None:
         # The prompt itself must tell the agent that prose like
         # 'no changes needed' will be parked, mirroring the parser's
         # refusal to accept it.
-        prompt = _documentation_prompt()
         self.assertIn("'no changes needed'", prompt)
-
-    def test_includes_issue_title_and_number(self) -> None:
-        prompt = _documentation_prompt()
-        self.assertIn(f"#{_DOCUMENTATION_ISSUE_NUMBER}", prompt)
-        self.assertIn("add foo flag", prompt)
