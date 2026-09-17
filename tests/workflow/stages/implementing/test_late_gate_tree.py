@@ -162,21 +162,17 @@ class DirtiedAroundThePushTest(support._GateCase, unittest.TestCase):
             tree_states=(_CLEAN, _CLEAN, _DIRTY),
         )
 
-    def test_the_publication_stands(self) -> None:
+    def test_the_publication_stands_not_the_handoff(self) -> None:
         self._assert_published(self.mocks)
         self.assertEqual(len(self.github.opened_prs), 1)
-
-    def test_the_handoff_stops(self) -> None:
         self.assertNotIn(_VALIDATING, self.github.label_history)
         pinned = self._pinned()
         self.assertTrue(pinned[support.AWAITING_HUMAN])
         self.assertEqual(pinned[support.PARK_REASON], _CANDIDATE_MOVED)
-
-    def test_both_commits_survive_the_refusal(self) -> None:
-        # What the branch carries, so the next tick recognizes a published
-        # branch rather than re-deciding it; and what a handoff is still owed,
-        # so the quiet republication has something to watch for.
-        pinned = self._pinned()
+        # Both commits survive the refusal: what the branch carries, so the
+        # next tick recognizes a published branch rather than re-deciding it;
+        # and what a handoff is still owed, so the quiet republication has
+        # something to watch for.
         self.assertEqual(pinned[_KEY_PUBLISHED_SHA], MEASURED_CANDIDATE_SHA)
         self.assertEqual(pinned[_KEY_APPROVED_SHA], MEASURED_CANDIDATE_SHA)
 

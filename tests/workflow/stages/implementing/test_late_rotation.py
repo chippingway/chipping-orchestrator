@@ -204,28 +204,49 @@ class LandedTransferTest(_SettlementCase):
     def test_the_exemption_moves_with_the_receipt(self) -> None:
         self.assertTrue(self.published.landed)
         self._assert_carried()
+        self._assert_the_receipt_settled_the_debt()
+        self._assert_the_push_was_named_and_leased()
+        self._assert_the_record_names_both_pairs()
+        self._assert_the_record_names_the_publication()
+        # A transfer carries a decision a human already made onto the object
+        # that replaced the one they made it about. A `single` on the stream
+        # here would read as a second adjudication of the same work.
+        self.assertEqual(self._records_of(EVENT_VERDICT), [])
+
+    def _assert_the_receipt_settled_the_debt(self) -> None:
+        """The receipt the push left, and the grant's own record behind it.
+
+        The debt the grant recorded is paid by the push that discharged it:
+        an approval still standing would license a second push of a commit
+        this one already published.
+        """
         pinned = self._durable().data
+
         self.assertEqual(pinned[KEY_RECEIPT_SHA], REWRITTEN_SHA)
         self.assertEqual(pinned[KEY_RECEIPT_LEASE], LEASED_SHA)
-
-    def test_the_push_is_named_and_leased(self) -> None:
-        # The grant licenses a push and nothing about how it is made: the
-        # commit that was proved is what goes out, pinned to the head the
-        # permit was granted against, so a pull request somebody moved in
-        # between rejects it.
-        self.pushed.assert_called_once()
-        pushed = self.pushed.call_args.kwargs
-        self.assertEqual(pushed[REVISION], REWRITTEN_SHA)
-        self.assertEqual(pushed[LEASE], LEASED_SHA)
-
-    def test_the_debt_the_grant_recorded_is_paid(self) -> None:
-        pinned = self._durable().data
         self.assertIsNone(pinned.get(_state._APPROVED_SHA))
         self.assertIsNone(pinned.get(_state._APPROVED_LEASE))
 
-    def test_the_record_names_both_pairs(self) -> None:
-        # Both ends of both contributions, which is the whole of what says the
-        # change carried over is the change a human ruled on.
+    def _assert_the_push_was_named_and_leased(self) -> None:
+        """The one request the grant licensed, as it went out.
+
+        The grant licenses a push and nothing about how it is made: the commit
+        that was proved is what goes out, pinned to the head the permit was
+        granted against, so a pull request somebody moved in between rejects
+        it.
+        """
+        self.pushed.assert_called_once()
+        pushed = self.pushed.call_args.kwargs
+
+        self.assertEqual(pushed[REVISION], REWRITTEN_SHA)
+        self.assertEqual(pushed[LEASE], LEASED_SHA)
+
+    def _assert_the_record_names_both_pairs(self) -> None:
+        """Both ends of both contributions.
+
+        Which is the whole of what says the change carried over is the change
+        a human ruled on.
+        """
         recorded = self._reported()
 
         self.assertEqual(recorded["transferred_from_sha"], ACCEPTED_SHA)
@@ -233,7 +254,8 @@ class LandedTransferTest(_SettlementCase):
         self.assertEqual(recorded["source_sha"], REWRITTEN_SHA)
         self.assertEqual(recorded["base_sha"], MERGE_BASE_SHA)
 
-    def test_the_record_names_the_publication(self) -> None:
+    def _assert_the_record_names_the_publication(self) -> None:
+        """The issue, the stage, and the pull request the transfer moved on."""
         recorded = self._reported()
 
         self.assertEqual(recorded["issue"], ISSUE_NUMBER)
@@ -241,12 +263,6 @@ class LandedTransferTest(_SettlementCase):
         self.assertEqual(recorded["published_pr_number"], PR_NUMBER)
         self.assertEqual(recorded["rewrite_kind"], "squash")
         self.assertEqual(recorded["transfer_proof"], "pushed")
-
-    def test_no_second_verdict_is_reported(self) -> None:
-        # A transfer carries a decision a human already made onto the object
-        # that replaced the one they made it about. A `single` on the stream
-        # here would read as a second adjudication of the same work.
-        self.assertEqual(self._records_of(EVENT_VERDICT), [])
 
 
 class AlreadyLandedTransferTest(_SettlementCase):
@@ -267,19 +283,15 @@ class AlreadyLandedTransferTest(_SettlementCase):
         self.assertTrue(self.published.landed)
         self._assert_carried()
         self.assertEqual(self._durable().data[KEY_RECEIPT_SHA], REWRITTEN_SHA)
-
-    def test_the_no_op_is_leased_against_the_commit(self) -> None:
-        # Never unleased, and never skipped: what the request buys is proof
-        # taken at the remote that the publication is still the one the record
-        # is about, which no local note could supply.
+        # The no-op is never unleased, and never skipped: what the request
+        # buys is proof taken at the remote that the publication is still the
+        # one the record is about, which no local note could supply.
         self.pushed.assert_called_once()
         pushed = self.pushed.call_args.kwargs
         self.assertEqual(pushed[REVISION], REWRITTEN_SHA)
         self.assertEqual(pushed[LEASE], REWRITTEN_SHA)
-
-    def test_the_record_says_which_reading_proved_it(self) -> None:
+        # And the record says which of the two readings proved it.
         recorded = self._reported()
-
         self.assertEqual(recorded["transfer_proof"], "already_published")
         self.assertEqual(recorded["source_sha"], REWRITTEN_SHA)
 
@@ -498,10 +510,38 @@ class RefusedPermitTest(unittest.TestCase):
                 ),
             )
 
-    def test_the_fallback_reading_published_it(self) -> None:
-        # The premise: the refusal costs the transfer and not the push, so the
-        # settlement really does run over a landed publication of the commit
-        # the permission names.
+    def test_it_publishes_without_the_verdict(self) -> None:
+        self._assert_the_fallback_reading_published_it()
+        durable = self._durable()
+
+        self.assertTrue(_exemption_reading.is_exempt(durable, ACCEPTED_SHA))
+        identity = _exemption_reading.read_semantic_identity(durable)
+        self.assertEqual(identity.candidate_sha, ACCEPTED_SHA)
+        self.assertEqual(identity.base_sha, MERGE_BASE_SHA)
+        # The permission is left outstanding: not spent, because no permit
+        # vouched for it; not dropped either, because the remote is now on a
+        # head the permit accounts for and a later tick whose refusal has
+        # cleared can still settle it.
+        authorization = _rewrite_reading.read_rewrite_authorization(durable)
+        self.assertEqual(
+            authorization.phase, _rewrite_values.LateRewritePhase.AUTHORIZED,
+        )
+        self.assertEqual(authorization.rewrite.to_sha, REWRITTEN_SHA)
+        self.assertEqual(
+            [
+                record for record in self.github.recorded_events
+                if record.get("event") == EVENT_TRANSFER
+            ],
+            [],
+        )
+
+    def _assert_the_fallback_reading_published_it(self) -> None:
+        """The premise the refusal is read against.
+
+        The refusal costs the transfer and not the push, so the settlement
+        really does run over a landed publication of the commit the permission
+        names.
+        """
         self.assertTrue(self.published.landed)
         self.pushed.assert_called_once()
         self.assertEqual(
@@ -509,34 +549,6 @@ class RefusedPermitTest(unittest.TestCase):
         )
         self.assertEqual(
             self._durable().data[KEY_RECEIPT_SHA], REWRITTEN_SHA,
-        )
-
-    def test_the_verdict_does_not_move(self) -> None:
-        durable = self._durable()
-
-        self.assertTrue(_exemption_reading.is_exempt(durable, ACCEPTED_SHA))
-        identity = _exemption_reading.read_semantic_identity(durable)
-        self.assertEqual(identity.candidate_sha, ACCEPTED_SHA)
-        self.assertEqual(identity.base_sha, MERGE_BASE_SHA)
-
-    def test_the_permission_is_left_outstanding(self) -> None:
-        # Not spent, because no permit vouched for it; not dropped either,
-        # because the remote is now on a head the permit accounts for and a
-        # later tick whose refusal has cleared can still settle it.
-        authorization = _rewrite_reading.read_rewrite_authorization(self._durable())
-
-        self.assertEqual(
-            authorization.phase, _rewrite_values.LateRewritePhase.AUTHORIZED,
-        )
-        self.assertEqual(authorization.rewrite.to_sha, REWRITTEN_SHA)
-
-    def test_nothing_is_reported_as_a_transfer(self) -> None:
-        self.assertEqual(
-            [
-                record for record in self.github.recorded_events
-                if record.get("event") == EVENT_TRANSFER
-            ],
-            [],
         )
 
     def _durable(self):

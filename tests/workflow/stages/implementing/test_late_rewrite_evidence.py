@@ -36,24 +36,19 @@ class RewriteEvidenceTest(unittest.TestCase):
     pinned to the tip the remote has.
     """
 
-    def test_the_collapsed_head_is_not_the_lease(self) -> None:
+    def test_a_moved_publication_names_every_fact(self) -> None:
         rewritten = self._rewritten(STANDING_SHA)
 
         self.assertEqual(rewritten.from_sha, COLLAPSED_SHA)
         self.assertEqual(rewritten.lease, STANDING_SHA)
-
-    def test_both_contributions_share_the_merge_base(self) -> None:
-        # A squash moves neither end of the branch's fork point; it rewrites
-        # what sits on top of it.
-        rewritten = self._rewritten(STANDING_SHA)
-
+        # Both contributions share the merge base, because a squash moves
+        # neither end of the branch's fork point; it rewrites what sits on
+        # top of it.
         self.assertEqual(rewritten.from_base_sha, MERGE_BASE_SHA)
         self.assertEqual(rewritten.to_base_sha, MERGE_BASE_SHA)
         self.assertEqual(rewritten.to_sha, SQUASHED_SHA)
-
-    def test_the_publication_comes_from_the_entry(self) -> None:
-        rewritten = self._rewritten(STANDING_SHA)
-
+        # What the evidence says about the publication is the entry's word
+        # for it rather than anything the squash decided.
         self.assertEqual(rewritten.pr_number, PR_NUMBER)
         self.assertEqual(rewritten.source_stage, SOURCE_STAGE)
         self.assertEqual(rewritten.kind, _rewrite_values.LateRewriteKind.SQUASH)

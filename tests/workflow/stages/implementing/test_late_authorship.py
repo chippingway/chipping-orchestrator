@@ -315,37 +315,29 @@ class RestartedParkNoticeTest(_SaidCase, unittest.TestCase):
         })
         self._crash_saying_the_notice()
 
-    def test_no_poll_answers_the_notice(self) -> None:
+    def test_no_poll_answers_or_repeats_the_notice(self) -> None:
         # Nobody is resumed against it and nothing is published on it, and no
         # watermark crosses it either -- a resume consumes our own prose, and
         # everything a human wrote under it, on the way to paying for a run.
-        polls = [self._run_tick() for _ in range(3)]
+        said = self.github.latest_comment_id(self.issue)
 
-        for mocks in polls:
+        for _ in range(3):
+            mocks = self._run_tick()
+
             mocks[_consent_payloads.RUN_AGENT].assert_not_called()
             mocks[_consent_payloads.PUSH_BRANCH].assert_not_called()
+            # What every poll of it rests on, asserted where it is decided
+            # rather than only through what it prevents. Once, because the
+            # ledger is a set kept in a bounded list and a second entry costs
+            # a slot.
+            self.assertEqual(self._attributed(), [said])
+
         self.assertEqual(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID],
             _consent_payloads.PRIOR_ACTION_COMMENT_ID,
         )
-
-    def test_the_notice_is_ledgered_once(self) -> None:
-        # What every poll of it rests on, asserted where it is decided rather
-        # than only through what it prevents. Once, because the ledger is a
-        # set kept in a bounded list and a second entry costs a slot.
-        said = self.github.latest_comment_id(self.issue)
-
-        for _ in range(3):
-            self._run_tick()
-
-            self.assertEqual(self._attributed(), [said])
-
-    def test_the_notice_is_never_said_twice(self) -> None:
         # The other half of recording it: the thread already carries the
         # sentence a human is waiting on, so no poll mentions them again.
-        for _ in range(3):
-            self._run_tick()
-
         self.assertEqual(len(self._sentences()), 1)
 
     def test_repeated_windows_lose_no_notice(self) -> None:

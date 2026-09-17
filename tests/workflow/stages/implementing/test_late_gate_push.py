@@ -115,26 +115,20 @@ class UnprovableHeadTest(support._GateCase, unittest.TestCase):
         with patch.object(config, _DECOMPOSE, False):
             self.mocks = self._run_gate(candidate_commit=_UNREADABLE_HEAD)
 
-    def test_nothing_is_published(self) -> None:
-        self._assert_unmeasured(self.mocks)
-        self._assert_held(self.mocks)
-
-    def test_the_handoff_never_happens(self) -> None:
-        # The label is what hands the checkout to review, and review takes no
-        # reading of its own -- so a branch published under no commit reaches
-        # a squash and a merge with nothing having named it.
-        self.assertNotIn(_VALIDATING, self.github.label_history)
-
     def test_it_parks_rather_than_falling_back(self) -> None:
         # Falling back to the branch as git resolves it is the whole defect:
         # nothing refuses it afterwards, because every later proof compares
         # against a commit that was never recorded.
+        self._assert_unmeasured(self.mocks)
+        self._assert_held(self.mocks)
+        # The label is what hands the checkout to review, and review takes no
+        # reading of its own -- so a branch published under no commit reaches
+        # a squash and a merge with nothing having named it.
+        self.assertNotIn(_VALIDATING, self.github.label_history)
         pinned = self._pinned()
         self.assertTrue(pinned[support.AWAITING_HUMAN])
         self.assertEqual(pinned[support.PARK_REASON], _CANDIDATE_MOVED)
         self.assertIsNone(pinned.get(_KEY_PUBLISHED_SHA))
-
-    def test_the_refusal_names_what_failed(self) -> None:
         # What an operator has to clear is a repository rather than a commit,
         # so the park says which step could not be completed.
         self.assertIn(
