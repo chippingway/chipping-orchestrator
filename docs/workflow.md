@@ -80,6 +80,19 @@ contains:
 [`workflow/conversations.md#tracked-repository-awareness-in-working-agent-prompts`][tracked-repos]. Disclosure
 analysis: [`security.md#cross-repo-awareness-disclosure-expose_tracked_repos`][disclosure].
 
+## Commit-subject contract in commit-producing prompts
+
+Every prompt whose agent may author a commit subject — the initial implementation, an automated-review fix, the final
+docs pass, a requirements-drift resume, PR feedback, both discussion rounds, a late revision, the human-reply resume,
+and the bare-continue retry — teaches one subject contract: read `git log --oneline -20` and mirror whatever style
+that repository's own recent history uses, as a single short imperative line with no body and no trailer. The
+` (#N)` suffixes in that history are publication metadata rather than style, so the agent writes the descriptive
+subject alone, never copies the tracked issue's number into one, and leaves the pull request reference to the
+orchestrator, which appends it under `PR_REF_IN_SUBJECT` (default on). The conflict-resolution prompt and the
+conflict stage's bare continue carry no subject contract at all: that agent finishes an in-progress rebase and
+authors no subject. Where each prompt carries it, and why the bare developer resumes restate it:
+[`workflow/conversations.md#the-commit-subject-contract-in-commit-producing-prompts`][commit-subject].
+
 ## Developer report contract in developer prompts
 
 Every prompt a developer can finish work on — the initial implementation, an automated-review fix, a
@@ -120,6 +133,7 @@ that has already pinned one. The reviewer is spawned fresh every round, so `REVI
 validating tick. Per-role keys, the resume path, and the legacy values still honored on read:
 [`workflow/command-specs.md#in-flight-session-lock`][session-lock].
 
+[commit-subject]: workflow/conversations.md#the-commit-subject-contract-in-commit-producing-prompts
 [tracked-repos]: workflow/conversations.md#tracked-repository-awareness-in-working-agent-prompts
 [disclosure]: security.md#cross-repo-awareness-disclosure-expose_tracked_repos
 [session-lock]: workflow/command-specs.md#in-flight-session-lock

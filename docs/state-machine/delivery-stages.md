@@ -2780,10 +2780,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `_DEVELOPER_CONTINUE_RETRY_PROMPT` — NOT the literal command, which the dev has no context for — while
      `_handle_dev_fix_result` still publishes any stranded commit; a bare continue on a park needing a real answer
      refuses (`_refuse_parked_continue`) and stays parked. A command carrying real guidance, or a normal reply,
-     resumes the dev on that text, with the developer report contract restated beside it
-     (`_build_human_reply_followup`). (The classification is shared with `implementing` / `documenting` /
-     `resolving_conflict`, the retry prompt is not: `documenting` reruns its docs prompt and `resolving_conflict`
-     retries on the plain `_CONTINUE_RETRY_PROMPT`; see the drift-detection section for the bare-continue hash
+     resumes the dev on that text, with the commit-subject and developer report contracts restated beside it
+     (`_build_human_reply_followup`), as they are on the retry prompt above — either resume can rotate into a fresh
+     session, which carries no transcript to have read them in. (The classification is shared with `implementing` /
+     `documenting` / `resolving_conflict`, the retry prompt is not: `documenting` reruns its docs prompt and
+     `resolving_conflict` retries on the plain `_CONTINUE_RETRY_PROMPT` — its agent finishes a rebase and authors no
+     subject, so no subject contract rides with it; see the drift-detection section for the bare-continue hash
      exclusion.)
   3. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
      `/orchestrator add-review-rounds N` escape hatch.
