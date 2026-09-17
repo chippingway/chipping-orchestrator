@@ -1112,8 +1112,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stale refusal written once
       plan_pr.py            the plan's own pull request: the open one reused -- its body rewritten where it does not
                             already name the publishing session -- or the new one opened and announced, the title
-                            taken from the plan commit's own subject, the body that names that session and says what
-                            merging or closing decides, and the refusal of a plan no session can be named for
+                            taken from the plan commit's own subject the way a dev PR's is -- the tracked issue's
+                            own trailing reference dropped off it by the title owner under `git/publication/` --
+                            the body that names that session and says what merging or closing decides, and the
+                            refusal of a plan no session can be named for
       records.py            what a finished publication writes down: the adoption of a PR already carrying the
                             commit, and the plan path, branch, number, PR head, and moved round anchor one durable
                             write leaves behind
@@ -1780,7 +1782,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             naming no commit at all held rather than published under
       dev_pr.py             what that pull request says and whose work it says it carries: the title taken from
                             the branch's own first commit subject, falling back to a prefix inferred from recent
-                            base history so it reads like the repository it lands in; the body pairing the
+                            base history so it reads like the repository it lands in, less the tracked issue's own
+                            trailing reference, which the title owner under `git/publication/` takes off whichever
+                            line it reuses since the body below is what links that issue; the body pairing the
                             `Resolves #N` that closes the issue with the dev session the branch was written by
                             and the run's closing message, cut on a paragraph, line, or word boundary and marked
                             as clipped where it outgrows the cap, with a fence the cut left open closed first;

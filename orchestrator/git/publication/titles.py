@@ -15,6 +15,19 @@ a pull request's title is picked before the request has a number, so
 ``pr_references`` beside this owner spells it for the commits published onto
 one, and the selection below never adds it.
 
+What that selection does ask the same owner for is the REMOVAL of the tracked
+issue's reference, from every line it reuses. The subject contract every
+commit-producing prompt carries already reserves that trailing number for
+publication, so a conforming subject arrives without one and the removal does
+nothing to it. What it covers is the lines no contract reaches: a commit made
+before that contract, one a human wrote by hand, and an issue title somebody
+typed the number onto the end of. Any of those would put the issue on a title
+whose own pull request body is what links the issue -- the same link spelled
+from the wrong side, and named twice. Asking the one owner that decides
+references leaves this removal and the later rewrite agreeing on which number
+is the issue's and which is somebody else's, so a title and the commit
+published under it cannot disagree about what a subject may keep.
+
 The history reads are commit MESSAGES, not branch geometry: what is asked of
 git here is what past subjects say, so ``probes`` beside this owner keeps the
 ahead/behind and fork-point reads and this one never consults them.
@@ -29,6 +42,7 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import commands
+from orchestrator.git.publication import pr_references
 
 _CONVENTIONAL_TYPES = (
     "feat", "fix", "chore", "docs", "refactor",
@@ -157,11 +171,27 @@ def _pr_title_from_commit_or_issue(
     `_infer_subject_prefix`, so the synthesized form honors the repo's own
     style. Traceability is preserved by the `Resolves #<n>` line in the PR
     body, so the title stays clean.
+
+    Each candidate sheds the tracked issue's trailing reference through
+    `pr_references` before it is weighed, and nothing is appended in its
+    place. A subject written under the contract carries no such reference and
+    is handed back untouched; the removal is what covers the lines that
+    contract does not reach -- a commit made before it, one a human wrote by
+    hand, and an issue title with the number typed onto the end. A reference
+    to any other number is somebody else's link and survives, as does a number
+    written into the middle of the line, which is prose rather than a
+    reference. Stripping ahead of the prefix test rather than after it is what
+    keeps a line that was only a reference (`feat: (#12)`) from being reused
+    as a title with nothing left after the colon.
     """
-    subject = (first_subject or "").strip()
+    subject = pr_references._subject_without_issue_reference(
+        (first_subject or "").strip(), issue.number,
+    )
     if _is_prefixed_subject(subject):
         return subject
-    issue_title = (issue.title or "").strip()
+    issue_title = pr_references._subject_without_issue_reference(
+        (issue.title or "").strip(), issue.number,
+    )
     if _is_prefixed_subject(issue_title):
         return issue_title
     body = issue_title or f"address issue #{issue.number}"

@@ -244,30 +244,96 @@ class PrTitleSelectionTest(unittest.TestCase):
     prefix. The title stays free of the issue reference -- the `Resolves #<n>`
     line in the PR body carries traceability."""
 
-    def test_reusable_commit_subject_is_kept_verbatim(self) -> None:
-        for subject in (
-            "feat: add a sparkly thing",
-            "fix(api)!: drop legacy endpoint",  # scope and breaking marker
-            "event: add the winter gala",  # repo-local, not a Conventional type
+    def test_reusable_commit_subject_is_reused(self) -> None:
+        # The subject comes back as the agent wrote it, less the tracked
+        # issue's own trailing reference. A subject written under the
+        # commit-subject contract carries none, so the cases that exercise the
+        # removal are the ones that contract does not reach -- a commit made
+        # before it, or one written by hand. Any other number is somebody
+        # else's link, and a number written into the line rather than after it
+        # is prose.
+        for case, subject, expected in (
+            ("plain", "feat: add a sparkly thing", "feat: add a sparkly thing"),
+            # Scope and breaking marker.
+            (
+                "scoped and breaking",
+                "fix(api)!: drop legacy endpoint",
+                "fix(api)!: drop legacy endpoint",
+            ),
+            # Repo-local prefix, not a Conventional type: the removal must
+            # leave the prefix the repository actually uses in place.
+            (
+                "repo-local prefix, issue reference",
+                f"event: add the winter gala (#{TITLE_ISSUE})",
+                "event: add the winter gala",
+            ),
+            (
+                "issue reference",
+                f"feat: add a sparkly thing (#{TITLE_ISSUE})",
+                "feat: add a sparkly thing",
+            ),
+            (
+                "issue ahead of another link",
+                f"feat: port the upstream fix (#{TITLE_ISSUE}) (#99)",
+                "feat: port the upstream fix (#99)",
+            ),
+            (
+                "another request's link alone",
+                "feat: port the upstream fix (#99)",
+                "feat: port the upstream fix (#99)",
+            ),
+            (
+                "the number inside the text",
+                f"feat: drop the #{TITLE_ISSUE} shim",
+                f"feat: drop the #{TITLE_ISSUE} shim",
+            ),
+            (
+                "a mid-line reference",
+                f"feat: rework (#{TITLE_ISSUE}) handling",
+                f"feat: rework (#{TITLE_ISSUE}) handling",
+            ),
         ):
-            with self.subTest(subject=subject):
-                self.assertEqual(self._title(subject), subject)
+            with self.subTest(case=case):
+                self.assertEqual(self._title(subject), expected)
 
     def test_prefixed_issue_title_is_reused(self) -> None:
-        # An already-prefixed issue title must not gain a second prefix.
-        self.assertEqual(
-            self._title(
-                "some unconventional commit",
-                title="docs: clarify the README",
-            ),
+        # An already-prefixed issue title must not gain a second prefix, and
+        # a number typed onto the end of one is the same link read from the
+        # wrong side as one left on a commit subject. No contract governs what
+        # a human writes into an issue title, so this road is the removal's on
+        # its own.
+        for title in (
             "docs: clarify the README",
-        )
+            f"docs: clarify the README (#{TITLE_ISSUE})",
+        ):
+            with self.subTest(title=title):
+                self.assertEqual(
+                    self._title("some unconventional commit", title=title),
+                    "docs: clarify the README",
+                )
 
     def test_unprefixed_pair_synthesizes_from_default(self) -> None:
-        self.assertEqual(
-            self._title("updated stuff"),
-            f"{FEATURE_PREFIX}: {ISSUE_TITLE}",
-        )
+        for case, first_subject, title in (
+            ("neither is prefixed", "updated stuff", ISSUE_TITLE),
+            # Stripping ahead of the prefix test is what makes this one fall
+            # through: reused as written, the title would be a bare `feat:`
+            # with nothing after the colon.
+            (
+                "the subject was only the reference",
+                f"feat: (#{TITLE_ISSUE})",
+                ISSUE_TITLE,
+            ),
+            (
+                "the issue title carries the reference",
+                "updated stuff",
+                f"{ISSUE_TITLE} (#{TITLE_ISSUE})",
+            ),
+        ):
+            with self.subTest(case=case):
+                self.assertEqual(
+                    self._title(first_subject, title=title),
+                    f"{FEATURE_PREFIX}: {ISSUE_TITLE}",
+                )
 
     def test_synthesized_title_honors_fallback_prefix(self) -> None:
         # The repo-local prefix `_infer_subject_prefix` read from base

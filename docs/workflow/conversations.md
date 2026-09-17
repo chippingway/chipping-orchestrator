@@ -142,6 +142,13 @@ request reference to the orchestrator that appends it when configured to. Issue 
 carry, not the subject's. The note is unconditional, because the prompt is built with no reading of that switch and a
 repo whose history carries references from an earlier setting reads the same either way.
 
+The note is not the only guard on the one place a subject is read back out. PR-title selection
+(`git/publication/titles.py`) takes the tracked issue's own trailing reference off whichever line it reuses — the
+branch's first commit subject, or the issue title — so a commit written before this contract, one a human wrote by
+hand, and an issue title with the number typed onto the end each still yield a title without it. Nothing is appended
+in its place: a title is picked before the pull request has a number. A reference to any other number is somebody
+else's link and survives.
+
 Where the contract is carried:
 
 - **Whole** in the initial `_build_implement_prompt`, the automated-review `_build_fix_prompt`, the final pass's
