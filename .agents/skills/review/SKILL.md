@@ -72,6 +72,23 @@ label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions
 - Identify newly added tests that duplicate existing tests or each other; request merging into
   `pytest.mark.parametrize` cases or a small named loop when the only difference is fixture values or
   branch selection.
+- Flag a class whose methods share one `setUp` scenario and differ only in which outcome they inspect.
+  Ask for one test that runs the scenario once and asserts those outcomes together, keeping every
+  assertion and its diagnostic message. Distinct scenarios stay apart: different failure inputs, crash
+  windows, security boundaries, and side effects each earn their own run.
+- Flag a test that patches a helper in the package under test and asserts `call_args`, object identity,
+  or the order two same-package helpers ran in. Ask for the outcome instead — the workflow label,
+  `pinned_data`, comments, and PR read back off the in-memory GitHub client for a stage handler, and
+  the panel order, the selected filters and timezone, and the displayed data read back off the recording
+  page doubles for a dashboard section. A seam patch is fine where the collaborator is deliberately
+  stubbed and its effect cannot otherwise be observed — a network or database read, an agent run, a
+  renderer reaching for an optional dependency — as long as it is patched on the defining owner.
+- Do not extend that to counts and ordering that are themselves contracts — forbidden pushes, duplicate
+  children or PRs, repeated charging, extra API reads or pinned-state writes, timeout cleanup,
+  write-before-publish ordering — or to literal label, pinned-state key, comment marker, watermark, and
+  event payload checks. Reject a PR that trades one of those for a looser outcome check.
+- Reject a test-economy pass that drops a package's `test_imports.py` guards, or that probes fewer owners
+  or environments than before. One fresh process per owner and per environment is the floor.
 - Verify each added regression test fails before the fix and passes afterward.
 - Require tests for changed contracts to assert those contracts directly.
 - Allow tests that document and protect existing behavior, including coverage added before refactoring.

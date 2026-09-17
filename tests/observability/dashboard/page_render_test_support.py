@@ -11,6 +11,11 @@ only that it wrote.
 The theme marks every reading a formatter was handed, so a count reaching the
 markup raw can be told from one the page shortened, and the reads are answered
 with their own names, so a case can say which read family reached which panel.
+
+A pass driven end-to-end rather than against stubs needs the rest of the page
+surface and rows the panels can actually draw; both live beside this module in
+`section_render_test_support`, which reads its window, theme, and page state
+back off the names here so the two sets of cases stay comparable.
 """
 
 from __future__ import annotations
@@ -105,15 +110,20 @@ def page(
     topbar: Any = None,
     meta: Any = None,
     reads: Any = None,
+    issue: int | None = None,
 ) -> page_models.DashboardPage:
-    """A page opened on the window above, with the two chrome slots given."""
+    """A page opened on the window above, with the two chrome slots given.
+
+    `issue` is the number an operator typed into the sidebar, which is what
+    opens the trace at the foot of the page.
+    """
     return page_models.DashboardPage(
         extent=DataExtent(min_ts=WINDOW_START, max_ts=WINDOW_END),
         controls=page_models.DashboardControls(
             filters=page_models.DashboardFilters(
                 window=WINDOW,
                 repo=None,
-                issue_input=None,
+                issue_input=issue,
                 events=None,
                 stages=None,
             ),
