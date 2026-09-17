@@ -208,11 +208,8 @@ class CrashBeforeTheGrantTest(_AdjudicatedRecoveryCase):
         self.assertFalse(self.resumed)
         self._assert_the_verdict_moved()
         self.assertEqual(len(self._events_of(TRANSFER_EVENT)), 1)
-
-    def test_the_replay_is_never_read_again(self) -> None:
         self._assert_nothing_was_read_again()
-
-    def test_the_attempt_record_is_ended(self) -> None:
+        # The record of the attempt ends with the push that discharged it.
         pinned = self.gh.pinned_data(fixtures.ISSUE)
         self.assertIsNone(pinned.get(fixtures.KEY_PENDING_PUSH_SHA))
         self.assertIsNone(pinned.get(KEY_PENDING_REWRITE_SHA))
@@ -232,8 +229,9 @@ class CrashAfterTheGrantTest(_AdjudicatedRecoveryCase):
         # carries the verdict over.
         self.assertFalse(self.resumed)
         self._assert_the_verdict_moved()
-
-    def test_the_debt_the_grant_left_is_paid(self) -> None:
+        self._assert_nothing_was_read_again()
+        # The debt that grant left is paid by the same push: the approval it
+        # recorded is cleared, and the publication answers for the anchor.
         durable = self._state()
         self.assertEqual(_late_approval_reading._approved_commit(durable), "")
         self.assertEqual(
@@ -242,9 +240,6 @@ class CrashAfterTheGrantTest(_AdjudicatedRecoveryCase):
             ),
             self.recovered,
         )
-
-    def test_the_replay_is_never_read_again(self) -> None:
-        self._assert_nothing_was_read_again()
 
 
 class CrashAtTheGrantTest(_AdjudicatedRecoveryCase):
@@ -274,17 +269,13 @@ class CrashAtTheGrantTest(_AdjudicatedRecoveryCase):
         # only once the permit had proved the contribution equal to it.
         self.assertFalse(self.resumed)
         self._assert_the_verdict_moved()
-
-    def test_the_counts_never_decide_it(self) -> None:
-        # The proof the classification is not reading the divergence: read
-        # before the tick, a real replay is ahead of its publication by the
-        # rebase and behind it by the object that rebase replaced.
+        self._assert_nothing_was_read_again()
+        # The counts never decide it, and these are the counts: read before
+        # the tick, a real replay is ahead of its publication by the rebase
+        # and behind it by the object that rebase replaced, so the lease the
+        # push above went out under was spent over a divergence.
         self.assertGreater(self.counted[0], 0)
         self.assertGreater(self.counted[1], 0)
-        self.assertEqual(self.push.leases, [self.anchor])
-
-    def test_the_replay_is_never_read_again(self) -> None:
-        self._assert_nothing_was_read_again()
 
 
 class UndoneRebaseTest(_AdjudicatedRecoveryCase):
@@ -297,6 +288,11 @@ class UndoneRebaseTest(_AdjudicatedRecoveryCase):
         self.resumed = _resumes(self)
 
     def test_the_rollback_is_finished_not_restarted(self) -> None:
+        self._assert_the_rollback_still_stands()
+        self._assert_the_bookkeeping_went_with_it()
+        self._assert_a_human_is_asked_what_undid_it()
+
+    def _assert_the_rollback_still_stands(self) -> None:
         # HEAD equalling the anchor is the shortcut only for an attempt that
         # never started. Taken here it would drop the anchor and hand the
         # branch to a fresh rebase, which force-pushes a commit no
@@ -309,7 +305,7 @@ class UndoneRebaseTest(_AdjudicatedRecoveryCase):
         )
         self.assertEqual(self.gh.label_history, [])
 
-    def test_the_abandoned_bookkeeping_goes_with_it(self) -> None:
+    def _assert_the_bookkeeping_went_with_it(self) -> None:
         # The reset re-run onto the commit the branch is already on moves
         # nothing, and that is the point: it is the step the debt for a commit
         # no branch has, and the permission that will never be spent on it,
@@ -321,7 +317,7 @@ class UndoneRebaseTest(_AdjudicatedRecoveryCase):
         # adjudication put it.
         self.assertTrue(_exemption_reading.is_exempt(durable, self.anchor))
 
-    def test_a_human_is_asked_what_undid_it(self) -> None:
+    def _assert_a_human_is_asked_what_undid_it(self) -> None:
         pinned = self.gh.pinned_data(fixtures.ISSUE)
         self.assertTrue(pinned.get(fixtures.KEY_AWAITING_HUMAN))
         self.assertEqual(pinned.get(fixtures.KEY_PARK_REASON), PARK_FAILED)

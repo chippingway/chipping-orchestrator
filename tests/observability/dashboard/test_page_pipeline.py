@@ -106,7 +106,12 @@ class RenderTopbarAndMetaTest(unittest.TestCase):
             _SUMMARY,
         )
 
-    def test_the_banner_says_what_the_database_holds(self) -> None:
+    def test_one_pass_fills_both_slots(self) -> None:
+        self._assert_the_banner_says_what_is_on_file()
+        self._assert_the_line_names_the_covered_days()
+        self._assert_each_landed_in_the_slot_left_for_it()
+
+    def _assert_the_banner_says_what_is_on_file(self) -> None:
         # The banner is drawn off the extent rather than the window, so it says
         # what is on file behind whatever the filter line below narrowed to,
         # with both of its counts spelled by the page's own formatters.
@@ -116,7 +121,7 @@ class RenderTopbarAndMetaTest(unittest.TestCase):
         self.assertIn(f"<{_TOTAL_EVENTS}> events", banner)
         self.assertIn(f"[[{_SPEND}]]", banner)
 
-    def test_the_line_closes_on_the_last_covered_day(self) -> None:
+    def _assert_the_line_names_the_covered_days(self) -> None:
         # The reads below are issued under `ts < end`, so restating `end`
         # itself would name a day none of the numbers above it covered.
         line = markup_in(self.meta)
@@ -127,7 +132,7 @@ class RenderTopbarAndMetaTest(unittest.TestCase):
         self.assertIn(f"{_WINDOW_DAYS} days", line)
         self.assertIn(f"<{_AGENT_RUNS}> runs", line)
 
-    def test_each_lands_in_the_slot_left_for_it(self) -> None:
+    def _assert_each_landed_in_the_slot_left_for_it(self) -> None:
         # Both are written once the extent behind them is known, into slots the
         # controls reserved at the top of the page -- either one written to the
         # page body instead would be drawn under the panels it heads.

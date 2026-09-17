@@ -89,19 +89,12 @@ class ForwardLinkTest(LateSplitCase, unittest.TestCase):
 class SupersessionTest(HeldPlanPrSplitCase, unittest.TestCase):
     """The held plan PR is told where the work went, and closed."""
 
-    def test_it_restores_the_body_and_closes(self) -> None:
-        self._transact(generation=self.generation)
-
-        self.assertEqual(self.plan_pr.state, "closed")
-        self.assertIn(
-            _stage_support.SUPERSESSION_MARKER,
-            self.github.posted_pr_comments[-1][1],
-        )
-
-    def test_the_notice_links_forward_to_everything(self) -> None:
+    def test_it_closes_on_a_notice_that_links_forward(self) -> None:
         self._transact(generation=self.generation)
 
         notice = self.github.posted_pr_comments[-1][1]
+        self.assertEqual(self.plan_pr.state, "closed")
+        self.assertIn(_stage_support.SUPERSESSION_MARKER, notice)
         self.assertIn(f"#{_support.LATE_ISSUE_NUMBER}", notice)
         self.assertIn(_stage_support.SNAPSHOT_REF, notice)
         self.assertIn(_support.CANDIDATE_SHA, notice)
@@ -194,33 +187,8 @@ class RetirementTest(LateSplitCase, unittest.TestCase):
         self.assertEqual(
             _stage_support.label_of(self.github, _support.LATE_ISSUE_NUMBER), WorkflowLabel.UMBRELLA,
         )
-
-    def test_the_measurement_goes_identity_stays(self) -> None:
-        # A parent that became an umbrella has no candidate to measure, and a
-        # record still answering "oversized" would pin `decomposing` and put
-        # the umbrella label back on every dispatch.
-        self._transact()
-
-        pinned = self._pinned()
-        self.assertNotIn(_support.KEYS.additions, pinned)
-        self.assertNotIn(_support.KEYS.threshold, pinned)
-        self.assertEqual(pinned["late_cycle_id"], _support.CYCLE_ID)
-        self.assertEqual(pinned["late_root_issue"], _support.ROOT_ISSUE)
-        self.assertEqual(pinned[_support.KEYS.candidate_sha], _support.CANDIDATE_SHA)
-
-    def test_the_ledgers_survive_the_retirement(self) -> None:
-        # An obligation the remote is owed does not stop being owed because
-        # the adjudication that recorded it ended well.
-        self._transact()
-
-        pinned = self._pinned()
-        self.assertEqual(
-            len(pinned[_stage_support.KEY_CONSUMERS]), len(self.github.created_child_issues),
-        )
-        self.assertEqual(
-            self._resources()[(RESOURCE_SNAPSHOT, _stage_support.SNAPSHOT_REF)],
-            STATE_RETAINED,
-        )
+        self._assert_the_measurement_went_not_the_identity()
+        self._assert_the_ledgers_survived_the_retirement()
 
     def test_the_superseded_pull_request_is_dropped(self) -> None:
         # Left in place it would point the merged-PR terminal at a change the
@@ -228,6 +196,31 @@ class RetirementTest(LateSplitCase, unittest.TestCase):
         self._transact(pr_number=_support.PLAN_PR_NUMBER)
 
         self.assertIsNone(self._pinned().get(_stage_support.KEY_PR_NUMBER))
+
+    def _assert_the_measurement_went_not_the_identity(self) -> None:
+        # A parent that became an umbrella has no candidate to measure, and a
+        # record still answering "oversized" would pin `decomposing` and put
+        # the umbrella label back on every dispatch.
+        pinned = self._pinned()
+
+        self.assertNotIn(_support.KEYS.additions, pinned)
+        self.assertNotIn(_support.KEYS.threshold, pinned)
+        self.assertEqual(pinned["late_cycle_id"], _support.CYCLE_ID)
+        self.assertEqual(pinned["late_root_issue"], _support.ROOT_ISSUE)
+        self.assertEqual(pinned[_support.KEYS.candidate_sha], _support.CANDIDATE_SHA)
+
+    def _assert_the_ledgers_survived_the_retirement(self) -> None:
+        # An obligation the remote is owed does not stop being owed because
+        # the adjudication that recorded it ended well.
+        pinned = self._pinned()
+
+        self.assertEqual(
+            len(pinned[_stage_support.KEY_CONSUMERS]), len(self.github.created_child_issues),
+        )
+        self.assertEqual(
+            self._resources()[(RESOURCE_SNAPSHOT, _stage_support.SNAPSHOT_REF)],
+            STATE_RETAINED,
+        )
 
 
 class ActivationTest(LateSplitCase, unittest.TestCase):
