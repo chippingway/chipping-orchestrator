@@ -88,7 +88,8 @@ and the bare-continue retry — teaches one subject contract: read `git log --on
 that repository's own recent history uses, as a single short imperative line with no body and no trailer. The
 ` (#N)` suffixes in that history are publication metadata rather than style, so the agent writes the descriptive
 subject alone, never copies the tracked issue's number into one, and leaves the pull request reference to the
-orchestrator, which appends it under `PR_REF_IN_SUBJECT` (default on). The conflict-resolution prompt and the
+orchestrator, which under `PR_REF_IN_SUBJECT` (default on) ends every subject it publishes in that reference and
+takes the tracked issue's own back off the line. The conflict-resolution prompt and the
 conflict stage's bare continue carry no subject contract at all: that agent finishes an in-progress rebase and
 authors no subject. Where each prompt carries it, and why the bare developer resumes restate it:
 [`workflow/conversations.md#the-commit-subject-contract-in-commit-producing-prompts`][commit-subject].
