@@ -21,12 +21,13 @@ the line in.
 
 ``titles`` beside this owner decides WHICH subject gets written and never
 adds a reference: a pull request's title is picked before the request has a
-number. What it borrows is the tracked-issue removal alone, exposed here as
-its own operation, so a reused developer subject sheds the issue number
-without gaining a reference that does not exist yet. Nothing removes that
-number implicitly either: a publisher with no pull request to name -- the
-install with the reference switched off -- normalizes nothing, and a caller
-that wants the issue gone asks for it by name.
+number. The tracked-issue removal is exposed here on its own for that
+selection, so a reused developer subject can shed the issue number without
+gaining a reference that does not exist yet. Nothing removes that number
+implicitly either: a publisher with no pull request to name -- the install
+with the reference switched off -- normalizes nothing, a publisher that names
+no tracked issue strips none, and a caller that wants the issue gone asks for
+it by name.
 
 Whether a subject is still OWED a rewrite answers here as well, because it is
 the same rule read the other way round: a publisher that decided it for

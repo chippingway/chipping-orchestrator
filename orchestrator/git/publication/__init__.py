@@ -7,10 +7,11 @@ read over -- lives in ``probes``; what a published subject line may say and
 which one gets written -- the prefix vocabulary, the predicates over it, the
 commit-subject reads they are applied to, and the inference and PR-title
 selection above them -- lives in ``titles``; which ` (#N)` references a
-published commit subject is left ending in -- the tracked issue's dropped,
-this pull request's kept exactly once, everything else untouched -- lives in
-``pr_references``, along with the tracked-issue removal on its own that
-``titles`` borrows before a pull request exists to name; the
+published commit subject is left ending in -- the tracked issue's dropped
+where a caller names one, this pull request's kept exactly once, everything
+else untouched -- lives in ``pr_references``, along with the tracked-issue
+removal on its own, exposed there for the title selection that runs before a
+pull request exists to name; the
 hardened envelope every orchestrator-made commit is created under, with the
 message read and the bound, message-only replacement of the docs commit the
 documenting stage publishes, lives in ``commits``; the
