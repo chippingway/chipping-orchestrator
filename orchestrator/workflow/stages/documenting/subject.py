@@ -24,11 +24,16 @@ on top of it after the move.
 It is an edit of the subject's own text and nothing else. The author, the
 tree, and every other byte of the message -- the subject line's ending
 included -- stay the commit's own, only the subject and the committer change,
-and no commit lands beside it. A subject already carrying the reference is
-published as the commit it already is, which keeps a recovered commit and a
-retried push from moving again or carrying the number twice. A read, a
-replacement, a move, or a HEAD that does not read back as the replacement
-parks rather than publishing the subject without it.
+and no commit lands beside it. Which references that text is left ending in is
+the shared normalization's answer, asked with both numbers this pass knows:
+the tracked issue's own reference is dropped -- a docs agent that copied it
+out of recent history, or a subject an earlier publication left reading
+`docs: x (#issue) (#pr)` -- and the line ends in exactly one reference to this
+pull request. A subject the normalization would not change is published as the
+commit it already is, which keeps a recovered commit and a retried push from
+moving again or carrying a number twice. A read, a replacement, a move, or a
+HEAD that does not read back as the replacement parks rather than publishing
+the subject without it.
 """
 from __future__ import annotations
 
@@ -63,11 +68,11 @@ def _referenced_docs_commit(
     """The docs commit to publish, its subject ending in its PR's reference.
 
     `after_sha` comes back untouched with the switch off -- no message read --
-    and wherever its subject already ends in the reference: a commit an earlier
-    tick amended and never pushed, or the retry of a push that failed,
-    publishes the commit it already is rather than moving it again. Handed on
-    as it is, it is still what the gate proves the checkout against, so a
-    checkout that moved refuses there.
+    and wherever the normalization hands its subject back as written: a commit
+    an earlier tick amended and never pushed, or the retry of a push that
+    failed, publishes the commit it already is rather than moving it again.
+    Handed on as it is, it is still what the gate proves the checkout against,
+    so a checkout that moved refuses there.
 
     `SQUASH_ON_APPROVAL` is not asked. It keeps the developer's history intact,
     and this is the commit the orchestrator publishes whichever way it is set.
@@ -82,19 +87,26 @@ def _referenced_docs_commit(
     if message is None:
         _park_unreferenced(ctx, "its message could not be read")
         return None
-    referenced = _message_with_reference(message, int(ctx.pr_number))
+    referenced = _message_with_reference(
+        message, int(ctx.pr_number), ctx.issue.number,
+    )
     if referenced == message:
         return after_sha
     return _amended_docs_commit(ctx, wt, after_sha, referenced)
 
 
-def _message_with_reference(message: str, pr_number: int) -> str:
-    """`message` with its subject ending in the reference, all else as written.
+def _message_with_reference(
+    message: str, pr_number: int, issue_number: int,
+) -> str:
+    """`message` with its subject normalized, all else as written.
 
-    Only the subject's own text is handed to the formatter. The ending its line
-    was written with -- a bare line feed, or the carriage return and line feed
-    an editor writing CR LF leaves -- and every character after it go back
-    exactly as they were, so a message already carrying the reference comes
+    Only the subject's own text is handed to the normalization, and both
+    numbers go with it: which references the line may keep is that owner's
+    single answer for every publisher, so the tracked issue is named here
+    rather than left for this stage to strip on its own terms. The ending the
+    line was written with -- a bare line feed, or the carriage return and line
+    feed an editor writing CR LF leaves -- and every character after it go back
+    exactly as they were, so a message the normalization does not change comes
     back equal to itself and a CR LF body is never normalized on its way into
     the replacement.
     """
@@ -102,7 +114,9 @@ def _message_with_reference(message: str, pr_number: int) -> str:
     subject = line.removesuffix(_CARRIAGE_RETURN)
     ending = line[len(subject):]
     return "".join((
-        _pr_references._subject_with_pr_reference(subject, pr_number),
+        _pr_references._subject_with_pr_reference(
+            subject, pr_number, issue_number,
+        ),
         ending,
         separator,
         rest,

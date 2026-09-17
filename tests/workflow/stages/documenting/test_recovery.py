@@ -152,38 +152,31 @@ class HandleDocumentingRecoveryTest(unittest.TestCase, _BasicDocumentingFixture)
     pr_number = 31
 
     def test_recovered_commits_push_without_spawn(self) -> None:
-        gh, issue = self._seeded()
-        mocks = self._run_documenting(
-            gh,
-            issue,
-            run_agent=_agent(),
-            push_branch=True,
-            # The recovered commit is read once, and HEAD once more to prove
-            # it stands on the replacement the amendment handed back.
-            head_shas=[documenting_support.SHA_UNREFERENCED, SHA_RECOVERED],
-            commit_message="docs: recovered notes\n",
-            branch_ahead_behind=(1, 0),
-        )
-
-        # The agent must NOT be spawned -- the recovered commits are
-        # enough to advance.
-        mocks[RUN_AGENT].assert_not_called()
-        self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
-        state = gh.pinned_data(self.issue_number)
-        self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
         # A commit an earlier tick made is still one this orchestrator
-        # publishes, so it goes out under its pull request's reference.
-        _assert_referenced_publication(
-            self,
-            mocks,
-            state,
-            (
-                documenting_support.SHA_UNREFERENCED,
-                f"docs: recovered notes (#{self.pr_number})\n",
-            ),
-            SHA_RECOVERED,
-        )
-        self.assertIn("recovered docs commit", _pr_comment_text(gh))
+        # publishes, so it goes out under its pull request's reference -- and
+        # under that reference alone, whether the subject it was committed
+        # under named nothing, named the tracked issue the way recent history
+        # spells it, or carried that number beside one an earlier publication
+        # had already appended.
+        published = f"docs: recovered notes (#{self.pr_number})\n"
+        for committed in self._recovered_messages():
+            with self.subTest(committed=committed):
+                gh, mocks = self._recovered_tick(committed)
+
+                # The agent must NOT be spawned -- the recovered commits are
+                # enough to advance.
+                mocks[RUN_AGENT].assert_not_called()
+                self.assertIn((self.issue_number, IN_REVIEW), gh.label_history)
+                state = gh.pinned_data(self.issue_number)
+                self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
+                _assert_referenced_publication(
+                    self,
+                    mocks,
+                    state,
+                    (documenting_support.SHA_UNREFERENCED, published),
+                    SHA_RECOVERED,
+                )
+                self.assertIn("recovered docs commit", _pr_comment_text(gh))
 
     def test_referenced_commit_pushed_unamended(self) -> None:
         # A commit an earlier tick amended and then never pushed -- the tick
@@ -282,3 +275,28 @@ class HandleDocumentingRecoveryTest(unittest.TestCase, _BasicDocumentingFixture)
         last_comment = gh.posted_comments[-1][1]
         self.assertIn(UNCOMMITTED_CHANGE, last_comment)
         self.assertIn("docs/dirty.md", last_comment)
+
+    def _recovered_messages(self) -> tuple[str, ...]:
+        """The messages a stranded docs commit reaches this tick carrying."""
+        issue_reference = f" (#{self.issue_number})"
+        pr_reference = f" (#{self.pr_number})"
+        return (
+            "docs: recovered notes\n",
+            f"docs: recovered notes{issue_reference}\n",
+            f"docs: recovered notes{issue_reference}{pr_reference}\n",
+        )
+
+    def _recovered_tick(self, commit_message: str):
+        """One tick over a docs commit an earlier tick left on the branch."""
+        gh, issue = self._seeded()
+        return gh, self._run_documenting(
+            gh,
+            issue,
+            run_agent=_agent(),
+            push_branch=True,
+            # The recovered commit is read once, and HEAD once more to prove
+            # it stands on the replacement the amendment handed back.
+            head_shas=[documenting_support.SHA_UNREFERENCED, SHA_RECOVERED],
+            commit_message=commit_message,
+            branch_ahead_behind=(1, 0),
+        )

@@ -335,6 +335,22 @@ UNREFERENCED_FAILURES = (
 # The reference a fresh pass's pull request is named by in a subject.
 PR_REFERENCE = f" (#{_FreshDocumentingFixture.pr_number})"
 
+# The reference the issue this pass documents would be named by. The pull
+# request's own body links that issue, so a published subject carrying it
+# names one thing twice.
+ISSUE_REFERENCE = f" (#{_FreshDocumentingFixture.issue_number})"
+
+# Subjects a pass committed carrying the tracked issue's number -- copied out
+# of recent history by the agent, or left beside this request's own reference
+# where a developer commit and an earlier publication each wrote half -- and
+# the one line they are all published under.
+ISSUE_BEARING_MESSAGES = (
+    f"docs: explain flag X{ISSUE_REFERENCE}\n",
+    f"docs: explain flag X{ISSUE_REFERENCE}{PR_REFERENCE}\n",
+    f"docs: explain flag X{PR_REFERENCE}{ISSUE_REFERENCE}\n",
+)
+PUBLISHED_MESSAGE = f"docs: explain flag X{PR_REFERENCE}\n"
+
 # Messages a pass committed, and what the replacement is handed for each: the
 # subject's own text rewritten and every other character left as written, or
 # None where the subject already carries the reference and nothing is amended.
@@ -427,6 +443,21 @@ class PullRequestReferenceTest(unittest.TestCase, _FreshDocumentingFixture):
                     continue
                 self.assertEqual(
                     mocks[AMEND_COMMIT_MESSAGE].call_args.args[2], amended,
+                )
+
+    def test_the_tracked_issue_is_not_published(self) -> None:
+        # The issue number is the same link spelled from the wrong side: the
+        # pull request's body already names the issue. So a docs subject
+        # carrying it is amended down to this request's reference alone,
+        # wherever in the trailing run it sits -- and the amendment is the one
+        # a subject that already reads that way does not get.
+        for message in ISSUE_BEARING_MESSAGES:
+            with self.subTest(message=message):
+                _gh, mocks = self._committed_pass(commit_message=message)
+
+                self.assertEqual(
+                    mocks[AMEND_COMMIT_MESSAGE].call_args.args[2],
+                    PUBLISHED_MESSAGE,
                 )
 
     def _pinned(self, gh) -> dict:

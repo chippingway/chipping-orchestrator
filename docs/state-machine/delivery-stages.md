@@ -1797,13 +1797,16 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
         path once the label is removed (the recovered path itself runs no agent, so it observes no live-pause window).
       - `timed_out` → park (`agent_timeout`).
       - dirty worktree → `_on_dirty_worktree`: park.
-      - new commit on a clean tree → **its subject amended to name the pull request**, then the **size gate** every
-        push onto an open pull request goes through (`implementing/late_push._publishes`, reached from
+      - new commit on a clean tree → **its subject normalized to one pull-request reference**, then the **size gate**
+        every push onto an open pull request goes through (`implementing/late_push._publishes`, reached from
         `documenting/publication._push_docs_and_advance`). Under `PR_REF_IN_SUBJECT` (default on)
-        `documenting/subject` gives the subject of the commit this pass read ` (#N)` through the shared
-        `git/publication/pr_references` formatter and replaces that commit through `git/publication/commits`, under
-        the same hardened envelope the approval squash is made with (detached global and system config; hooks,
-        fsmonitor, and signing off; `AGENT_GIT_*` as the committer). The replacement is bound to that commit by id,
+        `documenting/subject` hands the subject of the commit this pass read to the shared
+        `git/publication/pr_references` normalization — with this issue's number as well as the pull request's, so a
+        subject the agent left ending in the tracked issue's reference, alone or beside one an earlier publication
+        appended, comes back ending in ` (#N)` for the request alone — and replaces that commit through
+        `git/publication/commits`, under the same hardened envelope the approval squash is made with (detached
+        global and system config; hooks, fsmonitor, and signing off; `AGENT_GIT_*` as the committer). The
+        replacement is bound to that commit by id,
         never to HEAD: `git commit-tree` rebuilds it from the commit's own tree, parents, and author, so only the
         subject and the committer differ and no landing commit is added, and `git update-ref` moves HEAD onto it only
         if HEAD is still that commit. A checkout something committed on after the pass read its head refuses the move
@@ -1818,9 +1821,10 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
         names rather than beside a head the pass merely began at — taken whenever the switch is on rather than only
         where the id moved, since the recovered road anchors no head of its own and would otherwise leave a stale one
         there. A hold the gate REFUSED rather than routed measures, records, and publishes nothing, so that anchor
-        goes back to the head the pass began at. A subject already ending in the
-        reference — a commit an earlier tick amended and never pushed, or the retry of a failed push — is published
-        by the id already read, with nothing amended, and the gate still proves the checkout against it; `off` reads
+        goes back to the head the pass began at. A subject the normalization hands back as written — one
+        already ending in this request's reference and carrying none to the tracked issue, which is a commit an
+        earlier tick amended and never pushed, or the retry of a failed push — is published by the id already read,
+        with nothing amended, and the gate still proves the checkout against it; `off` reads
         no message and publishes the commit as made; and `SQUASH_ON_APPROVAL=off` does not reach it, since this is
         the orchestrator's publication either way. A message that cannot be read, a replacement git will not create,
         a moved checkout, or a HEAD that does not read back as the replacement parks `subject_amend_failed` before

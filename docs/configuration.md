@@ -354,8 +354,9 @@ examples.
   included, and the documenting pass's `docs:` commit. With `SQUASH_ON_APPROVAL=off` the dev's own commits are not
   rewritten for it, while the `docs:` commit still is, since that one is published by the orchestrator. The suffix is
   idempotent: a subject already ending in ` (#N)` for the same pull request is left as it is, so a second approval
-  round, a retried tick, or a recovered commit never doubles it, and a suffix naming a different number is ordinary
-  subject text. It is a plain reference, never a closing keyword such as `Fixes #N`, so GitHub does not treat the
+  round, a retried tick, or a recovered commit never doubles it, and a suffix naming somebody else's number is left
+  where it stands — with the tracked issue's own number the exception the docs pass below drops. It is a plain
+  reference, never a closing keyword such as `Fixes #N`, so GitHub does not treat the
   number as an issue to close. `off` suffixes nothing, leaves a single-commit branch unrewritten, and does not amend
   the `docs:` commit. Turn it off on a target repo that lands pull requests with GitHub's **Squash and merge** and its
   default commit message: GitHub appends its own `(#N)` to the squash commit title, so a single-commit pull request
@@ -368,8 +369,12 @@ examples.
   `--force-with-lease` push a collapse goes through, reported as one commit replaced and announced by no `:package:`
   notice; a subject that already carries it, and every one-commit branch with the switch `off`, is left exactly as the
   developer committed it. On the docs pass, the `docs:` commit is amended in place before every road that publishes
-  it, keeping its author, tree, and body; one whose amendment fails is never published without the reference — the
-  issue parks `subject_amend_failed` with the commit still on the branch. Parsed as a boolean:
+  it, keeping its author, tree, and body, and its subject is normalized against the tracked issue as well as the pull
+  request: the request's own body is what links that issue, so a subject the docs agent left ending in the issue's
+  number — alone, or beside a reference an earlier publication had already appended — comes out ending in the pull
+  request's reference and nothing else. A commit whose subject already reads that way is published unamended, and one
+  whose amendment fails is never published without the reference — the issue parks `subject_amend_failed` with the
+  commit still on the branch. Parsed as a boolean:
   `1` / `true` / `on` / `yes` enable, anything else disables.
 - `EXPOSE_TRACKED_REPOS` — default `on`. tell working agents about the *other* repos this orchestrator tracks (slug,
   local `target_root`, base branch) for cross-repo reference. Inert for single-repo hosts — the awareness block is

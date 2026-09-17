@@ -288,9 +288,12 @@ and the plan-PR question the merge terminal is reached past are in
 The single docs pass on the existing PR worktree, reached only via the final-docs handoff in `_handle_validating`'s
 approval branch. It reuses the locked dev session — there is no `documenting_agent` and no separate retry budget —
 and advances to `in_review` on either a pushed docs commit or an explicit `DOCS: NO_CHANGE` verdict. Under
-`PR_REF_IN_SUBJECT` that docs commit goes out with its subject ending in ` (#N)`: before the size gate it is replaced
-by a commit bound to the one the pass made — same author, tree, and body — so the gate, a hold, the push, and the
-recorded SHAs all name the replacement, and a subject already carrying the reference is published as it is. Drift
+`PR_REF_IN_SUBJECT` that docs commit goes out with its subject ending in exactly one ` (#N)`, naming the pull request:
+before the size gate it is replaced by a commit bound to the one the pass made — same author, tree, and body — so the
+gate, a hold, the push, and the recorded SHAs all name the replacement. Both this issue's number and the request's are
+handed to the shared normalization, so a subject the agent left carrying the issue's own reference — alone, or beside
+one an earlier publication appended — sheds it, while a subject that already reads as the normalization would write it
+is published as it is. Drift
 during the hop unwinds the worktree and relabels back to `workflow:validating` without spawning. The tick opens by
 ending the
 handoff record that brought the issue here, if one is still standing: this stage having the issue is the only proof
