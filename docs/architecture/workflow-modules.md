@@ -236,16 +236,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     report_code_spans.py    the inline code spans of a text, POSSIBLE and CERTAIN. Markdown pairs backticks within
                             one stretch of inline text, and where one begins is the doubt: a heading or a list item
                             starts a block with no blank line above it, a table reads each cell on its own, and a
-                            tag or an autolink binds as tightly as a span, so a backtick inside one is no delimiter
-                            and the pairing starts afresh past its `>`. So a span is looked for from every line,
-                            every cell of a block that may hold a table, and every `>` past the first `<` standing
-                            in no certain code, within what blank lines bound and against one index of the text's
-                            backtick runs; possible is whatever any reading encloses, and a block with more places
-                            to begin than the readings allow is code throughout. Certain is what every reading
-                            agrees on: a span that ends before the next place a reading could begin, begun where no
-                            earlier reading's span runs in, with no `<` before it in its block outside the certain
-                            spans already found. An escaped backtick opens nothing, and a backslash inside a span
-                            escapes nothing
+                            backtick is no delimiter where something else has TAKEN it -- a tag or an autolink,
+                            which binds as tightly as a span, a link or an image, which reads its destination and
+                            title itself, a reference's label, math -- so the pairing starts afresh past it. So a
+                            span is looked for from every line, every cell of a block that may hold a table, and
+                            past every `>`, `]`, `)` and `$` from the first `<`, `[` or `$` standing in no certain
+                            code, within what blank lines bound and against one index of the text's backtick runs;
+                            possible is whatever any reading encloses, and a block with more places to begin than
+                            the readings allow is code throughout. Certain is what every reading agrees on: a span
+                            that ends before the next place a reading could begin, begun where no earlier reading's
+                            span runs in, with no taker before it in its block outside the certain spans already
+                            found. An escaped backtick opens nothing, and a backslash inside a span escapes nothing
     report_html_literals.py what HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and comments
                             -- read off the text AS WRITTEN, since an element is literal whether or not some
                             reading pairs a backtick across its opening tag. A tag is read as HTML reads one, so a

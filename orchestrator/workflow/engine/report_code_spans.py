@@ -4,20 +4,23 @@
 
 Markdown pairs backticks left to right within one stretch of inline text, and
 where such a stretch begins is the doubt. A heading, a list item or a quote
-starts a block with no blank line above it; a table reads each CELL on its own;
-and an HTML tag or an autolink binds as tightly as a code span with the
-leftmost winning, so a backtick inside one is no delimiter and the pairing
-starts afresh past its `>`. So a span is looked for from EVERY place a reading
-could begin, within what blank lines certainly bound: each line, each cell of a
-block that may hold a table, and -- from the first `<` standing in no certain
-code -- each `>`. POSSIBLE is whatever any of those readings encloses, for
-`report_prose`, to which a doubt is code.
+starts a block with no blank line above it, and a table reads each CELL on its
+own. And a backtick is no delimiter where something else has TAKEN it: an HTML
+tag or an autolink binds as tightly as a code span with the leftmost winning, a
+link or an image reads its destination and title itself once its text has
+closed, and a `$` may open math -- past any of which the pairing starts afresh.
+
+So a span is looked for from EVERY place a reading could begin, within what
+blank lines certainly bound: each line, each cell of a block that may hold a
+table, and -- from the first `<`, `[` or `$` standing in no certain code -- past
+each `>`, `]`, `)` and `$`. POSSIBLE is whatever any of those readings
+encloses, for `report_prose`, to which a doubt is code.
 
 CERTAIN is the other end of the same doubt, for a reader that must not take a
 tag quoted as code for a tag: a span every reading agrees on. One that ends
 before the next place a reading could begin, begun where no earlier reading's
-span runs in -- past there every reading reads alike -- and with no `<` before
-it in its block but inside the certain spans already found.
+span runs in -- past there every reading reads alike -- and with none of those
+takers before it in its block but inside the certain spans already found.
 
 An escaped backtick opens nothing, being a literal character; inside a span a
 backslash escapes nothing, so a span closes on the next whole run of its
@@ -44,10 +47,13 @@ _INLINE_TOKEN_RE = re.compile(r"\\[\s\S]|`+")
 
 _BACKTICK = "`"
 
-# What an HTML tag or an autolink opens on, and what it ends on.
-_TAG_OPENER = "<"
+# What may take a backtick for its own opens on one of these: a tag or an
+# autolink, a link or an image or a footnote, and math. And each ends on one of
+# those -- a link on its text's `]` where it is a reference, and on the `)` of
+# its destination and title where it is not.
+_TAKER_RE = re.compile(r"[<\[$]")
 
-_TAG_END_RE = re.compile(">")
+_TAKER_END_RE = re.compile(r"[>\])$]")
 
 # Where a reading could begin: each line; and each cell as well, in a block
 # that may hold a table. Every pipe is taken for a cell's edge, an escaped one
@@ -124,10 +130,10 @@ class _Block:
             return CodeSpans(((self.start, self.end),), ())
         readings = [list(runs.spans_from(start, self.end)) for start in begun]
         certain = tuple(self._agreed(text, begun, readings))
-        past_tags = self._begun_past_tags(text, certain)
-        if len(begun) + len(past_tags) > _MAX_SPAN_READINGS:
+        past_takers = self._begun_past_takers(text, certain)
+        if len(begun) + len(past_takers) > _MAX_SPAN_READINGS:
             return CodeSpans(((self.start, self.end),), ())
-        for start in past_tags:
+        for start in past_takers:
             readings.append(list(runs.spans_from(start, self.end)))
         return CodeSpans(tuple(chain.from_iterable(readings)), certain)
 
@@ -136,14 +142,15 @@ class _Block:
         table = _TABLE_DELIMITER_RE.search(text, self.start, self.end)
         return _LINE_START_RE if table is None else _CELL_START_RE
 
-    def _begun_past_tags(self, text: str, certain: tuple[_Stretch, ...]) -> list[int]:
-        """Where a reading could begin past a tag or an autolink.
+    def _begun_past_takers(self, text: str, certain: tuple[_Stretch, ...]) -> list[int]:
+        """Where a reading could begin past what may have taken a backtick.
 
-        Past each `>` from the first `<` standing in no certain span: before
-        it nothing a `>` could end has begun, so a `>` there ends nothing.
+        Past each end of one from the first that stands in no certain span:
+        before it nothing such an end could close has begun, so a `>` or a `)`
+        there ends nothing.
         """
-        tagged = self._first_tag(text, certain)
-        return [] if tagged is None else self._begun_past(text, _TAG_END_RE, tagged)
+        taken = self._first_taker(text, certain)
+        return [] if taken is None else self._begun_past(text, _TAKER_END_RE, taken)
 
     def _begun_past(self, text: str, edge: re.Pattern[str], since: int) -> list[int]:
         """Where a reading could begin: past each `edge` of the block from `since`.
@@ -161,10 +168,10 @@ class _Block:
     def _agreed(
         self, text: str, begun: list[int], readings: list[list[_Stretch]],
     ) -> Iterator[_Stretch]:
-        """The undisputed spans up to the first `<` standing outside them."""
+        """The undisputed spans up to the first taker standing outside them."""
         cursor = self.start
         for span in self._undisputed(begun, readings):
-            if _TAG_OPENER in text[cursor:span[0]]:
+            if _TAKER_RE.search(text, cursor, span[0]) is not None:
                 return
             yield span
             cursor = span[1]
@@ -179,13 +186,13 @@ class _Block:
             if not any(_runs_into(spans, start) for spans in earlier):
                 yield from _staying_before(readings[index], ends[index])
 
-    def _first_tag(self, text: str, certain: tuple[_Stretch, ...]) -> int | None:
-        """Where the first `<` standing in no certain span is, or None for none."""
+    def _first_taker(self, text: str, certain: tuple[_Stretch, ...]) -> int | None:
+        """Where the first taker standing in no certain span is, or None for none."""
         cursor = self.start
         for span_start, span_end in (*certain, (self.end, self.end)):
-            tagged = text.find(_TAG_OPENER, cursor, span_start)
-            if tagged >= 0:
-                return tagged
+            taken = _TAKER_RE.search(text, cursor, span_start)
+            if taken is not None:
+                return taken.start()
             cursor = span_end
         return None
 

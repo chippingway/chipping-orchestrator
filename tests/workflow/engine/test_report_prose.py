@@ -65,6 +65,13 @@ CODE_SPANS = (
     f"Field | Value\n:-- | --:\nstray ` | `{FIXES}`",
     f'see <a title="`">a link</a> `{FIXES}`',
     f"<http://example.com/`x> `{FIXES}`",
+    # A link or an image reads its destination and title itself once its text
+    # has closed, and a reference its label: a backtick there pairs with nothing.
+    f'[link](https://example.com "`") `{FIXES}`',
+    f'![image](https://example.com/a.png "`") `{FIXES}`',
+    f"[link](<https://example.com/`>) `{FIXES}`",
+    f"[text][la`bel] `{FIXES}`",
+    f"$a ` b$ `{FIXES}`",
 )
 
 # Code, or hidden, by the HTML around it, read off the text as written: an
@@ -103,6 +110,7 @@ UNCERTAIN_QUOTING = (
     f"> ```\n\n> <pre>\n> ```\n> {FIXES}",
     f"<pre>\n\n`<pre>` x</pre> {FIXES}</pre>",
     f"| ` | <pre> ` {FIXES} |\n| --- | --- |",
+    f'[link](https://example.com "`") <pre> ` {FIXES}',
     # A quoted tag is passed over at its name, never read on to a `>` of its
     # own: cut short inside its code, it would take the real tag after that
     # code as its attributes, and hide the element that opens.
@@ -155,6 +163,11 @@ PROSE = (
     # in prose leave the pairing as it was.
     f"Run `a | b` then `c`. {FIXES} via `d`.",
     f"Where a > b use `x`. {FIXES} as `y` does.",
+    # Nor does a link, a task box or a price, where the backticks past it pair.
+    f"[The docs](https://example.com) mention `a`. {FIXES} with `b`.",
+    f"- [x] done with `a`. {FIXES} and `b`",
+    f"It costs $5 for `a`. {FIXES} and `b`",
+    f"`a[0]` and `f(x)` stay code. {FIXES} as `b` does.",
     f"| Field | Value |\n| --- | --- |\n| `code` | {FIXES} |",
     f"| a | b |\n| --- | --- |\n| `x` | `y` |\n\n{FIXES}",
     f"```\n<pre\n```\n\n{FIXES}",

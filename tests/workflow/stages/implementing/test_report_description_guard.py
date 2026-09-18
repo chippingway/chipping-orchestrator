@@ -96,6 +96,8 @@ CLOSING_NOTHING = (
     f"| Field | Value |\n| --- | --- |\n| stray ` | `{RESOLVES}` |",
     f'see <a title="`">a link</a> `{RESOLVES}`',
     f"<http://example.com/`x> `{RESOLVES}`",
+    f'[link](https://example.com "`") `{RESOLVES}`',
+    f'![image](https://example.com/a.png "`") `{RESOLVES}`',
     f"Resolves someone/else#{ISSUE}",
 )
 
