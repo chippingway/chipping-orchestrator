@@ -101,6 +101,28 @@ file is the durable record.
   that ran rather than the text that selected it, so the vocabulary stays closed. That is also why an
   `agent_question` record sits beside a pinned `park_reason` of null: the event names the classification, and null
   on the durable field is what tells a later tick this park needs a human's actual guidance.
+
+  The two conversation stages forward the same vocabulary through their own stage funnels, which every ending of
+  those stages lands on: `route`, `agent_role` (`question` and `decomposer` respectively — the discussion is the
+  decomposer thinking out loud before anything is decomposed), `session_id` (the conversation the next round or
+  resume continues, dropped where a backend handed none back), and `pr_number`. On a discussion park that number is
+  the plan's own pull request and nothing else — read as the round gate reads it, off the plan path and the number
+  together, so a developer's pull request an issue merely arrived here carrying is not reported as this
+  conversation's. Beside it a discussion park carries `sha`, the commit the artifact stands on: the in-flight
+  `discussion_publishing_sha` where one stands, and the settled `discussion_plan_sha` otherwise. The marker comes
+  first because it is the only one of the two that is a claim about the publication being parked on — a push that
+  failed, a lease the remote refused, a tip the branch has moved off all ask an operator to restore or go looking
+  for exactly that commit — and because the two can both be pinned at once: the implementing handoff retires
+  `discussion_plan_path` and KEEPS `discussion_plan_sha`, so an issue relabelled back to `discussion` opens its
+  next round with a previous plan's commit still recorded. Both are dropped on every park taken before a
+  publication has written either down. `route` here names which turn of the conversation the tick was, since the
+  stage and the reason cannot: `question_round` and `discussion_round` are a tick that opened the conversation's
+  round, `question_resume` and `discussion_resume` a tick answering a reply to the park this stage was already
+  sitting on. It is read once from durable state at the top of the tick — the road is chosen and reported from the
+  same reading, and by the time a park is published a resume has already cleared the flag the two were told apart
+  by. Nothing here is read out of the answer or the analysis: a question park's reason is picked from whether the
+  final message was empty, and a discussion round's analysis is quoted on the thread, but neither text reaches
+  either sink.
 - `retry_cap` — the per-issue spawn budget's park, emitted by `workflow/engine/retry_budget.py`; extras: `stage`
   (read off the park rather than off the label, since the budget is shared and a parked issue's label is not always
   the stage that ran out — dropped when the park carries none), `phase` — `delivered` (the notice said for the first
@@ -275,7 +297,7 @@ foundation layer for the Postgres aggregation step.
 - `park_awaiting_human` — `GitHubClient.emit_event` (and the in-memory fake client) alongside the audit
   `park_awaiting_human`; one record per human-wait transition; carries `stage`, `reason`, and structured extras (e.g.
   `route`, `agent_role`, `session_id`, `backend`, `review_round`, `retry_count`, `pr_number`, `conflict_round`,
-  `exit_code`, `timed_out`, `dirty_files`). One record per transition means the moment the issue ENTERS a wait: a
+  `exit_code`, `timed_out`, `dirty_files`, `sha`). One record per transition means the moment the issue ENTERS a wait: a
   poll that meets a wait it did not open — a parked issue with nothing new on its thread — writes nothing, and an
   evaluation that ends in a push or a label flip writes nothing here at all. A resume that answers a park and then
   parks again is a second entry, and earns its own record.

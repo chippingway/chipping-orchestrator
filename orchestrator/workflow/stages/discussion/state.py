@@ -143,6 +143,13 @@ state at all. `_DISCUSSION_STAGE` is what an audit event and an analytics row
 attribute the run to, and `_DECOMPOSER_ROLE` is the role whose configured agent
 runs it -- the discussion is the decomposer thinking out loud before anything
 is decomposed, so it answers under that role rather than one of its own.
+
+The two route names beside them are the same kind of value: the road a tick
+reached its park from, which a park's record carries because nothing downstream
+can re-derive it. The stage on that record says which handler wrote the park,
+never whether the tick was opening the conversation or answering the humans in
+it -- and every ending of this stage is a park, so without the road the two
+kinds of tick are indistinguishable in the sink.
 """
 from __future__ import annotations
 
@@ -151,6 +158,10 @@ from orchestrator.github.pinned_state import PinnedState
 _DISCUSSION_STAGE = "discussion"
 
 _DECOMPOSER_ROLE = "decomposer"
+
+_ROUTE_DISCUSSION_ROUND = "discussion_round"
+
+_ROUTE_DISCUSSION_RESUME = "discussion_resume"
 
 _AWAITING_HUMAN = "awaiting_human"
 

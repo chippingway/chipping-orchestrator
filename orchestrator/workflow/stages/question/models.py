@@ -10,6 +10,13 @@ park side effect can fail. Bundling the four handles also keeps the owners from
 re-reading pinned state -- the session id, the usage counters, and the park all
 have to land on the same `state` object the handler read at the top.
 
+`route` is the one field decided before anything runs and never revised, and it
+is settled here rather than where the two roads part because the flag it is read
+off does not survive the tick: a resume clears `awaiting_human` on its way to
+the disposition, so a park published afterwards could no longer tell which road
+it came off. Taken at the top, the same value both picks the road and is what
+the park reports having taken.
+
 `_QuestionSession` is the locked agent identity, carried as the full configured
 spec rather than a bare backend so a `DECOMPOSE_AGENT` flip between ticks cannot
 retarget a conversation already in progress.
@@ -32,12 +39,13 @@ from orchestrator.workflow.stages.question import state as _state
 
 @dataclass
 class _QuestionRun:
-    """Mutable cleanup policy and stable inputs for one question-stage tick."""
+    """Mutable cleanup policy, road, and stable inputs for one question tick."""
     gh: GitHubClient
     spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
     keep_worktree: bool
+    route: str
 
     @classmethod
     def start(
@@ -51,6 +59,11 @@ class _QuestionRun:
             state=state,
             keep_worktree=(
                 state.get("park_reason") in _state._UNSAFE_QUESTION_PARKS
+            ),
+            route=(
+                _state._ROUTE_QUESTION_RESUME
+                if state.get("awaiting_human")
+                else _state._ROUTE_QUESTION_ROUND
             ),
         )
 

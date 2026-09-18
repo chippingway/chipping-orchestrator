@@ -51,7 +51,13 @@ What each prompt grants and forbids, and how a session is continued across round
   past the question agent's answer, and falls through to fresh dev-spawn. A dirty worktree OR a branch with commits
   beyond `<remote>/<base>` re-parks with `question_unsafe_relabel`.
 - **Output**: an issue comment with the answer / follow-up question + a HITL park, OR a terminal flip to `done` on a
-  manual close, OR a no-op tick.
+  manual close, OR a no-op tick. Every park goes out through `_park_question`, which forwards a bounded correlation
+  payload to the emitted `park_awaiting_human` record and its analytics row: the road the tick came off
+  (`question_round` for the conversation's own round, `question_resume` for a reply answering an earlier park, read
+  at the top of the tick before the resume clears `awaiting_human`), `agent_role="question"`, the pinned
+  `question_session_id`, and any `pr_number` the issue arrived carrying. Unheld fields are dropped rather than
+  written as nulls, and nothing in the payload comes from the agent's answer — see
+  [event streams](../observability/event-streams.md).
 
 The locked session resumes across every teardown because session state lives in pinned state, not in the worktree, so
 the per-issue checkout only has to survive a tick when an unsafe park keeps it for inspection.
@@ -438,12 +444,23 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
   puts back the value it was entered with: the ceiling this round's prompt was BUILT from, not the thread as it
   stands minutes of agent run later. A comment posted in that window — a human's second thought, or an outsider's the
   allowlist may later admit — is never in front of the prompt, and this stage reads no comment twice, so recording it
-  as consumed would mean it is answered never. Leaving the mark below the stage's own posted analysis is safe because
-  `_new_trusted_replies` drops the orchestrator's own comments by recorded id and by the `_ORCH_COMMENT_MARKER` in
-  their body (never by author login, which a PAT shared with a human's account would turn against that human's real
-  replies), so a conversation cannot resume on itself. Every round after the opening one ends the same way until the
-  humans confirm the design; what that confirmation buys is a plan PR, not a transition, so the stage decides no
-  transition of its own until that PR is decided — and then it decides only the terminal the humans wrote on it.
+  as consumed would mean it is answered never. That funnel is also where the emitted `park_awaiting_human` record
+  and its analytics row pick up their bounded correlation: the road the tick came off (`discussion_round` for a tick
+  opening the conversation's round, `discussion_resume` for one answering a reply into this stage's own park),
+  `agent_role="decomposer"`, the `pr_number` of the plan's own PR — read off the plan path and the number together,
+  exactly as the round gate reads it, so a developer's PR the issue merely arrived carrying is not reported as this
+  conversation's — and the `sha` of the commit the artifact stands on, `discussion_publishing_sha` while a
+  publication is in flight and `discussion_plan_sha` otherwise, so a failed push or a stale publication names the
+  commit its park asks an operator to restore rather than one an earlier plan of the same issue left pinned (the
+  implementing handoff retires the plan PATH and keeps that SHA, so both records can stand at once). Unheld fields
+  are dropped rather than written as nulls, and nothing in the payload comes from the round's analysis; see
+  [event streams](../observability/event-streams.md). Leaving the mark below the stage's own posted analysis is safe
+  because `_new_trusted_replies` drops the orchestrator's own comments by recorded id and by the
+  `_ORCH_COMMENT_MARKER` in their body (never by author login, which a PAT shared with a human's account would turn
+  against that human's real replies), so a conversation cannot resume on itself. Every round after the opening one
+  ends the same way until the humans confirm the design; what that confirmation buys is a plan PR, not a transition,
+  so the stage decides no transition of its own until that PR is decided — and then it decides only the terminal the
+  humans wrote on it.
   Everywhere else, leaving this stage is a human relabel. The `issue-N` worktree is PRESERVED on every ROUND exit —
   the tree the discussion read is the tree its next round and the operator both look at — so the only thing that ever
   tears one down is the plan-PR terminal above, and only once that pull request is gone; the per-tick base sync stands
