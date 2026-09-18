@@ -1694,7 +1694,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        label unmoved — with nothing parked. The next tick recognizes the published commit, republishes it onto the
        same pull request with no developer run and nothing new opened, and finishes: the reconciliation ahead of that
        handler, or the binding step, which posts the transaction it finds bound to this very pull request, branch and
-       commit. The post is scoped by the transaction's receipt, so a lost response is found rather than reposted.
+       commit. The post is scoped by the transaction's receipt, so a lost response is found rather than reposted. A
+       debt no retry can pay parks under `report_undeliverable` instead: one with no record left to publish (a resumed
+       session that committed and timed out), or a report a human edited, removed, or wrote untrusted.
      - **a report this build cannot deliver parks the issue** under `report_undeliverable` instead. Before the size
        gate, with nothing measured, pushed or opened: a report that cannot be RECORDED (past what the pinned comment
        holds, or otherwise refused by its writer); a run that COMPLETED and handed over no usable report at all (no

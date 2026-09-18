@@ -72,11 +72,7 @@ def verified_message(
 ) -> str:
     """A finished run's message, asserting a report is already published.
 
-    Both places one can be: a comment of the pull request's, named by its
-    anchor, and the pull request's own description, named by the bare URL.
-    The repository is a parameter for the one case that is about it -- a
-    location on somebody else's repository, which this workflow will not act
-    on because the publication it would be bound to is on this one.
+    On a comment, named by its anchor, or on the description, by the bare URL.
     """
     anchor = "" if comment_id is None else f"#issuecomment-{comment_id}"
     return (
@@ -107,12 +103,7 @@ def published_reports(github, pr_number: int, revision: int = 1) -> list:
 
 
 def replies(github, issue, body: str = "please deliver the report inline"):
-    """Put one trusted human reply above whatever watermark a park left.
-
-    Above it rather than at a chosen id, because a park stamps the thread read
-    to the notice it posted: a reply under that mark is one the resume has
-    already been told about and would never act on.
-    """
+    """Put one trusted human reply above whatever watermark a park left."""
     reply = FakeComment(
         id=github.pinned_data(issue.number)[WATERMARK] + 1,
         body=body,
@@ -123,12 +114,7 @@ def replies(github, issue, body: str = "please deliver the report inline"):
 
 
 def owing_state() -> PinnedState:
-    """A pinned comment carrying one delivered report nothing has bound yet.
-
-    What every road that answers an undeliverable report is read against: the
-    record is there, so the issue owes a report, and no publication has been
-    bound to it.
-    """
+    """A pinned comment carrying one delivered report nothing has bound yet."""
     state = PinnedState()
     _delivery_state.record_delivered_report(state, _records.DeliveredReport(
         receipt=f"issue-{REPORT_ISSUE}-report-1",
@@ -153,55 +139,32 @@ class _ReportDeliveryMixin(_PatchedWorkflowMixin):
 
     def deliver(self, github, issue, message: str, **run_options):
         """Run one tick whose developer comes back with `message`."""
-        options = {
-            "has_new_commits": [False, True],
-            "dirty_files": (),
-            "push_branch": True,
-            **run_options,
-        }
-        return self._run_implementing(
-            github,
-            issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message=message),
-            **options,
+        return self._ticks(
+            github, issue, message,
+            **{"has_new_commits": [False, True], **run_options},
         )
 
     def redeliver(self, github, issue, message: str, **run_options):
-        """Run the tick a human's reply resumes, whose developer commits nothing.
+        """Run a resumed tick whose developer reports and commits nothing."""
+        return self._ticks(
+            github, issue, message,
+            **{"head_shas": (PUBLISHED_SHA, PUBLISHED_SHA), **run_options},
+        )
 
-        The head reads the same on both sides of the run, which is what a
-        session that rewrote its report and touched no file leaves behind.
-        """
-        options = {
-            "has_new_commits": True,
-            "head_shas": (PUBLISHED_SHA, PUBLISHED_SHA),
-            "dirty_files": (),
-            "push_branch": True,
-            **run_options,
-        }
+    def republish(self, github, issue, **run_options):
+        """Run the tick that recovers committed work; no developer runs on it."""
+        return self._ticks(github, issue, "unused", **run_options)
+
+    def _ticks(self, github, issue, message: str, **run_options):
+        """One implementing tick over a clean worktree whose push lands."""
         return self._run_implementing(
             github,
             issue,
             run_agent=_agent(session_id=DEV_SESSION, last_message=message),
-            **options,
-        )
-
-    def republish(self, github, issue, **run_options):
-        """Run the tick that recovers a publication whose report is still owed.
-
-        No developer runs on it: the approval record names the commit that is
-        already pushed, so the recovery republishes it and finishes whatever
-        the tick before could not.
-        """
-        options = {
-            "has_new_commits": True,
-            "dirty_files": (),
-            "push_branch": True,
-            **run_options,
-        }
-        return self._run_implementing(
-            github,
-            issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="unused"),
-            **options,
+            **{
+                "has_new_commits": True,
+                "dirty_files": (),
+                "push_branch": True,
+                **run_options,
+            },
         )

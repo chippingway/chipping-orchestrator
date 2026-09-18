@@ -147,23 +147,11 @@ def describes_the_issue(
 ) -> bool:
     """Whether a description still says what a publication needs it to say.
 
-    Two things, and a pull request this stage may not edit has to carry
-    both. The CLOSING reference is what makes merging the pull request end the
-    issue, and GitHub honours it in the description and nowhere else -- no
-    comment, however worded, closes anything. The ATTRIBUTION is what says
-    whose implementation the branch is, and it is what every later reuse reads
-    to tell this stage's own pull request from one somebody else opened.
-
-    The reference is read for every spelling GitHub accepts rather than for
-    the one this stage writes: a human who wrote `Fixes #12`, or `Fixes
-    owner/repository#12` naming this repository, has done exactly what is being
-    asked for. A reference qualified with another repository closes that
-    repository's issue, not this one.
-
-    A body nobody could read says nothing, which is the answer that holds the
-    work back rather than letting it past -- what is being decided is whether
-    a description may be left as it stands, and an unread one cannot show that
-    it may.
+    The CLOSING reference, which GitHub honours in the description and
+    nowhere else, and the ATTRIBUTION every later reuse reads back. Any
+    spelling GitHub accepts counts -- `Fixes #12`, or `Fixes owner/repo#12`
+    naming this repository -- and one naming another repository does not. An
+    unread body says nothing, which holds the work back.
     """
     body = getattr(pull_request, "body", None)
     if not isinstance(body, str):
@@ -181,15 +169,9 @@ def costs_the_description(
 ) -> bool:
     """Whether keeping this report would leave that publication unnamed.
 
-    The two readings above asked as the one question their caller has. A
-    report anywhere but this pull request's description costs it nothing, and
-    a description that already closes the issue and names the session is one
-    nothing was going to edit anyway -- so the collision is exactly a
-    verification on a body that says neither.
-
-    Whether it SAYS them is the caller's reading rather than one taken here,
-    because the caller is the owner of what a description of its own would
-    have said.
+    Exactly a verification on this pull request's description when that
+    body -- as the caller read it -- does not close the issue and name the
+    session.
     """
     return (
         _names_the_description(getattr(record, "location", None), pr_number)
@@ -202,10 +184,7 @@ def _names_the_description(
 ) -> bool:
     """Whether one location is this pull request's description.
 
-    A location with a comment id names a comment, and no absence of one is a
-    description: the `null` a writer spells there is, which is exactly what
-    the readers above hand back. A record with no location -- a publication
-    whose comment does not exist yet -- names nothing.
+    A comment id names a comment; a record with no location names nothing.
     """
     if location is None or location.comment_id is not None:
         return False

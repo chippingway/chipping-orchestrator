@@ -1,20 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The report a run wrote and the pinned write never carried.
+"""The report a run wrote and the pinned write never carried, and recoveries.
 
-The window the recording exists to close, seen from the far side of it. A
-finished run's report is written down before the size gate and before the push,
-because that record is the only copy there is once the session ends -- and the
-one request that write is can still fail, or the process can die inside it.
-What that leaves is a branch carrying committed work and an issue with nothing
-on it saying what the run did.
-
-The tick after it recovers those commits and spawns nothing, since they are a
-previous run's. Published there, a reviewer would be handed an implementation
-nobody described, with no session left to ask; held, it is the same park every
-other undeliverable report takes and the same reply answers it -- the developer
-is resumed, writes the report again, and the commits already on the branch go
-out under it.
+A recovery republishes an earlier run's commits and spawns nothing, so what
+describes them is on the pinned comment or nowhere: nothing there parks the
+work for the reply that resumes the developer, and a settled report is held to
+this commit and re-read where it settled before it vouches for anything.
 """
 
 from __future__ import annotations
@@ -93,11 +84,8 @@ APPROVED_SHA = "late_approved_sha"
 
 class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
     def test_a_lost_record_holds_the_recovery(self) -> None:
-        # The window the recording exists to close, seen from the far side of
-        # it. The run finished and committed, and the write that would have
-        # put its report on the pinned comment never landed. The next tick
-        # finds the commits, spawns nothing -- they are a previous run's --
-        # and has nothing on the issue saying what that run did.
+        # The report's write never landed, so the next tick finds commits no
+        # record describes, spawns nothing, and holds them.
         github, issue = self._lost_the_report_write()
 
         mocks = self.republish(github, issue)
@@ -106,11 +94,8 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
         self._assert_held(github, mocks)
 
     def test_a_lost_record_is_redelivered(self) -> None:
-        # And what that park buys, which is the same thing every other one
-        # here buys: the reply resumes the session, the report it writes is
-        # recorded, and the commits already on the branch go out under it --
-        # one pull request, no second developer run over work the first one
-        # already finished.
+        # The reply resumes the session and the commits already on the branch
+        # go out under its report: one pull request, no second developer run.
         github, issue = self._lost_the_report_write()
         self.republish(github, issue)
         support.replies(github, issue, "please report it again")

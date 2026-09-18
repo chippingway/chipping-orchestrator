@@ -2,26 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """What one initial publication does with the report its developer wrote.
 
-The pull request the code reaches is the variable: one this tick opens and one
-already open on the branch. On either of them the report has to end up
-published, recorded as the one the pull request carries, and the issue reaches
-`validating` only once both of those are true. The two ways a run can hand a
-report over are the other variable -- one written for publication, and one the
-developer says is already on the thread.
-
-The pull request the size gate proved is already STANDING on the commit is the
-recovery's world rather than this one's, and it is covered beside the
-report-debt cases in `test_report_recovery`.
-
-A reused pull request whose body already names this implementation is left
-alone, legacy `_Last agent message:_` tail and whatever a human wrote under it
-included. It has one more body this stage may not rewrite: the one a
-verification names. The rewrite that makes a reused pull request describe this
-implementation would replace the report published there, so the description is
-preserved and the verification behind it finds what it read. What the rewrite
-would have PUT there decides whether the work goes on: a body already closing
-this issue and naming the session is one nothing was going to touch, and a body
-saying neither is held for a human rather than merged with its issue left open.
+Across a pull request this tick opens and one already open on the branch, and a
+report written for publication or verified on the thread, the report ends up
+published and recorded before the issue reaches `validating`. A description a
+report was verified on is never edited, and holds the work where it does not
+close the issue and name the session. `test_report_recovery` covers retries.
 """
 
 from __future__ import annotations
@@ -232,11 +217,8 @@ class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
 
     def test_a_needed_description_is_held(self) -> None:
-        # The developer verified the report on this pull request's OWN body,
-        # and that body says neither of the things a description alone can.
-        # Rewriting it would destroy the only copy of the report; leaving it
-        # would merge an implementation that closes nothing and names nobody.
-        # So it is preserved exactly as it stands and a human is asked.
+        # A report verified on a body that neither closes the issue nor names
+        # the session: preserved exactly as it stands, and a human is asked.
         github, issue = self.seeded()
         reused = _open_pr_for(
             github, issue_number=support.REPORT_ISSUE, pr_number=DESCRIBED_PR,

@@ -374,7 +374,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             publication it has just made: every other term is a fact that caller established this
                             tick, while the issue it holds was fetched before its developer ran -- and a re-read
                             that fails answers HOLD, since nobody could say the issue is unchanged. The settlement
-                            asks it last on both roads, and a recovery asks it of a settled report too
+                            asks it last on both roads, and a recovery asks it of a settled report too.
+                            `refuses_for_good` says, posting nothing, whether an owed transaction can ever settle
     report_checkout_evidence.py the checkout half: on this host, clean by a reading that HAPPENED rather than by an
                             empty path list, and standing on the commit the report is about
     report_remote_evidence.py the remote half, which the checkout cannot answer: the recorded branch is fetched and
@@ -1913,7 +1914,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it, never the body the lookup fetched. A report
                             still owed refuses that handoff exactly as a moved checkout does, re-recording the debt
                             so the next tick republishes the same commit onto the same pull request and finishes
-                            it -- no second developer run, and nothing new opened
+                            it -- unless no retry can pay it (no record left, or a report a human edited, removed or
+                            wrote untrusted, per `engine/report_evidence.py`), which parks for a report-only reply
       push_barrier.py       what may have ended between this tick's readings and the push it is about, asked
                             immediately before the transport and nowhere else: everything above spends a run, a
                             reading or a proof, and each is time a poll on another worker can find the world

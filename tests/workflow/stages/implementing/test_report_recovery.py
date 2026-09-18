@@ -2,25 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """A report that did not reach its pull request, and what the stage does then.
 
-The ordinary window is the one every publication has: the branch is on the
-remote, a pull request carries it, and what is left -- binding the report to
-that publication, re-reading the issue it answers, reading the thread and
-posting to it -- is a run of separate requests any of which GitHub can refuse,
-or accept without saying so. What the stage owes there is to keep the work
-exactly where it is -- unhanded-on, unparked, and recorded as still owing a
-report -- so the next poll finishes it with no developer run, no second pull
-request, and no second report. That retry
-runs over the world the first tick left, which is the world the size gate calls
-DELIVERED: the receipt names the commit, and the pull request is standing on
-it, so the push moves nothing and the bookkeeping is all that is left.
-
-The other road here is the requirements moving while the run that reported on
-them worked. Nothing is published then either: the report answers an issue that
-has changed, and what supersedes it is the resume the edit earns.
-
-A report this workflow cannot deliver AT ALL is the neighbouring module's,
-`test_report_undeliverable`: those roads publish no code either, and what
-answers them is a reply rather than a poll.
+After the push, binding the report, re-reading the issue, and reading and
+posting to the thread are separate requests GitHub can refuse. The stage keeps
+the work unhanded-on and the debt recorded, so the next poll finishes it with no
+developer run, no second pull request, and no second report -- unless no retry
+can settle it, which parks. An edit to the requirements holds the report for the
+drift resume. `test_report_undeliverable` covers reports never deliverable.
 """
 
 from __future__ import annotations
@@ -49,6 +36,8 @@ PUBLISHED_SHA_KEY = "implementing_published_sha"
 
 AWAITING_HUMAN = "awaiting_human"
 
+PARK_REASON = "park_reason"
+
 PUSH_BRANCH = "_push_branch"
 
 # The edit a human makes to the issue while a run is working.
@@ -73,12 +62,9 @@ EDITED_DESCRIPTION = "Rewritten by hand while the report was owed."
 
 class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
     def test_a_failure_after_the_push_is_retried(self) -> None:
-        # Every way the report can fail to settle once the code is out: the
-        # binding refused for room, the thread unreadable, the post refused,
-        # and the issue that could not be re-read for its requirements. Each
-        # leaves the code published and the debt recorded -- unhanded-on and
-        # unparked, since nothing here needs a human -- and the next poll
-        # finishes it on the same commit and the same pull request.
+        # A binding refused for room, an unreadable thread, a refused post, an
+        # unread issue: each leaves the debt recorded, unhanded-on and unparked,
+        # and the next poll finishes it on the same commit and pull request.
         for described, failing in _FAILURES_AFTER_THE_PUSH:
             with self.subTest(failure=described):
                 github, issue = self.seeded()
@@ -136,11 +122,8 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
 
     def test_edited_requirements_hold_the_report(self) -> None:
-        # A human edited the issue while the developer worked, so the report
-        # answers requirements the issue no longer has. Publishing it would
-        # stamp it with the revision its run was handed and hand it to a
-        # reviewer as current, so it is left owed for the drift resume -- and
-        # the work is not handed on either.
+        # An edit while the developer worked leaves the report answering old
+        # requirements, so it is left owed for the drift resume, unhanded-on.
         github, issue = self.seeded()
 
         self._run_implementing(
@@ -162,11 +145,8 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
 
     def test_an_edit_during_the_request_is_left_owed(self) -> None:
-        # The issue is edited while GitHub answers the post, or the re-read a
-        # verification takes, which is after every earlier reading of it.
-        # Settled on those, the pull request would record a report answering
-        # requirements the issue no longer has as the one it carries, and
-        # review would be handed it as current.
+        # An edit landing while GitHub answers the post or the re-read is after
+        # every earlier reading, so the settlement reads the issue once more.
         for request in (POST_REPORT, REREAD_REPORT):
             with self.subTest(request=request):
                 github, issue = self.seeded()
@@ -180,15 +160,49 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
                 recorded = github.pinned_data(support.REPORT_ISSUE)
                 self.assertEqual(
                     (
-                        during.calls,
+                        during.calls > 0,
                         recorded[support.PENDING_RECORD] is not None,
                         support.CURRENT_RECORD in recorded,
                     ),
-                    (1, True, False),
+                    (True, True, False),
                 )
                 self.assertNotIn(
                     (support.REPORT_ISSUE, LABEL_VALIDATING),
                     github.label_history,
+                )
+
+    def test_a_report_that_cannot_settle_parks(self) -> None:
+        # A report no retry can settle -- a lost response whose comment a human
+        # then edited, a verified comment since deleted -- parks for the reply
+        # that resumes the session to write it again, rather than being retried
+        # unannounced for as long as the issue lives.
+        for verified in (False, True):
+            with self.subTest(verified=verified):
+                github, issue = self.seeded()
+                if verified:
+                    message = self._reporting_for(github, REREAD_REPORT)
+                    github.get_pr(VERIFIED_PR).issue_comments.clear()
+                    self.deliver(github, issue, message)
+                else:
+                    github.report_failures.lost.add(OPENED_PR)
+                    self.deliver(github, issue, support.ready_message())
+                    github.report_failures.lost.clear()
+                    github.get_pr(OPENED_PR).head.sha = support.PUBLISHED_SHA
+                    comment = github.get_pr(OPENED_PR).issue_comments[-1]
+                    comment.body = comment.body.replace(
+                        support.REPORT_TEXT, "Edited by hand.",
+                    )
+                    self.republish(github, issue)
+
+                self.assertEqual(
+                    (
+                        github.pinned_data(support.REPORT_ISSUE)[AWAITING_HUMAN],
+                        github.pinned_data(support.REPORT_ISSUE)[PARK_REASON],
+                    ),
+                    (True, _report_delivery.UNDELIVERABLE_REPORT),
+                )
+                self.assertNotIn(
+                    (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
                 )
 
     def _reporting_for(self, github, request: str) -> str:

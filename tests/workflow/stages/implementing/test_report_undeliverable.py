@@ -2,26 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """A report this workflow cannot deliver, and the reply that answers it.
 
-Two roads reach it. Before the push, a run that finished and handed over a
-report nothing can record -- one past what the pinned comment holds, or none at
-all -- so nothing is published and the commit stays in the worktree. After it, a
-report bound to no publication this code reached: one asserted on somebody
-else's pull request, and one asserted on the very description this publication
-needs for its closing reference and attribution. There the branch and the pull
-request stand and only the handoff is withheld. None of them discards what the
-run wrote, and neither lets the work reach review without a report.
-
-The record that never LANDED is the neighbouring module's,
-`test_report_lost_record`: there the run reported and the pinned write failed,
-so what the next tick recovers is committed work no record describes at all.
-
-What answers any of them is a human's reply: the developer resumes and writes a
-report that can be delivered, and the run that brings one back publishes the
-commits already on the branch rather than parking as a question -- the park
-itself being the debt that tells one from the other. On the description road
-that reply's report goes in a comment, and only then does the description it was
-verified on get this implementation's lines above it -- every word its author
-wrote kept beneath them.
+Before the push: a report nothing can record, or none at all -- nothing is
+published. After it: a report bound to another pull request, or verified on the
+description this publication needs -- only the handoff is withheld. A reply
+resumes the developer, and a report it brings back publishes the commits
+already on the branch, the recorded debt telling it from a question.
+`test_report_lost_record` covers the record whose write never landed.
 """
 
 from __future__ import annotations
@@ -38,7 +24,14 @@ from orchestrator.workflow.stages.implementing import (
     disposition as _disposition,
     models as _models,
 )
-from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC, LABEL_VALIDATING, _agent, _open_pr_for
+from tests.workflow.fixtures import (
+    _FAKE_WT,
+    _TEST_SPEC,
+    LABEL_VALIDATING,
+    SHA_LENGTH,
+    _agent,
+    _open_pr_for,
+)
 from tests.workflow.git_owners import seam_patch
 from tests.workflow.stages.implementing import report_test_support as support
 
@@ -53,6 +46,11 @@ AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
 
 AGENT_TIMEOUT = "agent_timeout"
+
+_UNDELIVERABLE = _report_delivery.UNDELIVERABLE_REPORT
+
+# Where a resumed session's checkout stood before it committed and timed out.
+EARLIER_HEAD = "f" * SHA_LENGTH
 
 # The pull request a verification names, which is not the one this issue's code
 # reaches: the transaction has to be about one pull request, so a report
@@ -84,11 +82,8 @@ REPLACEMENT_REVISION = 2
 
 class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
     def test_an_unrecordable_report_publishes_nothing(self) -> None:
-        # A report past what the pinned comment can carry is one nothing could
-        # ever publish -- the record is what a later tick would publish from --
-        # and the run that wrote it has ended. Held before the size gate and
-        # the push, the refusal costs nothing: the commit is still in the
-        # worktree and a reply resumes the session that writes it again.
+        # A report past what the pinned comment carries could never publish,
+        # so it is held before the gate and the push, costing nothing.
         github, issue = self.seeded()
         oversized = "x" * (_record_values.MAX_REPORT_TEXT + 1)
 
@@ -139,35 +134,43 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
 
     def test_a_failed_resume_keeps_the_debt(self) -> None:
-        # The debt outlives the park that announced it. A resumed session that
-        # timed out parks as a timeout, and the report it brings back on the
-        # next reply still publishes the commits already on the branch rather
-        # than reading as a question.
-        github, issue = self.seeded()
-        oversized = "x" * (_record_values.MAX_REPORT_TEXT + 1)
-        self.deliver(github, issue, support.ready_message(oversized))
-        support.replies(github, issue, "please report in a paragraph")
-        self._run_implementing(
-            github, issue,
-            run_agent=_agent(session_id=support.DEV_SESSION, timed_out=True),
-            has_new_commits=True,
-            head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
-            dirty_files=(),
-        )
-        self.assertEqual(
-            github.pinned_data(support.REPORT_ISSUE)[PARK_REASON], AGENT_TIMEOUT,
-        )
-        support.replies(github, issue, "try once more")
+        # The debt outlives its park: a resumed session that timed out parks as
+        # a timeout, or -- having committed -- parks for the report, and the
+        # report the next reply brings back publishes rather than asks.
+        for committed, parked in ((False, AGENT_TIMEOUT), (True, _UNDELIVERABLE)):
+            with self.subTest(committed=committed):
+                github, issue = self.seeded()
+                self.deliver(github, issue, support.ready_message(
+                    "x" * (_record_values.MAX_REPORT_TEXT + 1),
+                ))
+                support.replies(github, issue, "please report in a paragraph")
+                self._run_implementing(
+                    github, issue,
+                    run_agent=_agent(session_id=support.DEV_SESSION, timed_out=True),
+                    has_new_commits=True,
+                    head_shas=(EARLIER_HEAD if committed else support.PUBLISHED_SHA,
+                               support.PUBLISHED_SHA),
+                    dirty_files=(),
+                    push_branch=True,
+                )
+                pinned = github.pinned_data(support.REPORT_ISSUE)
+                self.assertEqual(
+                    (pinned[AWAITING_HUMAN], pinned[PARK_REASON]), (True, parked),
+                )
+                if committed:
+                    github.get_pr(OPENED_PR).head.sha = support.PUBLISHED_SHA
+                support.replies(github, issue, "try once more")
 
-        self.redeliver(
-            github, issue, support.ready_message(REPLACEMENT_REPORT),
-        )
+                self.redeliver(
+                    github, issue, support.ready_message(REPLACEMENT_REPORT),
+                )
 
-        posted = support.published_reports(github, OPENED_PR)
-        self.assertEqual(len(posted), 1)
-        self.assertIn(
-            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
-        )
+                self.assertEqual(
+                    len(support.published_reports(github, OPENED_PR)), 1,
+                )
+                self.assertIn(
+                    (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+                )
 
     def test_an_unbindable_report_is_held(self) -> None:
         # The developer asserted a report on another pull request, so the
@@ -199,12 +202,8 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
 
     def test_a_freed_description_is_named_above(self) -> None:
-        # The park a report verified on the publication's own description
-        # takes, and what the reply buys. Held, the body is not touched at all;
-        # the resumed session writes its report as text, so it goes in a
-        # COMMENT -- and the description no report claims any more gets this
-        # issue's closing reference and the session's name above it, with
-        # every word the human wrote kept beneath them.
+        # Held, the body is untouched; the reply's report goes in a COMMENT,
+        # and the freed description gets the two lines above every word.
         github, issue, reused = self._collided_on_the_description()
         self.assertEqual(
             (github.edited_pr_bodies, github.label_history), ([], []),

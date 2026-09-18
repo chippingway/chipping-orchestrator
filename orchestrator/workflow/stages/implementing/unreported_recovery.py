@@ -69,9 +69,8 @@ _MOVED_REQUIREMENTS = (
 def _recovery_result(state: PinnedState, message: str) -> AgentResult:
     """The result a recovery hands the publication seam in place of a run's.
 
-    Nothing produced it, which is what `invoked=False` says and why it records
-    no report: the sentence is the orchestrator's own. The session travels so
-    the pull request it may open still names the developer whose work it is.
+    `invoked=False`: nothing produced it, so it records no report. The session
+    travels so a pull request it opens still names the developer.
     """
     return AgentResult(
         session_id=_session_read._read_dev_session(state)[-1],
@@ -143,11 +142,8 @@ def _holds_a_moved_settlement(
 ) -> bool:
     """Hold a settled report that no longer stands; True where it held.
 
-    The report first, where it settled, then the requirements over an issue
-    read afresh. Either reading nobody could take holds silently; either
-    definite refusal parks, once, under the reason every undeliverable report
-    takes -- which is also what makes the reply that answers it publish the
-    commits already on the branch.
+    The report where it settled, then the requirements afresh: an unread one
+    holds silently, a definite refusal parks for a report-only reply.
     """
     presence = _report_publishing.still_carries(gh, state, settled)
     if presence is ReportPresence.UNCONFIRMED:

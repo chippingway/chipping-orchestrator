@@ -59,6 +59,9 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     report_binding as _report_binding,
     report_delivery as _report_delivery,
+    report_delivery_state as _delivery_state,
+    report_evidence as _report_evidence,
+    report_record_state as _record_state,
 )
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
@@ -83,6 +86,26 @@ _UNPROVABLE_HEAD_PARK = (
     "the commit is still in the worktree, and the branch is untouched. Clear "
     "what is stopping the read, then reply and the orchestrator will resume "
     "the session."
+)
+
+
+# A report the handoff waits on that no retry can deliver, and why.
+_STUCK_REPORT_PARK = (
+    "{mentions} this issue's code is published on PR #{pr}, and the developer "
+    "report it owes cannot be delivered as things stand: {detail}. The work is "
+    "held rather than handed to review. Reply and the orchestrator resumes the "
+    "session; the report it writes then is the one that gets published, and "
+    "it needs no new commit to deliver it."
+)
+
+_UNRECORDED = (
+    "no report of it is recorded anywhere -- the session resumed to write one "
+    "did not finish"
+)
+
+_UNSETTLEABLE = (
+    "the report it went out as was edited, removed, or written by an author "
+    "this deployment does not trust"
 )
 
 
@@ -340,7 +363,7 @@ def _on_commits(
     if (
         _checkout._moved_after_the_push(gh, issue, state, published, wt)
         or _checkout._dirtied_after_the_push(gh, issue, state, published, wt)
-        or _still_owes_its_report(issue, state, published, pr)
+        or _still_owes_its_report(gh, issue, state, published, pr)
         or not _dev_pr._names_the_implementation(
             gh, issue, state, approved.agent_result, pr,
         )
@@ -351,6 +374,7 @@ def _on_commits(
 
 
 def _still_owes_its_report(
+    gh: _client.GitHubClient,
     issue: Issue,
     state: _pinned_state.PinnedState,
     published: str,
@@ -362,13 +386,35 @@ def _still_owes_its_report(
     refused as a moved checkout's is: the debt is re-recorded, and the next
     tick republishes onto the same pull request with no second developer run
     -- the reconciliation or the binding posting the report on the way.
+
+    Unless no retry can pay it: a debt with no record left to publish -- a
+    resumed session that did not finish -- or a transaction whose report on
+    this pull request a human edited, removed, or wrote untrusted. Those park
+    for the reply that resumes the developer to write the report again.
     """
     if not _report_delivery.owes_a_report(state):
         return False
+    number = getattr(pr, "number", 0) or 0
+    pending = _record_state.read_pending_report(state)
+    recordless = not (
+        _delivery_state.carries_delivered_report(state)
+        or _record_state.carries_pending_report(state)
+    )
+    if recordless or (
+        pending is not None
+        and pending.subject.pr_number == number
+        and _report_evidence.refuses_for_good(gh, pending, pr)
+    ):
+        _report_delivery.parks_an_undeliverable_report(
+            gh, issue, state, _STUCK_REPORT_PARK.format(
+                mentions=config.HITL_MENTIONS, pr=number,
+                detail=_UNRECORDED if recordless else _UNSETTLEABLE,
+            ),
+        )
     log.warning(
         "issue=#%s published %s on PR #%s and still owes it a developer "
         "report; holding the handoff for the tick that publishes one",
-        issue.number, published, getattr(pr, "number", 0) or 0,
+        issue.number, published, number,
     )
     return True
 

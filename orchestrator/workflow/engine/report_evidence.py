@@ -38,24 +38,22 @@ never going to complete this tick spends as little as it can: the checkout costs
 no request at all, the remote reading costs one fetch, and the requirements hash
 costs the comment walk the drift owner already makes.
 
-The requirements reading is offered on its own as well, for the caller that has
-just MADE the publication rather than recovered one. That caller holds every
-other term of the evidence as a fact it established this tick -- it pushed the
-commit, read the pull request, wrote the receipt -- and holds the issue as it
-was BEFORE its developer ran, which is the one term a long run can have moved
-under it. So the issue is read again there, from GitHub rather than from the
-object in hand, and a report whose requirements have moved is left owed for the
-route that answers an edit.
+The requirements reading is offered on its own too, over an issue read again,
+for the callers that made the publication or settle it; and `refuses_for_good`
+says, posting nothing, whether an owed transaction can ever settle as it stands.
 """
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
+from orchestrator.github import comments as _trust, developer_reports as _reports
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pull_request_reports import ReportPresence
 from orchestrator.workflow.engine import (
     comments as _comments,
     content_hash as _content_hash,
@@ -136,24 +134,11 @@ def fresh_requirements_verdict(
 ) -> _evidence_models.ReportEvidence | None:
     """Refuse a report the issue has moved under since the run, or None.
 
-    The same reading as the one inside the composition above, taken over an
-    issue read AGAIN rather than over the object the caller holds. That is the
-    whole of what this adds, and it is what the caller needs: a publication
-    completing on the tick that made it is holding an issue fetched before its
-    developer ran, so a title or body edited during that run -- or during the
-    push and the pull request that followed it -- is invisible in the object
-    but not on GitHub. Compared against the object in hand the answer would be
-    the baseline agreeing with itself.
-
-    A fetch that failed is a reading nobody took, and it answers HOLD for the
-    reason every missing read on this road does: "the issue has not changed"
-    and "nobody could say" are different answers, and only the first licenses
-    stamping a report with the revision its run was handed.
-
-    None is the issue still being what the run answered, which is the only
-    answer that lets a publication settle. A SETTLED report is asked the same
-    question by the recovery that would hand its commit on: the subject it
-    froze is all this reads, and it is the same subject either way.
+    The same reading as the composition's, over an issue read AGAIN: the one
+    in hand was fetched before the developer ran, so an edit during the run or
+    the publication after it is invisible there. A fetch that failed HOLDS,
+    since nobody could say the issue is unchanged. A settled report is asked
+    the same question by a recovery, over the subject it froze.
     """
     try:
         fresh = gh.get_issue(issue.number)
@@ -215,3 +200,44 @@ def _requirements_verdict(
         _evidence_models.ReportEvidenceVerdict.DEFER,
         "the issue requirements moved since the run that wrote the report",
     )
+
+
+def refuses_for_good(
+    gh: GitHubClient, pending: _records.PendingReport, pull_request: Any,
+) -> bool:
+    """Whether an owed transaction can never settle as the thread stands.
+
+    Our comment under a publication's receipt no longer rendering as the
+    report, or a verified location gone, changed or untrusted: content a human
+    owns, which no retry settles. A reading nobody could take is not one.
+    """
+    if pending.mode is _records.ReportMode.PUBLISH:
+        return _published_reading(gh, pending, pull_request) is ReportPresence.CHANGED
+    lookup = gh.reread_report_location(
+        pending.location, content_sha256=pending.content_revision,
+    )
+    if lookup.presence is not ReportPresence.PRESENT:
+        return lookup.presence in {ReportPresence.ABSENT, ReportPresence.CHANGED}
+    try:
+        return not _trust.is_trusted_author(getattr(lookup.found, "user", None))
+    except Exception:
+        log.exception("the author of a verified developer report would not read")
+        return False
+
+
+def _published_reading(
+    gh: GitHubClient, pending: _records.PendingReport, pull_request: Any,
+) -> ReportPresence:
+    """What the thread holds under a publication's receipt, posting nothing."""
+    try:
+        report = _reports.DeveloperReport(
+            pr_number=pending.subject.pr_number,
+            source_sha=pending.subject.source_sha,
+            requirements_revision=pending.subject.requirements_revision,
+            report_revision=pending.report_revision,
+            receipt=pending.receipt,
+            text=pending.report,
+        )
+    except _reports.ReportRefusedError:
+        return ReportPresence.UNCONFIRMED
+    return gh.find_developer_report(pull_request, report).presence
