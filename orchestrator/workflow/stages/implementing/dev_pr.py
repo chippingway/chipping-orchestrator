@@ -331,7 +331,7 @@ def _names_the_implementation(
         )
         return None
     if _report_locations.describes_the_issue(
-        current, issue.number, _dev_pr_attribution(state),
+        current, issue.number, _dev_pr_attribution(state), gh.repo_slug,
     ):
         return True
     if _report_locations.claims_the_description(state, pr.number):

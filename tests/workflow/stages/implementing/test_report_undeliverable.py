@@ -52,6 +52,8 @@ AWAITING_HUMAN = "awaiting_human"
 
 PARK_REASON = "park_reason"
 
+AGENT_TIMEOUT = "agent_timeout"
+
 # The pull request a verification names, which is not the one this issue's code
 # reaches: the transaction has to be about one pull request, so a report
 # asserted on another cannot be bound to this publication at all.
@@ -108,7 +110,7 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
         # The park's own promise: a reply resumes the session, and the report
         # it writes then is the one that gets published. The resumed run makes
         # no commit -- the commit is already on the branch -- so what tells it
-        # from a question is the debt the park itself records.
+        # from a question is the debt the park records beside its reason.
         github, issue = self.seeded()
         oversized = "x" * (_record_values.MAX_REPORT_TEXT + 1)
         self.deliver(github, issue, support.ready_message(oversized))
@@ -132,6 +134,37 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
             ),
             (1, None, None, False, None),
         )
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+    def test_a_failed_resume_keeps_the_debt(self) -> None:
+        # The debt outlives the park that announced it. A resumed session that
+        # timed out parks as a timeout, and the report it brings back on the
+        # next reply still publishes the commits already on the branch rather
+        # than reading as a question.
+        github, issue = self.seeded()
+        oversized = "x" * (_record_values.MAX_REPORT_TEXT + 1)
+        self.deliver(github, issue, support.ready_message(oversized))
+        support.replies(github, issue, "please report in a paragraph")
+        self._run_implementing(
+            github, issue,
+            run_agent=_agent(session_id=support.DEV_SESSION, timed_out=True),
+            has_new_commits=True,
+            head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
+            dirty_files=(),
+        )
+        self.assertEqual(
+            github.pinned_data(support.REPORT_ISSUE)[PARK_REASON], AGENT_TIMEOUT,
+        )
+        support.replies(github, issue, "try once more")
+
+        self.redeliver(
+            github, issue, support.ready_message(REPLACEMENT_REPORT),
+        )
+
+        posted = support.published_reports(github, OPENED_PR)
+        self.assertEqual(len(posted), 1)
         self.assertIn(
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )

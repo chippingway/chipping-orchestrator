@@ -43,11 +43,12 @@ from orchestrator.workflow.engine import (
 )
 
 # Every spelling GitHub closes an issue on, as it documents them: one of the
-# keywords, then the issue this publication is for. Read here rather than
-# compared against the line this workflow writes, because what is being asked
-# is whether the MERGE will close the issue -- a human's own wording does.
+# keywords, then the issue -- bare, or qualified `owner/repository#N`. Read
+# here rather than compared against the line this workflow writes, because what
+# is being asked is whether the MERGE will close the issue.
 _CLOSES_THE_ISSUE = re.compile(
-    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b\s*:?\s*#(?P<issue>[0-9]+)\b",
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b\s*:?\s*"
+    r"(?P<repo>[\w.-]+/[\w.-]+)?#(?P<issue>[0-9]+)\b",
     re.IGNORECASE,
 )
 
@@ -142,7 +143,7 @@ def settled_publication(
 
 
 def describes_the_issue(
-    pull_request: Any, issue_number: int, attribution: str,
+    pull_request: Any, issue_number: int, attribution: str, repo_slug: str,
 ) -> bool:
     """Whether a description still says what a publication needs it to say.
 
@@ -154,9 +155,10 @@ def describes_the_issue(
     to tell this stage's own pull request from one somebody else opened.
 
     The reference is read for every spelling GitHub accepts rather than for
-    the one this stage writes: a human who wrote `Fixes #12` has done exactly
-    what is being asked for, and refusing it would ask them to write it again
-    in this orchestrator's words.
+    the one this stage writes: a human who wrote `Fixes #12`, or `Fixes
+    owner/repository#12` naming this repository, has done exactly what is being
+    asked for. A reference qualified with another repository closes that
+    repository's issue, not this one.
 
     A body nobody could read says nothing, which is the answer that holds the
     work back rather than letting it past -- what is being decided is whether
@@ -168,7 +170,9 @@ def describes_the_issue(
         return False
     closing = _CLOSES_THE_ISSUE.finditer(body)
     return attribution in body and any(
-        int(reference["issue"]) == issue_number for reference in closing
+        int(reference["issue"]) == issue_number
+        and (reference["repo"] or repo_slug).lower() == repo_slug.lower()
+        for reference in closing
     )
 
 

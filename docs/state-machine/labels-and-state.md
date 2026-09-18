@@ -800,11 +800,12 @@ The keys that matter for the state machine fall into a few groups:
   a recovery (the restart shortcut, or a road that republishes a candidate a gate record named) finding committed
   work no recorded report describes, and — after the push — a delivery
   the binding cannot bind or a verification on a description the publication needs. The first three leave no record
-  behind them, so the reason is the whole of the DEBT as well as the notice's bookkeeping, and while it stands the
-  issue reads as still owing a report: the handoff is withheld, and a resumed run that brings a report back publishes
-  the commits already on the branch rather than parking as a question. It is announced once while it stands, retired
-  the moment a report IS recorded, and spent by the publication handoff beside the agent timeout's, since reaching
-  that line means the report the park was about has reached the pull request. The late
+  behind them, so the debt is `developer_report_owed`, set beside the reason and outliving any later park that replaces
+  it -- a resumed run that times out included -- and while either stands the issue reads as still owing a report: the
+  handoff is withheld, and a resumed run that brings a report back publishes the commits already on the branch rather
+  than parking as a question. It is announced once while it stands, retired the moment a report IS recorded, and spent
+  by the publication handoff beside the agent timeout's, since reaching that line means the report the park was about
+  has reached the pull request. The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,
   `late_candidate_moved`, `late_unauthorized_exemption`, `late_evidence_missing`, `late_plan_pr_hold_failed`,
   `late_generation_incomplete`, `late_worktree_missing`, `late_worktree_mutated`, `late_adjudicator_timeout`,

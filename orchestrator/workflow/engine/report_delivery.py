@@ -105,6 +105,11 @@ _PARK_REASON = "park_reason"
 
 _AWAITING_HUMAN = "awaiting_human"
 
+# The debt of a report this workflow could not deliver, kept apart from the park
+# that announced it: the flags are single, so a later park -- a resumed run that
+# timed out, a question -- replaces the reason, and the debt must outlive it.
+OWED_REPORT = "developer_report_owed"
+
 # What a report this workflow cannot get onto the pull request is parked
 # under. One reason for both roads that take it -- a report that cannot be
 # recorded before the push, and one that cannot be bound to the publication
@@ -199,19 +204,19 @@ def owes_a_report(state: _pinned_state.PinnedState) -> bool:
     transaction it cannot -- both with the record untouched for whoever
     repairs or abandons it.
 
-    The PARK is the third, and it is the debt of the two roads that have no
-    record to leave: a report this build could not write down, and a completed
-    run that handed over none at all. There is nothing on the comment then but
-    the reason itself, so the reason is what says a report is still owed --
-    which is what keeps the work here and what tells the reply that brings one
-    from an ordinary question. It is retired the moment a report IS recorded,
-    because that is the condition it was taken for; any other park replaces it
-    outright, since the flags are single.
+    The third is the debt of the roads with no record to leave -- a report
+    this build could not write down, a completed run that handed over none --
+    which every undeliverable park records as `OWED_REPORT` beside its reason.
+    The reason alone would not do: any later park replaces it, since the flags
+    are single, and a resumed run that timed out would turn the debt into a
+    timeout and the report that finally comes back into a question. Both are
+    retired the moment a report IS recorded, the condition they were taken for.
     """
     return (
         _delivery_state.carries_delivered_report(state)
         or _record_state.carries_pending_report(state)
         or state.get(_PARK_REASON) == UNDELIVERABLE_REPORT
+        or bool(state.get(OWED_REPORT))
     )
 
 
@@ -269,6 +274,8 @@ def recording_stops_the_tick(
     )
     if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
         state.set(_PARK_REASON, None)
+    if state.get(OWED_REPORT):
+        state.set(OWED_REPORT, None)
     gh.write_pinned_state(issue, state)
     return False
 
@@ -358,6 +365,7 @@ def parks_an_undeliverable_report(
         gh, issue, state, notice, reason=UNDELIVERABLE_REPORT,
     )
     state.set(_PARK_REASON, UNDELIVERABLE_REPORT)
+    state.set(OWED_REPORT, True)
     gh.write_pinned_state(issue, state)
 
 

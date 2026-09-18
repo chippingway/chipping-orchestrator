@@ -355,8 +355,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- a record nobody can read, or a settled pair missing its current report, included --
                             before the one writer that could lose one: the body edit a reused pull request earns,
                             since even an edit keeping every word moves a verified DESCRIPTION off its digest. The
-                            second reading is what a description WOULD have said: whether it closes this issue, in
-                            any spelling GitHub honours, and names the session -- one that says neither is a
+                            second reading is what a description WOULD have said: whether it closes this issue --
+                            bare or qualified with this repository -- and names the session -- one that says neither is a
                             publication the binding below holds for repair. It also answers which publication the
                             SETTLED pair is about, agreeing with itself and naming this repository, pull request,
                             branch and commit; what it hands back is a claim, for its caller to re-read

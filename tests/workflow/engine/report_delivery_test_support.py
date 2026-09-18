@@ -96,8 +96,8 @@ WIDEST_SUBJECT = replace(
 WIDEST_BRANCH = "\U0001f600" * _record_values.MAX_BRANCH
 
 # What an issue parked over a report this workflow could not deliver carries.
-# The reason is the whole of the debt there: the two roads that take this park
-# have no record to leave behind them.
+# The reason is the debt there -- the roads that take this park have no record to
+# leave -- beside the `developer_report_owed` flag the park itself writes.
 OWED = ((PARK_REASON, _delivery.UNDELIVERABLE_REPORT),)
 
 # The reports this workflow will not record, and why each is one: past what a

@@ -1717,12 +1717,13 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        any edit would move the report and leaving it would merge a pull request that closes nothing; the reply's
        report goes in a comment, which frees the description, and only then does it get the closing reference and
        the attribution above every word it already says. Nothing is
-       discarded on any of them, no park is announced twice while it stands, and the reason itself is the debt where
-       no record exists. The reply resumes the developer, and a run that comes back with a report and moved no head
-       publishes the commits already on the branch — held to a debt owed, a report outcome, and a branch that
-       carries something, so an ordinary question is still a question. That reply lands on the DRIFT resume in
-       practice, since a human's comment moves the requirements hash; `disposition` reads it the same way for every
-       other resume. The handoff spends the reason once the report has reached the pull request.
+       discarded on any of them, no park is announced twice while it stands, and `developer_report_owed` is the debt
+       where no record exists, outliving any later park that replaces the reason. The reply resumes the developer, and a
+       run that comes back with a report and moved no head publishes the commits already on the branch — held to a debt
+       owed, a report outcome, and a branch that carries something, so an ordinary question is still a question. That
+       reply lands on the DRIFT resume in practice, since a human's comment moves the requirements hash; `disposition`
+       reads it the same way for every other resume. The handoff spends the reason once the report has reached the pull
+       request.
      - new commits + dirty files → `_on_dirty_worktree`: park; refuse to publish a partial branch.
      - new commits + a tree `git status` could not report on → `_on_unreadable_worktree`: park under
        `unreadable_worktree`. An unreadable tree is not a clean one: the list form of that read maps its own failure
