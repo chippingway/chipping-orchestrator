@@ -286,7 +286,7 @@ foundation layer for the Postgres aggregation step.
 
 - `stage_enter` — `GitHubClient._emit_stage_enter` alongside the audit `stage_enter`; one record per workflow label
   transition; carries `stage`.
-- `stage_evaluation` — the `_process_issue` dispatcher (in `workflow/engine/dispatch.py`); written by its
+- `stage_evaluation` — the `_process_issue` dispatcher (in `workflow/engine/issue_processing.py`); written by its
   try/except/finally wrapper; carries `stage`,
   `duration_s` (handler wall-clock), `result` (`"ok"` / `"error"`); omitted for `backlog`- / `paused`-skipped issues
   (no handler runs), and for an open `workflow:blocked` / `workflow:umbrella` issue on a tick
