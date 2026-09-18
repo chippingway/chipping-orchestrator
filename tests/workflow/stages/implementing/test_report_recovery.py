@@ -53,6 +53,10 @@ PUSH_BRANCH = "_push_branch"
 # The edit a human makes to the issue while a run is working.
 EDITED_BODY = "the requirements moved while the agent was running"
 
+# What a human replaces the pull request's description with while its report
+# is still owed.
+EDITED_DESCRIPTION = "Rewritten by hand while the report was owed."
+
 
 class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
     def test_a_failure_after_the_push_is_retried(self) -> None:
@@ -145,11 +149,18 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
 
     def _retry_settles(self, github, issue) -> None:
-        """Run the next poll and prove it published what the first one owed."""
+        """Run the next poll and prove it published what the first one owed.
+
+        A human replaces the pull request's description in the window, which
+        is as long as the report stays owed. The retry is finishing a
+        publication rather than making one, so what they wrote stays.
+        """
         # What the push left on the remote, which is what makes this the
         # gate's delivered road: the pull request is standing on the commit
         # the receipt names, so the retry publishes nothing new.
-        github.get_pr(OPENED_PR).head.sha = support.PUBLISHED_SHA
+        opened = github.get_pr(OPENED_PR)
+        opened.head.sha = support.PUBLISHED_SHA
+        opened.body = EDITED_DESCRIPTION
 
         mocks = self.republish(github, issue)
 
@@ -170,8 +181,9 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
                 recorded[support.DELIVERY_RECORD],
                 recorded[support.PENDING_RECORD],
                 recorded[support.CURRENT_RECORD]["pr"],
+                opened.body,
             ),
-            (1, 1, None, None, OPENED_PR),
+            (1, 1, None, None, OPENED_PR, EDITED_DESCRIPTION),
         )
         self.assertIn(
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,

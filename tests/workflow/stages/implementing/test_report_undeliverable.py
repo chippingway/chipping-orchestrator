@@ -19,8 +19,8 @@ What answers any of them is a human's reply: the developer resumes and writes a
 report that can be delivered, and the run that brings one back publishes the
 commits already on the branch rather than parking as a question -- the park
 itself being the debt that tells one from the other. On the description road
-that reply buys both halves at once: the report goes in a comment, which is what
-frees the body for the rewrite that names this implementation.
+that reply's report goes in a comment, and the description it was verified on
+stays exactly as its author left it.
 """
 
 from __future__ import annotations
@@ -161,12 +161,12 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
 
-    def test_a_needed_description_is_freed(self) -> None:
+    def test_a_needed_description_stays_as_written(self) -> None:
         # The park a report verified on the publication's own description
         # takes, and what the reply buys. The resumed session writes its report
-        # as text, so it goes in a COMMENT -- no report lives in the body any
-        # more, and the rewrite that was withheld puts this issue's closing
-        # reference and the session's name there after all.
+        # as text, so it goes in a COMMENT and settles -- and the description
+        # stays as its author wrote it, since this stage has already pushed
+        # onto that pull request and whatever it says now is theirs.
         github, issue = self.seeded()
         reused = _open_pr_for(
             github, issue_number=support.REPORT_ISSUE, pr_number=DESCRIBED_PR,
@@ -190,8 +190,9 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
         self.assertEqual(len(posted), 1)
         self.assertIn(REPLACEMENT_REPORT, posted[0].body)
-        self.assertIn(f"Resolves #{support.REPORT_ISSUE}", reused.body)
-        self.assertIn(support.DEV_SESSION, reused.body)
+        self.assertEqual(
+            (github.edited_pr_bodies, reused.body), ([], HUMAN_DESCRIPTION),
+        )
         recorded = github.pinned_data(support.REPORT_ISSUE)
         self.assertEqual(
             (

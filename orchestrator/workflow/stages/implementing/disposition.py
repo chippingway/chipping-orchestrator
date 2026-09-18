@@ -24,12 +24,13 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
     report_delivery as _report_delivery,
-    report_settlement_state as _report_settlement,
+    report_locations as _report_locations,
 )
 from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
     late_approval_reading as _late_approval_reading,
     late_park_state as _late_park_state,
+    late_publication_state as _late_publication_state,
     models as _models,
     parks as _parks,
     session_read as _session_read,
@@ -330,12 +331,13 @@ def _dispose_agent_result(
     ended. Published, that is a reviewer handed an implementation nobody
     described; held, it is a reply away from the report it is missing.
 
-    Any record answers, and all of them as a CLAIM: a delivery waiting for a
-    pull request, a transaction waiting for its comment, and the settled pair
-    a publication that already finished left. What is being asked is whether
-    a run of this issue's reported AT ALL, and the tick that republishes work
-    whose report already went out -- a relabel that did not land, a receipt
-    being finished -- is as much an answer as one still carrying the debt.
+    A debt answers as a CLAIM -- a delivery waiting for a pull request, a
+    transaction waiting for its comment -- because either one holds the
+    handoff until a report is on the thread. The settled pair holds nothing,
+    so it answers only where it is about THIS work: the tick that republishes
+    a commit whose report already went out, a relabel that did not land.
+    `report_locations` holds the pair to this head and to the pull request
+    the receipt says it was pushed onto.
     """
     if prepared.agent_result.timed_out:
         # The implementer can commit clean work and then get killed by the
@@ -368,7 +370,11 @@ def _dispose_agent_result(
         return
     unreported = not (
         _report_delivery.owes_a_report(state)
-        or _report_settlement.carries_settled_record(state)
+        or _report_locations.settled_the_publication(
+            state, spec.slug,
+            _late_publication_state._published_pull_request(state),
+            prepared.before_sha,
+        )
     )
     if prepared.recovered and unreported:
         _report_delivery.parks_an_undeliverable_report(

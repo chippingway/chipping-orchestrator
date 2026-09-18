@@ -1665,7 +1665,10 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        report supersedes it); one that does name it is left as it stands, a legacy `_Last agent message:_` tail and
        human annotations included. One description is never rewritten whatever it says: the one this issue's own
        report claims as its location, since a verification recorded only the digest of what it read and the rewrite
-       would destroy the only copy. Without the rewrite the PR would keep claiming the branch is one Markdown file
+       would destroy the only copy — a record nobody can read claims it too, unless the place it still names is
+       readably elsewhere. Nor is a pull request this stage already pushed onto, the retry that finishes an owed
+       report included: the pushing tick settled its description, so a body without the attribution now is a
+       human's edit. Without the rewrite the PR would keep claiming the branch is one Markdown file
        that changes nothing else, under the decomposer's session, and would close no issue when it merged. Persists
        `pr_number` / `branch` and resets `review_round=0` and `retry_count=0` via
        `handoff._reset_implementing_counters`.
@@ -1693,12 +1696,14 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        holds, or otherwise refused by its writer); a run that COMPLETED and handed over no usable report at all (no
        marker, one that missed the contract, a verification on another repository); and the recovered-worktree
        path — no developer ran this tick — finding committed work with no report of the run that made it anywhere on
-       the comment (no delivery, no transaction, no settled pair), which is the lost-write window the recording exists
-       to close. After the push, with the code standing and only the
+       the comment (no delivery, no transaction, and no settled pair about that head on the pull request its receipt
+       names — a settlement is never cleared, so an older commit's pair says nothing about this one), which is the
+       lost-write window the recording exists to close. After the push, with the code standing and only the
        handoff withheld: a delivered record nobody can read, a verification asserting a report on another pull
        request, and one asserting it on the very DESCRIPTION of the pull request the code reached while that body
        neither closes this issue nor names the session — the collision held for repair rather than overwritten, since
-       the rewrite would destroy the report and leaving it would merge a pull request that closes nothing. Nothing is
+       the rewrite would destroy the report and leaving it would merge a pull request that closes nothing; the reply's
+       report goes in a comment and the description stays as its author left it. Nothing is
        discarded on any of them, no park is announced twice while it stands, and the reason itself is the debt where
        no record exists. The reply resumes the developer, and a run that comes back with a report and moved no head
        publishes the commits already on the branch — held to a debt owed, a report outcome, and a branch that

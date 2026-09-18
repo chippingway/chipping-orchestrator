@@ -356,11 +356,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             A report verified on a DESCRIPTION records the digest of what was read and nothing
                             else, so a rewrite loses the only copy -- the report and whatever a human wrote around
                             it -- and the verification behind it then reads content that has moved and refuses.
-                            Only descriptions: no body rewrite can reach a report in a comment. Preserving one is
+                            Only descriptions: no body rewrite can reach a report in a comment. A record nobody can
+                            read claims this description unless the place it still names is readably elsewhere,
+                            since the roads that park such a record run after the rewrite. Preserving one is
                             not free, so the second reading here is what a description WOULD have said: whether it
                             already closes this issue -- in any spelling GitHub honours, a human's `Fixes #12`
                             included -- and names the session whose branch this is. One that says neither is a
-                            publication whose merge leaves its issue open, which the binding below holds for repair
+                            publication whose merge leaves its issue open, which the binding below holds for repair.
+                            It also answers which publication the SETTLED pair is about -- agreeing with itself and
+                            naming this repository, pull request and commit -- since a settlement is never cleared
+                            and an older commit's report reads as well as the newest one's
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
@@ -446,7 +451,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             DESCRIPTION this publication needs for its closing reference and attribution are
                             refusals no later tick would answer differently, so the issue is parked once under
                             `report_undeliverable` with the record intact -- that last one the collision this owner
-                            holds for repair rather than resolves, since a fresh report in a COMMENT frees the body
+                            holds for repair rather than resolves: a fresh report in a COMMENT settles the report,
+                            and the description stays as its author left it. A transaction the settled pair beside
+                            it refuses -- unreadable, self-contradicting, or already newer -- is left owed rather
+                            than settled over, for the reconciliation to park
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
                             and the stage: it hands work that has ENDED straight back -- a closed issue, or one
@@ -1391,8 +1399,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             with one exception, an issue still owing a report it could not deliver, where a run that
                             comes back with a report and moved no head is publishing the commits already on the branch
                             rather than asking a question. A RECOVERED run is settled against the pinned comment as
-                            well as the tree: committed work with no report recorded anywhere (no delivery, no
-                            transaction, no settled pair) is the window the recording exists to close, a pinned write
+                            well as the tree: committed work with no report of it recorded (no delivery, no
+                            transaction, and no settled pair about that head on the pull request its receipt names)
+                            is the window the recording exists to close, a pinned write
                             that failed or a restart inside it, and is held under `report_undeliverable` rather than
                             published, because the session that could say what it did has ended
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
@@ -1959,11 +1968,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and one that does not (an operator's, or the `discussion` stage's plan PR sitting on
                             the very ref the dev commits went to) is re-bodied to the implementation's -- unless
                             that description is one this issue's own report claims (`engine/report_locations.py`),
-                            which is preserved whatever it says. The delivered road is attributed like any other
-                            reuse, so a body a report once held is re-bodied once a later report frees it. One road
+                            which is preserved whatever it says, and unless this stage already pushed onto that
+                            pull request, whose description the pushing tick settled -- a body without the
+                            attribution there now is a human's. One road
                             names its pull request instead and may
                             OPEN none: a publication the gate admitted because that pull request already carries
-                            the commit is finishing bookkeeping rather than publishing, so it is resolved by
+                            the commit is finishing bookkeeping rather than publishing, so it is never re-bodied,
+                            and it is resolved by
                             number and re-read WHOLE -- open, in this repository, on the branch the push named,
                             and standing on the commit it sent, off one fetch and against the object handed on,
                             since what this writes is a receipt naming that commit and a relabel handing a

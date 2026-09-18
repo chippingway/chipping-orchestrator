@@ -32,6 +32,11 @@ find a location whose content had moved and refuse, leaving the work here for
 good. Such a body is left exactly as it stands, `Resolves #N` and all, and the
 sentence this reuse would have added is one an operator can add themselves.
 
+Nor on a pull request this stage has already published onto. The tick that
+pushed there wrote, adopted or preserved its description, so whatever it says
+now is what a human made of it since -- and the retry that finishes an owed
+report is exactly the window such an edit lands in.
+
 The attribution line is what holds the two halves of this owner together. The
 body states it, and the reuse below reads it back off a pull request of unknown
 provenance: `find_open_pr` promises only that something is open on the branch,
@@ -63,6 +68,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
+    late_publication_state as _late_publication_state,
     models as _models,
     session_read as _session_read,
     state as _state,
@@ -181,19 +187,15 @@ def _reuse_or_open_pr(
     Pinned, the same window answers None to the CALLER, which holds the tick
     and leaves the record exactly as it stands.
 
-    That road is attributed like any other reuse, and for one publication it
-    matters: the tick that opened or adopted this pull request may have been
-    refused the body rewrite because a report of this issue's was published in
-    it, and a later run whose report went somewhere this stage can manage
-    leaves that body free. Asked again here, the description finally says which
-    issue the merge closes and whose implementation it carries -- and on every
-    ordinary delivery it says so already, which is where the ask stops.
+    Nor is that pull request's body ever rewritten. It is the one this stage
+    already published the very commit onto, and the tick that did so opened,
+    adopted or deliberately preserved its description -- so a body without the
+    attribution now is one a human changed since, or one a report was published
+    in. Either is somebody's text, and the retry that finishes an owed report
+    would erase it on the way to handing the work on.
     """
     if work.delivered_pr:
-        delivered = _delivered_pull_request(gh, issue, work)
-        if delivered is not None:
-            _attribute_reused_pr(gh, issue, state, work, delivered)
-        return delivered
+        return _delivered_pull_request(gh, issue, work)
     pr = gh.find_open_pr(branch=work.branch, base=spec.base_branch)
     if pr is not None:
         log.info(
@@ -305,7 +307,12 @@ def _attribute_reused_pr(
     the relabel), and everything it says -- including what a human added
     underneath -- is left alone.
 
-    One body is never rewritten whatever it says: the one this issue's own
+    Nor is a pull request this stage has already published onto, whatever its
+    body says: the tick that pushed there already wrote, adopted or preserved
+    that description, so an attribution missing now was removed by a human
+    since -- and what they wrote instead is theirs.
+
+    And one body is never rewritten whatever it says: the one this issue's own
     report claims as its location. A developer verifying a report on a pull
     request's DESCRIPTION records the digest of what it read and nothing else,
     so a rewrite destroys the only copy there is -- the report, and whatever a
@@ -317,6 +324,12 @@ def _attribute_reused_pr(
     neither destroys anything nor blocks the publication.
     """
     if _dev_pr_attribution(state) in (getattr(pr, "body", "") or ""):
+        return
+    if _late_publication_state._published_pull_request(state) == pr.number:
+        log.info(
+            "issue=#%s leaving reused PR #%d's body as it stands: this stage "
+            "already published onto it", issue.number, pr.number,
+        )
         return
     if _report_locations.claims_the_description(state, pr.number):
         log.warning(

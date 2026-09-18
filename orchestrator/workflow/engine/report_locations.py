@@ -21,10 +21,18 @@ So the claim is asked BEFORE any such rewrite, of every record that can hold
 one: the report a run delivered, the transaction it was bound into, and the
 report a pull request is already recorded as carrying. Any of the three naming
 this pull request's description means the description is a report's, and the
-caller leaves it exactly as it stands.
+caller leaves it exactly as it stands. A record nobody can read is asked too,
+for whatever place it still names, because the rewrite is the one step here
+that cannot be taken back.
 
 Only the description. A report in a COMMENT is not something a body rewrite can
 touch, and nothing here ever edits a comment.
+
+The settled record makes one more claim this owner reads: WHICH publication
+the report on a pull request is about. A settlement is never cleared, so an
+older commit's report reads as well as the newest one's -- and the recovery
+that republishes a commit because its report already went out has to be told
+the difference, or a newer commit goes out under a report about an older one.
 
 Preserving one is not free, and the second reading here is what its caller owes
 the work. A description is also where a pull request says which issue it closes
@@ -40,9 +48,13 @@ import re
 from typing import Any
 
 from orchestrator.github import pinned_state as _pinned_state
+from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
+    report_record_fields as _fields,
     report_record_state as _record_state,
+    report_records as _records,
+    report_replay_guards as _replay_guards,
     report_settlement_state as _settlement,
 )
 
@@ -53,6 +65,14 @@ from orchestrator.workflow.engine import (
 _CLOSES_THE_ISSUE = re.compile(
     r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b\s*:?\s*#(?P<issue>[0-9]+)\b",
     re.IGNORECASE,
+)
+
+# Every record a report's location can be claimed by, beside the reader that
+# types it.
+_CLAIMING_RECORDS = (
+    (_records.DELIVERED_REPORT, _delivery_state.read_delivered_report),
+    (_records.PENDING_REPORT, _record_state.read_pending_report),
+    (_records.CURRENT_REPORT, _settlement.read_current_report),
 )
 
 
@@ -67,24 +87,66 @@ def claims_the_description(
     holds it for as long as that report is what the pull request carries --
     and a rewrite is just as destructive at any of those moments.
 
-    A record nobody can read claims nothing here, which is the same answer
-    every reader in this domain gives it -- and the roads that act on such a
-    record answer for it where they can say something about it: the binding
-    parks a delivery it cannot read, and the reconciliation parks a
-    transaction it cannot.
+    A record nobody can read is asked for the place it still names, and it
+    claims this description unless that place is readably somewhere else. The
+    roads that act on such a record park it -- the binding a delivery, the
+    reconciliation a transaction -- but both come AFTER the reuse this answers,
+    so a damaged record read as no claim is a description destroyed before
+    anything says the record was damaged, and nothing can put the text back.
 
     False for the ordinary issue carrying none of them, and for every report
     that lives in a comment: a body rewrite cannot reach one.
     """
-    claimed = (
-        _delivery_state.read_delivered_report(state),
-        _record_state.read_pending_report(state),
-        _settlement.read_current_report(state),
-    )
     return any(
-        _is_the_description(record, pr_number)
-        for record in claimed if record is not None
+        _claims(state.get(key), reader(state), pr_number)
+        for key, reader in _CLAIMING_RECORDS
     )
+
+
+def _claims(recorded: Any, record: Any, pr_number: int) -> bool:
+    """Whether one record, typed or not, may be this pull request's description.
+
+    The typed record answers wherever it reads. Where it does not, the raw
+    location is read on its own, since that half can survive damage to the
+    rest; and a record that names no readable place at all may name this one.
+    """
+    if recorded is None:
+        return False
+    if record is not None:
+        return _names_the_description(record.location, pr_number)
+    if not isinstance(recorded, dict):
+        return True
+    location = _fields.location_from(recorded)
+    return location is None or _names_the_description(location, pr_number)
+
+
+def settled_the_publication(
+    state: _pinned_state.PinnedState,
+    repo_slug: str,
+    pr_number: int,
+    source_sha: str,
+) -> bool:
+    """Whether the settled report is about this commit on this pull request.
+
+    Both settled records, and they have to agree with each other: they are
+    written in one write off one transaction, so a pair naming two different
+    publications is one nothing here wrote. Then the subject has to name the
+    very publication the caller holds -- this repository, this pull request,
+    this commit. A report on the same pull request about an earlier commit
+    describes work that has since moved on, and one about this commit on
+    another pull request is somewhere a reviewer of this one will not look.
+
+    False wherever either record cannot be read, which is the answer that
+    holds the work for a report rather than letting it past undescribed.
+    """
+    current = _settlement.read_current_report(state)
+    handoff = _settlement.read_handoff(state)
+    if current is None or _replay_guards.companions_disagree(current, handoff):
+        return False
+    subject = current.subject
+    return handoff is not None and (
+        subject.repo_slug, subject.pr_number, subject.source_sha,
+    ) == (repo_slug, pr_number, source_sha)
 
 
 def describes_the_issue(
@@ -133,19 +195,22 @@ def costs_the_description(
     because the caller is the owner of what a description of its own would
     have said.
     """
-    return _is_the_description(record, pr_number) and not describes_the_issue
+    return (
+        _names_the_description(getattr(record, "location", None), pr_number)
+        and not describes_the_issue
+    )
 
 
-def _is_the_description(record: Any, pr_number: int) -> bool:
-    """Whether one record names this pull request's description.
+def _names_the_description(
+    location: ReportLocation | None, pr_number: int,
+) -> bool:
+    """Whether one location is this pull request's description.
 
-    The location is read off whatever record is handed over, since the three
-    spell it identically and only one of them makes it mandatory. A location
-    with a comment id names a comment, and no absence of one is a description:
-    the `null` a writer spells there is, which is exactly what the readers
-    above hand back.
+    A location with a comment id names a comment, and no absence of one is a
+    description: the `null` a writer spells there is, which is exactly what
+    the readers above hand back. A record with no location -- a publication
+    whose comment does not exist yet -- names nothing.
     """
-    location = getattr(record, "location", None)
     if location is None or location.comment_id is not None:
         return False
     return location.pr_number == pr_number

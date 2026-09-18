@@ -42,8 +42,10 @@ That last one is the collision this owner refuses rather than resolves. A
 description a report lives in may not be rewritten -- the rewrite would destroy
 the only copy of the report -- and a description that is left alone is one that
 may close no issue when it merges and name no session at all. Neither half can
-be given up quietly, so the work is held: a fresh report in a COMMENT settles
-both at once, which is what the notice asks for and what a reply buys.
+be given up quietly, so the work is held and a human told: a fresh report in a
+COMMENT settles the report, which is what a reply buys, and the description
+stays exactly as its author left it -- a closing reference there is theirs to
+add, since nothing rewrites a body this stage has already pushed onto.
 
 Publication itself is the engine's, unchanged: the post is scoped by the
 transaction's receipt, so a retry finds what an earlier attempt landed instead
@@ -88,6 +90,7 @@ from orchestrator.workflow.engine import (
     report_publishing as _publishing,
     report_record_state as _record_state,
     report_records as _records,
+    report_replay_guards as _replay,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -102,7 +105,9 @@ _UNREADABLE_DELIVERY = "the record of what the run reported cannot be read"
 _NEEDED_DESCRIPTION = (
     "it is the pull request's own description, which carries no reference "
     "closing this issue and no line naming the session that wrote the branch "
-    "-- and this orchestrator will not rewrite a description a report lives in"
+    "-- and this orchestrator will not rewrite a description a report lives "
+    "in, or one it has already pushed onto, so a closing reference there is "
+    "yours to add"
 )
 
 _UNBINDABLE_PARK = (
@@ -305,6 +310,12 @@ def _publishes_what_is_owed(
     what differs is only that the next tick proves it again rather than a
     developer answering an edit.
 
+    The settled pair beside it is asked first, on the terms the
+    reconciliation asks it: a settlement WRITES OVER that pair, so one nobody
+    can read, one that contradicts itself, or one already newer than this
+    transaction is evidence the post would destroy. Left owed, the
+    reconciliation ahead of the next handler parks it for a human.
+
     Whether the tick stops is not this owner's answer and is not asked for.
     What the caller decides on is the record: a transaction that settled is
     gone from the pinned state, and one that did not is still there for the
@@ -312,6 +323,15 @@ def _publishes_what_is_owed(
     """
     pending = _record_state.read_pending_report(state)
     if pending is None or not _names_this_publication(pending, published):
+        return
+    refused = _replay.refuses_the_record(state, pending)
+    if refused:
+        log.error(
+            "issue=#%d is not publishing developer report revision %d onto "
+            "PR #%s: %s; leaving it owed for the reconciliation to hold",
+            issue.number, pending.report_revision,
+            pending.subject.pr_number, refused,
+        )
         return
     edited = _evidence.fresh_requirements_verdict(gh, issue, state, pending)
     if edited is not None:
