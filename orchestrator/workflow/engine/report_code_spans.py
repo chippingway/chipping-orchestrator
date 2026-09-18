@@ -2,19 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 """The inline code spans of a Markdown text: those possible, and those certain.
 
-Markdown pairs backticks within one block, and where a block begins is the
-doubt: a heading, a list item or a quote can start one with no blank line above
-it. So a span is looked for from EVERY line a block could begin on, within what
-blank lines certainly bound. POSSIBLE is whatever any of those readings
-encloses, for `report_prose`, to which a doubt is code.
+Markdown pairs backticks left to right within one stretch of inline text, and
+where such a stretch begins is the doubt. A heading, a list item or a quote
+starts a block with no blank line above it; a table reads each CELL on its own;
+and an HTML tag or an autolink binds as tightly as a code span with the
+leftmost winning, so a backtick inside one is no delimiter and the pairing
+starts afresh past its `>`. So a span is looked for from EVERY place a reading
+could begin, within what blank lines certainly bound: each line, each cell of a
+block that may hold a table, and -- from the first `<` standing in no certain
+code -- each `>`. POSSIBLE is whatever any of those readings encloses, for
+`report_prose`, to which a doubt is code.
 
 CERTAIN is the other end of the same doubt, for a reader that must not take a
-tag quoted as code for a tag: a span every reading agrees on. One that stays on
-its line, on a line no earlier reading's span runs into -- past that line's
-start every reading reads alike -- and with no `<` before it in its block but
-inside the certain spans already found: an HTML tag or an autolink binds as
-tightly as a code span and the leftmost wins, so a backtick after a `<` may be
-part of one rather than a delimiter.
+tag quoted as code for a tag: a span every reading agrees on. One that ends
+before the next place a reading could begin, begun where no earlier reading's
+span runs in -- past there every reading reads alike -- and with no `<` before
+it in its block but inside the certain spans already found.
 
 An escaped backtick opens nothing, being a literal character; inside a span a
 backslash escapes nothing, so a span closes on the next whole run of its
@@ -41,8 +44,24 @@ _INLINE_TOKEN_RE = re.compile(r"\\[\s\S]|`+")
 
 _BACKTICK = "`"
 
-# What an HTML tag or an autolink opens on.
+# What an HTML tag or an autolink opens on, and what it ends on.
 _TAG_OPENER = "<"
+
+_TAG_END_RE = re.compile(">")
+
+# Where a reading could begin: each line; and each cell as well, in a block
+# that may hold a table. Every pipe is taken for a cell's edge, an escaped one
+# too, since one reading more only adds to what is possible.
+_LINE_START_RE = re.compile("^", re.MULTILINE)
+
+_CELL_START_RE = re.compile(r"^|\|", re.MULTILINE)
+
+# The row of dashes a table's header stands on, behind whatever markers its line
+# opens on. Without one no line of the block is a row, and a pipe is a pipe.
+_TABLE_DELIMITER_RE = re.compile(
+    r"^[ \t>*+-]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$",
+    re.MULTILINE,
+)
 
 # A stretch of the text, as its two offsets.
 type _Stretch = tuple[int, int]
@@ -66,12 +85,9 @@ class CodeSpans:
 
 
 def code_spans(text: str) -> CodeSpans:
-    """Read `text` from every line a block could begin on.
+    """Read `text` from every place a reading of its inline code could begin.
 
-    One reading per backticked line of each block blank lines bound, begun at
-    that line: a block that really begins there pairs its backticks from
-    there, and one that does not is read from the line it does begin on. A
-    reading runs to the end of what the blank lines bound, since stopping
+    A reading runs to the end of what the blank lines bound, since stopping
     sooner could only leave a span it found unclosed.
     """
     runs = _BacktickRuns(text)
@@ -83,60 +99,101 @@ def code_spans(text: str) -> CodeSpans:
 
 
 def _blocks(text: str) -> Iterator[_Block]:
-    """Each block blank lines bound, beside the backticked lines within it."""
+    """Each backticked block blank lines bound."""
     block_start = 0
-    lines: list[_Stretch] = []
     for line in _fences._LINE_RE.finditer(text):
-        if _BLOCK_END_RE.fullmatch(line.group()) is None:
-            if _BACKTICK in line.group():
-                lines.append(line.span())
-            continue
-        yield _Block(block_start, line.start(), tuple(lines))
-        block_start = line.end()
-        lines = []
-    yield _Block(block_start, len(text), tuple(lines))
+        if _BLOCK_END_RE.fullmatch(line.group()) is not None:
+            yield _Block(block_start, line.start())
+            block_start = line.end()
+    yield _Block(block_start, len(text))
 
 
 @dataclass(frozen=True)
 class _Block:
-    """What blank lines bound, and the lines of it a reading is begun at."""
+    """What blank lines bound: as far as any reading of inline code can run."""
 
     start: int
     end: int
-    lines: tuple[_Stretch, ...]
 
     def spans(self, text: str, runs: _BacktickRuns) -> CodeSpans:
         """The spans of this block, one too crowded to read being code throughout."""
-        if len(self.lines) > _MAX_SPAN_READINGS:
+        if _BACKTICK not in text[self.start:self.end]:
+            return CodeSpans((), ())
+        begun = self._begun_past(text, self._edges(text), self.start)
+        if len(begun) > _MAX_SPAN_READINGS:
             return CodeSpans(((self.start, self.end),), ())
-        starts = (line[0] for line in self.lines)
-        readings = [list(runs.spans_from(start, self.end)) for start in starts]
-        return CodeSpans(
-            tuple(chain.from_iterable(readings)),
-            tuple(self._agreed(text, readings)),
-        )
+        readings = [list(runs.spans_from(start, self.end)) for start in begun]
+        certain = tuple(self._agreed(text, begun, readings))
+        past_tags = self._begun_past_tags(text, certain)
+        if len(begun) + len(past_tags) > _MAX_SPAN_READINGS:
+            return CodeSpans(((self.start, self.end),), ())
+        for start in past_tags:
+            readings.append(list(runs.spans_from(start, self.end)))
+        return CodeSpans(tuple(chain.from_iterable(readings)), certain)
 
-    def _agreed(self, text: str, readings: list[list[_Stretch]]) -> Iterator[_Stretch]:
+    def _edges(self, text: str) -> re.Pattern[str]:
+        """What a reading begins past: each line, or each cell where a table may be."""
+        table = _TABLE_DELIMITER_RE.search(text, self.start, self.end)
+        return _LINE_START_RE if table is None else _CELL_START_RE
+
+    def _begun_past_tags(self, text: str, certain: tuple[_Stretch, ...]) -> list[int]:
+        """Where a reading could begin past a tag or an autolink.
+
+        Past each `>` from the first `<` standing in no certain span: before
+        it nothing a `>` could end has begun, so a `>` there ends nothing.
+        """
+        tagged = self._first_tag(text, certain)
+        return [] if tagged is None else self._begun_past(text, _TAG_END_RE, tagged)
+
+    def _begun_past(self, text: str, edge: re.Pattern[str], since: int) -> list[int]:
+        """Where a reading could begin: past each `edge` of the block from `since`.
+
+        Less those with no backtick before the next, which read as the next
+        does -- so a text of many lines costs a reading per backticked one.
+        """
+        begun = [past.end() for past in edge.finditer(text, since, self.end)]
+        following = [*begun, self.end][1:]
+        return [
+            start for start, until in zip(begun, following, strict=True)
+            if _BACKTICK in text[start:until]
+        ]
+
+    def _agreed(
+        self, text: str, begun: list[int], readings: list[list[_Stretch]],
+    ) -> Iterator[_Stretch]:
         """The undisputed spans up to the first `<` standing outside them."""
         cursor = self.start
-        for span in self._undisputed(readings):
+        for span in self._undisputed(begun, readings):
             if _TAG_OPENER in text[cursor:span[0]]:
                 return
             yield span
             cursor = span[1]
 
-    def _undisputed(self, readings: list[list[_Stretch]]) -> Iterator[_Stretch]:
-        """The spans that stay on a line no earlier reading's span runs into."""
-        for index, line in enumerate(self.lines):
+    def _undisputed(
+        self, begun: list[int], readings: list[list[_Stretch]],
+    ) -> Iterator[_Stretch]:
+        """The spans ending before the next reading begins, where none runs in."""
+        ends = [*begun, self.end][1:]
+        for index, start in enumerate(begun):
             earlier = readings[:index]
-            if not any(_runs_into(spans, line[0]) for spans in earlier):
-                yield from _staying_before(readings[index], line[1])
+            if not any(_runs_into(spans, start) for spans in earlier):
+                yield from _staying_before(readings[index], ends[index])
+
+    def _first_tag(self, text: str, certain: tuple[_Stretch, ...]) -> int | None:
+        """Where the first `<` standing in no certain span is, or None for none."""
+        cursor = self.start
+        for span_start, span_end in (*certain, (self.end, self.end)):
+            tagged = text.find(_TAG_OPENER, cursor, span_start)
+            if tagged >= 0:
+                return tagged
+            cursor = span_end
+        return None
 
 
-def _staying_before(spans: list[_Stretch], line_end: int) -> Iterator[_Stretch]:
-    """The spans of one reading, in order, up to the first that leaves its line."""
+def _staying_before(spans: list[_Stretch], end: int) -> Iterator[_Stretch]:
+    """The spans of one reading, in order, up to the first that runs past `end`."""
     for span in spans:
-        if span[1] > line_end:
+        if span[1] > end:
             return
         yield span
 

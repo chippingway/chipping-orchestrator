@@ -59,6 +59,12 @@ CODE_SPANS = (
     f"# A ` heading\n`Fixes\n#{ISSUE}`",
     f"`\n*\n{FIXES}`",
     f"foo `\n    ~~~\n    bar\n    ~~~\n{FIXES}`",
+    # Pairing starts afresh wherever a stretch of inline text does: in each cell
+    # of a table, and past a tag or an autolink that took a backtick for its own.
+    f"| Field | Value |\n| --- | --- |\n| stray ` | `{FIXES}` |",
+    f"Field | Value\n:-- | --:\nstray ` | `{FIXES}`",
+    f'see <a title="`">a link</a> `{FIXES}`',
+    f"<http://example.com/`x> `{FIXES}`",
 )
 
 # Code, or hidden, by the HTML around it, read off the text as written: an
@@ -96,6 +102,7 @@ UNCERTAIN_QUOTING = (
     f"~~~\nx\n ~~~\n<pre>\n~~~\n{FIXES}",
     f"> ```\n\n> <pre>\n> ```\n> {FIXES}",
     f"<pre>\n\n`<pre>` x</pre> {FIXES}</pre>",
+    f"| ` | <pre> ` {FIXES} |\n| --- | --- |",
     # A quoted tag is passed over at its name, never read on to a `>` of its
     # own: cut short inside its code, it would take the real tag after that
     # code as its attributes, and hide the element that opens.
@@ -143,6 +150,13 @@ PROSE = (
     f"```html\n<pre>\n```\n\n{FIXES}",
     f"> ```html\n> <pre>\n> ```\n\n{FIXES}",
     f"Example `<pre` then {FIXES}",
+    # A pipe is a cell's edge only where a table may be, and a `>` ends a tag
+    # only where a `<` has begun one: a shell pipe in a span and a comparison
+    # in prose leave the pairing as it was.
+    f"Run `a | b` then `c`. {FIXES} via `d`.",
+    f"Where a > b use `x`. {FIXES} as `y` does.",
+    f"| Field | Value |\n| --- | --- |\n| `code` | {FIXES} |",
+    f"| a | b |\n| --- | --- |\n| `x` | `y` |\n\n{FIXES}",
     f"```\n<pre\n```\n\n{FIXES}",
     # Not a tag at all, so its apostrophe is no unclosed attribute value.
     f"When n <m it's fine. {FIXES}",

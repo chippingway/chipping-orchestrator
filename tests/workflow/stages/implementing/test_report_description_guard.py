@@ -93,6 +93,9 @@ CLOSING_NOTHING = (
     f'<pre data-example="> </pre>">{RESOLVES}</pre>',
     f"Example `<pre` then <code>{RESOLVES}</code>",
     f"```\n<pre\n```\n\n<code>{RESOLVES}</code>",
+    f"| Field | Value |\n| --- | --- |\n| stray ` | `{RESOLVES}` |",
+    f'see <a title="`">a link</a> `{RESOLVES}`',
+    f"<http://example.com/`x> `{RESOLVES}`",
     f"Resolves someone/else#{ISSUE}",
 )
 
