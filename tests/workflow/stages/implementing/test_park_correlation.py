@@ -34,6 +34,7 @@ from tests.workflow.fixtures import (
     _analytics_records,
     _PatchedWorkflowMixin,
 )
+from tests.workflow.patch_models import _reported
 
 _EVENT_PATH_ATTR = "EVENT_LOG_PATH"
 _ANALYTICS_FILE = "analytics.jsonl"
@@ -221,7 +222,7 @@ class HumanWaitIsRecordedOnceTest(_ParkRecordCase):
 
     def test_successful_publication_records_no_wait(self) -> None:
         records, github = self._park_records(
-            run_agent=_agent(session_id=_DEV_SESSION, last_message="implemented"),
+            run_agent=_agent(session_id=_DEV_SESSION, last_message=_reported()),
             has_new_commits=[False, True],
             dirty_files=(),
             push_branch=True,

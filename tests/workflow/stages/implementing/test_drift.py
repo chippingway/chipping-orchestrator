@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import unittest
 
+from tests.workflow.fixtures import _reported
 from tests.workflow.stages.implementing import drift_test_support as support
 
 AGENT_RUN_CHARGE_WRITES = support.AGENT_RUN_CHARGE_WRITES
@@ -127,7 +128,9 @@ class HandleImplementingResumeOnHashChangeTest(
         self._mocks = self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="addressed it"),
+            run_agent=_agent(
+                session_id=DEV_SESSION, last_message=_reported("addressed it"),
+            ),
             has_new_commits=True,
             dirty_files=(),
             push_branch=True,

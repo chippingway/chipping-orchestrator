@@ -624,11 +624,11 @@ The keys that matter for the state machine fall into a few groups:
   carries the transaction beside the previous report and its receipt, which are what a reader still needs while the
   new one is outstanding and are exactly what the settlement then replaces. The owners are the
   `workflow/engine/report_record*`, `report_delivery_state` and `report_settlement_state` modules, what turns a
-  finished run into a delivery is `report_delivery.py`, and what reconciles an outstanding transaction ahead of
-  every handler is
-  [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch).
-  No stage PRODUCES a record yet, so the group is empty on every live issue; the dispatcher's reconciliation is what
-  finishes one the moment a stage does.
+  finished run into a delivery is `report_delivery.py`, what binds it and publishes it once the code reaches a pull
+  request is `report_binding.py`, and what reconciles an outstanding transaction ahead of every handler is
+  [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch). The
+  initial implementation delivery is the stage that produces them
+  ([`_handle_implementing`](delivery-stages.md#_handle_implementing-label-workflowimplementing)).
 
   `developer_report_delivery` is what one completed run wrote, recorded **before** the size gate reads its candidate
   and before the push sends it — which is the last moment the report is certainly recoverable, since the session
@@ -664,13 +664,11 @@ The keys that matter for the state machine fall into a few groups:
   nothing staged, since a transaction bound to another revision would claim the report answers content the run
   never saw, and it is held to the record the comment CARRIES: a report the delivery field has none for, one
   nothing can read, and one a later report has already replaced are each refused, since the write drops whatever is
-  there and binding on any of them would replace a finished run's report with a value the comment never held. Two
-  roads park the issue under `report_undeliverable`, and both are on the recording side: a report this workflow
-  cannot write down at all, and a completed run that handed over no usable report to write. A binding REFUSES
-  rather than parks — it stages nothing and says which refusal it was, so whatever comes to call it can tell a
-  comment too full for the transaction, which the routes a report still owed lets run give that room back for,
-  from a record no comment would ever hold. On every one of them the record that exists is left exactly as it
-  stands.
+  there and binding on any of them would replace a finished run's report with a value the comment never held. A
+  binding REFUSES rather than parks — it stages nothing and says which refusal it was — and `report_binding.py` is
+  what answers the refusal: a comment too full for the transaction is retried silently on the next tick, since the
+  routes a report still owed lets run are what give that room back, while a record no comment would ever hold parks
+  the issue under `report_undeliverable`. On every one of them the record that exists is left exactly as it stands.
 
   `developer_report_pending` is one publication transaction, written **before the report it carries is published**
   — that ordering is the whole of what makes the publication recoverable. Whether the CODE that report is about is
@@ -797,12 +795,15 @@ The keys that matter for the state machine fall into a few groups:
   standing it takes no park at all and does not hold either, because the route that answers a foreign park is the
   handler behind this guard (see
   [`delivery-stages.md`](delivery-stages.md#the-developer-report-transaction-every-dispatch)).
-  `workflow/engine/report_delivery.py` re-sets `report_undeliverable` for a reason of a third kind: the two roads
-  that take it — a report this build cannot record, and a completed run that handed over none at all — leave no
-  record behind them, so the reason is the whole of the DEBT as well as the notice's bookkeeping, and while it
-  stands the issue reads as still owing a report. It is announced once while it stands, and retired the moment a
-  report IS recorded, since that is the condition it was taken for. Nothing takes it yet, because nothing calls
-  that owner. The late
+  `workflow/engine/report_delivery.py` re-sets `report_undeliverable` for a reason of a third kind. The implementing
+  publication takes it on four roads: a report this build cannot record, a completed run that handed over none at all,
+  the recovered-worktree path finding committed work no recorded report describes, and — after the push — a delivery
+  the binding cannot bind or a verification on a description the publication needs. The first three leave no record
+  behind them, so the reason is the whole of the DEBT as well as the notice's bookkeeping, and while it stands the
+  issue reads as still owing a report: the handoff is withheld, and a resumed run that brings a report back publishes
+  the commits already on the branch rather than parking as a question. It is announced once while it stands, retired
+  the moment a report IS recorded, and spent by the publication handoff beside the agent timeout's, since reaching
+  that line means the report the park was about has reached the pull request. The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,
   `late_candidate_moved`, `late_unauthorized_exemption`, `late_evidence_missing`, `late_plan_pr_hold_failed`,
   `late_generation_incomplete`, `late_worktree_missing`, `late_worktree_mutated`, `late_adjudicator_timeout`,

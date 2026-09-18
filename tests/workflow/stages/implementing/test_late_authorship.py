@@ -167,7 +167,15 @@ class SeamRecordsWhatItSaysTest(_SaidCase, unittest.TestCase):
 
         said = self._sentences()
         self.assertEqual(len(said), 2)
-        self.assertEqual(self._attributed(), said)
+        attributed = self._attributed()
+        # Each of this seam's sentences once, in the order they went out. The
+        # ledger also carries the developer report the publication posted on
+        # the pull request -- every comment this workflow writes goes in it --
+        # so what is asserted here is the seam's own ids and their count.
+        self.assertEqual(
+            [seen for seen in attributed if seen in said], said,
+        )
+        self.assertEqual(len(attributed), len(set(attributed)))
 
     def test_nothing_is_left_outstanding(self) -> None:
         # The receipt covers one API call and is dropped by the write that

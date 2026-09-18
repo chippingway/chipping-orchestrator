@@ -32,11 +32,21 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                      could not report on parks as
                                      unreadable_worktree, since a read that
                                      established nothing is not a clean tree
-     additions <= MAX_ADDED_LINES ─► publish as usual (push, PR,
-                                     workflow:validating); the generation is
-                                     dropped, its cycle recorded retired, and
-                                     the commit still owed a push recorded as
-                                     late_approved_sha until it lands
+     a finished run's report      ─► recorded on the pinned comment between
+                                     the tree and the gate; one that will not
+                                     record, a completed run that reported
+                                     nothing, and a recovered worktree whose
+                                     commits no record describes all park
+                                     report_undeliverable with nothing
+                                     measured, pushed or opened
+     additions <= MAX_ADDED_LINES ─► publish as usual (push, PR, the report
+                                     bound and posted on it, then
+                                     workflow:validating -- withheld, unparked,
+                                     while the report is still owed); the
+                                     generation is dropped, its cycle recorded
+                                     retired, and the commit still owed a push
+                                     recorded as late_approved_sha until it
+                                     lands
      additions >  MAX_ADDED_LINES ─► NOTHING pushed, no PR opened;
                                      label=workflow:decomposing, where the
                                      late coordinator owns every later tick
@@ -644,7 +654,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    untouched: a closed issue, or an open one
                                    already wearing done|rejected, since a
                                    terminal label resolves to no handler and
-                                   the no-op below would protect nothing
+                                   the no-op below would protect nothing.
+                                   The record itself is left by a publication
+                                   that bound its run's report and could not
+                                   put it on the thread, so reaching this
+                                   guard is the retry, not the first attempt
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every

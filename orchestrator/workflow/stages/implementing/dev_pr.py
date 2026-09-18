@@ -10,6 +10,28 @@ that closes the issue on merge with the dev session that wrote the branch, and
 with the agent's closing message where the run produced one -- capped, and cut
 on a boundary that leaves the Markdown around it intact.
 
+That closing message is written only where this issue owes no developer report.
+A report of its own is published as a comment with an identity, a revision and a
+digest, and it says in as many words that it supersedes any agent message in the
+description -- so a capped excerpt of the same run written here as well would be
+a second, unmarked, unversioned copy of the report in a place nothing records or
+rereads. Where the report is the authority, the description carries what only it
+can: the closing reference and the attribution.
+
+Nothing already on a description is ever removed on that account. A body written
+before this record existed carries its agent message under an unmarked
+`_Last agent message:_` heading, and nothing can tell where that message ends
+and a human's own words begin -- so the tail stays where it is, historical, and
+the report comment is what a reader is pointed at.
+
+And nothing is removed on the reuse's account either where the description IS a
+report. A developer that verified one there recorded the digest of what it read
+and nothing else, so the rewrite below would destroy the only copy -- the report
+and whatever a human wrote around it -- and the verification that follows would
+find a location whose content had moved and refuse, leaving the work here for
+good. Such a body is left exactly as it stands, `Resolves #N` and all, and the
+sentence this reuse would have added is one an operator can add themselves.
+
 The attribution line is what holds the two halves of this owner together. The
 body states it, and the reuse below reads it back off a pull request of unknown
 provenance: `find_open_pr` promises only that something is open on the branch,
@@ -34,7 +56,11 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.publication import titles as _titles
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    report_delivery as _report_delivery,
+    report_locations as _report_locations,
+)
 from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
     models as _models,
@@ -105,13 +131,26 @@ def _build_pr_body(
     state: _pinned_state.PinnedState, issue: Issue, agent_result: AgentResult,
 ) -> str:
     """PR body: the `Resolves #N` line, the generating session's identity, and
-    the (capped) final agent message when the run produced one."""
+    the (capped) final agent message when the run produced one and this issue
+    owes no report of its own.
+
+    The two lines above the message are what the description alone can say: the
+    reference that closes the issue on merge, and the session the reuse below
+    reads back before it adopts a pull request somebody else opened.
+
+    The message is the half a report replaces. An issue that owes one is going
+    to have it published as a comment carrying its own identity, revision and
+    digest, and saying that it supersedes any agent message here -- so writing a
+    capped excerpt of the same run into the description too would leave two
+    copies of one report, one of them unmarked and unversioned, in a place
+    nothing rereads.
+    """
     body_parts = [
         f"Resolves #{issue.number}",
         "",
         _dev_pr_attribution(state),
     ]
-    if agent_result.last_message.strip():
+    if agent_result.last_message.strip() and not _report_delivery.owes_a_report(state):
         body_parts += [
             "", "---", "_Last agent message:_", "",
             _format_pr_agent_message(agent_result.last_message),
@@ -141,9 +180,20 @@ def _reuse_or_open_pr(
     and here answers None and a second one is opened over the same work.
     Pinned, the same window answers None to the CALLER, which holds the tick
     and leaves the record exactly as it stands.
+
+    That road is attributed like any other reuse, and for one publication it
+    matters: the tick that opened or adopted this pull request may have been
+    refused the body rewrite because a report of this issue's was published in
+    it, and a later run whose report went somewhere this stage can manage
+    leaves that body free. Asked again here, the description finally says which
+    issue the merge closes and whose implementation it carries -- and on every
+    ordinary delivery it says so already, which is where the ask stops.
     """
     if work.delivered_pr:
-        return _delivered_pull_request(gh, issue, work)
+        delivered = _delivered_pull_request(gh, issue, work)
+        if delivered is not None:
+            _attribute_reused_pr(gh, issue, state, work, delivered)
+        return delivered
     pr = gh.find_open_pr(branch=work.branch, base=spec.base_branch)
     if pr is not None:
         log.info(
@@ -254,8 +304,28 @@ def _attribute_reused_pr(
     means this stage already wrote it (a tick that died between `open_pr` and
     the relabel), and everything it says -- including what a human added
     underneath -- is left alone.
+
+    One body is never rewritten whatever it says: the one this issue's own
+    report claims as its location. A developer verifying a report on a pull
+    request's DESCRIPTION records the digest of what it read and nothing else,
+    so a rewrite destroys the only copy there is -- the report, and whatever a
+    human wrote around it -- and the verification behind it then reads a
+    location whose content has moved and refuses, which leaves the work on
+    this stage with a report nothing can ever settle. Preserved, the pull
+    request keeps a body this implementation did not write; what that costs is
+    the closing reference and the attribution, which a human can add and which
+    neither destroys anything nor blocks the publication.
     """
     if _dev_pr_attribution(state) in (getattr(pr, "body", "") or ""):
+        return
+    if _report_locations.claims_the_description(state, pr.number):
+        log.warning(
+            "issue=#%s is not rewriting reused PR #%d's body: a developer "
+            "report of this issue's is published there, and the rewrite would "
+            "replace it -- the pull request keeps the description it has, "
+            "without this implementation's `Resolves` line or attribution",
+            issue.number, pr.number,
+        )
         return
     log.info(
         "issue=#%s rewriting reused PR #%d body to name this implementation",

@@ -162,8 +162,10 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
         gh.add_issue(issue)
         self._run(
             lambda: _implementing._handle_implementing(gh, support._TEST_SPEC, issue),
-            run_agent=support._agent(session_id="sess-x", last_message="done"),
-            has_new_commits=True,
+            run_agent=support._agent(
+                session_id="sess-x", last_message=support._reported("done"),
+            ),
+            has_new_commits=[False, True],
             push_branch=False,  # simulate push failure
         )
         park = support._only_event(gh, support.EVENT_PARK_AWAITING_HUMAN)

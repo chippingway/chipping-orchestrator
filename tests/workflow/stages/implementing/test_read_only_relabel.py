@@ -28,6 +28,7 @@ from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.stages.implementing import read_only_relabel_test_support as _support
 from tests.workflow.stages.implementing.read_only_relabel_test_support import _ReadOnlyRelabelMixin
@@ -189,7 +190,9 @@ class DiscussionRelabelToImplementingTest(
             gh,
             issue,
             unpushed_branch=None,
-            run_agent=_agent(session_id=_support.DEV_SESSION, last_message="implemented"),
+            run_agent=_agent(
+                session_id=_support.DEV_SESSION, last_message=_reported(),
+            ),
             has_new_commits=[False, True],
             branch_tip_sha="",
             head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
@@ -213,7 +216,9 @@ class DiscussionRelabelToImplementingTest(
             gh,
             issue,
             unpushed_branch=None,
-            run_agent=_agent(session_id=_support.DEV_SESSION, last_message="implemented"),
+            run_agent=_agent(
+                session_id=_support.DEV_SESSION, last_message=_reported(),
+            ),
             has_new_commits=[False, True],
             head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
         )

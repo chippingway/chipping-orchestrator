@@ -162,9 +162,9 @@ carries that exemption over with, the `decomposing` stage's own record of the ru
 additive `developer_report_*` group one report publication is recorded as — the report a completed run delivered
 before its code went out, the transaction that report is bound into once a pull request carries the code, the report
 the pull request carries, and the receipt one finished transaction leaves. Its owners read and write those records
-fail-closed, and the dispatcher reconciles an outstanding transaction ahead of every handler
-([the developer-report transaction](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch));
-no stage produces one yet.
+fail-closed; the initial implementation delivery produces and settles one on the tick it publishes, and the
+dispatcher reconciles an outstanding transaction ahead of every handler
+([the developer-report transaction](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch)).
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
 [`state-machine/labels-and-state.md#pinned-state`](state-machine/labels-and-state.md#pinned-state).
 

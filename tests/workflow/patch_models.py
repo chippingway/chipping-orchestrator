@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.git.publication.commits import _Amendment
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow.repo_values import (
     _FAKE_WT,
@@ -34,7 +35,7 @@ class _AgentResultSeed:
     interrupted: bool = False
     stderr: str = ""
     exit_code: int | None = None
-    # Whether a process produced this result. False is what a caller's own
+    # Whether a process produced this result. False is what a stage's own
     # synthesis carries -- the sentence it writes to publish committed work an
     # earlier run left -- which the report contract may not be held against.
     invoked: bool = True
@@ -140,6 +141,51 @@ class _WorkflowRunContext:
     # nothing; a mapping seeds the two ends a rebase tells apart, and "" is
     # the reading that did not happen.
     fork_points: Any = FORK_POINT_SHA
+
+
+# What a finished developer run's message ends on. Every developer prompt
+# teaches the report contract, and the implementing stage holds a completed run
+# to it: work published with no report reaches review with nothing describing
+# it and no session left to ask, so a fixture whose run FINISHES says so the
+# way a developer does.
+_FINISHED_REPORT = (
+    "REPORT: READY\nThe branch does what the issue asked, verified by the "
+    "suite.\nREPORT: END"
+)
+
+
+def _reported(message: str = "implemented") -> str:
+    """One finished run's last message: what it said, then its report."""
+    return f"{message}\n\n{_FINISHED_REPORT}"
+
+
+def _recovered_report(issue) -> dict:
+    """The pinned record a run that committed, and died, left behind.
+
+    What every tick whose worktree ALREADY carries commits is seeded with,
+    because that is what one looks like in production: the run that made those
+    commits recorded its report before the size gate and before the push, so
+    an issue reaching a later tick with committed work carries the report of
+    the run that committed it. A tick finding commits and no record at all is
+    the window that recording exists to close -- a lost pinned write -- and
+    the stage holds it for a human rather than publishing it undescribed.
+
+    The requirements revision is the issue's own content hash, since the run
+    this stands in for was handed exactly the issue in hand: one naming an
+    older revision is an edit landing mid-run, which is a different road.
+    """
+    return {
+        "developer_report_delivery": {
+            "receipt": f"issue-{issue.number}-report-1",
+            "revision": 1,
+            "requirements": _content_hash._compute_user_content_hash(issue, ()),
+            "mode": "publish",
+            "route": "workflow:implementing",
+            "watermarks": [],
+            "spends": [],
+            "report": "the run that made this commit reported it.",
+        },
+    }
 
 
 def _agent(**agent_fields) -> AgentResult:

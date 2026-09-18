@@ -32,7 +32,17 @@ decides only WHEN one is opened, which is once the push has landed.
 What the handoff itself writes -- the pull request and the branch it records,
 the records it spends, the counters it resets, and the relabel it goes out
 ahead of -- is `handoff`'s, for the same division: this owner decides only WHEN
-it is reached, which is once both proofs taken around the push have passed.
+it is reached, which is once both proofs taken around the push have passed and
+the report the run wrote is on the pull request.
+
+That report is the third thing a publication owes, and it is bound and posted
+here because here is where the missing half of its record exists: until the
+push lands and a pull request carries it, the report names no publication at
+all. Binding and publishing are the engine's; this owner decides only WHEN,
+which is immediately once the pull request is known, and what an unpublished
+one COSTS, which is the handoff. Code handed to review under a report nothing
+posted is an implementation the reviewer has to ask for again -- and nothing
+under `validating` would ever come back for it.
 """
 from __future__ import annotations
 
@@ -47,7 +57,12 @@ from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.workflow.engine import guards as _guards
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    report_binding as _report_binding,
+    report_delivery as _report_delivery,
+    report_locations as _report_locations,
+)
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
     dev_pr as _dev_pr,
@@ -238,6 +253,15 @@ def _on_commits(
     top of the disposition is a fact about a moment that has passed by the
     time either effect runs.
 
+    The report the developer wrote is bound to this publication and posted
+    once the pull request is known, and it is the third thing that can leave
+    this call unfinished. A report still owed refuses the handoff exactly as a
+    moved checkout does, and for the same reason: past the relabel the issue
+    belongs to another stage, and nothing there will publish a report or come
+    back for one. Refused, the debt is re-recorded and the next tick republishes
+    the same commit onto the same pull request -- so the recovery costs no
+    developer run and opens nothing new.
+
     Work that ENDED is refused immediately before the push, on the same terms
     every gated publication onto an open pull request refuses one. A close a
     poll observed is one half: the gate's own barrier ends the CYCLE, which
@@ -303,12 +327,68 @@ def _on_commits(
     _late_publication_state._record_publication(
         state, published, "", getattr(pr, "number", 0) or 0,
     )
-    if _checkout._moved_after_the_push(
-        gh, issue, state, published, wt,
-    ) or _checkout._dirtied_after_the_push(gh, issue, state, published, wt):
+    # The pull request exists, so the report the run delivered can finally say
+    # where it goes: bound onto this publication, written durably, and posted.
+    # Here rather than past the two proofs below, because what those protect is
+    # the CHECKOUT this stage hands on, and a report is about the commit that
+    # is already on the remote -- so a worktree somebody moved is no reason to
+    # leave a finished report unpublished.
+    #
+    # What this pull request's own DESCRIPTION says travels with it, because a
+    # report verified on that body is the one report this stage cannot both
+    # keep and manage: the rewrite that would put the closing reference and
+    # the attribution there is the rewrite that would destroy it. Read here,
+    # where the body in hand is the one the reuse just decided about.
+    _report_binding.binds_and_publishes(
+        gh, issue, state, _report_binding.ReportPublication(
+            pr, spec.slug, branch, published,
+            _report_locations.describes_the_issue(
+                pr, issue.number, _dev_pr._dev_pr_attribution(state),
+            ),
+        ),
+    )
+    if (
+        _checkout._moved_after_the_push(gh, issue, state, published, wt)
+        or _checkout._dirtied_after_the_push(gh, issue, state, published, wt)
+        or _still_owes_its_report(issue, state, published, pr)
+    ):
         _owes_the_handoff(state, published)
         return
     _handoff._advance_to_validating(gh, issue, state, pr, branch)
+
+
+def _still_owes_its_report(
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    published: str,
+    pr,
+) -> bool:
+    """Whether this publication is unfinished because its report is unpublished.
+
+    The third way the handoff is refused, beside the two proofs about the
+    checkout, and the only one that is about the pull request rather than
+    about this host. Code published under a report nobody put on the thread is
+    exactly what a reviewer must not be handed: nothing under `validating`
+    comes back for a report, and implementing never sees the issue again once
+    the label moves.
+
+    Refused the same way a moved checkout is, which is what makes it
+    recoverable rather than terminal: the debt is re-recorded, so the next
+    tick recognizes the published branch, reuses the pull request that already
+    carries it, and reaches this line again -- with no second developer run
+    and no second pull request. Two roads publish the report before it gets
+    there: the reconciliation ahead of that tick's handler, which proves the
+    same world this tick just made, and the binding step above, which posts
+    the transaction it finds already bound to this very publication.
+    """
+    if not _report_delivery.owes_a_report(state):
+        return False
+    log.warning(
+        "issue=#%s published %s on PR #%s and still owes it a developer "
+        "report; holding the handoff for the tick that publishes one",
+        issue.number, published, getattr(pr, "number", 0) or 0,
+    )
+    return True
 
 
 def _owes_the_handoff(

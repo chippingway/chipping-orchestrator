@@ -91,6 +91,7 @@ def _try_recover_late_measurement_park(
         timed_out=False,
         stdout="",
         stderr="",
+        invoked=False,
     )
     _candidate_recovery._publish_committed_work(
         gh, spec, issue, state, _models._RecoveredWork(
@@ -148,6 +149,7 @@ def _try_recover_moved_candidate_park(
         timed_out=False,
         stdout="",
         stderr="",
+        invoked=False,
     )
     _candidate_recovery._publish_committed_work(
         gh, spec, issue, state, _models._RecoveredWork(agent_result, wt, restored),

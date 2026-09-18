@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from orchestrator.workflow.engine import content_hash as _content_hash
+from orchestrator.workflow.late_split import formats as _formats
 from tests.support import fakes
 from tests.workflow import fixtures
 from tests.workflow.stages import implementing_fixing_test_cases
@@ -20,17 +21,24 @@ LABEL_IMPLEMENTING = fixtures.LABEL_IMPLEMENTING
 LABEL_VALIDATING = fixtures.LABEL_VALIDATING
 _PatchedWorkflowMixin = fixtures._PatchedWorkflowMixin
 _agent = fixtures._agent
+_reported = fixtures._reported
 _issue_branch = fixtures._issue_branch
 
 RUN_AGENT = "run_agent"
 USER_CONTENT_HASH = "user_content_hash"
 AWAITING_HUMAN = "awaiting_human"
 LAST_ACTION_COMMENT_ID = "last_action_comment_id"
-STALE_CONTENT_HASH = "stale-hash"
+# A baseline that differs from the issue's current content, spelled the way
+# the drift owner spells one: a whole SHA-256 digest. The shape matters
+# because a report recorded on this road copies the baseline into its own
+# record, which reads a requirements revision at exactly that width.
+_DIGEST_WIDTH = max(_formats.DIGEST_LENGTHS)
+
+STALE_CONTENT_HASH = "5" * _DIGEST_WIDTH
 DEV_AGENT = "claude"
 DEV_SESSION = "dev-sess"
 FRESH_SESSION = "new-sess"
-IMPLEMENTED_MESSAGE = "implemented"
+IMPLEMENTED_MESSAGE = _reported()
 UPDATED_REQUIREMENTS = "new requirements"
 IMPLEMENTER_PROMPT_FRAGMENT = "You are the implementer"
 CONTINUE_COMMAND = "/orchestrator continue"

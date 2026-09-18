@@ -45,6 +45,7 @@ _FAKE_WT = fixtures._FAKE_WT
 _PatchedWorkflowMixin = fixtures._PatchedWorkflowMixin
 _TEST_SPEC = fixtures._TEST_SPEC
 _agent = fixtures._agent
+_reported = fixtures._reported
 _issue_branch = fixtures._issue_branch
 _iso_hours_ago = fixtures._iso_hours_ago
 
@@ -85,8 +86,8 @@ PROMPT_TOO_LONG_MESSAGE = "Prompt is too long"
 STALE_SESSION_STDERR = "Error: No conversation found with session ID: poisoned-sess\n"
 DEFAULT_SESSION = "sess-1"
 DEV_SESSION = "dev-sess"
-DONE_MESSAGE = "done"
-OK_MESSAGE = "ok"
+DONE_MESSAGE = _reported("done")
+OK_MESSAGE = _reported("ok")
 RESUME_TEXT = "go"
 
 SILENT_SESSION_ISSUE = 950

@@ -79,6 +79,7 @@ def _recovered_dev_result(state: PinnedState) -> AgentResult:
         timed_out=False,
         stdout="",
         stderr="",
+        invoked=False,
     )
 
 

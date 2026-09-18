@@ -89,7 +89,7 @@ SPLIT_MANIFEST = _support._manifest(
     '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
-IMPLEMENTED_MESSAGE = "implemented"
+IMPLEMENTED_MESSAGE = _support._reported()
 
 
 def _disabled_labeled_fixture():
@@ -127,7 +127,9 @@ class DecompositionDisabledTest(
         with patch.object(config, CONFIG_DECOMPOSE, False):
             self._run(
                 lambda: _pickup._handle_pickup(gh, _support._TEST_SPEC, issue),
-                run_agent=_support._agent(session_id=DEV_SESSION, last_message="done"),
+                run_agent=_support._agent(
+                    session_id=DEV_SESSION, last_message=_support._reported("done"),
+                ),
                 has_new_commits=[False, True],
                 push_branch=True,
             )

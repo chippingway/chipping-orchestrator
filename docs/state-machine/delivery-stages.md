@@ -558,6 +558,10 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   not carry it. Nothing on the stage that recorded it would go back for that — the handler spawns a reviewer,
   resumes a developer, or reads a pull request it believes is up to date, while the report the next reviewer needs
   sits in a record nobody is reading.
+- **What a stage does first**: the publication that records a transaction also tries to complete it, on the tick it
+  pushed, over the world it has just proved for itself — the initial implementation delivery is the road that does
+  (`_handle_implementing` below). So this reconciliation finishes the ones that did NOT complete there: a post GitHub
+  refused or never confirmed, a process that died in the window, a settlement whose write was lost.
 - **Where in the order**: behind the pause (the dispatcher's hard-skip screen, one level up in `_process_issue`),
   the restart and cancellation guards, the agent-run-limit hold above, the live-adjudication refusal, the
   outstanding-publication reconciliation (`late_reconcile._reconciles_published_work`), and **both** readings of
@@ -1653,14 +1657,54 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        [`../workflow/roles.md`](../workflow/roles.md#the-size-gate-a-committed-candidate-passes).
      - new commits + clean tree, past the gate → `_on_commits`: push branch, open PR (or reuse an existing open
        one), comment
-       `:sparkles: PR opened: #N`, then set label `workflow:validating` (the docs pass runs only as the final-docs
-       handoff after approval). A reused PR is only known to be open on the branch — most sharply, an issue relabeled
-       out of `discussion` arrives with its plan PR open on the very branch these commits went to — so one whose body
-       does not already name this dev session has that body rewritten to the implementation's (`Resolves #N`, the dev
-       session, the agent's closing message); one that does name it is left as it stands, human annotations included.
-       Without the rewrite the PR would keep claiming the branch is one Markdown file that changes nothing else, under
-       the decomposer's session, and would close no issue when it merged. Persists `pr_number` / `branch` and
-       resets `review_round=0` and `retry_count=0` via `handoff._reset_implementing_counters`.
+       `:sparkles: PR opened: #N`, publish the developer report onto that PR, then set label `workflow:validating`
+       (the docs pass runs only as the final-docs handoff after approval). A reused PR is only known to be open on
+       the branch — most sharply, an issue relabeled out of `discussion` arrives with its plan PR open on the very
+       branch these commits went to — so one whose body does not already name this dev session has that body
+       rewritten to the implementation's (`Resolves #N`, the dev session, and the agent's closing message where no
+       report supersedes it); one that does name it is left as it stands, a legacy `_Last agent message:_` tail and
+       human annotations included. One description is never rewritten whatever it says: the one this issue's own
+       report claims as its location, since a verification recorded only the digest of what it read and the rewrite
+       would destroy the only copy. Without the rewrite the PR would keep claiming the branch is one Markdown file
+       that changes nothing else, under the decomposer's session, and would close no issue when it merged. Persists
+       `pr_number` / `branch` and resets `review_round=0` and `retry_count=0` via
+       `handoff._reset_implementing_counters`.
+     - **the report the run wrote** is what the publication owes beside the code; the records it goes through are
+       under [pinned state](labels-and-state.md#pinned-state). It is recorded between the tree reading and the size
+       gate — the last moment it is certainly recoverable, since the session that wrote it ends with the tick — and
+       BOUND to the publication and posted once the pull request is known, the first moment the repository, number,
+       branch and commit it is about are settled. The requirements are proved afresh first, over an issue read again
+       from GitHub: an edit landing during the run leaves the report answering requirements the issue no longer has,
+       so it is left owed for the drift resume. Where the report IS published, a new description carries only what
+       it alone can (`Resolves #N` and the attribution), because the report comment says it supersedes any agent
+       message there. A run that did not COMPLETE — a timeout, a provider refusal, a nonzero exit, or a synthesis a
+       recovery makes with `invoked=False` — records nothing and publishes as it always did, with its last message in
+       the description.
+     - **a report still owed refuses the handoff**, exactly as a moved checkout does: nothing under `validating`
+       publishes a report or comes back for one. A bind the comment has no room for, a thread read or post GitHub
+       refused, a response lost after the comment landed, and a requirements re-read that failed all leave the branch
+       pushed, the pull request open, the receipt and `late_approved_sha` recorded, the report debt standing, and the
+       label unmoved — with nothing parked. The next tick recognizes the published commit, republishes it onto the
+       same pull request with no developer run and nothing new opened, and finishes: the reconciliation ahead of that
+       handler, or the binding step, which posts the transaction it finds bound to this very pull request, branch and
+       commit. The post is scoped by the transaction's receipt, so a lost response is found rather than reposted.
+     - **a report this build cannot deliver parks the issue** under `report_undeliverable` instead. Before the size
+       gate, with nothing measured, pushed or opened: a report that cannot be RECORDED (past what the pinned comment
+       holds, or otherwise refused by its writer); a run that COMPLETED and handed over no usable report at all (no
+       marker, one that missed the contract, a verification on another repository); and the recovered-worktree
+       path — no developer ran this tick — finding committed work with no report of the run that made it anywhere on
+       the comment (no delivery, no transaction, no settled pair), which is the lost-write window the recording exists
+       to close. After the push, with the code standing and only the
+       handoff withheld: a delivered record nobody can read, a verification asserting a report on another pull
+       request, and one asserting it on the very DESCRIPTION of the pull request the code reached while that body
+       neither closes this issue nor names the session — the collision held for repair rather than overwritten, since
+       the rewrite would destroy the report and leaving it would merge a pull request that closes nothing. Nothing is
+       discarded on any of them, no park is announced twice while it stands, and the reason itself is the debt where
+       no record exists. The reply resumes the developer, and a run that comes back with a report and moved no head
+       publishes the commits already on the branch — held to a debt owed, a report outcome, and a branch that
+       carries something, so an ordinary question is still a question. That reply lands on the DRIFT resume in
+       practice, since a human's comment moves the requirements hash; `disposition` reads it the same way for every
+       other resume. The handoff spends the reason once the report has reached the pull request.
      - new commits + dirty files → `_on_dirty_worktree`: park; refuse to publish a partial branch.
      - new commits + a tree `git status` could not report on → `_on_unreadable_worktree`: park under
        `unreadable_worktree`. An unreadable tree is not a clean one: the list form of that read maps its own failure
@@ -1673,9 +1717,13 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        the agent's, so both park retryably as `agent_silent` with the operator told to reply `/orchestrator continue`;
        any other non-empty message is posted as a real HITL question (`park_reason=None`); an empty one is the
        silent-failure park (`agent_silent`).
-- **Output**: one of three. A pushed branch + open PR + label moved to `workflow:validating`; an **unpublished**
+- **Output**: one of four. A pushed branch + open PR + the report on it + label moved to `workflow:validating`; a
+  pushed branch + open PR whose report is still owed, unparked and still on `workflow:implementing` for the next tick
+  to finish; an **unpublished**
   committed candidate held under `workflow:decomposing` for size adjudication, with no branch pushed and no pull
-  request opened; or a HITL park — the ordinary question / dirty-tree / unreadable-tree / timeout ones, plus the
+  request opened; or a HITL park — the ordinary question / dirty-tree / unreadable-tree / timeout ones,
+  `report_undeliverable` for a report the publication could not deliver (before the push, where nothing is
+  published, and after it, where the code stands and only the handoff is withheld), plus the
   size gate's own
   `late_measurement_failed` (a reading nobody could take, a record too damaged to act on — a missing base where one
   was recorded, a missing ceiling or boundary either way, an identity the late domain's record gate refuses, or a

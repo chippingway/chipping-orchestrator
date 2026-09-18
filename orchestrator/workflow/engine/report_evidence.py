@@ -37,6 +37,15 @@ The local readings follow, cheapest of the rest first, so a transaction that was
 never going to complete this tick spends as little as it can: the checkout costs
 no request at all, the remote reading costs one fetch, and the requirements hash
 costs the comment walk the drift owner already makes.
+
+The requirements reading is offered on its own as well, for the caller that has
+just MADE the publication rather than recovered one. That caller holds every
+other term of the evidence as a fact it established this tick -- it pushed the
+commit, read the pull request, wrote the receipt -- and holds the issue as it
+was BEFORE its developer ran, which is the one term a long run can have moved
+under it. So the issue is read again there, from GitHub rather than from the
+object in hand, and a report whose requirements have moved is left owed for the
+route that answers an edit.
 """
 from __future__ import annotations
 
@@ -117,6 +126,46 @@ def evidence_for(
         return receipted
     edited = _requirements_verdict(issue, state, pending)
     return found if edited is None else edited
+
+
+def fresh_requirements_verdict(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    pending: _records.PendingReport,
+) -> _evidence_models.ReportEvidence | None:
+    """Refuse a report the issue has moved under since the run, or None.
+
+    The same reading as the one inside the composition above, taken over an
+    issue read AGAIN rather than over the object the caller holds. That is the
+    whole of what this adds, and it is what the caller needs: a publication
+    completing on the tick that made it is holding an issue fetched before its
+    developer ran, so a title or body edited during that run -- or during the
+    push and the pull request that followed it -- is invisible in the object
+    but not on GitHub. Compared against the object in hand the answer would be
+    the baseline agreeing with itself.
+
+    A fetch that failed is a reading nobody took, and it answers HOLD for the
+    reason every missing read on this road does: "the issue has not changed"
+    and "nobody could say" are different answers, and only the first licenses
+    stamping a report with the revision its run was handed.
+
+    None is the issue still being what the run answered, which is the only
+    answer that lets a publication settle.
+    """
+    try:
+        fresh = gh.get_issue(issue.number)
+    except Exception:
+        log.exception(
+            "issue=#%d could not be re-read to say whether its requirements "
+            "have moved since the run that wrote its developer report",
+            issue.number,
+        )
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD,
+            "the issue could not be re-read for its requirements",
+        )
+    return _requirements_verdict(fresh, state, pending)
 
 
 def _requirements_verdict(

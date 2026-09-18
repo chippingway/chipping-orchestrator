@@ -54,6 +54,7 @@ from tests.workflow.fixtures import (
     _issue_branch,
     _open_pr_for,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.interleaving import _RacesPastTheStep
 from tests.workflow.observation_support import ObservedCloseCase
@@ -63,7 +64,7 @@ _PR_NUMBER = 63100
 _BRANCH = _issue_branch(_ISSUE)
 
 _DEV_SESSION = "sess-polled-close"
-_IMPLEMENTED = "implemented"
+_IMPLEMENTED = _reported()
 
 _PUSH_BRANCH = "_push_branch"
 _WORKTREE_PATH = "_worktree_path"
