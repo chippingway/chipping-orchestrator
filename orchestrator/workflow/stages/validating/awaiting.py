@@ -36,7 +36,10 @@ them is back.
 Both halves resume from the context's OWN frozen batch rather than reading the
 thread again: the decisions above were made from it, so a second read would
 hand the dev a reply no decision here considered and record a watermark over
-one it did.
+one it did. That holds for the conversation a fresh spawn is re-grounded with
+as well -- a retry whose session is missing or retired is one -- so the retry
+is handed the batch's conversation less the commands it consumes, rather than
+a thread read at spawn time that quotes a comment the watermark never covered.
 """
 from __future__ import annotations
 
@@ -177,6 +180,7 @@ def _resume_awaiting_dev_agent(
         context.state,
         _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
         pause_guard=True,
+        thread_text=context.batch.retry_thread_text,
     )
 
 

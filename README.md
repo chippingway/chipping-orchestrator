@@ -301,7 +301,8 @@ where you put it rather than greeted a second time, so nothing runs again until 
   exactly *runs already spent + N*, recorded on the issue: it widens what this issue may still spend rather than
   giving back a run, so the issue stops on the same park again once it reaches the new ceiling. A request outside
   that range gets one reply saying so and changes nothing. The tick that reads a valid one goes straight on to the
-  work, so the run you paid for is the next thing that happens.
+  work that was stopped, so the run you paid for is the next thing that happens — and a reply that run was going to
+  answer is the one it is handed.
 
 Some parks unstick themselves and say so. A push that failed on a network blip, a dev or reviewer agent that timed
 out or crashed, or a review the provider refused to serve, is retried quietly on the next tick; when the retry works

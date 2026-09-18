@@ -480,13 +480,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     run_grant.py            the one command that answers the spent-ledger park below: a trusted `/orchestrator
                             add-agent-runs N`, read only while that park stands and only as the request the parser
                             beside it hands over. It persists an allowance of exactly `used + N` -- absolute rather
-                            than additive, so the same command read twice buys the same ceiling -- clears that park
-                            alone, consumes the batch it read and the answer it wrote under it (never a comment that
-                            arrived between the two: the boundary is built from ids this tick observed rather than
-                            re-read off the thread, and nothing at all where the batch begins below a notice of
-                            ours -- those are replies a refused resume was handed, no answer to the park, and the
-                            one watermark cannot pass the command without them), and lets the tick reach the stage
-                            its label names. Every other
+                            than additive, so the same command read twice buys the same ceiling -- takes that park
+                            down and puts back the park the refused launch was on (so the tick it hands on runs the
+                            road that launch was taking: a resume refused on a reply is resumed on that reply, from
+                            its own frozen batch, rather than an ordinary spawn quoting it or a reviewer handed a
+                            developer's words), consumes the batch it read and the answer it wrote under it
+                            (never a comment that arrived between the two: the boundary is built from ids this
+                            tick observed rather than re-read off the thread, and nothing at all where the batch
+                            begins below a notice of ours -- those are replies a refused resume was handed, no
+                            answer to the park, and the one watermark cannot pass the command without them), and
+                            lets the tick reach the stage its label names. Every other
                             request leaves both counts where they were and earns one receipt; an untrusted one earns
                             nothing at all. Both answers are marked with the comment that asked, so a post whose write
                             never landed is recognized rather than said twice. Only the ending that moves the ceiling
@@ -510,10 +513,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             settlement clears only reservation fields, and PROJECTED_KEYS retains the allowance and
                             count across state projection
     run_limit_values.py     the lifetime-limit notice record, the allowance and spent count it explains, the audit
-                            phases, and the pinned park fields
+                            phases, the pinned park fields, and the displaced-park record (`DisplacedPark`) the park
+                            keeps of what it went up in front of
     run_limit_state.py      the standing lifetime-limit park and its owed sentence; changed ledger coordinates replace
                             the notice, and settlement clears the sentence without lifting the park or changing the
-                            charge
+                            charge. Taking the park records the park it stands in front of, read off the durable
+                            state the circuit refused on, and the grant puts that one back
     run_limit.py            persist a supplied exhaustion reading before its budget event and notice, reconcile
                             bot-authored delivery, and replay the sentence still owed; this owner grants and spends no
                             additional run. The notice is a bounded park and its repair walks the same way, entering
@@ -1314,7 +1319,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             missing-`pr_number` park, and the commit the no-feedback bounce publishes -- measured by
                             the same size gate the shared dev-fix publication passes, so a held candidate stops the
                             bounce rather than being relabelled over -- before it hands the PR back to the reviewer
-      feedback.py           the rescan past the three in_review watermarks, the quiet window a fresh batch settles
+      feedback.py           the rescan past the three in_review watermarks (a bare `/orchestrator add-agent-runs` is no
+                            feedback there, as in in_review), the quiet window a fresh batch settles
                             through before a resume spends the session on a fragment of it, and the narrower ratchet
                             a consumed batch advances those watermarks by
       bookmarks.py          the `pending_fix_*` ids a replay rebuilds the triggering batch from, and the clear each
@@ -1357,8 +1363,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             consume nothing while a timeout, an empty result, and a question park all do
       resume_batch.py       the one frozen issue-comment batch an awaiting-human resume delivers and settles --
                             and, off the same single whole-thread read, the conversation a fresh spawn is
-                            re-grounded with, since a prompt that re-read the thread at spawn time would
-                            quote a comment minutes newer than the batch the settlement records.
+                            re-grounded with (and the same less the delivered replies, for an explicit
+                            `/orchestrator continue` retry that consumes them), since a prompt that re-read the
+                            thread at spawn time would quote a comment minutes newer than the batch the
+                            settlement records.
                             Shared by `implementing` and `validating` so the park-reason decisions and the
                             resume behind them read one thread once: the trust filter, the orchestrator's OWN
                             comments dropped by the recorded id ledger -- every park here posts before the
@@ -1395,14 +1403,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the two hand the thread back and forth forever
       parked_replies.py     the one cut every road reading a parked thread takes of its fresh replies --
                             `engine/prompt_delivery.py`'s `human_replies` with a bare `/orchestrator
-                            add-agent-runs` taken out -- read by the measurement park's retry, the
-                            parked-continue classifier, and the quiet timeout recovery, and cut into the
-                            frozen batch behind them. The authorization park's reading keeps its own first cut
-                            (the id ledger alone) and takes the grant out through this one too. A reply
-                            counted on one side of those hand-offs and not the other is a tick each road
-                            leaves to the next on every poll: a grant's
-                            command left unread makes a later bare continue mixed to the classifier and
-                            bare to the reservation, and the park stands with nothing retried or refused
+                            add-agent-runs` taken out -- read by the measurement park's retry and the quiet
+                            timeout recovery, and cut into the frozen batch the parked-continue classifier and
+                            the resume behind them read. The authorization park's reading keeps its own first
+                            cut (the id ledger alone) and takes the grant out through this one too, as do the
+                            conversations a fresh spawn is re-grounded with. A reply counted on one side of
+                            those hand-offs and not the other is a tick each road leaves to the next on every
+                            poll: a grant's command left unread makes a later bare continue mixed to the
+                            classifier and bare to the reservation, and the park stands with nothing retried
+                            or refused
       resume_request.py     what one such call supplied, frozen and checked before a run is built: the stage
                             its records are attributed to, the frozen conversation a fresh spawn is
                             re-grounded from where the caller holds one, and the unknown option a named
@@ -2020,12 +2029,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that road looked at the thread, so a command landing between the two is in this
                             batch and in nobody else's -- and classified here it is a continue on a park
                             needing real guidance, refused and consumed past the refusal, with the reading its
-                            author asked for one nothing will ever take. What it classifies is the batch the
-                            resume behind it would DELIVER (`parked_replies.py`'s cut, the same one
-                            `resume_batch.py` freezes), because a notice of ours or a forged marker standing
-                            above a bare command reaches no prompt and so may not turn an explicit retry into
-                            a generic resume over prose -- and a grant's command left unread under one may not
-                            pass through here what the freeze behind it then reserves
+                            author asked for one nothing will ever take. What it classifies is a batch
+                            `resume_batch.py` froze -- the batch the resume behind it would DELIVER, cut by
+                            `parked_replies.py` -- because a notice of ours or a forged marker standing above a
+                            bare command reaches no prompt and so may not turn an explicit retry into a generic
+                            resume over prose, and a grant's command left unread under one may not pass through
+                            here what the freeze behind it then reserves. The retry it answers with is
+                            re-grounded, wherever its session is missing or retired, off that same freeze's
+                            conversation less the commands it consumes: a thread read at spawn time would quote
+                            a comment the mark never covers, and the command itself
       retry_cap.py          the same standing park on this stage's road, held against the three that would read it
                             as an ordinary one -- the continue classifier, the drift check, and the resume -- so the
                             tick ends having written, spawned, and said nothing, and the pinned session, the pull
@@ -2055,8 +2067,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     in_review/              `in_review`
       handler.py            the order one tick asks its questions in, and the missing-`pr_number` park asked before
                             the rest
-      feedback.py           the four surfaces scanned before the drift check, their author filters, and the park that
-                            stays silent for the base-sync retry loop
+      feedback.py           the four surfaces scanned before the drift check, their author filters -- our own
+                            comments and a bare `/orchestrator add-agent-runs` out, since a control a grant left
+                            unread is nobody's review -- and the park that stays silent for the base-sync retry loop
       fixing_route.py       the pending-fix bookmarks, the hash refresh, and the `workflow:fixing` relabel
       drift.py              a body edit on an open PR: the unread PR conversation captured first, the dev resume, and
                             the `workflow:validating` return
@@ -2123,7 +2136,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a read, and the ratchets reached past it, which is what each of the three watermarks
                             becomes against what is already persisted
       verify.py             how a non-ok verify result reads and the park it earns
-      watermarks.py         the seed walk past leading orchestrator comments and the ratchet that never regresses one
+      watermarks.py         the seed walk past leading orchestrator comments -- and past a bare `/orchestrator
+                            add-agent-runs`, which a grant can leave unread above a reply and which in_review would
+                            otherwise route to `fixing` -- and the ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, plus the no-VERDICT park and
                             the split that tells a provider's failure from a reviewer's
       dev_fix.py            what a finished dev fix leaves behind: the no-commit reading and the head it carries
@@ -2140,7 +2155,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             worse than one more park
       awaiting.py           the three park-reason claims on the context's one frozen reply batch, and the dev
                             attempt they fall through to -- handed that same batch rather than reading the
-                            thread again, so the reply a decision considered is the reply a developer is given
+                            thread again, so the reply a decision considered is the reply a developer is given;
+                            the explicit `/orchestrator continue` retry is re-grounded off that batch's own
+                            conversation less the commands it consumes, wherever its session is missing or retired
       awaiting_resume.py    the order those claims are asked in and the resume none of them wanted
       drift.py              a body edit mid-review, the three parks that defer, and the consumed-thread watermark
       drift_models.py       the frozen record that route's resume hands the helper that finishes it

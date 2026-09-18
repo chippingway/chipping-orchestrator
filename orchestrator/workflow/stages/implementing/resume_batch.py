@@ -135,7 +135,22 @@ class _ReplyBatch:
     provenance of what reached an agent is not a thing to keep in two shapes.
     Our own comments stay IN it, by the recorded ids -- the preamble rebuilds
     a conversation this orchestrator is half of, and an agent reading the
-    answers without the questions is being re-grounded on half a thread.
+    answers without the questions is being re-grounded on half a thread. A
+    bare `/orchestrator add-agent-runs` stays OUT of it, as it stays out of
+    the delivery: it is a control the run-limit hold answered, not anything
+    said to the developer.
+
+    `retrying` is the same conversation less the replies this batch would
+    deliver, for the explicit `/orchestrator continue` retry: that road
+    consumes the batch -- every reply in it a bare continue, which is the
+    retry's own precondition -- and hands the developer the orchestrator's
+    retry prompt instead of the operator's words. A retry whose session is
+    missing or retired is a fresh spawn too, so it is re-grounded off THIS
+    read rather than one taken at spawn time: a comment written between the
+    two would reach the agent while the retry records the thread read only
+    through the commands, and the next poll would hand it over again -- and
+    the command it consumed would be quoted to the agent as the last thing a
+    human said.
     """
 
     state: PinnedState
@@ -143,6 +158,7 @@ class _ReplyBatch:
     comments: tuple
     regrounding: _delivery.PromptDeliverySnapshot = _DELIVERED_NOTHING
     reserved: bool = False
+    retrying: _delivery.PromptDeliverySnapshot = _DELIVERED_NOTHING
 
     @property
     def followup(self) -> str:
@@ -155,6 +171,42 @@ class _ReplyBatch:
     def thread_text(self) -> str:
         """The re-grounding conversation, as the snapshot rendered it."""
         return self.regrounding.rendered_text
+
+    @property
+    def retry_thread_text(self) -> str:
+        """The re-grounding conversation an explicit retry is handed."""
+        return self.retrying.rendered_text
+
+    @classmethod
+    def delivering(
+        cls,
+        state: PinnedState,
+        delivery: _delivery.PromptDeliverySnapshot,
+        quoted: tuple,
+        *,
+        thread: list,
+        ours: frozenset,
+    ) -> _ReplyBatch:
+        """This batch, with the conversation it re-grounds a fresh spawn with.
+
+        Both ways round: whole for a resume, whose followup quotes the
+        delivered replies beside it, and less those replies for the explicit
+        retry, which consumes them and quotes none. Both off the one read the
+        batch came from, and both without an answered run-grant command,
+        which no road here hands a developer.
+        """
+        spoken = _parked_replies._answering(thread)
+        delivered_ids = {seen.id for seen in quoted}
+        regrounding, retrying = (
+            _prompt_context._thread_delivery(
+                conversation, retained_ids=ours, state_comment_id=state.comment_id,
+            )
+            for conversation in (
+                spoken,
+                [seen for seen in spoken if seen.id not in delivered_ids],
+            )
+        )
+        return cls(state, delivery, quoted, regrounding, retrying=retrying)
 
     def settle(self) -> tuple:
         """Record this batch as consumed, forward only and idempotently.
@@ -270,13 +322,8 @@ def _freeze(
         return _ReplyBatch(state, _DELIVERED_NOTHING, (), reserved=True)
     if _last_word_reserved(unclaimed, state):
         return _ReplyBatch(state, _DELIVERED_NOTHING, (), reserved=True)
-    return _ReplyBatch(
-        state,
-        delivery,
-        quoted,
-        _prompt_context._thread_delivery(
-            thread, retained_ids=ours, state_comment_id=state.comment_id,
-        ),
+    return _ReplyBatch.delivering(
+        state, delivery, quoted, thread=thread, ours=ours,
     )
 
 

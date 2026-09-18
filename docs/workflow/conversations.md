@@ -220,7 +220,9 @@ Where the contract is carried:
   whole branch, the previous session's commits included, ownership and publication are restated, and the outcome is
   the one the task below the preamble describes — that preamble also precedes tasks that close on markers of their
   own. Its conversation block is the caller's FROZEN, classified thread read wherever the caller holds one — the
-  awaiting-human resumes do, via `implementing/resume_batch.py` — because the preamble and the record of what the
+  awaiting-human resumes do, via `implementing/resume_batch.py`, and so do the explicit `/orchestrator continue`
+  retries on `workflow:implementing` and `workflow:validating`, handed that freeze's conversation less the commands
+  they consume — because the preamble and the record of what the
   prompt delivered have to come off one reading and one filter. Taken at spawn time instead, that read is minutes
   newer than the batch its caller settles, so a comment written in between reaches the agent and is handed to it
   again on the next poll; rendered through the plain thread reader instead, it carries a forged

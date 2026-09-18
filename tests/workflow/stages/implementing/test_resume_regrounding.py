@@ -22,9 +22,11 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import patch
 
+from orchestrator.workflow.engine import prompt_notes as _prompt_notes
 from orchestrator.workflow.stages.implementing import session as _session, state as _state
 from tests.workflow.fixtures import _agent
 from tests.workflow.stages.implementing import (
+    late_consent_payloads as _consent_payloads,
     resume_batch_test_support as _support,
     retry_test_support as _retry_support,
 )
@@ -58,6 +60,17 @@ _RETIRED_SESSION = MappingProxyType({
 })
 
 
+# The two sessions an explicit `/orchestrator continue` retry turns into a
+# fresh spawn on: none pinned at all -- a backend hiccup that dropped the id
+# and kept the agent -- and one this stage retires on sight.
+_RETRIED_SESSIONS = (
+    ("a missing session", MappingProxyType({
+        _state._DEV_AGENT: _retry_support.BACKEND_CLAUDE,
+    })),
+    ("a retired session", _RETIRED_SESSION),
+)
+
+
 class _ResolvesAfterOneLands:
     """The session read, with one reply written the instant before it.
 
@@ -79,7 +92,11 @@ class _ResolvesAfterOneLands:
 
 
 class FreshSpawnRegroundingTest(_support._ParkedThread, unittest.TestCase):
-    """The conversation a transcript-less resume quotes, and where it is read."""
+    """The conversation a transcript-less resume quotes, and where it is read.
+
+    The explicit `/orchestrator continue` retry is asked the same question: it
+    is a resume too, and a fresh spawn wherever the session is gone.
+    """
 
     def test_a_fresh_spawn_quotes_the_frozen_thread(self) -> None:
         self._seed(**_RETIRED_SESSION)
@@ -119,6 +136,66 @@ class FreshSpawnRegroundingTest(_support._ParkedThread, unittest.TestCase):
         self.assertIn(_SAID_BEFORE, prompt)
         self.assertIn(_support.GUIDANCE, prompt)
         self.assertNotIn(_support.FORGED, prompt)
+
+    def test_a_retry_quotes_the_thread_it_classified(self) -> None:
+        # The explicit retry consumes the command and hands the developer the
+        # orchestrator's own prompt, and where the session is missing or
+        # retired that prompt is a fresh spawn's. Re-grounded off a read
+        # taken at spawn time, it quotes a comment written after the command
+        # was classified, and the command itself as the last thing a human
+        # said.
+        for described, session in _RETRIED_SESSIONS:
+            with self.subTest(session=described):
+                self.setUp()
+
+                prompt = self._retried_over(session)
+
+                self.assertIn(_REGROUNDED, prompt)
+                self.assertIn(_prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT, prompt)
+                self.assertIn(_SAID_BEFORE, prompt)
+                self.assertNotIn(_consent_payloads.CONTINUE, prompt)
+                self.assertNotIn(_LATE_REPLY, prompt)
+
+    def test_what_landed_is_read_by_the_next_poll(self) -> None:
+        # The retry records the thread read through the command and no
+        # further, so the comment written while it was built is the next
+        # poll's to deliver -- once, by the resume that reads it, rather than
+        # quoted by the retry and handed over again after it.
+        for described, session in _RETRIED_SESSIONS:
+            with self.subTest(session=described):
+                self.setUp()
+                self._retried_over(session)
+                read_to = self._pinned_watermark()
+
+                followed = self._prompt_of_one_tick(_ResolvesAfterOneLands(self))
+
+                self.assertEqual(read_to, self._commanded)
+                self.assertIn(_LATE_REPLY, followed)
+                self.assertGreaterEqual(
+                    self._pinned_watermark(), self._landing.landed,
+                )
+
+    def _retried_over(self, session) -> str:
+        """The retry's own prompt, on a timeout park with `session` pinned.
+
+        A reply the park already consumed stays in the conversation, and one
+        lands at the session read -- the window between the freeze and the
+        prompt -- while the retry is being built.
+        """
+        settled = self._they_say(_SAID_BEFORE)
+        self._seed(**{
+            _state._LAST_ACTION_COMMENT_ID: settled,
+            _state._PARK_REASON: _state._AGENT_TIMEOUT,
+            **session,
+        })
+        self._commanded = self._they_say(_consent_payloads.CONTINUE)
+        self._landing = _ResolvesAfterOneLands(self, _LATE_REPLY)
+        return self._prompt_of_one_tick(self._landing)
+
+    def _pinned_watermark(self):
+        return self.github.pinned_data(_support.ISSUE_NUMBER).get(
+            _state._LAST_ACTION_COMMENT_ID,
+        )
 
     def _prompt_of_one_tick(self, landing: _ResolvesAfterOneLands) -> str:
         """Run one implementing tick over this park and read its prompt.

@@ -1651,7 +1651,8 @@ The keys that matter for the state machine fall into a few groups:
   nothing — the reading is taken and acted on at the tracked spawn boundary
   ([The agent-run circuit](#the-agent-run-circuit)), and the one writer of `agent_run_allowance` is the operator
   command below.
-- **The agent-run-limit park.** `awaiting_human` + `park_reason="agent_run_limit"` + `agent_run_limit_notice` are
+- **The agent-run-limit park.** `awaiting_human` + `park_reason="agent_run_limit"` + `agent_run_limit_notice` +
+  `agent_run_limit_displaced` are
   staged by [`run_limit_state.py`](../../orchestrator/workflow/engine/run_limit_state.py), then persisted and reported
   by [`run_limit.py`](../../orchestrator/workflow/engine/run_limit.py), which is handed the ledger reading — so the
   park quotes the numbers the refusal was made on rather than
@@ -1664,6 +1665,10 @@ The keys that matter for the state machine fall into a few groups:
   that can tell one exhaustion from another — a recorded sentence about the reading the ledger still shows is kept
   **verbatim** (the thread is searched for exactly that text, so rewording it would find nothing and say it twice),
   and one about any other reading is replaced, since it quotes an allowance or a spend the issue has moved off.
+  `agent_run_limit_displaced` is the park this one went up in front of — `{"awaiting_human": bool, "park_reason":
+  str | null}`, read off the durable state the circuit refused on, which the refused launch had not yet written to,
+  and recorded only when the park is TAKEN (a park re-taken over itself would record itself). A reason that is this
+  park's own reads as none. It is what the grant below puts back.
   Before it is said again the thread is read for it, and only a comment **this orchestrator wrote** above the
   `last_action_comment_id` watermark counts as the receipt (`github.comments.authored_by_us`, the same author check
   every park-notice reconciliation gates on); a thread that could not be READ is its own answer and the tick says
@@ -1681,9 +1686,9 @@ The keys that matter for the state machine fall into a few groups:
   ending, so it is carved out there and nowhere else — `discussion` itself drains that same pull request through its
   own terminal, and behind a permanent park nothing comes back for it. That reading costs a request per parked poll,
   fails *open*, and is taken **before** the command below, which mutates. A later tick
-  that meets the same explained park says nothing and records `standing`. Both fields are additive and default safe:
-  an issue recorded before them, or hand-edited into a shape neither fits, reads back as unparked and owing nothing
-  rather than as a tick that raises.
+  that meets the same explained park says nothing and records `standing`. All three fields are additive and default
+  safe: an issue recorded before them, or hand-edited into a shape none fits, reads back as unparked, owing nothing,
+  and displacing no park rather than as a tick that raises.
 - **The one command that lifts it.** `/orchestrator add-agent-runs N`, owned by
   [`orchestrator/workflow/engine/run_grant.py`](../../orchestrator/workflow/engine/run_grant.py) over the request
   [`run_grant_request.py`](../../orchestrator/workflow/engine/run_grant_request.py) hands it, and asked by the
@@ -1698,9 +1703,15 @@ The keys that matter for the state machine fall into a few groups:
   past its own limit and a request that raised would be neither granted nor refused. The last command in the unread
   batch is the request. A valid one writes
   `agent_run_allowance` = `used + N` — an absolute ceiling rather than an increment, so a tick that dies between the
-  receipt and the write buys the same runs again rather than a second `N` on top of them — clears `awaiting_human`
-  and `park_reason` and drops any `agent_run_limit_notice` record beside them, ratchets the watermark past both the
+  receipt and the write buys the same runs again rather than a second `N` on top of them — puts `awaiting_human` and
+  `park_reason` back to the park `agent_run_limit_displaced` recorded (none, where nothing was recorded) and drops that
+  record and any `agent_run_limit_notice` beside it, ratchets the watermark past both the
   command and its own acknowledgement, records `granted`, and returns the tick to the stage handler its label names.
+  Putting the displaced park back is what makes the run a human just paid for the one the issue was stopped for: a
+  resume the circuit refused on a reply finds that reply still unread and is run again on it, from its own frozen
+  batch, and records it as delivered. Cleared instead, the stage takes its ordinary road — on `workflow:implementing`
+  a fresh spawn that quotes the reply (and the command) and records nothing, so the next poll delivers it again; on
+  `workflow:validating` a REVIEWER run over words written to the developer.
   That watermark is derived from what the tick actually read — the last comment of the batch the command came out of,
   walked forward only over comments this orchestrator wrote (by recorded `orchestrator_comment_ids`, else by
   `_ORCH_COMMENT_MARKER` + author) and stopped by the first that is not. A comment posted between the batch read and
@@ -1713,11 +1724,15 @@ The keys that matter for the state machine fall into a few groups:
   consumed without it either: the walk starts at the mark, crosses our own comments, and stops at the reply. The
   command is left unread with its receipt already on the thread — no road can read it as a request again once the
   park is down, and the frozen reply batch never delivers a bare `add-agent-runs` to a developer — and the reply is
-  the next awaiting-human resume's to deliver. The unread command is not a reply to any later park either: every road
-  that reads a parked `workflow:implementing` thread cuts it out the same way (`implementing/parked_replies.py`), so a
-  bare `/orchestrator continue` written under it is still the explicit retry or refusal it would be alone, it does
-  not hold off the quiet timeout recovery, and on the authorization park it is neither the last word — which would
-  hide an `/orchestrator authorize-oversized` written above it — nor anybody speaking.
+  delivered by the resume the grant's own tick runs. The unread command is not a reply to any later park either:
+  every road that reads a parked `workflow:implementing` thread cuts it out the same way
+  (`implementing/parked_replies.py`), so a bare `/orchestrator continue` written under it is still the explicit retry
+  or refusal it would be alone, it does not hold off the quiet timeout recovery, and on the authorization park it is
+  neither the last word — which would hide an `/orchestrator authorize-oversized` written above it — nor anybody
+  speaking. Nor is it PR feedback: the
+  seed walk that sets in_review's watermark at approval passes it, and the in_review and fixing feedback scans drop
+  it beside our own comments, so an issue that reaches in_review with it still past the mark is not routed to
+  `workflow:fixing` over a command already handled.
   Every other request leaves `agent_runs_used` and `agent_run_allowance` exactly as it found them, keeps the park,
   and posts one receipt carrying `<!--orchestrator-add-agent-runs-refused:issue=N:comment=M-->`. Both answers are
   marked that way — the acknowledgement carries `<!--orchestrator-add-agent-runs-granted:issue=N:comment=M-->`; each
@@ -3208,7 +3223,8 @@ rather than preserving.
   retry, review-round and park counters, `agent_run_reservation` (a launch, not a fact about the issue — the fresh
   cycle has none),
   `agent_run_limit_notice` beside the park it explains (an obligation is a claim about one park, and the sentence it
-  carries quotes a spend the fresh cycle will re-read for itself), and every
+  carries quotes a spend the fresh cycle will re-read for itself), `agent_run_limit_displaced` with it (the park it
+  names is one the fresh cycle is not on), and every
   timestamp.
 
 ### Exemption identity and rotation

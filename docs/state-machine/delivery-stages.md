@@ -548,12 +548,15 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   first, since what an ending reaches is a terminal rather than a road that spends anything. A thread this tick
   could not read is a park held one more poll: silence buys nothing.
   Valid — an exact positive whole number no larger than `MAX_RUNS_PER_COMMAND` — it persists an allowance of exactly
-  `used + N`, clears this park alone, consumes the batch it read plus the acknowledgement it posts (and nothing that
+  `used + N`, takes this park down and puts back the park the refused launch was on (`agent_run_limit_displaced`),
+  consumes the batch it read plus the acknowledgement it posts (and nothing that
   arrived in between — the boundary is derived from ids this tick observed, never re-read off the thread), records
   `granted`, and lets the SAME tick reach the stage handler, since the run a human just paid for is the one the
   issue was stopped for. A batch that begins below the park's own notice is the exception: those are the replies a
   resume the circuit refused had frozen, the park's bounded notice left them unread, and the grant leaves them there
-  too — so the next awaiting-human resume delivers them rather than finding a mark past input no agent read.
+  too — and because the park they were a reply to is put back, the grant's own tick is the resume the circuit
+  refused, run on them from its own frozen batch and recorded as delivering them, rather than an ordinary spawn
+  that quotes them without a record or, on `workflow:validating`, a reviewer handed a developer's words.
   Anything else leaves both counts untouched: a malformed, zero, negative, or excessive
   request earns one marker-scoped receipt and a `refused` phase under a park that still stands, and an untrusted one
   is answered with nothing at all. The fields, the markers, and the ordering are in
@@ -3005,10 +3008,15 @@ disposition behind the resume and are untouched by the settlement. There is no r
 stage handler records one), so the settlement is `engine/prompt_delivery.py`'s ordinary pinned ratchet straight into
 `last_action_comment_id`. A batch the authorization or the measurement park reserves is not resumed on and not
 consumed at all, and an explicit `/orchestrator continue` retry keeps its own semantics: it consumes the command and
-re-issues the orchestrator's continue prompt rather than delivering the operator's words. A launch the lifetime
+re-issues the orchestrator's continue prompt rather than delivering the operator's words. Where its session is
+missing or retired that retry is a fresh spawn, and it is re-grounded off the conversation the SAME freeze took less
+the commands it consumes (`_ReplyBatch.retry_thread_text`): read at spawn time, the preamble would quote a comment
+written after the classification — delivered while the mark stops at the commands, so the next poll delivers it
+again — and quote the command itself as the last thing a human said. A launch the lifetime
 agent-run circuit refuses is the never-invoked case in its most common form, and the park it takes keeps the batch
 unread end to end: the notice is bounded, the repair of its lost write walks rather than ratchets, and the
-`/orchestrator add-agent-runs` grant that lifts it does not consume a batch below that notice. The command itself is
+`/orchestrator add-agent-runs` grant that lifts it does not consume a batch below that notice — it puts back the park
+the refusal stood in front of, so its own tick is that resume, run on the same reply. The command itself is
 kept out of every frozen batch, since it is a control the hold has already answered — and out of every read that
 decides who owns one (see below). The REFUSAL that answers a
 command on a park needing real guidance settles the same way: `_refuse_parked_continue` is handed the batch its

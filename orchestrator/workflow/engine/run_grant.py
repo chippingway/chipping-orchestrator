@@ -105,10 +105,6 @@ _GRANT_NOTICE = (
     "it.\n\n{marker}"
 )
 
-_AWAITING_HUMAN = "awaiting_human"
-
-_PARK_REASON = "park_reason"
-
 _LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 
 
@@ -205,6 +201,14 @@ def _grant_runs(
 
     Nothing gives a run back. What is spent stays spent, and the issue stops
     on this same park the moment it reaches the ceiling this bought it.
+
+    What comes down is this park and nothing under it: the park the refused
+    launch was on is put back (`run_limit_state._restore_displaced`), so the
+    stage the tick goes on to takes the road that launch was taking. A resume
+    refused on a reply is resumed on that same reply, delivered from its own
+    frozen batch and recorded as delivered by the run that read it -- not
+    quoted by an ordinary spawn that records nothing, or handed to a reviewer
+    on `validating` when it was written for the developer.
     """
     ledger = _run_ledger._read_ledger(state)
     allowance = ledger.used + request.added
@@ -223,8 +227,7 @@ def _grant_runs(
         marker=marker,
     )))
     state.set(_run_ledger_values.AGENT_RUN_ALLOWANCE, allowance)
-    state.set(_AWAITING_HUMAN, False)
-    state.set(_PARK_REASON, None)
+    _run_limit_state._restore_displaced(state)
     _run_limit_state._settle_notice(state)
     _consumed(gh, issue, state, (request, thread), _run_limit_values.RunLimitPhase.GRANTED)
     _run_budget._emit_extension(gh, issue, _run_ledger._read_ledger(state))

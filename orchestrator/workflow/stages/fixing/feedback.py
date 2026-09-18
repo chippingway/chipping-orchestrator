@@ -24,7 +24,8 @@ advance runs on BOTH outcomes rather than only on success.
 
 Orchestrator comments are stripped by recorded id AND by the hidden body
 marker, because the id ledger is capped and evicts on long-lived issues while
-the marker stays on the comment forever. The trusted-author filter sits above
+the marker stays on the comment forever. A bare `/orchestrator add-agent-runs`
+is stripped beside them, as in_review strips it: a control, not feedback. The trusted-author filter sits above
 every surface, so an outsider on a public PR can neither resume the dev nor
 extend the quiet window; an empty allowlist trusts everyone.
 """
@@ -37,7 +38,10 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    run_grant_request as _run_grant_request,
+)
 from orchestrator.workflow.stages.fixing import models as _models
 from orchestrator.workflow.stages.in_review import watermarks as _in_review_watermarks
 
@@ -73,6 +77,7 @@ def _new_issue_space_feedback(gh: GitHubClient, issue: Issue, pr, state) -> list
         + list(gh.pr_conversation_comments_after(pr, issue_wm))
         if comment.id not in orchestrator_ids
         and _comments._ORCH_COMMENT_MARKER not in (comment.body or "")
+        and not _run_grant_request._is_bare_command(comment)
     ]
     return filter_trusted(sorted(unread, key=lambda comment: comment.id))
 

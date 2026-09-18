@@ -115,6 +115,17 @@ _CONTINUED_PARKS = (
     ("a question", _agent(last_message=_ASKS), _NEEDS_GUIDANCE),
 )
 
+# How a resume's followup opens: the reply it delivers, quoted by its author.
+# A resume continues a pinned session, so this is the whole head of the
+# prompt -- and a fresh spawn's opens with the issue it re-grounds instead.
+_QUOTED = f"@{_support.TRUSTED_AUTHOR}: {{said}}"
+
+# Which agent a run was, as the spawn event every launch records names it.
+_EVENT = "event"
+_SPAWNED = "agent_spawn"
+_ROLE = "agent_role"
+_DEVELOPER = "developer"
+
 # The quiet publication a timeout park with no reply on it is tried with.
 _QUIET_RECOVERY = "_try_recover_implementing_timeout_park"
 
@@ -415,31 +426,41 @@ class RunLimitCycleTest(_support._ParkedThread, unittest.TestCase):
     notice above the reply, the tick after it repairs that notice's lost write,
     and the grant that lifts the park consumes what it read -- and each of
     those is a watermark write. Any of them crossing the reply marks answered
-    a batch no agent ever read, and the road the grant reopens finds nothing
-    to deliver. So the whole cycle is driven here through the dispatcher's
-    hold and the real circuit, rather than with a refused result seeded under
-    the resume.
+    a batch no agent ever read. And the grant is where the run the human paid
+    for happens, so what it puts back decides which run that is: the resume
+    that was refused, on the reply it was refused on. So the whole cycle is
+    driven here through the dispatcher's hold and the real circuit, rather
+    than with a refused result seeded under the resume.
     """
 
-    def test_the_reply_survives_the_run_limit(self) -> None:
+    def test_the_grant_runs_the_resume_it_refused(self) -> None:
+        # Cleared rather than put back, the park the refusal stood in front
+        # of is gone and the grant's tick takes the stage's ordinary road: a
+        # fresh spawn quoting the reply -- and the grant command -- with no
+        # record that either was delivered, so the poll after it hands the
+        # developer the same reply again.
         self._seed(**{
             _state._DEV_AGENT: _BACKEND,
             _state._DEV_SESSION_ID: _SESSION,
             **_SPENT_LEDGER,
         })
         guided = self._they_say(_support.GUIDANCE)
-        self._refused_then_granted()
 
-        resumed = self._tick()
+        granted = self._refused_then_granted()
+        after = self._tick()
 
-        # The next resume is handed the reply the refused one was, and not
-        # the command that bought it -- which the grant answered and could
-        # not consume without the reply below it.
-        resumed[_RUN_AGENT].assert_called_once()
-        followup = resumed[_RUN_AGENT].call_args.args[_PROMPT_ARGUMENT]
-        self.assertIn(_support.GUIDANCE, followup)
+        followup = granted[_RUN_AGENT].call_args.args[_PROMPT_ARGUMENT]
+        self.assertTrue(followup.startswith(_QUOTED.format(said=_support.GUIDANCE)))
         self.assertNotIn(_ADD_RUNS, followup)
+        self.assertEqual(
+            [
+                recorded[_ROLE] for recorded in self.github.recorded_events
+                if recorded[_EVENT] == _SPAWNED
+            ],
+            [_DEVELOPER],
+        )
         self.assertGreaterEqual(self._pinned_watermark(), guided)
+        after[_RUN_AGENT].assert_not_called()
 
     def test_a_continue_after_it_is_classified_once(self) -> None:
         # The grant could not consume its own command without the reply below
@@ -480,35 +501,33 @@ class RunLimitCycleTest(_support._ParkedThread, unittest.TestCase):
         polled[_RUN_AGENT].assert_not_called()
 
     def _parked_again(self, park) -> None:
-        """The cycle, then the resume it reopens parking again on `park`."""
+        """The cycle, its grant's resume parking again on `park`."""
         self._seed(**{
             _state._DEV_AGENT: _BACKEND,
             _state._DEV_SESSION_ID: _SESSION,
             **_SPENT_LEDGER,
         })
         self._they_say(_support.GUIDANCE)
-        self._refused_then_granted()
-        self._tick(park)
+        self._refused_then_granted(park)
 
-    def _refused_then_granted(self) -> None:
+    def _refused_then_granted(self, answers=None):
         """The whole park: refused, its notice repaired, then bought past.
 
         Three polls, and each ends in a watermark write: the park's notice,
         the next tick's repair of that notice's lost write, and the grant. No
-        agent reads the reply on any of them, so none of those writes may
-        record it as read. The first agent to run is the one the grant pays
-        for, which parks on a question so the poll after it is an
-        awaiting-human resume again.
+        agent reads the reply on the first two, so neither may record it as
+        read. The third runs the one agent the grant paid for -- the resume
+        the first refused, answering with `answers` -- and it is returned.
         """
         refused = self._tick()
         self._they_say(_ADD_RUNS)
         replayed = self._tick()
-        granted = self._tick()
+        granted = self._tick(answers)
 
         refused[_RUN_AGENT].assert_not_called()
         replayed[_RUN_AGENT].assert_not_called()
         granted[_RUN_AGENT].assert_called_once()
-        self.assertEqual(self._pinned_watermark(), _support.PARKED_AT)
+        return granted
 
     def _tick(self, answers=None):
         """One whole poll of this issue: the run-limit hold, then the stage.
@@ -546,22 +565,26 @@ class RunLimitAuthorizationTest(_consent_case._ParkedCase, unittest.TestCase):
     """
 
     def test_the_grant_alone_is_no_reply_to_the_park(self) -> None:
-        # The resume the grant reopens delivers the preserved reply, and the
-        # candidate that run commits is held for an operator; the park's mark
-        # stops below the grant command. Read as somebody speaking, that
-        # command hands every later poll to a resume that drops it and has
-        # nothing to deliver -- so the park's own road holds instead, and the
-        # authorization the operator then writes publishes.
+        # The grant's own tick runs the resume it lifted the refusal of,
+        # which delivers the preserved reply, and the candidate that run
+        # commits is held for an operator; the park's mark stops below the
+        # grant command. Read as somebody speaking, that command hands every
+        # later poll to a resume that drops it and has nothing to deliver --
+        # so the park's own road holds instead, and the authorization the
+        # operator then writes publishes.
         self._cycle(_consent_payloads.measured_pair(
             candidate_sha=_consent_payloads.STRANGER_SHA,
         ))
         granted = self._reply(_consent_payloads.ANSWERED_GRANT)
         self._tick()
-        self._tick()
 
         resumed = self._tick()
 
         resumed[_consent_payloads.RUN_AGENT].assert_called_once()
+        self.assertIn(
+            _consent_payloads.GUIDANCE,
+            resumed[_consent_payloads.RUN_AGENT].call_args.args[_PROMPT_ARGUMENT],
+        )
         self._assert_still_parked()
         self.assertLess(self._pinned()[_state._LAST_ACTION_COMMENT_ID], granted)
         read = _late_command._reads_the_thread(self.github, self.issue, self._state())
@@ -572,20 +595,19 @@ class RunLimitAuthorizationTest(_consent_case._ParkedCase, unittest.TestCase):
     def test_a_command_under_the_grant_publishes(self) -> None:
         # An operator who meant to publish as-is writes the authorization
         # while the run-limit hold stands, and then the grant that lifts it.
-        # Read as the last word, the grant hides the command from the park's
-        # road, and the resume behind it drops the grant and pays a developer
-        # to read the authorization as prose.
+        # The grant puts the authorization park back, so its own tick reads
+        # the command -- unless the grant is read as the last word, which
+        # hides the command from the park's road and leaves the resume behind
+        # it to drop the grant and pay a developer to read it as prose.
         self._cycle(_consent_payloads.measured_pair())
         self._reply(_consent_payloads.AUTHORIZE)
         self._reply(_consent_payloads.ANSWERED_GRANT)
         repaired = self._tick()
-        granted = self._tick()
 
         published = self._tick()
 
-        for held in (repaired, granted):
-            self._assert_no_agent(held)
-            held[_consent_payloads.PUSH_BRANCH].assert_not_called()
+        self._assert_no_agent(repaired)
+        repaired[_consent_payloads.PUSH_BRANCH].assert_not_called()
         self._assert_published(published)
 
     def _cycle(self, pair: dict) -> None:

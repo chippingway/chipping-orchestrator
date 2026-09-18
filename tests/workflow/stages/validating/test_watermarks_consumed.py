@@ -13,11 +13,14 @@ from orchestrator.workflow.engine import (
     comments as _engine_comments,
     issue_processing as _issue_processing,
     poll_models as _poll_models,
+    prompt_notes as _prompt_notes,
     run_ledger_values as _run_ledger_values,
 )
 from orchestrator.workflow.stages.implementing import (
     resume as _implementing_resume,
     resume_batch as _resume_batch,
+    session as _implementing_session,
+    state as _implementing_state,
 )
 from tests.support.fakes import (
     FakeComment,
@@ -75,6 +78,34 @@ AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
 LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 AGENT_TIMEOUT_REASON = "agent_timeout"
+
+# The bare retry a session-failure park earns, and what only a fresh spawn's
+# prompt carries: the preamble re-grounding it on the issue.
+CONTINUE = "/orchestrator continue"
+REGROUNDED = "resuming work on GitHub issue"
+
+# The session read the dev resume takes between freezing the batch and
+# building the prompt, captured before a case stands in for it.
+RESOLVE_SESSION = "_resolve_dev_session_for_resume"
+RESOLVES_SESSION = _implementing_session._resolve_dev_session_for_resume
+
+# The two sessions an explicit retry turns into a fresh spawn on: none pinned
+# at all, and one retired on sight by its silent-park streak. None drops the
+# field rather than writing it.
+RETRIED_SESSIONS = (
+    ("a missing session", {_implementing_state._DEV_SESSION_ID: None}),
+    ("a retired session", {
+        _implementing_state._SILENT_PARK_COUNT: (
+            _implementing_state._SILENT_PARKS_BEFORE_FRESH_SESSION
+        ),
+    }),
+)
+
+# Which agent each run was, as the spawn event every launch records names it.
+EVENT_NAME = "event"
+EVENT_AGENT_SPAWN = "agent_spawn"
+AGENT_ROLE = "agent_role"
+ROLE_DEVELOPER = "developer"
 
 # The author every seeded orchestrator comment carries, built once: what a
 # case varies is the body and the id, never who wrote one of ours.
@@ -566,6 +597,86 @@ class AwaitingHumanFrozenBatchTest(_FrozenBatchPark, unittest.TestCase):
         )
 
 
+class ContinueRetryRegroundingTest(_FrozenBatchPark, unittest.TestCase):
+    """The conversation an explicit retry with no transcript is handed.
+
+    A bare `/orchestrator continue` on a session-failure park consumes the
+    command and hands the developer the orchestrator's retry prompt. Where
+    the session is missing or retired that prompt is a fresh spawn's, and the
+    conversation it quotes comes off the batch the command was classified
+    from, less the command: read at spawn time, a comment written in between
+    is delivered while the mark stops at the command, and the next poll hands
+    it over again. The comment lands at the session read, the one seam
+    between the freeze and the prompt that is called exactly once.
+    """
+
+    def test_a_retry_quotes_the_thread_it_classified(self) -> None:
+        for described, session in RETRIED_SESSIONS:
+            with self.subTest(session=described):
+                self.setUp()
+
+                prompt = self._retried_over(session)
+
+                self.assertIn(REGROUNDED, prompt)
+                self.assertIn(_prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT, prompt)
+                self.assertIn(PARKED_QUESTION, prompt)
+                self.assertNotIn(CONTINUE, prompt)
+                self.assertNotIn(LANDED_MID_RUN, prompt)
+
+    def test_what_landed_is_read_by_the_next_poll(self) -> None:
+        for described, session in RETRIED_SESSIONS:
+            with self.subTest(session=described):
+                self.setUp()
+                self._retried_over(session)
+                read_to = self._pinned()[LAST_ACTION_COMMENT_ID]
+
+                followed = self._prompt_of_one_tick()
+
+                self.assertEqual(read_to, self._commanded)
+                self.assertIn(LANDED_MID_RUN, followed)
+                self.assertGreaterEqual(
+                    self._pinned()[LAST_ACTION_COMMENT_ID], self._landed,
+                )
+
+    def _retried_over(self, session: dict) -> str:
+        """The retry's own prompt, a reply landing while it is built."""
+        self._park_on_a_timeout(session)
+        self._commanded = self._they_say(CONTINUE)
+        self._lands = LANDED_MID_RUN
+        return self._prompt_of_one_tick()
+
+    def _park_on_a_timeout(self, session: dict) -> None:
+        """This park, re-reasoned as the timeout a retry is owed on."""
+        state = self.github.read_pinned_state(self.issue)
+        state.set(PARK_REASON, AGENT_TIMEOUT_REASON)
+        for field, written in session.items():
+            if written is None:
+                state.data.pop(field, None)
+            else:
+                state.set(field, written)
+        self.github.write_pinned_state(self.issue, state)
+
+    def _prompt_of_one_tick(self) -> str:
+        """One validating tick with the session read stood in for."""
+        with patch.object(
+            _implementing_session, RESOLVE_SESSION, self._resolves_after_landing,
+        ):
+            mocks = self._run_validating(
+                self.github,
+                self.issue,
+                run_agent=_agent(session_id=DEV_SESSION, last_message=STILL_ASKING),
+                head_shas=(REVIEWED_SHA,),
+            )
+        return mocks[RUN_AGENT].call_args[0][1]
+
+    def _resolves_after_landing(self, issue, state):
+        """The session read, with the reply still owed written first."""
+        if self._lands:
+            self._landed = self._they_say(self._lands)
+            self._lands = ""
+        return RESOLVES_SESSION(issue, state)
+
+
 class RunLimitCycleTest(_FrozenBatchPark, unittest.TestCase):
     """The dev resume a spent ledger refuses, and the reply it was handed.
 
@@ -574,31 +685,57 @@ class RunLimitCycleTest(_FrozenBatchPark, unittest.TestCase):
     a launch nothing invoked; what can record the reply as read is the three
     watermark writes the refusal sets off -- the park's notice, the next tick's
     repair of its lost write, and the grant that lifts it -- and only the real
-    circuit and hold perform them.
+    circuit and hold perform them. The grant is also where the run the human
+    paid for happens, and what it puts back decides whose run that is.
     """
 
-    def test_a_refused_resume_keeps_its_reply(self) -> None:
+    def test_the_grant_resumes_the_refused_developer(self) -> None:
         # The circuit refuses the dev resume below it, so nothing was read,
-        # and three writes follow: the run-limit notice posted above the
-        # reply, the next tick's repair of that notice's lost write, and the
-        # grant that lifts the park. Each records the thread read through our
-        # own comments only, so the reply is still unread once the issue has
-        # its runs back, for whichever road reads the thread next.
-        self._spend_every_run()
-        self._they_say(HUMAN_REPLY)
+        # and neither the notice nor its repair may record the reply as read.
+        # The grant puts the question park back, so its own tick is the
+        # resume that was refused: the developer, handed the reply and not
+        # the grant command, recorded as having read it. Cleared instead, the
+        # park is gone and this stage's ordinary road runs the REVIEWER over
+        # words the human wrote to the developer.
+        granted = self._refused_then_granted()
+        after = self._polls()
+        prompt = granted[RUN_AGENT].call_args[0][1]
+        read_to = self._pinned()[LAST_ACTION_COMMENT_ID]
 
-        refused = self._polls()
-        self._they_say(ADD_RUNS)
-        replayed = self._polls()
-        self._polls()
-
-        refused[RUN_AGENT].assert_not_called()
-        replayed[RUN_AGENT].assert_not_called()
+        self.assertIn(HUMAN_REPLY, prompt)
+        self.assertNotIn(ADD_RUNS, prompt)
+        self.assertEqual(
+            [
+                recorded[AGENT_ROLE] for recorded in self.github.recorded_events
+                if recorded[EVENT_NAME] == EVENT_AGENT_SPAWN
+            ],
+            [ROLE_DEVELOPER],
+        )
         self.assertEqual(
             self._pinned()[_run_ledger_values.AGENT_RUN_ALLOWANCE],
             SPENT_RUNS + SPENT_RUNS,
         )
-        self.assertEqual(self._pinned()[LAST_ACTION_COMMENT_ID], PARK_COMMENT_ID)
+        self.assertGreaterEqual(read_to, self._spoke)
+        self.assertLess(read_to, self._commanded)
+        after[RUN_AGENT].assert_not_called()
+
+    def _refused_then_granted(self):
+        """The refused resume, its park's repair, and the grant's own poll.
+
+        No agent runs on the first two; the third runs the one the grant paid
+        for, which is returned. The reply and the command are kept by id.
+        """
+        self._spend_every_run()
+        self._spoke = self._they_say(HUMAN_REPLY)
+        refused = self._polls()
+        self._commanded = self._they_say(ADD_RUNS)
+        replayed = self._polls()
+        granted = self._polls()
+
+        refused[RUN_AGENT].assert_not_called()
+        replayed[RUN_AGENT].assert_not_called()
+        granted[RUN_AGENT].assert_called_once()
+        return granted
 
     def _spend_every_run(self) -> None:
         state = self.github.read_pinned_state(self.issue)
