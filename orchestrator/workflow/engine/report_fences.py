@@ -1,14 +1,15 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Which lines of a developer's Markdown message a code fence may enclose.
+"""Which lines of an agent's Markdown message a code fence may enclose.
 
-The report reader asks so that a marker line Markdown shows as code is never
-read as the outcome. The answer is reached without a Markdown parser, so a
-doubt reads as fenced: a fence opens at the top level or behind the markers of
-the list items its line opens, closes only on a bare run at its opening run's
-column, and stays open to the end of the message past a line that may have
-ended the list item it sat in. A blockquote's fence needs no reading: every
-line inside one opens on `>`, and no marker line does.
+The developer report reader and the reviewer verification reader both ask, so
+that a marker line Markdown shows as code is never read as the outcome. The
+answer is reached without a Markdown parser, so a doubt reads as fenced: a
+fence opens at the top level or behind the markers of the list items its line
+opens, closes only on a bare run at its opening run's column, and stays open to
+the end of the message past a line that may have ended the list item it sat
+in. A blockquote's fence needs no reading: every line inside one opens on `>`,
+and no marker line does.
 """
 from __future__ import annotations
 
