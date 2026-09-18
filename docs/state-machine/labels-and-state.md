@@ -2909,10 +2909,13 @@ rather than preserving.
 - **Incomplete run.** `implementing_incomplete_run_sha` is the commit a developer run left when it did not COMPLETE —
   a timeout, a provider refusal, a nonzero exit — and so recorded no report by design rather than by loss. The
   publication seam writes it from the checkout's head for every such run, and the timeout-park recovery for the commit a
-  timeout stranded; no other result writes it. A recovery that republishes exactly this commit later — a measurement
-  retried, an approval paid — is owed no report either; any other commit is not covered, and a value that is not the
-  commit a recovery proved matches nothing, so a hand edit waives nothing. Additive: an issue without it simply has no
-  incomplete run recorded.
+  timeout stranded; a run that COMPLETES retires it, since the report it records describes the branch it leaves. A
+  recovery that republishes exactly this commit later — a measurement retried, an approval paid — is owed no report
+  either; any other commit is not covered, and a value that is not the commit a recovery proved matches nothing, so a
+  hand edit waives nothing. The one waiver it does not grant is over a delivery or transaction an earlier run recorded
+  and has not settled: that report describes the branch before this commit, so the commit parks under
+  `report_undeliverable` before the size gate, the record kept, rather than going out beneath it. Additive: an issue
+  without it simply has no incomplete run recorded.
 - **Published pull request.** `implementing_published_pr` is the pull request the recorded publication went onto,
   written with the receipt below and never on its own. The receipt says a commit reached a remote and the head it
   replaced dates that to one attempt; neither says which pull request now carries the work, which is what the

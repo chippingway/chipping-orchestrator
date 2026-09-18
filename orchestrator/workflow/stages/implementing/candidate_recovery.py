@@ -110,7 +110,9 @@ def _publish_committed_work(
     record named asks that, not only the restart shortcut. A run that did not
     complete records nothing either, by design, and the commit it left is
     written down here so a later recovery of that commit is not held for a
-    report no run was ever going to write.
+    report no run was ever going to write -- unless a report an earlier run
+    recorded is still waiting to go out, which describes the branch before
+    that commit and is never bound to it: the commit is held there instead.
     """
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
     tree = _worktree_status._worktree_status(work.worktree)
@@ -129,6 +131,8 @@ def _publish_committed_work(
     ):
         return
     _unreported_recovery._waives_an_incomplete_run(state, work)
+    if _unreported_recovery._holds_an_unfinished_run(gh, issue, state, work):
+        return
     if isinstance(work, _RecoveredWork) and (
         _unreported_recovery._holds_unreported_work(
             gh, spec, issue, state, work.candidate_sha,

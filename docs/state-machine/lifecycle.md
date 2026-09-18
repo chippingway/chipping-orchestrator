@@ -35,8 +35,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
      a finished run's report      ─► recorded on the pinned comment between
                                      the tree and the gate; one that will not
                                      record, a completed run that reported
-                                     nothing, and any recovery whose
-                                     commits no record describes all park
+                                     nothing, any recovery whose commits no
+                                     record describes, and a run that did
+                                     not finish over a report an earlier
+                                     one recorded all park
                                      report_undeliverable with nothing
                                      measured, pushed or opened
      additions <= MAX_ADDED_LINES ─► publish as usual (push, PR, the report

@@ -66,7 +66,9 @@ that republishes a candidate a gate record named, since no developer runs on
 any of them -- and a settled pair that does describe them is re-read where the
 report settled, with the requirements, before it vouches for anything. The one
 commit it lets past with no report at all is one a run that never completed
-left, which records none by design and is written down where the seam sees it.
+left, which records none by design and is written down where the seam sees it
+-- and held instead while a report an earlier run recorded is still waiting to
+go out, since that report describes the branch before it.
 Once the push lands and the pull request is known, `publication` binds the
 report to that publication and posts or verifies it through `report_binding`,
 whose settlement in `report_publishing` reads the issue's requirements once

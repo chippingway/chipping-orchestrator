@@ -59,8 +59,9 @@ class LateGateTimeoutRecoveryTest(support._GateCase, unittest.TestCase):
         # The recovery publishes without a human and without an agent, which
         # is exactly why it may not publish around the gate: an oversized
         # candidate would reach a branch and a pull request on the strength of
-        # a run nobody read.
+        # a run nobody read. The killed run recorded no report.
         self._seed(**{
+            _DELIVERY_RECORD: None,
             support.AWAITING_HUMAN: True,
             support.PARK_REASON: _retry_payloads._AGENT_TIMEOUT,
             _retry_payloads._PRE_IMPLEMENT_SHA: _retry_payloads._PRE_TIMEOUT_SHA,

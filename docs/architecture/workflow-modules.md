@@ -1398,7 +1398,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `publication.py` owns: an unreadable reading holds silently, a report that moved parks
                             for repair. A commit a run that never COMPLETED left is recorded
                             as `implementing_incomplete_run_sha` and owed no report, a timeout-park recovery's
-                            stranded commit included. Also the `invoked=False` result those recoveries hand the seam
+                            stranded commit included, and a completed run retires it -- except over a delivery or
+                            transaction an earlier run recorded and has not settled, which describes the branch
+                            before that commit, so the commit is held the same way with the record kept. Also the
+                            `invoked=False` result those recoveries hand the seam
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
                             take a fresh or resumed measurement; the verdict carries the basis admitting publication
       late_gate_permission.py

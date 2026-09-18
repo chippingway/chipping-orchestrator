@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Committed work a recovery republishes, held where no report describes it.
+"""Committed work no recorded report describes, held before it is published.
 
 Every recovery here republishes an EARLIER run's commits -- the restart shortcut
 and each road answering a size-gate record -- with an `invoked=False` result
@@ -10,8 +10,14 @@ settled with the requirements before it vouches for anything; or the commit is
 one a run that never COMPLETED left, owing none by design. Anything else is the
 lost-write window the recording exists to close, held under
 `report_undeliverable` before anything is measured, pushed or opened.
+
+That waiver has one exception, held the same way: where a report an earlier
+run recorded is still waiting to go out, the commit an unfinished run left on
+top of it is one that report does not describe.
 """
 from __future__ import annotations
+
+import logging
 
 from github.Issue import Issue
 
@@ -24,8 +30,10 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
+    report_delivery_state as _delivery_state,
     report_locations as _report_locations,
     report_outcomes as _report_outcomes,
+    report_record_state as _record_state,
 )
 from orchestrator.workflow.stages.implementing import (
     late_publication_state as _late_publication_state,
@@ -33,6 +41,20 @@ from orchestrator.workflow.stages.implementing import (
     publication as _publication,
     session_read as _session_read,
     state as _state,
+)
+
+log = logging.getLogger("orchestrator.workflow")
+
+# Why an unfinished run's commit is held over a report an earlier run recorded.
+_UNFINISHED_RUN_PARK = (
+    "{mentions} this issue's developer session committed new work and did not "
+    "finish, while the report an earlier run recorded is still waiting to go "
+    "out. That report describes the branch as that run left it, not the "
+    "commit now on top of it, so the new commit was not pushed: it is still "
+    "in the worktree, and the report is still recorded on the pinned comment. "
+    "Reply and the orchestrator resumes the session; the report it writes "
+    "then describes the branch as it stands and is the one that gets "
+    "published, and it needs no new commit to deliver it."
 )
 
 
@@ -62,12 +84,62 @@ def _waives_an_incomplete_run(
     stranded that the quiet recovery hands on under a sentence of its own. The
     commit is the head the size gate goes on to measure; an unread head waives
     nothing.
+
+    A run that DID complete retires it instead: it reaches here only with its
+    report recorded, and that report describes the branch it leaves, commits an
+    earlier unfinished run made included -- so `_holds_an_unfinished_run` has
+    nothing to hold.
     """
+    if not (stranded or work.agent_result.invoked):
+        return
     outcome = _report_outcomes._report_outcome_of_run(work.agent_result)
-    ran = work.agent_result.invoked and outcome in _report_delivery.INCOMPLETE_RUNS
-    if stranded or ran:
+    if stranded or outcome in _report_delivery.INCOMPLETE_RUNS:
         head = _verification_probes._head_sha(work.worktree)
         state.set(_state._INCOMPLETE_RUN_SHA, head or None)
+    elif state.get(_state._INCOMPLETE_RUN_SHA):
+        state.set(_state._INCOMPLETE_RUN_SHA, None)
+
+
+def _holds_an_unfinished_run(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    work: _models._AgentWork,
+) -> bool:
+    """Hold the commit an unfinished run left over an earlier run's report.
+
+    True where it held. A report still waiting to go out -- a delivery, or the
+    transaction it became -- describes the branch as the run that WROTE it left
+    it, and the waiver names a commit a later run added and never reported:
+    most sharply a session a report park resumed that committed and timed out.
+    Pushed, the delivery would be bound to a commit it never described, or the
+    transaction stranded on a pull request no longer standing on its commit --
+    either one retried on every tick with no developer run and no park.
+
+    So it parks before anything is measured or pushed, the record kept: a
+    reply resumes the session, and the completed run that answers it retires
+    the waiver with a report of the branch as it stands.
+    """
+    waived = state.get(_state._INCOMPLETE_RUN_SHA)
+    if not waived or not (
+        _delivery_state.carries_delivered_report(state)
+        or _record_state.carries_pending_report(state)
+    ):
+        return False
+    proved = isinstance(work, _models._RecoveredWork) and work.candidate_sha
+    if (proved or _verification_probes._head_sha(work.worktree)) != waived:
+        return False
+    log.error(
+        "issue=#%d carries %s, which a run that did not finish left over a "
+        "report an earlier run recorded; publishing nothing and holding for "
+        "a human", issue.number, waived,
+    )
+    _report_delivery.parks_an_undeliverable_report(
+        gh, issue, state, _UNFINISHED_RUN_PARK.format(
+            mentions=config.HITL_MENTIONS,
+        ),
+    )
+    return True
 
 
 def _holds_unreported_work(

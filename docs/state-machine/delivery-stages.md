@@ -1691,13 +1691,15 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        its digest under a trusted author, or our own rendering with the text and whole header recorded, found without
        the capped ledger) with the requirements; an unreadable reading holds, and a report edited, deleted or re-headed,
        or requirements moved, parks. A commit a run that never COMPLETED left, or a timeout park's recovery republishes,
-       is recorded as `implementing_incomplete_run_sha` and owed no report. After the push, with only the handoff
-       withheld: an unreadable delivery, a verification on another pull request, and one on the DESCRIPTION this
-       publication needs while it closes nothing — the collision held for repair, freed when the reply's report goes in
-       a comment. Nothing is discarded, no park is announced twice, and `developer_report_owed` is the debt where no
-       record exists, outliving any later park. A resumed run that comes back with a report and moved no head publishes
-       the commits already on the branch, so an ordinary question is still a question; the handoff spends the reason
-       once the report has reached the pull request.
+       is recorded as `implementing_incomplete_run_sha` and owed no report — unless a delivery or transaction an
+       earlier run recorded is still unsettled: it describes the branch before that commit and is never bound to it, so
+       the commit parks, the record kept, until a completed run's report retires the waiver. After the push, with only
+       the handoff withheld: an unreadable delivery, a verification on another pull request, and one on the DESCRIPTION
+       this publication needs while it closes nothing — the collision held for repair, freed when the reply's report
+       goes in a comment. Nothing is discarded, no park is announced twice, and `developer_report_owed` is the debt
+       where no record exists, outliving any later park. A resumed run that comes back with a report and moved no head
+       publishes the commits already on the branch, so an ordinary question is still a question; the handoff spends the
+       reason once the report has reached the pull request.
      - new commits + dirty files → `_on_dirty_worktree`: park; refuse to publish a partial branch.
      - new commits + a tree `git status` could not report on → `_on_unreadable_worktree`: park under
        `unreadable_worktree`. An unreadable tree is not a clean one: the list form of that read maps its own failure
