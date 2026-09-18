@@ -286,21 +286,15 @@ def _names_the_implementation(
 ) -> bool | None:
     """Whether the pull request's description closes this issue and names it.
 
-    `find_open_pr` promises only that something is open on the branch: this
-    stage's own crashed attempt, an operator's, the `discussion` stage's plan PR
-    (which the push just made false, under the decomposer's session and with
-    no `Resolves #N`), or one of ours a human has since re-described. So the
-    description is judged as it stands NOW, read again by number -- the body on
-    the object in hand is as old as whatever fetched it -- with one request
-    left between that read and any edit, since GitHub has no conditional write.
+    Judged on the description read again by number -- the object in hand is as
+    old as whatever fetched it -- since `find_open_pr` promises only that
+    something is open on the branch: a crashed attempt of ours, an operator's,
+    the `discussion` plan PR, or ours re-described by a human.
 
-    True: it already closes this issue and names this session, and is left
-    alone with everything a human added; or it did not, and has just had the
-    closing reference and the attribution put ABOVE it, every word kept. False:
-    a report of this issue's claims it as its location, and even an edit that
-    keeps every word would move it off the digest it was verified at. None
-    holds the tick: a description nobody could read, or one too long to take
-    the two lines without cutting what somebody wrote, which parks for repair.
+    True: it already does, and is left alone; or it did not, and has just had
+    the two lines put ABOVE it, every word kept. False: a report of this
+    issue's claims it, and no edit is safe. None holds the tick: a description
+    nobody could read, or one too long to take the lines, which parks.
     """
     try:
         current = gh.get_pr(pr.number)

@@ -3,28 +3,12 @@
 """Which places on a pull request this issue's reports claim as their own.
 
 A report can live in a pull request's DESCRIPTION, the one place this workflow
-also edits for its own reasons: a pull request opened elsewhere gets the closing
-reference and the attribution put above what it says. The two meet on the pull
-request a developer verified a report on, and changing that body by a single
-character -- even keeping every word -- moves it off the digest the
-verification recorded, so the transaction stays owed and the work never leaves
-this stage.
-
-So the claim is asked BEFORE any such edit, of every record that can hold one:
-the report a run delivered, the transaction it was bound into, and the report a
-pull request is recorded as carrying. A record nobody can read is asked too, for
-whatever place it still names. A report in a COMMENT is out of reach of a body
-edit, and nothing here edits a comment.
-
-The settled record's other claim read here is WHICH publication its report is
-about: a settlement is never cleared, so an older commit's report reads as well
-as the newest one's. It stays a claim, for the caller to re-read.
-
-Preserving a description is not free, and the second reading here is what its
-caller owes the work: a body left alone because a report lives in it can be one
-that closes nothing when it merges and names no session -- a publication a human
-can still fix before it is handed on, and a merged pull request that left its
-issue open after.
+also edits -- and even an edit keeping every word moves a verified description
+off its digest. So the claim is asked BEFORE any such edit, of every record that
+can hold one, a record nobody can read included; a report in a comment is out of
+reach of a body edit. The second reading is what the description must say
+before the work is handed on -- a closing reference and the session -- and the
+third is which publication a SETTLED report is about, a claim its caller re-reads.
 """
 from __future__ import annotations
 
@@ -35,6 +19,7 @@ from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
+    report_fences as _fences,
     report_record_fields as _fields,
     report_record_state as _record_state,
     report_records as _records,
@@ -150,13 +135,14 @@ def describes_the_issue(
     The CLOSING reference, which GitHub honours in the description and
     nowhere else, and the ATTRIBUTION every later reuse reads back. Any
     spelling GitHub accepts counts -- `Fixes #12`, or `Fixes owner/repo#12`
-    naming this repository -- and one naming another repository does not. An
-    unread body says nothing, which holds the work back.
+    naming this repository -- outside literal code, which GitHub does not act
+    on; one naming another repository does not. An unread body says nothing,
+    which holds the work back.
     """
     body = getattr(pull_request, "body", None)
     if not isinstance(body, str):
         return False
-    closing = _CLOSES_THE_ISSUE.finditer(body)
+    closing = _CLOSES_THE_ISSUE.finditer(_fences.outside_code(body))
     return attribution in body and any(
         int(reference["issue"]) == issue_number
         and (reference["repo"] or repo_slug).lower() == repo_slug.lower()

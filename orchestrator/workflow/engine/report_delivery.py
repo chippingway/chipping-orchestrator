@@ -160,18 +160,12 @@ _UNREPORTED_PARK = (
 # Why a recovered publication is held: commits no recorded report describes,
 # which is the window the recording exists to close.
 UNRECOVERED_PARK = (
-    "{mentions} this issue's branch carries committed work no run of this "
-    "tick produced: a developer finished it on an earlier tick, and no "
-    "completion report of that run is recorded on this comment. The report "
-    "is written down before anything is published, so commits without one "
-    "mean the tick that made them never got the record out -- a failed write, "
-    "or a restart in the window between the two -- and the session that could "
-    "say what it did has ended. Nothing was published: the commit is still in "
-    "the worktree, the branch is untouched, and no pull request was opened, "
-    "because handing this on would send a reviewer an implementation nobody "
-    "described. Reply and the orchestrator resumes the session; the report it "
-    "writes then is the one that gets published, and it needs no new commit "
-    "to deliver it."
+    "{mentions} this issue's branch carries committed work an earlier tick's "
+    "developer finished, and no completion report of that run is recorded -- "
+    "a failed write, or a restart before it. Nothing was published, because "
+    "handing this on would send a reviewer an implementation nobody described. "
+    "Reply and the orchestrator resumes the session; the report it writes then "
+    "is the one that gets published, and it needs no new commit to deliver it."
 )
 
 

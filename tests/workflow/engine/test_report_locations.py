@@ -22,14 +22,17 @@ class DescribesTheIssueTest(unittest.TestCase):
     def test_every_closing_spelling_github_honours(self) -> None:
         # Bare and repository-qualified references both close this issue --
         # the qualifier compared as GitHub compares it, without case -- while
-        # one naming another repository, or another number, closes nothing
-        # here. Without the attribution beside it no reference is enough.
+        # one naming another repository, or another number, or shown as code,
+        # closes nothing here. Without the attribution no reference is enough.
         for reference, signed, closes in (
             (f"Fixes #{ISSUE}", ATTRIBUTION, True),
             (f"resolves: Owner/Repository#{ISSUE}", ATTRIBUTION, True),
             (f"Closes someone/else#{ISSUE}", ATTRIBUTION, False),
             (f"Fixes #{OTHER_ISSUE}", ATTRIBUTION, False),
             (f"Fixes #{ISSUE}", "", False),
+            (f"```\nFixes #{ISSUE}\n```", ATTRIBUTION, False),
+            (f"Write `Fixes #{ISSUE}` to close it.", ATTRIBUTION, False),
+            (f"    Fixes #{ISSUE}", ATTRIBUTION, False),
         ):
             with self.subTest(reference=reference, signed=bool(signed)):
                 body = f"{reference}\n\n{signed}"

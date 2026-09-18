@@ -2,23 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """Committed work a recovery republishes, held where no report describes it.
 
-Every recovery here republishes commits an EARLIER tick's developer made: the
-restart shortcut, and each road answering a record the size gate left -- an
-approved commit, a frozen candidate, a measurement park retried, a checkout put
-back, an authorized rollback. No developer runs on them, so their `invoked=False`
-result records no report, and what describes the work is on the pinned comment
-or nowhere: a debt still owed, or a settled pair about THIS commit on the pull
-request the receipt names, which is what a relabel that did not land leaves.
-
-A settled pair is a record of one moment, so it is re-read where it settled,
-with the requirements, before it vouches for anything: a reading nobody could
-take holds the tick silently, and a report that no longer stands parks for
-repair. The one commit owed no report at all is one a run that did not COMPLETE
-left -- a timeout, a provider refusal, a nonzero exit -- which records none by
-design and is written down so a recovery of that exact commit is not held.
-
-Anything else is the lost-write window the recording exists to close: the
-session that could describe the commits has ended, so the work is held under
+Every recovery here republishes an EARLIER run's commits -- the restart shortcut
+and each road answering a size-gate record -- with an `invoked=False` result
+that records no report. So what describes the work is a debt still owed, or a
+settled pair about THIS commit, branch and pull request, re-read where it
+settled with the requirements before it vouches for anything; or the commit is
+one a run that never COMPLETED left, owing none by design. Anything else is the
+lost-write window the recording exists to close, held under
 `report_undeliverable` before anything is measured, pushed or opened.
 """
 from __future__ import annotations

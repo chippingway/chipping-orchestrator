@@ -49,6 +49,17 @@ OWN_DESCRIPTION = (
 
 EARLIER_HEADING = "_Description before this implementation:_"
 
+# This stage's own description with its closing reference shown only as code.
+QUOTED_REFERENCES = (
+    OWN_DESCRIPTION.replace("Resolves", "```\nResolves", 1).replace(
+        "\n\nGenerated", "\n```\n\nGenerated", 1,
+    ),
+    OWN_DESCRIPTION.replace(
+        f"Resolves #{support.REPORT_ISSUE}",
+        f"Write `Resolves #{support.REPORT_ISSUE}` to close it.",
+    ),
+)
+
 GET_PR = "get_pr"
 
 AWAITING_HUMAN = "awaiting_human"
@@ -175,6 +186,24 @@ class DescriptionGuardTest(unittest.TestCase, _ReusedPullRequest):
                 self.assertNotIn(
                     (support.REPORT_ISSUE, LABEL_VALIDATING),
                     github.label_history,
+                )
+
+    def test_a_quoted_reference_closes_nothing(self) -> None:
+        # A closing reference shown as code -- fenced, or inline -- is literal
+        # text GitHub does not act on, so the body still earns the real one.
+        for quoted in QUOTED_REFERENCES:
+            with self.subTest(quoted=quoted):
+                github, issue, reused = self._reused_over()
+                reused.body = quoted
+
+                self.deliver(github, issue, support.ready_message())
+
+                self.assertEqual(
+                    (
+                        reused.body.startswith(f"Resolves #{support.REPORT_ISSUE}"),
+                        reused.body.endswith(f"{EARLIER_HEADING}\n\n{quoted}"),
+                    ),
+                    (True, True),
                 )
 
     def _delivers(self, github, issue):

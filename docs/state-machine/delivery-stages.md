@@ -1661,7 +1661,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        (the docs pass runs only as the final-docs handoff after approval). A reused PR is only known to be open on
        the branch — most sharply, an issue relabeled out of `discussion` arrives with its plan PR open on the very
        branch these commits went to — so its description is judged as GitHub holds it NOW, read again by number
-       before the report is bound and once more before the handoff. One that already closes this issue and names
+       before the report is bound and once more before the handoff. One that already closes this issue (a keyword
+       reference outside literal code, which GitHub does not act on) and names
        this dev session stands as it is, legacy `_Last agent message:_` tail and human notes included; any other
        gets the implementation's lines (`Resolves #N`, the dev session, and the agent's closing message where no
        report is owed or settled) put ABOVE it, word for word beneath under an earlier-description heading. A

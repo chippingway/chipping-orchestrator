@@ -217,7 +217,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report reader and the reviewer verification reader, judged without a Markdown parser so
                             that a doubt reads as fenced: a fence opens at the top level or in a list item, closes
                             only on a bare run at its opening run's column, and stays open to the end past a line
-                            that may have ended its list item
+                            that may have ended its list item. `outside_code` turns that round for the closing
+                            keywords a description acts on: fenced and indented lines and inline code taken out
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the
@@ -356,7 +357,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             before the one writer that could lose one: the body edit a reused pull request earns,
                             since even an edit keeping every word moves a verified DESCRIPTION off its digest. The
                             second reading is what a description WOULD have said: whether it closes this issue --
-                            bare or qualified with this repository -- and names the session -- one that says neither is a
+                            bare or qualified with this repository, outside literal code -- and names the session
+                            -- one that says neither is a
                             publication the binding below holds for repair. It also answers which publication the
                             SETTLED pair is about, agreeing with itself and naming this repository, pull request,
                             branch and commit; what it hands back is a claim, for its caller to re-read
@@ -415,51 +417,25 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             which settled would replace the newest report on the pull request with an older one.
                             None answers with a repair: a caller that finds the records disagree stops, because
                             choosing between them loses something unrecoverable
-    report_publishing.py    the two ways a proved transaction finishes -- a receipt-scoped post that a retry finds
-                            rather than repeats, and a re-read of a trusted location whose content still hashes to
-                            the revision verified -- and the one write that settles either, composed whole on a copy
-                            so that a settled writer's refusal lands none of itself rather than dropping the record
-                            beside a report nothing says the pull request carries. A refusal short of PRESENT is
-                            split the way the evidence beside it splits one: only a read nobody could take stops the
-                            tick, while an edited report, a deleted one, and an untrusted author are definite
-                            answers about content a human owns and stand down onto the routes behind the guard.
-                            The landed comment id and the verified report's author are read under boundaries of
-                            their own, since each is a lazy member that can fail on a worker holding an uncompleted
-                            object -- and an author nobody could read HOLDS rather than standing down, because it
-                            is not an author this deployment refuses. Both roads prove the room first: the
-                            settlement is re-measured against the comment as it stands before anything is posted,
-                            since what the record reserved may since have been spent by the routes a deferred
-                            transaction let run. And both prove the REQUIREMENTS last, over the issue read afresh
-                            after the post or the re-read and before the settlement: an edit landing during either
-                            request leaves the transaction owed, the handoff withheld, and the drift resume to
-                            answer it, on the binding's road and the reconciliation's alike. `still_carries` reads a
-                            SETTLED report again where it settled, for a recovery about to hand its commit on: a
-                            location hashing to the digest verified needs an author this deployment trusts, and
-                            any other has to re-render there as our report -- no capped ledger consulted -- with the
-                            text digest and whole header (pull request, commit, requirements, revision, receipt)
-                            the settlement recorded
-    report_binding.py       what a publication does with the report its run delivered, once the push has landed
-                            and a pull request carries it: the record bound to that publication -- the repository,
-                            the number, the branch and the commit the caller proved, beside the requirements
-                            revision the delivery already froze -- written durably BEFORE anything is posted, and
-                            then published. Both steps on every tick that gets here, because a publication whose
-                            bind, read or post failed comes back with the delivery or the transaction still owed:
-                            what a retry establishes is that the transaction is about the publication in hand, held
-                            to its pull request, branch and commit, so a record naming other work is left for the
-                            reconciliation that can prove it. The REQUIREMENTS are proved afresh before anything is
-                            posted, because they are the one term the caller cannot vouch for: a report answering
-                            an issue somebody edited while the run worked is left owed for the drift resume rather
-                            than published and handed on. Nothing is ever DISCARDED. A comment too full is reported
-                            at ERROR and retried on the next tick; a record nobody can read, a verification
-                            asserting a report on another pull request, and one asserting it on the very
-                            DESCRIPTION this publication needs for its closing reference and attribution are
-                            refusals no later tick would answer differently, so the issue is parked once under
-                            `report_undeliverable` with the record intact -- that last one the collision this owner
-                            holds for repair rather than resolves: a fresh report in a COMMENT frees the
-                            description, which then gets the closing reference and the attribution above every word
-                            it already says. A transaction the settled pair beside
-                            it refuses -- unreadable, self-contradicting, or already newer -- is left owed rather
-                            than settled over, for the reconciliation to park
+    report_publishing.py    the two ways a proved transaction finishes -- a receipt-scoped post a retry finds rather
+                            than repeats, and a re-read of a trusted location still hashing to the revision verified
+                            -- and the one write that settles either, composed whole on a copy. Only a read nobody
+                            could take stops the tick; an edited or deleted report and an untrusted author stand
+                            down. Both roads prove the room first, and the REQUIREMENTS last, over the issue read
+                            afresh after the request. `still_carries` reads a SETTLED report again where it settled,
+                            for a recovery: a location hashing to the digest verified needs a trusted author, and any
+                            other has to re-render there as our report -- no capped ledger consulted -- with the text
+                            digest and whole header (pull request, commit, requirements, revision, receipt) recorded
+    report_binding.py       what a publication does with the report its run delivered once the push has landed:
+                            the record bound to that repository, pull request, branch and commit in one write made
+                            BEFORE anything is posted, then published. Both steps on every tick that gets here, held
+                            to the publication in hand, so a record naming other work is the reconciliation's. The
+                            REQUIREMENTS are proved afresh first, and a report answering an edited issue is left
+                            owed for the drift resume. Nothing is DISCARDED: a comment too full is retried; a record
+                            nobody can read, a verification on another pull request, and one on the DESCRIPTION this
+                            publication needs park once under `report_undeliverable` with the record intact -- that
+                            last the collision held for repair, freed by a fresh report in a COMMENT. A transaction
+                            the settled pair beside it refuses is left owed, for the reconciliation to park
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
                             and the stage: it hands work that has ENDED straight back -- a closed issue, or one
