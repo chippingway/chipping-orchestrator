@@ -22,37 +22,17 @@ from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.github.pull_request_reports import ReportPresence
 from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
-    report_evidence as _report_evidence,
     report_locations as _report_locations,
     report_outcomes as _report_outcomes,
-    report_publishing as _report_publishing,
-    report_records as _records,
 )
 from orchestrator.workflow.stages.implementing import (
     late_publication_state as _late_publication_state,
     models as _models,
+    publication as _publication,
     session_read as _session_read,
     state as _state,
-)
-
-_MOVED_SETTLEMENT_PARK = (
-    "{mentions} this issue's branch carries committed work whose developer "
-    "report already settled on PR #{pr}, and that report no longer stands as "
-    "it settled: {detail}. Nothing was published: the commit is still in the "
-    "worktree and the pull request stands as it is, because handing this on "
-    "would send a reviewer a report that is not the one recorded. Reply and "
-    "the orchestrator resumes the session; the report it writes then is the "
-    "one that gets published, and it needs no new commit to deliver it."
-)
-
-# What the notice says about each way a settled report can have moved.
-_MOVED_REPORT = "it is gone from where it settled, or reads differently there"
-
-_MOVED_REQUIREMENTS = (
-    "the issue's requirements have moved since the run that wrote it"
 )
 
 
@@ -115,43 +95,10 @@ def _holds_unreported_work(
         source_sha,
     )
     if settled is not None:
-        return _holds_a_moved_settlement(gh, issue, state, settled)
+        return _publication._holds_a_moved_settlement(gh, issue, state, settled)
     _report_delivery.parks_an_undeliverable_report(
         gh, issue, state, _report_delivery.UNRECOVERED_PARK.format(
             mentions=config.HITL_MENTIONS,
-        ),
-    )
-    return True
-
-
-def _holds_a_moved_settlement(
-    gh: GitHubClient,
-    issue: Issue,
-    state: PinnedState,
-    settled: _records.CurrentReport,
-) -> bool:
-    """Hold a settled report that no longer stands; True where it held.
-
-    The report where it settled, then the requirements afresh: an unread one
-    holds silently, a definite refusal parks for a report-only reply.
-    """
-    presence = _report_publishing.still_carries(gh, state, settled)
-    if presence is ReportPresence.UNCONFIRMED:
-        return True
-    edited = None
-    if presence is ReportPresence.PRESENT:
-        edited = _report_evidence.fresh_requirements_verdict(
-            gh, issue, state, settled,
-        )
-        if edited is None:
-            return False
-        if edited.holds:
-            return True
-    _report_delivery.parks_an_undeliverable_report(
-        gh, issue, state, _MOVED_SETTLEMENT_PARK.format(
-            mentions=config.HITL_MENTIONS,
-            pr=settled.subject.pr_number,
-            detail=_MOVED_REPORT if edited is None else _MOVED_REQUIREMENTS,
         ),
     )
     return True

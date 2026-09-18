@@ -1680,8 +1680,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        tick republishes onto the same pull request with no developer run and finishes, the post scoped by its receipt. A
        debt no retry can pay parks under `report_undeliverable` instead: no record left to publish (a resumed session
        that committed and timed out), or a report a human edited, removed, or wrote untrusted. With nothing owed, the
-       report settled for this commit is re-read where it settled before the handoff, and one edited or removed since
-       parks the same way.
+       report settled for this commit is re-read where it settled before the handoff, with the requirements — after a
+       recovery's push too — and one edited or removed since, or answering moved requirements, parks the same way; so
+       does a description such a report claims that closes nothing, since no retry can free it.
      - **a report this build cannot deliver parks the issue** under `report_undeliverable`. Before the size gate, with
        nothing published: a report that cannot be RECORDED; a run that COMPLETED with no usable report; and every
        recovery — the restart shortcut and each road republishing a candidate a gate record named — finding committed

@@ -90,14 +90,14 @@ DAMAGED_RECORD = MappingProxyType({
 class _ReusedPullRequest(support._ReportDeliveryMixin):
     """A human's pull request already open on the branch this issue pushes."""
 
-    def _reused_over(self, **pinned):
-        """An issue carrying `pinned`, with a human's pull request on its branch."""
+    def _reused_over(self, description: str = HUMAN_DESCRIPTION, **pinned):
+        """An issue carrying `pinned`, with a pull request described on its branch."""
         github, issue = self.seeded()
         github.seed_state(support.REPORT_ISSUE, **pinned)
         reused = _open_pr_for(
             github, issue_number=support.REPORT_ISSUE, pr_number=REUSED_PR,
         )
-        reused.body = HUMAN_DESCRIPTION
+        reused.body = description
         github.existing_open_pr[support.BRANCH] = reused
         return github, issue, reused
 
@@ -277,15 +277,35 @@ class DescriptionHoldTest(unittest.TestCase, _ReusedPullRequest):
             support.ready_message(),
         ):
             with self.subTest(message=message):
-                github, issue, reused = self._reused_over()
-                reused.body = OWN_DESCRIPTION
-                editing = _EditsWhatSettled(github)
+                github, issue = self._reused_over(OWN_DESCRIPTION)[:2]
+                editing = _EditsWhereItStands(github)
 
                 with patch.object(github, WRITE_PINNED_STATE, editing):
                     self.deliver(github, issue, message)
 
                 self.assertTrue(editing.edited)
                 self._assert_held_for_a_human(github)
+
+    def test_a_description_rewritten_late_is_held(self) -> None:
+        # Judged, the description named this implementation; rewritten into
+        # the very report verified on it before that report settled there. The
+        # report stands and nothing is owed, so no retry frees the description
+        # and the work parks for a report-only reply.
+        github, issue = self._reused_over(OWN_DESCRIPTION)[:2]
+        editing = _EditsWhereItStands(
+            github, support.PENDING_RECORD, HUMAN_DESCRIPTION,
+        )
+
+        with patch.object(github, WRITE_PINNED_STATE, editing):
+            self.deliver(
+                github, issue,
+                support.verified_message(REUSED_PR, HUMAN_DESCRIPTION),
+            )
+
+        self.assertIn(
+            support.CURRENT_RECORD, github.pinned_data(support.REPORT_ISSUE),
+        )
+        self._assert_held_for_a_human(github)
 
     def _assert_held_for_a_human(self, github) -> None:
         """Nothing edited, the work parked for a report, and nothing handed on."""
@@ -338,26 +358,36 @@ def _settled_on_the_description() -> dict:
     return settled.state_data
 
 
-class _EditsWhatSettled:
-    """A pinned write after which a human edits the report that just settled."""
+class _EditsWhereItStands:
+    """A pinned write after which a human edits where one report record stands.
 
-    def __init__(self, github) -> None:
+    Once, after the first write carrying `record`: the text is appended to, or
+    replaced with `rewritten` where one is given.
+    """
+
+    def __init__(
+        self, github, record=support.CURRENT_RECORD, rewritten=None,
+    ) -> None:
         self._github = github
         self._wrote = github.write_pinned_state
+        self._record = record
+        self._rewritten = rewritten
         self.edited = False
 
     def __call__(self, issue, state):
-        """Write, then edit the report the written settlement names, once."""
+        """Write, then edit the location the written record names, once."""
         written = self._wrote(issue, state)
-        current = state.get(support.CURRENT_RECORD)
-        if current and not self.edited:
+        recorded = state.get(self._record)
+        if recorded and not self.edited:
             self.edited = True
-            pull = self._github.get_pr(current["location_pr"])
-            settled_on = pull if current["location_comment"] is None else next(
+            pull = self._github.get_pr(recorded["location_pr"])
+            stands_on = pull if recorded["location_comment"] is None else next(
                 posted for posted in pull.issue_comments
-                if posted.id == current["location_comment"]
+                if posted.id == recorded["location_comment"]
             )
-            settled_on.body = f"{settled_on.body}\n\nEdited once it settled."
+            stands_on.body = self._rewritten or (
+                f"{stands_on.body}\n\nEdited once it settled."
+            )
         return written
 
 

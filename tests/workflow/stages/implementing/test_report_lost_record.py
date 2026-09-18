@@ -75,8 +75,8 @@ OTHER_BRANCH = "orchestrator/someone-else"
 # The comment the settled report is recorded at.
 SETTLED_COMMENT = 8800
 
-# What the notice a settled report that moved since says, and nothing else does.
-MOVED_NOTICE = "no longer stands as it settled"
+# What the notice a settled report that moved since says, and a lost one does not.
+MOVED_NOTICE = "cannot be delivered as things stand"
 
 # The commit an approval says is owed a push.
 APPROVED_SHA = "late_approved_sha"
@@ -173,6 +173,17 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
                     head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
                 ))
                 self.assertIn(MOVED_NOTICE, issue.comments[-1].body)
+        # Or the requirements moving under the recovery's own push: asked
+        # again last, the work is held once pushed rather than handed on.
+        github, issue, settled_on = self._settled_before_the_relabel()
+        self._assert_held(github, self.republish(
+            github, issue,
+            head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
+            push_branch=lambda *_args, **_kwargs: (
+                _edits_the_requirements(issue, settled_on.issue_comments) or True
+            ),
+        ), pushes=1)
+        self.assertIn(MOVED_NOTICE, issue.comments[-1].body)
 
     def _settled_before_the_relabel(self):
         """A publication whose report settled and whose relabel failed."""
@@ -204,9 +215,9 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
         return github, issue, settled_on
 
-    def _assert_held(self, github, mocks) -> None:
-        """Prove the recovery published nothing and parked for a report."""
-        mocks[PUSH_BRANCH].assert_not_called()
+    def _assert_held(self, github, mocks, pushes: int = 0) -> None:
+        """Prove the recovery opened nothing, handed nothing on, and parked."""
+        self.assertEqual(mocks[PUSH_BRANCH].call_count, pushes)
         recorded = github.pinned_data(support.REPORT_ISSUE)
         self.assertEqual(
             (

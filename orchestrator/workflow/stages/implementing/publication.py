@@ -114,6 +114,10 @@ _UNSETTLEABLE = (
     "this deployment does not trust"
 )
 
+_MOVED_REQUIREMENTS = (
+    "the issue's requirements have moved since the run that wrote it"
+)
+
 
 def _leased_against(
     state: _pinned_state.PinnedState,
@@ -397,12 +401,17 @@ def _still_owes_its_report(
     resumed session that did not finish -- or a transaction whose report on
     this pull request a human edited, removed, or wrote untrusted. Those park
     for the reply that resumes the developer to write the report again. With
-    nothing owed, the report settled for this commit is re-read where it
-    settled, since a human can edit it the moment after: `_settled_report_moved`.
+    nothing owed, the report settled for this commit on this pull request is
+    asked whether it still stands: `_holds_a_moved_settlement`.
     """
-    if not _report_delivery.owes_a_report(state):
-        return _settled_report_moved(gh, issue, state, published, pr)
     number = getattr(pr, "number", 0) or 0
+    if not _report_delivery.owes_a_report(state):
+        current = _settlement.read_current_report(state)
+        return current is not None and (
+            current.subject.pr_number, current.subject.source_sha,
+        ) == (number, published) and _holds_a_moved_settlement(
+            gh, issue, state, current,
+        )
     pending = _record_state.read_pending_report(state)
     recordless = not (
         _delivery_state.carries_delivered_report(state)
@@ -427,35 +436,38 @@ def _still_owes_its_report(
     return True
 
 
-def _settled_report_moved(
+def _holds_a_moved_settlement(
     gh: _client.GitHubClient,
     issue: Issue,
     state: _pinned_state.PinnedState,
-    published: str,
-    pr,
+    settled,
 ) -> bool:
-    """Whether the report this publication settled has moved since it settled.
+    """Hold a settled report that no longer stands; True where it held.
 
-    Only a report about this very commit on this pull request is asked. Read
-    where it settled, an unread one holds the handoff and an edited or removed
-    one parks for a report-only reply: review is never handed a report that is
-    not the one recorded.
+    Asked last before any handoff -- this publication's and a recovery's --
+    since a human can edit the report or the issue the moment after it settled.
+    Read where it settled, then the requirements afresh: an unread one holds
+    silently, a definite refusal parks for a report-only reply.
     """
-    current = _settlement.read_current_report(state)
-    number = getattr(pr, "number", 0) or 0
-    if current is None or (
-        current.subject.pr_number, current.subject.source_sha,
-    ) != (number, published):
-        return False
-    presence = _report_publishing.still_carries(gh, state, current)
-    moved = {_pr_reports.ReportPresence.ABSENT, _pr_reports.ReportPresence.CHANGED}
-    if presence in moved:
-        _report_delivery.parks_an_undeliverable_report(
-            gh, issue, state, _STUCK_REPORT_PARK.format(
-                mentions=config.HITL_MENTIONS, pr=number, detail=_UNSETTLEABLE,
-            ),
+    presence = _report_publishing.still_carries(gh, state, settled)
+    if presence is _pr_reports.ReportPresence.UNCONFIRMED:
+        return True
+    edited = None
+    if presence is _pr_reports.ReportPresence.PRESENT:
+        edited = _report_evidence.fresh_requirements_verdict(
+            gh, issue, state, settled,
         )
-    return presence is not _pr_reports.ReportPresence.PRESENT
+        if edited is None:
+            return False
+        if edited.holds:
+            return True
+    _report_delivery.parks_an_undeliverable_report(
+        gh, issue, state, _STUCK_REPORT_PARK.format(
+            mentions=config.HITL_MENTIONS, pr=settled.subject.pr_number,
+            detail=_UNSETTLEABLE if edited is None else _MOVED_REQUIREMENTS,
+        ),
+    )
+    return True
 
 
 def _owes_the_handoff(

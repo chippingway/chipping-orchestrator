@@ -76,6 +76,17 @@ _TOO_LONG_PARK = (
     "the report it writes then goes out with the description named."
 )
 
+# A description a settled report lives in, which names nothing this issue needs.
+_CLAIMED_PARK = (
+    "{mentions} PR #{pr}'s description is where this issue's developer report "
+    "settled, and it carries no reference closing this issue and no line "
+    "naming the session that wrote the branch. This orchestrator will not edit "
+    "a description a report lives in, so the work is held rather than handed "
+    "to review. Reply and the orchestrator resumes the session; once the "
+    "report it writes is in a comment, those two lines go above what the "
+    "description says, and every word of it is kept."
+)
+
 
 def _format_pr_agent_message(
     message: str, *, cap: int = _state._PR_BODY_AGENT_MESSAGE_CAP
@@ -293,8 +304,9 @@ def _names_the_implementation(
 
     True: it already does, and is left alone; or it did not, and has just had
     the two lines put ABOVE it, every word kept. False: a report of this
-    issue's claims it, and no edit is safe. None holds the tick: a description
-    nobody could read, or one too long to take the lines, which parks.
+    issue's claims it, and no edit is safe -- parked where that report settled
+    already. None holds the tick: a description nobody could read, or one too
+    long to take the lines, which parks.
     """
     try:
         current = gh.get_pr(pr.number)
@@ -314,6 +326,14 @@ def _names_the_implementation(
             "issue's is published there, and any edit would move it",
             issue.number, pr.number,
         )
+        # Owed, the report bound or settled next may free it; with nothing
+        # owed, the report that claims it settled already and no retry frees it.
+        if not _report_delivery.owes_a_report(state):
+            _report_delivery.parks_an_undeliverable_report(
+                gh, issue, state, _CLAIMED_PARK.format(
+                    mentions=config.HITL_MENTIONS, pr=pr.number,
+                ),
+            )
         return False
     described = getattr(current, "body", None)
     named = _build_pr_body(

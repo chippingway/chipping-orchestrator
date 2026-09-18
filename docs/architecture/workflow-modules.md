@@ -1394,8 +1394,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             republishes a candidate a gate record named -- held under `report_undeliverable` before
                             anything is measured, pushed or opened unless a debt is still owed or a settled pair
                             names this repository, branch, commit and the receipt's pull request. It is re-read
-                            where it settled, with the requirements, first: an unreadable reading holds silently, a
-                            report that moved parks for repair. A commit a run that never COMPLETED left is recorded
+                            where it settled, with the requirements, first and again after the push, by the check
+                            `publication.py` owns: an unreadable reading holds silently, a report that moved parks
+                            for repair. A commit a run that never COMPLETED left is recorded
                             as `implementing_incomplete_run_sha` and owed no report, a timeout-park recovery's
                             stranded commit included. Also the `invoked=False` result those recoveries hand the seam
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
@@ -1883,7 +1884,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the push, no report is still owed -- a debt no retry can pay (no record left, or a
                             report a human edited, removed or wrote untrusted, per `engine/report_evidence.py`)
                             parking for a report-only reply -- the report settled for this commit still reads where
-                            it settled, and the description, read afresh, closes this issue and names the session
+                            it settled and answers the issue's requirements (the check `unreported_recovery.py` asks
+                            too, before a recovery's push), and the description, read afresh, closes this issue and
+                            names the session
       push_barrier.py       what may have ended between this tick's readings and the push it is about, asked
                             immediately before the transport and nowhere else: everything above spends a run, a
                             reading or a proof, and each is time a poll on another worker can find the world
@@ -1949,7 +1952,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and `_names_the_implementation`, the verdict on a reused description read afresh by
                             number: one closing this issue and naming this session stands; any other gets those
                             two lines ABOVE it, word for word beneath; a failed re-read holds, one too long for
-                            GitHub parks, and one a report claims is never edited. One road
+                            GitHub parks, and one a report claims is never edited, parking once that report has
+                            settled, since no retry frees it. One road
                             names its pull request instead and may
                             OPEN none: a publication the gate admitted because that pull request already carries
                             the commit is finishing bookkeeping rather than publishing, so it is resolved by
