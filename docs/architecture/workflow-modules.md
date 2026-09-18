@@ -222,14 +222,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it opened behind; the marker readers do not ask, since no marker line opens on `>`
     report_prose.py         what of a description is certainly prose, for the closing keywords GitHub does not act
                             on inside code. Not one reading of the Markdown but what EVERY reading leaves, so a
-                            doubt reads as code: lines a fence may enclose and lines indented as code, behind any
-                            nesting of list and blockquote markers; inline code, looked for from every line a block
-                            could begin on within what blank lines bound -- a heading or a list item starts a block
-                            with no blank line above it -- with an escaped backtick opening nothing and a block of
-                            more backticked lines than the readings allow code throughout; and what HTML shows
-                            literally or hides, `<pre>`, `<code>` and their kind, and comments. What is taken out
-                            leaves a character no reference is made of, so a keyword and a number either side of
-                            code are never read as one
+                            doubt reads as code. Lines are ended as Markdown ends them, a bare carriage return
+                            included; a line a fence may enclose and a line indented as code are code behind any
+                            nesting of list and blockquote markers; so is every span `report_code_spans.py` finds.
+                            What HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and comments --
+                            is read off the text AS WRITTEN, since an element is literal whether or not some
+                            reading pairs a backtick across its opening tag: opening tags are counted by name, so
+                            nesting holds, and a closing tag is trusted only where it stands in the same code, or
+                            the same prose, as the tag that opened the element. What is taken out leaves a
+                            character no reference is made of, so a keyword and a number either side of code are
+                            never read as one, and a tag's own markup goes the same way
+    report_code_spans.py    every inline code span SOME reading of a text encloses. Markdown pairs backticks within
+                            one block, and a heading or a list item starts a block with no blank line above it, so
+                            a span is looked for from every backticked line within what blank lines bound, against
+                            one index of the text's backtick runs. An escaped backtick opens nothing, a backslash
+                            inside a span escapes nothing, and a block of more backticked lines than the readings
+                            allow is code throughout
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the

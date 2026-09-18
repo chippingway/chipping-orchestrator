@@ -73,6 +73,7 @@ _ENGINE_OWNERS = (
     "prompts",
     "report_binding",
     "report_checkout_evidence",
+    "report_code_spans",
     "report_consumed_values",
     "report_delivery",
     "report_delivery_state",

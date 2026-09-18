@@ -40,8 +40,8 @@ log = logging.getLogger("orchestrator.workflow")
 # What every notice here ends on: the two lines, quoted for copying, and what
 # the reply does. Fenced so the attribution's own backticks survive the copy.
 _REPAIR = (
-    "Put these two lines in the description, as ordinary text rather than as "
-    "code, wherever you like:\n\n```\nResolves #{issue}\n\n{attribution}\n```\n\n"
+    "Put these two lines at the top of the description, as ordinary text "
+    "rather than as code:\n\n```\nResolves #{issue}\n\n{attribution}\n```\n\n"
     "Then reply, and the orchestrator resumes the session; the report it "
     "writes then is the one that gets published."
 )

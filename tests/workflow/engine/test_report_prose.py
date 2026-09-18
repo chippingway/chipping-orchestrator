@@ -15,8 +15,8 @@ import unittest
 from types import SimpleNamespace
 
 from orchestrator.workflow.engine import (
+    report_code_spans as _code_spans,
     report_locations as _locations,
-    report_prose as _prose,
 )
 
 ISSUE = 12
@@ -41,6 +41,10 @@ CODE_LINES = (
     f"- > ~~~\n  > {FIXES}\n  > ~~~",
     f"> - ~~~\n>   {FIXES}\n>   ~~~",
     f"~~~\n> ~~~\n{FIXES}\n~~~",
+    # Markdown ends a line on a bare carriage return too, and on the pair.
+    f"Intro\r\r    {FIXES}",
+    f"Intro\r\n\r\n    {FIXES}",
+    f"~~~\r{FIXES}\r~~~",
 )
 
 # Code by the span it stands in. An escaped backtick is a literal character and
@@ -57,16 +61,32 @@ CODE_SPANS = (
     f"foo `\n    ~~~\n    bar\n    ~~~\n{FIXES}`",
 )
 
-# Code, or hidden, by the HTML around it; and a keyword parted from its number
-# by code, which is no reference however the text around the code reads.
-CODE_OTHERWISE = (
+# Code, or hidden, by the HTML around it, read off the text as written: an
+# element is literal whether or not some reading pairs a backtick across its
+# opening tag. Nested tags are counted, a stray closing tag closes nothing, and
+# neither does one a code span or a comment may hide.
+CODE_IN_HTML = (
     f"<pre>{FIXES}</pre>",
     f"<PRE lang='text'>\n{FIXES}\n</PRE>",
     f"<code>{FIXES}</code>",
     f"<pre>\n{FIXES}",
     f"<!-- {FIXES} -->",
+    f"`unmatched\n<pre>` {FIXES}</pre>",
+    f"<code><code>example</code> {FIXES}</code>",
+    f"<pre><code>example</code> {FIXES}</pre>",
+    f"<pre></code> {FIXES}</pre>",
+    f"text <pre>`</pre> `{FIXES}`",
+    f"<pre><!-- </pre> --> {FIXES}</pre>",
+    f"<textarea>{FIXES}</textarea>",
+    f"<pre {FIXES}",
+)
+
+# No reference at all, however the text around it reads: a keyword parted from
+# its number by code, and one inside a tag's own markup.
+NO_REFERENCE = (
     f"Fixes `a span` #{ISSUE}",
     f"Fixes\n    an indented line\n#{ISSUE}",
+    f'<a title="{FIXES}">a link</a>',
 )
 
 # The same reference as prose, which a quote or a list item still is. A stray
@@ -85,10 +105,14 @@ PROSE = (
     f"`unclosed {FIXES}",
     f"An unmatched ` here.\n\n{FIXES}",
     f"> ```\n> an example\n> ```\n\n{FIXES}",
+    f"```html\n<pre>\nan example\n</pre>\n```\n\n{FIXES}",
+    f"<!-- a note --> {FIXES}",
+    f"{FIXES}\n\nWrap it in `<pre>`.",
+    f"Intro\r\r{FIXES}",
 )
 
 # One more backticked line than a block's spans are looked for from.
-CROWDED = _prose._MAX_SPAN_READINGS + 1
+CROWDED = _code_spans._MAX_SPAN_READINGS + 1
 
 
 def _describes(reference: str) -> bool:
@@ -101,7 +125,7 @@ def _describes(reference: str) -> bool:
 
 class CertainProseTest(unittest.TestCase):
     def test_a_reference_shown_as_code_closes_nothing(self) -> None:
-        for shown in (*CODE_LINES, *CODE_SPANS, *CODE_OTHERWISE):
+        for shown in (*CODE_LINES, *CODE_SPANS, *CODE_IN_HTML, *NO_REFERENCE):
             with self.subTest(shown=shown):
                 self.assertFalse(_describes(shown))
 

@@ -7,32 +7,46 @@ does not read inside code. Reached without a Markdown parser, so the answer is
 not one reading of the text but what EVERY reading leaves: a doubt reads as
 code, and what comes back is prose under all of them.
 
-Lines first. A line a fence may enclose, behind any nesting of list and
-blockquote markers, and a line indented as code past whatever markers it opens
-on. Then inline code, which Markdown pairs within one block -- and where a block
-begins is the doubt: a heading, a list item or a quote can start one with no
-blank line above it. So a span is looked for from EVERY line a block could
-begin on, within what blank lines certainly bound, and whatever any of those
-readings encloses is code. An escaped backtick opens nothing, being a literal
-character; inside a span a backslash escapes nothing. Last, what HTML shows
-literally or hides: `<pre>`, `<code>` and their kind, and comments.
+Lines first, ended as Markdown ends them -- a bare carriage return included. A
+line a fence may enclose, behind any nesting of list and blockquote markers, and
+a line indented as code past whatever markers it opens on. Then every inline
+code span some reading encloses, which is `report_code_spans`'s question.
+
+Then what HTML shows literally or hides: `<pre>`, `<code>` and their kind, and
+comments. Read off the text AS WRITTEN rather than off what the code above
+leaves, since an element is literal whether or not some reading pairs a
+backtick across its opening tag. Every opening tag counts, nested ones too, and
+a closing tag is trusted only where it stands in the same code, or the same
+prose, as the tag that opened the element: one a code span may hide closes
+nothing. An element nothing closes runs to the end of the text.
 
 What is taken out leaves a character no keyword, number or whitespace is made
-of, so the words either side of a code span never read as one reference.
+of, so the words either side of code never read as one reference; and a tag's
+own markup goes the same way, since an attribute is nothing GitHub shows.
 """
 from __future__ import annotations
 
 import re
-from bisect import bisect_left
-from collections import defaultdict
-from collections.abc import Iterator
+from bisect import bisect_right
+from collections import Counter
+from collections.abc import Iterable, Iterator
+from typing import Final
 
-from orchestrator.workflow.engine import report_fences as _fences
+from orchestrator.workflow.engine import (
+    report_code_spans as _code_spans,
+    report_fences as _fences,
+)
 
 # What stands where code was. Not whitespace, so `Fixes` and `#12` either side
 # of a span are not a reference; not a word character, so a keyword beside it
 # still starts on a word boundary.
 _GAP = "\N{OBJECT REPLACEMENT CHARACTER}"
+
+# The line endings Markdown knows beside the line feed every reading here is
+# taken over.
+_LINE_ENDING_RE = re.compile(r"\r\n?")
+
+_LINE_FEED = "\n"
 
 # The markers a line opens on, in any nesting: up to three columns, a
 # blockquote or list marker, and the one space that belongs to the marker.
@@ -42,53 +56,41 @@ _CONTAINER_PREFIX_RE = re.compile(r"(?: {0,3}(?:>|[-+*]|[0-9]{1,9}[.)]) ?)*")
 # Markdown lets prose stand.
 _CODE_INDENT_RE = re.compile(r" {4}| {0,3}\t")
 
-# A line that certainly ends a block: blank, or nothing but blockquote markers.
-_BLOCK_END_RE = re.compile(r"[ \t\r>]*")
-
-# What an inline code span is delimited by, and what cannot delimit one: a
-# backslash escape, whose character is literal text, and a backtick run. Read
-# left to right, so the backtick of an escape is never seen as a run.
-_INLINE_TOKEN_RE = re.compile(r"\\[\s\S]|`+")
-
-_BACKTICK = "`"
-
-# A stretch of the text, as its two offsets; and where every backtick run of
-# one length starts, in order.
-type _Stretch = tuple[int, int]
-
-type _Runs = dict[int, list[int]]
-
-# A backtick run as a span CLOSES on one: whole, and escaped or not, since
-# inside a span a backslash is a literal character.
-_BACKTICK_RUN_RE = re.compile("`+")
-
-# How many lines of one block a span is looked for from. A block with more
-# backticked lines than this is code throughout, so a description built to be
-# slow to read is read quickly and as code.
-_MAX_SPAN_READINGS = 64
-
-# What HTML shows literally or not at all: the elements GitHub renders as code,
-# and a comment. One never closed runs to the end of the text.
-_HTML_LITERAL_RE = re.compile(
-    r"<(?P<tag>pre|code|samp|kbd|tt)\b[^>]*>[\s\S]*?(?:</(?P=tag)\s*>|\Z)"
-    r"|<!--[\s\S]*?(?:-->|\Z)",
+# A comment, whole; or one tag of an element HTML shows literally or not at
+# all. A tag its own `>` never closes takes the rest of the text with it.
+_HTML_LITERAL_TOKEN_RE = re.compile(
+    r"<!--[\s\S]*?(?:-->|\Z)"
+    r"|<(?P<closes>/?)(?P<tag>pre|code|samp|kbd|tt|script|style|textarea)\b[^>]*>?",
     re.IGNORECASE,
 )
+
+# The markup of any other tag, attributes and all.
+_HTML_TAG_RE = re.compile(r"</?[A-Za-z][^<>]*>")
+
+# A stretch of the text, as its two offsets.
+type _Stretch = tuple[int, int]
+
+# Which stretch of code a position stands in, for one that stands in none.
+_IN_PROSE = -1
 
 
 def outside_code(text: str) -> str:
     """`text` with everything that may be shown as literal code taken out."""
-    code = sorted((*_code_lines(text), *_possible_spans(text)))
-    prose: list[str] = []
+    written = _LINE_ENDING_RE.sub(_LINE_FEED, text)
+    code = _merged((*_code_lines(written), *_code_spans.possible_spans(written)))
+    literal = _merged((*code, *_html_literals(written, code)))
+    return _HTML_TAG_RE.sub(_GAP, _without(written, literal))
+
+
+def _without(text: str, stretches: list[_Stretch]) -> str:
+    """`text` with each of `stretches`, in order and apart, left as one gap."""
+    kept: list[str] = []
     cursor = 0
-    for start, end in code:
-        if start > cursor:
-            prose.append(text[cursor:start])
-        if end > cursor:
-            prose.append(_GAP)
-            cursor = end
-    prose.append(text[cursor:])
-    return _HTML_LITERAL_RE.sub(_GAP, "".join(prose))
+    for start, end in stretches:
+        kept += [text[cursor:start], _GAP]
+        cursor = end
+    kept.append(text[cursor:])
+    return "".join(kept)
 
 
 def _code_lines(text: str) -> Iterator[_Stretch]:
@@ -105,77 +107,81 @@ def _code_lines(text: str) -> Iterator[_Stretch]:
             yield line.span()
 
 
-def _possible_spans(text: str) -> Iterator[_Stretch]:
-    """Every inline code span some reading of `text` encloses.
+def _merged(stretches: Iterable[_Stretch]) -> list[_Stretch]:
+    """`stretches` in order, with those that touch or overlap made one.
 
-    One reading per backticked line of each block blank lines bound, begun at
-    that line: a block that really begins there pairs its backticks from
-    there, and one that does not is read from the line it does begin on. A
-    reading runs to the end of what the blank lines bound, since stopping
-    sooner could only leave a span it found unclosed.
+    Touching across the one character between two lines counts, so a fenced
+    block is one stretch of code rather than a stretch per line -- which is
+    what lets a tag and its closing tag inside it stand in the same code.
     """
-    runs = _runs_by_length(text)
-    block_start = 0
-    readings: list[int] = []
-    for line in _fences._LINE_RE.finditer(text):
-        if _BLOCK_END_RE.fullmatch(line.group()) is None:
-            if _BACKTICK in line.group():
-                readings.append(line.start())
-            continue
-        block = (block_start, line.start())
-        yield from _spans_read(text, block, readings, runs)
-        block_start = line.end()
-        readings = []
-    block = (block_start, len(text))
-    yield from _spans_read(text, block, readings, runs)
+    merged: list[_Stretch] = []
+    for start, end in sorted(stretches):
+        reached = merged[-1][1] if merged else _IN_PROSE - 1
+        if start > reached + 1:
+            merged.append((start, end))
+        elif end > reached:
+            merged[-1] = (merged[-1][0], end)
+    return merged
 
 
-def _runs_by_length(text: str) -> _Runs:
-    """Where every backtick run of `text` starts, in order, under its length.
+def _html_literals(text: str, code: list[_Stretch]) -> Iterator[_Stretch]:
+    """Every stretch of `text` HTML shows literally or hides, as written."""
+    reading = _LiteralReading(code)
+    for token in _HTML_LITERAL_TOKEN_RE.finditer(text):
+        ended = reading.ended_by(token)
+        if ended is not None:
+            yield ended
+    if reading.open_since is not None:
+        yield reading.open_since, len(text)
 
-    Found once, so that each of a block's readings looks its closing runs up
-    rather than searching the block again for every span it opens.
+
+class _LiteralReading:
+    """The literal element a left-to-right reading of the tags stands in.
+
+    Opening tags are counted by name, so a nested element's closing tag closes
+    that element and not the one around it. A closing tag standing in other
+    code than the tag that opened the element -- or in code where that tag
+    stands in prose -- may be hidden by that code, and closes nothing.
     """
-    runs: _Runs = defaultdict(list)
-    for run in _BACKTICK_RUN_RE.finditer(text):
-        runs[len(run.group())].append(run.start())
-    return runs
 
+    def __init__(self, code: list[_Stretch]) -> None:
+        self.open_since: int | None = None
+        self._code: Final = code
+        self._starts: Final = [start for start, _end in code]
+        self._stands_in = _IN_PROSE
+        self._depths: Counter[str] = Counter()
 
-def _spans_read(
-    text: str, block: _Stretch, readings: list[int], runs: _Runs,
-) -> Iterator[_Stretch]:
-    """The spans every one of `readings` finds in the `block` of `text`."""
-    if len(readings) > _MAX_SPAN_READINGS:
-        yield block
-        return
-    for reading in readings:
-        yield from _spans_from(text, (reading, block[1]), runs)
+    def ended_by(self, token: re.Match[str]) -> _Stretch | None:
+        """The literal stretch `token` ends, or None while it ends none.
 
-
-def _spans_from(text: str, reading: _Stretch, runs: _Runs) -> Iterator[_Stretch]:
-    """The code spans of `text` read left to right over `reading`.
-
-    A span opens on a backtick run and closes on the next run of exactly that
-    length. A run nothing closes is literal, and the reading goes on past it.
-    """
-    resume, end = reading
-    token = _INLINE_TOKEN_RE.search(text, resume, end)
-    while token is not None:
-        resume = _closed_at(token, end, runs) or token.end()
-        if resume > token.end():
-            yield token.start(), resume
-        token = _INLINE_TOKEN_RE.search(text, resume, end)
-
-
-def _closed_at(token: re.Match[str], end: int, runs: _Runs) -> int | None:
-    """Where the span `token` opens closes before `end`, or None for no span."""
-    opener = token.group()
-    if not opener.startswith(_BACKTICK):
+        A comment is a stretch of its own, unless an element already holds it.
+        """
+        if token["tag"] is None:
+            return token.span() if self.open_since is None else None
+        if token["closes"]:
+            return self._closed_by(token)
+        if self.open_since is None:
+            self.open_since = token.start()
+            self._stands_in = self._standing(token.start())
+        self._depths[token["tag"].lower()] += 1
         return None
-    closers = runs.get(len(opener), ())
-    nearest = bisect_left(closers, token.end())
-    if nearest == len(closers):
-        return None
-    closed = closers[nearest] + len(opener)
-    return closed if closed <= end else None
+
+    def _closed_by(self, token: re.Match[str]) -> _Stretch | None:
+        tag = token["tag"].lower()
+        hidden = self._standing(token.start()) != self._stands_in
+        if hidden or not self._depths[tag]:
+            return None
+        self._depths[tag] -= 1
+        self._depths = +self._depths
+        if self._depths or self.open_since is None:
+            return None
+        ended = (self.open_since, token.end())
+        self.open_since = None
+        return ended
+
+    def _standing(self, position: int) -> int:
+        """Which stretch of code holds `position`, or `_IN_PROSE` for none."""
+        nearest = bisect_right(self._starts, position) - 1
+        if nearest >= 0 and position < self._code[nearest][1]:
+            return nearest
+        return _IN_PROSE
