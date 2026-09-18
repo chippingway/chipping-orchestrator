@@ -72,10 +72,12 @@ through), `event_breakdowns.py` (the per-event count), `agent_exits.py` (the pin
 ahead of the generated predicate, so its operand binds first and the `LIMIT` last), `issue_summaries.py` (the
 per-`(repo, issue)` aggregate scan, `SORT_BY_LAST_SEEN` / `SORT_BY_COST`, and the SQL ordering each becomes), and
 `issue_events.py` (one issue's trace, `ORDER BY ts ASC, id ASC`). Beneath them, `query_rows.py` names the columns of
-the three SELECT lists read back by field rather than by index — recent exits, issue summaries, review-round buckets.
-The latter two pad a row shorter than the list to the full width, which is what lets an older, narrower fixture
-round-trip with its missing columns unset; the recent-exit row unpacks strictly, so a row short of its fifteen columns
-raises. `raw_values.py` owns the NULL-preserving scalar coercions plus the probe for a cleared multiselect.
+the four SELECT lists read back by field rather than by index — recent exits, issue summaries, one issue's trace,
+review-round buckets — and the trace's named row is its SELECT list, so the two cannot disagree about where a column
+sits. All but the first pad a row shorter than the list to the full width, which is what lets an older, narrower
+fixture round-trip with its missing columns unset; the recent-exit row unpacks strictly, so a row short of its fifteen
+columns raises. `raw_values.py` owns the NULL-preserving scalar coercions, the decode of a JSONB cell a driver hands
+back either adapted or as text, plus the probe for a cleared multiselect.
 
 **Rollup-read owners.** `rollup_reads.py` owns the seven reads that scan `analytics_daily_rollup` instead —
 `get_summary`, `get_kpi_prev`, `get_time_series`, `get_stage_breakdown`, `get_backend_efficiency`,
@@ -228,7 +230,12 @@ of the read path narrow a nullable duration the same way.
   activity, latest non-null stage, agent-exit count, cost / token totals, `max_review_round`, `failed_agent_runs`,
   `max_retry_count`. Bounded by `limit` and ordered by `sort_by` (`"last_seen"` default, `"cost"` orders by
   `SUM(cost_usd) DESC NULLS LAST`; unknown `sort_by` raises `ValueError`).
-- `get_issue_events` (base table) — full event trace for a single `(repo, issue)` pair, oldest first.
+- `get_issue_events` (base table) — full event trace for a single `(repo, issue)` pair, oldest first. Beyond the nine
+  columns the drill-down tabulates, each `IssueEventRow` carries the promoted run columns a human-wait record is
+  correlated by (`agent_spec`, `session_id`, `resume_session_id`, `review_round`, `retry_count`, `timed_out`) and the
+  row's decoded `extras` blob, where a park's `reason`, `route`, `pr_number`, and `sha` ride — see
+  [`event-streams.md`](event-streams.md#analytics-sink-analytics_log_path). A NULL column reads as `None`, and a NULL,
+  damaged, or non-object blob as an empty mapping, so a legacy row still reads. The page renders none of them.
 - `get_hourly_heatmap` (base table) — 7×24 weekday/hour activity cells from `EXTRACT(DOW)` / `EXTRACT(HOUR)` over
   `(ts AT TIME ZONE 'UTC') + tz_offset_hours * INTERVAL '1 hour'` (normalizing first guards against a non-UTC session
   timezone re-shifting the buckets) with per-cell event count + `input + output + cache_read + cache_write` token total.

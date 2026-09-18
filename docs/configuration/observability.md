@@ -19,7 +19,10 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   written to this sink and the audit log alike (human-wait transitions, agent-run budget, and late-split events) — is
   inventoried on
   [`event-streams.md#analytics-sink`](../observability/event-streams.md#analytics-sink-analytics_log_path) rather than
-  repeated here, so the list has one home as it grows.
+  repeated here, so the list has one home as it grows. Two of them answer different questions and are not to be read
+  as one: a `stage_evaluation` with `result="ok"` says the stage handler completed without raising, not that the
+  issue moved — a handler that parked the issue for a human evaluates `ok` — while a `park_awaiting_human` record
+  says the workflow is now waiting on a human and why. A park is a workflow-progress record, not an execution error.
 - `ANALYTICS_RETENTION_DAYS` — default `90`. retention window for `ANALYTICS_LOG_PATH`. The polling loop calls
   `retention.prune_with_retention_logging()` once per tick. Set to `0` (or any non-positive value) to keep raw data
   indefinitely.

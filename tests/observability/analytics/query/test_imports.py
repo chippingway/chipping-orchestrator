@@ -294,9 +294,11 @@ _SURFACES = MappingProxyType({
     ),
     _QUERY_ROWS_OWNER: (
         "AgentExitQueryRow",
+        "IssueEventQueryRow",
         "IssueSummaryQueryRow",
         "ReviewRoundQueryRow",
         "agent_exit_row",
+        "issue_event_row",
         "issue_summary_row",
         "review_round_row",
     ),
@@ -310,9 +312,11 @@ _SURFACES = MappingProxyType({
     ),
     _RAW_VALUES_OWNER: (
         "bool_or_none",
+        "decoded_json",
         "empty_filter_selected",
         "float_or_none",
         "int_or_none",
+        "json_object",
         "row_int",
     ),
     _ROLLUP_READS_OWNER: (

@@ -247,6 +247,26 @@ class DerivedShareTest(unittest.TestCase):
                 self.assertEqual(getattr(row, attribute), float(0))
 
 
+class TraceCorrelationDefaultTest(unittest.TestCase):
+    """A trace row built from the drill-down's own nine fields carries no
+    correlation, so a caller that never selected it reads unset values rather
+    than a measured zero.
+    """
+
+    def test_an_uncorrelated_row_reads_as_unset(self) -> None:
+        for field_name in (
+            "agent_spec",
+            "session_id",
+            "resume_session_id",
+            "review_round",
+            "retry_count",
+            "timed_out",
+        ):
+            with self.subTest(field=field_name):
+                self.assertIsNone(getattr(_TRACE_ROW, field_name))
+        self.assertEqual(_TRACE_ROW.extras, {})
+
+
 class TraceResultAliasTest(unittest.TestCase):
     """The trace row's outcome is reachable under the name the page reads."""
 

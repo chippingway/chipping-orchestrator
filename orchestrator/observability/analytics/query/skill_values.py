@@ -29,10 +29,10 @@ tuple put it at.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from typing import Any, NamedTuple
 
+from orchestrator.observability.analytics.query.raw_values import decoded_json
 from orchestrator.observability.analytics.query.row_cells import row_value
 
 # The cohort a cell is counted against, and the name/level pair one row
@@ -66,16 +66,6 @@ class SkillCell(NamedTuple):
         return (self.repo, self.agent_role, self.backend)
 
 
-def _decoded_extras(raw: Any) -> Any:
-    """Decode an `extras` cell a driver may hand back as raw JSON text."""
-    if isinstance(raw, str):
-        try:
-            return json.loads(raw)
-        except (ValueError, TypeError):
-            return None
-    return raw
-
-
 def as_skill_names(raw: Any) -> list[str]:
     """Coerce a JSONB skill-name array column into a list of strings.
 
@@ -86,7 +76,7 @@ def as_skill_names(raw: Any) -> list[str]:
     element collapses to an empty list / is skipped so a malformed
     `extras` blob never raises mid-read.
     """
-    decoded = _decoded_extras(raw)
+    decoded = decoded_json(raw)
     if not isinstance(decoded, (list, tuple)):
         return []
     return [name for name in decoded if isinstance(name, str)]
@@ -102,7 +92,7 @@ def as_skill_levels(raw: Any) -> dict[str, str]:
     carried, since an ordering that compares it against the levels beside
     it is what would raise.
     """
-    decoded = _decoded_extras(raw)
+    decoded = decoded_json(raw)
     if not isinstance(decoded, dict):
         return {}
     return {
