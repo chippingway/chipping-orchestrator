@@ -417,7 +417,9 @@ from `timed_out` (the orchestrator's own `AGENT_TIMEOUT` firing). `invoked` (def
 existed at all: every result any backend produced carries `True`, including the killed and timed-out ones, and
 only a launch the agent-run circuit turned away before the spawn carries `False`. The two are not the same
 question, and the stages that read a worktree *before* they ask about interruption need both — see
-[The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit). `usage` (default `None`) is the parsed
+[The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit). A third reader is the
+developer-report contract on `workflow/engine/report_delivery.py`: a result no process produced has nobody to hold
+to it, so it records no report and is held against none. `usage` (default `None`) is the parsed
 `UsageMetrics` -- the one on `observability/usage/metrics.py` -- that `recording.record_agent_exit` attaches during a
 tracked run so callers can read token / cost metrics off the result without re-parsing stdout; it stays `None` for a
 result that never flowed through

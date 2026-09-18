@@ -1,0 +1,482 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""The report a finished developer run leaves, recorded before its code goes out.
+
+The run is the only thing that can write this report, and it is gone the moment
+the tick that ran it moves on. What happens next to the commit it made is not
+quick and not certain: the size gate can freeze it for a human to adjudicate,
+the push can fail, the process can die -- and on every one of those roads the
+report exists nowhere but in the memory of a call that is about to return. So it
+is recorded HERE, ahead of the gate and ahead of the push, where the only cost
+of being wrong is a pinned write nothing reads.
+
+What is recorded is the run's own half and no more. Which pull request the
+report goes onto, on which branch, standing on which commit, is settled by the
+publication that follows and is bound onto the record there. The requirements
+revision is the exception and belongs to the run: it is the issue content this
+session was actually handed, so a report held back by a failed push is still
+stamped with the requirements it answers rather than with an edit it never saw.
+
+A run that produced no report outcome records nothing at all where it did not
+COMPLETE: a result no process produced -- what a caller synthesizes to publish
+committed work an earlier run left is the orchestrator's own sentence, not a
+developer's -- and every launch a shutdown, a timeout, a provider refusal or a
+nonzero exit ended. Nothing here holds such a run, and a report an earlier run
+delivered is still there to be bound onto the pull request its code reaches.
+
+A run that DID complete and handed over no usable report is not that. Every
+developer prompt teaches the contract, so what a finished run with no report
+leaves is the contract broken rather than a road this workflow answers -- and
+publishing it would send a reviewer an implementation nobody described, with no
+session left to ask. So it is held here too, exactly as an unrecordable report
+is: nothing published, the commit in the worktree, and a reply that resumes the
+session that can still write one.
+
+A report this build cannot record HOLDS the tick instead, parked for a human.
+That is the one answer left: the record is what every later tick works from, so
+a report that cannot be written is one nothing can publish -- and the run that
+wrote it has ended, so nothing here can ask for a shorter one. Published
+anyway, the work would reach review with no report and the record of what the
+developer said would be gone. Held here, before the size gate and the push,
+nothing is published at all: the commit stays in the worktree, the branch is
+untouched, and a reply resumes the session that can write the report again.
+
+What that resumed session comes back with is a report rather than a commit, and
+`redelivers_an_owed_report` is what keeps it from being read as a question. An
+issue owing a report was never waiting for code: the commits are already on the
+branch, and a fresh report is exactly what the park asked for -- so the run that
+brings one publishes through the ordinary seam, where its report replaces the
+one nothing could deliver.
+
+The route is the caller's, because a stage knows which road produced the run
+and this owner cannot: it is recorded on the transaction so that whatever
+finishes one -- here, or a poll later through the reconciliation -- closes the
+bookkeeping of the road it came from.
+
+The revision moves past every report this issue has already recorded -- the
+settled one, any transaction still outstanding, and any delivery still waiting
+to be bound -- and the receipt is spelled from it. That is what keeps a second
+report on the same commit a transaction of its own: a retry finds its own
+comment by its receipt, so two reports sharing one would leave the later one
+reading the earlier one's comment as its own publication, edited beyond
+recognition.
+
+Nothing in the workflow reaches for any of this yet. What is here is the
+durable half of the contract -- the record, the refusals that leave a caller's
+state untouched, and the one write that exchanges a delivery for the
+transaction it becomes -- proved on its own, so the publication that comes to
+stand on it finds a surface that already holds.
+"""
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+from github.Issue import Issue
+
+from orchestrator import config
+from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models
+from orchestrator.git.worktrees import creation as _worktree_creation
+from orchestrator.github import client as _client, pinned_state as _pinned_state
+from orchestrator.github.pull_request_reports import ReportLocation
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    prompt_delivery as _prompt_delivery,
+    report_delivery_state as _delivery_state,
+    report_outcome_models as _outcome_models,
+    report_outcomes as _outcomes,
+    report_record_state as _record_state,
+    report_records as _records,
+    report_settlement_state as _settlement,
+)
+from orchestrator.workflow.state import WorkflowLabel
+
+log = logging.getLogger("orchestrator.workflow")
+
+_PARK_REASON = "park_reason"
+
+_AWAITING_HUMAN = "awaiting_human"
+
+# What a report this workflow cannot get onto the pull request is parked
+# under. One reason for both roads that take it -- a report that cannot be
+# recorded before the push, and one that cannot be bound to the publication
+# after it -- because both are answered the same way: the session that wrote
+# the report is gone, so what clears either is a human, and a reply resumes a
+# developer that can write the report again.
+UNDELIVERABLE_REPORT = "report_undeliverable"
+
+# How a transaction minted here is named. The revision is what makes it
+# unique per issue, and the spelling is one the report header carries verbatim.
+_RECEIPT = "issue-{issue}-report-{revision}"
+
+_UNRECORDABLE_PARK = (
+    "{mentions} this issue's developer run finished with a completion report "
+    "this orchestrator cannot record on its pinned comment -- most likely one "
+    "far past what a single comment holds -- so nothing was published: the "
+    "commit is still in the worktree, the branch is untouched, and no pull "
+    "request was opened. The report is recorded before any code goes out, "
+    "because that record is the only thing a later tick could publish it "
+    "from: a report that cannot be written is one this workflow has no way to "
+    "put on a pull request, and publishing the code anyway would hand review "
+    "an implementation with no report and no record of what the run said. "
+    "Reply and the orchestrator resumes the session; the report it writes "
+    "then is the one that gets published."
+)
+
+
+# The refusals that are not a contract violation: no process produced the
+# result at all, or the one that did never got to the end of its own run. Each
+# is a failure answered elsewhere, and none of them is a developer declining to
+# report.
+_INCOMPLETE_RUNS = frozenset((
+    _outcome_models._ReportRefusal.NOT_INVOKED,
+    _outcome_models._ReportRefusal.INTERRUPTED,
+    _outcome_models._ReportRefusal.TIMED_OUT,
+    _outcome_models._ReportRefusal.PROVIDER_FAILURE,
+    _outcome_models._ReportRefusal.NONZERO_EXIT,
+))
+
+_UNREPORTED_PARK = (
+    "{mentions} this issue's developer run finished with committed work and "
+    "no completion report this orchestrator can publish -- no report outcome "
+    "at all, one that reached for the contract and missed, or one naming a "
+    "report this orchestrator cannot hold against its own repository, whether "
+    "because it is somebody else's or because the reading that would have "
+    "proved it could not be taken. Nothing was published: the commit is still "
+    "in the worktree, the branch is untouched, and no pull request was "
+    "opened. Handing this work to review would send a reviewer an "
+    "implementation nobody described, with no record of what was done and no "
+    "session left to ask. Reply and the orchestrator resumes the session; the "
+    "report it writes then is the one that gets published, and it needs no "
+    "new commit to deliver it."
+)
+
+
+def owes_a_report(state: _pinned_state.PinnedState) -> bool:
+    """Whether this issue still owes a pull request the report of a run.
+
+    Both records, because the debt passes from one to the other and is
+    discharged only at the end: a report a run delivered is owed until it is
+    bound to a publication, and the transaction it becomes is owed until that
+    publication carries it. A caller asking either alone would hand a reviewer
+    an implementation whose report is sitting in the other.
+
+    Asked of what the records CLAIM rather than of what they mean, so a record
+    a hand edit truncated counts as a debt rather than as an issue that owes
+    nothing. Neither claim is left unanswered: a delivery nothing can read is
+    refused by the binding rather than bound, and the reconciliation ahead of
+    every handler parks a transaction it cannot read -- both with the record
+    untouched for whoever repairs or abandons it.
+
+    The PARK is the third, and it is the debt of the two roads that have no
+    record to leave: a report this build could not write down, and a completed
+    run that handed over none at all. There is nothing on the comment then but
+    the reason itself, so the reason is what says a report is still owed --
+    which is what keeps the work here and what tells the reply that brings one
+    from an ordinary question. It is retired the moment a report IS recorded,
+    because that is the condition it was taken for; any other park replaces it
+    outright, since the flags are single.
+    """
+    return (
+        _delivery_state.carries_delivered_report(state)
+        or _record_state.carries_pending_report(state)
+        or state.get(_PARK_REASON) == UNDELIVERABLE_REPORT
+    )
+
+
+def recording_stops_the_tick(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    agent_result: AgentResult,
+    route: WorkflowLabel,
+) -> bool:
+    """Record what a finished run wrote, or hold the tick over what it wrote.
+
+    True is a tick this owner ended, and there are two ways to end one: a run
+    that finished on a report this build cannot record, and a run that
+    finished and handed over no usable report at all. Both park and record
+    nothing. False is the ordinary run whose report is now on the pinned
+    comment, and every result no developer run produced.
+
+    The write is this owner's rather than the caller's, and that is the whole
+    point of the step: what makes the report recoverable is that it is DURABLE
+    before the size gate reads the candidate and before the push sends it, so
+    a tick that dies anywhere past the call comes back to an issue that can
+    still say what its developer reported.
+
+    A record this build will not store HOLDS rather than waving the code
+    through. The record is what every later tick would publish from, so a
+    report that cannot be written is one nothing can ever put on a pull
+    request -- and the run that wrote it has ended, so there is nobody left to
+    ask for a shorter one. Held here the cost is bounded and visible: nothing
+    is published, the commit is still in the worktree, and the notice says
+    what happened. Published instead, the reviewer would be handed work with
+    no report while the only copy of what the developer said went out of
+    memory with the tick.
+
+    A record that IS stored retires the park this owner may have taken, since
+    what that park asked for was exactly a report it could record -- and left
+    standing it would hold the publication it was about to make possible.
+    """
+    delivered = _delivered_report(gh, issue, state, agent_result, route)
+    if delivered is None:
+        return _unreported_run_holds(gh, issue, state, agent_result)
+    if not _delivery_state.record_delivered_report(state, delivered):
+        log.error(
+            "issue=#%d wrote a developer report this build cannot record; "
+            "publishing nothing and holding for a human", issue.number,
+        )
+        parks_an_undeliverable_report(
+            gh, issue, state,
+            _UNRECORDABLE_PARK.format(mentions=config.HITL_MENTIONS),
+        )
+        return True
+    log.info(
+        "issue=#%d recorded developer report revision %d before publishing "
+        "the code it is about", issue.number, delivered.report_revision,
+    )
+    if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
+        state.set(_PARK_REASON, None)
+    gh.write_pinned_state(issue, state)
+    return False
+
+
+def _unreported_run_holds(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    agent_result: AgentResult,
+) -> bool:
+    """Hold a completed run that handed over no report, or let the tick carry on.
+
+    The contract every developer prompt teaches is that finished work ends on
+    a report outcome, and that a run with a question, a disagreement, or
+    nothing to say emits none and makes no commit. So a run that COMPLETED,
+    left commits, and handed over no usable report is a contract violation
+    rather than a road this workflow has an answer for -- and published
+    anyway, the reviewer at the end of it is handed an implementation nobody
+    described, with no record of what was done and no way to ask for one: the
+    session is over.
+
+    Held, nothing is published at all and a reply resumes the developer, which
+    can write the report the work is missing. The park itself is what
+    remembers the debt, since there is no report to record.
+
+    A run that did NOT complete is left alone. A launch nothing invoked, a
+    shutdown kill, a timeout, a provider refusal and a nonzero exit are
+    failures other roads answer, and a report is not what any of them is
+    missing. A result no process produced is the first of those: the contract
+    has nobody to hold to it, since a caller that synthesizes one to publish
+    committed work an earlier run left is writing the orchestrator's own
+    sentence rather than reading a developer declining to report.
+    """
+    if _outcomes._report_outcome_of_run(agent_result) in _INCOMPLETE_RUNS:
+        return False
+    log.error(
+        "issue=#%d finished a developer run with committed work and no "
+        "report this workflow can publish; publishing nothing and holding "
+        "for a human", issue.number,
+    )
+    parks_an_undeliverable_report(
+        gh, issue, state,
+        _UNREPORTED_PARK.format(mentions=config.HITL_MENTIONS),
+    )
+    return True
+
+
+def parks_an_undeliverable_report(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    notice: str,
+) -> None:
+    """Announce a report this workflow cannot deliver, once, and hold it.
+
+    Announced once per attempt, not once per issue. What is asked is whether
+    this owner's park is still STANDING -- its reason on the comment and the
+    issue still waiting on a human -- because that is the state a second
+    notice would say nothing new about. A reply clears the waiting before the
+    developer is resumed, so a report that fails to be delivered again is a
+    fresh failure of a fresh attempt, and the human who asked for it hears
+    about it.
+
+    Its own reason, because that is the only thing that tells a later tick
+    whose park it is standing over, and because the recovery is particular: a
+    reply resumes the developer, which writes its report again. Nothing here
+    retires it -- the resume that answers the reply is what clears the flags,
+    exactly as it does for every other park a stage takes.
+
+    Public because both roads that cannot deliver a report take it: the
+    recording above, before anything is published, and a binding refused after
+    the push. Each words its own notice, since what the work is in the middle
+    of differs; what they share is the flag, the reason, and the silence.
+    """
+    if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT and state.get(_AWAITING_HUMAN):
+        log.warning(
+            "issue=#%d still owes a developer report this workflow cannot "
+            "deliver; holding the tick without a second notice", issue.number,
+        )
+        return
+    _guards._park_awaiting_human(
+        gh, issue, state, notice, reason=UNDELIVERABLE_REPORT,
+    )
+    state.set(_PARK_REASON, UNDELIVERABLE_REPORT)
+    gh.write_pinned_state(issue, state)
+
+
+def redelivers_an_owed_report(
+    spec: _config_models.RepoSpec,
+    state: _pinned_state.PinnedState,
+    agent_result: AgentResult,
+    worktree: Path,
+) -> bool:
+    """Whether this run answers a report this issue owes rather than a question.
+
+    The one road on which a run that committed nothing still has work to
+    publish. A stage reads a head that did not move as a session that came
+    back with a question, which is right for every ordinary run -- but an
+    issue holding a report it could not deliver was never waiting for code:
+    it was waiting for a report it could record and bind, and the commits the
+    earlier run made are still on the branch with nothing published from them
+    or nothing bound to them.
+
+    Three readings, asked in the order that spends least. The DEBT says what
+    the issue is waiting on, so a run that reports on an issue owing nothing
+    is the ordinary no-commit reply its stage already knows how to read -- and
+    asking it first is what keeps every other tick from paying for the two
+    below. The OUTCOME says the developer considers the work finished, so a
+    question, a disagreement, or a run that fell short is still a question:
+    what supersedes an undeliverable report is another report and nothing
+    else. And the BRANCH has to carry something, because what this licenses is
+    a publication: a checkout with nothing ahead of base would push an empty
+    branch and open a pull request with no diff in it.
+
+    Spelled here rather than at a caller, because both roads a reply can take
+    ask the same question -- the resume a park earns, and the drift resume an
+    edit earns -- and a rule written twice is one that comes to differ.
+    """
+    if not owes_a_report(state):
+        return False
+    if isinstance(
+        _outcomes._report_outcome_of_run(agent_result),
+        _outcome_models._ReportRefusal,
+    ):
+        return False
+    return _worktree_creation._has_new_commits(spec, worktree)
+
+
+def _delivered_report(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    agent_result: AgentResult,
+    route: WorkflowLabel,
+) -> _records.DeliveredReport | None:
+    """The record one run's report outcome earns, or None where it earns none.
+
+    None is every run that did not finish on a report: one that timed out, was
+    interrupted, failed in its provider, exited nonzero, came back with a
+    question, or reached for the contract and missed. None of those is a report
+    anybody wrote, and recording one would publish a transcript under a header
+    saying it is this issue's completion report.
+
+    The requirements revision is read off the pinned baseline rather than
+    computed here, because what is wanted is the revision the RUN was handed:
+    the drift check ahead of the spawn is what put it there, and a human
+    editing the issue while the agent worked leaves the current content one
+    revision further on than anything this session ever saw.
+
+    The revision moves past every report this issue has already recorded: the
+    settled one, any transaction still outstanding, and any delivery still
+    waiting to be bound. A settlement replaces the current report, so a
+    revision that did not move forward would put an older report on the pull
+    request's own record of what it carries -- and a transaction still
+    outstanding may already have posted its comment and lost the response, so
+    a report minted at its revision would carry its receipt too and read that
+    comment as its own, edited beyond recognition. The delivery is the third
+    for the road that overwrites one: the reply a park earns brings a report
+    rather than a commit, and minted at the revision the record it replaces
+    already used it would take that record's receipt with it. A record nobody
+    can read counts as nothing here, which is the same answer every reader in
+    this domain gives it.
+    """
+    carried = _carried_by_outcome(
+        gh, _outcomes._report_outcome_of_run(agent_result),
+    )
+    if carried is None:
+        return None
+    recorded = (
+        _settlement.read_current_report(state),
+        _record_state.read_pending_report(state),
+        _delivery_state.read_delivered_report(state),
+    )
+    revision = 1 + max(
+        (report.report_revision for report in recorded if report is not None),
+        default=0,
+    )
+    requirements = state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)
+    return _records.DeliveredReport(
+        receipt=_RECEIPT.format(issue=issue.number, revision=revision),
+        report_revision=revision,
+        route=route,
+        requirements_revision=requirements if isinstance(requirements, str) else "",
+        **carried,
+    )
+
+
+def _carried_by_outcome(
+    gh: _client.GitHubClient, outcome: _outcome_models._ReportOutcome,
+) -> dict | None:
+    """What one report outcome contributes to a record, or None for no report.
+
+    A READY report is a publication and carries its text. A VERIFIED one is an
+    assertion about a report that is already somewhere, and carries the exact
+    place and the digest read there -- nothing about it is believed here, and
+    the transaction it becomes re-reads that location before anything settles.
+
+    A verification this owner cannot hold against THIS repository is refused
+    where it is read. The location is exact in both halves and still names a
+    place anywhere on GitHub, and the publication it would be bound to is on
+    this repository -- so a record made from it would re-read somebody else's
+    thread and settle on what it found there. Which pull request it names is
+    bound and refused where the publication is known, since no pull request
+    exists to compare it against yet.
+
+    That comparison is the one reading on this road that leaves the process:
+    it completes a repository PyGithub may hold only a URL for, so it can fail
+    the way any request can. Raised, it would leave a finished run's report
+    neither recorded nor parked -- the tick would die carrying the only copy
+    of what the developer said, with the commit in a worktree nothing has said
+    anything about. So a reading nobody could take answers the same as one that
+    named another repository: no record, and the run held for a human, which is
+    the one road from here that loses nothing.
+    """
+    if isinstance(outcome, _outcome_models._ReadyReport):
+        return {"mode": _records.ReportMode.PUBLISH, "report": outcome.report}
+    if not isinstance(outcome, _outcome_models._VerifiedReport):
+        return None
+    try:
+        own_repository = gh.is_own_repository(outcome.location.slug)
+    except Exception:
+        log.exception(
+            "could not hold a verified report's repository (%s) against this "
+            "one; recording no report for it", outcome.location.slug,
+        )
+        return None
+    if not own_repository:
+        log.error(
+            "a developer verified a report this orchestrator cannot hold "
+            "against its own repository (%s); recording no report for it",
+            outcome.location.slug,
+        )
+        return None
+    return {
+        "mode": _records.ReportMode.VERIFY,
+        "location": ReportLocation(
+            pr_number=outcome.location.pull_number,
+            comment_id=outcome.location.comment_id,
+        ),
+        "content_revision": outcome.revision,
+    }

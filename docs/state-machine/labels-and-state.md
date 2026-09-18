@@ -613,21 +613,71 @@ The keys that matter for the state machine fall into a few groups:
 - **Drift baseline.** `user_content_hash` — SHA-256 over title + body + non-orchestrator comments; updated whenever
   the orchestrator reacts to a human edit.
 - **The developer report a pull request is owed and the one it carries.** The additive
-  `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group, each one nested
-  object, and each absent on every issue that predates it. They are not written together and none of them replaces
-  another: the pending record goes down when a transaction starts and is dropped when it settles, while the settled
-  pair records the last report that landed and stays until a later settlement overwrites it. So an issue between
-  publications carries the settled pair and no pending record; an issue inside its FIRST publication carries the
-  pending record and neither settled one; and an issue inside any later publication carries all three at once — the
-  new transaction beside the previous report and its receipt, which are what a reader still needs while the new one
-  is outstanding and are exactly what the settlement then replaces. The owners are the
-  `workflow/engine/report_record*` and `report_settlement_state` modules, and what reconciles them ahead of every
-  handler is [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch).
+  `developer_report_delivery` / `developer_report_pending` / `developer_report_current` /
+  `developer_report_handoff` group, each one nested object, and each absent on every issue that predates it. They
+  are not written together and none of them replaces another: the delivery record goes down when a run finishes and
+  is dropped by the write that binds it, the pending record goes down when that binding happens and is dropped when
+  it settles, while the settled pair records the last report that landed and stays until a later settlement
+  overwrites it. So an issue between publications carries the settled pair and neither outstanding record; an issue
+  whose run has reported and whose code is not published yet carries the delivery record alone; an issue inside its
+  FIRST publication carries the pending record and neither settled one; and an issue inside any later publication
+  carries the transaction beside the previous report and its receipt, which are what a reader still needs while the
+  new one is outstanding and are exactly what the settlement then replaces. The owners are the
+  `workflow/engine/report_record*`, `report_delivery_state` and `report_settlement_state` modules, what turns a
+  finished run into a delivery is `report_delivery.py`, and what reconciles an outstanding transaction ahead of
+  every handler is
+  [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch).
   No stage PRODUCES a record yet, so the group is empty on every live issue; the dispatcher's reconciliation is what
   finishes one the moment a stage does.
 
-  `developer_report_pending` is one publication transaction, written **before** the report or the code it reports
-  on is published — that ordering is the whole of what makes the publication recoverable. It carries the receipt
+  `developer_report_delivery` is what one completed run wrote, recorded **before** the size gate reads its candidate
+  and before the push sends it — which is the last moment the report is certainly recoverable, since the session
+  that wrote it ends with the tick and every road past that line can freeze the work for a human, fail, or die. It
+  carries the receipt the transaction will be named by, the report revision, whether a publication or a
+  verification is owed, the route that produced it, the complete report text or the exact location and content
+  revision a verification asserts, the feedback watermarks the run consumed, the bookkeeping its route closes, and
+  the requirements revision the run was actually handed. It names no pull request, no branch and no commit, because
+  none of those is settled until the code is published: the write that binds the record adds them as the subject
+  below and drops the delivery in the same write. The revision is minted one past every report the issue has already
+  recorded — the settled one, any transaction still outstanding, and any delivery still waiting to be bound —
+  because the receipt is spelled from it and a retry finds its own comment by that receipt. That last one is the
+  road a park answers: the reply it earns writes a fresh report over the delivery standing there, and minted at its
+  revision the replacement would carry the receipt that record already carries.
+
+  Accepting that record also RESERVES what the transaction bound from it will cost this comment, at the width every
+  member of a subject is recorded at. The binding happens after the push, so a record accepted against its own
+  write alone could be refused once the code is out — which is the one moment nothing can be done about it, since
+  the session that wrote the report has ended. A verification is reserved against its own location's pull request
+  instead of the widest number, because that is the number its transaction has to be about and any other is a
+  refusal no width could prevent. The BRANCH is reserved at the width the comment renders rather than at the count
+  its reader bounds: the reader counts codepoints and admits every one a JSON escape can spell, while the comment is
+  measured in the characters that escape produces — one outside the BMP is a surrogate pair, twelve characters for
+  one — so a ref bounded at 256 can occupy 3072, and a ref of 256 emoji is one git makes without complaint. What is
+  measured is the comment the BINDING leaves rather than the one in hand:
+  that write exchanges the two records, so a delivery already standing there is room the transaction gets to spend,
+  and a comment that has never carried one still ends up holding the `null` the drop writes. The record's own write
+  is measured twice beside that reservation — against this comment, and against this comment carrying the
+  code-publication receipt — because the push stands between the record and the binding, and the gate that pushes
+  writes that receipt here. That is a third world again: the delivery added to everything the issue already carries,
+  a transaction an earlier publication left outstanding included. The binding also holds
+  the subject to the requirements revision the delivery froze; a subject restating it differently is refused with
+  nothing staged, since a transaction bound to another revision would claim the report answers content the run
+  never saw, and it is held to the record the comment CARRIES: a report the delivery field has none for, one
+  nothing can read, and one a later report has already replaced are each refused, since the write drops whatever is
+  there and binding on any of them would replace a finished run's report with a value the comment never held. Two
+  roads park the issue under `report_undeliverable`, and both are on the recording side: a report this workflow
+  cannot write down at all, and a completed run that handed over no usable report to write. A binding REFUSES
+  rather than parks — it stages nothing and says which refusal it was, so whatever comes to call it can tell a
+  comment too full for the transaction, which the routes a report still owed lets run give that room back for,
+  from a record no comment would ever hold. On every one of them the record that exists is left exactly as it
+  stands.
+
+  `developer_report_pending` is one publication transaction, written **before the report it carries is published**
+  — that ordering is the whole of what makes the publication recoverable. Whether the CODE that report is about is
+  out by then belongs to whoever writes the record, and both roads are admitted: a transaction bound from a
+  delivery is recorded once a pull request carries the code, since a subject cannot name a pull request that does
+  not exist yet, while a transaction recorded ahead of the push is why the code-publication receipt is reserved
+  beside it. It carries the receipt
   naming the transaction, the subject it is bound to (repository, pull request, branch, source commit, and the
   requirements revision the developer run was actually handed), the report revision, whether it is owed a
   publication or a verification, the route that produced it, the complete report text or the exact location and
@@ -655,9 +705,13 @@ The keys that matter for the state machine fall into a few groups:
   issue with nothing recorded reads as, presence is asked apart from meaning: an issue that CLAIMS a record nobody
   can describe is the one answer a guard may not confuse with an issue that owes none.
 
-  What counts as a claim differs across the three, and it follows from which of them is ever cleared.
-  `developer_report_pending` is cleared on every settlement — the key stays and holds `null` — so `null` there is
-  its ordinary resting state and an absence, and only a payload that is present and is not an object is a claim.
+  What counts as a claim differs across the four, and it follows from which of them is ever cleared.
+  `developer_report_delivery` is cleared by the write that binds it — and by nothing else, since a refusal that
+  dropped it would lose the only copy of what the run reported — and `developer_report_pending` is cleared on every
+  settlement. Both keep the key and hold `null`, so `null` on either is its ordinary resting state and an absence,
+  and only a payload that is present and is not an object is a claim. What a `report_undeliverable` notice offers
+  is a reply rather than a field to clear: it resumes the session, and the report that session writes is the one
+  this workflow records — over the delivery standing there, where one is — and publishes.
   Nothing clears either settled record; a settlement REPLACES one. So `developer_report_current` and
   `developer_report_handoff` are claimed by the presence of their key alone, `null` included: a `null` there is a
   truncated write or a hand edit, and read as an absence it would be silently replaced after the next report is
@@ -742,7 +796,13 @@ The keys that matter for the state machine fall into a few groups:
   since every other reason belongs to a stage still waiting for what it asked for. Where one of those is already
   standing it takes no park at all and does not hold either, because the route that answers a foreign park is the
   handler behind this guard (see
-  [`delivery-stages.md`](delivery-stages.md#the-developer-report-transaction-every-dispatch)). The late
+  [`delivery-stages.md`](delivery-stages.md#the-developer-report-transaction-every-dispatch)).
+  `workflow/engine/report_delivery.py` re-sets `report_undeliverable` for a reason of a third kind: the two roads
+  that take it — a report this build cannot record, and a completed run that handed over none at all — leave no
+  record behind them, so the reason is the whole of the DEBT as well as the notice's bookkeeping, and while it
+  stands the issue reads as still owing a report. It is announced once while it stands, and retired the moment a
+  report IS recorded, since that is the condition it was taken for. Nothing takes it yet, because nothing calls
+  that owner. The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,
   `late_candidate_moved`, `late_unauthorized_exemption`, `late_evidence_missing`, `late_plan_pr_hold_failed`,
   `late_generation_incomplete`, `late_worktree_missing`, `late_worktree_mutated`, `late_adjudicator_timeout`,

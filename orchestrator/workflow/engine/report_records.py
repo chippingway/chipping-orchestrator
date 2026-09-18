@@ -10,13 +10,16 @@ published -- the report text whole, because a transaction recovered from a text
 nobody kept would have to ask an agent to write it again, and a second run is
 not the same report.
 
-Three records rather than one, because they answer different questions and have
-different lifetimes. A PENDING transaction is work outstanding: it carries
-everything a later tick needs to finish what a run that is gone began, and it is
-dropped the moment it settles. A CURRENT report is what the pull request carries
-now, and it outlives every transaction that put one there. A HANDOFF is the
-receipt that one transaction finished, and it is what makes a replay a no-op
-instead of a second report on one commit.
+Four records rather than one, because they answer different questions and have
+different lifetimes. A DELIVERED report is a completed run's own output, written
+before the code it reports on is published and holding everything about the
+report that no pull request is needed to say. A PENDING transaction is that same
+report bound to the publication it goes onto: it carries everything a later tick
+needs to finish what a run that is gone began, and it is dropped the moment it
+settles. A CURRENT report is what the pull request carries now, and it outlives
+every transaction that put one there. A HANDOFF is the receipt that one
+transaction finished, and it is what makes a replay a no-op instead of a second
+report on one commit.
 
 The subject is spelled apart from the transaction because it is the whole of
 what a completion has to prove AGAIN. A report is about one repository, one pull
@@ -30,8 +33,9 @@ succeeds: stamping a delayed report with a later hash would claim it answered an
 edit it never saw.
 
 Every record is additive. An issue that carries none of these keys reads back as
-no transaction, no current report, and no handoff, which is exactly what every
-issue predating them says without a migration having reached it.
+no delivered report, no transaction, no current report, and no handoff, which is
+exactly what every issue predating them says without a migration having reached
+it.
 """
 from __future__ import annotations
 
@@ -40,6 +44,10 @@ from enum import StrEnum
 
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.state import WorkflowLabel
+
+# The report a completed run wrote, before any pull request carries the code it
+# is about, and dropped by the write that binds it to one.
+DELIVERED_REPORT = "developer_report_delivery"
 
 # The transaction this issue has outstanding, dropped the moment it settles.
 PENDING_REPORT = "developer_report_pending"
@@ -88,6 +96,41 @@ class ReportSubject:
     branch: str
     source_sha: str
     requirements_revision: str
+
+
+@dataclass(frozen=True)
+class DeliveredReport:
+    """One completed run's report, recorded before its code is published.
+
+    Everything the RUN settles and nothing the publication does. A report is
+    written by a session that ends with the tick, and the code it is about has
+    still to pass the size gate and reach a remote -- so what a pull request
+    would add to it (which repository, which number, which branch, which
+    commit) is unknowable here, while the report text, the revision it is,
+    the route that produced it, and the requirements the run was handed are
+    settled and cannot be recovered from anywhere else.
+
+    `requirements_revision` is the one member of a subject that belongs to the
+    run rather than to the publication, and it is frozen here for the reason
+    it is frozen on a transaction: it is the issue content this run was
+    actually given, and a report delayed past an edit may not be stamped as
+    answering one it never saw.
+
+    `receipt` and `report_revision` are minted with the record, so a
+    transaction bound later is the same transaction a retry would find its own
+    comment by. Every other member is what the transaction carries unchanged.
+    """
+
+    receipt: str
+    report_revision: int
+    mode: ReportMode
+    route: WorkflowLabel
+    requirements_revision: str
+    report: str = ""
+    location: ReportLocation | None = None
+    content_revision: str = ""
+    watermarks: tuple = ()
+    spends: tuple = ()
 
 
 @dataclass(frozen=True)
