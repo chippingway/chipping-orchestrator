@@ -20,8 +20,6 @@ from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_VALIDATING, _open_pr_for
 from tests.workflow.stages.implementing import report_test_support as support
 
-REUSED_PR = 42
-
 VERIFIED_PR = 55
 
 HUMAN_REPORT_ID = 9100
@@ -134,30 +132,6 @@ class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
             ),
             (True, True, False, False),
         )
-
-    def test_a_reused_pr_carries_the_report(self) -> None:
-        # A pull request already open on the branch -- a tick that died after
-        # opening one, or an operator's -- is adopted rather than opened over,
-        # and the report goes onto it.
-        github, issue = self.seeded()
-        reused = _open_pr_for(
-            github, issue_number=support.REPORT_ISSUE, pr_number=REUSED_PR,
-        )
-        github.existing_open_pr[support.BRANCH] = reused
-
-        self.deliver(github, issue, support.ready_message())
-
-        self.assertEqual(github.opened_prs, [])
-        self.assertEqual(len(support.published_reports(github, REUSED_PR)), 1)
-        recorded = github.pinned_data(support.REPORT_ISSUE)
-        self.assertEqual(recorded[support.CURRENT_RECORD]["pr"], REUSED_PR)
-        self.assertIn(
-            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
-        )
-        # The body is rewritten to name this implementation, and the rewrite
-        # carries no copy of the report either.
-        self.assertIn(f"Resolves #{support.REPORT_ISSUE}", reused.body)
-        self.assertNotIn(support.LAST_MESSAGE_HEADING, reused.body)
 
     def test_a_legacy_tail_is_left_intact(self) -> None:
         # The body already names this implementation, so nothing rewrites it:

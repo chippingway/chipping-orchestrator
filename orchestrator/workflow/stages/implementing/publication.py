@@ -54,14 +54,20 @@ from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
-from orchestrator.github import client as _client, pinned_state as _pinned_state
+from orchestrator.github import (
+    client as _client,
+    pinned_state as _pinned_state,
+    pull_request_reports as _pr_reports,
+)
 from orchestrator.workflow.engine import (
     guards as _guards,
     report_binding as _report_binding,
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
     report_evidence as _report_evidence,
+    report_publishing as _report_publishing,
     report_record_state as _record_state,
+    report_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
@@ -390,10 +396,12 @@ def _still_owes_its_report(
     Unless no retry can pay it: a debt with no record left to publish -- a
     resumed session that did not finish -- or a transaction whose report on
     this pull request a human edited, removed, or wrote untrusted. Those park
-    for the reply that resumes the developer to write the report again.
+    for the reply that resumes the developer to write the report again. With
+    nothing owed, the report settled for this commit is re-read where it
+    settled, since a human can edit it the moment after: `_settled_report_moved`.
     """
     if not _report_delivery.owes_a_report(state):
-        return False
+        return _settled_report_moved(gh, issue, state, published, pr)
     number = getattr(pr, "number", 0) or 0
     pending = _record_state.read_pending_report(state)
     recordless = not (
@@ -417,6 +425,37 @@ def _still_owes_its_report(
         issue.number, published, number,
     )
     return True
+
+
+def _settled_report_moved(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    published: str,
+    pr,
+) -> bool:
+    """Whether the report this publication settled has moved since it settled.
+
+    Only a report about this very commit on this pull request is asked. Read
+    where it settled, an unread one holds the handoff and an edited or removed
+    one parks for a report-only reply: review is never handed a report that is
+    not the one recorded.
+    """
+    current = _settlement.read_current_report(state)
+    number = getattr(pr, "number", 0) or 0
+    if current is None or (
+        current.subject.pr_number, current.subject.source_sha,
+    ) != (number, published):
+        return False
+    presence = _report_publishing.still_carries(gh, state, current)
+    moved = {_pr_reports.ReportPresence.ABSENT, _pr_reports.ReportPresence.CHANGED}
+    if presence in moved:
+        _report_delivery.parks_an_undeliverable_report(
+            gh, issue, state, _STUCK_REPORT_PARK.format(
+                mentions=config.HITL_MENTIONS, pr=number, detail=_UNSETTLEABLE,
+            ),
+        )
+    return presence is not _pr_reports.ReportPresence.PRESENT
 
 
 def _owes_the_handoff(

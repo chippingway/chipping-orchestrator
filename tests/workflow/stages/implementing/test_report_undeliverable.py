@@ -282,12 +282,7 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
 
 
     def _collided_on_the_description(self):
-        """Park a verification on the reused pull request's own description.
-
-        The description is a human's and says neither thing a publication
-        needs it to, so the binding holds the work over it; the pull request
-        is then left standing on the pushed commit, as the push left it.
-        """
+        """Park a verification on the reused pull request's own description."""
         github, issue = self.seeded()
         reused = _open_pr_for(
             github, issue_number=support.REPORT_ISSUE, pr_number=DESCRIBED_PR,
@@ -304,14 +299,7 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
 
 
 class ReportOnlyReplyTest(unittest.TestCase):
-    """The seam that tells a report answering a debt from a question.
-
-    Asked of the disposition directly, because the ordinary road into it is a
-    reply that moves the requirements hash and therefore goes to the drift
-    resume instead. What reaches this one is every other resume -- a bare
-    `/orchestrator continue`, a reply that changed nothing a human wrote -- and
-    it has to read a report the same way.
-    """
+    """The seam that tells a report answering a debt from a question."""
 
     def test_an_owed_report_publishes_unmoved_work(self) -> None:
         for described, message, publishes in (

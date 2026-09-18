@@ -62,6 +62,8 @@ QUOTED_REFERENCES = (
 
 GET_PR = "get_pr"
 
+WRITE_PINNED_STATE = "write_pinned_state"
+
 AWAITING_HUMAN = "awaiting_human"
 
 PARK_REASON = "park_reason"
@@ -100,11 +102,7 @@ class _ReusedPullRequest(support._ReportDeliveryMixin):
         return github, issue, reused
 
     def _edited_after_the_lookup(self, fetched: str):
-        """A reused pull request a human edited after the lookup fetched it.
-
-        The lookup's object is a copy holding the body it was fetched with,
-        which is what a pull request GitHub handed back is: a snapshot.
-        """
+        """A reused pull request a human edited after the lookup's snapshot."""
         github, issue, live = self._reused_over()
         looked_up = copy.copy(live)
         looked_up.body = fetched
@@ -132,10 +130,14 @@ class DescriptionGuardTest(unittest.TestCase, _ReusedPullRequest):
                     (
                         named.startswith(f"Resolves #{support.REPORT_ISSUE}"),
                         support.DEV_SESSION in named,
+                        support.LAST_MESSAGE_HEADING in named,
                         earlier.strip(),
                         len(support.published_reports(github, REUSED_PR)),
+                        github.pinned_data(support.REPORT_ISSUE)[
+                            support.CURRENT_RECORD
+                        ]["pr"],
                     ),
-                    (True, True, HUMAN_DESCRIPTION, 1),
+                    (True, True, False, HUMAN_DESCRIPTION, 1, REUSED_PR),
                 )
                 self.assertIn(
                     (support.REPORT_ISSUE, LABEL_VALIDATING),
@@ -265,6 +267,26 @@ class DescriptionHoldTest(unittest.TestCase, _ReusedPullRequest):
         self.assertEqual(reused.body, NEAR_THE_CEILING)
         self.assertIn(TOO_LONG_NOTICE, issue.comments[-1].body)
 
+    def test_a_report_edited_once_settled_is_held(self) -> None:
+        # A settlement is one moment. A human editing the report the moment
+        # after -- the description it was verified on, or the comment it was
+        # published as -- leaves review a report that is not the one recorded,
+        # so it is read again before the handoff and the work parks.
+        for message in (
+            support.verified_message(REUSED_PR, OWN_DESCRIPTION),
+            support.ready_message(),
+        ):
+            with self.subTest(message=message):
+                github, issue, reused = self._reused_over()
+                reused.body = OWN_DESCRIPTION
+                editing = _EditsWhatSettled(github)
+
+                with patch.object(github, WRITE_PINNED_STATE, editing):
+                    self.deliver(github, issue, message)
+
+                self.assertTrue(editing.edited)
+                self._assert_held_for_a_human(github)
+
     def _assert_held_for_a_human(self, github) -> None:
         """Nothing edited, the work parked for a report, and nothing handed on."""
         pinned = github.pinned_data(support.REPORT_ISSUE)
@@ -314,6 +336,29 @@ def _settled_on_the_description() -> dict:
         source_sha=EARLIER_SHA,
     ))
     return settled.state_data
+
+
+class _EditsWhatSettled:
+    """A pinned write after which a human edits the report that just settled."""
+
+    def __init__(self, github) -> None:
+        self._github = github
+        self._wrote = github.write_pinned_state
+        self.edited = False
+
+    def __call__(self, issue, state):
+        """Write, then edit the report the written settlement names, once."""
+        written = self._wrote(issue, state)
+        current = state.get(support.CURRENT_RECORD)
+        if current and not self.edited:
+            self.edited = True
+            pull = self._github.get_pr(current["location_pr"])
+            settled_on = pull if current["location_comment"] is None else next(
+                posted for posted in pull.issue_comments
+                if posted.id == current["location_comment"]
+            )
+            settled_on.body = f"{settled_on.body}\n\nEdited once it settled."
+        return written
 
 
 class _Unreadable:

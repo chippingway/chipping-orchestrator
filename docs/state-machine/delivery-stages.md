@@ -1658,75 +1658,45 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
      - new commits + clean tree, past the gate → `_on_commits`: push branch, open PR (or reuse an existing open
        one), comment
        `:sparkles: PR opened: #N`, publish the developer report onto that PR, then set label `workflow:validating`
-       (the docs pass runs only as the final-docs handoff after approval). A reused PR is only known to be open on
-       the branch — most sharply, an issue relabeled out of `discussion` arrives with its plan PR open on the very
-       branch these commits went to — so its description is judged as GitHub holds it NOW, read again by number
-       before the report is bound and once more before the handoff. One that already closes this issue (a keyword
-       reference outside literal code, which GitHub does not act on) and names
-       this dev session stands as it is, legacy `_Last agent message:_` tail and human notes included; any other
-       gets the implementation's lines (`Resolves #N`, the dev session, and the agent's closing message where no
-       report is owed or settled) put ABOVE it, word for word beneath under an earlier-description heading. A
-       failed re-read holds, and a description those lines would take past GitHub's 65,536 characters parks under
-       `report_undeliverable` rather than having anybody's words cut. The second reading is what names a
-       description a settled report claimed until this run's report settled in a comment. One description is never
-       edited whatever it says: the one this issue's own report claims as its location, since a verification
-       recorded only the digest of what it read and any edit moves it off that — a record nobody can read claims
-       it too, unless the place it still names is readably elsewhere. Without the edit the PR would name only the
-       plan, under the decomposer's session, and would close no issue when it merged. Persists
-       `pr_number` / `branch` and resets `review_round=0` and `retry_count=0` via
-       `handoff._reset_implementing_counters`.
-     - **the report the run wrote** is what the publication owes beside the code; the records it goes through are
-       under [pinned state](labels-and-state.md#pinned-state). It is recorded between the tree reading and the size
-       gate — the last moment it is certainly recoverable, since the session that wrote it ends with the tick — and
-       BOUND to the publication and posted once the pull request is known, the first moment the repository, number,
-       branch and commit it is about are settled. The requirements are proved afresh first, over an issue read again
-       from GitHub: an edit landing during the run leaves the report answering requirements the issue no longer has,
-       so it is left owed for the drift resume. They are proved once more after the post or the re-read and before
-       the settlement, on the reconciliation's road too, since an edit can land during either request. Where the
-       report IS published, a new description carries only what
-       it alone can (`Resolves #N` and the attribution), because the report comment says it supersedes any agent
-       message there. A run that did not COMPLETE — a timeout, a provider refusal, a nonzero exit, or a synthesis a
-       recovery makes with `invoked=False` — records nothing and publishes as it always did, with its last message in
-       the description.
-     - **a report still owed refuses the handoff**, exactly as a moved checkout does: nothing under `validating`
-       publishes a report or comes back for one. A bind the comment has no room for, a thread read or post GitHub
-       refused, a response lost after the comment landed, and a requirements re-read that failed all leave the branch
-       pushed, the pull request open, the receipt and `late_approved_sha` recorded, the report debt standing, and the
-       label unmoved — with nothing parked. The next tick recognizes the published commit, republishes it onto the
-       same pull request with no developer run and nothing new opened, and finishes: the reconciliation ahead of that
-       handler, or the binding step, which posts the transaction it finds bound to this very pull request, branch and
-       commit. The post is scoped by the transaction's receipt, so a lost response is found rather than reposted. A
-       debt no retry can pay parks under `report_undeliverable` instead: one with no record left to publish (a resumed
-       session that committed and timed out), or a report a human edited, removed, or wrote untrusted.
-     - **a report this build cannot deliver parks the issue** under `report_undeliverable` instead. Before the size
-       gate, with nothing measured, pushed or opened: a report that cannot be RECORDED (past what the pinned comment
-       holds, or otherwise refused by its writer); a run that COMPLETED and handed over no usable report at all (no
-       marker, one that missed the contract, a verification on another repository); and every recovery — the
-       restart shortcut, an approved commit, a frozen candidate, a measurement park retried, a checkout put back, an
-       authorized rollback, none of which runs a developer — finding committed work with no report of the run that
-       made it anywhere on the comment (no delivery, no transaction, and no settled pair about that commit and
-       branch on the pull request its receipt names — a settlement is never cleared, so an older commit's pair says
-       nothing about this one), which is the lost-write window the recording exists to close. A pair that DOES
-       match is re-read first: the report where it settled — a location hashing to the digest verified under a
-       trusted author, or else our own rendering there, found without the capped ledger, with the text and whole
-       header the settlement recorded — and the requirements afresh. An unreadable reading holds; a report edited,
-       deleted or re-headed since, or requirements moved, parks for repair. A commit a run that never COMPLETED
-       left (a timeout, a provider refusal, a nonzero exit, or the commit a timeout park's recovery republishes) is
-       recorded as `implementing_incomplete_run_sha` and owed no report, so recovering exactly it is not held. After
-       the push, with the code standing and only the handoff withheld: a delivered record nobody can read, a
-       verification asserting a report on another pull request, and one asserting it on the very DESCRIPTION of the
-       pull request the code reached while that body
-       neither closes this issue nor names the session — the collision held for repair rather than overwritten, since
-       any edit would move the report and leaving it would merge a pull request that closes nothing; the reply's
-       report goes in a comment, which frees the description, and only then does it get the closing reference and
-       the attribution above every word it already says. Nothing is
-       discarded on any of them, no park is announced twice while it stands, and `developer_report_owed` is the debt
-       where no record exists, outliving any later park that replaces the reason. The reply resumes the developer, and a
-       run that comes back with a report and moved no head publishes the commits already on the branch — held to a debt
-       owed, a report outcome, and a branch that carries something, so an ordinary question is still a question. That
-       reply lands on the DRIFT resume in practice, since a human's comment moves the requirements hash; `disposition`
-       reads it the same way for every other resume. The handoff spends the reason once the report has reached the pull
-       request.
+       (the docs pass runs only as the final-docs handoff after approval). A reused PR is only known to be open on the
+       branch — a `discussion` plan PR, an operator's, one a human re-described — so its description is judged as GitHub
+       holds it NOW, read again by number before the report is bound and again before the handoff. One that already
+       closes this issue (a keyword reference outside literal code, bare or qualified with this repository) and names
+       this dev session stands as it is; any other gets `Resolves #N` and the session (and the agent's closing message
+       where no report is owed or settled) put ABOVE it, word for word beneath. A failed re-read holds; a description
+       those lines would take past GitHub's 65,536 characters parks under `report_undeliverable`. A description this
+       issue's own report claims is never edited, since any edit moves it off the digest it was verified at — a record
+       nobody can read claims it too. Persists `pr_number` / `branch` and resets `review_round=0` and `retry_count=0`
+       via `handoff._reset_implementing_counters`.
+     - **the report the run wrote** is what the publication owes beside the code (records under [pinned
+       state](labels-and-state.md#pinned-state)). It is recorded between the tree reading and the size gate, and BOUND
+       to the publication and posted once the pull request is known. The requirements are proved afresh before the post
+       and again before the settlement, so an edit landing during the run or either request leaves it owed for the drift
+       resume. A run that did not COMPLETE — a timeout, a provider refusal, a nonzero exit, or a recovery's
+       `invoked=False` synthesis — records nothing.
+     - **a report still owed refuses the handoff**, exactly as a moved checkout does. A bind with no room, a thread read
+       or post GitHub refused, a lost response, and a failed requirements re-read leave the branch pushed, the pull
+       request open, the receipt and `late_approved_sha` recorded, and the debt standing, with nothing parked; the next
+       tick republishes onto the same pull request with no developer run and finishes, the post scoped by its receipt. A
+       debt no retry can pay parks under `report_undeliverable` instead: no record left to publish (a resumed session
+       that committed and timed out), or a report a human edited, removed, or wrote untrusted. With nothing owed, the
+       report settled for this commit is re-read where it settled before the handoff, and one edited or removed since
+       parks the same way.
+     - **a report this build cannot deliver parks the issue** under `report_undeliverable`. Before the size gate, with
+       nothing published: a report that cannot be RECORDED; a run that COMPLETED with no usable report; and every
+       recovery — the restart shortcut and each road republishing a candidate a gate record named — finding committed
+       work no recorded report describes: no delivery, no transaction, and no settled pair about that commit and branch
+       on the pull request its receipt names. A pair that DOES match is re-read first (a verified location hashing to
+       its digest under a trusted author, or our own rendering with the text and whole header recorded, found without
+       the capped ledger) with the requirements; an unreadable reading holds, and a report edited, deleted or re-headed,
+       or requirements moved, parks. A commit a run that never COMPLETED left, or a timeout park's recovery republishes,
+       is recorded as `implementing_incomplete_run_sha` and owed no report. After the push, with only the handoff
+       withheld: an unreadable delivery, a verification on another pull request, and one on the DESCRIPTION this
+       publication needs while it closes nothing — the collision held for repair, freed when the reply's report goes in
+       a comment. Nothing is discarded, no park is announced twice, and `developer_report_owed` is the debt where no
+       record exists, outliving any later park. A resumed run that comes back with a report and moved no head publishes
+       the commits already on the branch, so an ordinary question is still a question; the handoff spends the reason
+       once the report has reached the pull request.
      - new commits + dirty files → `_on_dirty_worktree`: park; refuse to publish a partial branch.
      - new commits + a tree `git status` could not report on → `_on_unreadable_worktree`: park under
        `unreadable_worktree`. An unreadable tree is not a clean one: the list form of that read maps its own failure

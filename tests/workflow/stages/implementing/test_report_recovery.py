@@ -206,12 +206,7 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
                 )
 
     def _reporting_for(self, github, request: str) -> str:
-        """The report outcome whose settlement waits on `request`.
-
-        A post needs only a report to publish. A re-read needs a location, so
-        a pull request carrying a human's report is opened and that is what
-        the developer verifies.
-        """
+        """The report outcome whose settlement waits on `request`."""
         if request == POST_REPORT:
             return support.ready_message()
         reused = _open_pr_for(
@@ -226,12 +221,7 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
 
     def _retry_settles(self, github, issue) -> None:
-        """Run the next poll and prove it published what the first one owed.
-
-        A human replaces the pull request's description in the window, which
-        is as long as the report stays owed. What they wrote stays word for
-        word: the closing reference and the attribution go above it.
-        """
+        """Run the next poll, a human having rewritten the description, and prove it settled."""
         # What the push left on the remote, which is what makes this the
         # gate's delivered road: the pull request is standing on the commit
         # the receipt names, so the retry publishes nothing new.
@@ -293,11 +283,7 @@ def _unread_issue(github):
 
 
 class _UnreadOnceOpened:
-    """An issue read GitHub leaves unanswered once the pull request exists.
-
-    Only then, because the re-read this is about is the one taken after the
-    push: the reads that open the tick are what the report is stamped against.
-    """
+    """An issue read GitHub leaves unanswered once the pull request exists."""
 
     def __init__(self, github) -> None:
         self._github = github
@@ -325,11 +311,7 @@ _FAILURES_AFTER_THE_PUSH = (
 
 
 class _EditsTheIssueDuring:
-    """One report request a human edits the issue underneath.
-
-    The edit lands inside the request, which is after the re-read the
-    publication takes before it and before the settlement behind it.
-    """
+    """One report request a human edits the issue underneath."""
 
     def __init__(self, issue, request) -> None:
         self._issue = issue
@@ -344,12 +326,7 @@ class _EditsTheIssueDuring:
 
 
 class _EditsTheIssue:
-    """A developer run a human edits the issue's body underneath.
-
-    The edit lands where the window this is about is: after the drift check
-    that opened the tick and before anything the publication reads, which is
-    exactly a human typing while an agent works.
-    """
+    """A developer run a human edits the issue's body underneath."""
 
     def __init__(self, issue, message: str) -> None:
         self._issue = issue

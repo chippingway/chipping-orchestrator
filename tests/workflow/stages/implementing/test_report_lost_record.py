@@ -175,11 +175,7 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
                 self.assertIn(MOVED_NOTICE, issue.comments[-1].body)
 
     def _settled_before_the_relabel(self):
-        """A publication whose report settled and whose relabel failed.
-
-        The receipt, the settled pair, and the report comment -- its id already
-        evicted from this issue's capped ledger of the comments it posted.
-        """
+        """A publication whose report settled and whose relabel failed."""
         github, issue = self.seeded()
         requirements = _content_hash._compute_user_content_hash(issue, ())
         settled_on = _open_pr_for(
@@ -225,13 +221,7 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
         )
 
     def _lost_the_report_write(self):
-        """One tick whose run reported, and whose pinned write never landed.
-
-        The session is on the comment before any of it, because it is durable
-        from the run that FIRST recorded it and this window is about one write
-        rather than about a session: with one, the reply that answers the park
-        resumes the developer that can write the report again.
-        """
+        """One tick whose run reported, and whose pinned write never landed."""
         github, issue = self.seeded()
         github.seed_state(
             support.REPORT_ISSUE,
@@ -315,12 +305,7 @@ def _settled_state(
     requirements: str = support.REQUIREMENTS_REVISION,
     branch: str = support.BRANCH,
 ) -> dict:
-    """What a publication that settled its report on `SETTLED_PR` leaves behind.
-
-    The pair names the commit its report is about; the receipt beside it names
-    the pull request the last push of `source_sha` went onto. A recovery reads
-    the three together, so a case moves one of them.
-    """
+    """What a publication that settled its report on `SETTLED_PR` leaves behind."""
     state = PinnedState()
     _settlement.record_current_report(state, _records.CurrentReport(
         subject=_records.ReportSubject(
@@ -349,14 +334,7 @@ def _settled_state(
 
 
 class _LosesTheReportWrite:
-    """A pinned write that fails exactly where the report record goes down.
-
-    Every other write of the tick lands, which is what makes this the window
-    rather than an issue nothing could write to at all: the run was charged,
-    the session recorded, the commit made -- and the one request carrying the
-    report is the one that did not come back. A process killed in that call
-    leaves the same thing behind.
-    """
+    """A pinned write that fails exactly where the report record goes down."""
 
     def __init__(self, github) -> None:
         self._wrote = github.write_pinned_state

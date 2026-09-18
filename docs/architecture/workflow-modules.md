@@ -1877,21 +1877,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             push carried (decided once ahead of the push --
                             the one that passed the gate, or the checkout's own head where the switch named none
                             -- and made durable there, with a checkout that can name none at all publishing
-                            nothing), the report the run delivered bound to that publication and published once
-                            the pull request is known through `engine/report_binding.py` -- ahead of the checkout
-                            proofs below, since a report is about a commit already on the remote -- with the
-                            handoff below reached last: held back until the checkout has been proved on both sides
-                            of the push, since the worktree is writable while those requests run, AND until no
-                            report is still owed, since nothing under `validating` would ever come back for one,
-                            AND until the description, read afresh once more, closes this issue and names the
-                            session -- asked last because settling a report elsewhere is what frees a description
-                            a report was verified on; and spending the record of that commit once the handoff it
-                            was owed lands. The binding is handed the same verdict taken off a fresh read before
-                            it, never the body the lookup fetched. A report
-                            still owed refuses that handoff exactly as a moved checkout does, re-recording the debt
-                            so the next tick republishes the same commit onto the same pull request and finishes
-                            it -- unless no retry can pay it (no record left, or a report a human edited, removed or
-                            wrote untrusted, per `engine/report_evidence.py`), which parks for a report-only reply
+                            nothing), the report the run delivered bound and published once the pull request is
+                            known, through `engine/report_binding.py`, handed the description verdict of a fresh
+                            read; and the handoff reached last, held until the checkout is proved on both sides of
+                            the push, no report is still owed -- a debt no retry can pay (no record left, or a
+                            report a human edited, removed or wrote untrusted, per `engine/report_evidence.py`)
+                            parking for a report-only reply -- the report settled for this commit still reads where
+                            it settled, and the description, read afresh, closes this issue and names the session
       push_barrier.py       what may have ended between this tick's readings and the push it is about, asked
                             immediately before the transport and nowhere else: everything above spends a run, a
                             reading or a proof, and each is time a poll on another worker can find the world
@@ -1954,15 +1946,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             as clipped where it outgrows the cap, with a fence the cut left open closed first --
                             that message written only where the issue owes no report of its own, since the report
                             comment is the authority and a capped excerpt here would be a second, unmarked copy;
-                            and the reuse of whatever is already open on the branch, which `find_open_pr`
-                            promises nothing else about. `_names_the_implementation` judges its description, read
-                            afresh by number before the binding and again last before the handoff: one that closes
-                            this issue and names this session is adopted as it stands, legacy tail and human notes
-                            included; any other (an operator's, the `discussion` plan PR, one a human re-described)
-                            gets the closing reference and the attribution put ABOVE it, word for word beneath under
-                            an earlier-description heading, with no agent message once a report is owed or settled.
-                            A failed re-read holds; one the lines would take past GitHub's 65,536 characters parks
-                            under `report_undeliverable`; one a report of this issue's claims is never edited. One road
+                            and `_names_the_implementation`, the verdict on a reused description read afresh by
+                            number: one closing this issue and naming this session stands; any other gets those
+                            two lines ABOVE it, word for word beneath; a failed re-read holds, one too long for
+                            GitHub parks, and one a report claims is never edited. One road
                             names its pull request instead and may
                             OPEN none: a publication the gate admitted because that pull request already carries
                             the commit is finishing bookkeeping rather than publishing, so it is resolved by
