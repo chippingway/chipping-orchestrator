@@ -255,6 +255,32 @@ The other three are read by nobody ahead of a handler. `developer_report_deliver
 that would write one is not called, nothing looks for one, and no reconciliation would act on one if it were there —
 binding it to a publication is a step a stage has to take.
 
+## Foreground execution and asynchronous command guidance
+
+Every developer and commit-producing prompt — initial implementation, automated reviewer fixes, requirements drift,
+PR-feedback follow-up, human-reply resumes, conflict resolution, the documentation pass, both discussion builders, and
+the retry prompts — carries one shared foreground-execution note, `_FOREGROUND_ONLY_NOTE` in
+`workflow/engine/prompt_notes.py`. Read-only prompts (reviewer, question, and decomposition) do not carry it.
+
+The orchestrator operates under a stateless, one-shot process execution model: an agent session terminates the moment
+it finishes responding, nothing continues running between turns, and any subsequent resume launches a fresh CLI
+invocation. A background job started during a turn (such as a long-running build, test suite, Miri, or dev server) dies
+when the session exits, so its result is never observed.
+
+For agent backends that support asynchronous tool execution — such as Antigravity (`agy`), where commands run
+asynchronously when they exceed synchronous execution limits — the note instructs the agent to handle asynchronous
+execution explicitly within the same turn:
+
+- Agents must use supported wait/status tools such as `manage_task` to inspect and wait for command completion within
+  the current response.
+- A `RUNNING` status requires continued polling or waiting within the active turn.
+- Ending the response to await an external wakeup notification terminates the AGY session process and cancels the
+  running command.
+
+Because `_FOREGROUND_ONLY_NOTE` is defined once in `workflow/engine/prompt_notes.py` and reused across initial
+implementation, fix prompts, follow-ups, resumes, and retries, the foreground and asynchronous execution contract
+stays authoritative in one place without duplicating instructions across prompt builders.
+
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion
 [delivery-stages]: ../state-machine/delivery-stages.md
