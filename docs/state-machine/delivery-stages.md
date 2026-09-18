@@ -1660,14 +1660,17 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        `:sparkles: PR opened: #N`, publish the developer report onto that PR, then set label `workflow:validating`
        (the docs pass runs only as the final-docs handoff after approval). A reused PR is only known to be open on
        the branch — most sharply, an issue relabeled out of `discussion` arrives with its plan PR open on the very
-       branch these commits went to — so it is decided on its description as GitHub holds it NOW, read again by
-       number rather than taken off the lookup, since a human can edit in between. One that already closes this
-       issue and names this dev session is left as it stands, a legacy `_Last agent message:_` tail and human
-       annotations included; any other gets the implementation's lines (`Resolves #N`, the dev session, and the
-       agent's closing message where no report supersedes it) put ABOVE that description, which stays beneath
-       them word for word under an earlier-description heading. A re-read that fails holds the publication rather
-       than deciding on, or writing over, what nobody could read. The same goes for a pull request
-       this stage already pushed onto, the retry that finishes an owed report included. One description is never
+       branch these commits went to — so its description is judged as GitHub holds it NOW, read again by number
+       rather than taken off the lookup, since a human can edit in between: once before the report is bound, and
+       once more last, before the handoff. One that already closes this issue and names this dev session is left as
+       it stands, a legacy `_Last agent message:_` tail and human annotations included; any other gets the
+       implementation's lines (`Resolves #N`, the dev session, and the agent's closing message where no report is
+       owed or settled) put ABOVE that description, which stays beneath them word for word under an
+       earlier-description heading. A re-read that fails holds the publication, and a description those lines
+       would take past GitHub's 65,536 characters parks under `report_undeliverable` rather than having anybody's
+       words cut. The same goes for a pull request this stage already pushed onto, the retry that finishes an owed
+       report included — and for a description a settled report claimed until this run's report settled in a
+       comment, which is why the second reading comes after the settlement. One description is never
        edited whatever it says: the one this issue's own report claims as its location, since a verification
        recorded only the digest of what it read and any edit moves it off that — a record nobody can read claims
        it too, unless the place it still names is readably elsewhere. Without the edit the PR would name only the

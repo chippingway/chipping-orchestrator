@@ -73,9 +73,10 @@ still owed, so the next tick republishes the same commit onto the same pull
 request with no developer run and nothing new opened. `dev_pr` keeps the report
 comment authoritative: a new description carries the closing reference and the
 attribution and no copy of the report, and a reused one that does not already
-carry both, read afresh first, gets them above what it already says -- never on
-a description a report lives in, which the binding holds the work over until a
-report somewhere else frees it.
+carry both, read afresh before the binding and again before the handoff, gets
+them above what it already says -- never on a description a report lives in,
+which the binding holds the work over until a report somewhere else frees it,
+and never past what GitHub accepts, which holds it for a human instead.
 
 `late_gate` is the order its own questions are asked in and nothing else, so
 nine owners sit under it: what one gate call is ABOUT and the identity every

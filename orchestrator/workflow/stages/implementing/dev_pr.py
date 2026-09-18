@@ -10,7 +10,8 @@ that closes the issue on merge with the dev session that wrote the branch, and
 with the agent's closing message where the run produced one -- capped, and cut
 on a boundary that leaves the Markdown around it intact.
 
-That closing message is written only where this issue owes no developer report.
+That closing message is written only where this issue neither owes a developer
+report nor has one settled.
 A report of its own is published as a comment with an identity, a revision and a
 digest, and it says in as many words that it supersedes any agent message in the
 description -- so a capped excerpt of the same run written here as well would be
@@ -28,14 +29,16 @@ Nor is anything removed on the reuse's account. A pull request somebody else
 described -- an operator, the `discussion` stage's plan, a human editing one this
 stage already pushed onto -- gets the closing reference and the attribution put
 ABOVE what it says, and what it says stays beneath them word for word, read
-afresh immediately before the write so an edit landing after the lookup is the
-text kept. The one description never touched is one a report lives in: a
-developer that verified one there recorded the digest of what it read, so even
-an edit that keeps every word moves the location off it. Such a body is left
-exactly as it stands until a report somewhere else frees it.
+afresh by number so an edit landing after the lookup is the text judged and
+kept. The one description never touched is one a report lives in: a developer
+that verified one there recorded the digest of what it read, so even an edit
+that keeps every word moves the location off it. Such a body is left exactly as
+it stands until a report somewhere else frees it. And none is cut to make room:
+a description the two lines would take past what GitHub accepts is held for a
+human rather than shortened.
 
 The attribution line is what holds the two halves of this owner together. The
-body states it, and the reuse below reads it back off a pull request of unknown
+body states it, and the verdict below reads it back off a pull request of unknown
 provenance: `find_open_pr` promises only that something is open on the branch,
 so what it hands over may be this stage's own crashed attempt, an operator's,
 or the `discussion` stage's plan PR sitting on the very ref the dev commits went
@@ -54,6 +57,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
+from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.publication import titles as _titles
@@ -62,6 +66,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     report_delivery as _report_delivery,
     report_locations as _report_locations,
+    report_settlement_state as _report_settlement,
 )
 from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
@@ -71,6 +76,20 @@ from orchestrator.workflow.stages.implementing import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+# GitHub holds a pull request's description to the same 65,536 characters it
+# holds a comment to, so a description near that ceiling cannot take the two
+# lines this implementation needs above it without something being cut.
+_TOO_LONG_PARK = (
+    "{mentions} PR #{pr}'s description is too long to have this issue's "
+    "closing reference and the developer session's attribution put above it: "
+    "with them it would be {length} characters, past the {limit} GitHub "
+    "accepts, and this orchestrator will not cut what anybody wrote there. The "
+    "branch and the pull request stand as they are; the work is held rather "
+    "than handed to review, because merging it would close nothing. Shorten "
+    "the description, then reply and the orchestrator resumes the session -- "
+    "the report it writes then goes out with the description named."
+)
 
 
 def _format_pr_agent_message(
@@ -149,14 +168,19 @@ def _build_pr_body(
     digest, and saying that it supersedes any agent message here -- so writing a
     capped excerpt of the same run into the description too would leave two
     copies of one report, one of them unmarked and unversioned, in a place
-    nothing rereads.
+    nothing rereads. An issue whose report has already SETTLED is the same
+    case one step later, and it is the one a description named after the
+    report went out is built in.
     """
     body_parts = [
         f"Resolves #{issue.number}",
         "",
         _dev_pr_attribution(state),
     ]
-    if agent_result.last_message.strip() and not _report_delivery.owes_a_report(state):
+    if agent_result.last_message.strip() and not (
+        _report_delivery.owes_a_report(state)
+        or _report_settlement.carries_settled_record(state)
+    ):
         body_parts += [
             "", "---", "_Last agent message:_", "",
             _format_pr_agent_message(agent_result.last_message),
@@ -189,25 +213,22 @@ def _reuse_or_open_pr(
     Pinned, the same window answers None to the CALLER, which holds the tick
     and leaves the record exactly as it stands.
 
-    That road is attributed like any other reuse, and for one publication it
-    matters: a description a report was verified on is left alone while the
-    report claims it, and a later report in a comment frees it -- so the retry
-    that finishes the publication is where the closing reference and the
-    attribution finally go above it. A pull request whose description cannot
-    be re-read for that holds the tick on either road.
+    What the pull request found on either road SAYS is not decided here.
+    Whether its description closes this issue and names this session is
+    `_names_the_implementation`'s, asked by the caller of a description read
+    afresh -- once before the report is bound, and once more after it settles,
+    since settling a report elsewhere is what frees a description a report of
+    this issue's was verified on.
     """
     if work.delivered_pr:
-        delivered = _delivered_pull_request(gh, issue, work)
-        if delivered is None:
-            return None
-        return _attribute_reused_pr(gh, issue, state, work, delivered)
+        return _delivered_pull_request(gh, issue, work)
     pr = gh.find_open_pr(branch=work.branch, base=spec.base_branch)
     if pr is not None:
         log.info(
             "issue=#%s reusing existing PR #%d for %s",
             issue.number, pr.number, work.branch,
         )
-        return _attribute_reused_pr(gh, issue, state, work, pr)
+        return pr
     pr = gh.open_pr(
         branch=work.branch, base=spec.base_branch,
         title=_derive_pr_title(spec, issue, work.worktree),
@@ -287,14 +308,14 @@ def _delivered_pull_request(
     return delivered
 
 
-def _attribute_reused_pr(
+def _names_the_implementation(
     gh: _client.GitHubClient,
     issue: Issue,
     state: _pinned_state.PinnedState,
-    work: _models._PRWork,
+    agent_result: AgentResult,
     pr,
-):
-    """Make a PR opened elsewhere name the work now pushed onto it.
+) -> bool | None:
+    """Whether the pull request's description closes this issue and names it.
 
     What `find_open_pr` returns is only known to be open on this branch. The
     sharpest case is the `discussion` stage's plan PR: an issue relabeled here
@@ -303,61 +324,62 @@ def _attribute_reused_pr(
     nothing else -- a claim the push just made false -- under the decomposer's
     session rather than the developer's, and with no `Resolves #N` to close
     the issue when it merges. An operator's own PR on the branch is the same
-    problem with different words.
+    problem with different words, and so is one of this stage's own that a
+    human has since re-described.
 
-    What decides is the description as it stands NOW, so it is read again, by
-    number, before anything is decided. The body in hand is as old as the
-    lookup that fetched it: a human editing in between could have taken the
-    closing reference or the attribution out of a body that had both, and a
-    decision read off the snapshot would hand review a pull request that
-    closes nothing. GitHub offers no conditional write, so the one request
-    between that read and the edit is the window left. A read that fails is no
-    description to decide on, and None holds the publication rather than
-    writing over one nobody could read.
+    What decides is the description as it stands NOW, read again by number.
+    The body on the object in hand is as old as whatever fetched it: a human
+    editing in between could have taken the closing reference or the
+    attribution out of a body that had both, and a verdict read off that
+    snapshot would hand review a pull request that closes nothing. GitHub
+    offers no conditional write, so the one request between that read and the
+    edit is the window left.
 
-    A body that already closes this issue and names this session -- this
-    stage's own, from a tick that died between `open_pr` and the relabel -- is
-    left alone, and everything it says with it, a human's additions included.
-    Anything else earns the closing reference and the attribution, put ABOVE
-    the description rather than in its place: whatever an operator, the plan,
-    or a human editing a pull request this stage already pushed onto wrote
-    there is somebody's text, and it stays beneath them word for word.
-
-    One body is never touched whatever it says: the one this issue's own
-    report claims as its location. A developer verifying a report on a pull
-    request's DESCRIPTION records the digest of what it read and nothing else,
-    so even an edit that keeps every word moves the location off that digest,
-    and the verification behind it refuses. What leaving it costs is the
-    closing reference and the attribution, which the binding holds the
-    publication for until a report somewhere else frees the body.
-
-    Answers the pull request to hand on, or None to hold the tick.
+    True is a description that already closes this issue and names this
+    session -- left alone, with everything a human added -- or one that did
+    not and has just had the closing reference and the attribution put ABOVE
+    it, every word it said kept beneath them. False is the one description
+    never edited whatever it says: the one this issue's own report claims as
+    its location, since even an edit that keeps every word moves it off the
+    digest it was verified at. None holds the tick: a description nobody could
+    read, and one too long to carry the two lines without cutting what
+    somebody wrote, which is a repair the issue parks for.
     """
     try:
         current = gh.get_pr(pr.number)
     except Exception:
         log.exception(
-            "issue=#%s could not re-read reused PR #%d's description; holding "
-            "rather than deciding on the one the lookup fetched",
-            issue.number, pr.number,
+            "issue=#%s could not re-read PR #%d's description; holding rather "
+            "than deciding on one nobody read", issue.number, pr.number,
         )
         return None
     if _report_locations.describes_the_issue(
         current, issue.number, _dev_pr_attribution(state),
     ):
-        return pr
+        return True
     if _report_locations.claims_the_description(state, pr.number):
         log.warning(
-            "issue=#%s is not editing reused PR #%d's body: a developer report "
-            "of this issue's is published there, and any edit would move it",
+            "issue=#%s is not editing PR #%d's body: a developer report of this "
+            "issue's is published there, and any edit would move it",
             issue.number, pr.number,
         )
-        return pr
-    log.info(
-        "issue=#%s naming this implementation above reused PR #%d's "
-        "description", issue.number, pr.number,
+        return False
+    described = getattr(current, "body", None)
+    named = _build_pr_body(
+        state, issue, agent_result,
+        described if isinstance(described, str) else "",
     )
-    gh.edit_pr_body(pr, _build_pr_body(
-        state, issue, work.agent_result, getattr(current, "body", None) or "",
-    ))
-    return pr
+    if len(named) > _pinned_state.MAX_PINNED_BODY:
+        _report_delivery.parks_an_undeliverable_report(
+            gh, issue, state, _TOO_LONG_PARK.format(
+                mentions=config.HITL_MENTIONS, pr=pr.number,
+                length=len(named), limit=_pinned_state.MAX_PINNED_BODY,
+            ),
+        )
+        return None
+    log.info(
+        "issue=#%s naming this implementation above PR #%d's description",
+        issue.number, pr.number,
+    )
+    gh.edit_pr_body(pr, named)
+    return True

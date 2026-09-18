@@ -21,7 +21,20 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
-from tests.workflow.fixtures import LABEL_VALIDATING, _open_pr_for
+from orchestrator.github import developer_reports as _reports
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
+from orchestrator.github.pull_request_reports import ReportLocation
+from orchestrator.workflow.engine import (
+    report_delivery as _report_delivery,
+    report_records as _records,
+    report_settlement_state as _settlement,
+)
+from tests.workflow.fixtures import (
+    _TEST_SPEC,
+    LABEL_VALIDATING,
+    SHA_LENGTH,
+    _open_pr_for,
+)
 from tests.workflow.stages.implementing import report_test_support as support
 
 REUSED_PR = 71
@@ -44,6 +57,20 @@ EARLIER_HEADING = "_Description before this implementation:_"
 
 GET_PR = "get_pr"
 
+AWAITING_HUMAN = "awaiting_human"
+
+PARK_REASON = "park_reason"
+
+# A commit an earlier publication of this issue's settled its report about.
+EARLIER_SHA = "e" * SHA_LENGTH
+
+# A description a few characters under GitHub's ceiling, which the two lines
+# this implementation needs above it would take past that ceiling.
+NEAR_THE_CEILING = "x" * (MAX_PINNED_BODY - 10)
+
+# What the notice for that description says, and no other notice does.
+TOO_LONG_NOTICE = "too long to have this issue's closing reference"
+
 # A record whose location still names the reused pull request's description
 # while the rest of it will not read.
 DAMAGED_RECORD = MappingProxyType({
@@ -53,7 +80,34 @@ DAMAGED_RECORD = MappingProxyType({
 })
 
 
-class DescriptionGuardTest(unittest.TestCase, support._ReportDeliveryMixin):
+class _ReusedPullRequest(support._ReportDeliveryMixin):
+    """A human's pull request already open on the branch this issue pushes."""
+
+    def _reused_over(self, **pinned):
+        """An issue carrying `pinned`, with a human's pull request on its branch."""
+        github, issue = self.seeded()
+        github.seed_state(support.REPORT_ISSUE, **pinned)
+        reused = _open_pr_for(
+            github, issue_number=support.REPORT_ISSUE, pr_number=REUSED_PR,
+        )
+        reused.body = HUMAN_DESCRIPTION
+        github.existing_open_pr[support.BRANCH] = reused
+        return github, issue, reused
+
+    def _edited_after_the_lookup(self, fetched: str):
+        """A reused pull request a human edited after the lookup fetched it.
+
+        The lookup's object is a copy holding the body it was fetched with,
+        which is what a pull request GitHub handed back is: a snapshot.
+        """
+        github, issue, live = self._reused_over()
+        looked_up = copy.copy(live)
+        looked_up.body = fetched
+        github.existing_open_pr[support.BRANCH] = looked_up
+        return github, issue
+
+
+class DescriptionGuardTest(unittest.TestCase, _ReusedPullRequest):
     def test_an_edit_after_the_lookup_is_kept(self) -> None:
         # The lookup handed over the body as it was when GitHub answered it,
         # and a human replaced it before the write -- a plan's, or this
@@ -133,32 +187,110 @@ class DescriptionGuardTest(unittest.TestCase, support._ReportDeliveryMixin):
                     github.label_history,
                 )
 
-    def _reused_over(self, **pinned):
-        """An issue carrying `pinned`, with a human's pull request on its branch."""
-        github, issue = self.seeded()
-        github.seed_state(support.REPORT_ISSUE, **pinned)
-        reused = _open_pr_for(
-            github, issue_number=support.REPORT_ISSUE, pr_number=REUSED_PR,
-        )
-        reused.body = HUMAN_DESCRIPTION
-        github.existing_open_pr[support.BRANCH] = reused
-        return github, issue, reused
-
-    def _edited_after_the_lookup(self, fetched: str):
-        """A reused pull request a human edited after the lookup fetched it.
-
-        The lookup's object is a copy holding the body it was fetched with,
-        which is what a pull request GitHub handed back is: a snapshot.
-        """
-        github, issue, live = self._reused_over()
-        looked_up = copy.copy(live)
-        looked_up.body = fetched
-        github.existing_open_pr[support.BRANCH] = looked_up
-        return github, issue
-
     def _delivers(self, github, issue):
         """Run the ordinary tick, whose developer reports for publication."""
         return self.deliver(github, issue, support.ready_message())
+
+
+class DescriptionHoldTest(unittest.TestCase, _ReusedPullRequest):
+    """The descriptions a publication may not be handed on under."""
+
+    def test_a_stale_lookup_hides_no_collision(self) -> None:
+        # The developer verified its report on the description as it stands:
+        # a human's, closing nothing and naming nobody. The lookup fetched it
+        # earlier, when it still said both. Judged off that snapshot, the
+        # report settles on a description a merge would close nothing with;
+        # judged off the description read again, it is the collision the
+        # binding holds for a human, and nothing is edited.
+        github, issue = self._edited_after_the_lookup(OWN_DESCRIPTION)
+
+        self.deliver(
+            github, issue,
+            support.verified_message(REUSED_PR, HUMAN_DESCRIPTION),
+        )
+
+        self._assert_held_for_a_human(github)
+        self.assertNotIn(
+            support.CURRENT_RECORD, github.pinned_data(support.REPORT_ISSUE),
+        )
+
+    def test_a_description_freed_by_settling_is_named(self) -> None:
+        # A report settled on this description earlier, so nothing may edit it
+        # while that report claims it. This run reports in a comment, and the
+        # settlement that records it is what frees the description -- so the
+        # handoff waits for the closing reference and the attribution to go
+        # above it, rather than handing on a body that closes nothing.
+        github, issue, reused = self._reused_over(
+            **_settled_on_the_description(),
+        )
+
+        self.deliver(github, issue, support.ready_message())
+
+        named, earlier = reused.body.split(EARLIER_HEADING)
+        self.assertEqual(
+            (
+                named.startswith(f"Resolves #{support.REPORT_ISSUE}"),
+                earlier.strip(),
+                len(support.published_reports(github, REUSED_PR, 2)),
+            ),
+            (True, HUMAN_DESCRIPTION, 1),
+        )
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+    def test_a_description_too_long_to_name_is_held(self) -> None:
+        # GitHub will not take a description past its ceiling, and the two
+        # lines above one already near it would put it there. Cutting what
+        # somebody wrote is not this stage's to do, so nothing is edited and
+        # the issue waits for a human to make room.
+        github, issue, reused = self._reused_over()
+        reused.body = NEAR_THE_CEILING
+
+        self.deliver(github, issue, support.ready_message())
+
+        self._assert_held_for_a_human(github)
+        self.assertEqual(reused.body, NEAR_THE_CEILING)
+        self.assertIn(TOO_LONG_NOTICE, issue.comments[-1].body)
+
+    def _assert_held_for_a_human(self, github) -> None:
+        """Nothing edited, the work parked for a report, and nothing handed on."""
+        pinned = github.pinned_data(support.REPORT_ISSUE)
+        self.assertEqual(
+            (
+                github.edited_pr_bodies,
+                pinned.get(AWAITING_HUMAN),
+                pinned.get(PARK_REASON),
+            ),
+            ([], True, _report_delivery.UNDELIVERABLE_REPORT),
+        )
+        self.assertNotIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+
+def _settled_on_the_description() -> dict:
+    """The settled pair a report verified on the reused PR's description left."""
+    settled = PinnedState()
+    _settlement.record_current_report(settled, _records.CurrentReport(
+        subject=_records.ReportSubject(
+            repo_slug=_TEST_SPEC.slug,
+            pr_number=REUSED_PR,
+            branch=support.BRANCH,
+            source_sha=EARLIER_SHA,
+            requirements_revision=support.REQUIREMENTS_REVISION,
+        ),
+        report_revision=1,
+        content_revision=_reports.content_digest(HUMAN_DESCRIPTION),
+        location=ReportLocation(pr_number=REUSED_PR),
+    ))
+    _settlement.record_handoff(settled, _records.ReportHandoff(
+        receipt=f"issue-{support.REPORT_ISSUE}-report-1",
+        pr_number=REUSED_PR,
+        report_revision=1,
+        source_sha=EARLIER_SHA,
+    ))
+    return settled.state_data
 
 
 class _Unreadable:

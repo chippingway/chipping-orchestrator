@@ -25,9 +25,11 @@ pull request is open, where the publication stands and only the handoff stops.
 Everything past that handoff reads the checkout and none of it measures again.
 
 What the pull request itself says -- its title, its body, and the dev session
-the body attributes the branch to -- is `dev_pr`'s, along with the reuse that
-reads that attribution back off a pull request somebody else opened. This owner
-decides only WHEN one is opened, which is once the push has landed.
+the body attributes the branch to -- is `dev_pr`'s, along with the verdict on a
+description somebody else wrote. This owner decides only WHEN one is opened,
+which is once the push has landed, and WHEN its description is judged: before
+the report is bound, which is told the answer, and once more last, before the
+handoff, since settling the report is what can free a description to be named.
 
 What the handoff itself writes -- the pull request and the branch it records,
 the records it spends, the counters it resets, and the relabel it goes out
@@ -61,7 +63,6 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     report_binding as _report_binding,
     report_delivery as _report_delivery,
-    report_locations as _report_locations,
 )
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
@@ -279,7 +280,6 @@ def _on_commits(
     owed. `push_barrier` owns both readings and the one ending that is not an
     ending for this push.
     """
-    agent_result = approved.agent_result
     wt = _worktree_paths._worktree_path(spec, issue.number)
     published = _publication_intent(gh, issue, state, approved, wt)
     if published is None:
@@ -306,7 +306,7 @@ def _on_commits(
     pr = _dev_pr._reuse_or_open_pr(
         gh, spec, issue, state,
         _models._PRWork(
-            agent_result, wt, branch, approved.delivered_pr, published,
+            approved.agent_result, wt, branch, approved.delivered_pr, published,
         ),
     )
     if pr is None:
@@ -337,20 +337,34 @@ def _on_commits(
     # What this pull request's own DESCRIPTION says travels with it, because a
     # report verified on that body is the one report this stage cannot both
     # keep and manage: the edit that would put the closing reference and the
-    # attribution there is the edit that would move it. Read here,
-    # where the body in hand is the one the reuse just decided about.
-    _report_binding.binds_and_publishes(
-        gh, issue, state, _report_binding.ReportPublication(
-            pr, spec.slug, branch, published,
-            _report_locations.describes_the_issue(
-                pr, issue.number, _dev_pr._dev_pr_attribution(state),
-            ),
-        ),
+    # attribution there is the edit that would move it. Read afresh rather
+    # than off the object in hand, which is as old as the lookup behind it --
+    # and a description nobody could read, or one held for repair, holds the
+    # tick with the commit owed.
+    described = _dev_pr._names_the_implementation(
+        gh, issue, state, approved.agent_result, pr,
     )
+    if described is not None:
+        _report_binding.binds_and_publishes(
+            gh, issue, state, _report_binding.ReportPublication(
+                pr, spec.slug, branch, published, described,
+            ),
+        )
+    # The description is proved AGAIN, last, because settling the report is
+    # what can change the answer: a description a report of this issue's was
+    # verified on is never edited while that report claims it, and once a
+    # report settles somewhere else nothing claims it any more -- so this is
+    # the first moment it can have the closing reference and the attribution
+    # put above it. Anything short of a description that closes this issue and
+    # names this session -- one nobody could read, or one held for repair,
+    # included -- holds the handoff with the commit owed.
     if (
         _checkout._moved_after_the_push(gh, issue, state, published, wt)
         or _checkout._dirtied_after_the_push(gh, issue, state, published, wt)
         or _still_owes_its_report(issue, state, published, pr)
+        or not _dev_pr._names_the_implementation(
+            gh, issue, state, approved.agent_result, pr,
+        )
     ):
         _owes_the_handoff(state, published)
         return

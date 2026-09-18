@@ -203,8 +203,17 @@ class _PullStatusService:
         return True
 
     def edit_pr_body(self, pr: FakePR, body: str) -> None:
+        """Rewrite one pull request's body, on GitHub's copy as well.
+
+        The object handed in may be a snapshot another read fetched, and the
+        edit still lands on the one pull request GitHub holds -- so the next
+        read by number sees it, whichever object asked for the edit.
+        """
         self.edited_pr_bodies.append((pr.number, body))
         pr.body = body
+        held = self.pulls.get(pr.number)
+        if held is not None:
+            held.body = body
 
     def delete_remote_branch(self, branch: str) -> bool:
         self.deleted_remote_branches.append(branch)

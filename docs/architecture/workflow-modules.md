@@ -1917,8 +1917,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proofs below, since a report is about a commit already on the remote -- with the
                             handoff below reached last: held back until the checkout has been proved on both sides
                             of the push, since the worktree is writable while those requests run, AND until no
-                            report is still owed, since nothing under `validating` would ever come back for one;
-                            and spending the record of that commit once the handoff it was owed lands. A report
+                            report is still owed, since nothing under `validating` would ever come back for one,
+                            AND until the description, read afresh once more, closes this issue and names the
+                            session -- asked last because settling a report elsewhere is what frees a description
+                            a report was verified on; and spending the record of that commit once the handoff it
+                            was owed lands. The binding is handed the same verdict taken off a fresh read before
+                            it, never the body the lookup fetched. A report
                             still owed refuses that handoff exactly as a moved checkout does, re-recording the debt
                             so the next tick republishes the same commit onto the same pull request and finishes
                             it -- no second developer run, and nothing new opened
@@ -1985,18 +1989,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that message written only where the issue owes no report of its own, since the report
                             comment is the authority and a capped excerpt here would be a second, unmarked copy;
                             and the reuse of whatever is already open on the branch, which `find_open_pr`
-                            promises nothing else about, and decided on its description read afresh by number
-                            rather than on the body the lookup fetched, since a human can edit in between -- one
-                            that already closes this issue and names this session is adopted as it stands, a
-                            legacy `_Last agent message:_` tail and human annotations included, and one that does
-                            not (an operator's, the `discussion` stage's plan PR sitting on the very ref the dev
-                            commits went to, or one a human re-described or stripped after this stage pushed onto
-                            it) gets the closing reference and the attribution put ABOVE that description, which
-                            stays beneath them word for word under an earlier-description heading. A re-read that
-                            fails holds the publication rather than deciding on, or writing over, what nobody could
-                            read. A description this issue's own report claims
-                            (`engine/report_locations.py`) is never edited at all, since any edit moves it off the
-                            digest it was verified at. One road
+                            promises nothing else about. What that pull request's description says is
+                            `_names_the_implementation`'s, asked by the publication before the binding and again
+                            last, each time over the description read afresh by number rather than the body a
+                            lookup fetched, since a human can edit in between -- one that already closes this
+                            issue and names this session is adopted as it stands, a legacy `_Last agent message:_`
+                            tail and human annotations included, and one that does not (an operator's, the
+                            `discussion` stage's plan PR sitting on the very ref the dev commits went to, or one a
+                            human re-described or stripped after this stage pushed onto it) gets the closing
+                            reference and the attribution put ABOVE that description, which stays beneath them
+                            word for word under an earlier-description heading, with no agent message once any
+                            report of this issue's is owed or settled. A re-read that fails holds the publication,
+                            and so does a description the two lines would take past GitHub's 65,536 characters,
+                            which parks under `report_undeliverable` rather than cutting anybody's words. A
+                            description this issue's own report claims (`engine/report_locations.py`) is never
+                            edited at all, since any edit moves it off the digest it was verified at. One road
                             names its pull request instead and may
                             OPEN none: a publication the gate admitted because that pull request already carries
                             the commit is finishing bookkeeping rather than publishing, so it is resolved by
