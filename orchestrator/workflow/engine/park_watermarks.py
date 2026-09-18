@@ -23,6 +23,8 @@ may reach back for it: the park is built on the watermark, not beside it.
 """
 from __future__ import annotations
 
+import logging
+
 from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
@@ -31,6 +33,8 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     prompt_delivery as _delivery,
 )
+
+log = logging.getLogger("orchestrator.workflow")
 
 
 def _read_this_far(
@@ -73,6 +77,15 @@ def _read_this_far(
     issue rather than the ordinary road, and what a legacy issue costs is one
     redundant resume over conversation an agent has already read. The comment
     the bound exists to keep is not a thing to spend on that.
+
+    A thread this call cannot re-read is the same answer again, and it is the
+    one that must not raise. Every caller asks this AFTER its notice is on the
+    thread and BEFORE its own write records the park -- `awaiting_human`, the
+    reason, the ledger entry the post just made. An exception here strands
+    exactly that: one notice said, nothing durable behind it, and the next
+    poll reruns the agent the notice was about and says it again. Left where
+    it is, the mark only leaves our own recorded notice above it, which the
+    ledger names and every later reading drops.
     """
     ours = _comments._orchestrator_ids(state)
     if ours == said_before:
@@ -80,7 +93,17 @@ def _read_this_far(
     read_to = state.get(_delivery.PINNED_LAST_ACTION_COMMENT_ID)
     if not isinstance(read_to, int):
         return None
-    for seen in sorted(gh.comments_after(issue, read_to), key=_comment_id):
+    try:
+        thread = gh.comments_after(issue, read_to)
+    except Exception:
+        log.exception(
+            "issue=#%d could not be re-read for how far its park may record "
+            "the thread as read; leaving the watermark where it was so the "
+            "park itself is still recorded",
+            issue.number,
+        )
+        return None
+    for seen in sorted(thread, key=_comment_id):
         if _comment_id(seen) not in ours:
             break
         read_to = _comment_id(seen)

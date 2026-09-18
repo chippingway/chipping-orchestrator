@@ -508,10 +508,11 @@ class AwaitingHumanFrozenBatchTest(_FrozenBatchPark, unittest.TestCase):
     """
 
     def test_a_forged_marker_buys_nothing(self) -> None:
-        # The decisions above the resume never accepted a body carrying our
-        # marker, and now neither does the resume: read again with a looser
-        # filter it would have quoted this to the developer and recorded the
-        # thread as answered on the strength of text anybody may paste.
+        # The decisions above the resume and the resume itself read one
+        # frozen batch, and that batch refuses a body carrying our marker that
+        # no ledger entry vouches for. Read by a looser filter, it would be
+        # quoted to the developer and the thread recorded as answered on the
+        # strength of text anybody may paste.
         self._they_say(FORGED_REPLY)
 
         mocks = self._runs()
@@ -569,19 +570,20 @@ class RunLimitCycleTest(_FrozenBatchPark, unittest.TestCase):
     """The dev resume a spent ledger refuses, and the reply it was handed.
 
     Driven through the dispatcher's hold and the real circuit rather than with
-    a refused result seeded under the resume, because what crossed the reply
-    was never the resume: it was the three watermark writes the refusal sets
-    off -- the park's notice, the next tick's repair of its lost write, and the
-    grant that lifts it.
+    a refused result seeded under the resume. The resume records nothing for
+    a launch nothing invoked; what can record the reply as read is the three
+    watermark writes the refusal sets off -- the park's notice, the next tick's
+    repair of its lost write, and the grant that lifts it -- and only the real
+    circuit and hold perform them.
     """
 
     def test_a_refused_resume_keeps_its_reply(self) -> None:
-        # The circuit refuses the dev resume below it, so nothing was read --
-        # and three writes follow that each used to cross the reply: the
-        # run-limit notice posted above it, the next tick's repair of that
-        # notice's lost write, and the grant that lifts the park. Driven
-        # through the dispatcher's hold, the reply is still unread once the
-        # issue has its runs back, for whichever road reads the thread next.
+        # The circuit refuses the dev resume below it, so nothing was read,
+        # and three writes follow: the run-limit notice posted above the
+        # reply, the next tick's repair of that notice's lost write, and the
+        # grant that lifts the park. Each records the thread read through our
+        # own comments only, so the reply is still unread once the issue has
+        # its runs back, for whichever road reads the thread next.
         self._spend_every_run()
         self._they_say(HUMAN_REPLY)
 

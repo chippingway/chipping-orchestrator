@@ -35,10 +35,16 @@ _REPLY = "here is what to do instead"
 _TRUSTED_AUTHOR = "alice"
 _POST_ISSUE_COMMENT = "_post_issue_comment"
 _WATERMARK = "last_action_comment_id"
+_AWAITING_HUMAN = "awaiting_human"
 
 # How a park that follows a run asks for the bound, which is no part of what
 # the park reports about that run.
 _BOUNDED = "bounded"
+
+# The client read a bounded park re-takes after posting, and what a transient
+# failure of it says.
+_COMMENTS_AFTER = "comments_after"
+_BAD_GATEWAY = "502 Bad Gateway"
 
 
 class ParkWatermarkTest(unittest.TestCase):
@@ -56,7 +62,7 @@ class ParkWatermarkTest(unittest.TestCase):
         # other reading of the thread is bounded by.
         self._park()
 
-        self.assertTrue(self.state.get("awaiting_human"))
+        self.assertTrue(self.state.get(_AWAITING_HUMAN))
         self.assertEqual(
             self.state.get(_WATERMARK),
             self.github.latest_comment_id(self.issue),
@@ -90,7 +96,7 @@ class ParkWatermarkTest(unittest.TestCase):
             self._park()
 
         self.assertIsNone(self.state.get(_WATERMARK))
-        self.assertTrue(self.state.get("awaiting_human"))
+        self.assertTrue(self.state.get(_AWAITING_HUMAN))
 
     def _reply(self) -> int:
         identified = self.github.next_reply_id(self.issue)
@@ -128,7 +134,7 @@ class BoundedParkWatermarkTest(unittest.TestCase):
         self._park()
 
         self.assertLess(self.state.get(_WATERMARK), landed)
-        self.assertTrue(self.state.get("awaiting_human"))
+        self.assertTrue(self.state.get(_AWAITING_HUMAN))
 
     def test_it_still_clears_its_own_notice(self) -> None:
         # What the bound may not cost: our own sentence still has to be read
@@ -140,6 +146,26 @@ class BoundedParkWatermarkTest(unittest.TestCase):
         self.assertEqual(
             self.state.get(_WATERMARK),
             self.github.latest_comment_id(self.issue),
+        )
+
+    def test_an_unreadable_thread_still_parks(self) -> None:
+        # The re-read comes after the notice is on the thread, so a failure
+        # there may cost the watermark its advance but never the park: the
+        # flag and the ledger entry are what keep the next poll from running
+        # the same agent again and saying the same sentence twice.
+        settled = self._reply()
+        self.state.set(_WATERMARK, settled)
+
+        with patch.object(
+            self.github, _COMMENTS_AFTER, side_effect=RuntimeError(_BAD_GATEWAY),
+        ):
+            self._park()
+
+        self.assertTrue(self.state.get(_AWAITING_HUMAN))
+        self.assertEqual(self.state.get(_WATERMARK), settled)
+        self.assertIn(
+            self.github.latest_comment_id(self.issue),
+            _comments._orchestrator_ids(self.state),
         )
 
     def test_the_flag_is_no_correlation_field(self) -> None:

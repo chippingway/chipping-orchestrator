@@ -794,7 +794,10 @@ The keys that matter for the state machine fall into a few groups:
   `last_action_comment_id` beside `pickup_comment_id`, because the spawn it opens quotes the thread as it stands and
   its own notice is the last word of that reading. A legacy issue picked up before that anchor existed pays one
   redundant resume over conversation its agent has already read, and the settlement behind that resume records the
-  floor for good.
+  floor for good. A thread the walk cannot re-read leaves the mark where it is too, and never raises: the walk runs
+  after the notice is posted and before the caller's write records the park, so a failure there would otherwise
+  leave one notice said with nothing durable behind it, and the next poll would rerun the same agent and say it
+  again.
 
   EVERY park the `workflow:implementing` and `workflow:validating` handlers take reads the field that way. The agent
   question and the dirty / unreadable checkout refusals call the reader directly, because they post their own notice;

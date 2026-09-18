@@ -398,10 +398,12 @@ class RunLimitCycleTest(_support._ParkedThread, unittest.TestCase):
     def _refused_then_granted(self) -> None:
         """The whole park: refused, its notice repaired, then bought past.
 
-        Three polls, each a watermark write that used to cross the reply --
-        and none of them may: no agent read it on any of them. The first
-        agent to run is the one the grant pays for, which parks on a question
-        so the poll after it is an awaiting-human resume again.
+        Three polls, and each ends in a watermark write: the park's notice,
+        the next tick's repair of that notice's lost write, and the grant. No
+        agent reads the reply on any of them, so none of those writes may
+        record it as read. The first agent to run is the one the grant pays
+        for, which parks on a question so the poll after it is an
+        awaiting-human resume again.
         """
         refused = self._tick()
         self._they_say(_ADD_RUNS)

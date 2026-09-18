@@ -51,6 +51,13 @@ _SAID = "one comment on the thread"
 # The issue nobody has picked up yet, for the one run that has no watermark
 # under it until the pickup writes one.
 _FRESH_ISSUE_NUMBER = 615
+
+# The client read a park re-takes after posting its notice, and what a
+# transient failure of it says.
+_COMMENTS_AFTER = "comments_after"
+_BAD_GATEWAY = "502 Bad Gateway"
+_POST = "comment"
+_RUN_AGENT = "run_agent"
 _DECOMPOSE = "DECOMPOSE"
 _PICKUP_COMMENT_ID = "pickup_comment_id"
 
@@ -84,6 +91,32 @@ class _RunsWhileOneLands:
         if self._timed_out:
             return _agent(timed_out=True)
         return _agent(last_message=_ASKS)
+
+
+class _ReadFailsOnceAfterAPost:
+    """The client read that fails once, the first time it follows a post.
+
+    A class rather than a closure because two client methods share its state:
+    the post that arms it and the read it fails. What it stands for is the
+    request a park re-takes after its notice is on the thread, failing the one
+    time that matters.
+    """
+
+    def __init__(self, github) -> None:
+        self._post = github.comment
+        self._read = github.comments_after
+        self._armed = False
+        self.failed = 0
+
+    def comment(self, *called, **options):
+        self._armed = True
+        return self._post(*called, **options)
+
+    def comments_after(self, *called, **options):
+        if self._armed and not self.failed:
+            self.failed += 1
+            raise RuntimeError(_BAD_GATEWAY)
+        return self._read(*called, **options)
 
 
 class RunWindowWatermarkTest(_consent_case._ParkedCase, unittest.TestCase):
@@ -126,6 +159,30 @@ class RunWindowWatermarkTest(_consent_case._ParkedCase, unittest.TestCase):
         self.assertGreater(
             self._pinned()[_state._LAST_ACTION_COMMENT_ID], guided,
         )
+
+    def test_a_failed_reread_still_records_the_park(self) -> None:
+        # The question park posts its notice and then re-reads the thread for
+        # how far it may record it read. Failing there costs that advance and
+        # nothing else: the park is written, so the poll after this one finds
+        # the question standing -- no second agent, no second notice.
+        self._seed(**_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.GUIDANCE)
+        flaky = _ReadFailsOnceAfterAPost(self.github)
+
+        with (
+            patch.object(self.github, _POST, flaky.comment),
+            patch.object(self.github, _COMMENTS_AFTER, flaky.comments_after),
+        ):
+            self._run_tick(run_agent=_agent(last_message=_ASKS), has_new_commits=False)
+        said = len(self.github.posted_comments)
+        polled = self._run_tick(
+            run_agent=_agent(last_message=_ASKS), has_new_commits=False,
+        )
+
+        self.assertEqual(flaky.failed, 1)
+        self.assertTrue(self._pinned()[_state._AWAITING_HUMAN])
+        polled[_RUN_AGENT].assert_not_called()
+        self.assertEqual(len(self.github.posted_comments), said)
 
     def _assert_read_only_to(self, guided: int) -> None:
         """The tick read the guidance it was resumed on, and nothing past it."""
@@ -198,6 +255,19 @@ class ReadThisFarFallbackTest(unittest.TestCase):
         self._reply()
 
         self.assertIsNone(self._read_this_far(said_before))
+
+    def test_a_thread_it_cannot_reread_moves_nothing(self) -> None:
+        # Asked after the notice is posted and before the park is written, so
+        # a raise here would strand the park with its notice already said.
+        settled = self._reply()
+        self.state.set(_state._LAST_ACTION_COMMENT_ID, settled)
+        said_before = _comments._orchestrator_ids(self.state)
+        _comments._track_orchestrator_comment(self.state, self._reply())
+
+        with patch.object(
+            self.github, _COMMENTS_AFTER, side_effect=RuntimeError(_BAD_GATEWAY),
+        ):
+            self.assertIsNone(self._read_this_far(said_before))
 
     def _read_this_far(self, said_before) -> int | None:
         return _park_watermarks._read_this_far(

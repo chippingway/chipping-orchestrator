@@ -195,7 +195,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             instead. A thread with no watermark under it is the same answer for the same reason:
                             the tip is where a comment written DURING the run lands, so the walk has nowhere to
                             start and the pickup that opens an issue anchors the mark to its own comment rather
-                            than leaving one to be guessed at. The notice-id stamp the funnel
+                            than leaving one to be guessed at. A thread it cannot re-read answers the same way
+                            rather than raising, since the walk sits between a notice already posted and the
+                            write that records the park. The notice-id stamp the funnel
                             defaults to is the other half of the same question and lives here beside the walk, so
                             the funnel picks between two answers rather than writing one of them out itself. It
                             sits here rather than in one stage because every park that waits for a human owes it:
