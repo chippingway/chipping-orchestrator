@@ -753,11 +753,13 @@ orchestrator/
                         verified mirror removal that remote reclamation requires. A child reads identity here:
                         the store is one the agents write, so the copy must resolve to the promised commit
     verification/       what a verify run is, and the reads a checkout is judged by
-      models.py         the `VerifyResult` statuses and fields, and the output budget
+      models.py         the `VerifyResult` and `VerifyCommandOutcome` models, evidence-preserving fields
+                        (tested commit, tree identity, configured commands, attempted command transcript,
+                        timeout, context revision), verification statuses, and the output budget
       output.py         the redact-then-truncate pass over captured verify output
-      probes.py         HEAD and branch identity, committed-path and regular-file reads, object presence and
-                        ancestry. Object presence accepts caller-owned environment pins so a partial clone can
-                        distinguish objects already in its store from those a promisor remote could supply
+      probes.py         HEAD, branch, and tree identity, committed-path and regular-file reads, object presence
+                        and ancestry. Object presence accepts caller-owned environment pins so a partial clone
+                        can distinguish objects already in its store from those a promisor remote could supply
       status.py         the porcelain status in both its answers (the paths, whether git could be
                         asked, and the `is_clean` a caller whose next step is a push asks instead of truth-testing
                         the list) -- taken without optional locks, so asking what a tree holds does not refresh
@@ -766,8 +768,9 @@ orchestrator/
                         about to DELETE a tree can be told about the `.env` a caller about to publish rightly
                         passes over. Suppressed index entries make the status unproven even when porcelain
                         reports no paths; NUL-delimited parsing preserves rename sources and unusual filenames
-      process.py        one command's group spawn / kill / drain and its verdict
-      runner.py         the stripped child environment and the fail-fast command sequencing
+      process.py        one command's group spawn / kill / drain and its `VerifyCommandOutcome` verdict
+      runner.py         the stripped child environment, HEAD and tree identity snapshotting, fail-fast command
+                        sequencing, and ordered verification transcript recording
     worktrees/          the per-issue checkouts an agent runs in, the read-only inventory of which issues they
                         and the branches beside them name, the classification of which of those may be
                         reclaimed, and the bounded pass that spends one of those classifications
@@ -934,7 +937,8 @@ off a facade:
   `commands`, `commits`, `branch_transport`, and those same verification probes; `resume` calls `rewrite` and reaches
   the gate through the one hop that owner spells; `standing` calls `resume` for the ancestry read and reaches the gate
   through that same hop; `squash` calls `planning`, `resume`, `rewrite`, and `standing`.
-- `verification/` — `output` calls `models`, `process` calls `output` and `status`, and `runner` calls `process`.
+- `verification/` — `output` calls `models`, `process` calls `output`, `probes`, and `status`, and `runner` calls
+  `process`, `probes`, and `models` to snapshot HEAD and full tree identity and record the verification transcript.
   `status` shares the NUL framing and submodule arguments defined on `probes` so both path reads agree.
   Both subprocess owners reach the agent package for what a spawned child costs rather than keeping a second copy:
   `process` takes the bounded drain from `agents/process_groups.py`, and `runner` takes that same drain, the

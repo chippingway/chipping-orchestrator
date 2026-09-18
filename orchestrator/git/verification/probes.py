@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""HEAD, committed-object, and committed-path probes.
+"""HEAD, tree identity, committed-object, and committed-path probes.
 
 Reads use the git command owner's hardened, non-interactive envelope. Commit
 comparisons take established object IDs from the caller so they describe one
@@ -47,6 +47,21 @@ def _head_sha(worktree: Path) -> str:
     if head_result.returncode != 0:
         return ""
     return (head_result.stdout or "").strip()
+
+
+def _tree_sha(worktree: Path, revision: str = "HEAD") -> str:
+    """Tree SHA of `revision` in `worktree`, or '' if it cannot be read.
+
+    Used by local verification to record full tree identity and prove tree
+    stability across commands.
+    """
+    if not revision:
+        return ""
+    target = f"{revision}^{{tree}}"
+    tree_result = _commands._git("rev-parse", "--verify", target, cwd=worktree)
+    if tree_result.returncode != 0:
+        return ""
+    return (tree_result.stdout or "").strip()
 
 
 def _head_on_branch(worktree: Path, branch: str) -> bool:
