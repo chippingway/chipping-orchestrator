@@ -11,16 +11,21 @@ is waiting for a real answer.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import messages
-from tests.support.fakes import FakeComment, FakeGitHubClient, make_issue
+from orchestrator.workflow.engine import comments as _comments, messages
+from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
+from tests.workflow.interleaving import _RacesPastTheStep
 
 _CONTINUE_COMMAND = "/orchestrator continue"
 _SHA_LENGTH = 40
 _COMMIT = "a" * _SHA_LENGTH
 _REFUSAL_ISSUE_NUMBER = 1011
 _WATERMARK_KEY = "last_action_comment_id"
+_COMMAND_ID = 1
+_GUIDANCE = "no -- rename the flag first"
+_POST_ISSUE_COMMENT = "_post_issue_comment"
 
 
 class DriftAckMarkerTest(unittest.TestCase):
@@ -201,22 +206,62 @@ class ContinueCommandActionTest(unittest.TestCase):
 
 
 class RefuseParkedContinueTest(unittest.TestCase):
-    """The refusal has to consume the command it answers, or it re-fires and
-    re-posts on every following tick."""
+    """What a refusal consumes, which is the command it answers and our note.
+
+    The command has to go, or the refusal re-fires and re-posts on every
+    following tick. Nothing ELSE may go with it: what the caller classified is
+    a batch it read before this call, and the minutes around a post are time a
+    human can write real guidance in -- marked answered here, that guidance is
+    consumed by a decision that never considered it and by an agent that never
+    saw it.
+    """
+
+    def setUp(self) -> None:
+        self.github = FakeGitHubClient()
+        self.issue = make_issue(_REFUSAL_ISSUE_NUMBER)
+        self.github.add_issue(self.issue)
+        self.issue.comments.append(
+            FakeComment(id=_COMMAND_ID, body=_CONTINUE_COMMAND),
+        )
+        self.state = PinnedState(state_data={})
 
     def test_refusal_advances_the_watermark(self) -> None:
-        gh = FakeGitHubClient()
-        issue = make_issue(_REFUSAL_ISSUE_NUMBER)
-        gh.add_issue(issue)
-        issue.comments.append(FakeComment(id=1, body=_CONTINUE_COMMAND))
-        state = PinnedState(state_data={})
+        messages._refuse_parked_continue(
+            self.github, self.issue, self.state, list(self.issue.comments),
+        )
 
-        messages._refuse_parked_continue(gh, issue, state)
-
-        _issue_number, posted_body = gh.posted_comments[-1]
+        _issue_number, posted_body = self.github.posted_comments[-1]
         self.assertIn("needs your actual", posted_body)
         # Past BOTH the command and the refusal itself.
-        self.assertEqual(state.get(_WATERMARK_KEY), gh.latest_comment_id(issue))
+        self.assertEqual(
+            self.state.get(_WATERMARK_KEY),
+            self.github.latest_comment_id(self.issue),
+        )
+
+    def test_guidance_written_as_it_refuses_survives(self) -> None:
+        refused = list(self.issue.comments)
+        landed = []
+        racing = _RacesPastTheStep(
+            _comments._post_issue_comment, lambda: landed.append(self._reply()),
+        )
+
+        with patch.object(_comments, _POST_ISSUE_COMMENT, racing):
+            messages._refuse_parked_continue(
+                self.github, self.issue, self.state, refused,
+            )
+
+        # The command and our own note are crossed; the guidance written over
+        # them is the next poll's to deliver.
+        self.assertEqual(len(landed), 1)
+        self.assertGreater(self.state.get(_WATERMARK_KEY), _COMMAND_ID)
+        self.assertLess(self.state.get(_WATERMARK_KEY), landed[0])
+
+    def _reply(self) -> int:
+        identified = self.github.next_reply_id(self.issue)
+        self.issue.comments.append(
+            FakeComment(identified, _GUIDANCE, user=FakeUser("alice")),
+        )
+        return identified
 
 
 if __name__ == "__main__":

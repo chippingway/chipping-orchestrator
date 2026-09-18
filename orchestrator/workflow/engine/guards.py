@@ -294,10 +294,12 @@ def _park_awaiting_human(
     that is the answer being thrown away by the question. Read off the comment
     we wrote, their reply is still there for the next poll.
 
-    A post whose id nothing could read falls back to the thread's tip, which
-    is the lesser of the two failures left: a watermark that never moved
-    leaves the park's own notice to be read back as somebody's fresh guidance
-    on every dispatch after this one.
+    A post this call could not identify moves the mark nowhere. What a park
+    may record itself as having read past is a comment actually posted and
+    identified, and reading the tip for one nothing named would cross whatever
+    else stands on the thread -- while our own unrecorded sentence is refused
+    as forged by every reading that builds a prompt, its marker carrying no
+    ledger entry to vouch for it.
 
     `bounded=True` asks for the other answer, and every park that follows an
     agent RUN asks for it. The notice-id answer above is right for a refusal
@@ -320,7 +322,7 @@ def _park_awaiting_human(
     if bounded:
         _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
     else:
-        _park_watermarks._stamp_the_notice(gh, issue, state, posted)
+        _park_watermarks._stamp_the_notice(state, posted)
     # Read the label AFTER the comment post and state writes so the
     # captured stage reflects the handler that drove the park (the label
     # itself is unchanged by this call -- callers relabel only after the

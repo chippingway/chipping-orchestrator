@@ -169,7 +169,9 @@ def _handle_parked_continue_command(
     if decision is None:
         return False
     if decision.action == "refuse":
-        _messages._refuse_parked_continue(gh, issue, state)
+        _messages._refuse_parked_continue(
+            gh, issue, state, decision.comments,
+        )
         gh.write_pinned_state(issue, state)
     else:
         _retry_parked_dev_session(

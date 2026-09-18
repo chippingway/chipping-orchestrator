@@ -181,9 +181,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             It marks the thread read to the id of the notice it POSTED rather than to whatever the
                             thread ends on afterwards: the two differ only for a human replying between the post and
                             that write, and on a park waiting for a reply, reading the tip there consumes the answer
-                            with the question. A post whose id nothing could read falls back to the tip, since a
-                            watermark that never moved leaves the park's own notice to be read back as somebody's
-                            guidance on every later tick. `bounded=True` asks for the other answer, and every park
+                            with the question. A post this call could not identify moves the mark nowhere at all,
+                            since what it may record itself read past is a comment actually posted AND identified.
+                            `bounded=True` asks for the other answer, and every park
                             that FOLLOWS an agent run asks for it: the thread is recorded read only as far as
                             `park_watermarks.py` beside this can walk it. Popped like `reason` rather than admitted
                             as a correlation field, since it decides a write rather than describing the run
@@ -192,7 +192,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comments the tick actually posted and identified -- a post the ledger never gained moves
                             the mark nowhere, since taking the tip for it would spend the comment a human wrote while
                             the agent ran, and the frozen reply batch refuses our own unrecorded notice by its marker
-                            instead; only a missing prior watermark uses the tip. The notice-id stamp the funnel
+                            instead. A thread with no watermark under it is the same answer for the same reason:
+                            the tip is where a comment written DURING the run lands, so the walk has nowhere to
+                            start and the pickup that opens an issue anchors the mark to its own comment rather
+                            than leaving one to be guessed at. The notice-id stamp the funnel
                             defaults to is the other half of the same question and lives here beside the walk, so
                             the funnel picks between two answers rather than writing one of them out itself. It
                             sits here rather than in one stage because every park that waits for a human owes it:
@@ -428,7 +431,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             standing for the life of the issue with neither announced, while a stand-down lets that
                             handler run and takes this park on the tick after its own clears
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
-                            greeting / hash / label / state order a start publishes in
+                            greeting / hash / label / state order a start publishes in. The greeting anchors BOTH
+                            thread cursors -- the validating handoff's `pickup_comment_id` and the shared
+                            `last_action_comment_id` -- because the spawn it opens quotes this thread as it stands
+                            and its own notice is the last word of that reading. An issue starting without that
+                            floor gives the park that ends its first agent run nothing to walk from, and a walk
+                            with nowhere to start would have to read the tip, which is where the comment written
+                            during that run is
     prompt_notes.py         shared empty-context placeholders, foreground execution instructions, the commit-subject
                             contract every prompt that may author one carries -- mirror the repository's own recent
                             history rather than any enumerated prefix set, and write the descriptive subject alone,

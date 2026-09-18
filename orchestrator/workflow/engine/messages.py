@@ -31,17 +31,24 @@ message at all.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 
 from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    park_watermarks as _park_watermarks,
+)
 
 _DRIFT_ACK_RE = re.compile(r"^\s*ACK:\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
 
 _CONTINUE_PARK_REASONS = frozenset(("agent_silent", "agent_timeout"))
+
+# The shared issue-thread cursor a refusal consumes its own command through.
+_LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 
 _ORCHESTRATOR_CONTINUE_RE = re.compile(
     r"^[ \t]*/orchestrator[ \t]+continue[ \t]*$",
@@ -164,19 +171,48 @@ def _continue_command_action(new_comments: list, park_reason) -> str:
 
 
 def _refuse_parked_continue(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    refused: Iterable = (),
 ) -> None:
     """Consume a content-free `/orchestrator continue` and post a refusal on a
     park that needs real human guidance, leaving the issue parked.
 
     Shared by the dev-parking stages (`implementing`, `documenting`,
     `validating`, `resolving_conflict`): a bare continue on a non-retryable
-    park carries no answer, so post a single note and advance the
-    issue watermark past BOTH the command and the refusal (so neither re-fires
-    next tick and the refusal is not re-posted every poll). `awaiting_human`
-    stays set. Mutates in-memory state only; the caller writes pinned state.
+    park carries no answer, so post a single note and advance the issue
+    watermark past BOTH the command and the refusal (so neither re-fires next
+    tick and the refusal is not re-posted every poll). `awaiting_human` stays
+    set. Mutates in-memory state only; the caller writes pinned state.
+
+    `refused` is the batch the caller CLASSIFIED, and the watermark is taken
+    from it rather than from the thread. The two are not the same reading:
+    every caller here decides from a batch it read before this call, and
+    guidance can land between that read and this post -- taken off the tip,
+    that comment is marked answered by a refusal that never considered it and
+    by an agent that never saw it. Read off the batch, the refusal consumes
+    exactly the command it is an answer to.
+
+    Past the refusal itself the `park_watermarks` walk carries it, through our
+    own identified comments and no further. So an intervening comment stops
+    the mark below itself and is the next poll's to deliver, while the
+    ordinary thread -- command, then our note, then nothing -- is consumed
+    whole. A caller whose own settlement consumes the batch passes nothing and
+    the walk is the whole of what happens.
     """
+    said_before = _comments._orchestrator_ids(state)
+    prior = state.get(_LAST_ACTION_COMMENT_ID)
+    read_to = max(
+        (
+            comment.id for comment in refused
+            if isinstance(getattr(comment, "id", None), int)
+        ),
+        default=0,
+    )
+    if isinstance(prior, int):
+        read_to = max(read_to, prior)
+    if read_to:
+        state.set(_LAST_ACTION_COMMENT_ID, read_to)
     _comments._post_issue_comment(gh, issue, state, _CONTINUE_NEEDS_GUIDANCE_MSG)
-    latest = gh.latest_comment_id(issue)
-    if latest is not None:
-        state.set("last_action_comment_id", latest)
+    _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)

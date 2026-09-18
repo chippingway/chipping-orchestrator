@@ -17,15 +17,22 @@ for, and the road that could act on it never sees it.
 from __future__ import annotations
 
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from orchestrator import config
 from orchestrator.workflow.engine import (
     comments as _comments,
     park_watermarks as _park_watermarks,
+    pickup as _pickup,
 )
 from orchestrator.workflow.stages.implementing import state as _state
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
-from tests.workflow.fixtures import LABEL_IMPLEMENTING, _agent
+from tests.workflow.fixtures import (
+    _TEST_SPEC,
+    LABEL_IMPLEMENTING,
+    _agent,
+    _PatchedWorkflowMixin,
+)
 from tests.workflow.stages.implementing import (
     late_consent_case as _consent_case,
     late_consent_payloads as _consent_payloads,
@@ -40,6 +47,12 @@ _ASKS = "which of the two did you mean?"
 _ISSUE_NUMBER = 614
 _AUTHOR = "alice"
 _SAID = "one comment on the thread"
+
+# The issue nobody has picked up yet, for the one run that has no watermark
+# under it until the pickup writes one.
+_FRESH_ISSUE_NUMBER = 615
+_DECOMPOSE = "DECOMPOSE"
+_PICKUP_COMMENT_ID = "pickup_comment_id"
 
 
 class _RunsWhileOneLands:
@@ -138,14 +151,15 @@ class RunWindowWatermarkTest(_consent_case._ParkedCase, unittest.TestCase):
 
 
 class ReadThisFarFallbackTest(unittest.TestCase):
-    """The two answers no walk can reach, and what each of them is.
+    """The two answers no walk can reach, and why neither of them is the tip.
 
     A notice nothing identified advances the mark nowhere: what may be
     advanced through is a comment actually posted and identified, and taking
     the tip for one that was not would spend the comment a human wrote while
-    the agent ran. A thread with no watermark at all is the one answer left to
-    the tip -- the spawn behind it quoted the whole thread, so what is below
-    was answered rather than missed.
+    the agent ran. A thread with no watermark is the same answer for the same
+    reason -- it is tempting to read the tip there, since the spawn behind
+    such a tick quoted the whole thread, but the tip is also exactly where the
+    comment written DURING that run is, and no id tells the two apart.
     """
 
     def setUp(self) -> None:
@@ -172,16 +186,18 @@ class ReadThisFarFallbackTest(unittest.TestCase):
             self.state.get(_state._LAST_ACTION_COMMENT_ID), settled,
         )
 
-    def test_a_thread_never_read_takes_the_tip(self) -> None:
-        # A tick with no watermark has nothing to bound: the spawn behind it
-        # quoted the whole thread to the agent, so what is below has been
-        # answered rather than missed. The post itself landed, which is what
-        # separates this from the answer above.
+    def test_a_thread_never_read_moves_nothing(self) -> None:
+        # The post itself landed here, which is what separates this from the
+        # answer above -- and it still buys no advance, because the walk has
+        # nothing under it to start from. Reading the tip instead would cross
+        # the reply a human wrote while the agent was out; leaving the mark
+        # unset costs one redundant resume over conversation that agent has
+        # already been handed, which the settlement then records for good.
         said_before = _comments._orchestrator_ids(self.state)
         _comments._track_orchestrator_comment(self.state, self._reply())
-        standing = self._reply()
+        self._reply()
 
-        self.assertEqual(self._read_this_far(said_before), standing)
+        self.assertIsNone(self._read_this_far(said_before))
 
     def _read_this_far(self, said_before) -> int | None:
         return _park_watermarks._read_this_far(
@@ -194,6 +210,61 @@ class ReadThisFarFallbackTest(unittest.TestCase):
             FakeComment(identified, _SAID, user=FakeUser(_AUTHOR)),
         )
         return identified
+
+
+class _WritesWhileTheFirstRunIsOut:
+    """The first agent an issue ever pays for, with one reply written into it.
+
+    A class rather than a closure because the runner this repository patches
+    is a value with a name, and this window is the one a fresh issue has no
+    watermark under: what the pickup wrote is the only floor the park that
+    ends this run can walk from.
+    """
+
+    def __init__(self, github, issue) -> None:
+        self._github = github
+        self._issue = issue
+        self.landed = 0
+
+    def __call__(self, *called, **options):
+        self.landed = self._github.next_reply_id(self._issue)
+        self._issue.comments.append(
+            FakeComment(self.landed, _SAID, user=FakeUser(_AUTHOR)),
+        )
+        return _agent(last_message=_ASKS)
+
+
+class FirstRunWindowTest(_PatchedWorkflowMixin, unittest.TestCase):
+    """The window under the very first agent run, which has no prior mark.
+
+    Every other bound on this road walks from a watermark some earlier tick
+    settled. This one has none until the pickup writes it, and what the pickup
+    posts is the last word of the reading its own spawn prompt carried -- so
+    the park that ends that first run can stop below whatever a human wrote
+    while the agent was out, rather than crossing it with the thread's tip.
+    """
+
+    def test_a_reply_during_the_first_run_is_kept(self) -> None:
+        github = FakeGitHubClient()
+        issue = make_issue(_FRESH_ISSUE_NUMBER)
+        github.add_issue(issue)
+        landing = _WritesWhileTheFirstRunIsOut(github, issue)
+
+        with patch.object(config, _DECOMPOSE, False):
+            self._run(
+                lambda: _pickup._handle_pickup(github, _TEST_SPEC, issue),
+                run_agent=MagicMock(side_effect=landing),
+                has_new_commits=False,
+            )
+
+        pinned = github.pinned_data(_FRESH_ISSUE_NUMBER)
+        self.assertEqual(
+            pinned[_state._LAST_ACTION_COMMENT_ID], pinned[_PICKUP_COMMENT_ID],
+        )
+        self.assertLess(
+            pinned[_state._LAST_ACTION_COMMENT_ID], landing.landed,
+        )
+        self.assertTrue(pinned[_state._AWAITING_HUMAN])
 
 
 if __name__ == "__main__":

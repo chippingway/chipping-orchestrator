@@ -2997,7 +2997,11 @@ disposition behind the resume and are untouched by the settlement. There is no r
 stage handler records one), so the settlement is `engine/prompt_delivery.py`'s ordinary pinned ratchet straight into
 `last_action_comment_id`. A batch the authorization or the measurement park reserves is not resumed on and not
 consumed at all, and an explicit `/orchestrator continue` retry keeps its own semantics: it consumes the command and
-re-issues the orchestrator's continue prompt rather than delivering the operator's words.
+re-issues the orchestrator's continue prompt rather than delivering the operator's words. The REFUSAL that answers a
+command on a park needing real guidance settles the same way: `_refuse_parked_continue` is handed the batch its
+caller classified and consumes that, then advances through the refusal it posted with the `park_watermarks` walk.
+Read off the thread's tip instead, guidance written between the classification and the post is marked answered by a
+decision that never considered it and by an agent that never saw it.
 
 On `workflow:implementing` a bare `/orchestrator continue` reserves the batch too, and only there. That stage's
 preflight runs `_handle_parked_continue_command` and hands the tick back, so a command landing in the window after

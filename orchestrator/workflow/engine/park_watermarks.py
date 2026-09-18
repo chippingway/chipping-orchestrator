@@ -4,10 +4,12 @@
 
 A post can land above a human reply that arrived during the agent run. The
 walk stops at the first comment the orchestrator id ledger does not claim, and
-advances only through comments this tick actually posted and identified; only
-a missing prior watermark uses the thread tip. The other answer is the id of
-the notice the park just posted, which is right wherever no run sits under the
-decision, and both live here because choosing between them is one question.
+advances only through comments this tick actually posted and identified. The
+other answer is the id of the notice the park just posted, which is right
+wherever no run sits under the decision, and both live here because choosing
+between them is one question. Neither ever reads the thread's tip: a tip is
+where a comment nothing here has looked at lands, and crossing one is the only
+failure on this road that cannot be undone by a later poll.
 
 It sits in the engine rather than in one stage because every park that waits
 for a human owes it, and the funnel those parks go through is `guards.py`
@@ -62,18 +64,22 @@ def _read_this_far(
     the tip instead would buy that safety with the one thing this bound exists
     to keep: the comment a human wrote while the agent ran.
 
-    One answer still falls back to the tip, and it is the lesser of what is
-    left. A watermark that was never set is a tick with nothing to bound: the
-    spawn behind it quoted the whole thread to the agent, so the comments
-    below have been answered rather than missed, while a mark left unset would
-    hand every one of them back as fresh guidance on the next poll.
+    A thread with no watermark at all is the same answer for the same reason.
+    It is tempting to read the tip there -- the spawn behind such a tick
+    quoted the whole thread, so what sits below has been answered rather than
+    missed -- but the tip is also where the comment written DURING the run is,
+    and nothing distinguishes the two by id. The pickup that starts an issue
+    anchors the mark to its own comment precisely so this case is a legacy
+    issue rather than the ordinary road, and what a legacy issue costs is one
+    redundant resume over conversation an agent has already read. The comment
+    the bound exists to keep is not a thing to spend on that.
     """
     ours = _comments._orchestrator_ids(state)
     if ours == said_before:
         return None
     read_to = state.get(_delivery.PINNED_LAST_ACTION_COMMENT_ID)
     if not isinstance(read_to, int):
-        return gh.latest_comment_id(issue)
+        return None
     for seen in sorted(gh.comments_after(issue, read_to), key=_comment_id):
         if _comment_id(seen) not in ours:
             break
@@ -98,9 +104,7 @@ def _stamp_read_this_far(
         state.set(_delivery.PINNED_LAST_ACTION_COMMENT_ID, read_to)
 
 
-def _stamp_the_notice(
-    gh: GitHubClient, issue: Issue, state: PinnedState, posted: object,
-) -> None:
+def _stamp_the_notice(state: PinnedState, posted: object) -> None:
     """Record the thread read as far as the notice a park just posted.
 
     The other answer, and the default one: a refusal decided between two of
@@ -111,14 +115,18 @@ def _stamp_the_notice(
     read -- and a funnel choosing between them should have both in front of
     it rather than one here and one written out at the call site.
 
-    A post whose id nothing could read falls back to the tip, which is the
-    lesser of what is left: a watermark that never moved leaves the park's own
-    notice to be read back as somebody's fresh guidance on every tick after.
+    A post this tick could not identify moves the mark NOWHERE, which is the
+    walk's rule beside it rather than an exception to it: what a park may
+    advance through is a comment actually posted and identified, and an id
+    nothing read identifies none. Reading the tip for it would cross whatever
+    a human wrote, to buy the lesser thing -- our own unrecorded sentence is
+    refused as forged by every reading that builds a prompt, since it carries
+    our marker with no ledger entry to vouch for it, so the worst it costs is
+    a poll rather than somebody's comment.
     """
     said = getattr(posted, "id", None)
-    latest = gh.latest_comment_id(issue) if said is None else said
-    if latest is not None:
-        state.set(_delivery.PINNED_LAST_ACTION_COMMENT_ID, latest)
+    if said is not None:
+        state.set(_delivery.PINNED_LAST_ACTION_COMMENT_ID, said)
 
 
 def _comment_id(seen) -> int:

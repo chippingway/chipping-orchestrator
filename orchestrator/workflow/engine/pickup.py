@@ -69,9 +69,25 @@ def _pickup_author_allowed(spec: _config_models.RepoSpec, issue: Issue) -> bool:
 
 
 def _record_pickup_comment(state: PinnedState, pickup) -> None:
+    """Anchor both thread cursors on the comment this pickup just posted.
+
+    `pickup_comment_id` is the validating handoff's floor; the shared
+    `last_action_comment_id` is every other reader's, and an issue that starts
+    without one starts with no floor at all. The first agent this pickup
+    spawns runs for minutes, and the park that ends it may only record the
+    thread read as far as it can walk our own identified comments -- a walk
+    with nothing under it has nowhere to start, and reading the thread's tip
+    instead would cross whatever a human wrote while that agent was out.
+
+    Saying it here is saying something true rather than convenient: the spawn
+    below quoted this thread as it stands to the agent, so what is on it has
+    been delivered, and the comment we just posted is the last word of that
+    reading.
+    """
     pickup_id = getattr(pickup, "id", None)
     if pickup_id is not None:
         state.set("pickup_comment_id", int(pickup_id))
+        state.set("last_action_comment_id", int(pickup_id))
 
 
 def _start_decomposing(

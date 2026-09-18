@@ -12,6 +12,11 @@ A park that FOLLOWS an agent run answers it differently, and asks for that
 with `bounded=True`: minutes passed inside such a run, so the park's own
 notice lands above whatever a human wrote in them and the notice-id floor
 below would cross exactly the reply the park is waiting for.
+
+Neither answer ever reads the thread's tip. What a park may record itself as
+having read past is a comment actually posted and identified, so a post no id
+came back from moves the mark nowhere rather than to whatever the thread
+happens to end on.
 """
 
 from __future__ import annotations
@@ -72,16 +77,20 @@ class ParkWatermarkTest(unittest.TestCase):
         self.assertEqual(len(landed), 1)
         self.assertLess(self.state.get(_WATERMARK), landed[0])
 
-    def test_an_unreadable_post_falls_back_to_the_tip(self) -> None:
-        # The lesser of the two failures left: a watermark that never moved
-        # would leave the park's own notice to be read back as somebody's
-        # fresh guidance on every dispatch after this one.
-        standing = self._reply()
+    def test_an_unreadable_post_moves_nothing(self) -> None:
+        # What a park may record itself as having read past is a comment
+        # actually posted and identified, and an id nothing read identifies
+        # none. Taking the tip for it would cross whatever else is standing on
+        # the thread; leaving the mark costs a poll at worst, since our own
+        # unrecorded sentence carries our marker with no ledger entry behind
+        # it and is refused as forged by every reading that builds a prompt.
+        self._reply()
 
         with patch.object(_comments, _POST_ISSUE_COMMENT, return_value=None):
             self._park()
 
-        self.assertEqual(self.state.get(_WATERMARK), standing)
+        self.assertIsNone(self.state.get(_WATERMARK))
+        self.assertTrue(self.state.get("awaiting_human"))
 
     def _reply(self) -> int:
         identified = self.github.next_reply_id(self.issue)

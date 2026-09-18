@@ -51,7 +51,9 @@ def _resume_validating_awaiting_dev(context: _models._AwaitingValidation) -> str
         if context.comments else "passthrough"
     )
     if continue_action == "refuse":
-        _messages._refuse_parked_continue(context.gh, context.issue, context.state)
+        _messages._refuse_parked_continue(
+            context.gh, context.issue, context.state, context.comments,
+        )
         context.gh.write_pinned_state(context.issue, context.state)
         return _state._OUTCOME_RETURN
     attempt = _awaiting._run_awaiting_dev(context, continue_action)

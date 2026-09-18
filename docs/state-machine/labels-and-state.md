@@ -775,9 +775,11 @@ The keys that matter for the state machine fall into a few groups:
   tick explicitly re-sets it after the park call. `last_action_comment_id` is stamped at the id of the notice that
   call POSTED, not at whatever the thread ends on once it has: the two differ only when a human replies between the
   post and the write, and on a park whose whole point is waiting for a reply, reading the tip there is the answer
-  being thrown away by the question. A post whose id nothing could read falls back to the tip, which is the lesser
-  of the two failures left — a watermark that never moved leaves the park's own notice to be read back as somebody's
-  fresh guidance on every tick after.
+  being thrown away by the question. A post this call could not identify moves the mark **nowhere** — what a park may
+  record itself as having read past is a comment actually posted and identified, and reading the tip for one nothing
+  named would cross whatever else stands on the thread, to buy the lesser thing: our own unrecorded sentence carries
+  the marker with no ledger entry to vouch for it, so every reading that builds a prompt refuses it as forged and the
+  worst it costs is a poll.
 
   The parks that FOLLOW an agent run read the field differently, through
   `engine/park_watermarks.py`, because minutes passed inside the run and a human may have written in that window:
@@ -785,9 +787,14 @@ The keys that matter for the state machine fall into a few groups:
   `orchestrator_comment_ids` ledger claims, stopping at the first it does not, so a comment that landed while the
   agent was out stays unread. It advances only through comments the tick actually posted and **identified** — a post
   the ledger never gained moves the mark nowhere, since the frozen reply batch below refuses our own unrecorded
-  notice by its body marker and taking the tip for it would spend that human's comment instead. Only a thread with no
-  watermark at all falls back to the tip, where the fresh spawn behind it quoted the whole conversation to the agent
-  and what sits below has been answered rather than missed.
+  notice by its body marker and taking the tip for it would spend that human's comment instead. A thread with no
+  watermark under it is the same answer for the same reason: the walk has nowhere to start, and the tip is exactly
+  where a comment written DURING the run sits, with no id to tell it from the conversation the spawn already quoted.
+  So the mark is left where it is, and `_handle_pickup` writes the floor instead — the pickup comment anchors
+  `last_action_comment_id` beside `pickup_comment_id`, because the spawn it opens quotes the thread as it stands and
+  its own notice is the last word of that reading. A legacy issue picked up before that anchor existed pays one
+  redundant resume over conversation its agent has already read, and the settlement behind that resume records the
+  floor for good.
 
   EVERY park the `workflow:implementing` and `workflow:validating` handlers take reads the field that way. The agent
   question and the dirty / unreadable checkout refusals call the reader directly, because they post their own notice;
