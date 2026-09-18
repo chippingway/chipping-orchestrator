@@ -250,7 +250,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is trusted only where it stands in the same possible code, or the same prose, as the
                             tag that opened the element; and an OPENING tag or comment opens nothing in DEFINITE
                             code -- a certain span or a definite fence -- since a tag quoted as an example is no
-                            tag, unless an element is already open, where no Markdown is read
+                            tag, unless an element is already open, where no Markdown is read. A tag is found by
+                            its opener and read to its end only once it counts: a quoted one is passed over at its
+                            name, so one cut short inside its code never takes a real tag after it as attributes
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the

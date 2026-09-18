@@ -91,6 +91,8 @@ CLOSING_NOTHING = (
     f"<code><code>example</code> {RESOLVES}</code>",
     f"Intro\r\r    {RESOLVES}",
     f'<pre data-example="> </pre>">{RESOLVES}</pre>',
+    f"Example `<pre` then <code>{RESOLVES}</code>",
+    f"```\n<pre\n```\n\n<code>{RESOLVES}</code>",
     f"Resolves someone/else#{ISSUE}",
 )
 

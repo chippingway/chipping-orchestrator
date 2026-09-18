@@ -17,6 +17,11 @@ DEFINITE code -- a span or a closed fence that is code however the text is
 read -- since a tag quoted as an example is no tag, and read as one it would
 take every line after it. Inside an element already open that mercy ends: no
 Markdown is read there, so every tag is a tag.
+
+A tag is found by its OPENER and read to its end only once it counts. One
+quoted as code is passed over at its name, so whatever follows that code is
+still read: read to its own `>` first, a tag cut short inside a span would take
+a real tag after the span as its attributes, and hide the element that opens.
 """
 from __future__ import annotations
 
@@ -26,15 +31,18 @@ from collections import Counter
 from collections.abc import Iterator
 from typing import Final
 
-# A comment's opener; or one tag of an element HTML shows literally or not at
-# all, its quoted attribute values taken whole -- `\x22` and `\x27` being the two
-# quotes. A tag its own `>` never closes, or a value its quote never closes,
-# takes the rest of the text with it.
-_TOKEN_RE = re.compile(
-    r"<!--"
-    r"|<(?P<closes>/?)(?P<tag>pre|code|samp|kbd|tt|script|style|textarea)\b"
-    r"(?:\x22[^\x22]*(?:\x22|\Z)|\x27[^\x27]*(?:\x27|\Z)|[^>\x22\x27])*+>?",
+# What opens a comment, or one tag of an element HTML shows literally or not
+# at all: as far as its name, which is all a tag quoted as code is read for.
+_OPENER_RE = re.compile(
+    r"<!--|<(?P<closes>/?)(?P<tag>pre|code|samp|kbd|tt|script|style|textarea)\b",
     re.IGNORECASE,
+)
+
+# The rest of a tag past its name, quoted attribute values taken whole -- `\x22`
+# and `\x27` being the two quotes. A tag its own `>` never closes, or a value its
+# quote never closes, takes the rest of the text with it.
+_TAG_REST_RE = re.compile(
+    r"(?:\x22[^\x22]*(?:\x22|\Z)|\x27[^\x27]*(?:\x27|\Z)|[^>\x22\x27])*+>?",
 )
 
 _TAG = "tag"
@@ -57,18 +65,25 @@ def html_literals(
     certainly is, each in order and apart.
     """
     reading = _LiteralReading(_Stretches(code), _Stretches(definite))
-    resume = 0
-    token = _TOKEN_RE.search(text)
-    while token is not None:
-        resume = token.end()
-        if token[_TAG] is None:
-            resume = reading.comment_ends(text, token)
-        ended = reading.ended_by(token, resume)
-        if ended is not None:
-            yield ended
-        token = _TOKEN_RE.search(text, resume)
+    opener = _OPENER_RE.search(text)
+    while opener is not None:
+        resume = opener.end()
+        if not reading.quotes(opener):
+            resume = _ends_at(text, opener)
+            ended = reading.ended_by(opener, resume)
+            if ended is not None:
+                yield ended
+        opener = _OPENER_RE.search(text, resume)
     if reading.open_since is not None:
         yield reading.open_since, len(text)
+
+
+def _ends_at(text: str, opener: re.Match[str]) -> int:
+    """Where the comment or the tag `opener` opens ends, as HTML reads it."""
+    if opener[_TAG] is not None:
+        return _TAG_REST_RE.match(text, opener.end()).end()
+    closer = text.find(_COMMENT_CLOSER, opener.end())
+    return len(text) if closer < 0 else closer + len(_COMMENT_CLOSER)
 
 
 class _Stretches:
@@ -100,49 +115,36 @@ class _LiteralReading:
         self._stands_in = _OUTSIDE
         self._depths: Counter[str] = Counter()
 
-    def comment_ends(self, text: str, opener: re.Match[str]) -> int:
-        """Where the reading goes on past a comment's opener.
-
-        Past the whole comment where it is one; past the opener alone where it
-        stands in definite code, so that the text after it is still read.
-        """
-        if self._quoted(opener):
-            return opener.end()
-        closer = text.find(_COMMENT_CLOSER, opener.end())
-        return len(text) if closer < 0 else closer + len(_COMMENT_CLOSER)
-
-    def ended_by(self, token: re.Match[str], resume: int) -> _Stretch | None:
-        """The literal stretch `token` ends, or None while it ends none.
-
-        A comment, which runs to `resume`, is a stretch of its own unless an
-        element already holds it.
-        """
-        if self._quoted(token):
-            return None
-        if token[_TAG] is None:
-            return (token.start(), resume) if self.open_since is None else None
-        if token["closes"]:
-            return self._closed_by(token)
-        if self.open_since is None:
-            self.open_since = token.start()
-            self._stands_in = self._code.holding(token.start())
-        self._depths[token[_TAG].lower()] += 1
-        return None
-
-    def _quoted(self, token: re.Match[str]) -> bool:
-        """Whether `token` is an example quoted as code rather than HTML."""
-        quoted = self._definite.holding(token.start()) != _OUTSIDE
+    def quotes(self, opener: re.Match[str]) -> bool:
+        """Whether `opener` is an example quoted as code rather than HTML."""
+        quoted = self._definite.holding(opener.start()) != _OUTSIDE
         return quoted and self.open_since is None
 
-    def _closed_by(self, token: re.Match[str]) -> _Stretch | None:
-        tag = token[_TAG].lower()
-        hidden = self._code.holding(token.start()) != self._stands_in
+    def ended_by(self, opener: re.Match[str], end: int) -> _Stretch | None:
+        """The literal stretch ended by what `opener` opens, which runs to `end`.
+
+        None while it ends none. A comment is a stretch of its own unless an
+        element already holds it.
+        """
+        if opener[_TAG] is None:
+            return (opener.start(), end) if self.open_since is None else None
+        if opener["closes"]:
+            return self._closed_by(opener, end)
+        if self.open_since is None:
+            self.open_since = opener.start()
+            self._stands_in = self._code.holding(opener.start())
+        self._depths[opener[_TAG].lower()] += 1
+        return None
+
+    def _closed_by(self, opener: re.Match[str], end: int) -> _Stretch | None:
+        tag = opener[_TAG].lower()
+        hidden = self._code.holding(opener.start()) != self._stands_in
         if hidden or not self._depths[tag]:
             return None
         self._depths[tag] -= 1
         self._depths = +self._depths
         if self._depths or self.open_since is None:
             return None
-        ended = (self.open_since, token.end())
+        ended = (self.open_since, end)
         self.open_since = None
         return ended

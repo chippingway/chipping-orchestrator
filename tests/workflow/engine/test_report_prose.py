@@ -96,6 +96,13 @@ UNCERTAIN_QUOTING = (
     f"~~~\nx\n ~~~\n<pre>\n~~~\n{FIXES}",
     f"> ```\n\n> <pre>\n> ```\n> {FIXES}",
     f"<pre>\n\n`<pre>` x</pre> {FIXES}</pre>",
+    # A quoted tag is passed over at its name, never read on to a `>` of its
+    # own: cut short inside its code, it would take the real tag after that
+    # code as its attributes, and hide the element that opens.
+    f"Example `<pre` then <code>{FIXES}</code>",
+    f"Example `</pre` then <pre>{FIXES}</pre>",
+    f"Example `<!--` then <code>{FIXES}</code>",
+    f"```\n<pre\n```\n\n<code>{FIXES}</code>",
 )
 
 # No reference at all, however the text around it reads: a keyword parted from
@@ -135,6 +142,8 @@ PROSE = (
     f"Open a comment with `<!--`.\n\n{FIXES}",
     f"```html\n<pre>\n```\n\n{FIXES}",
     f"> ```html\n> <pre>\n> ```\n\n{FIXES}",
+    f"Example `<pre` then {FIXES}",
+    f"```\n<pre\n```\n\n{FIXES}",
     # Not a tag at all, so its apostrophe is no unclosed attribute value.
     f"When n <m it's fine. {FIXES}",
 )
