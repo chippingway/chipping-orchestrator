@@ -20,6 +20,7 @@ out under it.
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from unittest.mock import patch
 
 from orchestrator.github import developer_reports as _reports
@@ -67,6 +68,9 @@ REPLACEMENT_REPORT = "Adds the thing, reported inline this time."
 # What an earlier publication settled its report about: a commit the branch
 # has since moved past, and the pull request that carried it.
 OLDER_SHA = "d" * SHA_LENGTH
+
+# The revision a rewritten header claims for a report that settled as the first.
+REWRITTEN_REVISION = 7
 
 SETTLED_PR = 7
 
@@ -288,9 +292,20 @@ def _edits_the_report(_issue, comments) -> None:
     )
 
 
-def _deletes_the_report(_issue, comments) -> None:
-    """Delete the settled report from its pull request."""
-    comments.pop()
+def _rewrites_the_header(_issue, comments) -> None:
+    """Re-render the settled report as another publication's, keeping its words.
+
+    Self-consistent, so the comment still reads back as a report of ours with
+    the very text that settled -- only its header now claims another commit,
+    another revision and another transaction.
+    """
+    settled = _reports.developer_report_from_comment(comments[-1], bot_login=None)
+    comments[-1].body = _reports.render_developer_report(replace(
+        settled,
+        source_sha=OLDER_SHA,
+        report_revision=REWRITTEN_REVISION,
+        receipt=f"issue-{support.REPORT_ISSUE}-report-{REWRITTEN_REVISION}",
+    ))
 
 
 def _edits_the_requirements(issue, _comments) -> None:
@@ -300,7 +315,8 @@ def _edits_the_requirements(issue, _comments) -> None:
 
 _MOVES_AFTER_THE_SETTLEMENT = (
     ("an edited report", _edits_the_report),
-    ("a deleted report", _deletes_the_report),
+    ("a deleted report", lambda _issue, comments: comments.pop()),
+    ("a rewritten header", _rewrites_the_header),
     ("moved requirements", _edits_the_requirements),
 )
 

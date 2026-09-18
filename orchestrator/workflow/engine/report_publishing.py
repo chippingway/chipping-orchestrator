@@ -269,11 +269,15 @@ def still_carries(
     A comment this orchestrator posted is read as the report it renders: the
     settlement recorded the digest of the report TEXT, which the comment wraps
     in its header, so the comment has to re-render exactly and carry that
-    text. Whose it is comes off this issue's own ledger of posted comments
-    rather than off the author, since that ledger is what named the comment in
-    the first place. Anything else is a location a developer verified, held to
-    the digest of what is there and to an author this deployment trusts,
-    exactly as the verification was.
+    text. The header is held too, member by member, to the settled record and
+    the handoff beside it -- pull request, commit, requirements, revision and
+    receipt -- since a rewrite that keeps the words and renders consistently
+    would otherwise pass as the report that settled while claiming to be about
+    some other publication. Whose the comment is comes off this issue's own
+    ledger of posted comments rather than off the author, since that ledger is
+    what named it in the first place. Anything else is a location a developer
+    verified, held to the digest of what is there and to an author this
+    deployment trusts, exactly as the verification was.
 
     UNCONFIRMED is a reading nobody could take, the author included, and a
     caller holds on it; ABSENT and CHANGED are definite answers about content
@@ -288,8 +292,21 @@ def still_carries(
         published = _reports.developer_report_from_comment(
             lookup.found, bot_login=None,
         )
-        same = published is not None and (
-            _reports.content_digest(published.text) == current.content_revision
+        settled_as = (
+            current.subject.pr_number,
+            current.subject.source_sha,
+            current.subject.requirements_revision,
+            current.report_revision,
+            getattr(_settlement.read_handoff(state), "receipt", None),
+            current.content_revision,
+        )
+        same = published is not None and settled_as == (
+            published.pr_number,
+            published.source_sha,
+            published.requirements_revision,
+            published.report_revision,
+            published.receipt,
+            _reports.content_digest(published.text),
         )
         return _pr_reports.ReportPresence.PRESENT if same else lookup.presence
     if lookup.presence is not _pr_reports.ReportPresence.PRESENT:

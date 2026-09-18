@@ -441,8 +441,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             answer it, on the binding's road and the reconciliation's alike. `still_carries` reads a
                             SETTLED report again where it settled, for a recovery about to hand its commit on: a
                             comment on this issue's own ledger has to re-render as the report whose text digest
-                            settled, and any other location has to hash to the digest verified and have an author
-                            this deployment trusts
+                            settled, with its whole header -- pull request, commit, requirements, revision and the
+                            handoff's receipt -- the one the settlement recorded, and any other location has to hash
+                            to the digest verified and have an author this deployment trusts
     report_binding.py       what a publication does with the report its run delivered, once the push has landed
                             and a pull request carries it: the record bound to that publication -- the repository,
                             the number, the branch and the commit the caller proved, beside the requirements
@@ -1429,8 +1430,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             work. Even that pair is only a claim about one moment, so the report is re-read where it
                             settled and the issue's requirements read again before it lets the work past: a reading
                             nobody could take holds the tick silently, and a report edited or deleted since, or
-                            requirements moved away from, parks for repair. Also the `invoked=False` result those
-                            recoveries hand the seam. The timeout-park
+                            requirements moved away from, parks for repair. The one commit owed no report at all is
+                            the one a run that never COMPLETED left -- a timeout, a provider refusal, a nonzero exit
+                            -- which the seam records as `implementing_incomplete_run_sha`, so a recovery of exactly
+                            that commit is not held for a report no run was going to write. Also the `invoked=False`
+                            result those recoveries hand the seam. The timeout-park
                             recovery is not one of them: a timed-out run never completes, so none was recorded and
                             its commit publishes as a timeout's always has
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then

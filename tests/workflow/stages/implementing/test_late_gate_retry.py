@@ -23,6 +23,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.git.measurement.models import FrozenCommit, MeasurementFailure
 from tests.workflow.fixtures import (
+    LABEL_VALIDATING,
     MEASURED_CANDIDATE_SHA,
     _agent,
 )
@@ -30,6 +31,10 @@ from tests.workflow.stages.implementing import (
     late_gate_test_support as support,
     late_retry_payloads as _retry_payloads,
 )
+
+# The report a finished run leaves on the pinned comment, which a run the
+# timeout killed never writes.
+_DELIVERY_RECORD = "developer_report_delivery"
 
 
 class LateGateTimeoutRecoveryTest(support._GateCase, unittest.TestCase):
@@ -55,6 +60,32 @@ class LateGateTimeoutRecoveryTest(support._GateCase, unittest.TestCase):
         self._assert_measured(mocks)
         self._assert_held(mocks)
         self.assertIn(_retry_payloads._DECOMPOSING, self.github.label_history)
+
+    def test_a_timed_out_candidate_is_measured_again(self) -> None:
+        # A run the timeout killed records no report by design, and its commit
+        # publishes as a timeout's always has -- here into a size reading that
+        # failed. The retry a bare continue buys republishes that very commit,
+        # and it is measured again rather than held for a report no run was
+        # ever going to write. No report of any run stands behind either tick.
+        self._seed(**{_DELIVERY_RECORD: None})
+        self._run_gate(
+            run_agent=_agent(session_id=support.DEV_SESSION, timed_out=True),
+            has_new_commits=[False, True],
+            head_shas=(_retry_payloads._PRE_TIMEOUT_SHA, MEASURED_CANDIDATE_SHA),
+            added_lines=MeasurementFailure.DIFF_FAILED,
+        )
+        self._assert_parked()
+        self._reply(support.BARE_CONTINUE)
+
+        mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
+
+        self._assert_no_agent(mocks)
+        self._assert_measured(mocks)
+        self._assert_published(mocks)
+        self.assertEqual(
+            (self._pinned()[_DELIVERY_RECORD], self.github.label_history[-1]),
+            (None, (support.GATE_ISSUE_NUMBER, LABEL_VALIDATING)),
+        )
 
 
 class LateGateStrandedPairTest(support._GateCase, unittest.TestCase):

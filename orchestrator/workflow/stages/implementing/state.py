@@ -302,6 +302,13 @@ _PUBLISHED_LEASE = "implementing_published_lease"
 # a relabel, a debt and a receipt to somebody else's pull request.
 _PUBLISHED_PR = "implementing_published_pr"
 
+# The commit a developer run left when it did not COMPLETE -- a timeout, a
+# provider refusal, a nonzero exit -- and so recorded no report, by design
+# rather than by loss. A recovery that republishes exactly this commit later
+# (a measurement retried, an approval paid) is owed no report either; any
+# other commit is not covered by it.
+_INCOMPLETE_RUN_SHA = "implementing_incomplete_run_sha"
+
 _PARK_REASON = "park_reason"
 
 _PRE_IMPLEMENT_SHA = "pre_implement_sha"

@@ -107,7 +107,10 @@ def _publish_committed_work(
     A `_RecoveredWork` records nothing there -- no developer ran -- so what
     describes it has to be on the comment already, and `unreported_recovery`
     holds it where nothing is: every road that republishes a candidate a gate
-    record named asks that, not only the restart shortcut.
+    record named asks that, not only the restart shortcut. A run that did not
+    complete records nothing either, by design, and the commit it left is
+    written down here so a later recovery of that commit is not held for a
+    report no run was ever going to write.
     """
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
     tree = _worktree_status._worktree_status(work.worktree)
@@ -125,6 +128,9 @@ def _publish_committed_work(
         gh, issue, state, work.agent_result, _state._REPORT_ROUTE,
     ):
         return
+    _unreported_recovery._waives_an_incomplete_run(
+        state, work.agent_result, work.worktree,
+    )
     if isinstance(work, _RecoveredWork) and (
         _unreported_recovery._holds_unreported_work(
             gh, spec, issue, state, work.candidate_sha,

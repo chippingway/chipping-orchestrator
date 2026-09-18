@@ -25,20 +25,30 @@ take holds the tick without a word, since the next one is as likely to succeed.
 A definite answer that the report is not what settled is a publication a human
 has to repair, and it parks with the work where it is.
 
-Neither on the comment is the window the recording exists to close -- a pinned
-write that failed, a restart inside it -- or a run that never completed. Either
-way the session that could say what the commits do has ended, and published
-they would reach review undescribed. So the work is held under
+The one commit owed no report at all is the one a run left when it did not
+COMPLETE: a timeout, a provider refusal, a nonzero exit. Such a run records
+nothing by design and its commit publishes as it always has, so the publication
+seam remembers which commit it was -- and a recovery republishing exactly that
+commit later, a measurement retried or an approval paid, is answered by that
+record rather than held for a report nothing was ever going to write.
+
+Nothing on the comment otherwise is the window the recording exists to close --
+a pinned write that failed, a restart inside it. The session that could say
+what the commits do has ended, and published they would reach review
+undescribed. So the work is held under
 `report_undeliverable` before anything is measured, pushed or opened, and a
 reply resumes a developer that can write the report.
 """
 from __future__ import annotations
+
+from pathlib import Path
 
 from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
+from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.github.pull_request_reports import ReportPresence
@@ -46,12 +56,14 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_evidence as _report_evidence,
     report_locations as _report_locations,
+    report_outcomes as _report_outcomes,
     report_publishing as _report_publishing,
     report_records as _records,
 )
 from orchestrator.workflow.stages.implementing import (
     late_publication_state as _late_publication_state,
     session_read as _session_read,
+    state as _state,
 )
 
 _MOVED_SETTLEMENT_PARK = (
@@ -90,6 +102,27 @@ def _recovery_result(state: PinnedState, message: str) -> AgentResult:
     )
 
 
+def _waives_an_incomplete_run(
+    state: PinnedState, agent_result: AgentResult, worktree: Path,
+) -> None:
+    """Remember the commit a run that never completed left, owing no report.
+
+    Asked of every result the publication seam is handed once its report
+    reading is done, and answering only for a process that really ran and did
+    not finish: a recovery's own sentence was never a run, and a run that
+    finished either recorded a report or was held for one. The commit is the
+    checkout's head, which is what the size gate goes on to measure; a head
+    that cannot be read waives nothing, so a later recovery is held instead.
+    """
+    if not agent_result.invoked:
+        return
+    outcome = _report_outcomes._report_outcome_of_run(agent_result)
+    if outcome not in _report_delivery.INCOMPLETE_RUNS:
+        return
+    head = _verification_probes._head_sha(worktree)
+    state.set(_state._INCOMPLETE_RUN_SHA, head or None)
+
+
 def _holds_unreported_work(
     gh: GitHubClient,
     spec: _config_models.RepoSpec,
@@ -107,6 +140,10 @@ def _holds_unreported_work(
     answers it.
     """
     if _report_delivery.owes_a_report(state):
+        return False
+    # Compared, never parsed: the commit a recovery proved is the one thing a
+    # value here can match, so a hand edit or a truncation waives nothing.
+    if source_sha and state.get(_state._INCOMPLETE_RUN_SHA) == source_sha:
         return False
     settled = _report_locations.settled_publication(
         state, spec.slug,

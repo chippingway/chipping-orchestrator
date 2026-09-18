@@ -2905,6 +2905,13 @@ rather than preserving.
   alone: `late_approved_basis` goes down, is carried, and is dropped with it by every write named above, and says
   which owner granted the debt — spelled out beside the accepted candidate it shares its window with, under
   [late generation state](#late-generation-state).
+- **Incomplete run.** `implementing_incomplete_run_sha` is the commit a developer run left when it did not COMPLETE —
+  a timeout, a provider refusal, a nonzero exit — and so recorded no report by design rather than by loss. The
+  publication seam writes it from the checkout's head for every such run and for no other result, a recovery's own
+  synthesized one included. A recovery that republishes exactly this commit later — a measurement retried, an
+  approval paid — is owed no report either; any other commit is not covered, and a value that is not the commit a
+  recovery proved matches nothing, so a hand edit waives nothing. Additive: an issue without it simply has no
+  incomplete run recorded.
 - **Published pull request.** `implementing_published_pr` is the pull request the recorded publication went onto,
   written with the receipt below and never on its own. The receipt says a commit reached a remote and the head it
   replaced dates that to one attempt; neither says which pull request now carries the work, which is what the

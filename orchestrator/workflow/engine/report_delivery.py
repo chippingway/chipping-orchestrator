@@ -135,8 +135,9 @@ _UNRECORDABLE_PARK = (
 # The refusals that are not a contract violation: no process produced the
 # result at all, or the one that did never got to the end of its own run. Each
 # is a failure answered elsewhere, and none of them is a developer declining to
-# report.
-_INCOMPLETE_RUNS = frozenset((
+# report. Public for the stage that has to remember which commit such a run
+# left, since a recovery of that commit later is owed no report either.
+INCOMPLETE_RUNS = frozenset((
     _outcome_models._ReportRefusal.NOT_INVOKED,
     _outcome_models._ReportRefusal.INTERRUPTED,
     _outcome_models._ReportRefusal.TIMED_OUT,
@@ -305,7 +306,7 @@ def _unreported_run_holds(
     it belongs to the road that knows which earlier run it is recovering --
     `UNRECOVERED_PARK` above is the notice that road posts.
     """
-    if _outcomes._report_outcome_of_run(agent_result) in _INCOMPLETE_RUNS:
+    if _outcomes._report_outcome_of_run(agent_result) in INCOMPLETE_RUNS:
         return False
     log.error(
         "issue=#%d finished a developer run with committed work and no "

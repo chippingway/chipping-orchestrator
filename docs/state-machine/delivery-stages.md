@@ -1707,11 +1707,15 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        made it anywhere on the comment (no delivery, no transaction, and no settled pair about that commit on the
        pull request its receipt names — a settlement is never cleared, so an older commit's pair says nothing about
        this one), which is the lost-write window the recording exists to close. A pair that DOES match is re-read
-       first: the report where it settled — a comment of ours re-rendering as the report it settled as, any other
+       first: the report where it settled — a comment of ours re-rendering as the report it settled as, its whole
+       header (pull request, commit, requirements, revision and receipt) held to the settled record, any other
        location hashing to the digest verified under a trusted author — and the issue's requirements afresh. A
        reading nobody could take holds the tick; a report edited or deleted since, or requirements moved away from,
-       parks for repair rather than letting the record vouch for it. The timeout-park recovery is not
-       among them: a timed-out run never completed, so no report was ever recorded for it to have lost. After the
+       parks for repair rather than letting the record vouch for it. A run that never COMPLETED — a timeout, a
+       provider refusal, a nonzero exit — recorded no report by design, so the commit it left is written down
+       (`implementing_incomplete_run_sha`) and a recovery of exactly that commit, a measurement retried or an
+       approval paid, is answered by that record rather than held; the timeout-park recovery never asks at all.
+       After the
        push, with the code standing and only the
        handoff withheld: a delivered record nobody can read, a verification asserting a report on another pull
        request, and one asserting it on the very DESCRIPTION of the pull request the code reached while that body
