@@ -84,6 +84,9 @@ CLOSING_NOTHING = (
     f"> ~~~\n> {RESOLVES}\n> ~~~",
     f"<pre>{RESOLVES}</pre>",
     f"Escaped \\` then `{RESOLVES}`.",
+    f"An unmatched ` here.\n\n`{RESOLVES}`",
+    f"- > ~~~\n  > {RESOLVES}\n  > ~~~",
+    f"- -     {RESOLVES}",
     f"Resolves someone/else#{ISSUE}",
 )
 

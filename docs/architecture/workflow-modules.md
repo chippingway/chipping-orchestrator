@@ -217,12 +217,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report reader and the reviewer verification reader, judged without a Markdown parser so
                             that a doubt reads as fenced: a fence opens at the top level or in a list item, closes
                             only on a bare run at its opening run's column, and stays open to the end past a line
-                            that may have ended its list item. `outside_code` turns that round for the closing
-                            keywords a description acts on, read with the blockquote markers off so quoted code is
-                            code: fenced lines, lines indented from the margin or a list marker, inline code -- a
-                            span opened by a real backtick run only, since an escaped backtick is a literal
-                            character and pairing it with an opener would show that span's content as prose -- and
-                            what HTML shows literally or hides: `<pre>`, `<code>` and their kind, and comments
+                            that may have ended its list item. On request it reads the fences a blockquote holds
+                            too, behind any nesting of list and quote markers, closing one only behind the markers
+                            it opened behind; the marker readers do not ask, since no marker line opens on `>`
+    report_prose.py         what of a description is certainly prose, for the closing keywords GitHub does not act
+                            on inside code. Not one reading of the Markdown but what EVERY reading leaves, so a
+                            doubt reads as code: lines a fence may enclose and lines indented as code, behind any
+                            nesting of list and blockquote markers; inline code, looked for from every line a block
+                            could begin on within what blank lines bound -- a heading or a list item starts a block
+                            with no blank line above it -- with an escaped backtick opening nothing and a block of
+                            more backticked lines than the readings allow code throughout; and what HTML shows
+                            literally or hides, `<pre>`, `<code>` and their kind, and comments. What is taken out
+                            leaves a character no reference is made of, so a keyword and a number either side of
+                            code are never read as one
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the

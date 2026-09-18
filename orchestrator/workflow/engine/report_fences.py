@@ -11,11 +11,10 @@ the end of the message past a line that may have ended the list item it sat
 in. A blockquote's fence needs no reading: every line inside one opens on `>`,
 and no marker line does.
 
-`outside_code` is the same reading turned the other way, for a caller that
-needs only the text Markdown certainly renders as prose -- the closing keywords
-a pull request's description acts on, which GitHub does not read inside code.
-There a blockquote's markers ARE read, and read off: a quoted fence or a quoted
-indented line is code all the same, and only the marker reader is spared them.
+`report_prose` asks the same question of a pull request's description, where a
+quoted fence IS code that matters, so the reading takes blockquote markers among
+the list markers on request. A fence still closes only behind the very markers
+it opened behind, so a quoted run inside an unquoted fence closes nothing.
 """
 from __future__ import annotations
 
@@ -37,35 +36,18 @@ _FENCE_OPENING_RE = re.compile(
     r"(?P<run>`{3,}(?!.*`)|~{3,}).*",
 )
 
-# What an inline code span is delimited by, and what cannot delimit one: a
-# backslash escape, whose character is literal text, and a backtick run. Read
-# left to right, so the backtick of an escape is never seen as a run.
-_INLINE_TOKEN_RE = re.compile(r"\\[\s\S]|`+")
-
-# What stands in for a code span taken out, so the words either side stay apart.
-_SPAN_GAP = " "
-
-# The markers a line inside a blockquote opens on, however deeply it is nested.
-_BLOCKQUOTE_RE = re.compile(r"^(?: {0,3}>[ ]?)+", re.MULTILINE)
-
-# A line Markdown may show as indented code: four columns in, from the margin
-# or from the list marker the line opens on.
-_INDENTED_CODE_RE = re.compile(
-    r" {0,3}(?:(?:[-+*]|[0-9]{1,9}[.)]) {0,3})?(?: {4}|\t).*",
-)
-
-# What HTML shows literally or not at all: the elements GitHub renders as code,
-# and a comment. One never closed runs to the end of the text.
-_HTML_LITERAL_RE = re.compile(
-    r"<(?P<tag>pre|code|samp|kbd|tt)\b[^>]*>[\s\S]*?(?:</(?P=tag)\s*>|\Z)"
-    r"|<!--[\s\S]*?(?:-->|\Z)",
-    re.IGNORECASE,
+# The same opening behind blockquote markers as well, in any nesting with the
+# list markers: `- > ~~~` opens a fence as surely as `~~~` does.
+_QUOTED_FENCE_OPENING_RE = re.compile(
+    r"(?P<prefix>(?:[ \t]*(?:>|(?:[-+*]|[0-9]{1,9}[.)])(?=[ \t])))*[ \t]*)"
+    r"(?P<run>`{3,}(?!.*`)|~{3,}).*",
 )
 
 # A list item's content lines stand where the text after its marker does, so
 # the lines inside a fence repeat its opening prefix with every marker
-# character turned into a space.
-_LIST_MARKER_CHARACTER_RE = re.compile(r"\S")
+# character turned into a space -- and every blockquote marker repeated, since
+# a quoted line opens on one however deep in a list it sits.
+_LIST_MARKER_CHARACTER_RE = re.compile(r"[^\s>]")
 
 
 @dataclass(frozen=True)
@@ -82,78 +64,26 @@ class _OpenFence:
     continuation: str | None
 
 
-def _fenced_line_starts(text: str) -> frozenset[int]:
+def _fenced_line_starts(text: str, *, quoted: bool = False) -> frozenset[int]:
     """The offset of every line of `text` that may sit inside a code fence.
 
-    A fence never closed runs to the end of the text.
+    A fence never closed runs to the end of the text. `quoted` reads the fences
+    a blockquote holds as well, which a reader of marker lines has no use for.
     """
     fenced: set[int] = set()
     fence: _OpenFence | None = None
     for line in _LINE_RE.finditer(text):
         if fence is None:
-            fence = _fence_opened_by(line.group())
+            fence = _fence_opened_by(line.group(), quoted=quoted)
         else:
             fenced.add(line.start())
             fence = _fence_after(fence, line.group())
     return frozenset(fenced)
 
 
-def outside_code(text: str) -> str:
-    """`text` with everything that may be shown as literal code taken out.
-
-    Read with the blockquote markers off, so quoted code is code: the lines a
-    fence may enclose and the lines that open fences, lines indented as code
-    from the margin or a list marker, inline code spans, and what HTML shows
-    literally or hides -- `<pre>`, `<code>` and their kind, and comments. A
-    doubt reads as code, so what is left is prose.
-    """
-    unquoted = _BLOCKQUOTE_RE.sub("", text)
-    fenced = _fenced_line_starts(unquoted)
-    prose = "\n".join(
-        line.group() for line in _LINE_RE.finditer(unquoted)
-        if line.start() not in fenced
-        and _fence_opened_by(line.group()) is None
-        and _INDENTED_CODE_RE.fullmatch(line.group()) is None
-    )
-    return _HTML_LITERAL_RE.sub(_SPAN_GAP, _without_code_spans(prose))
-
-
-def _without_code_spans(prose: str) -> str:
-    """`prose` with every inline code span taken out.
-
-    A span opens on a backtick run and closes on the next run of exactly that
-    length. An escaped backtick opens nothing -- it is a literal character, so
-    pairing it with a real opener would show the span's content as prose --
-    while inside a span a backslash is literal and escapes nothing, which is
-    why the closing run is looked for without regard to one. A run nothing
-    closes is literal too, and the reading goes on past it.
-    """
-    kept: list[str] = []
-    cursor = 0
-    token = _INLINE_TOKEN_RE.search(prose)
-    while token is not None:
-        resume = token.end()
-        closed = _span_closed_at(prose, token)
-        if closed is not None:
-            kept += [prose[cursor:token.start()], _SPAN_GAP]
-            cursor = closed
-            resume = closed
-        token = _INLINE_TOKEN_RE.search(prose, resume)
-    kept.append(prose[cursor:])
-    return "".join(kept)
-
-
-def _span_closed_at(prose: str, token: re.Match[str]) -> int | None:
-    """Where the code span `token` opens ends, or None when it opens none."""
-    run = token.group()
-    if not run.startswith("`"):
-        return None
-    closing = re.compile(f"(?<!`){run}(?!`)").search(prose, token.end())
-    return None if closing is None else closing.end()
-
-
-def _fence_opened_by(line: str) -> _OpenFence | None:
-    opening = _FENCE_OPENING_RE.fullmatch(line)
+def _fence_opened_by(line: str, *, quoted: bool = False) -> _OpenFence | None:
+    pattern = _QUOTED_FENCE_OPENING_RE if quoted else _FENCE_OPENING_RE
+    opening = pattern.fullmatch(line)
     if opening is None:
         return None
     continuation = _LIST_MARKER_CHARACTER_RE.sub(" ", opening.group("prefix"))

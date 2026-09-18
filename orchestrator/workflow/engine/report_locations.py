@@ -20,7 +20,7 @@ from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
-    report_fences as _fences,
+    report_prose as _prose,
     report_record_fields as _fields,
     report_record_state as _record_state,
     report_records as _records,
@@ -143,7 +143,7 @@ def describes_the_issue(
     body = getattr(pull_request, "body", None)
     if not isinstance(body, str):
         return False
-    closing = _CLOSES_THE_ISSUE.finditer(_fences.outside_code(body))
+    closing = _CLOSES_THE_ISSUE.finditer(_prose.outside_code(body))
     return attribution in body and any(
         int(reference["issue"]) == issue_number
         and (reference["repo"] or repo_slug).lower() == repo_slug.lower()

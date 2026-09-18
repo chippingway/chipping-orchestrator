@@ -82,6 +82,7 @@ _ENGINE_OWNERS = (
     "report_locations",
     "report_outcome_models",
     "report_outcomes",
+    "report_prose",
     "report_publication_evidence",
     "report_publishing",
     "report_record_fields",
