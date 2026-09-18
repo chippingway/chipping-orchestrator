@@ -4,7 +4,10 @@
 
 The supplied ledger decides exhaustion. This owner records the park before
 its budget event and notice, reconciles bot-authored delivery on the thread,
-and replays an owed notice without granting or spending any additional run."""
+and replays an owed notice without granting or spending any additional run.
+Every one of those records the thread read only through our own identified
+comments: a refused launch is often a resume whose frozen replies sit below
+the notice, and crossing them would spend input no agent ever read."""
 from __future__ import annotations
 
 import logging
@@ -16,7 +19,9 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import authored_by_us
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    comments as _comments,
     guards as _guards,
+    park_watermarks as _park_watermarks,
     run_budget as _run_budget,
     run_budget_models as _run_budget_models,
     run_limit_state as _run_limit_state,
@@ -88,11 +93,15 @@ def _deliver_notice(
     a sentence owed by a thread that already has it, which the reconciliation
     below settles, rather than dropping one nobody ever said.
 
-    The mention and the watermark ratchet go through the shared park so this
-    notice moves the response boundary every other park in this repository
-    moves -- a comment written before it would otherwise read as an answer to
-    it. That helper clears `park_reason` by contract, so the stable reason is
-    re-stamped after it.
+    The mention and the watermark go through the shared park, and the park is
+    BOUNDED: the thread is recorded read through our own identified comments
+    and no further. The launch this notice explains is very often a resume
+    handed a frozen reply batch -- the guidance a human wrote on a parked issue
+    -- and the circuit refused it before any agent read a word. Those replies
+    sit below the notice, so the notice-id stamp would mark them answered by a
+    run that never happened, and after the grant the road that would have
+    delivered them would find nothing to deliver. That helper clears
+    `park_reason` by contract, so the stable reason is re-stamped after it.
     """
     owed = _run_limit_state._owed_notice(state)
     if owed is None:
@@ -101,6 +110,7 @@ def _deliver_notice(
         gh, issue, state,
         f"{config.HITL_MENTIONS} {owed.message}",
         reason=_run_limit_values.PARK_AGENT_RUN_LIMIT,
+        bounded=True,
     )
     state.set(_run_limit_values._PARK_REASON, _run_limit_values.PARK_AGENT_RUN_LIMIT)
     _run_limit_state._settle_notice(state)
@@ -116,9 +126,13 @@ def _reconcile_notice(
     Asked before anything acts on the obligation, because a pinned write that
     failed after a post that landed claims the opposite of what the issue
     holds -- and the issue is the one of the two that cannot be wrong about
-    what was said. Both halves that write was carrying are put back: the
-    sentence is marked said, and the watermark is ratcheted to the comment
-    that actually carried it.
+    what was said. What that write was carrying is put back: the sentence is
+    marked said, the comment that carried it enters the id ledger it was never
+    written to, and the watermark is walked the way the delivery would have
+    walked it -- through our own identified comments and no further. Ratcheted
+    straight to the notice instead, it would cross the replies a refused
+    resume was handed, which sit below the notice and which no agent ever
+    read.
 
     Nothing is posted and nothing is decided. A notice the thread does not
     carry is left exactly as it was, for the delivery to say -- and a thread
@@ -142,9 +156,9 @@ def _reconcile_notice(
         issue.number,
     )
     _run_limit_state._settle_notice(state)
-    prior = state.get(_run_limit_values._LAST_ACTION_COMMENT_ID)
-    if not isinstance(prior, int) or delivered > prior:
-        state.set(_run_limit_values._LAST_ACTION_COMMENT_ID, delivered)
+    said_before = _comments._orchestrator_ids(state)
+    _comments._track_orchestrator_comment(state, delivered)
+    _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
     _emit_phase(gh, issue, _run_limit_values.RunLimitPhase.RECONCILED)
     return _run_limit_values.NoticeReading.SAID
 

@@ -38,6 +38,10 @@ _SPENT_UNDER_IT = 80
 
 _SENTENCE = "spent it all"
 
+# What a human wrote on the parked issue for the developer, which the resume
+# the circuit refused had frozen and no agent ever read.
+_GUIDANCE = "make the table smaller"
+
 # What a hand edit, an older binary, or a truncated write can leave where a
 # whole obligation record belongs. The counts are part of that record rather
 # than decoration: a sentence with no reading behind it is one nothing can
@@ -243,13 +247,20 @@ class ParkRecordTest(_limit_case._ParkCase):
 
 
 class NoticeDeliveryTest(unittest.TestCase):
-    """Saying what a park is for, exactly once per park."""
+    """Saying what a park is for, exactly once per park.
+
+    And recording the thread read only as far as our own comments go: the
+    launch a notice explains is often a resume whose frozen replies sit below
+    it, and no agent read those.
+    """
 
     def setUp(self) -> None:
         client, issue = support.issue_and_client()
         self.gh = client
         self.issue = issue
-        self.state = _limit_seeds.parked_state(owing=True)
+        self.state = _limit_seeds.parked_state(owing=True, **{
+            support.LAST_ACTION_COMMENT_ID: support.WATERMARK,
+        })
 
     def test_delivery_says_it_once_and_records_it(self) -> None:
         said = _run_limit._deliver_notice(self.gh, self.issue, self.state)
@@ -267,6 +278,23 @@ class NoticeDeliveryTest(unittest.TestCase):
             self.gh.latest_comment_id(self.issue),
         )
         self.assertEqual(support.phases(self.gh), [support.DELIVERED])
+
+    def test_a_reply_nobody_read_stays_unread(self) -> None:
+        # The reply a refused resume was handed. The notice lands above it,
+        # so a stamp at the notice would mark it answered by a run that never
+        # happened -- and the grant after it would find nothing to deliver.
+        self.issue.comments.append(FakeComment(
+            id=self.gh.next_reply_id(self.issue),
+            body=_GUIDANCE,
+            user=FakeUser(support.TRUSTED_AUTHOR),
+        ))
+
+        _run_limit._deliver_notice(self.gh, self.issue, self.state)
+
+        self.assertEqual(
+            self.state.get(support.LAST_ACTION_COMMENT_ID), support.WATERMARK,
+        )
+        self.assertNotIn(support.NOTICE, self.state.data)
 
     def test_a_settled_obligation_says_nothing(self) -> None:
         _run_limit._deliver_notice(self.gh, self.issue, self.state)
@@ -310,6 +338,32 @@ class NoticeReconciliationTest(unittest.TestCase):
             state.get(support.LAST_ACTION_COMMENT_ID), support.WATERMARK + 5,
         )
         self.assertEqual(support.phases(gh), [support.RECONCILED])
+
+    def test_a_repair_stops_at_a_reply_under_it(self) -> None:
+        # What the lost write would have recorded, and no more: the notice is
+        # ours, so it enters the ledger it never reached, but the reply a
+        # refused resume was handed sits below it and no agent read it.
+        _, state, reading = self._reconcile(
+            FakeComment(
+                id=support.WATERMARK + 1,
+                body=_GUIDANCE,
+                user=FakeUser(support.TRUSTED_AUTHOR),
+            ),
+            FakeComment(
+                id=support.WATERMARK + 5,
+                body=f"@ops {support.notice_text()}",
+                user=FakeUser(support.BOT_LOGIN),
+            ),
+        )
+
+        self.assertIs(reading, _run_limit_values.NoticeReading.SAID)
+        self.assertNotIn(support.NOTICE, state.data)
+        self.assertEqual(
+            state.get(support.LAST_ACTION_COMMENT_ID), support.WATERMARK,
+        )
+        self.assertIn(
+            support.WATERMARK + 5, state.get(support.LEDGER_FIELD),
+        )
 
     def test_a_notice_below_the_watermark_is_stale(self) -> None:
         # A sentence from an episode that COMPLETED sits at or below the mark

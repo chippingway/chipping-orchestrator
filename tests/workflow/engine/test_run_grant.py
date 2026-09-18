@@ -21,10 +21,12 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.workflow.engine import (
+    comments as _comments,
     run_budget as _run_budget,
     run_grant as _run_grant,
     run_grant_request as _run_grant_request,
 )
+from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.engine import (
     run_budget_test_support as budget,
     run_grant_case as _grant_case,
@@ -34,6 +36,10 @@ from tests.workflow.engine import (
 )
 
 _ALLOWLIST = "ALLOWED_ISSUE_AUTHORS"
+
+# What a human wrote for the developer on the parked issue before the circuit
+# refused the resume that would have delivered it.
+_GUIDANCE = "make the table smaller"
 
 
 class GrantTest(_grant_case._ParkCase):
@@ -318,6 +324,41 @@ class ConcurrentCommentTest(_grant_case._ParkCase):
         self.assertEqual(len(self.gh.posted_comments), 1)
         self.assertEqual(
             self._recorded()[support.ALLOWANCE_FIELD], grant.GRANTED_ALLOWANCE,
+        )
+
+
+class InterruptedBatchTest(_grant_case._ParkCase):
+    """A reply the park interrupted is no answer to the park.
+
+    The park records the thread read through our own comments and no further,
+    so a reply it could not walk past -- the input a refused resume was handed
+    -- leaves the mark under the park's own notice. A command written after
+    that notice answers the park; it does not answer the reply below it, and a
+    watermark is one number, so the command cannot be consumed without it.
+    """
+
+    def test_the_grant_leaves_it_unread(self) -> None:
+        guidance = grant.command(_GUIDANCE, comment_id=grant.FIRST_ASK)
+        notice = FakeComment(
+            id=grant.SECOND_ASK,
+            body=f"{support.notice_text()}\n\n{_comments._ORCH_COMMENT_MARKER}",
+            user=FakeUser(support.BOT_LOGIN),
+        )
+
+        lifted = self._lift(
+            guidance, notice, _grant_case._asking(),
+            state=grant.spent_state(**{
+                support.LAST_ACTION_COMMENT_ID: support.WATERMARK,
+                support.LEDGER_FIELD: [grant.SECOND_ASK],
+            }),
+        )
+
+        self.assertTrue(lifted)
+        self.assertEqual(
+            self._recorded()[support.ALLOWANCE_FIELD], grant.GRANTED_ALLOWANCE,
+        )
+        self.assertEqual(
+            self._recorded()[support.LAST_ACTION_COMMENT_ID], support.WATERMARK,
         )
 
 

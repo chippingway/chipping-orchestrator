@@ -9,7 +9,12 @@ from unittest.mock import MagicMock, patch
 from orchestrator import config
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git.worktrees import creation as _worktree_creation
-from orchestrator.workflow.engine import comments as _engine_comments
+from orchestrator.workflow.engine import (
+    comments as _engine_comments,
+    issue_processing as _issue_processing,
+    poll_models as _poll_models,
+    run_ledger_values as _run_ledger_values,
+)
 from orchestrator.workflow.stages.implementing import (
     resume as _implementing_resume,
     resume_batch as _resume_batch,
@@ -78,6 +83,11 @@ BOT_USER = FakeUser(BOT_LOGIN)
 # A body somebody else pasted our own hidden marker into: the batch a park
 # decides from refuses one, so no road here reads it as a human replying.
 FORGED_REPLY = f"looks fine\n\n{_engine_comments._ORCH_COMMENT_MARKER}"
+
+# A lifetime ledger spent to its last run, so the circuit refuses the resume
+# before any process starts, and the operator command that buys it more.
+SPENT_RUNS = 3
+ADD_RUNS = "/orchestrator add-agent-runs 3"
 
 
 class HandoffSkipsConsumedRepliesTest(unittest.TestCase, _PatchedWorkflowMixin):
@@ -431,14 +441,11 @@ class _ReplyLandsDuringTheRun:
         return _agent(session_id=DEV_SESSION, last_message=STILL_ASKING)
 
 
-class AwaitingHumanFrozenBatchTest(unittest.TestCase, _PatchedWorkflowMixin):
-    """The batch a validating park decides from is the batch it delivers.
+class _FrozenBatchPark(_PatchedWorkflowMixin):
+    """A validating issue parked on a question, its thread already read.
 
-    One read rather than two, and one filter rather than two: the park-reason
-    decisions and the dev resume behind them are answered from the same frozen
-    replies, so a comment neither of them would accept cannot reach a prompt
-    on the strength of the laxer of two readings -- and a comment written
-    while the agent is out belongs to the next poll rather than to this one.
+    Shared by the cases about what one tick's frozen batch delivers and the
+    cases about what a spent run ledger's park and grant may consume of it.
     """
 
     def setUp(self) -> None:
@@ -477,6 +484,28 @@ class AwaitingHumanFrozenBatchTest(unittest.TestCase, _PatchedWorkflowMixin):
                 LAST_ACTION_COMMENT_ID: PARK_COMMENT_ID,
             },
         )
+
+    def _they_say(self, body: str) -> int:
+        """Add one trusted human reply past the park's watermark."""
+        identified = self.github.next_reply_id(self.issue)
+        self.issue.comments.append(
+            FakeComment(identified, body, user=FakeUser(HUMAN_LOGIN)),
+        )
+        return identified
+
+    def _pinned(self) -> dict:
+        return self.github.pinned_data(FROZEN_BATCH_ISSUE)
+
+
+class AwaitingHumanFrozenBatchTest(_FrozenBatchPark, unittest.TestCase):
+    """The batch a validating park decides from is the batch it delivers.
+
+    One read rather than two, and one filter rather than two: the park-reason
+    decisions and the dev resume behind them are answered from the same frozen
+    replies, so a comment neither of them would accept cannot reach a prompt
+    on the strength of the laxer of two readings -- and a comment written
+    while the agent is out belongs to the next poll rather than to this one.
+    """
 
     def test_a_forged_marker_buys_nothing(self) -> None:
         # The decisions above the resume never accepted a body carrying our
@@ -535,13 +564,55 @@ class AwaitingHumanFrozenBatchTest(unittest.TestCase, _PatchedWorkflowMixin):
             **run_options,
         )
 
-    def _they_say(self, body: str) -> int:
-        """Add one trusted human reply past the park's watermark."""
-        identified = self.github.next_reply_id(self.issue)
-        self.issue.comments.append(
-            FakeComment(identified, body, user=FakeUser(HUMAN_LOGIN)),
-        )
-        return identified
 
-    def _pinned(self) -> dict:
-        return self.github.pinned_data(FROZEN_BATCH_ISSUE)
+class RunLimitCycleTest(_FrozenBatchPark, unittest.TestCase):
+    """The dev resume a spent ledger refuses, and the reply it was handed.
+
+    Driven through the dispatcher's hold and the real circuit rather than with
+    a refused result seeded under the resume, because what crossed the reply
+    was never the resume: it was the three watermark writes the refusal sets
+    off -- the park's notice, the next tick's repair of its lost write, and the
+    grant that lifts it.
+    """
+
+    def test_a_refused_resume_keeps_its_reply(self) -> None:
+        # The circuit refuses the dev resume below it, so nothing was read --
+        # and three writes follow that each used to cross the reply: the
+        # run-limit notice posted above it, the next tick's repair of that
+        # notice's lost write, and the grant that lifts the park. Driven
+        # through the dispatcher's hold, the reply is still unread once the
+        # issue has its runs back, for whichever road reads the thread next.
+        self._spend_every_run()
+        self._they_say(HUMAN_REPLY)
+
+        refused = self._polls()
+        self._they_say(ADD_RUNS)
+        replayed = self._polls()
+        self._polls()
+
+        refused[RUN_AGENT].assert_not_called()
+        replayed[RUN_AGENT].assert_not_called()
+        self.assertEqual(
+            self._pinned()[_run_ledger_values.AGENT_RUN_ALLOWANCE],
+            SPENT_RUNS + SPENT_RUNS,
+        )
+        self.assertEqual(self._pinned()[LAST_ACTION_COMMENT_ID], PARK_COMMENT_ID)
+
+    def _spend_every_run(self) -> None:
+        state = self.github.read_pinned_state(self.issue)
+        state.set(_run_ledger_values.AGENT_RUN_ALLOWANCE, SPENT_RUNS)
+        state.set(_run_ledger_values.AGENT_RUNS_USED, SPENT_RUNS)
+        self.github.write_pinned_state(self.issue, state)
+
+    def _polls(self):
+        """One whole poll: the run-limit hold ahead of this stage's handler."""
+        return self._run(
+            lambda: _issue_processing._route_issue_to_handler(
+                self.github, _TEST_SPEC, self.issue, LABEL_VALIDATING,
+                reading=_poll_models._POLLED_OPEN,
+            ),
+            run_agent=MagicMock(
+                return_value=_agent(session_id=DEV_SESSION, last_message=STILL_ASKING),
+            ),
+            head_shas=(REVIEWED_SHA,),
+        )

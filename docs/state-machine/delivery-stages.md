@@ -546,7 +546,10 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   `used + N`, clears this park alone, consumes the batch it read plus the acknowledgement it posts (and nothing that
   arrived in between — the boundary is derived from ids this tick observed, never re-read off the thread), records
   `granted`, and lets the SAME tick reach the stage handler, since the run a human just paid for is the one the
-  issue was stopped for. Anything else leaves both counts untouched: a malformed, zero, negative, or excessive
+  issue was stopped for. A batch that begins below the park's own notice is the exception: those are the replies a
+  resume the circuit refused had frozen, the park's bounded notice left them unread, and the grant leaves them there
+  too — so the next awaiting-human resume delivers them rather than finding a mark past input no agent read.
+  Anything else leaves both counts untouched: a malformed, zero, negative, or excessive
   request earns one marker-scoped receipt and a `refused` phase under a park that still stands, and an untrusted one
   is answered with nothing at all. The fields, the markers, and the ordering are in
   [`labels-and-state.md`](labels-and-state.md#pinned-state).
@@ -2997,7 +3000,11 @@ disposition behind the resume and are untouched by the settlement. There is no r
 stage handler records one), so the settlement is `engine/prompt_delivery.py`'s ordinary pinned ratchet straight into
 `last_action_comment_id`. A batch the authorization or the measurement park reserves is not resumed on and not
 consumed at all, and an explicit `/orchestrator continue` retry keeps its own semantics: it consumes the command and
-re-issues the orchestrator's continue prompt rather than delivering the operator's words. The REFUSAL that answers a
+re-issues the orchestrator's continue prompt rather than delivering the operator's words. A launch the lifetime
+agent-run circuit refuses is the never-invoked case in its most common form, and the park it takes keeps the batch
+unread end to end: the notice is bounded, the repair of its lost write walks rather than ratchets, and the
+`/orchestrator add-agent-runs` grant that lifts it does not consume a batch below that notice. The command itself is
+kept out of every frozen batch, since it is a control the hold has already answered. The REFUSAL that answers a
 command on a park needing real guidance settles the same way: `_refuse_parked_continue` is handed the batch its
 caller classified and consumes that, then advances through the refusal it posted with the `park_watermarks` walk.
 Read off the thread's tip instead, guidance written between the classification and the post is marked answered by a

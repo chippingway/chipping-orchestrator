@@ -800,7 +800,10 @@ The keys that matter for the state machine fall into a few groups:
   question and the dirty / unreadable checkout refusals call the reader directly, because they post their own notice;
   every other one asks `_park_awaiting_human` for it with `bounded=True` — both timeout parks, both push failures, the
   measurement failure, the unauthorized-exemption hold, the three checkout-moved refusals, the squash failure, the
-  verify failure, the reviewer timeout and no-VERDICT parks, and the review cap. Uniform rather than picked per park,
+  verify failure, the reviewer timeout and no-VERDICT parks, and the review cap. The stage-agnostic agent-run-limit
+  notice asks for it too, and so does the repair of that notice's lost write (`run_limit._reconcile_notice`, which
+  enters the found notice in the id ledger and walks), because the launch the circuit refuses is very often one of
+  these resumes: the frozen replies sit below the notice, and nothing read them. Uniform rather than picked per park,
   because the bound is never the worse answer: where nothing is unread it IS the notice id, and where something is
   unread the notice-id stamp crosses it. Deciding it per site is what let the push, the measurement and the
   validating push parks drift off the rule while carrying it in their docstrings. The timeouts and the push failures
@@ -1681,8 +1684,8 @@ The keys that matter for the state machine fall into a few groups:
   would say it. It is read only while THIS park stands on an OPEN issue (a command on any other park, or on a running
   issue, is a ceiling nobody was held to; a closed one is let past to its terminal before the read is taken), only
   past `last_action_comment_id` from an author `ALLOWED_ISSUE_AUTHORS` trusts, only
-  once the park's own sentence has been said (the delivery moves the response boundary, so a command read before it
-  would be bought and then consumed by the notice explaining the park), and only as an exact positive whole number no
+  once the park's own sentence has been said (a command read before it would be a command written before the question
+  was put), and only as an exact positive whole number no
   larger than `MAX_RUNS_PER_COMMAND` (50) — leading zeros are dropped first, so `007` is seven and a digit string too
   long to be inside the bound is turned away *before* `int()` sees it, since the interpreter refuses to convert one
   past its own limit and a request that raised would be neither granted nor refused. The last command in the unread
@@ -1695,7 +1698,15 @@ The keys that matter for the state machine fall into a few groups:
   walked forward only over comments this orchestrator wrote (by recorded `orchestrator_comment_ids`, else by
   `_ORCH_COMMENT_MARKER` + author) and stopped by the first that is not. A comment posted between the batch read and
   the receipt is therefore left above the mark for the next tick, since a watermark is how every stage decides what
-  is unread and a comment swept under it is lost rather than delayed.
+  is unread and a comment swept under it is lost rather than delayed. And the batch is not answered at all where it
+  BEGINS below a notice of ours: the run-limit notice records the thread read only through our own identified
+  comments (`bounded=True`, like every park that follows a run — see **HITL park** above), so a reply a refused
+  resume was handed leaves the mark under that notice. Such a reply was written before the park existed and no
+  agent read it; it is no answer to the park. The watermark is one number, so the command above it cannot be
+  consumed without it either: the walk starts at the mark, crosses our own comments, and stops at the reply. The
+  command is left unread with its receipt already on the thread — no road can read it as a request again once the
+  park is down, and the frozen reply batch never delivers a bare `add-agent-runs` to a developer — and the reply is
+  the next awaiting-human resume's to deliver.
   Every other request leaves `agent_runs_used` and `agent_run_allowance` exactly as it found them, keeps the park,
   and posts one receipt carrying `<!--orchestrator-add-agent-runs-refused:issue=N:comment=M-->`. Both answers are
   marked that way — the acknowledgement carries `<!--orchestrator-add-agent-runs-granted:issue=N:comment=M-->`; each

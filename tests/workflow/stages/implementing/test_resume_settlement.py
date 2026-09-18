@@ -30,15 +30,21 @@ from __future__ import annotations
 
 import unittest
 from dataclasses import replace
+from types import MappingProxyType
 from unittest.mock import MagicMock
 
 from orchestrator.git.measurement.models import MeasurementFailure
+from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
+    poll_models as _poll_models,
+    run_ledger_values as _run_ledger_values,
+)
 from orchestrator.workflow.stages.implementing import (
     late_command as _late_command,
     late_measurement_state as _late_measurement_state,
     state as _state,
 )
-from tests.workflow.fixtures import _agent
+from tests.workflow.fixtures import _TEST_SPEC, LABEL_IMPLEMENTING, _agent
 from tests.workflow.stages.implementing import (
     late_consent_payloads as _consent_payloads,
     resume_batch_test_support as _support,
@@ -80,6 +86,15 @@ _RETRIED = "Resuming after a session/usage limit"
 # What the retried session answers with: words and no commit, the end that
 # parks again without publishing anything.
 _ASKS = "which of the two did you mean?"
+
+# A lifetime ledger spent to its last run, so the circuit refuses the resume
+# before any process starts -- and the command that buys it more.
+_SPENT = 3
+_SPENT_LEDGER = MappingProxyType({
+    _run_ledger_values.AGENT_RUN_ALLOWANCE: _SPENT,
+    _run_ledger_values.AGENT_RUNS_USED: _SPENT,
+})
+_ADD_RUNS = "/orchestrator add-agent-runs 3"
 
 # The two parks a bare `/orchestrator continue` is an answer on, and so the
 # two the classifier that answers it owns a batch of: one it retries, and one
@@ -344,6 +359,80 @@ class ContinueReservationTest(_support._ParkedThread, unittest.TestCase):
         )
         mocks[_RUN_AGENT].assert_called_once()
         return mocks[_RUN_AGENT].call_args.args[_PROMPT_ARGUMENT]
+
+
+class RunLimitCycleTest(_support._ParkedThread, unittest.TestCase):
+    """The run a spent ledger refuses, and the reply it was handed.
+
+    The refusal comes from the circuit, below the resume: no process starts,
+    so the resume records nothing. But the park that refusal takes posts a
+    notice above the reply, the tick after it repairs that notice's lost write,
+    and the grant that lifts the park consumes what it read -- and each of
+    those is a watermark write. Any of them crossing the reply marks answered
+    a batch no agent ever read, and the road the grant reopens finds nothing
+    to deliver. So the whole cycle is driven here through the dispatcher's
+    hold and the real circuit, rather than with a refused result seeded under
+    the resume.
+    """
+
+    def test_the_reply_survives_the_run_limit(self) -> None:
+        self._seed(**{
+            _state._DEV_AGENT: _BACKEND,
+            _state._DEV_SESSION_ID: _SESSION,
+            **_SPENT_LEDGER,
+        })
+        guided = self._they_say(_support.GUIDANCE)
+        self._refused_then_granted()
+
+        resumed = self._tick()
+
+        # The next resume is handed the reply the refused one was, and not
+        # the command that bought it -- which the grant answered and could
+        # not consume without the reply below it.
+        resumed[_RUN_AGENT].assert_called_once()
+        followup = resumed[_RUN_AGENT].call_args.args[_PROMPT_ARGUMENT]
+        self.assertIn(_support.GUIDANCE, followup)
+        self.assertNotIn(_ADD_RUNS, followup)
+        self.assertGreaterEqual(self._pinned_watermark(), guided)
+
+    def _refused_then_granted(self) -> None:
+        """The whole park: refused, its notice repaired, then bought past.
+
+        Three polls, each a watermark write that used to cross the reply --
+        and none of them may: no agent read it on any of them. The first
+        agent to run is the one the grant pays for, which parks on a question
+        so the poll after it is an awaiting-human resume again.
+        """
+        refused = self._tick()
+        self._they_say(_ADD_RUNS)
+        replayed = self._tick()
+        granted = self._tick()
+
+        refused[_RUN_AGENT].assert_not_called()
+        replayed[_RUN_AGENT].assert_not_called()
+        granted[_RUN_AGENT].assert_called_once()
+        self.assertEqual(self._pinned_watermark(), _support.PARKED_AT)
+
+    def _tick(self):
+        """One whole poll of this issue: the run-limit hold, then the stage.
+
+        The agent that runs, where one does, answers with words and no
+        commit -- the end that parks on a question, so the next poll is an
+        awaiting-human resume again.
+        """
+        return self._run(
+            lambda: _issue_processing._route_issue_to_handler(
+                self.github, _TEST_SPEC, self.issue, LABEL_IMPLEMENTING,
+                reading=_poll_models._POLLED_OPEN,
+            ),
+            run_agent=MagicMock(return_value=_agent(last_message=_ASKS)),
+            has_new_commits=False,
+        )
+
+    def _pinned_watermark(self):
+        return self.github.pinned_data(_support.ISSUE_NUMBER).get(
+            _state._LAST_ACTION_COMMENT_ID,
+        )
 
 
 class _RunsWhileOneLands:

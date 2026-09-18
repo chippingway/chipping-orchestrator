@@ -481,7 +481,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             than additive, so the same command read twice buys the same ceiling -- clears that park
                             alone, consumes the batch it read and the answer it wrote under it (never a comment that
                             arrived between the two: the boundary is built from ids this tick observed rather than
-                            re-read off the thread), and lets the tick reach the stage its label names. Every other
+                            re-read off the thread, and nothing at all where the batch begins below a notice of
+                            ours -- those are replies a refused resume was handed, no answer to the park, and the
+                            one watermark cannot pass the command without them), and lets the tick reach the stage
+                            its label names. Every other
                             request leaves both counts where they were and earns one receipt; an untrusted one earns
                             nothing at all. Both answers are marked with the comment that asked, so a post whose write
                             never landed is recognized rather than said twice. Only the ending that moves the ceiling
@@ -511,7 +514,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             charge
     run_limit.py            persist a supplied exhaustion reading before its budget event and notice, reconcile
                             bot-authored delivery, and replay the sentence still owed; this owner grants and spends no
-                            additional run
+                            additional run. The notice is a bounded park and its repair walks the same way, entering
+                            the found notice in the id ledger first: the launch refused is often a resume whose frozen
+                            replies sit below the notice, and a stamp at the notice would spend input nobody read
     terminal_reading.py    one guarded linked-PR reading for both endings, retaining failed reads and deferring a
                             merged publication to its merge path when recovering a human-closed issue
     terminal_context.py    the issue, publication, pinned state, and stage one ending is attributed to, with its
@@ -1373,6 +1378,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `implementing`'s preflight does, `validating`'s awaiting-human road classifies
                             the command itself and so says nothing -- because fed to a developer as prose
                             the explicit retry, or the refusal a park needing real guidance owes, is gone.
+                            A bare `/orchestrator add-agent-runs` is left out of the delivery alone: the
+                            run-limit hold has answered it, and a grant over replies it may not consume
+                            leaves it unread above them.
                             Both of those reservations are asked of the DELIVERED replies, which is the
                             batch the roads they defer to read and the batch this one would otherwise
                             hand a developer: a notice of ours above a bare command, or a forged marker

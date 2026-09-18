@@ -76,6 +76,7 @@ from orchestrator.workflow.engine import (
     messages as _messages,
     prompt_context as _prompt_context,
     prompt_delivery as _delivery,
+    run_grant_request as _run_grant_request,
 )
 from orchestrator.workflow.stages.implementing import (
     late_command as _late_command,
@@ -211,6 +212,15 @@ def _freeze(
     awaiting-human road classifies the command itself rather than ahead of
     itself -- off this same delivered batch.
 
+    A bare `/orchestrator add-agent-runs` is left out of the delivery and out
+    of nothing else. It is a control the run-limit hold has already answered,
+    with its receipt on the thread, and the one road that acts on it reads it
+    only while that park stands. It can still be above the mark: the grant
+    that answers it may not consume a reply the park interrupted, and a
+    watermark is one number, so the command above that reply is left unread
+    with it. Handed on, it would reach a developer as prose nobody meant as
+    requirements -- the same reason the content hash does not count it.
+
     The authorization park's is the third, and the one asked of a different
     batch: the LAST reply the ID LEDGER leaves, which is what that park's own
     road reads and reads it by. A command with guidance written over it has
@@ -229,7 +239,10 @@ def _freeze(
         if seen.id not in ours
     ]
     delivery = _delivery.create_prompt_delivery_snapshot(
-        issue_comments=unclaimed,
+        issue_comments=[
+            seen for seen in unclaimed
+            if not _run_grant_request._is_bare_command(seen)
+        ],
         max_chars=_UNBOUNDED_EXCERPT,
         retained_ids=ours,
         state=state,

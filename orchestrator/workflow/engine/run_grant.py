@@ -136,10 +136,11 @@ def _lifts_the_park(
     running issue a ceiling nobody decided.
 
     A park that still owes the thread its sentence is left alone. The hold
-    above says that sentence, and saying it moves the response boundary past
-    everything written under the old one -- so a command read here would be a
-    command written before the question was put, bought and then consumed by
-    the notice explaining why the issue had stopped.
+    above says that sentence, and until it has, a command read here would be a
+    command written before the question was put. Saying it records the thread
+    read through our own comments and no further, so replies a refused resume
+    was handed stay unread under it -- and the consumption below leaves them
+    there rather than answering them with the command above.
     """
     unanswerable = (
         not _run_limit_state._park_stands(state)
@@ -222,7 +223,7 @@ def _grant_runs(
     state.set(_AWAITING_HUMAN, False)
     state.set(_PARK_REASON, None)
     _run_limit_state._settle_notice(state)
-    _consumed(gh, issue, state, request, _run_limit_values.RunLimitPhase.GRANTED)
+    _consumed(gh, issue, state, (request, thread), _run_limit_values.RunLimitPhase.GRANTED)
     _run_budget._emit_extension(gh, issue, _run_ledger._read_ledger(state))
 
 
@@ -257,7 +258,7 @@ def _refuse_request(
         maximum=_run_grant_request.MAX_RUNS_PER_COMMAND,
         marker=marker,
     )))
-    _consumed(gh, issue, state, request, _run_limit_values.RunLimitPhase.REFUSED)
+    _consumed(gh, issue, state, (request, thread), _run_limit_values.RunLimitPhase.REFUSED)
 
 
 def _said(
@@ -292,18 +293,19 @@ def _consumed(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    request: _run_grant_request._Request,
+    answered: tuple,
     phase: _run_limit_values.RunLimitPhase,
 ) -> None:
     """Consume exactly what this tick read and answered, and record the tick.
 
-    The mark moves to the last comment of the batch the request was read out
-    of, and then over the answer written under it -- and no further. What it
-    may never move over is a comment nobody here has seen: the thread is read
-    once, the receipt is written after that read, and a human who commented in
-    between would be marked answered by a tick that never looked at their
-    words. A watermark is how every stage below decides what is still unread,
-    so a comment swept under it is not delayed, it is lost.
+    `answered` is the request and the read it came out of. The mark moves to
+    the last comment of that read, and then over the answer written under it
+    -- and no further. What it may never move over is a comment nobody here
+    has seen: the thread is read once, the receipt is written after that
+    read, and a human who commented in between would be marked answered by a
+    tick that never looked at their words. A watermark is how every stage
+    below decides what is still unread, so a comment swept under it is not
+    delayed, it is lost.
 
     It is ratcheted rather than set, so a mark already past what this tick saw
     is left where it is.
@@ -315,9 +317,9 @@ def _consumed(
     read puts straight back.
     """
     consumed = state.get(_LAST_ACTION_COMMENT_ID)
-    answered = _answered_through(gh, issue, state, request)
-    if not isinstance(consumed, int) or answered > consumed:
-        state.set(_LAST_ACTION_COMMENT_ID, answered)
+    through = _answered_through(gh, issue, state, *answered)
+    if through is not None and (not isinstance(consumed, int) or through > consumed):
+        state.set(_LAST_ACTION_COMMENT_ID, through)
     _run_limit._emit_phase(gh, issue, phase)
     gh.write_pinned_state(issue, state)
 
@@ -327,7 +329,8 @@ def _answered_through(
     issue: Issue,
     state: PinnedState,
     request: _run_grant_request._Request,
-) -> int:
+    thread: list,
+) -> int | None:
     """The last comment this tick may claim to have answered.
 
     The batch the request was read out of, extended over the receipts written
@@ -339,34 +342,64 @@ def _answered_through(
     grow under this owner -- would be marked answered by a tick that never
     read it.
 
+    Unless the read BEGINS below a notice of ours. The park records the thread
+    read only through our own identified comments, so a reply it could not
+    walk past leaves the mark under the park's own notice -- and that reply is
+    no answer to the park at all: it was written before the park existed, and
+    it is the input a refused resume was handed and no agent read. Answering
+    the command is answering the words written in reply to the park; it is not
+    answering those. And a watermark is one number, so the command above them
+    cannot be consumed without them: the walk starts at the mark instead,
+    crosses our own comments, and stops at that reply. What it costs is a
+    command left unread with its receipt already on the thread, which the park
+    this grant takes down can never read again, and which the frozen reply
+    batch refuses to hand a developer as prose.
+
     Ours is settled by the id ledger the post itself records and, failing
     that, by the marker every comment this orchestrator writes carries, since
     a write that never landed leaves the id nowhere. Anything else stops the
     walk, whoever wrote it: what is at stake is somebody's unread comment, and
     a mark that stops one comment short costs a tick rather than a word.
 
-    A thread that cannot be read answers with the batch alone. The receipt is
-    then read back as a fresh comment by a later tick, which is what its
-    marker and the id ledger are there to settle -- and far cheaper than a
-    mark past comments nobody has read.
+    A thread that cannot be re-read answers with the batch alone -- or with
+    nothing, where the batch begins below our notice. The receipt is then read
+    back as a fresh comment by a later tick, which is what its marker and the
+    id ledger are there to settle -- and far cheaper than a mark past comments
+    nobody has read.
     """
+    ours = (_comments._orchestrator_ids(state), getattr(gh, "_bot_login", None))
+    said = [read.id for read in thread if _ours(read, ours)]
     answered = request.consumed
+    if said and any(
+        read.id < max(said) and not _ours(read, ours) for read in thread
+    ):
+        answered = state.get(_LAST_ACTION_COMMENT_ID)
+        if not isinstance(answered, int):
+            return None
     try:
         written = gh.comments_after(issue, answered)
     except Exception:
         log.exception(
             "issue=#%d could not be re-read for the answer just written to "
-            "it; consuming the batch the command was read out of and leaving "
-            "that answer for the next tick",
+            "it; consuming no further than the batch the command was read "
+            "out of and leaving that answer for the next tick",
             issue.number,
         )
         return answered
-    recorded = _comments._orchestrator_ids(state)
-    bot_login = getattr(gh, "_bot_login", None)
     for posted in written:
-        if posted.id not in recorded and not carries_own_marker(
-            (posted,), _comments._ORCH_COMMENT_MARKER, bot_login=bot_login,
-        ):
+        if not _ours(posted, ours):
             break
         answered = posted.id
     return answered
+
+
+def _ours(posted, ours: tuple) -> bool:
+    """Whether one comment is this orchestrator's, by ledger or by marker.
+
+    `ours` is the id ledger and the login this client posts under, read once
+    by the caller for every comment it asks about.
+    """
+    recorded, bot_login = ours
+    return posted.id in recorded or carries_own_marker(
+        (posted,), _comments._ORCH_COMMENT_MARKER, bot_login=bot_login,
+    )
