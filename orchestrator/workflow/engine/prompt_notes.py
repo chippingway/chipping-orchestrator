@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Shared prompt placeholders, foreground-run instructions, and commit and report contracts.
 
-The developer report contract is spelled from the marker vocabulary its parser
-reads, so every developer prompt teaches exactly the outcomes `report_outcomes`
-accepts."""
+Foreground instructions spell out the one-shot execution model and the AGY
+asynchronous-command contract (waiting within the current response via tools
+like `manage_task` while `RUNNING`). The developer report contract is spelled
+from the marker vocabulary its parser reads, so every developer prompt teaches
+exactly the outcomes `report_outcomes` accepts."""
 from __future__ import annotations
 
 from orchestrator.workflow.engine import report_outcome_models as _report_models
@@ -21,7 +23,12 @@ _FOREGROUND_ONLY_NOTE = (
     "process. NEVER start a background job (build, test run, Miri, server) "
     "and end your turn intending to check it later: the job dies with your "
     "session and its result will never be seen. Run all builds and tests in "
-    "the foreground and wait for them to complete before you commit or reply."
+    "the foreground and wait for them to complete before you commit or reply. "
+    "For asynchronous commands (such as in AGY sessions), you must use "
+    "supported wait/status tools such as `manage_task` within the current "
+    "response: a `RUNNING` status requires continued polling or waiting, and "
+    "ending the response to await a notification terminates AGY and cancels "
+    "the command."
 )
 
 # The history this note sends an agent to read already carries the ` (#N)`
