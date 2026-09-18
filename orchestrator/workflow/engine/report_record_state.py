@@ -2,11 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """The pending transaction's round trip through the pinned comment.
 
-The record goes down BEFORE the report or the code it reports on is published,
-which is the whole of what makes the publication recoverable: a process that
-dies anywhere after this write comes back to a transaction naming what it was
-doing, and one that dies before it comes back to an issue that simply has not
-started.
+The record goes down BEFORE the report it carries is published, which is the
+whole of what makes the publication recoverable: a process that dies anywhere
+after this write comes back to a transaction naming what it was doing, and one
+that dies before it comes back to an issue that simply has not started.
+
+Whether the CODE that report is about is out by then belongs to whoever writes
+the record, and this owner admits both. A transaction bound from a report a run
+already delivered is recorded once a pull request carries the code, because a
+subject cannot name a pull request that does not exist yet. One recorded ahead
+of the push is the other road, and it is the reason the code-publication receipt
+is reserved below: that gate writes onto this same comment between such a record
+and its settlement.
 
 `carries` and `read` answer different questions and both are needed. A reader
 deciding what a transaction MEANS reads it fail-closed, so a record nothing can
@@ -39,7 +46,6 @@ entitled to spend it, so the room is proved again on the tick that would use it
 from __future__ import annotations
 
 import importlib
-from typing import Any
 
 from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.github.pull_request_reports import ReportLocation
@@ -54,22 +60,6 @@ from orchestrator.workflow.engine import (
     stage_targets as _stage_targets,
 )
 from orchestrator.workflow.late_split import formats as _formats
-
-_RECEIPT = "receipt"
-
-_REVISION = "revision"
-
-_MODE = "mode"
-
-_ROUTE = "route"
-
-_REPORT = "report"
-
-_CONTENT_DIGEST = "content"
-
-_WATERMARKS = "watermarks"
-
-_SPENDS = "spends"
 
 # The two values a settlement will hold that this transaction cannot yet name:
 # the digest the published text will hash to, and the comment id GitHub will
@@ -187,22 +177,45 @@ def record_pending_report(
     here does, so the record rides whatever else that caller staged rather than
     landing in a write of its own ahead of it.
     """
-    recorded = _encoded(pending)
+    recorded = _fields.pending_object(pending)
     if recorded is None or _reading.pending_from(recorded) != pending:
         return False
-    reserved = _pinned_state.PinnedState(state_data=dict(state.data))
-    importlib.import_module(
-        _stage_targets._LATE_PUBLICATION_STATE_OWNER,
-    )._record_publication(
-        reserved, _WIDEST_COMMIT, _WIDEST_COMMIT, _WIDEST_IDENTITY,
-    )
-    for carried in (state, reserved):
+    for carried in (state, with_publication_receipt(state)):
         staged = {**carried.data, _records.PENDING_REPORT: recorded}
         settled = settled_payload(carried, pending)
         if settled is None or not fits_the_comment(staged) or not fits_the_comment(settled):
             return False
     state.set(_records.PENDING_REPORT, recorded)
     return True
+
+
+def with_publication_receipt(
+    state: _pinned_state.PinnedState,
+) -> _pinned_state.PinnedState:
+    """The same comment, carrying the code-publication receipt at its widest.
+
+    Public because every record written before a commit is pushed is measured
+    against this world as well as against the comment in hand: the transaction
+    here, and the delivered report recorded ahead of the gate that becomes one.
+    That gate WRITES when it pushes -- the commit it put on the remote, the
+    head that push replaced, and the pull request it went onto -- and the write
+    lands on this same comment, between a record accepted before it and
+    whatever that record turns into. Accepted without room for it, the gate's
+    own write is the one refused.
+
+    Written through the gate's own owner rather than spelled again here, so a
+    member added to that receipt moves every reservation taken against it. The
+    reservation REPLACES what is there, which is why both worlds are measured
+    rather than this one alone: a comment can already carry a receipt written
+    wider than any spelling this build produces.
+    """
+    reserved = _pinned_state.PinnedState(state_data=dict(state.data))
+    importlib.import_module(
+        _stage_targets._LATE_PUBLICATION_STATE_OWNER,
+    )._record_publication(
+        reserved, _WIDEST_COMMIT, _WIDEST_COMMIT, _WIDEST_IDENTITY,
+    )
+    return reserved
 
 
 def fits_the_comment(staged: dict) -> bool:
@@ -302,36 +315,3 @@ def clear_pending_report(state: _pinned_state.PinnedState) -> None:
     that never had one.
     """
     state.set(_records.PENDING_REPORT, None)
-
-
-def _encoded(pending: _records.PendingReport) -> dict[str, Any] | None:
-    """Return the pinned object one transaction is recorded as, or None.
-
-    The mode's own half is written only under the mode that owns it, so a
-    record says one thing rather than carrying a text and a location that
-    could disagree about which report it is about.
-
-    None for a verification carrying no location. The field is optional on the
-    transaction because a publication has none, so a verification without one
-    is a value a caller can construct and this owner cannot record -- answered
-    as the refusal `record_pending_report` promises rather than raised out of
-    the middle of it, which would leave that promise unkept.
-    """
-    carried: dict[str, Any] = {_REPORT: pending.report}
-    if pending.mode is _records.ReportMode.VERIFY:
-        if pending.location is None:
-            return None
-        carried = {
-            _CONTENT_DIGEST: pending.content_revision,
-            **_fields.location_fields(pending.location),
-        }
-    return {
-        _RECEIPT: pending.receipt,
-        **_fields.subject_fields(pending.subject),
-        _REVISION: pending.report_revision,
-        _MODE: str(pending.mode),
-        _ROUTE: str(pending.route),
-        _WATERMARKS: [list(pair) for pair in pending.watermarks],
-        _SPENDS: [list(pair) for pair in pending.spends],
-        **carried,
-    }

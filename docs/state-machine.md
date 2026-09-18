@@ -159,9 +159,10 @@ the `agent_run_limit` park a spent one leaves and the sentence that park owes th
 the additive `late_*` group a late generation is adjudicated under, the one commit an accepted candidate publishes
 under with the semantic identity of the change it was accepted for and the bounded authorization a workflow rewrite
 carries that exemption over with, the `decomposing` stage's own record of the run that adjudicates one, and the
-additive `developer_report_*` group one report publication is recorded as — the transaction a tick still owes, the
-report the pull request carries, and the receipt one finished transaction leaves. Its owners read and write those
-records fail-closed, and the dispatcher reconciles an outstanding transaction ahead of every handler
+additive `developer_report_*` group one report publication is recorded as — the report a completed run delivered
+before its code went out, the transaction that report is bound into once a pull request carries the code, the report
+the pull request carries, and the receipt one finished transaction leaves. Its owners read and write those records
+fail-closed, and the dispatcher reconciles an outstanding transaction ahead of every handler
 ([the developer-report transaction](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch));
 no stage produces one yet.
 Every key, what writes it, what spends it, and the legacy `codex_session_id` still honored on read are in
