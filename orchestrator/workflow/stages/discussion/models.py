@@ -8,6 +8,12 @@ assessment folds, and the park the routing publishes all have to land on the
 one `state` object the handler read at the top, or the single write at the end
 drops whichever mutation was made against a second copy.
 
+Its road rides with them, settled from that same first read. Whose turn it is
+turns on durable state a tick goes on to overwrite -- every ending of this
+stage is a park, so by the time one is published the issue is parked either way
+-- and reading it once at the top is what lets the handler take the road and
+the park report the road taken without the two being able to disagree.
+
 `_DiscussionSession` is the agent identity one round runs under, carried as the
 full configured spec rather than a bare backend so that what is pinned on the
 issue and what the command line actually was cannot disagree, and beside it the
@@ -58,22 +64,35 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.stages.discussion import state as _state
 
 
 @dataclass(frozen=True)
 class _DiscussionRun:
-    """The stable inputs one discussion-stage tick is driven by."""
+    """The stable inputs one discussion-stage tick is driven by, and its road."""
 
     gh: GitHubClient
     spec: _config_models.RepoSpec
     issue: Issue
     state: PinnedState
+    route: str
 
     @classmethod
     def start(
         cls, gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
     ) -> _DiscussionRun:
-        return cls(gh=gh, spec=spec, issue=issue, state=gh.read_pinned_state(issue))
+        state = gh.read_pinned_state(issue)
+        return cls(
+            gh=gh,
+            spec=spec,
+            issue=issue,
+            state=state,
+            route=(
+                _state._ROUTE_DISCUSSION_RESUME
+                if _state._parked_by_discussion(state)
+                else _state._ROUTE_DISCUSSION_ROUND
+            ),
+        )
 
 
 @dataclass(frozen=True)

@@ -4,10 +4,12 @@
 
 `awaiting_human` is the only thing that tells the two apart: set, the issue is
 parked on an answer and the tick is looking for a human reply to feed back into
-the locked session; clear, this is the conversation's first round. Both routes
-end in the same spawn, which is why the worktree preparation differs only in
-whether the checkout already exists -- a resume reuses the tree the prior round
-inspected, and re-creates it only when a safe teardown removed it.
+the locked session; clear, this is the conversation's first round. The tick's
+record settles that at the top and carries the answer as its route, so the road
+is chosen and reported from one reading. Both routes end in the same spawn,
+which is why the worktree preparation differs only in whether the checkout
+already exists -- a resume reuses the tree the prior round inspected, and
+re-creates it only when a safe teardown removed it.
 
 The spawn sits here rather than with the session it carries because retaining a
 returned session id is the last thing a run does, not a disposition its caller
@@ -17,11 +19,14 @@ the next resume pointed at the same conversation.
 `_park_question` is the funnel every exit lands on, and it exists because the
 shared park helper clears `park_reason`: the stage-specific reason has to be
 restored after it, or the implementing relabel guard loses the `question_`
-prefix it refuses on.
+prefix it refuses on. It is also where the record every park emits picks up the
+identifiers beside its reason, for the same structural reason the reason itself
+is stamped here: one funnel is what keeps five endings reporting the same shape.
 """
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
@@ -117,8 +122,14 @@ def _spawn_fresh_question(run: _models._QuestionRun) -> AgentResult:
 def _select_question_run(
     run: _models._QuestionRun,
 ) -> AgentResult | None:
-    """Resume a parked conversation or start its first agent run."""
-    if run.state.get("awaiting_human"):
+    """Resume a parked conversation or start its first agent run.
+
+    The road is read off the record rather than off pinned state a second time,
+    so the park that follows reports the road that was actually taken: the
+    resume clears `awaiting_human` before it returns, and a second read here
+    would have to happen before that to agree with one taken afterwards.
+    """
+    if run.route == _state._ROUTE_QUESTION_RESUME:
         return _resume_question_on_human_reply(run)
     return _spawn_fresh_question(run)
 
@@ -136,7 +147,33 @@ def _park_question(
     stage-specific reason and persists the completed state mutation.
     """
     _guards._park_awaiting_human(
-        run.gh, run.issue, run.state, message, reason=reason,
+        run.gh, run.issue, run.state, message,
+        reason=reason,
+        **_question_correlation(run),
     )
     run.state.set("park_reason", reason)
     run.gh.write_pinned_state(run.issue, run.state)
+
+
+def _question_correlation(run: _models._QuestionRun) -> dict[str, Any]:
+    """The bounded identifiers a question park reports beside its reason.
+
+    Every one of them is a structured identifier the tick already holds -- the
+    road it took, the role its agent answers under, the conversation the next
+    resume will continue, and the pull request the issue arrived carrying. None
+    of it is read out of what the agent said: the reason the park is recorded
+    under is already the stage's own closed vocabulary, while a payload built
+    from a completion message would carry the transcript into the audit log and
+    the analytics sink both.
+
+    A `None` is a field this issue has never held, and both sinks drop it --
+    which is why a park on a conversation whose backend returned no session id
+    reports no `session_id` rather than a null one, and why a question that was
+    never about a pull request reports no number.
+    """
+    return _guards._screened_correlation({
+        "route": run.route,
+        "agent_role": _state._QUESTION_STAGE,
+        "session_id": run.state.get(_state._QUESTION_SESSION_KEY) or None,
+        "pr_number": _guards._safe_int(run.state.get(_state._PR_NUMBER)),
+    })

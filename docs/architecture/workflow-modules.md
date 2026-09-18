@@ -164,12 +164,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             of the second wherever a stage reads the worktree before it asks whether the run
                             happened -- what a killed run left there is the operator's to see, and what a launch
                             that never started left is nothing. The park forwards explicit bounded correlation
-                            fields (`agent_role`, `session_id`, `review_round`, `retry_count`, `pr_number`) to the
-                            emitted audit event and analytics record, rejecting unsupported fields before emission
-                            through the same screen a park that emits for itself reaches. Also the shared park
-                            vocabulary: the allow-list, the route names the roads into a self-emitting park are
-                            spelled with, and the `_ParkedRun` four stage packages hand one of those parks -- a
-                            finished run plus the road it came off, which the workflow label cannot say.
+                            fields (`route`, `agent_role`, `session_id`, `review_round`, `retry_count`,
+                            `pr_number`, `sha`) to the emitted audit event and analytics record, rejecting
+                            unsupported fields before emission through the same screen a park that emits for
+                            itself reaches. Also the shared park vocabulary: the allow-list every road is
+                            screened against, the route names the roads into a self-emitting park are spelled
+                            with -- the two conversation stages own theirs on their own `state.py`, since their
+                            stage funnels reach this one rather than emitting for themselves -- and the
+                            `_ParkedRun` four stage packages hand one of those parks: a finished run plus the
+                            road it came off, which the workflow label cannot say.
                             It marks the thread read to the id of the notice it POSTED rather than to whatever the
                             thread ends on afterwards: the two differ only for a human replying between the post and
                             that write, and on a park waiting for a reply, reading the tip there consumes the answer
@@ -1201,7 +1204,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             commit, and the plan path, branch, number, PR head, and moved round anchor one durable
                             write leaves behind
       parks.py              the funnel every way the stage hands the issue back goes through, which stamps each
-                            park's reason and restores the consumed ceiling
+                            park's reason, restores the consumed ceiling, and builds the bounded correlation the
+                            park reports: the road off the tick's own record, the role, the pinned conversation,
+                            the plan's own pull request -- read as the round gate reads it, so a developer's pull
+                            request the issue merely arrived carrying is not reported as one -- and the commit the
+                            artifact stands on, the in-flight marker ahead of the published record since the two
+                            can both be pinned and only the marker is a claim about the publication this park is
+                            about
       checkout_parks.py     the endings the per-issue checkout earns: the agent's loose edits and the stranded tree
                             that arrived holding them, the tree that would not read at all behind both, the finished
                             round whose HEAD could not say what it did, the tip that moved with no round in flight,
@@ -1214,10 +1223,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       park_messages.py      what those endings quote: the bounded path list, the reading of a committed artifact,
                             the refusal frame both unpublishable-commit parks share, the stale-publication standing
                             and remedy, and the anchor a reset is named against
-      models.py             the run, the agent identity and session, the prompt and its replies, the round, the
-                            outcome, and the publication artifact
+      models.py             the run and the road it opened on, the agent identity and session, the prompt and its
+                            replies, the round, the outcome, and the publication artifact
       state.py              the park reasons and wire keys, the plan path and the commit its PR carries, the
-                            open-round and in-flight publication markers, and the three park predicates
+                            open-round and in-flight publication markers, the three park predicates, and the
+                            stage, role, and two route names a record is attributed by
     documenting/            `workflow:documenting`
       handler.py            the order one final-docs tick asks its questions in
       preconditions.py      the terminals, the missing-`pr_number` guard, the parked-no-input fast path, and the
@@ -1968,11 +1978,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       handler.py            the order one tick asks its questions in, the closed-issue finalize that outranks them,
                             and both worktree teardowns
       run.py                the resume and fresh-spawn routes, the tracked spawn they share, and the park funnel every
-                            exit lands on
+                            exit lands on -- which is also where the bounded correlation every park reports is
+                            built: the road off the tick's own record, the role, the pinned conversation, and any
+                            recorded pull request, screened against the shared funnel's allow-list and read from
+                            no part of what the agent wrote
       session.py            the locked question-agent identity, the trusted-reply consume, and both prompt builders
       outcomes.py           the read-only violations checked before any answer, and the park each outcome earns
-      models.py             the tick record, the locked session, and the outcome
-      state.py              the park reasons and pinned-state keys they share
+      models.py             the tick record and the road it opened on, the locked session, and the outcome
+      state.py              the park reasons and pinned-state keys they share, plus the role a run is attributed to
+                            and the two route names a park is recorded under
     validating/             `workflow:validating`
       handler.py            the order one review tick asks its questions in, the terminals it opens with, and the
                             recorded-collapse route it asks behind only those, ahead of every route that could

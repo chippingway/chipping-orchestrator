@@ -20,16 +20,17 @@ what the round staged, the consumed reply included. An issue whose publication
 crashed after that point is parked with nothing unread, so waiting for a reply
 would mean waiting for a human to say the same thing twice.
 
-Whose turn it is comes next, and a park THIS stage wrote is what settles it:
-the round already posted is on the thread waiting for the humans to answer it
-by number, so the tick has nothing to OPEN. What it has instead is a reply to
-look for, and only a trusted comment past the consumed watermark makes it this
-stage's turn again -- an untrusted one may neither steer the agent nor be
-recorded as read, and no comment at all leaves the durable state exactly as the
-park left it. A park any other stage wrote is not this stage's turn to wait on
--- pinned state outlives a relabel, so an issue an operator moves here from a
-parked stage arrives awaiting a reply nobody will send it here, and reading
-`awaiting_human` alone would leave it inert for good.
+Whose turn it is comes next, read off the road the tick opened on, and a park
+THIS stage wrote is what settles that road: the round already posted is on the
+thread waiting for the humans to answer it by number, so the tick has nothing
+to OPEN. What it has instead is a reply to look for, and only a trusted comment
+past the consumed watermark makes it this stage's turn again -- an untrusted one
+may neither steer the agent nor be recorded as read, and no comment at all
+leaves the durable state exactly as the park left it. A park any other stage
+wrote is not this stage's turn to wait on -- pinned state outlives a relabel, so
+an issue an operator moves here from a parked stage arrives awaiting a reply
+nobody will send it here, and reading `awaiting_human` alone would leave it
+inert for good.
 
 What the last round left comes next, and on an issue this stage has not parked
 it is asked in three parts. A commit found against the anchor a round opened
@@ -175,7 +176,7 @@ def _handle_discussion(
         return
     if _recovery._finish_interrupted_publication(discussion_run):
         return
-    if _state._parked_by_discussion(discussion_run.state):
+    if discussion_run.route == _state._ROUTE_DISCUSSION_RESUME:
         _resume_parked_discussion(discussion_run)
         return
     checkout = _settlement._checkout_reading(discussion_run)
