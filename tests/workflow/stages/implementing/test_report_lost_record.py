@@ -26,16 +26,19 @@ from orchestrator.github import developer_reports as _reports
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
     report_delivery as _report_delivery,
     report_records as _records,
     report_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.implementing import state as _state
+from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     LABEL_VALIDATING,
     MEASURED_CANDIDATE_SHA,
     SHA_LENGTH,
+    _open_pr_for,
 )
 from tests.workflow.stages.implementing import (
     late_gate_test_support as gate_support,
@@ -73,6 +76,9 @@ RECEIPT_PR = 8
 
 # The comment the settled report is recorded at.
 SETTLED_COMMENT = 8800
+
+# What the notice a settled report that moved since says, and nothing else does.
+MOVED_NOTICE = "no longer stands as it settled"
 
 # The commit an approval says is owed a push.
 APPROVED_SHA = "late_approved_sha"
@@ -149,6 +155,60 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
                     head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
                 ))
 
+    def test_a_moved_settlement_holds_the_recovery(self) -> None:
+        # A settled pair is a record of one moment. The report edited or
+        # deleted since it settled, or an issue whose requirements have moved
+        # away from the ones it answered, is not what the pair says a reviewer
+        # would be handed -- so the recovery reads both again, where they are,
+        # and holds the work for a human rather than letting the record vouch.
+        for moved, move in _MOVES_AFTER_THE_SETTLEMENT:
+            with self.subTest(moved=moved):
+                github, issue, settled_on = self._settled_before_the_relabel()
+                move(issue, settled_on.issue_comments)
+
+                self._assert_held(github, self.republish(
+                    github, issue,
+                    head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
+                ))
+                self.assertIn(MOVED_NOTICE, issue.comments[-1].body)
+
+    def _settled_before_the_relabel(self):
+        """A publication whose report settled on its PR and whose relabel failed.
+
+        Everything the window leaves: the receipt, the settled pair about the
+        commit on the pull request standing on it, and the report comment
+        itself, on this issue's ledger of the comments it posted. Left as it
+        is, the recovery republishes it and finishes the handoff.
+        """
+        github, issue = self.seeded()
+        requirements = _content_hash._compute_user_content_hash(issue, ())
+        settled_on = _open_pr_for(
+            github, issue_number=support.REPORT_ISSUE, pr_number=SETTLED_PR,
+        )
+        settled_on.head.sha = support.PUBLISHED_SHA
+        settled_on.issue_comments.append(FakeComment(
+            id=SETTLED_COMMENT,
+            body=_reports.render_developer_report(_reports.DeveloperReport(
+                pr_number=SETTLED_PR,
+                source_sha=support.PUBLISHED_SHA,
+                requirements_revision=requirements,
+                report_revision=1,
+                receipt=f"issue-{support.REPORT_ISSUE}-report-1",
+                text=support.REPORT_TEXT,
+            )),
+            user=FakeUser(github._bot_login),
+        ))
+        github.seed_state(
+            support.REPORT_ISSUE,
+            dev_agent=DEV_BACKEND,
+            dev_session_id=support.DEV_SESSION,
+            orchestrator_comment_ids=[SETTLED_COMMENT],
+            **_settled_state(
+                support.PUBLISHED_SHA, SETTLED_PR, requirements=requirements,
+            ),
+        )
+        return github, issue, settled_on
+
     def _assert_held(self, github, mocks) -> None:
         """Prove the recovery published nothing and parked for a report."""
         mocks[PUSH_BRANCH].assert_not_called()
@@ -221,7 +281,36 @@ class UnreportedCandidateTest(gate_support._GateCase, unittest.TestCase):
                 )
 
 
-def _settled_state(source_sha: str, pushed_to: int) -> dict:
+def _edits_the_report(_issue, comments) -> None:
+    """Edit the settled report by hand, as anybody with write access can."""
+    comments[-1].body = comments[-1].body.replace(
+        support.REPORT_TEXT, "Edited by hand.",
+    )
+
+
+def _deletes_the_report(_issue, comments) -> None:
+    """Delete the settled report from its pull request."""
+    comments.pop()
+
+
+def _edits_the_requirements(issue, _comments) -> None:
+    """Move the issue away from the requirements the report answered."""
+    issue.body = "the requirements moved after the report settled"
+
+
+_MOVES_AFTER_THE_SETTLEMENT = (
+    ("an edited report", _edits_the_report),
+    ("a deleted report", _deletes_the_report),
+    ("moved requirements", _edits_the_requirements),
+)
+
+
+def _settled_state(
+    source_sha: str,
+    pushed_to: int,
+    *,
+    requirements: str = support.REQUIREMENTS_REVISION,
+) -> dict:
     """What a publication that settled its report on `SETTLED_PR` leaves behind.
 
     The pair names the commit its report is about; the receipt beside it names
@@ -235,7 +324,7 @@ def _settled_state(source_sha: str, pushed_to: int) -> dict:
             pr_number=SETTLED_PR,
             branch=support.BRANCH,
             source_sha=source_sha,
-            requirements_revision=support.REQUIREMENTS_REVISION,
+            requirements_revision=requirements,
         ),
         report_revision=1,
         content_revision=_reports.content_digest(support.REPORT_TEXT),

@@ -39,6 +39,8 @@ KEY_BRANCH = "branch"
 # What the discussion stage left on the PR it opened: true of the branch it
 # published, false of the branch the moment a dev commit lands on it.
 _PLAN_CLAIM = "this branch changes nothing else"
+# What a human added under a description this stage wrote.
+_REVIEWER_NOTE = "and a reviewer's note"
 # What the plan's own words sit under once the implementation is named above.
 _EARLIER_HEADING = "_Description before this implementation:_"
 _PLAN_BODY = (
@@ -75,9 +77,14 @@ class PlanPrReuseTest(
 
     def test_a_body_naming_this_dev_stands(self) -> None:
         # The ordinary reuse: our own PR, recovered by a later tick after one
-        # died between opening it and the relabel. Rewriting it would throw
-        # away whatever a human added underneath.
-        annotated = f"{self._dev_attribution()}\n\nand a reviewer's note"
+        # died between opening it and the relabel. It closes the issue and
+        # names the session, so nothing touches it -- the note a human added
+        # underneath included.
+        annotated = "\n\n".join((
+            f"Resolves #{_RECOVERED_PR_ISSUE_NUMBER}",
+            self._dev_attribution(),
+            _REVIEWER_NOTE,
+        ))
         gh, issue = self._seed_open_plan_pr(
             _RECOVERED_PR_ISSUE_NUMBER, body=annotated,
         )
@@ -86,6 +93,22 @@ class PlanPrReuseTest(
 
         self.assertEqual(gh.edited_pr_bodies, [])
         self.assertEqual(gh.get_pr(_HANDOFF_PR_NUMBER).body, annotated)
+
+    def test_an_unclosing_body_is_named_above(self) -> None:
+        # Our own attribution with the closing reference gone -- a human took
+        # it out -- is a pull request whose merge would leave the issue open.
+        # So the implementation's lines go above it, and every word already
+        # there stays beneath them.
+        annotated = f"{self._dev_attribution()}\n\n{_REVIEWER_NOTE}"
+        gh, issue = self._seed_open_plan_pr(
+            _RECOVERED_PR_ISSUE_NUMBER, body=annotated,
+        )
+
+        self._run_publishing_tick(gh, issue)
+
+        named, earlier = gh.edited_pr_bodies[0][1].split(_EARLIER_HEADING)
+        self.assertTrue(named.startswith(f"Resolves #{issue.number}"))
+        self.assertEqual(earlier.strip(), annotated)
 
     def _dev_attribution(self) -> str:
         """The line that says this implementation's session wrote the branch."""

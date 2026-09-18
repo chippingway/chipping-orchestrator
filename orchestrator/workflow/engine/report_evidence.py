@@ -132,7 +132,7 @@ def fresh_requirements_verdict(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    pending: _records.PendingReport,
+    pending: _records.PendingReport | _records.CurrentReport,
 ) -> _evidence_models.ReportEvidence | None:
     """Refuse a report the issue has moved under since the run, or None.
 
@@ -151,7 +151,9 @@ def fresh_requirements_verdict(
     stamping a report with the revision its run was handed.
 
     None is the issue still being what the run answered, which is the only
-    answer that lets a publication settle.
+    answer that lets a publication settle. A SETTLED report is asked the same
+    question by the recovery that would hand its commit on: the subject it
+    froze is all this reads, and it is the same subject either way.
     """
     try:
         fresh = gh.get_issue(issue.number)
@@ -169,7 +171,9 @@ def fresh_requirements_verdict(
 
 
 def _requirements_verdict(
-    issue: Issue, state: PinnedState, pending: _records.PendingReport,
+    issue: Issue,
+    state: PinnedState,
+    pending: _records.PendingReport | _records.CurrentReport,
 ) -> _evidence_models.ReportEvidence | None:
     """Refuse a report whose requirements have moved under it, or None.
 

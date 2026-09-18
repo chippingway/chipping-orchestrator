@@ -39,9 +39,9 @@ body states it, and the reuse below reads it back off a pull request of unknown
 provenance: `find_open_pr` promises only that something is open on the branch,
 so what it hands over may be this stage's own crashed attempt, an operator's,
 or the `discussion` stage's plan PR sitting on the very ref the dev commits went
-to. Its presence is the one thing that separates the first from the others,
-which is why the same sentence is generated for both readings rather than
-written twice.
+to. Its presence beside this issue's closing reference is the one thing that
+separates the first from the others, which is why the same sentence is
+generated for both readings rather than written twice.
 
 Reuse rather than a second open is also what makes the publication re-runnable:
 a tick that died between `open_pr` and the relabel comes back to a pull request
@@ -305,21 +305,23 @@ def _attribute_reused_pr(
     the issue when it merges. An operator's own PR on the branch is the same
     problem with different words.
 
-    The dev attribution is what decides. Its presence means this stage already
-    wrote the body (a tick that died between `open_pr` and the relabel), and
-    everything it says -- including what a human added underneath -- is left
-    alone. Its absence earns the closing reference and the attribution, put
-    ABOVE the description rather than in its place: whatever an operator, the
-    plan, or a human editing a pull request this stage already pushed onto
-    wrote there is somebody's text, and it stays beneath them word for word.
+    What decides is the description as it stands NOW, so it is read again, by
+    number, before anything is decided. The body in hand is as old as the
+    lookup that fetched it: a human editing in between could have taken the
+    closing reference or the attribution out of a body that had both, and a
+    decision read off the snapshot would hand review a pull request that
+    closes nothing. GitHub offers no conditional write, so the one request
+    between that read and the edit is the window left. A read that fails is no
+    description to decide on, and None holds the publication rather than
+    writing over one nobody could read.
 
-    What stays is what the description says NOW, so it is read again, by
-    number, immediately before the write. The body in hand is as old as the
-    lookup that fetched it, and a human editing in between would have their
-    edit replaced by the version they edited. GitHub offers no conditional
-    write, so the one request between that read and the edit is the window
-    left. A read that fails is no description to keep, and None holds the
-    publication rather than writing over one nobody could read.
+    A body that already closes this issue and names this session -- this
+    stage's own, from a tick that died between `open_pr` and the relabel -- is
+    left alone, and everything it says with it, a human's additions included.
+    Anything else earns the closing reference and the attribution, put ABOVE
+    the description rather than in its place: whatever an operator, the plan,
+    or a human editing a pull request this stage already pushed onto wrote
+    there is somebody's text, and it stays beneath them word for word.
 
     One body is never touched whatever it says: the one this issue's own
     report claims as its location. A developer verifying a report on a pull
@@ -331,8 +333,18 @@ def _attribute_reused_pr(
 
     Answers the pull request to hand on, or None to hold the tick.
     """
-    attribution = _dev_pr_attribution(state)
-    if attribution in (getattr(pr, "body", "") or ""):
+    try:
+        current = gh.get_pr(pr.number)
+    except Exception:
+        log.exception(
+            "issue=#%s could not re-read reused PR #%d's description; holding "
+            "rather than deciding on the one the lookup fetched",
+            issue.number, pr.number,
+        )
+        return None
+    if _report_locations.describes_the_issue(
+        current, issue.number, _dev_pr_attribution(state),
+    ):
         return pr
     if _report_locations.claims_the_description(state, pr.number):
         log.warning(
@@ -341,21 +353,11 @@ def _attribute_reused_pr(
             issue.number, pr.number,
         )
         return pr
-    try:
-        described = gh.get_pr(pr.number).body or ""
-    except Exception:
-        log.exception(
-            "issue=#%s could not re-read reused PR #%d's description; holding "
-            "rather than writing over whatever it says now",
-            issue.number, pr.number,
-        )
-        return None
-    if attribution not in described:
-        log.info(
-            "issue=#%s naming this implementation above reused PR #%d's "
-            "description", issue.number, pr.number,
-        )
-        gh.edit_pr_body(
-            pr, _build_pr_body(state, issue, work.agent_result, described),
-        )
+    log.info(
+        "issue=#%s naming this implementation above reused PR #%d's "
+        "description", issue.number, pr.number,
+    )
+    gh.edit_pr_body(pr, _build_pr_body(
+        state, issue, work.agent_result, getattr(current, "body", None) or "",
+    ))
     return pr

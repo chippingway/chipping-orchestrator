@@ -62,18 +62,20 @@ through `report_delivery`, and holds the work there -- nothing measured, pushed
 or opened -- where the run delivered none that can be recorded.
 `unreported_recovery` holds every recovery whose commits no recorded debt or
 settled pair describes: the restart shortcut `disposition` takes, and each road
-that republishes a candidate a gate record named, since no developer runs on any
-of them. Once the push lands and the pull request is known, `publication` binds
-the report to that publication and posts or verifies it through
-`report_binding`, whose settlement in `report_publishing` reads the issue's
-requirements once more before it records anything -- and it withholds the
-handoff while any report is still owed, so the next tick republishes the same
-commit onto the same pull request with no developer run and nothing new opened.
-`dev_pr` keeps the report comment authoritative: a new description carries the
-closing reference and the attribution and no copy of the report, and a reused
-one gets those two lines above what it already says, read afresh first -- never
-on a description a report lives in, which the binding holds the work over until
-a report somewhere else frees it.
+that republishes a candidate a gate record named, since no developer runs on
+any of them -- and a settled pair that does describe them is re-read where the
+report settled, with the requirements, before it vouches for anything. Once the
+push lands and the pull request is known, `publication` binds the report to
+that publication and posts or verifies it through `report_binding`, whose
+settlement in `report_publishing` reads the issue's requirements once more
+before it records anything -- and it withholds the handoff while any report is
+still owed, so the next tick republishes the same commit onto the same pull
+request with no developer run and nothing new opened. `dev_pr` keeps the report
+comment authoritative: a new description carries the closing reference and the
+attribution and no copy of the report, and a reused one that does not already
+carry both, read afresh first, gets them above what it already says -- never on
+a description a report lives in, which the binding holds the work over until a
+report somewhere else frees it.
 
 `late_gate` is the order its own questions are asked in and nothing else, so
 nine owners sit under it: what one gate call is ABOUT and the identity every

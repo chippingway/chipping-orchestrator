@@ -38,6 +38,11 @@ this settles, and either request is long enough for a human to edit the issue
 under it -- so a settlement taken on those readings would record a report
 answering requirements the issue no longer has as the one the pull request
 carries, and hand it to a reviewer as current.
+
+What a settlement left is read here too, the same two ways, for the road that
+would hand a commit on because its report already went out: a settled record is
+never cleared, so it says what the pull request carried once, and only a fresh
+reading of that location says it still does.
 """
 from __future__ import annotations
 
@@ -248,6 +253,51 @@ def verifies_the_report(
         content_revision=pending.content_revision,
         location=pending.location,
     ))
+
+
+def still_carries(
+    gh: GitHubClient, state: PinnedState, current: _records.CurrentReport,
+) -> _pr_reports.ReportPresence:
+    """Whether the report a settlement recorded still reads where it settled.
+
+    A settlement is what a pull request carried at ONE moment, and the record
+    is never cleared: a comment can be edited or deleted after it, and so can
+    a report somebody verified. So a road that would hand work on because its
+    report already went out re-reads the location first, and PRESENT is the
+    only answer that lets it.
+
+    A comment this orchestrator posted is read as the report it renders: the
+    settlement recorded the digest of the report TEXT, which the comment wraps
+    in its header, so the comment has to re-render exactly and carry that
+    text. Whose it is comes off this issue's own ledger of posted comments
+    rather than off the author, since that ledger is what named the comment in
+    the first place. Anything else is a location a developer verified, held to
+    the digest of what is there and to an author this deployment trusts,
+    exactly as the verification was.
+
+    UNCONFIRMED is a reading nobody could take, the author included, and a
+    caller holds on it; ABSENT and CHANGED are definite answers about content
+    a human owns.
+    """
+    lookup = gh.reread_report_location(
+        current.location, content_sha256=current.content_revision,
+    )
+    if current.location.comment_id in _comments._orchestrator_ids(state):
+        if lookup.presence is not _pr_reports.ReportPresence.CHANGED:
+            return lookup.presence
+        published = _reports.developer_report_from_comment(
+            lookup.found, bot_login=None,
+        )
+        same = published is not None and (
+            _reports.content_digest(published.text) == current.content_revision
+        )
+        return _pr_reports.ReportPresence.PRESENT if same else lookup.presence
+    if lookup.presence is not _pr_reports.ReportPresence.PRESENT:
+        return lookup.presence
+    trusted = _trusts_the_author(lookup.found)
+    if trusted is None:
+        return _pr_reports.ReportPresence.UNCONFIRMED
+    return lookup.presence if trusted else _pr_reports.ReportPresence.CHANGED
 
 
 def _trusts_the_author(found: Any) -> bool | None:

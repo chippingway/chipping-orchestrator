@@ -365,7 +365,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             publication whose merge leaves its issue open, which the binding below holds for repair.
                             It also answers which publication the SETTLED pair is about -- agreeing with itself and
                             naming this repository, pull request and commit -- since a settlement is never cleared
-                            and an older commit's report reads as well as the newest one's
+                            and an older commit's report reads as well as the newest one's; the settled report it
+                            hands back is a claim, for its caller to re-read before trusting
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
@@ -379,7 +380,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its own as well, over an issue read AGAIN from GitHub, for the caller completing the
                             publication it has just made: every other term is a fact that caller established this
                             tick, while the issue it holds was fetched before its developer ran -- and a re-read
-                            that fails answers HOLD, since nobody could say the issue is unchanged
+                            that fails answers HOLD, since nobody could say the issue is unchanged. The settlement
+                            asks it last on both roads, and a recovery asks it of a settled report too
     report_checkout_evidence.py the checkout half: on this host, clean by a reading that HAPPENED rather than by an
                             empty path list, and standing on the commit the report is about
     report_remote_evidence.py the remote half, which the checkout cannot answer: the recorded branch is fetched and
@@ -436,7 +438,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction let run. And both prove the REQUIREMENTS last, over the issue read afresh
                             after the post or the re-read and before the settlement: an edit landing during either
                             request leaves the transaction owed, the handoff withheld, and the drift resume to
-                            answer it, on the binding's road and the reconciliation's alike
+                            answer it, on the binding's road and the reconciliation's alike. `still_carries` reads a
+                            SETTLED report again where it settled, for a recovery about to hand its commit on: a
+                            comment on this issue's own ledger has to re-render as the report whose text digest
+                            settled, and any other location has to hash to the digest verified and have an author
+                            this deployment trusts
     report_binding.py       what a publication does with the report its run delivered, once the push has landed
                             and a pull request carries it: the record bound to that publication -- the repository,
                             the number, the branch and the commit the caller proved, beside the requirements
@@ -1420,7 +1426,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             answers is a debt still owed (a delivery, a transaction) or a settled pair that agrees
                             with itself and names this repository, this commit, and the pull request the receipt
                             says it was pushed onto; a settlement is never cleared, so any other pair is about other
-                            work. Also the `invoked=False` result those recoveries hand the seam. The timeout-park
+                            work. Even that pair is only a claim about one moment, so the report is re-read where it
+                            settled and the issue's requirements read again before it lets the work past: a reading
+                            nobody could take holds the tick silently, and a report edited or deleted since, or
+                            requirements moved away from, parks for repair. Also the `invoked=False` result those
+                            recoveries hand the seam. The timeout-park
                             recovery is not one of them: a timed-out run never completes, so none was recorded and
                             its commit publishes as a timeout's always has
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
@@ -1975,15 +1985,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that message written only where the issue owes no report of its own, since the report
                             comment is the authority and a capped excerpt here would be a second, unmarked copy;
                             and the reuse of whatever is already open on the branch, which `find_open_pr`
-                            promises nothing else about -- one whose body already names this session is adopted
-                            as it stands, a legacy `_Last agent message:_` tail and human annotations included,
-                            and one that does not (an operator's, the `discussion` stage's plan PR sitting on the
-                            very ref the dev commits went to, or one a human re-described after this stage pushed
-                            onto it) gets the closing reference and the attribution put ABOVE its description,
-                            which stays beneath them word for word under an earlier-description heading -- read
-                            afresh by number immediately before the write, so an edit landing after the lookup is
-                            the text kept, and a re-read that fails holds the publication rather than writing over
-                            what nobody could read. A description this issue's own report claims
+                            promises nothing else about, and decided on its description read afresh by number
+                            rather than on the body the lookup fetched, since a human can edit in between -- one
+                            that already closes this issue and names this session is adopted as it stands, a
+                            legacy `_Last agent message:_` tail and human annotations included, and one that does
+                            not (an operator's, the `discussion` stage's plan PR sitting on the very ref the dev
+                            commits went to, or one a human re-described or stripped after this stage pushed onto
+                            it) gets the closing reference and the attribution put ABOVE that description, which
+                            stays beneath them word for word under an earlier-description heading. A re-read that
+                            fails holds the publication rather than deciding on, or writing over, what nobody could
+                            read. A description this issue's own report claims
                             (`engine/report_locations.py`) is never edited at all, since any edit moves it off the
                             digest it was verified at. One road
                             names its pull request instead and may

@@ -17,6 +17,14 @@ about THIS commit on the pull request the receipt says it was pushed onto,
 which is what a publication whose relabel did not land leaves behind. A
 settlement is never cleared, so any other pair is about other work.
 
+And a settled pair is a record of one moment. The report it names can have been
+edited or deleted since, and the issue can have moved under the requirements it
+answered -- so before a settlement lets the work past, the report is re-read
+where it settled and the requirements are read again. A reading nobody could
+take holds the tick without a word, since the next one is as likely to succeed.
+A definite answer that the report is not what settled is a publication a human
+has to repair, and it parks with the work where it is.
+
 Neither on the comment is the window the recording exists to close -- a pinned
 write that failed, a restart inside it -- or a run that never completed. Either
 way the session that could say what the commits do has ended, and published
@@ -33,13 +41,34 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pull_request_reports import ReportPresence
 from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
+    report_evidence as _report_evidence,
     report_locations as _report_locations,
+    report_publishing as _report_publishing,
+    report_records as _records,
 )
 from orchestrator.workflow.stages.implementing import (
     late_publication_state as _late_publication_state,
     session_read as _session_read,
+)
+
+_MOVED_SETTLEMENT_PARK = (
+    "{mentions} this issue's branch carries committed work whose developer "
+    "report already settled on PR #{pr}, and that report no longer stands as "
+    "it settled: {detail}. Nothing was published: the commit is still in the "
+    "worktree and the pull request stands as it is, because handing this on "
+    "would send a reviewer a report that is not the one recorded. Reply and "
+    "the orchestrator resumes the session; the report it writes then is the "
+    "one that gets published, and it needs no new commit to deliver it."
+)
+
+# What the notice says about each way a settled report can have moved.
+_MOVED_REPORT = "it is gone from where it settled, or reads differently there"
+
+_MOVED_REQUIREMENTS = (
+    "the issue's requirements have moved since the run that wrote it"
 )
 
 
@@ -68,23 +97,63 @@ def _holds_unreported_work(
     state: PinnedState,
     source_sha: str,
 ) -> bool:
-    """Park recovered work no recorded report describes; True where it parked.
+    """Hold recovered work no standing report describes; True where it held.
 
-    `source_sha` is the commit the recovery is about to republish: the head
-    the restart shortcut found, or the candidate a gate record named. A caller
-    that could name none is asking about nothing, and no settlement answers it.
+    Held is parked, for a report nothing recorded or a settled one that has
+    moved -- or a tick that simply stops, where the settled report could not
+    be re-read. `source_sha` is the commit the recovery is about to republish:
+    the head the restart shortcut found, or the candidate a gate record named.
+    A caller that could name none is asking about nothing, and no settlement
+    answers it.
     """
     if _report_delivery.owes_a_report(state):
         return False
-    if _report_locations.settled_the_publication(
+    settled = _report_locations.settled_publication(
         state, spec.slug,
         _late_publication_state._published_pull_request(state),
         source_sha,
-    ):
-        return False
+    )
+    if settled is not None:
+        return _holds_a_moved_settlement(gh, issue, state, settled)
     _report_delivery.parks_an_undeliverable_report(
         gh, issue, state, _report_delivery.UNRECOVERED_PARK.format(
             mentions=config.HITL_MENTIONS,
+        ),
+    )
+    return True
+
+
+def _holds_a_moved_settlement(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    settled: _records.CurrentReport,
+) -> bool:
+    """Hold a settled report that no longer stands; True where it held.
+
+    The report first, where it settled, then the requirements over an issue
+    read afresh. Either reading nobody could take holds silently; either
+    definite refusal parks, once, under the reason every undeliverable report
+    takes -- which is also what makes the reply that answers it publish the
+    commits already on the branch.
+    """
+    presence = _report_publishing.still_carries(gh, state, settled)
+    if presence is ReportPresence.UNCONFIRMED:
+        return True
+    edited = None
+    if presence is ReportPresence.PRESENT:
+        edited = _report_evidence.fresh_requirements_verdict(
+            gh, issue, state, settled,
+        )
+        if edited is None:
+            return False
+        if edited.holds:
+            return True
+    _report_delivery.parks_an_undeliverable_report(
+        gh, issue, state, _MOVED_SETTLEMENT_PARK.format(
+            mentions=config.HITL_MENTIONS,
+            pr=settled.subject.pr_number,
+            detail=_MOVED_REPORT if edited is None else _MOVED_REQUIREMENTS,
         ),
     )
     return True

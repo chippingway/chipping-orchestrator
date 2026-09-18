@@ -1660,13 +1660,13 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        `:sparkles: PR opened: #N`, publish the developer report onto that PR, then set label `workflow:validating`
        (the docs pass runs only as the final-docs handoff after approval). A reused PR is only known to be open on
        the branch — most sharply, an issue relabeled out of `discussion` arrives with its plan PR open on the very
-       branch these commits went to — so one whose body does not already name this dev session gets the
-       implementation's lines (`Resolves #N`, the dev session, and the agent's closing message where no report
-       supersedes it) put ABOVE its description, which stays beneath them word for word under an
-       earlier-description heading; one that does name it is left as it stands, a legacy `_Last agent message:_`
-       tail and human annotations included. The description kept is the one GitHub holds NOW, read again by number
-       immediately before the write, so an edit a human lands after the lookup is the text kept; a re-read that
-       fails holds the publication rather than writing over what nobody could read. The same goes for a pull request
+       branch these commits went to — so it is decided on its description as GitHub holds it NOW, read again by
+       number rather than taken off the lookup, since a human can edit in between. One that already closes this
+       issue and names this dev session is left as it stands, a legacy `_Last agent message:_` tail and human
+       annotations included; any other gets the implementation's lines (`Resolves #N`, the dev session, and the
+       agent's closing message where no report supersedes it) put ABOVE that description, which stays beneath
+       them word for word under an earlier-description heading. A re-read that fails holds the publication rather
+       than deciding on, or writing over, what nobody could read. The same goes for a pull request
        this stage already pushed onto, the retry that finishes an owed report included. One description is never
        edited whatever it says: the one this issue's own report claims as its location, since a verification
        recorded only the digest of what it read and any edit moves it off that — a record nobody can read claims
@@ -1703,7 +1703,11 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        authorized rollback, none of which runs a developer — finding committed work with no report of the run that
        made it anywhere on the comment (no delivery, no transaction, and no settled pair about that commit on the
        pull request its receipt names — a settlement is never cleared, so an older commit's pair says nothing about
-       this one), which is the lost-write window the recording exists to close. The timeout-park recovery is not
+       this one), which is the lost-write window the recording exists to close. A pair that DOES match is re-read
+       first: the report where it settled — a comment of ours re-rendering as the report it settled as, any other
+       location hashing to the digest verified under a trusted author — and the issue's requirements afresh. A
+       reading nobody could take holds the tick; a report edited or deleted since, or requirements moved away from,
+       parks for repair rather than letting the record vouch for it. The timeout-park recovery is not
        among them: a timed-out run never completed, so no report was ever recorded for it to have lost. After the
        push, with the code standing and only the
        handoff withheld: a delivered record nobody can read, a verification asserting a report on another pull

@@ -32,6 +32,8 @@ the report on a pull request is about. A settlement is never cleared, so an
 older commit's report reads as well as the newest one's -- and the recovery
 that republishes a commit because its report already went out has to be told
 the difference, or a newer commit goes out under a report about an older one.
+It is only a claim: whether the report still reads there is the recovery's to
+re-read before it hands anything on.
 
 Preserving one is not free, and the second reading here is what its caller owes
 the work. A description is also where a pull request says which issue it closes
@@ -119,13 +121,13 @@ def _claims(recorded: Any, record: Any, pr_number: int) -> bool:
     return location is None or _names_the_description(location, pr_number)
 
 
-def settled_the_publication(
+def settled_publication(
     state: _pinned_state.PinnedState,
     repo_slug: str,
     pr_number: int,
     source_sha: str,
-) -> bool:
-    """Whether the settled report is about this commit on this pull request.
+) -> _records.CurrentReport | None:
+    """The settled report about this commit on this pull request, or None.
 
     Both settled records, and they have to agree with each other: they are
     written in one write off one transaction, so a pair naming two different
@@ -135,17 +137,21 @@ def settled_the_publication(
     describes work that has since moved on, and one about this commit on
     another pull request is somewhere a reviewer of this one will not look.
 
-    False wherever either record cannot be read, which is the answer that
-    holds the work for a report rather than letting it past undescribed.
+    What comes back is a CLAIM about the pull request, not a reading of it:
+    the report it names may have been edited or deleted since it settled, so
+    a caller about to hand the work on re-reads it there before trusting it.
+    None wherever either record cannot be read, which is the answer that holds
+    the work for a report rather than letting it past undescribed.
     """
     current = _settlement.read_current_report(state)
     handoff = _settlement.read_handoff(state)
-    if current is None or _replay_guards.companions_disagree(current, handoff):
-        return False
+    if current is None or handoff is None:
+        return None
+    if _replay_guards.companions_disagree(current, handoff):
+        return None
     subject = current.subject
-    return handoff is not None and (
-        subject.repo_slug, subject.pr_number, subject.source_sha,
-    ) == (repo_slug, pr_number, source_sha)
+    settled = (subject.repo_slug, subject.pr_number, subject.source_sha)
+    return current if settled == (repo_slug, pr_number, source_sha) else None
 
 
 def describes_the_issue(
