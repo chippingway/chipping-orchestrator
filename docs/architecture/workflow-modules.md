@@ -105,6 +105,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             sentence can take back. That stage's other outcome -- docs WERE updated -- is a commit on
                             the branch and is read there instead. Each parser returns the slice above its marker, the
                             part a human is shown
+    review_verification_models.py the reviewer verification vocabulary, kept apart from the `VERDICT:` line: the
+                            `VERIFICATION: RUN` / `VERIFICATION: END` block with its `COMMAND:` and `EXIT:` step
+                            lines, and the `VERIFICATION: REUSED` line naming a SHA-256 evidence revision; the subject
+                            a declaration has to be about -- the reviewed commit and the current evidence revision
+                            the reviewer was shown; the two accepted outcomes, each sourced to the reviewer run and
+                            labeled reviewer-reported, with every command, exit status, and output kept as written;
+                            and the closed refusals: five for a run that did not complete, three for a completed
+                            run's message whose declaration is missing, malformed, or stale
+    review_verification.py  the strict reader of that declaration, which nothing calls until the reviewer round asks
+                            for it. A run never invoked, interrupted, timed out, refused by its provider, or exited
+                            nonzero is refused before its message is read; the declaration has to be the message's
+                            only marker use, outside any code block, and a RUN block has to be closed, list at least
+                            one command with one POSIX exit status right below it, and hold no verdict the verdict
+                            reader would accept. Shape is settled before truth: a well-formed declaration naming
+                            another commit, or any revision but the current one, is stale. Nothing is counted or
+                            inferred from what the reviewer wrote
     stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call;
                             the unlabeled target reaches pickup through the same resolver, and the two
                             code-publication receipt owners are named here for it -- the report evidence reads
@@ -197,10 +213,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             to be the message's only marker use and its last lines, outside any code block, and an
                             `ACK:` beside it makes it malformed. A verified location and revision are parsed for
                             shape, never taken as proof
-    report_fences.py        which lines of a developer's message a code fence may enclose, judged without a Markdown
-                            parser so that a doubt reads as fenced: a fence opens at the top level or in a list item,
-                            closes only on a bare run at its opening run's column, and stays open to the end past a
-                            line that may have ended its list item
+    report_fences.py        which lines of an agent's message a code fence may enclose, asked by both the developer
+                            report reader and the reviewer verification reader, judged without a Markdown parser so
+                            that a doubt reads as fenced: a fence opens at the top level or in a list item, closes
+                            only on a bare run at its opening run's column, and stays open to the end past a line
+                            that may have ended its list item
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the

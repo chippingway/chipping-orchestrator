@@ -23,6 +23,11 @@ Each parser also returns the slice above its marker, because that body is the
 part a human is shown -- the reviewer's requested changes quoted onto the pull
 request, the one line justifying a no-change -- while the marker itself is
 vocabulary this module owns and the thread never needs.
+
+What a reviewer declares about verification is not read here. It has markers
+of its own on `review_verification`, which asks this module's review pattern
+only to refuse a declaration holding a verdict, so a verdict is never kept as
+evidence.
 """
 from __future__ import annotations
 
