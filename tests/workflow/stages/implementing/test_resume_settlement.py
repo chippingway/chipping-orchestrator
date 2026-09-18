@@ -34,6 +34,7 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git.measurement.models import MeasurementFailure
+from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import (
     issue_processing as _issue_processing,
     poll_models as _poll_models,
@@ -45,8 +46,14 @@ from orchestrator.workflow.stages.implementing import (
     late_measurement_state as _late_measurement_state,
     state as _state,
 )
-from tests.workflow.fixtures import _TEST_SPEC, LABEL_IMPLEMENTING, _agent
+from tests.workflow.fixtures import (
+    _TEST_SPEC,
+    LABEL_IMPLEMENTING,
+    _agent,
+    _stand_opened_prs_on_the_push,
+)
 from tests.workflow.stages.implementing import (
+    late_consent_case as _consent_case,
     late_consent_payloads as _consent_payloads,
     resume_batch_test_support as _support,
 )
@@ -174,15 +181,27 @@ class ResumeSettlementTest(_support._ParkedThread, unittest.TestCase):
         # authorization park, so this road resumes nothing and consumes
         # nothing: its own run's park would stamp the thread read to a notice
         # above the command and take it for good.
-        self._seed(**{
-            _state._PARK_REASON: _late_command.PARK_UNAUTHORIZED_EXEMPTION,
-        })
-        self._they_say(_consent_payloads.AUTHORIZE)
+        #
+        # Asked twice, the second with a run-limit grant's command written
+        # under it to lift that hold. The park's own road reads past an
+        # answered grant, so this one has to: taking the grant as the last
+        # word, it would deliver the command as prose to a developer.
+        for described, after in (
+            ("alone", ()),
+            ("over an answered grant", (_consent_payloads.ANSWERED_GRANT,)),
+        ):
+            with self.subTest(command=described):
+                self.setUp()
+                self._seed(**{
+                    _state._PARK_REASON: _late_command.PARK_UNAUTHORIZED_EXEMPTION,
+                })
+                for said in (_consent_payloads.AUTHORIZE, *after):
+                    self._they_say(said)
 
-        resumed = self._resumes()
+                resumed = self._resumes()
 
-        resumed.call.assert_not_called()
-        self.assertEqual(self._watermark(), _support.PARKED_AT)
+                resumed.call.assert_not_called()
+                self.assertEqual(self._watermark(), _support.PARKED_AT)
 
     def test_guidance_over_it_is_an_ordinary_resume(self) -> None:
         # Somebody who asked to publish and then asked for a change has
@@ -513,6 +532,96 @@ class RunLimitCycleTest(_support._ParkedThread, unittest.TestCase):
         return self.github.pinned_data(_support.ISSUE_NUMBER).get(
             _state._LAST_ACTION_COMMENT_ID,
         )
+
+
+class RunLimitAuthorizationTest(_consent_case._ParkedCase, unittest.TestCase):
+    """The run-limit cycle on an issue whose candidate waits on an operator.
+
+    The grant cannot consume its own command without the reply its park
+    interrupted, so the command outlives the cycle -- and a later park that
+    asks for the LAST word on the thread is the one that can mistake it for
+    one. Both halves of that question, the park's own reading and the frozen
+    resume batch, take it out the same way: counted by either alone, the tick
+    goes to a road that cannot act on what it was handed.
+    """
+
+    def test_the_grant_alone_is_no_reply_to_the_park(self) -> None:
+        # The resume the grant reopens delivers the preserved reply, and the
+        # candidate that run commits is held for an operator; the park's mark
+        # stops below the grant command. Read as somebody speaking, that
+        # command hands every later poll to a resume that drops it and has
+        # nothing to deliver -- so the park's own road holds instead, and the
+        # authorization the operator then writes publishes.
+        self._cycle(_consent_payloads.measured_pair(
+            candidate_sha=_consent_payloads.STRANGER_SHA,
+        ))
+        granted = self._reply(_consent_payloads.ANSWERED_GRANT)
+        self._tick()
+        self._tick()
+
+        resumed = self._tick()
+
+        resumed[_consent_payloads.RUN_AGENT].assert_called_once()
+        self._assert_still_parked()
+        self.assertLess(self._pinned()[_state._LAST_ACTION_COMMENT_ID], granted)
+        read = _late_command._reads_the_thread(self.github, self.issue, self._state())
+        self.assertFalse(read.spoke)
+        self._reply(_consent_payloads.AUTHORIZE)
+        self._assert_published(self._tick())
+
+    def test_a_command_under_the_grant_publishes(self) -> None:
+        # An operator who meant to publish as-is writes the authorization
+        # while the run-limit hold stands, and then the grant that lifts it.
+        # Read as the last word, the grant hides the command from the park's
+        # road, and the resume behind it drops the grant and pays a developer
+        # to read the authorization as prose.
+        self._cycle(_consent_payloads.measured_pair())
+        self._reply(_consent_payloads.AUTHORIZE)
+        self._reply(_consent_payloads.ANSWERED_GRANT)
+        repaired = self._tick()
+        granted = self._tick()
+
+        published = self._tick()
+
+        for held in (repaired, granted):
+            self._assert_no_agent(held)
+            held[_consent_payloads.PUSH_BRANCH].assert_not_called()
+        self._assert_published(published)
+
+    def _cycle(self, pair: dict) -> None:
+        """The park, the reply a spent ledger refuses to resume on, the hold."""
+        self._seed(**pair, **{
+            _state._DEV_AGENT: _BACKEND,
+            _state._DEV_SESSION_ID: _SESSION,
+            **_SPENT_LEDGER,
+        })
+        self._reply(_consent_payloads.GUIDANCE)
+        refused = self._tick()
+        refused[_consent_payloads.RUN_AGENT].assert_not_called()
+
+    def _tick(self):
+        """One whole poll through the dispatcher's run-limit hold.
+
+        The developer that runs, where one does, commits the candidate the
+        park is about -- over the ceiling, so it is held for an operator.
+        """
+        opened_before = len(self.github.opened_prs)
+        with patch.object(
+            _worktree_paths,
+            _consent_payloads.WORKTREE_PATH,
+            return_value=_consent_payloads.TEMP_WORKTREE_ROOT,
+        ):
+            polled = self._run(
+                lambda: _issue_processing._route_issue_to_handler(
+                    self.github, _TEST_SPEC, self.issue, LABEL_IMPLEMENTING,
+                    reading=_poll_models._POLLED_OPEN,
+                ),
+                run_agent=MagicMock(return_value=_agent(last_message=_COMMITTED)),
+                has_new_commits=True,
+                added_lines=_consent_payloads.OVERSIZED_ADDITIONS,
+            )
+        _stand_opened_prs_on_the_push(self.github, polled, opened_before)
+        return polled
 
 
 def _answer_to_the_continue(polled, github) -> str:

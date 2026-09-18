@@ -24,6 +24,13 @@ stays past the mark with it. It is still there when the run the grant bought
 parks again. Counted by one road, a later `/orchestrator continue` is mixed
 with it and passed through; dropped by the next, the same continue is bare and
 reserved -- and the park stands forever.
+
+The authorization park reads its thread by a different first cut -- the id
+ledger alone, so a marker somebody pasted is still a reply that demotes the
+command under it -- and asks it for the LAST reply rather than for all of
+them. The second cut is this one all the same, on that road and on the
+freeze's copy of its question: an answered grant read as the last word would
+hide the command written above it on one side and not the other.
 """
 from __future__ import annotations
 
@@ -43,6 +50,8 @@ from orchestrator.workflow.stages.implementing import state as _state
 
 def _answering(read: Iterable) -> list:
     """The comments of one read that are not an already-answered control.
+
+    Order is kept, since the authorization park's reading takes the last.
 
     Only the bare command comes out, for the reason the drift hash drops only
     it: words written beside the command are guidance, and the resume that

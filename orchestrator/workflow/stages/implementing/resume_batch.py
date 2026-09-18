@@ -239,15 +239,18 @@ def _freeze(
     reply like any other.
 
     The authorization park's is the third, and the one asked of a different
-    batch: the LAST reply the ID LEDGER leaves, which is what that park's own
-    road reads and reads it by. A command with guidance written over it has
+    batch: the LAST reply the ID LEDGER leaves, less an answered run-grant
+    command, which is what that park's own road reads and reads it by. A command with guidance written over it has
     been replaced -- the safe reading of somebody who asked to publish and
     then asked for a change is the one that publishes nothing -- so that batch
     is an ordinary resume and the developer answers the change. Asked of the
     delivered replies instead, the two roads would disagree about which reply
     is last wherever a marker somebody pasted sits over the command, and each
     would hand the tick to the other: one refusing a command it does not see
-    last, the other deferring to the road that refused it.
+    last, the other deferring to the road that refused it. The grant command
+    comes out of both through the same `parked_replies` cut for the same
+    reason: left last on one side alone, a command written above it is
+    reserved by nobody and delivered to a developer as prose.
     """
     ours = frozenset(_comments._orchestrator_ids(state))
     thread = gh.comments_after(issue, None, state_comment_id=state.comment_id)
@@ -265,9 +268,7 @@ def _freeze(
     quoted = _quoted(unclaimed, delivery)
     if _reserved_elsewhere(quoted, state, continue_claimed=continue_claimed):
         return _ReplyBatch(state, _DELIVERED_NOTHING, (), reserved=True)
-    if unclaimed and _late_command._reserved_for_the_park(
-        unclaimed[-1], state,
-    ):
+    if _last_word_reserved(unclaimed, state):
         return _ReplyBatch(state, _DELIVERED_NOTHING, (), reserved=True)
     return _ReplyBatch(
         state,
@@ -314,6 +315,17 @@ def _reserved_elsewhere(
     if not continue_claimed or park_reason in _base_sync_state._AUTO_REBASE_PARK_REASONS:
         return False
     return _messages._continue_command_action(replies, park_reason) != _PASSTHROUGH
+
+
+def _last_word_reserved(unclaimed: list, state: PinnedState) -> bool:
+    """Whether the authorization park's own road owns the last reply here.
+
+    Asked of the replies the ID LEDGER leaves less an answered run-grant
+    command, which is the reading that road takes: a grant left last on one
+    side alone would put a command above it in nobody's hands.
+    """
+    spoken = _parked_replies._answering(unclaimed)
+    return bool(spoken) and _late_command._reserved_for_the_park(spoken[-1], state)
 
 
 def _quoted(

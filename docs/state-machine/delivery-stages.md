@@ -3040,7 +3040,11 @@ continue` is mixed to the one and bare to the other — passed through, then res
 nothing retried, refused, or said; counted by the quiet recovery's gate, it holds off the publication of a commit the
 timeout stranded for a resume that has nothing to deliver. The authorization park is the one reservation read
 differently: its own road names our comments by recorded id alone, so the freeze asks it of the last reply that
-ledger leaves, and the two agree about which reply is last.
+ledger leaves, and the two agree about which reply is last. Both take an answered grant out of that reading through
+the same `parked_replies` cut. Left last on either side alone, it hides an `/orchestrator authorize-oversized`
+written just above it — the operator who authorized while the run-limit hold stood, then lifted the hold — and the
+resume drops the grant and delivers the command to a developer as prose; read as somebody speaking, it hands a park
+nobody has answered to a resume with nothing to deliver.
 
 `_park_awaiting_human` posts on the issue (not the PR) so the HITL ping appears alongside the rest of orchestrator
 state. The PR comment that triggers a route to `workflow:fixing` is the human signal; awaiting-human is reserved for

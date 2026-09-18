@@ -1246,8 +1246,9 @@ The keys that matter for the state machine fall into a few groups:
   otherwise reach an agent as somebody asking for a change — and be paid for.
 
   That resume also **defers its whole tick** where the batch's last fresh reply is the command ending this park
-  and the park is standing. It reads the thread *after* `late_recovery` has classified it and handed the tick
-  back, so a command landing between the two reads is in its batch and in nobody else's. Sparing just that one
+  and the park is standing — an answered `/orchestrator add-agent-runs` read past on both sides, since this park's
+  own reading does not count it as a reply. It reads the thread *after* `late_recovery` has classified it and handed
+  the tick back, so a command landing between the two reads is in its batch and in nobody else's. Sparing just that one
   reply would not save it: a watermark is one number and the resume is not the last thing to move it, so the run
   it starts parks and that park stamps the thread read to the id of the notice it posts — above the command, which
   is then gone for good. Nothing consumed, nothing is lost: the next poll reads the command as the last fresh word
@@ -1714,8 +1715,9 @@ The keys that matter for the state machine fall into a few groups:
   park is down, and the frozen reply batch never delivers a bare `add-agent-runs` to a developer — and the reply is
   the next awaiting-human resume's to deliver. The unread command is not a reply to any later park either: every road
   that reads a parked `workflow:implementing` thread cuts it out the same way (`implementing/parked_replies.py`), so a
-  bare `/orchestrator continue` written under it is still the explicit retry or refusal it would be alone, and it does
-  not hold off the quiet timeout recovery.
+  bare `/orchestrator continue` written under it is still the explicit retry or refusal it would be alone, it does
+  not hold off the quiet timeout recovery, and on the authorization park it is neither the last word — which would
+  hide an `/orchestrator authorize-oversized` written above it — nor anybody speaking.
   Every other request leaves `agent_runs_used` and `agent_run_allowance` exactly as it found them, keeps the park,
   and posts one receipt carrying `<!--orchestrator-add-agent-runs-refused:issue=N:comment=M-->`. Both answers are
   marked that way — the acknowledgement carries `<!--orchestrator-add-agent-runs-granted:issue=N:comment=M-->`; each

@@ -1370,7 +1370,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the delivery record, so what was quoted and what is marked answered cannot
                             disagree, and the settlement is `engine/prompt_delivery.py`'s ordinary pinned one
                             -- no run on this road records a report transaction. A batch whose last reply
-                            past the ID LEDGER is the command ending a standing authorization park defers
+                            past the ID LEDGER -- an answered run-grant command read past, as that park's own
+                            road reads it -- is the command ending a standing authorization park defers
                             the whole tick, unconsumed, to the poll that can act on it: this read comes
                             after that park's own owner classified the thread, so a command landing between
                             the two would otherwise be spent -- not by this batch, which could spare it,
@@ -1388,15 +1389,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             hand a developer: a notice of ours above a bare command, or a forged marker
                             over one, is out of every prompt here, so it may not decide who owns the
                             batch either. The authorization park's is the exception and reads the last
-                            reply the ID LEDGER leaves, because that is how its own road reads one --
+                            reply the ID LEDGER leaves, less an answered grant, because that is how its own
+                            road reads one --
                             asked off any other shape, a reservation defers what that road then refuses
                             and the two hand the thread back and forth forever
       parked_replies.py     the one cut every road reading a parked thread takes of its fresh replies --
                             `engine/prompt_delivery.py`'s `human_replies` with a bare `/orchestrator
                             add-agent-runs` taken out -- read by the measurement park's retry, the
                             parked-continue classifier, and the quiet timeout recovery, and cut into the
-                            frozen batch behind them. A reply counted on one side of those hand-offs and not
-                            the other is a tick each road leaves to the next on every poll: a grant's
+                            frozen batch behind them. The authorization park's reading keeps its own first cut
+                            (the id ledger alone) and takes the grant out through this one too. A reply
+                            counted on one side of those hand-offs and not the other is a tick each road
+                            leaves to the next on every poll: a grant's
                             command left unread makes a later bare continue mixed to the classifier and
                             bare to the reservation, and the park stands with nothing retried or refused
       resume_request.py     what one such call supplied, frozen and checked before a run is built: the stage
@@ -1500,7 +1504,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whole-comment command parsing, valid comment ids, and stage attribution from the id ledger
       late_command.py       select the last fresh trusted human reply from one thread reading, carry its furthest
                             watermark, and read through later attributed stage comments without crossing human guidance;
-                            receipt checks exclude the pinned comment by id
+                            receipt checks exclude the pinned comment by id. A bare `/orchestrator add-agent-runs` is
+                            no reply to the park (`parked_replies.py`'s cut, the one the frozen resume batch asks the
+                            same question with): a grant left unread would otherwise hide a command written above it,
+                            or read as somebody speaking and hand the tick to a resume with nothing to deliver
       late_recovery.py      the ordered recovery dispatcher ahead of every developer spawn: repair stranded
                             authorship, restore a held park, retry measurement, answer authorization, then
                             recognize a restored candidate; committed work never buys a replacement developer run
