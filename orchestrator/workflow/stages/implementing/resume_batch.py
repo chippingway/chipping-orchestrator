@@ -32,7 +32,9 @@ a bare command. Asked of the raw read they see our own park notice standing
 above the reply a human wrote while the agent was out, call the batch mixed,
 and pass it through; the delivery then drops the notice and hands the bare
 command to a developer as prose, with the watermark moved past the words that
-asked for the retry. One list, and the answer is the same on both sides of it.
+asked for the retry. One list, and the answer is the same on both sides of it
+-- which is why the cut is `parked_replies`' and not this owner's: the roads
+ahead of this one read the thread through it, and this batch is cut by it.
 
 The re-grounding conversation comes out of that same read, through the same
 classification, and it has to on both counts. A resume whose session was
@@ -76,11 +78,11 @@ from orchestrator.workflow.engine import (
     messages as _messages,
     prompt_context as _prompt_context,
     prompt_delivery as _delivery,
-    run_grant_request as _run_grant_request,
 )
 from orchestrator.workflow.stages.implementing import (
     late_command as _late_command,
     late_measurement_reply as _late_measurement_reply,
+    parked_replies as _parked_replies,
     state as _state,
 )
 
@@ -212,14 +214,19 @@ def _freeze(
     awaiting-human road classifies the command itself rather than ahead of
     itself -- off this same delivered batch.
 
-    A bare `/orchestrator add-agent-runs` is left out of the delivery and out
-    of nothing else. It is a control the run-limit hold has already answered,
-    with its receipt on the thread, and the one road that acts on it reads it
-    only while that park stands. It can still be above the mark: the grant
-    that answers it may not consume a reply the park interrupted, and a
-    watermark is one number, so the command above that reply is left unread
-    with it. Handed on, it would reach a developer as prose nobody meant as
-    requirements -- the same reason the content hash does not count it.
+    A bare `/orchestrator add-agent-runs` is left out of the delivery, and so
+    out of what the command roads classify. It is a control the run-limit hold
+    has already answered, with its receipt on the thread, and the one road
+    that acts on it reads it only while that park stands. It can still be
+    above the mark: the grant that answers it may not consume a reply the park
+    interrupted, and a watermark is one number, so the command above that
+    reply is left unread with it. Handed on, it would reach a developer as
+    prose nobody meant as requirements -- the same reason the content hash
+    does not count it. And it has to be out of the preflight's read exactly
+    as it is out of this one, which is why both take it out through
+    `parked_replies`: counted there, a later bare continue is mixed with it
+    and passed through; dropped here, the same continue is bare and reserved,
+    and the park stands with nothing retried, refused, or said.
 
     The pinned state comment is taken out of that read by its IDENTITY, and
     only it. The thread reader's other answer -- the state marker in a body --
@@ -249,10 +256,7 @@ def _freeze(
         if seen.id not in ours
     ]
     delivery = _delivery.create_prompt_delivery_snapshot(
-        issue_comments=[
-            seen for seen in unclaimed
-            if not _run_grant_request._is_bare_command(seen)
-        ],
+        issue_comments=_parked_replies._answering(unclaimed),
         max_chars=_UNBOUNDED_EXCERPT,
         retained_ids=ours,
         state=state,

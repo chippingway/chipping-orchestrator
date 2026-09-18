@@ -27,12 +27,14 @@ flag down as a side effect and starts a session no budget was charged for.
 
 Which comments it classifies is the other half of the point. This road runs
 ahead of the resume, and the resume works from the batch `resume_batch.py`
-freezes -- the fresh trusted replies with our own recorded posts and any body
-carrying our marker the ledger cannot vouch for taken out. This reads the same
-batch, because whether a thread is all bare commands and whether a developer
-would be handed prose are one question: a park notice of ours lands above the
-comment a human wrote while the agent was out, and counted as somebody's words
-here it turns an explicit retry into a generic resume that spends it.
+freezes -- the fresh trusted replies with our own recorded posts, any body
+carrying our marker the ledger cannot vouch for, and a bare run-limit grant
+command taken out. This reads the same batch, cut by the same owner
+(`parked_replies.py`), because whether a thread is all bare commands and
+whether a developer would be handed prose are one question: a park notice of
+ours lands above the comment a human wrote while the agent was out, and
+counted as somebody's words here it turns an explicit retry into a generic
+resume that spends it.
 
 The retry itself does not hand the command text to the agent: the poisoned
 session already carries the issue context in its transcript, or the resume
@@ -59,10 +61,8 @@ from orchestrator.git.worktrees import (
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    comments as _comments,
     guards as _guards,
     messages as _messages,
-    prompt_delivery as _delivery,
     prompt_notes as _prompt_notes,
     usage as _usage,
 )
@@ -70,6 +70,7 @@ from orchestrator.workflow.stages.implementing import (
     disposition as _disposition,
     late_measurement_reply as _late_measurement_reply,
     models as _models,
+    parked_replies as _parked_replies,
     resume as _resume,
     retry_cap as _retry_cap,
     state as _state,
@@ -201,15 +202,11 @@ def _parked_continue_decision(
     # text anybody may paste: left in, either one makes this read a thread
     # whose fresh replies are not all bare commands, pass the batch through,
     # and let the resume feed the command to a developer as prose -- the
-    # retry gone and the watermark moved past the words that bought it.
-    comments = _delivery.human_replies(
-        gh.comments_after(
-            issue, state.get(_state._LAST_ACTION_COMMENT_ID),
-            state_comment_id=state.comment_id,
-        ),
-        frozenset(_comments._orchestrator_ids(state)),
-        state_comment_id=state.comment_id,
-    )
+    # retry gone and the watermark moved past the words that bought it. A
+    # run-limit grant's command left unread under the continue is the same
+    # mismatch the other way: counted here and dropped there, the resume
+    # reserves the continue this passed through, and nothing ever answers it.
+    comments = _parked_replies._fresh_replies(gh, issue, state)
     # Nothing to decide, and a batch that is not this road's to decide about.
     # The measurement park's own road would re-measure on one of these, and
     # this read comes after it handed the tick back -- so a command landing

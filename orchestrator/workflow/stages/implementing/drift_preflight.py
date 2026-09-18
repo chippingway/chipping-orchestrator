@@ -14,7 +14,9 @@ The other is an `agent_timeout` park nobody has replied to. That park is
 retryable without a human, so a tick with no new comment tries the quiet
 recovery first -- publishing a commit that landed after the timeout -- and only
 then falls through. The no-comment condition is the whole gate: once a human HAS
-replied, the reply is the signal and the resume path owns the tick instead.
+replied, the reply is the signal and the resume path owns the tick instead. A
+reply is what that resume would deliver -- `parked_replies`' cut -- so a
+comment the resume would hand nobody cannot hold the recovery off either.
 
 The reply batch the resume runs on is frozen HERE, once, because the read is
 this stage's rather than the shared resume's: the batch is what the prompt
@@ -37,7 +39,6 @@ from orchestrator.git.worktrees import (
     paths as _worktree_paths,
 )
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -47,6 +48,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.implementing import (
     disposition as _disposition,
     models as _models,
+    parked_replies as _parked_replies,
     resume as _resume,
     resume_batch as _resume_batch,
     state as _state,
@@ -89,16 +91,12 @@ def _recover_quiet_implementer_timeout(
 ) -> bool:
     if state.get(_state._PARK_REASON) != _state._AGENT_TIMEOUT:
         return False
-    # Read by the pinned comment's identity, as the frozen batch behind this
-    # is: a reply quoting the state marker is a reply, and a recovery that
-    # could not see it would publish over the words meant to end the park.
-    comments = filter_trusted(
-        gh.comments_after(
-            issue, state.get(_state._LAST_ACTION_COMMENT_ID),
-            state_comment_id=state.comment_id,
-        ),
-    )
-    if comments:
+    # The replies the resume behind this would deliver, cut the way its
+    # frozen batch is. A comment only this gate counted -- the run-limit
+    # grant's command left unread, our own recorded notice, a pasted marker --
+    # hands the tick to a resume with nothing to deliver, and the commit
+    # stranded by the timeout is never published without a human.
+    if _parked_replies._fresh_replies(gh, issue, state):
         return False
     recovery = _disposition._try_recover_implementing_timeout_park(
         gh, spec, issue, state,

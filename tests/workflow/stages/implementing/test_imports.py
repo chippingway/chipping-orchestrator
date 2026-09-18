@@ -88,6 +88,7 @@ _OWNERS = (
     "late_transfer_telemetry",
     "late_verdict",
     "models",
+    "parked_replies",
     "parks",
     "plan_handoff",
     "plan_reading",

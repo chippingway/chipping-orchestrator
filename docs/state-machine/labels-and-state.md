@@ -866,9 +866,10 @@ The keys that matter for the state machine fall into a few groups:
   it returned, so a
   command landing in either window is in its batch and in nobody else's — refused and consumed past its own refusal
   by the classifier, or fed to a developer as guidance by the resume. Deferred entire, the next poll reads the same
-  batch and re-measures the pair on it. The reservation is asked of the trusted read before the orchestrator's own
-  comments come out of it, since that is the read the retry itself takes: asked of a narrower batch, a tick would
-  defer what the road it deferred to then refuses. It is also the one of them a tick can retire with no
+  batch and re-measures the pair on it. The reservation is asked of the replies a resume would deliver — the one cut
+  `implementing/parked_replies.py` takes, with the orchestrator's own comments, a forged marker, and an answered
+  `add-agent-runs` out — since that is the read the retry itself takes: asked of any other batch, a tick would defer
+  what the road it deferred to then refuses. It is also the one of them a tick can retire with no
   answer at all, and under a label it is never taken on: a park standing over a record whose split has already
   become children is the
   reconciliation's own false positive — what a settled split keeps the publication group for is the releases and the
@@ -1711,7 +1712,10 @@ The keys that matter for the state machine fall into a few groups:
   consumed without it either: the walk starts at the mark, crosses our own comments, and stops at the reply. The
   command is left unread with its receipt already on the thread — no road can read it as a request again once the
   park is down, and the frozen reply batch never delivers a bare `add-agent-runs` to a developer — and the reply is
-  the next awaiting-human resume's to deliver.
+  the next awaiting-human resume's to deliver. The unread command is not a reply to any later park either: every road
+  that reads a parked `workflow:implementing` thread cuts it out the same way (`implementing/parked_replies.py`), so a
+  bare `/orchestrator continue` written under it is still the explicit retry or refusal it would be alone, and it does
+  not hold off the quiet timeout recovery.
   Every other request leaves `agent_runs_used` and `agent_run_allowance` exactly as it found them, keeps the park,
   and posts one receipt carrying `<!--orchestrator-add-agent-runs-refused:issue=N:comment=M-->`. Both answers are
   marked that way — the acknowledgement carries `<!--orchestrator-add-agent-runs-granted:issue=N:comment=M-->`; each

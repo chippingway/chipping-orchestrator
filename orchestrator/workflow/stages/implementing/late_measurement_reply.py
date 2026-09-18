@@ -6,10 +6,11 @@ The current reason and wait must agree before a thread read can answer
 this park. Mixed feedback stays with its stage; only a batch consisting
 entirely of bare continue commands belongs to measurement recovery.
 
-Which replies are a human's is `prompt_delivery`'s one classification, the
-one the frozen reply batch is cut by: the trust filter, our own posts by
-recorded id, and a marker the ledger cannot vouch for refused as forged. Read
-any wider here and this park's own notice -- posted above the comment a human
+Which replies are a human's is `parked_replies`' one cut, the one the frozen
+reply batch is cut by: `prompt_delivery`'s trust filter, our own posts by
+recorded id, and a marker the ledger cannot vouch for refused as forged, with
+a run-limit grant's command already answered taken out beside them. Read any
+wider here and this park's own notice -- posted above the comment a human
 wrote while the agent was out -- makes the batch look mixed, so the retry
 never fires and the resume behind it spends the command as prose.
 """
@@ -21,13 +22,10 @@ from orchestrator.github import (
     client as _client,
     pinned_state as _pinned_state,
 )
-from orchestrator.workflow.engine import (
-    comments as _comments,
-    messages as _messages,
-    prompt_delivery as _delivery,
-)
+from orchestrator.workflow.engine import messages as _messages
 from orchestrator.workflow.stages.implementing import (
     late_measurement_state as _late_measurement_state,
+    parked_replies as _parked_replies,
     state as _state,
 )
 
@@ -57,14 +55,7 @@ def _answers_the_measurement_park(
         return []
     if not state.get(_state._AWAITING_HUMAN):
         return []
-    replies = _delivery.human_replies(
-        gh.comments_after(
-            issue, state.get(_state._LAST_ACTION_COMMENT_ID),
-            state_comment_id=state.comment_id,
-        ),
-        frozenset(_comments._orchestrator_ids(state)),
-        state_comment_id=state.comment_id,
-    )
+    replies = _parked_replies._fresh_replies(gh, issue, state)
     return replies if _reserved_for_the_measurement_park(replies, state) else []
 
 

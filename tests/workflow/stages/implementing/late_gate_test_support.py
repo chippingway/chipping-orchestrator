@@ -133,6 +133,11 @@ REPLY_COMMENT_ID = 1100
 # out -- comment ids ascend, and the post is the last thing the tick does.
 NOTICE_COMMENT_ID = 1200
 PARK_NOTICE = "could not measure the committed candidate"
+# A run-limit grant's command left unread BELOW a reply: the grant that
+# answered it could not consume the reply its park interrupted, and a
+# watermark is one number.
+GRANT_COMMENT_ID = 1000
+ANSWERED_GRANT = "/orchestrator add-agent-runs 3"
 BARE_CONTINUE = "/orchestrator continue"
 # The session a resume continues, seeded so a resumed run is the pinned
 # one rather than a fresh spawn.
@@ -400,6 +405,21 @@ class _ParkedRetryCase(_GateCase):
             f"{PARK_NOTICE}\n\n{_engine_comments._ORCH_COMMENT_MARKER}",
             user=FakeUser(BOT_LOGIN),
         ))
+
+    def _park_over_an_answered_grant(self, reply: str = BARE_CONTINUE) -> None:
+        """The same park with a grant's command still unread under the reply.
+
+        What the run a run-limit grant bought leaves when it parks here: the
+        command that bought it is a control already answered, and it is still
+        past the mark because the grant could not consume it alone.
+        """
+        self._park(reply)
+        self.issue.comments.insert(
+            len(self.issue.comments) - 1,
+            FakeComment(
+                GRANT_COMMENT_ID, ANSWERED_GRANT, user=FakeUser(TRUSTED_AUTHOR),
+            ),
+        )
 
     def _park_state(self, reply: str, **recorded) -> None:
         """Seed one measurement park and the human reply answering it."""

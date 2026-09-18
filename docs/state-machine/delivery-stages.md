@@ -3009,7 +3009,8 @@ re-issues the orchestrator's continue prompt rather than delivering the operator
 agent-run circuit refuses is the never-invoked case in its most common form, and the park it takes keeps the batch
 unread end to end: the notice is bounded, the repair of its lost write walks rather than ratchets, and the
 `/orchestrator add-agent-runs` grant that lifts it does not consume a batch below that notice. The command itself is
-kept out of every frozen batch, since it is a control the hold has already answered. The REFUSAL that answers a
+kept out of every frozen batch, since it is a control the hold has already answered — and out of every read that
+decides who owns one (see below). The REFUSAL that answers a
 command on a park needing real guidance settles the same way: `_refuse_parked_continue` is handed the batch its
 caller classified and consumes that, then advances through the refusal it posted with the `park_watermarks` walk.
 Read off the thread's tip instead, guidance written between the classification and the post is marked answered by a
@@ -3024,16 +3025,22 @@ answers `retry` / `refuse` as it always has. The auto-rebase reasons are exclude
 excludes them: those parks own the operator's retry comment.
 
 Every one of those classifiers is asked of the batch a developer would be HANDED — the frozen replies, not the raw
-`comments_after` read. `_handle_parked_continue_command`, the measurement park's `_answers_the_measurement_park`, and
-the reservation inside the freeze all cut the thread with `prompt_delivery.human_replies`, the same classification the
-delivery record uses. This matters exactly where the bounded park watermark leaves work for the next poll: the notice
-a park posts lands ABOVE a command written while the agent was out, and a forged `<!--orchestrator-comment-->` can be
-pasted over one at any time. Counted as somebody's words, either makes the batch look like mixed feedback — every
-command road passes it through, and the resume then drops that same comment from the prompt and delivers the bare
-command to a developer as prose, consuming the operator's retry against a run nobody asked for. Neither can reach a
-prompt, so neither decides who owns the batch. The authorization park is the one reservation read differently: its own
-road names our comments by recorded id alone, so the freeze asks it of the last reply that ledger leaves, and the two
-agree about which reply is last.
+`comments_after` read. `_handle_parked_continue_command`, the measurement park's `_answers_the_measurement_park`, the
+quiet timeout recovery's no-reply gate, and the reservation inside the freeze all cut the thread with
+`implementing/parked_replies.py`: `prompt_delivery.human_replies`, the same classification the delivery record uses,
+with a bare `/orchestrator add-agent-runs` taken out. This matters exactly where the bounded park watermark leaves work
+for the next poll: the notice a park posts lands ABOVE a command written while the agent was out, and a forged
+`<!--orchestrator-comment-->` can be pasted over one at any time. Counted as somebody's words, either makes the batch
+look like mixed feedback — every command road passes it through, and the resume then drops that same comment from the
+prompt and delivers the bare command to a developer as prose, consuming the operator's retry against a run nobody
+asked for. Neither can reach a prompt, so neither decides who owns the batch. A grant's command is the same mismatch
+the other way: the grant leaves it unread above the reply it could not consume, and it is still there when the run
+the grant paid for parks again. Counted by the preflight and dropped by the freeze, a later bare `/orchestrator
+continue` is mixed to the one and bare to the other — passed through, then reserved — and the park stands with
+nothing retried, refused, or said; counted by the quiet recovery's gate, it holds off the publication of a commit the
+timeout stranded for a resume that has nothing to deliver. The authorization park is the one reservation read
+differently: its own road names our comments by recorded id alone, so the freeze asks it of the last reply that
+ledger leaves, and the two agree about which reply is last.
 
 `_park_awaiting_human` posts on the issue (not the PR) so the HITL ping appears alongside the rest of orchestrator
 state. The PR comment that triggers a route to `workflow:fixing` is the human signal; awaiting-human is reserved for

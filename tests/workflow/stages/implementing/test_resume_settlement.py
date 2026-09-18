@@ -31,7 +31,7 @@ from __future__ import annotations
 import unittest
 from dataclasses import replace
 from types import MappingProxyType
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from orchestrator.git.measurement.models import MeasurementFailure
 from orchestrator.workflow.engine import (
@@ -40,6 +40,7 @@ from orchestrator.workflow.engine import (
     run_ledger_values as _run_ledger_values,
 )
 from orchestrator.workflow.stages.implementing import (
+    disposition as _disposition,
     late_command as _late_command,
     late_measurement_state as _late_measurement_state,
     state as _state,
@@ -95,6 +96,20 @@ _SPENT_LEDGER = MappingProxyType({
     _run_ledger_values.AGENT_RUNS_USED: _SPENT,
 })
 _ADD_RUNS = "/orchestrator add-agent-runs 3"
+
+# What the refusal a bare continue earns on a park needing real words says.
+_NEEDS_GUIDANCE = "needs your actual guidance"
+
+# The two parks a reopened resume can end on, what the run behind each came
+# back with, and what a bare `/orchestrator continue` then earns: the explicit
+# retry on a session failure, the refusal on a question.
+_CONTINUED_PARKS = (
+    ("a timeout", _agent(timed_out=True), _RETRIED),
+    ("a question", _agent(last_message=_ASKS), _NEEDS_GUIDANCE),
+)
+
+# The quiet publication a timeout park with no reply on it is tried with.
+_QUIET_RECOVERY = "_try_recover_implementing_timeout_park"
 
 # The two parks a bare `/orchestrator continue` is an answer on, and so the
 # two the classifier that answers it owns a batch of: one it retries, and one
@@ -407,6 +422,55 @@ class RunLimitCycleTest(_support._ParkedThread, unittest.TestCase):
         self.assertNotIn(_ADD_RUNS, followup)
         self.assertGreaterEqual(self._pinned_watermark(), guided)
 
+    def test_a_continue_after_it_is_classified_once(self) -> None:
+        # The grant could not consume its own command without the reply below
+        # it, so the command is still unread when the resumed run parks again
+        # -- on a timeout or on a question -- and the operator answers that
+        # park with a bare `/orchestrator continue`. The preflight and the
+        # frozen batch have to read the same batch then: one seeing the grant
+        # command beside the continue passes the tick through, the other
+        # seeing the continue alone reserves it, and the park stands forever
+        # with nothing retried, refused, or said.
+        for described, park, answered in _CONTINUED_PARKS:
+            with self.subTest(park=described):
+                self.setUp()
+                self._parked_again(park)
+                commanded = self._they_say(_consent_payloads.CONTINUE)
+
+                earned = _answer_to_the_continue(self._tick(), self.github)
+                self.assertIn(answered, earned)
+                self.assertNotIn(_ADD_RUNS, earned)
+                self.assertGreaterEqual(self._pinned_watermark(), commanded)
+
+    def test_an_unanswered_timeout_still_recovers(self) -> None:
+        # The same leftover with nothing written after it. The timeout park is
+        # the one a tick may lift without a human -- a commit that landed
+        # after the timeout is published quietly -- and only a reply holds
+        # that recovery off, since a reply is what the resume behind it owns.
+        # The grant's command is no reply: the resume would hand nobody that
+        # batch, so counted here it holds the recovery off for a resume that
+        # does nothing, and the stranded commit waits on a human for good.
+        self._parked_again(_agent(timed_out=True))
+
+        with patch.object(
+            _disposition, _QUIET_RECOVERY, return_value=_state._REASON_STUCK,
+        ) as recovered:
+            polled = self._tick()
+            recovered.assert_called_once()
+
+        polled[_RUN_AGENT].assert_not_called()
+
+    def _parked_again(self, park) -> None:
+        """The cycle, then the resume it reopens parking again on `park`."""
+        self._seed(**{
+            _state._DEV_AGENT: _BACKEND,
+            _state._DEV_SESSION_ID: _SESSION,
+            **_SPENT_LEDGER,
+        })
+        self._they_say(_support.GUIDANCE)
+        self._refused_then_granted()
+        self._tick(park)
+
     def _refused_then_granted(self) -> None:
         """The whole park: refused, its notice repaired, then bought past.
 
@@ -427,19 +491,21 @@ class RunLimitCycleTest(_support._ParkedThread, unittest.TestCase):
         granted[_RUN_AGENT].assert_called_once()
         self.assertEqual(self._pinned_watermark(), _support.PARKED_AT)
 
-    def _tick(self):
+    def _tick(self, answers=None):
         """One whole poll of this issue: the run-limit hold, then the stage.
 
-        The agent that runs, where one does, answers with words and no
-        commit -- the end that parks on a question, so the next poll is an
-        awaiting-human resume again.
+        The agent that runs, where one does, answers with `answers` and no
+        commit -- words by default, the end that parks on a question, so the
+        next poll is an awaiting-human resume again.
         """
         return self._run(
             lambda: _issue_processing._route_issue_to_handler(
                 self.github, _TEST_SPEC, self.issue, LABEL_IMPLEMENTING,
                 reading=_poll_models._POLLED_OPEN,
             ),
-            run_agent=MagicMock(return_value=_agent(last_message=_ASKS)),
+            run_agent=MagicMock(
+                return_value=_agent(last_message=_ASKS) if answers is None else answers,
+            ),
             has_new_commits=False,
         )
 
@@ -447,6 +513,22 @@ class RunLimitCycleTest(_support._ParkedThread, unittest.TestCase):
         return self.github.pinned_data(_support.ISSUE_NUMBER).get(
             _state._LAST_ACTION_COMMENT_ID,
         )
+
+
+def _answer_to_the_continue(polled, github) -> str:
+    """What one poll answered a bare continue with, in the words it used.
+
+    The prompt of the one run it started where it started one -- the retry's
+    own, or the continue handed over as prose -- and otherwise the last thing
+    it said. Each answer a case expects is a sentence only one of those holds,
+    so a continue spent as guidance, refused where it was owed a retry, or
+    answered with nothing at all fails the same one assertion.
+    """
+    ran = polled[_RUN_AGENT]
+    if not ran.called:
+        return github.posted_comments[-1][1] if github.posted_comments else ""
+    ran.assert_called_once()
+    return ran.call_args.args[_PROMPT_ARGUMENT]
 
 
 class _RunsWhileOneLands:

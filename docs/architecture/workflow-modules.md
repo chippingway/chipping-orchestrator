@@ -1380,9 +1380,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `implementing`'s preflight does, `validating`'s awaiting-human road classifies
                             the command itself and so says nothing -- because fed to a developer as prose
                             the explicit retry, or the refusal a park needing real guidance owes, is gone.
-                            A bare `/orchestrator add-agent-runs` is left out of the delivery alone: the
-                            run-limit hold has answered it, and a grant over replies it may not consume
-                            leaves it unread above them.
+                            A bare `/orchestrator add-agent-runs` is left out of the delivery, and so out
+                            of every road's read of who owns the batch: the run-limit hold has answered
+                            it, and a grant over replies it may not consume leaves it unread above them.
                             Both of those reservations are asked of the DELIVERED replies, which is the
                             batch the roads they defer to read and the batch this one would otherwise
                             hand a developer: a notice of ours above a bare command, or a forged marker
@@ -1391,6 +1391,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reply the ID LEDGER leaves, because that is how its own road reads one --
                             asked off any other shape, a reservation defers what that road then refuses
                             and the two hand the thread back and forth forever
+      parked_replies.py     the one cut every road reading a parked thread takes of its fresh replies --
+                            `engine/prompt_delivery.py`'s `human_replies` with a bare `/orchestrator
+                            add-agent-runs` taken out -- read by the measurement park's retry, the
+                            parked-continue classifier, and the quiet timeout recovery, and cut into the
+                            frozen batch behind them. A reply counted on one side of those hand-offs and not
+                            the other is a tick each road leaves to the next on every poll: a grant's
+                            command left unread makes a later bare continue mixed to the classifier and
+                            bare to the reservation, and the park stands with nothing retried or refused
       resume_request.py     what one such call supplied, frozen and checked before a run is built: the stage
                             its records are attributed to, the frozen conversation a fresh spawn is
                             re-grounded from where the caller holds one, and the unknown option a named
@@ -1868,10 +1876,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_measurement_reply.py
                             bare-continue batches reserved for the active measurement park; mixed feedback
                             stays with its stage and the current reason and wait must agree. Which replies count
-                            is `engine/prompt_delivery.py`'s `human_replies` -- the park's own notice lands above
-                            a command written while the agent was out, and read as a second voice it makes every
-                            road call the batch mixed at once: the retry never fires and the resume behind it
-                            spends the command as prose
+                            is `parked_replies.py`'s cut -- the park's own notice lands above a command written
+                            while the agent was out, and read as a second voice it makes every road call the
+                            batch mixed at once: the retry never fires and the resume behind it spends the
+                            command as prose
       late_parks.py         quiet transport retries and announce-once measurement failure handling; changed frozen bases
                             remain durable during a quiet repeat, and a different failure earns its own notice;
                             an unreadable candidate retains its resolved object id for recovery
@@ -1997,7 +2005,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       drift.py              a body edit mid-implementation: the resume it earns -- withheld while a continuation
                             has bought an attempt, since a resume passes no gate and the attempt is owed as a fresh
                             spawn -- and the `ACK:` that answers it
-      drift_preflight.py    a pre-session edit and the quiet timeout recovery
+      drift_preflight.py    a pre-session edit and the quiet timeout recovery, held off only by a reply the
+                            resume behind it would deliver (`parked_replies.py`)
       continue_command.py   `/orchestrator continue` on a parked issue, opening with the one park below that the
                             classifier here would refuse the right command on, and handing back outright a
                             batch the measurement park's own road would re-measure on: this read comes after
@@ -2005,10 +2014,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             batch and in nobody else's -- and classified here it is a continue on a park
                             needing real guidance, refused and consumed past the refusal, with the reading its
                             author asked for one nothing will ever take. What it classifies is the batch the
-                            resume behind it would DELIVER (`engine/prompt_delivery.py`'s `human_replies`,
-                            the same cut `resume_batch.py` freezes), because a notice of ours or a forged
-                            marker standing above a bare command reaches no prompt and so may not turn an
-                            explicit retry into a generic resume over prose
+                            resume behind it would DELIVER (`parked_replies.py`'s cut, the same one
+                            `resume_batch.py` freezes), because a notice of ours or a forged marker standing
+                            above a bare command reaches no prompt and so may not turn an explicit retry into
+                            a generic resume over prose -- and a grant's command left unread under one may not
+                            pass through here what the freeze behind it then reserves
       retry_cap.py          the same standing park on this stage's road, held against the three that would read it
                             as an ordinary one -- the continue classifier, the drift check, and the resume -- so the
                             tick ends having written, spawned, and said nothing, and the pinned session, the pull
