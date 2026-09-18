@@ -33,10 +33,9 @@ pending record all land together, because every split between them is a window
 a crash turns into a second report, a lost round, or feedback answered twice.
 
 It is taken last, after the requirements are read once more off GitHub: a post
-or a re-read is long enough for a human to edit the issue under it. And what a
-settlement left is read here too, for the recovery that would hand a commit on
-because its report already went out -- a settled record says what the pull
-request carried once, and only a fresh reading says it still does.
+or a re-read is long enough for a human to edit the issue under it. Each
+settlement records which road made it, which is what `report_settled_reading`
+holds a later re-read of that report to.
 """
 from __future__ import annotations
 
@@ -186,6 +185,7 @@ def publishes_the_report(
         location=_pr_reports.ReportLocation(
             pr_number=pending.subject.pr_number, comment_id=posted,
         ),
+        mode=_records.ReportMode.PUBLISH,
     ))
 
 
@@ -246,53 +246,8 @@ def verifies_the_report(
         report_revision=pending.report_revision,
         content_revision=pending.content_revision,
         location=pending.location,
+        mode=_records.ReportMode.VERIFY,
     ))
-
-
-def still_carries(
-    gh: GitHubClient, state: PinnedState, current: _records.CurrentReport,
-) -> _pr_reports.ReportPresence:
-    """Whether the report a settlement recorded still reads where it settled.
-
-    A location whose content hashes to the digest is one a developer verified,
-    held to a trusted author as the verification was. Anything else has to
-    re-render as a report of ours whose text digest and whole header -- pull
-    request, commit, requirements, revision, and the handoff's receipt -- are
-    the ones the settlement recorded: recognized at the exact recorded location
-    by that rendering, not by a capped ledger of posted ids, and held to the
-    header because a consistent rewrite could keep the words while claiming
-    another publication. UNCONFIRMED is a reading nobody could take.
-    """
-    lookup = gh.reread_report_location(
-        current.location, content_sha256=current.content_revision,
-    )
-    if lookup.presence is _pr_reports.ReportPresence.PRESENT:
-        trusted = _trusts_the_author(lookup.found)
-        if trusted is None:
-            return _pr_reports.ReportPresence.UNCONFIRMED
-        return lookup.presence if trusted else _pr_reports.ReportPresence.CHANGED
-    if lookup.presence is not _pr_reports.ReportPresence.CHANGED:
-        return lookup.presence
-    published = _reports.developer_report_from_comment(
-        lookup.found, bot_login=None,
-    )
-    settled_as = (
-        current.subject.pr_number,
-        current.subject.source_sha,
-        current.subject.requirements_revision,
-        current.report_revision,
-        getattr(_settlement.read_handoff(state), "receipt", None),
-        current.content_revision,
-    )
-    same = published is not None and settled_as == (
-        published.pr_number,
-        published.source_sha,
-        published.requirements_revision,
-        published.report_revision,
-        published.receipt,
-        _reports.content_digest(published.text),
-    )
-    return _pr_reports.ReportPresence.PRESENT if same else lookup.presence
 
 
 def _trusts_the_author(found: Any) -> bool | None:

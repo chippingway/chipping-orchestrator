@@ -14,12 +14,13 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.github import developer_reports as _reports
 from orchestrator.github.developer_reports import content_digest
 from orchestrator.github.pull_request_reports import ReportLocation, ReportPresence
 from orchestrator.workflow.engine import (
     report_evidence as _evidence,
-    report_publishing as _publishing,
     report_records as _records,
+    report_settled_reading as _settled_reading,
     report_settlement_state as _settlement,
 )
 from tests.support.fakes import FakeUser
@@ -30,6 +31,22 @@ _HUMAN_REPORT = "A report a maintainer wrote as the description."
 _AUTHOR = "alice"
 
 _ALLOWLIST = "ALLOWED_ISSUE_AUTHORS"
+
+_STRANGER = "mallory"
+
+# The member of the settled record saying which road settled the report.
+_MODE = "mode"
+
+_REFUSED = "GitHub did not answer the read"
+
+
+class _UnreadableUser:
+    """An author whose login is a request GitHub would not answer."""
+
+    @property
+    def login(self) -> str:
+        """Raise the way a lazy member does on a completion that failed."""
+        raise RuntimeError(_REFUSED)
 
 
 class _Readings(support.ReportTransactionCase):
@@ -56,9 +73,33 @@ class _Readings(support.ReportTransactionCase):
 
     def still_carries(self) -> ReportPresence:
         """Read the settled report again where the settlement recorded it."""
-        return _publishing.still_carries(
+        return _settled_reading.still_carries(
             self.gh, self.state, _settlement.read_current_report(self.state),
         )
+
+    def published(self):
+        """Settle a publication, and hand back the comment it landed as."""
+        self.record()
+        self.reconcile()
+        return self.pull_request.issue_comments[-1]
+
+    def forgets_the_road(self) -> None:
+        """Leave the settled record as one written before it named its road."""
+        settled = dict(self.state.get(_records.CURRENT_REPORT))
+        settled.pop(_MODE, None)
+        self.state.set(_records.CURRENT_REPORT, settled)
+
+    def rendered_as_settled(self, text: str) -> str:
+        """`text` under the very header the settled report went out with."""
+        current = _settlement.read_current_report(self.state)
+        return _reports.render_developer_report(_reports.DeveloperReport(
+            pr_number=current.subject.pr_number,
+            source_sha=current.subject.source_sha,
+            requirements_revision=current.subject.requirements_revision,
+            report_revision=current.report_revision,
+            receipt=support.RECEIPT,
+            text=text,
+        ))
 
 
 class SettledReadingTest(unittest.TestCase, _Readings):
@@ -69,19 +110,19 @@ class SettledReadingTest(unittest.TestCase, _Readings):
 
     def test_a_published_report_is_held_to_its_header(self) -> None:
         # Recognized at the recorded comment by re-rendering it. An edit to the
-        # words, and a consistent rewrite keeping the words while claiming
-        # another commit, both read as CHANGED; an unanswered read as nothing.
-        self.record()
-        self.reconcile()
-        landed = self.pull_request.issue_comments[-1]
+        # words, a consistent rewrite keeping the words while claiming another
+        # commit, and the header taken off altogether -- which leaves the bare
+        # text, hashing to the digest still -- each read as CHANGED.
+        landed = self.published()
         settled = landed.body
         self.assertIs(self.still_carries(), ReportPresence.PRESENT)
 
         for rewritten in (
             f"{settled}\n\nEdited once it settled.",
             settled.replace(support.SOURCE_SHA, support.MOVED_SHA),
+            support.REPORT_TEXT,
         ):
-            with self.subTest(rewritten=rewritten != settled):
+            with self.subTest(rewritten=rewritten):
                 self.assertNotEqual(rewritten, settled)
                 landed.body = rewritten
                 self.assertIs(self.still_carries(), ReportPresence.CHANGED)
@@ -91,16 +132,56 @@ class SettledReadingTest(unittest.TestCase, _Readings):
         self.gh.report_failures.unreadable.add(support.PR_NUMBER)
         self.assertIs(self.still_carries(), ReportPresence.UNCONFIRMED)
 
-    def test_a_verified_report_needs_its_author(self) -> None:
-        # Content still hashing to the digest is a report only while its author
-        # is one this deployment trusts, as the verification itself required.
-        self.verification()
-        self.reconcile()
+    def test_a_published_report_is_held_to_its_author(self) -> None:
+        # A comment rendering exactly as the report is ours only while we wrote
+        # it: a stranger's copy is CHANGED, an author nobody could read decides
+        # nothing, and the allowlist is not what our own login is held to.
+        landed = self.published()
+        with patch.object(config, _ALLOWLIST, (_AUTHOR,)):
+            self.assertIs(self.still_carries(), ReportPresence.PRESENT)
+
+        landed.user = FakeUser(_STRANGER)
+        self.assertIs(self.still_carries(), ReportPresence.CHANGED)
+        landed.user = _UnreadableUser()
+        self.assertIs(self.still_carries(), ReportPresence.UNCONFIRMED)
+
+    def test_an_unrecorded_road_reads_its_location(self) -> None:
+        # A settlement written before it named its road: a comment is held to
+        # the rendering, so the bare text does not pass as a verification.
+        landed = self.published()
+        self.forgets_the_road()
         self.assertIs(self.still_carries(), ReportPresence.PRESENT)
 
-        self.pull_request.user = FakeUser("mallory")
-        with patch.object(config, _ALLOWLIST, (_AUTHOR,)):
-            self.assertIs(self.still_carries(), ReportPresence.CHANGED)
+        landed.body = support.REPORT_TEXT
+        self.assertIs(self.still_carries(), ReportPresence.CHANGED)
+
+    def test_a_verified_report_needs_its_author(self) -> None:
+        # Content still hashing to the digest is a report only while its author
+        # is one this deployment trusts, as the verification itself required --
+        # recorded road or not, since a description can only have been verified.
+        self.verification()
+        self.reconcile()
+        for recorded in (True, False):
+            with self.subTest(recorded=recorded):
+                self.assertIs(self.still_carries(), ReportPresence.PRESENT)
+                with patch.object(config, _ALLOWLIST, (_STRANGER,)):
+                    self.assertIs(self.still_carries(), ReportPresence.CHANGED)
+                self.forgets_the_road()
+
+    def test_a_description_is_never_a_publication(self) -> None:
+        # A publication only ever lands as a comment. A description rewritten
+        # into a report under the settled header is a change to what was
+        # verified there, whoever wrote it -- and a record claiming a
+        # publication settled ON a description is one nothing here wrote.
+        self.verification()
+        self.reconcile()
+        self.pull_request.body = self.rendered_as_settled(_HUMAN_REPORT)
+        self.assertIs(self.still_carries(), ReportPresence.CHANGED)
+
+        settled = dict(self.state.get(_records.CURRENT_REPORT))
+        settled[_MODE] = str(_records.ReportMode.PUBLISH)
+        self.state.set(_records.CURRENT_REPORT, settled)
+        self.assertIs(self.still_carries(), ReportPresence.CHANGED)
 
 
 class UnpayableDebtTest(unittest.TestCase, _Readings):

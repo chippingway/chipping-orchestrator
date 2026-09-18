@@ -42,6 +42,10 @@ _REVISION = "revision"
 
 _CONTENT_DIGEST = "content"
 
+# Which road settled the report. Additive: a record without it was settled
+# before the member existed, and one carrying a value that is no mode is damage.
+_MODE = "mode"
+
 _RECEIPT = "receipt"
 
 _HANDOFF_PR = "pr"
@@ -115,6 +119,8 @@ def record_current_report(
         _CONTENT_DIGEST: current.content_revision,
         **_fields.location_fields(current.location),
     }
+    if current.mode is not None:
+        recorded[_MODE] = str(current.mode)
     if _current_from(recorded) != current:
         return False
     state.set(_records.CURRENT_REPORT, recorded)
@@ -185,11 +191,15 @@ def _current_from(recorded: dict) -> _records.CurrentReport | None:
         return None
     if location.pr_number != subject.pr_number:
         return None
+    mode = _payloads.as_member(_records.ReportMode, recorded.get(_MODE))
+    if mode is None and recorded.get(_MODE) is not None:
+        return None
     return _records.CurrentReport(
         subject=subject,
         report_revision=revision,
         content_revision=digest,
         location=location,
+        mode=mode,
     )
 
 

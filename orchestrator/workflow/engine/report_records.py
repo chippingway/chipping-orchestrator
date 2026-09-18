@@ -177,12 +177,19 @@ class CurrentReport:
     from one a human has edited since. `location` is exact in both halves --
     a comment id alone names a comment anywhere in the repository -- and
     `content_revision` is what a reread is compared against.
+
+    `mode` is which road settled it, because the digest means a different thing
+    on each: a verified location IS the text that hashes to it, while a
+    published comment is that text under a header of ours, and a comment cut
+    down to the bare text hashes the same. None is a settlement written before
+    the member existed, which a reread holds to the stricter reading.
     """
 
     subject: ReportSubject
     report_revision: int
     content_revision: str
     location: ReportLocation
+    mode: ReportMode | None = None
 
 
 @dataclass(frozen=True)

@@ -293,6 +293,7 @@ def settled_payload(
         location=ReportLocation(
             pr_number=pending.subject.pr_number, comment_id=_WIDEST_IDENTITY,
         ),
+        mode=pending.mode,
     ))
     handed = _settlement.record_handoff(settled, _records.ReportHandoff(
         receipt=pending.receipt,

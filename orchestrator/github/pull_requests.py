@@ -71,6 +71,29 @@ class GitHubPullRequestMixin(
         """
         pr.edit(body=body)
 
+    def edit_unchanged_pr_body(
+        self, pr_number: int, expected: str | None, body: str,
+    ) -> bool:
+        """Rewrite a body only while it still reads as `expected`, or say it moved.
+
+        For a caller whose `body` was BUILT from the description it read --
+        one that keeps what somebody wrote there -- where an edit saved since
+        that reading would be written over by words derived from the old ones.
+        GitHub offers no conditional write for a description, so the comparison
+        is a read of its own taken immediately ahead of the edit: what can
+        still be lost is an edit landing inside that one request, rather than
+        anywhere in whatever the caller did between its reading and here.
+
+        False writes nothing, and the caller judges the description again as
+        it now stands. An empty description reads as None on GitHub and as ""
+        to a caller that built on it, and the two are the same description.
+        """
+        standing = self.repo.get_pull(pr_number)
+        if (standing.body or "") != (expected or ""):
+            return False
+        standing.edit(body=body)
+        return True
+
     def pr_comment(self, pr_number: int, body: str) -> IssueComment:
         """Post one pull-request conversation comment."""
         return self.repo.get_pull(pr_number).create_issue_comment(body)

@@ -7,7 +7,9 @@ description under a publication may be this stage's own, an operator's, the
 `discussion` stage's plan, or ours re-described by a human. The verdict here is
 the report-aware reading of it: a description that closes this issue and names
 the session stands; any other gets those two lines ABOVE it, every word kept
-beneath them. One a developer report of this issue's lives in -- delivered,
+beneath them -- written only while the description still reads as the one that
+was judged, so an edit somebody saved in between is judged next rather than
+written over. One a developer report of this issue's lives in -- delivered,
 pending, settled, or a record too damaged to say otherwise -- is never touched,
 since even an edit keeping every word moves it off the digest it was verified
 at, and none is cut to make room past what GitHub accepts.
@@ -75,8 +77,10 @@ def _names_the_implementation(
     True: it already does, and is left alone; or it did not, and has just had
     the two lines put ABOVE it, every word kept. False: a report of this
     issue's claims it, and no edit is safe -- parked where that report settled
-    already. None holds the tick: a description nobody could read, or one too
-    long to take the lines, which parks.
+    already. None holds the tick: a description nobody could read, one too
+    long to take the lines, which parks, and one somebody edited between this
+    reading and the write -- the new body was built from words that are no
+    longer there, so nothing is written and the next tick judges what is.
     """
     try:
         current = gh.get_pr(pr.number)
@@ -105,6 +109,23 @@ def _names_the_implementation(
                 ),
             )
         return False
+    return _names_it_above(gh, issue, state, agent_result, current)
+
+
+def _names_it_above(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    agent_result: AgentResult,
+    current,
+) -> bool | None:
+    """Put this implementation's lines above a description nobody claims.
+
+    Every word of `current` -- the description as it was just judged -- is kept
+    beneath them, so nothing is cut to fit GitHub's ceiling, and nothing is
+    written once the description no longer reads as the one the body was built
+    from: both hold the tick, the first parked for a human to shorten it.
+    """
     described = getattr(current, "body", None)
     named = _dev_pr._build_pr_body(
         state, issue, agent_result,
@@ -113,14 +134,20 @@ def _names_the_implementation(
     if len(named) > _pinned_state.MAX_PINNED_BODY:
         _report_delivery.parks_an_undeliverable_report(
             gh, issue, state, _TOO_LONG_PARK.format(
-                mentions=config.HITL_MENTIONS, pr=pr.number,
+                mentions=config.HITL_MENTIONS, pr=current.number,
                 length=len(named), limit=_pinned_state.MAX_PINNED_BODY,
             ),
         )
         return None
+    if not gh.edit_unchanged_pr_body(current.number, described, named):
+        log.warning(
+            "issue=#%s is not naming this implementation above PR #%d's "
+            "description: it was edited after it was read; holding so the next "
+            "tick judges what it says now", issue.number, current.number,
+        )
+        return None
     log.info(
-        "issue=#%s naming this implementation above PR #%d's description",
-        issue.number, pr.number,
+        "issue=#%s named this implementation above PR #%d's description",
+        issue.number, current.number,
     )
-    gh.edit_pr_body(pr, named)
     return True

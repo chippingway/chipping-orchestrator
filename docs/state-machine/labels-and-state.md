@@ -695,7 +695,12 @@ The keys that matter for the state machine fall into a few groups:
 
   `developer_report_current` is what the pull request carries now — subject, revision, exact location, and content
   digest — and it outlives every transaction that put one there, so a later reader can tell a report this
-  orchestrator published from one a human has edited since. `developer_report_handoff` is the receipt that one
+  orchestrator published from one a human has edited since. Its `mode` member (`publish` / `verify`) says which road
+  settled it, because the digest proves a different thing on each: a verified location IS the text that hashes to
+  it, while a published comment is that text under a header, and a comment cut down to the bare text hashes the
+  same. It is the one additive member of the record: a settlement written without it reads back with no road and is
+  re-read by what its location allows (`workflow/engine/report_settled_reading.py`), while a value that names no
+  road is damage like any other. `developer_report_handoff` is the receipt that one
   transaction finished; a replay under the same receipt recognizes its own completed work instead of repeating it.
   Both settled records, the watermarks the run consumed, the bookkeeping its route owed, and the drop of the pending
   record land in ONE durable write, because every split between them is a window a crash turns into a second report

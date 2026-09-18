@@ -14,6 +14,8 @@ and no marker line does.
 `outside_code` is the same reading turned the other way, for a caller that
 needs only the text Markdown certainly renders as prose -- the closing keywords
 a pull request's description acts on, which GitHub does not read inside code.
+There a blockquote's markers ARE read, and read off: a quoted fence or a quoted
+indented line is code all the same, and only the marker reader is spared them.
 """
 from __future__ import annotations
 
@@ -37,6 +39,23 @@ _FENCE_OPENING_RE = re.compile(
 
 # An inline code span: a backtick run, then anything up to that same run alone.
 _CODE_SPAN_RE = re.compile(r"(`+)[\s\S]*?(?<!`)\1(?!`)")
+
+# The markers a line inside a blockquote opens on, however deeply it is nested.
+_BLOCKQUOTE_RE = re.compile(r"^(?: {0,3}>[ ]?)+", re.MULTILINE)
+
+# A line Markdown may show as indented code: four columns in, from the margin
+# or from the list marker the line opens on.
+_INDENTED_CODE_RE = re.compile(
+    r" {0,3}(?:(?:[-+*]|[0-9]{1,9}[.)]) {0,3})?(?: {4}|\t).*",
+)
+
+# What HTML shows literally or not at all: the elements GitHub renders as code,
+# and a comment. One never closed runs to the end of the text.
+_HTML_LITERAL_RE = re.compile(
+    r"<(?P<tag>pre|code|samp|kbd|tt)\b[^>]*>[\s\S]*?(?:</(?P=tag)\s*>|\Z)"
+    r"|<!--[\s\S]*?(?:-->|\Z)",
+    re.IGNORECASE,
+)
 
 # A list item's content lines stand where the text after its marker does, so
 # the lines inside a fence repeat its opening prefix with every marker
@@ -75,19 +94,23 @@ def _fenced_line_starts(text: str) -> frozenset[int]:
 
 
 def outside_code(text: str) -> str:
-    """`text` with everything Markdown may show as literal code taken out.
+    """`text` with everything that may be shown as literal code taken out.
 
-    Lines a fence may enclose and the lines that open fences, indented lines,
-    and inline code spans. A doubt reads as code, so what is left is prose.
+    Read with the blockquote markers off, so quoted code is code: the lines a
+    fence may enclose and the lines that open fences, lines indented as code
+    from the margin or a list marker, inline code spans, and what HTML shows
+    literally or hides -- `<pre>`, `<code>` and their kind, and comments. A
+    doubt reads as code, so what is left is prose.
     """
-    fenced = _fenced_line_starts(text)
+    unquoted = _BLOCKQUOTE_RE.sub("", text)
+    fenced = _fenced_line_starts(unquoted)
     prose = "\n".join(
-        line.group() for line in _LINE_RE.finditer(text)
+        line.group() for line in _LINE_RE.finditer(unquoted)
         if line.start() not in fenced
         and _fence_opened_by(line.group()) is None
-        and not line.group().startswith(("    ", "\t"))
+        and _INDENTED_CODE_RE.fullmatch(line.group()) is None
     )
-    return _CODE_SPAN_RE.sub(" ", prose)
+    return _HTML_LITERAL_RE.sub(" ", _CODE_SPAN_RE.sub(" ", prose))
 
 
 def _fence_opened_by(line: str) -> _OpenFence | None:

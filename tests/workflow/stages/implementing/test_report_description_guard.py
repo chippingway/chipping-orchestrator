@@ -78,6 +78,9 @@ QUALIFIED = f"fixes {SLUG}#{ISSUE}"
 CLOSING_NOTHING = (
     f"```\n{RESOLVES}\n```",
     f"Write `{RESOLVES}` to close it.",
+    f">     {RESOLVES}",
+    f"> ~~~\n> {RESOLVES}\n> ~~~",
+    f"<pre>{RESOLVES}</pre>",
     f"Resolves someone/else#{ISSUE}",
 )
 
@@ -86,6 +89,9 @@ EARLIER_SHA = "e" * SHA_LENGTH
 REQUIREMENTS = _reports.content_digest("the requirements the run was handed")
 
 UNREAD = "GitHub did not answer the pull-request read"
+
+# What a human saves over the description while this stage is still deciding.
+SAVED_MEANWHILE = "### Notes\n\nSaved while the orchestrator was reading."
 
 GET_PR = "get_pr"
 
@@ -178,6 +184,16 @@ class _ReusedPullRequest:
             _agent(last_message=LAST_MESSAGE), looked_up or self.live,
         )
 
+    def read_then_edited(self, number: int):
+        """Read the description as it stands, then have a human save over it.
+
+        The reading handed back is the one taken BEFORE the save, which is the
+        interval between judging a description and writing above it.
+        """
+        judged = copy.copy(self.reads(number))
+        self.live.body = SAVED_MEANWHILE
+        return judged
+
     def kept_beneath(self) -> tuple:
         """Whether the body now opens on this stage's lines, and what it kept."""
         named, kept = self.live.body.split(_state._PR_BODY_EARLIER_HEADING)
@@ -245,6 +261,23 @@ class DescriptionVerdictTest(unittest.TestCase, _ReusedPullRequest):
                 self.assertIs(self.names(looked_up), True)
 
                 self.assertEqual(self.kept_beneath(), (True, HUMAN_DESCRIPTION))
+
+    def test_an_edit_during_the_verdict_is_not_lost(self) -> None:
+        # A human saved over the description after it was read and before the
+        # lines went above it. The body built from the old words is not
+        # written: the tick holds, and the next one keeps what they saved.
+        self.reused()
+        self.reads = self.github.get_pr
+
+        with patch.object(self.github, GET_PR, self.read_then_edited):
+            verdict = self.names()
+
+        self.assertEqual(
+            (verdict, self.github.edited_pr_bodies, self.live.body),
+            (None, [], SAVED_MEANWHILE),
+        )
+        self.assertIs(self.names(), True)
+        self.assertEqual(self.kept_beneath(), (True, SAVED_MEANWHILE))
 
     def test_a_reference_closing_nothing_is_added_to(self) -> None:
         # A closing reference shown as code, or naming another repository, is

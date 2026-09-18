@@ -39,6 +39,9 @@ _FILLER = "filler"
 # The receipt a second transaction on the same issue runs under.
 _LATER_RECEIPT = "issue-7-report-2"
 
+# The member of the settled record saying which road settled the report.
+_MODE = "mode"
+
 # A receipt the published report header could not carry verbatim, so no retry
 # could ever find its own comment by it.
 _UNCARRIABLE_RECEIPT = "issue 7 report 2"
@@ -215,6 +218,29 @@ class RoundTripTest(unittest.TestCase):
             _settlement.read_current_report(state), support.CURRENT,
         )
         self.assertEqual(_settlement.read_handoff(state), support.HANDOFF)
+
+    def test_the_settling_road_round_trips(self) -> None:
+        # Which road settled a report is what a later re-read is held to. A
+        # settlement written before the member existed carries none, and reads
+        # back saying so rather than as damage -- which a value naming no road
+        # is, like any other member somebody rewrote.
+        for mode in (*_records.ReportMode, None):
+            with self.subTest(mode=mode):
+                state = PinnedState()
+                settling = replace(support.CURRENT, mode=mode)
+
+                self.assertTrue(
+                    _settlement.record_current_report(state, settling),
+                )
+
+                self.assertEqual(
+                    _settlement.read_current_report(state), settling,
+                )
+                self.assertEqual(
+                    _MODE in state.get(_records.CURRENT_REPORT), mode is not None,
+                )
+        state.set(_records.CURRENT_REPORT, support.settled(mode="rewritten"))
+        self.assertIsNone(_settlement.read_current_report(state))
 
 
 class BoundedRecordTest(unittest.TestCase):

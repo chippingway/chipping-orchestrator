@@ -281,7 +281,8 @@ orchestrator/
     pull_request_retirement.py
                         idempotent supersession notices followed by closure; an authenticated marker read can travel
                         from the caller so no extra request intervenes between its final proof and the write
-    pull_requests.py    PR creation, comments, body edits, labels, SHA-pinned merge, and remote-branch deletion;
+    pull_requests.py    PR creation, comments, body edits -- one of them refused where the description moved since
+                        the caller read it -- labels, SHA-pinned merge, and remote-branch deletion;
                         the mutation mixin includes the read, developer-report, and retirement owners in the client's
                         inheritance chain
     reviews.py          current-head review aggregation: approval verdicts and unread-feedback watermarks

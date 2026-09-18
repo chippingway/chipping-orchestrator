@@ -218,7 +218,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that a doubt reads as fenced: a fence opens at the top level or in a list item, closes
                             only on a bare run at its opening run's column, and stays open to the end past a line
                             that may have ended its list item. `outside_code` turns that round for the closing
-                            keywords a description acts on: fenced and indented lines and inline code taken out
+                            keywords a description acts on, read with the blockquote markers off so quoted code is
+                            code: fenced lines, lines indented from the margin or a list marker, inline code, and
+                            what HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and comments
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the
@@ -426,10 +428,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             settlement is re-measured against the comment as it stands before anything is posted,
                             since what the record reserved may since have been spent by the routes a deferred
                             transaction let run -- and the REQUIREMENTS last, over the issue read afresh after the
-                            request, since a post is long enough for an edit to land under it. `still_carries` reads
-                            a SETTLED report again where it settled: a location hashing to the digest verified needs
-                            a trusted author, and any other has to re-render there as our report with the text
-                            digest and whole header (pull request, commit, requirements, revision, receipt) recorded
+                            request, since a post is long enough for an edit to land under it. Each settlement
+                            records which road made it, for the re-read below
+    report_settled_reading.py a SETTLED report read again where it settled, posting nothing, and held to the
+                            road the record says settled it: a VERIFIED location has to hash to the digest still,
+                            under a trusted author; a PUBLISHED one has to re-render in its comment as our report,
+                            written by the login this client posts under, with the text digest and whole header
+                            (pull request, commit, requirements, revision, receipt) recorded -- so a comment cut
+                            down to its bare text is CHANGED though it hashes. A record naming no road is read off
+                            its location: a description was verified, a comment is held to the rendering. An
+                            author nobody could read is UNCONFIRMED. No caller asks it yet
     report_binding.py       what a publication does with the report its run delivered once the push has landed:
                             the record bound to that repository, pull request, branch and commit in one write made
                             BEFORE anything is posted, then published. Both steps on every call, held to the
@@ -1947,7 +1955,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       pr_description.py     the report-aware verdict on a reused description, read afresh by number, which no
                             caller asks yet -- the live reuse is still `dev_pr.py`'s: one closing this issue and
                             naming this session stands; any other gets those two lines ABOVE it, word for word
-                            beneath; a failed re-read holds, one too long for GitHub parks, and one a report claims
+                            beneath, written only while the description still reads as the one judged -- one edited
+                            in between holds for the next tick; a failed re-read holds, one too long for GitHub
+                            parks, and one a report claims
                             -- delivered, pending, settled, or too damaged to say -- is never edited, parking once
                             that report has settled, since no retry frees it
       handoff.py            the one write and the one relabel a finished publication is handed on by: the pull

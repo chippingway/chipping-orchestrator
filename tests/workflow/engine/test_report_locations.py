@@ -56,6 +56,34 @@ DAMAGED_ELSEWHERE = MappingProxyType({
 
 UNREADABLE = "not a record"
 
+FIXES = f"Fixes #{ISSUE}"
+
+# Every way Markdown or HTML shows a reference literally, or hides it: GitHub
+# acts on none of them. Quoted code is still code.
+SHOWN_AS_CODE = (
+    f"```\n{FIXES}\n```",
+    f"Write `{FIXES}` to close it.",
+    f"    {FIXES}",
+    f">     {FIXES}",
+    f"> ~~~\n> {FIXES}\n> ~~~",
+    f"> > ```\n> > {FIXES}",
+    f"-     {FIXES}",
+    f"<pre>{FIXES}</pre>",
+    f"<PRE lang='text'>\n{FIXES}\n</PRE>",
+    f"<code>{FIXES}</code>",
+    f"<pre>\n{FIXES}",
+    f"<!-- {FIXES} -->",
+)
+
+# The same reference as prose, which a quote or a list item still is.
+SHOWN_AS_PROSE = (
+    FIXES,
+    f"> {FIXES}",
+    f"- {FIXES}",
+    f"<details>{FIXES}</details>",
+    f"<pre>an example</pre>\n\n{FIXES}",
+)
+
 
 # The publication the settled pair below is about, and the same publication
 # with each member of it moved in turn.
@@ -171,26 +199,34 @@ class DescribesTheIssueTest(unittest.TestCase):
     def test_every_closing_spelling_github_honours(self) -> None:
         # Bare and repository-qualified references both close this issue --
         # the qualifier compared as GitHub compares it, without case -- while
-        # one naming another repository, or another number, or shown as code,
-        # closes nothing here. Without the attribution no reference is enough.
+        # one naming another repository, or another number, closes nothing
+        # here. Without the attribution no reference is enough.
         for reference, signed, closes in (
-            (f"Fixes #{ISSUE}", ATTRIBUTION, True),
+            (FIXES, ATTRIBUTION, True),
             (f"resolves: Owner/Repository#{ISSUE}", ATTRIBUTION, True),
             (f"Closes someone/else#{ISSUE}", ATTRIBUTION, False),
             (f"Fixes #{OTHER_ISSUE}", ATTRIBUTION, False),
-            (f"Fixes #{ISSUE}", "", False),
-            (f"```\nFixes #{ISSUE}\n```", ATTRIBUTION, False),
-            (f"Write `Fixes #{ISSUE}` to close it.", ATTRIBUTION, False),
-            (f"    Fixes #{ISSUE}", ATTRIBUTION, False),
+            (FIXES, "", False),
         ):
             with self.subTest(reference=reference, signed=bool(signed)):
-                body = f"{reference}\n\n{signed}"
-                self.assertEqual(
-                    _locations.describes_the_issue(
-                        SimpleNamespace(body=body), ISSUE, ATTRIBUTION, SLUG,
-                    ),
-                    closes,
-                )
+                self.assertEqual(_describes(reference, signed), closes)
+
+    def test_a_reference_shown_as_code_closes_nothing(self) -> None:
+        # Literal code is text GitHub does not act on, quoted or not; the same
+        # reference as prose -- in a quote, a list item, beside code -- does.
+        for shown, closes in (
+            *((reference, False) for reference in SHOWN_AS_CODE),
+            *((reference, True) for reference in SHOWN_AS_PROSE),
+        ):
+            with self.subTest(shown=shown):
+                self.assertEqual(_describes(shown, ATTRIBUTION), closes)
+
+
+def _describes(reference: str, signed: str) -> bool:
+    """Whether a description of `reference` above `signed` names the issue."""
+    return _locations.describes_the_issue(
+        SimpleNamespace(body=f"{signed}\n\n{reference}"), ISSUE, ATTRIBUTION, SLUG,
+    )
 
 
 if __name__ == "__main__":
