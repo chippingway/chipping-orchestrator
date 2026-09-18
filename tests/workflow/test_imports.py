@@ -80,6 +80,7 @@ _ENGINE_OWNERS = (
     "report_evidence",
     "report_evidence_models",
     "report_fences",
+    "report_html_literals",
     "report_locations",
     "report_outcome_models",
     "report_outcomes",

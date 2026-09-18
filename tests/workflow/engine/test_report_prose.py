@@ -79,6 +79,23 @@ CODE_IN_HTML = (
     f"<pre><!-- </pre> --> {FIXES}</pre>",
     f"<textarea>{FIXES}</textarea>",
     f"<pre {FIXES}",
+    # A tag is read as HTML reads one: a `>` or a closing tag inside a quoted
+    # attribute value ends nothing, and a value never closed takes the rest.
+    f'<pre data-example="> </pre>">{FIXES}</pre>',
+    f"<pre data-example='> </pre>'>{FIXES}</pre>",
+    f'<pre data-example="x> </pre> {FIXES}',
+)
+
+# A tag quoted as code is no tag only where the code is CERTAIN. Not after a
+# `<` that may have taken the backtick into a tag of its own; not in a fence an
+# HTML block may hold, one Markdown closes sooner than the strict reading, or a
+# quoted one a blank line ended; and never inside an element already open.
+UNCERTAIN_QUOTING = (
+    f'see <a title="`"><pre>` {FIXES}',
+    f"<div>\n```\n<pre>\n```\n</div>\n\n{FIXES}",
+    f"~~~\nx\n ~~~\n<pre>\n~~~\n{FIXES}",
+    f"> ```\n\n> <pre>\n> ```\n> {FIXES}",
+    f"<pre>\n\n`<pre>` x</pre> {FIXES}</pre>",
 )
 
 # No reference at all, however the text around it reads: a keyword parted from
@@ -87,6 +104,8 @@ NO_REFERENCE = (
     f"Fixes `a span` #{ISSUE}",
     f"Fixes\n    an indented line\n#{ISSUE}",
     f'<a title="{FIXES}">a link</a>',
+    f'<a title="> {FIXES}">a link</a>',
+    f'<div title="{FIXES}',
 )
 
 # The same reference as prose, which a quote or a list item still is. A stray
@@ -109,6 +128,15 @@ PROSE = (
     f"<!-- a note --> {FIXES}",
     f"{FIXES}\n\nWrap it in `<pre>`.",
     f"Intro\r\r{FIXES}",
+    # A tag quoted as an example, in a span or a closed fence that is code
+    # however the text is read, opens nothing: what follows it is still prose.
+    f"Wrap it in `<pre>`.\n\n{FIXES}",
+    f"Compare `<pre>` and `<code>`. {FIXES}",
+    f"Open a comment with `<!--`.\n\n{FIXES}",
+    f"```html\n<pre>\n```\n\n{FIXES}",
+    f"> ```html\n> <pre>\n> ```\n\n{FIXES}",
+    # Not a tag at all, so its apostrophe is no unclosed attribute value.
+    f"When n <m it's fine. {FIXES}",
 )
 
 # One more backticked line than a block's spans are looked for from.
@@ -125,7 +153,10 @@ def _describes(reference: str) -> bool:
 
 class CertainProseTest(unittest.TestCase):
     def test_a_reference_shown_as_code_closes_nothing(self) -> None:
-        for shown in (*CODE_LINES, *CODE_SPANS, *CODE_IN_HTML, *NO_REFERENCE):
+        for shown in (
+            *CODE_LINES, *CODE_SPANS, *CODE_IN_HTML, *UNCERTAIN_QUOTING,
+            *NO_REFERENCE,
+        ):
             with self.subTest(shown=shown):
                 self.assertFalse(_describes(shown))
 

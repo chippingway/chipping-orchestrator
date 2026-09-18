@@ -90,7 +90,15 @@ CLOSING_NOTHING = (
     f"`unmatched\n<pre>` {RESOLVES}</pre>",
     f"<code><code>example</code> {RESOLVES}</code>",
     f"Intro\r\r    {RESOLVES}",
+    f'<pre data-example="> </pre>">{RESOLVES}</pre>',
     f"Resolves someone/else#{ISSUE}",
+)
+
+# HTML quoted as an example, in code that is code however the text is read:
+# no tag of it opens anything, so the lines beneath it still name the work.
+QUOTED_EXAMPLES = (
+    "Wrap the output in `<pre>` so it keeps its columns.",
+    "```html\n<pre>\n```",
 )
 
 EARLIER_SHA = "e" * SHA_LENGTH
@@ -259,10 +267,15 @@ class DescriptionVerdictTest(unittest.TestCase, _ReusedPullRequest):
     def test_a_description_naming_the_work_stands(self) -> None:
         # However GitHub would honour the reference -- this stage's own line,
         # or one qualified with this repository -- with whatever else a human
-        # added underneath.
-        for reference in (RESOLVES, QUALIFIED):
-            with self.subTest(reference=reference):
-                described = f"{_own_description(reference)}\n\nA human's note."
+        # added underneath, or above: an HTML example quoted as code swallows
+        # nothing beneath it.
+        named = (
+            *(_own_description(reference) for reference in (RESOLVES, QUALIFIED)),
+            *(f"{example}\n\n{_own_description()}" for example in QUOTED_EXAMPLES),
+        )
+        for naming in named:
+            with self.subTest(naming=naming):
+                described = f"{naming}\n\nA human's note."
                 self.reused(described)
 
                 self.assertIs(self.names(), True)

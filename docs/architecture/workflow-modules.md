@@ -219,25 +219,38 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             only on a bare run at its opening run's column, and stays open to the end past a line
                             that may have ended its list item. On request it reads the fences a blockquote holds
                             too, behind any nesting of list and quote markers, closing one only behind the markers
-                            it opened behind; the marker readers do not ask, since no marker line opens on `>`
+                            it opened behind; the marker readers do not ask, since no marker line opens on `>`.
+                            That reading errs towards code, so `definite_fences` answers the other end of the
+                            doubt: the closed fences that are fences however the text is read -- opened at the
+                            margin of their markers, outside anything an HTML block may hold, and closed where
+                            Markdown closes them rather than only where the stricter reading does
     report_prose.py         what of a description is certainly prose, for the closing keywords GitHub does not act
                             on inside code. Not one reading of the Markdown but what EVERY reading leaves, so a
                             doubt reads as code. Lines are ended as Markdown ends them, a bare carriage return
                             included; a line a fence may enclose and a line indented as code are code behind any
-                            nesting of list and blockquote markers; so is every span `report_code_spans.py` finds.
-                            What HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and comments --
-                            is read off the text AS WRITTEN, since an element is literal whether or not some
-                            reading pairs a backtick across its opening tag: opening tags are counted by name, so
-                            nesting holds, and a closing tag is trusted only where it stands in the same code, or
-                            the same prose, as the tag that opened the element. What is taken out leaves a
-                            character no reference is made of, so a keyword and a number either side of code are
-                            never read as one, and a tag's own markup goes the same way
-    report_code_spans.py    every inline code span SOME reading of a text encloses. Markdown pairs backticks within
+                            nesting of list and blockquote markers; so is every span `report_code_spans.py` finds
+                            possible and everything `report_html_literals.py` finds literal. What is taken out
+                            leaves a character no reference is made of, so a keyword and a number either side of
+                            code are never read as one, and a tag's own markup goes the same way, quoted attribute
+                            values and all
+    report_code_spans.py    the inline code spans of a text, POSSIBLE and CERTAIN. Markdown pairs backticks within
                             one block, and a heading or a list item starts a block with no blank line above it, so
                             a span is looked for from every backticked line within what blank lines bound, against
-                            one index of the text's backtick runs. An escaped backtick opens nothing, a backslash
-                            inside a span escapes nothing, and a block of more backticked lines than the readings
-                            allow is code throughout
+                            one index of the text's backtick runs; possible is whatever any reading encloses, and a
+                            block of more backticked lines than the readings allow is code throughout. Certain is
+                            what every reading agrees on: a span that stays on a line no earlier reading's span
+                            runs into, with no `<` before it in its block outside the certain spans already found,
+                            since a tag or an autolink binds as tightly and the leftmost wins. An escaped backtick
+                            opens nothing, and a backslash inside a span escapes nothing
+    report_html_literals.py what HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and comments
+                            -- read off the text AS WRITTEN, since an element is literal whether or not some
+                            reading pairs a backtick across its opening tag. A tag is read as HTML reads one, so a
+                            `>` or a closing tag inside a quoted attribute value ends nothing and a value never
+                            closed takes the rest. Opening tags are counted by name, so nesting holds; a CLOSING tag
+                            is trusted only where it stands in the same possible code, or the same prose, as the
+                            tag that opened the element; and an OPENING tag or comment opens nothing in DEFINITE
+                            code -- a certain span or a definite fence -- since a tag quoted as an example is no
+                            tag, unless an element is already open, where no Markdown is read
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the
