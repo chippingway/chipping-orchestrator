@@ -253,7 +253,8 @@ developer-report comment owners (`github/developer_reports.py`, `github/pull_req
 record a stage will write, and on an issue carrying no such record it costs one pinned read that has already happened.
 The other three are read by nobody ahead of a handler. `developer_report_delivery` in particular is inert: the owner
 that would write one is not called, nothing looks for one, and no reconciliation would act on one if it were there —
-binding it to a publication is a step a stage has to take.
+binding it to a publication is a step a stage has to take, through `workflow/engine/report_binding.py`, which
+exchanges the delivery for its transaction in one write before anything is posted and which no stage calls yet.
 
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion

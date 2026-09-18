@@ -10,6 +10,18 @@ that closes the issue on merge with the dev session that wrote the branch, and
 with the agent's closing message where the run produced one -- capped, and cut
 on a boundary that leaves the Markdown around it intact.
 
+That closing message is written only where this issue neither owes a developer
+report nor has one settled: the report comment says it supersedes any agent
+message in the description, so a capped excerpt here would be a second,
+unmarked copy. Nothing already on a description is removed on that account --
+a legacy `_Last agent message:_` tail stays where it is, historical.
+
+The body also takes a description somebody else wrote, kept word for word
+beneath those lines under a heading saying what it is. That is for
+`pr_description.py`, the report-aware verdict on a reused description, which no
+caller asks yet: the reuse below still answers through `_attribute_reused_pr`,
+which knows nothing of reports.
+
 The attribution line is what holds the two halves of this owner together. The
 body states it, and the reuse below reads it back off a pull request of unknown
 provenance: `find_open_pr` promises only that something is open on the branch,
@@ -34,7 +46,11 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.publication import titles as _titles
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    report_delivery as _report_delivery,
+    report_settlement_state as _report_settlement,
+)
 from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
     models as _models,
@@ -102,20 +118,31 @@ def _dev_pr_attribution(state: _pinned_state.PinnedState) -> str:
 
 
 def _build_pr_body(
-    state: _pinned_state.PinnedState, issue: Issue, agent_result: AgentResult,
+    state: _pinned_state.PinnedState,
+    issue: Issue,
+    agent_result: AgentResult,
+    preserved: str = "",
 ) -> str:
     """PR body: the `Resolves #N` line, the generating session's identity, and
-    the (capped) final agent message when the run produced one."""
+    the (capped) final agent message when the run produced one and no report of
+    this issue's is owed or settled -- then, on a pull request somebody else
+    described first, that description exactly as it stood.
+    """
     body_parts = [
         f"Resolves #{issue.number}",
         "",
         _dev_pr_attribution(state),
     ]
-    if agent_result.last_message.strip():
+    if agent_result.last_message.strip() and not (
+        _report_delivery.owes_a_report(state)
+        or _report_settlement.carries_settled_record(state)
+    ):
         body_parts += [
             "", "---", "_Last agent message:_", "",
             _format_pr_agent_message(agent_result.last_message),
         ]
+    if preserved.strip():
+        body_parts += ["", "---", _state._PR_BODY_EARLIER_HEADING, "", preserved]
     return "\n".join(body_parts)
 
 

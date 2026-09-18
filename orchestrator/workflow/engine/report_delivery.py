@@ -61,11 +61,11 @@ comment by its receipt, so two reports sharing one would leave the later one
 reading the earlier one's comment as its own publication, edited beyond
 recognition.
 
-Nothing in the workflow reaches for any of this yet. What is here is the
-durable half of the contract -- the record, the refusals that leave a caller's
-state untouched, and the one write that exchanges a delivery for the
-transaction it becomes -- proved on its own, so the publication that comes to
-stand on it finds a surface that already holds.
+No stage reaches for any of this yet. What is here is the durable half of the
+contract -- the record, the refusals that leave a caller's state untouched, and
+the debt an undeliverable report leaves -- proved on its own. The write that
+exchanges a delivery for the transaction it becomes, once a push has reached a
+pull request, is asked through `report_binding`.
 """
 from __future__ import annotations
 
@@ -97,6 +97,11 @@ log = logging.getLogger("orchestrator.workflow")
 _PARK_REASON = "park_reason"
 
 _AWAITING_HUMAN = "awaiting_human"
+
+# The debt of a report this workflow could not deliver, kept apart from the park
+# that announced it: the flags are single, so a later park -- a resumed run that
+# timed out, a question -- replaces the reason, and the debt must outlive it.
+OWED_REPORT = "developer_report_owed"
 
 # What a report this workflow cannot get onto the pull request is parked
 # under. One reason for both roads that take it -- a report that cannot be
@@ -164,24 +169,22 @@ def owes_a_report(state: _pinned_state.PinnedState) -> bool:
 
     Asked of what the records CLAIM rather than of what they mean, so a record
     a hand edit truncated counts as a debt rather than as an issue that owes
-    nothing. Neither claim is left unanswered: a delivery nothing can read is
-    refused by the binding rather than bound, and the reconciliation ahead of
-    every handler parks a transaction it cannot read -- both with the record
-    untouched for whoever repairs or abandons it.
+    nothing. Neither claim is left unanswered: the binding parks a delivery it
+    cannot read, and the reconciliation ahead of every handler parks a
+    transaction it cannot -- both with the record untouched for whoever
+    repairs or abandons it.
 
-    The PARK is the third, and it is the debt of the two roads that have no
-    record to leave: a report this build could not write down, and a completed
-    run that handed over none at all. There is nothing on the comment then but
-    the reason itself, so the reason is what says a report is still owed --
-    which is what keeps the work here and what tells the reply that brings one
-    from an ordinary question. It is retired the moment a report IS recorded,
-    because that is the condition it was taken for; any other park replaces it
-    outright, since the flags are single.
+    The third is the debt every undeliverable park records as `OWED_REPORT`
+    beside its reason, for the roads with no record to leave. Not the reason
+    alone: any later park -- a resumed run that timed out -- replaces it, and
+    the report that finally comes back would read as a question. Both are
+    retired the moment a report IS recorded.
     """
     return (
         _delivery_state.carries_delivered_report(state)
         or _record_state.carries_pending_report(state)
         or state.get(_PARK_REASON) == UNDELIVERABLE_REPORT
+        or bool(state.get(OWED_REPORT))
     )
 
 
@@ -239,6 +242,8 @@ def recording_stops_the_tick(
     )
     if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
         state.set(_PARK_REASON, None)
+    if state.get(OWED_REPORT):
+        state.set(OWED_REPORT, None)
     gh.write_pinned_state(issue, state)
     return False
 
@@ -308,10 +313,9 @@ def parks_an_undeliverable_report(
     retires it -- the resume that answers the reply is what clears the flags,
     exactly as it does for every other park a stage takes.
 
-    Public because both roads that cannot deliver a report take it: the
-    recording above, before anything is published, and a binding refused after
-    the push. Each words its own notice, since what the work is in the middle
-    of differs; what they share is the flag, the reason, and the silence.
+    Public because every road that cannot deliver a report takes it, each with
+    its own notice; what they share is the flag, the reason, the debt, and the
+    silence.
     """
     if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT and state.get(_AWAITING_HUMAN):
         log.warning(
@@ -323,6 +327,7 @@ def parks_an_undeliverable_report(
         gh, issue, state, notice, reason=UNDELIVERABLE_REPORT,
     )
     state.set(_PARK_REASON, UNDELIVERABLE_REPORT)
+    state.set(OWED_REPORT, True)
     gh.write_pinned_state(issue, state)
 
 

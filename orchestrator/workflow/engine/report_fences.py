@@ -10,6 +10,10 @@ opens, closes only on a bare run at its opening run's column, and stays open to
 the end of the message past a line that may have ended the list item it sat
 in. A blockquote's fence needs no reading: every line inside one opens on `>`,
 and no marker line does.
+
+`outside_code` is the same reading turned the other way, for a caller that
+needs only the text Markdown certainly renders as prose -- the closing keywords
+a pull request's description acts on, which GitHub does not read inside code.
 """
 from __future__ import annotations
 
@@ -30,6 +34,9 @@ _FENCE_OPENING_RE = re.compile(
     r"(?P<prefix>(?:[ \t]*(?:[-+*]|[0-9]{1,9}[.)])(?=[ \t]))*[ \t]*)"
     r"(?P<run>`{3,}(?!.*`)|~{3,}).*",
 )
+
+# An inline code span: a backtick run, then anything up to that same run alone.
+_CODE_SPAN_RE = re.compile(r"(`+)[\s\S]*?(?<!`)\1(?!`)")
 
 # A list item's content lines stand where the text after its marker does, so
 # the lines inside a fence repeat its opening prefix with every marker
@@ -65,6 +72,22 @@ def _fenced_line_starts(text: str) -> frozenset[int]:
             fenced.add(line.start())
             fence = _fence_after(fence, line.group())
     return frozenset(fenced)
+
+
+def outside_code(text: str) -> str:
+    """`text` with everything Markdown may show as literal code taken out.
+
+    Lines a fence may enclose and the lines that open fences, indented lines,
+    and inline code spans. A doubt reads as code, so what is left is prose.
+    """
+    fenced = _fenced_line_starts(text)
+    prose = "\n".join(
+        line.group() for line in _LINE_RE.finditer(text)
+        if line.start() not in fenced
+        and _fence_opened_by(line.group()) is None
+        and not line.group().startswith(("    ", "\t"))
+    )
+    return _CODE_SPAN_RE.sub(" ", prose)
 
 
 def _fence_opened_by(line: str) -> _OpenFence | None:

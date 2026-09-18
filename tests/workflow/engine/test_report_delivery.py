@@ -286,6 +286,31 @@ class ReportedRunTest(unittest.TestCase):
                     (_delivery.UNDELIVERABLE_REPORT, True),
                 )
 
+    def test_the_debt_outlives_its_park(self) -> None:
+        # The flags are single, so a later park -- a resumed run that timed out
+        # -- replaces the reason. The debt is kept beside it, so the issue
+        # still owes its report, until a run that reports retires both.
+        seeded = delivery_support.seeded_issue()
+        state = PinnedState(state_data={delivery_support.BASELINE: support.REQUIREMENTS})
+        _delivery.recording_stops_the_tick(
+            *seeded, state, _agent(last_message="implemented"),
+            WorkflowLabel.IMPLEMENTING,
+        )
+        state.set(delivery_support.PARK_REASON, "agent_timeout")
+        self.assertEqual(
+            (state.get(_delivery.OWED_REPORT), _delivery.owes_a_report(state)),
+            (True, True),
+        )
+
+        self.assertFalse(_delivery.recording_stops_the_tick(
+            *seeded, state,
+            _agent(last_message=delivery_support.ready("The report.")),
+            WorkflowLabel.IMPLEMENTING,
+        ))
+
+        self.assertIsNone(state.get(_delivery.OWED_REPORT))
+        self.assertTrue(_delivery_state.carries_delivered_report(state))
+
     def test_a_run_no_process_finished_holds_nothing(self) -> None:
         # Every way a run falls short of its own end: one no process produced
         # at all -- the sentence a caller synthesizes to publish committed
