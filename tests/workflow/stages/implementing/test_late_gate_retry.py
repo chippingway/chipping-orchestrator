@@ -36,6 +36,21 @@ from tests.workflow.stages.implementing import (
 # timeout killed never writes.
 _DELIVERY_RECORD = "developer_report_delivery"
 
+# The two roads a commit a timeout left reaches the gate by: the killed run's
+# own disposition, and the quiet recovery of a timeout park.
+_TIMED_OUT_COMMITS = (
+    ("the killed run", {}, {
+        "run_agent": _agent(session_id=support.DEV_SESSION, timed_out=True),
+        "has_new_commits": [False, True],
+        "head_shas": (_retry_payloads._PRE_TIMEOUT_SHA, MEASURED_CANDIDATE_SHA),
+    }),
+    ("the timeout park's recovery", {
+        support.AWAITING_HUMAN: True,
+        support.PARK_REASON: _retry_payloads._AGENT_TIMEOUT,
+        _retry_payloads._PRE_IMPLEMENT_SHA: _retry_payloads._PRE_TIMEOUT_SHA,
+    }, {"head_shas": (MEASURED_CANDIDATE_SHA,)}),
+)
+
 
 class LateGateTimeoutRecoveryTest(support._GateCase, unittest.TestCase):
     """A commit recovered from a timeout is the same kind of candidate."""
@@ -62,30 +77,30 @@ class LateGateTimeoutRecoveryTest(support._GateCase, unittest.TestCase):
         self.assertIn(_retry_payloads._DECOMPOSING, self.github.label_history)
 
     def test_a_timed_out_candidate_is_measured_again(self) -> None:
-        # A run the timeout killed records no report by design, and its commit
-        # publishes as a timeout's always has -- here into a size reading that
-        # failed. The retry a bare continue buys republishes that very commit,
-        # and it is measured again rather than held for a report no run was
-        # ever going to write. No report of any run stands behind either tick.
-        self._seed(**{_DELIVERY_RECORD: None})
-        self._run_gate(
-            run_agent=_agent(session_id=support.DEV_SESSION, timed_out=True),
-            has_new_commits=[False, True],
-            head_shas=(_retry_payloads._PRE_TIMEOUT_SHA, MEASURED_CANDIDATE_SHA),
-            added_lines=MeasurementFailure.DIFF_FAILED,
-        )
-        self._assert_parked()
-        self._reply(support.BARE_CONTINUE)
+        # A commit a timeout left records no report by design -- whether the
+        # killed run published it or the quiet recovery did -- here into a
+        # size reading that failed. The retry a bare continue buys is measured
+        # again rather than held for a report no run was ever going to write.
+        for road, parked, first in _TIMED_OUT_COMMITS:
+            with self.subTest(road=road):
+                self.setUp()
+                self._seed(**{_DELIVERY_RECORD: None, **parked})
+                self._run_gate(**first, added_lines=MeasurementFailure.DIFF_FAILED)
+                self._assert_parked()
+                self._reply(support.BARE_CONTINUE)
 
-        mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
+                mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
 
-        self._assert_no_agent(mocks)
-        self._assert_measured(mocks)
-        self._assert_published(mocks)
-        self.assertEqual(
-            (self._pinned()[_DELIVERY_RECORD], self.github.label_history[-1]),
-            (None, (support.GATE_ISSUE_NUMBER, LABEL_VALIDATING)),
-        )
+                self._assert_no_agent(mocks)
+                self._assert_measured(mocks)
+                self._assert_published(mocks)
+                self.assertEqual(
+                    (
+                        self._pinned()[_DELIVERY_RECORD],
+                        self.github.label_history[-1],
+                    ),
+                    (None, (support.GATE_ISSUE_NUMBER, LABEL_VALIDATING)),
+                )
 
 
 class LateGateStrandedPairTest(support._GateCase, unittest.TestCase):

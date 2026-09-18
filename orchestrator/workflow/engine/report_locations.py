@@ -72,10 +72,26 @@ def claims_the_description(
     before anything says the record was damaged. False for an issue carrying
     none of them, and for every report that lives in a comment.
     """
-    return any(
+    return _dangles_on(state, pr_number) or any(
         _claims(state.get(key), reader(state), pr_number)
         for key, reader in _CLAIMING_RECORDS
     )
+
+
+def _dangles_on(state: _pinned_state.PinnedState, pr_number: int) -> bool:
+    """Whether a settled pair missing its current report may name this PR.
+
+    A settled key holding `null`, or a handoff whose current report is gone,
+    is damage rather than an absence -- nothing clears a settlement -- so the
+    report it settled may be this pull request's description. Only a handoff
+    that readably names another pull request says it is not.
+    """
+    if state.get(_records.CURRENT_REPORT) is not None:
+        return False
+    if not _settlement.carries_settled_record(state):
+        return False
+    handoff = _settlement.read_handoff(state)
+    return handoff is None or handoff.pr_number == pr_number
 
 
 def _claims(recorded: Any, record: Any, pr_number: int) -> bool:
@@ -99,13 +115,14 @@ def settled_publication(
     state: _pinned_state.PinnedState,
     repo_slug: str,
     pr_number: int,
+    branch: str,
     source_sha: str,
 ) -> _records.CurrentReport | None:
     """The settled report about this commit on this pull request, or None.
 
     Both settled records, agreeing with each other -- they are written in one
     write, so a pair naming two publications is one nothing here wrote -- and
-    naming this repository, this pull request and this commit. What comes back
+    naming this repository, pull request, branch and commit. What comes back
     is a CLAIM, not a reading: the report may have been edited or deleted
     since, so a caller about to hand the work on re-reads it first. None
     wherever either record cannot be read, which holds the work.
@@ -117,8 +134,11 @@ def settled_publication(
     if _replay_guards.companions_disagree(current, handoff):
         return None
     subject = current.subject
-    settled = (subject.repo_slug, subject.pr_number, subject.source_sha)
-    return current if settled == (repo_slug, pr_number, source_sha) else None
+    settled = (
+        subject.repo_slug, subject.pr_number, subject.branch, subject.source_sha,
+    )
+    publication = (repo_slug, pr_number, branch, source_sha)
+    return current if settled == publication else None
 
 
 def describes_the_issue(

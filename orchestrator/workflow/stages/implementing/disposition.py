@@ -12,7 +12,6 @@ from __future__ import annotations
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
@@ -31,7 +30,6 @@ from orchestrator.workflow.stages.implementing import (
     late_park_state as _late_park_state,
     models as _models,
     parks as _parks,
-    session_read as _session_read,
     state as _state,
     unreported_recovery as _unreported_recovery,
 )
@@ -103,22 +101,15 @@ def _try_recover_implementing_timeout_park(
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
     state.set(_state._PRE_IMPLEMENT_SHA, None)
-    _, _, _, dev_sid = _session_read._read_dev_session(state)
-    agent_result = AgentResult(
-        session_id=dev_sid,
-        last_message=(
-            "(orchestrator recovery: publishing commit produced around the "
-            "agent timeout)"
-        ),
-        exit_code=0,
-        timed_out=False,
-        stdout="",
-        stderr="",
-        invoked=False,
-    )
-    _candidate_recovery._publish_committed_work(
-        gh, spec, issue, state, _models._AgentWork(agent_result, wt),
-    )
+    work = _models._AgentWork(_unreported_recovery._recovery_result(
+        state,
+        "(orchestrator recovery: publishing commit produced around the agent "
+        "timeout)",
+    ), wt)
+    # The commit a timeout stranded is an incomplete run's, owed no report --
+    # recorded before the gate, so a retry of a reading it fails is not held.
+    _unreported_recovery._waives_an_incomplete_run(state, work, stranded=True)
+    _candidate_recovery._publish_committed_work(gh, spec, issue, state, work)
     return "pushed"
 
 

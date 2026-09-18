@@ -352,14 +352,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             implementation delivery through `report_binding.py` below, or the reconciliation at
                             the end of this group a poll later
     report_locations.py     which places on a pull request this issue's reports claim, asked of all three records
-                            -- a record nobody can read included, for the place it still names -- before the one
-                            writer that could lose one: the body edit a reused pull request earns, since even an
-                            edit keeping every word moves a verified DESCRIPTION off its digest. The second reading
-                            is what a description WOULD have said: whether it closes this issue, in any spelling
-                            GitHub honours, and names the session -- one that says neither is a publication the
-                            binding below holds for repair. It also answers which publication the SETTLED pair is
-                            about, agreeing with itself and naming this repository, pull request and commit; what
-                            it hands back is a claim, for its caller to re-read
+                            -- a record nobody can read, or a settled pair missing its current report, included --
+                            before the one writer that could lose one: the body edit a reused pull request earns,
+                            since even an edit keeping every word moves a verified DESCRIPTION off its digest. The
+                            second reading is what a description WOULD have said: whether it closes this issue, in
+                            any spelling GitHub honours, and names the session -- one that says neither is a
+                            publication the binding below holds for repair. It also answers which publication the
+                            SETTLED pair is about, agreeing with itself and naming this repository, pull request,
+                            branch and commit; what it hands back is a claim, for its caller to re-read
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
@@ -433,10 +433,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             request leaves the transaction owed, the handoff withheld, and the drift resume to
                             answer it, on the binding's road and the reconciliation's alike. `still_carries` reads a
                             SETTLED report again where it settled, for a recovery about to hand its commit on: a
-                            comment on this issue's own ledger has to re-render as the report whose text digest
-                            settled, with its whole header -- pull request, commit, requirements, revision and the
-                            handoff's receipt -- the one the settlement recorded, and any other location has to hash
-                            to the digest verified and have an author this deployment trusts
+                            location hashing to the digest verified needs an author this deployment trusts, and
+                            any other has to re-render there as our report -- no capped ledger consulted -- with the
+                            text digest and whole header (pull request, commit, requirements, revision, receipt)
+                            the settlement recorded
     report_binding.py       what a publication does with the report its run delivered, once the push has landed
                             and a pull request carries it: the record bound to that publication -- the repository,
                             the number, the branch and the commit the caller proved, beside the requirements
@@ -1416,11 +1416,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             committed work a recovery republishes -- the restart shortcut and every road that
                             republishes a candidate a gate record named -- held under `report_undeliverable` before
                             anything is measured, pushed or opened unless a debt is still owed or a settled pair
-                            names this repository, this commit and the receipt's pull request. That pair is re-read
+                            names this repository, branch, commit and the receipt's pull request. It is re-read
                             where it settled, with the requirements, first: an unreadable reading holds silently, a
                             report that moved parks for repair. A commit a run that never COMPLETED left is recorded
-                            as `implementing_incomplete_run_sha` and owed no report. Also the `invoked=False` result
-                            those recoveries hand the seam; the timeout-park recovery never asks
+                            as `implementing_incomplete_run_sha` and owed no report, a timeout-park recovery's
+                            stranded commit included. Also the `invoked=False` result those recoveries hand the seam
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
                             take a fresh or resumed measurement; the verdict carries the basis admitting publication
       late_gate_permission.py

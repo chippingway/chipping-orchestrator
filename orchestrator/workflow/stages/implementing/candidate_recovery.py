@@ -128,9 +128,7 @@ def _publish_committed_work(
         gh, issue, state, work.agent_result, _state._REPORT_ROUTE,
     ):
         return
-    _unreported_recovery._waives_an_incomplete_run(
-        state, work.agent_result, work.worktree,
-    )
+    _unreported_recovery._waives_an_incomplete_run(state, work)
     if isinstance(work, _RecoveredWork) and (
         _unreported_recovery._holds_unreported_work(
             gh, spec, issue, state, work.candidate_sha,

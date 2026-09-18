@@ -148,27 +148,29 @@ class DescriptionGuardTest(unittest.TestCase, _ReusedPullRequest):
         )
 
     def test_a_damaged_record_keeps_the_description(self) -> None:
-        # A damaged record may still name the description, so the body stays,
-        # the record stays, and the work is not handed on.
-        for record, run in (
-            (support.DELIVERY_RECORD, self.republish),
-            (support.CURRENT_RECORD, self._delivers),
-        ):
-            with self.subTest(record=record):
+        # A damaged record may still name the description -- a delivery or a
+        # current report whose own fields will not read, a current report
+        # nulled beside its handoff, or a handoff left on its own -- so the
+        # body stays, the records stay, and the work is not handed on.
+        for damaged in _damaged_claims():
+            with self.subTest(damaged=sorted(damaged)):
                 github, issue, reused = self._reused_over(
-                    dev_session_id=support.DEV_SESSION,
-                    **{record: dict(DAMAGED_RECORD)},
+                    dev_session_id=support.DEV_SESSION, **damaged,
                 )
 
-                run(github, issue)
+                if support.DELIVERY_RECORD in damaged:
+                    self.republish(github, issue)
+                else:
+                    self._delivers(github, issue)
 
+                pinned = github.pinned_data(support.REPORT_ISSUE)
                 self.assertEqual(
                     (
                         github.edited_pr_bodies,
                         reused.body,
-                        github.pinned_data(support.REPORT_ISSUE)[record],
+                        {key: pinned.get(key) for key in damaged},
                     ),
-                    ([], HUMAN_DESCRIPTION, dict(DAMAGED_RECORD)),
+                    ([], HUMAN_DESCRIPTION, damaged),
                 )
                 self.assertNotIn(
                     (support.REPORT_ISSUE, LABEL_VALIDATING),
@@ -248,6 +250,17 @@ class DescriptionHoldTest(unittest.TestCase, _ReusedPullRequest):
         self.assertNotIn(
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
+
+
+def _damaged_claims() -> tuple:
+    """Every damaged record that may still claim the reused PR's description."""
+    settled = _settled_on_the_description()
+    return (
+        {support.DELIVERY_RECORD: dict(DAMAGED_RECORD)},
+        {support.CURRENT_RECORD: dict(DAMAGED_RECORD)},
+        {**settled, support.CURRENT_RECORD: None},
+        {support.HANDOFF_RECORD: settled[support.HANDOFF_RECORD]},
+    )
 
 
 def _settled_on_the_description() -> dict:

@@ -2,75 +2,33 @@
 # SPDX-License-Identifier: Apache-2.0
 """Binding a delivered report to the publication it reached, and publishing it.
 
-Reached once the push has landed and a pull request carries it, which is the
-first moment the missing half of the record exists: a report is about one
-repository, one pull request, one branch and one commit, and until the code is
-out none of those is anything but a guess. So the binding happens here and
-nowhere earlier -- and it happens before the report is posted, so a process that
-dies between the two comes back to a transaction naming exactly what it was
-doing rather than to a comment nothing recorded.
+Reached once the push has landed and a pull request carries it -- the first
+moment the report's subject exists: one repository, pull request, branch and
+commit. The delivery is exchanged for the transaction in ONE write, made before
+anything is posted, so a process dying in between comes back to a record naming
+exactly what it was doing: a delivery dropped alone loses the report, and one
+kept beside its transaction is a second report.
 
-The two records are exchanged in ONE write. A delivery dropped without the
-transaction beside it loses a finished run's report; a transaction recorded
-beside the delivery it came from is a second report the next tick would publish.
-And the write goes to GitHub before the post, because the whole value of the
-record is that it outlives this process.
+Binding and publishing are separate steps, both asked on every tick that gets
+here: a publication whose post GitHub refused comes back with the transaction
+already bound, and a retry only has to establish that it is about the
+publication in hand -- the same pull request, branch and commit.
 
-Publishing is asked of every tick that gets here, not only of the one that
-bound the record. A publication whose post GitHub refused comes back with the
-transaction already bound, and the only thing a retry has to establish is that
-the transaction is about the publication in hand -- the same pull request, the
-same branch, the same commit. So the two steps are separate: one binds what was
-delivered, the other posts what this publication owes, and the ordinary tick
-does both in a row.
+What cannot be bound is never DISCARDED: the delivery stands, so the debt keeps
+the handoff withheld. A comment too full is reported at ERROR and retried. A
+record nobody can read, a verification on another pull request, and one on the
+very description this publication needs are refusals no later tick answers
+differently, so the issue parks once with the record intact. That last one is
+the collision: a description a report lives in may not be edited, and one left
+alone may close nothing -- so the work is held until a fresh report in a
+COMMENT frees the description to be named.
 
-What cannot be bound is never DISCARDED. The delivered record stands whatever
-happens here, so the report a run wrote survives every refusal -- and because
-it stands, the publication that reads the debt behind this owner withholds the
-handoff, and the work waits rather than reaching review with no report.
-
-Which refusal it was decides whether anybody is told. A comment too full is
-given back by the routes a report still owed lets run, so it is reported at
-ERROR and retried on the next tick, in the place that had just proved this
-publication. Everything else -- a record nobody can read, a verification
-asserting a report on another pull request, and one asserting it on the very
-description this publication needs -- is a report no later tick could deliver
-either, so the issue is parked once with the record intact and a reply resumes
-the developer that can write it again.
-
-That last one is the collision this owner refuses rather than resolves. A
-description a report lives in may not be edited -- any edit moves the report off
-the digest it was verified at -- and a description that is left alone is one
-that may close no issue when it merges and name no session at all. Neither half
-can be given up quietly, so the work is held and a human told: a fresh report in
-a COMMENT frees the description, which is what a reply buys, and the tick that
-publishes it puts the closing reference and the attribution above every word
-the description already says.
-
-Publication itself is the engine's, unchanged: the post is scoped by the
-transaction's receipt, so a retry finds what an earlier attempt landed instead
-of repeating it, and only a reading that proves the report is there settles
-anything. What this owner adds is that it is attempted on the very tick the code
-went out, over a world the caller has just proved for itself -- the push it
-made, the pull request it read, the receipt it recorded -- rather than a poll
-later through the reconciliation that would otherwise have to prove all of it
-again.
-
-One term of that world is NOT the caller's to vouch for, and it is read here
-before anything is posted: the requirements the run was handed. Every other term
-is a fact this tick established, but the issue the caller holds was fetched
-before its developer ran, and a human editing it during that run -- or during
-the push and the pull request after it -- leaves a report answering
-requirements the issue no longer has. So the issue is read AGAIN, and a report
-whose requirements have moved is left owed rather than published and handed on:
-the drift resume behind this owner is what answers an edit, and the report it
-buys is the one that belongs on the pull request.
-
-A publication that does not settle leaves the transaction owed, which is what
-the caller reads to decide whether its work may be handed on. The reconciliation
-ahead of the next handler finishes what this tick could not, and nothing is
-published twice on the way: the post is scoped by the receipt this record
-froze, and the pull request it names is the one the code already reached.
+Publication itself is the engine's: scoped by the receipt so a retry finds what
+landed, and settled only on a reading that proves the report is there. The one
+term the caller cannot vouch for, the requirements, is read afresh first, and a
+report whose requirements moved is left owed for the drift resume. A transaction
+that does not settle stays owed, which is what the caller reads before handing
+the work on; the reconciliation ahead of the next handler finishes it.
 """
 from __future__ import annotations
 
@@ -127,25 +85,13 @@ _UNBINDABLE_PARK = (
 class ReportPublication:
     """Where a delivered report's code landed, as the caller proved it.
 
-    Everything the run could not supply, taken from the publication that has
-    just happened rather than read again: the repository it went to, the pull
-    request object the caller proved, the branch the push named, and the
-    commit it sent. Re-derived instead of carried, each of them is a second
-    reading of something that can move -- and a report bound to one world and
-    published into another is the window the whole record exists to close.
-
-    The pull request travels as the object rather than as its number, because
-    the publication that follows the binding is made onto it: fetching one
-    again would be a second moment, and a pull request proved open by the
-    first can be closed by the time the second answers.
-
-    `describes_the_issue` is the caller's reading of that pull request's own
-    DESCRIPTION: whether it already closes this issue and names the session
-    whose work the branch carries. It travels because a report verified on a
-    description is the one report this workflow cannot both keep and manage --
-    the body it lives in is the same body the publication needs -- and only
-    the caller knows what that body says. True for every publication whose
-    description this stage wrote or may edit, which is all of them but one.
+    The repository, the pull request object, the branch and the commit, taken
+    from the publication that has just happened rather than read again: a
+    second reading of any of them can differ, and the pull request travels as
+    the object the report is then posted onto. `describes_the_issue` is the
+    caller's fresh reading of its DESCRIPTION -- whether it closes this issue
+    and names the session -- which decides the one report this workflow
+    cannot both keep and manage: one verified on that same body.
     """
 
     pull_request: Any
@@ -276,50 +222,22 @@ def _publishes_what_is_owed(
 ) -> None:
     """Publish the transaction THIS publication owes, if it owes one.
 
-    The record is read back off the pinned state rather than carried over from
-    the binding, so what is published is what a later tick would recover --
-    the same reading, off the same comment, that the reconciliation ahead of
-    every handler takes. It is also what makes the retry work: a transaction
-    bound by an earlier tick reads back here exactly as one bound a line ago.
+    Read back off the pinned state, so a transaction bound by an earlier tick
+    reads exactly as one bound a line ago, and held to this publication: one
+    naming another pull request, branch or commit is the reconciliation's to
+    prove. Posted onto the pull request this tick already read, since the push
+    and the receipt are facts it just established.
 
-    Held to this publication, and that is what keeps a retry honest. A
-    transaction naming some other pull request, branch or commit is not this
-    publication's to post -- what would prove it is the world the
-    reconciliation reads for itself, and posting it here would put a report
-    about work somewhere else onto the thread this tick happens to hold.
+    Two things are asked first. The settled pair beside it, as the
+    reconciliation asks it: a settlement writes over that pair, so one nobody
+    can read, one that contradicts itself, or a newer one is left owed for the
+    reconciliation to park. And the REQUIREMENTS, over the issue read afresh --
+    the one term the caller cannot vouch for, since an edit during the run or
+    the push leaves the report answering requirements the issue no longer has;
+    it is left owed for the drift resume, and a re-read that failed likewise.
 
-    Onto the pull request this tick already read. The evidence the
-    reconciliation takes is about a world it has not seen: it re-reads the
-    pull request, the checkout and the remote because everything it knows came
-    off a record. Here the push has just landed, the pull request was read as
-    part of making it, and the receipt naming both is on the comment -- so
-    what that evidence would prove is what this tick has just done.
-
-    The REQUIREMENTS are proved again before any of it, and they are the one
-    term of this publication the caller cannot vouch for. It pushed the commit,
-    read the pull request and wrote the receipt this tick, so each of those is
-    a fact rather than a reading -- but the issue it holds was fetched before
-    its developer ran, and an edit landing during that run, or during the push
-    and the pull request after it, leaves this report answering requirements
-    the issue no longer has. Published anyway it would be stamped with the
-    revision its run was handed and handed straight to a reviewer as current.
-    Left owed instead, the drift resume answers the edit and the report it buys
-    is the one that belongs there -- and the handoff is withheld meanwhile,
-    because the transaction is still outstanding. A re-read that FAILED is
-    left owed the same way, since nobody could say the issue is unchanged;
-    what differs is only that the next tick proves it again rather than a
-    developer answering an edit.
-
-    The settled pair beside it is asked first, on the terms the
-    reconciliation asks it: a settlement WRITES OVER that pair, so one nobody
-    can read, one that contradicts itself, or one already newer than this
-    transaction is evidence the post would destroy. Left owed, the
-    reconciliation ahead of the next handler parks it for a human.
-
-    Whether the tick stops is not this owner's answer and is not asked for.
-    What the caller decides on is the record: a transaction that settled is
-    gone from the pinned state, and one that did not is still there for the
-    handoff to refuse on and for the next tick to finish.
+    What the caller decides on is the record: a transaction that did not settle
+    is still there for the handoff to refuse on and the next tick to finish.
     """
     pending = _record_state.read_pending_report(state)
     if pending is None or not _names_this_publication(pending, published):

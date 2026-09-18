@@ -254,46 +254,45 @@ def still_carries(
 ) -> _pr_reports.ReportPresence:
     """Whether the report a settlement recorded still reads where it settled.
 
-    A comment on this issue's own ledger has to re-render as a report of ours
-    whose text digest and whole header -- pull request, commit, requirements,
-    revision, and the handoff's receipt -- are the ones the settlement
-    recorded, since a consistent rewrite could keep the words while claiming
-    another publication. Any other location is one a developer verified, held
-    to the digest there and a trusted author, as the verification was.
-    UNCONFIRMED is a reading nobody could take, and a caller holds on it.
+    A location whose content hashes to the digest is one a developer verified,
+    held to a trusted author as the verification was. Anything else has to
+    re-render as a report of ours whose text digest and whole header -- pull
+    request, commit, requirements, revision, and the handoff's receipt -- are
+    the ones the settlement recorded: recognized at the exact recorded location
+    by that rendering, not by a capped ledger of posted ids, and held to the
+    header because a consistent rewrite could keep the words while claiming
+    another publication. UNCONFIRMED is a reading nobody could take.
     """
     lookup = gh.reread_report_location(
         current.location, content_sha256=current.content_revision,
     )
-    if current.location.comment_id in _comments._orchestrator_ids(state):
-        if lookup.presence is not _pr_reports.ReportPresence.CHANGED:
-            return lookup.presence
-        published = _reports.developer_report_from_comment(
-            lookup.found, bot_login=None,
-        )
-        settled_as = (
-            current.subject.pr_number,
-            current.subject.source_sha,
-            current.subject.requirements_revision,
-            current.report_revision,
-            getattr(_settlement.read_handoff(state), "receipt", None),
-            current.content_revision,
-        )
-        same = published is not None and settled_as == (
-            published.pr_number,
-            published.source_sha,
-            published.requirements_revision,
-            published.report_revision,
-            published.receipt,
-            _reports.content_digest(published.text),
-        )
-        return _pr_reports.ReportPresence.PRESENT if same else lookup.presence
-    if lookup.presence is not _pr_reports.ReportPresence.PRESENT:
+    if lookup.presence is _pr_reports.ReportPresence.PRESENT:
+        trusted = _trusts_the_author(lookup.found)
+        if trusted is None:
+            return _pr_reports.ReportPresence.UNCONFIRMED
+        return lookup.presence if trusted else _pr_reports.ReportPresence.CHANGED
+    if lookup.presence is not _pr_reports.ReportPresence.CHANGED:
         return lookup.presence
-    trusted = _trusts_the_author(lookup.found)
-    if trusted is None:
-        return _pr_reports.ReportPresence.UNCONFIRMED
-    return lookup.presence if trusted else _pr_reports.ReportPresence.CHANGED
+    published = _reports.developer_report_from_comment(
+        lookup.found, bot_login=None,
+    )
+    settled_as = (
+        current.subject.pr_number,
+        current.subject.source_sha,
+        current.subject.requirements_revision,
+        current.report_revision,
+        getattr(_settlement.read_handoff(state), "receipt", None),
+        current.content_revision,
+    )
+    same = published is not None and settled_as == (
+        published.pr_number,
+        published.source_sha,
+        published.requirements_revision,
+        published.report_revision,
+        published.receipt,
+        _reports.content_digest(published.text),
+    )
+    return _pr_reports.ReportPresence.PRESENT if same else lookup.presence
 
 
 def _trusts_the_author(found: Any) -> bool | None:

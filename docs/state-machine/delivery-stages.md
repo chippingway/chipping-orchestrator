@@ -1701,19 +1701,18 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        marker, one that missed the contract, a verification on another repository); and every recovery — the
        restart shortcut, an approved commit, a frozen candidate, a measurement park retried, a checkout put back, an
        authorized rollback, none of which runs a developer — finding committed work with no report of the run that
-       made it anywhere on the comment (no delivery, no transaction, and no settled pair about that commit on the
-       pull request its receipt names — a settlement is never cleared, so an older commit's pair says nothing about
-       this one), which is the lost-write window the recording exists to close. A pair that DOES match is re-read
-       first: the report where it settled — a comment of ours re-rendering with the text and whole header the
-       settlement recorded, any other location hashing to the digest verified under a trusted author — and the
-       requirements afresh. An unreadable reading holds; a report edited or deleted since, or requirements moved,
-       parks for repair. A commit a run that never COMPLETED left (a timeout, a provider refusal, a nonzero exit) is
-       recorded as `implementing_incomplete_run_sha` and owed no report, so recovering exactly that commit is not
-       held; the timeout-park recovery never asks at all.
-       After the
-       push, with the code standing and only the
-       handoff withheld: a delivered record nobody can read, a verification asserting a report on another pull
-       request, and one asserting it on the very DESCRIPTION of the pull request the code reached while that body
+       made it anywhere on the comment (no delivery, no transaction, and no settled pair about that commit and
+       branch on the pull request its receipt names — a settlement is never cleared, so an older commit's pair says
+       nothing about this one), which is the lost-write window the recording exists to close. A pair that DOES
+       match is re-read first: the report where it settled — a location hashing to the digest verified under a
+       trusted author, or else our own rendering there, found without the capped ledger, with the text and whole
+       header the settlement recorded — and the requirements afresh. An unreadable reading holds; a report edited,
+       deleted or re-headed since, or requirements moved, parks for repair. A commit a run that never COMPLETED
+       left (a timeout, a provider refusal, a nonzero exit, or the commit a timeout park's recovery republishes) is
+       recorded as `implementing_incomplete_run_sha` and owed no report, so recovering exactly it is not held. After
+       the push, with the code standing and only the handoff withheld: a delivered record nobody can read, a
+       verification asserting a report on another pull request, and one asserting it on the very DESCRIPTION of the
+       pull request the code reached while that body
        neither closes this issue nor names the session — the collision held for repair rather than overwritten, since
        any edit would move the report and leaving it would merge a pull request that closes nothing; the reply's
        report goes in a comment, which frees the description, and only then does it get the closing reference and

@@ -78,6 +78,9 @@ SETTLED_PR = 7
 # settled report is on.
 RECEIPT_PR = 8
 
+# A branch this issue's publication never pushed.
+OTHER_BRANCH = "orchestrator/someone-else"
+
 # The comment the settled report is recorded at.
 SETTLED_COMMENT = 8800
 
@@ -141,6 +144,12 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
                 "another pull request",
                 _settled_state(support.PUBLISHED_SHA, RECEIPT_PR),
             ),
+            (
+                "another branch",
+                _settled_state(
+                    support.PUBLISHED_SHA, SETTLED_PR, branch=OTHER_BRANCH,
+                ),
+            ),
         ):
             with self.subTest(settlement=described):
                 github, issue = self.seeded()
@@ -156,10 +165,19 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
                     head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
                 ))
 
-    def test_a_moved_settlement_holds_the_recovery(self) -> None:
-        # A settled pair is a record of one moment: a report edited, deleted
-        # or re-headed since, or requirements moved, holds the work for a human
-        # rather than letting the record vouch for it.
+    def test_a_settlement_vouches_only_as_it_stands(self) -> None:
+        # As it settled, the report is found where it settled -- by its own
+        # rendering, with its id gone from the capped ledger of posted ones --
+        # and the recovery finishes the handoff. Edited, deleted or re-headed
+        # since, or answering moved requirements, it holds the work instead.
+        github, issue = self._settled_before_the_relabel()[:2]
+        self.republish(
+            github, issue,
+            head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
+        )
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
         for moved, move in _MOVES_AFTER_THE_SETTLEMENT:
             with self.subTest(moved=moved):
                 github, issue, settled_on = self._settled_before_the_relabel()
@@ -174,8 +192,8 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
     def _settled_before_the_relabel(self):
         """A publication whose report settled and whose relabel failed.
 
-        The receipt, the settled pair, and the report comment on this issue's
-        ledger; left as it is, the recovery finishes the handoff.
+        The receipt, the settled pair, and the report comment -- its id already
+        evicted from this issue's capped ledger of the comments it posted.
         """
         github, issue = self.seeded()
         requirements = _content_hash._compute_user_content_hash(issue, ())
@@ -199,7 +217,6 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
             support.REPORT_ISSUE,
             dev_agent=DEV_BACKEND,
             dev_session_id=support.DEV_SESSION,
-            orchestrator_comment_ids=[SETTLED_COMMENT],
             **_settled_state(
                 support.PUBLISHED_SHA, SETTLED_PR, requirements=requirements,
             ),
@@ -311,6 +328,7 @@ def _settled_state(
     pushed_to: int,
     *,
     requirements: str = support.REQUIREMENTS_REVISION,
+    branch: str = support.BRANCH,
 ) -> dict:
     """What a publication that settled its report on `SETTLED_PR` leaves behind.
 
@@ -323,7 +341,7 @@ def _settled_state(
         subject=_records.ReportSubject(
             repo_slug=_TEST_SPEC.slug,
             pr_number=SETTLED_PR,
-            branch=support.BRANCH,
+            branch=branch,
             source_sha=source_sha,
             requirements_revision=requirements,
         ),
