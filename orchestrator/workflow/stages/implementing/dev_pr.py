@@ -11,19 +11,10 @@ with the agent's closing message where the run produced one -- capped, and cut
 on a boundary that leaves the Markdown around it intact.
 
 That closing message is written only where this issue neither owes a developer
-report nor has one settled.
-A report of its own is published as a comment with an identity, a revision and a
-digest, and it says in as many words that it supersedes any agent message in the
-description -- so a capped excerpt of the same run written here as well would be
-a second, unmarked, unversioned copy of the report in a place nothing records or
-rereads. Where the report is the authority, the description carries what only it
-can: the closing reference and the attribution.
-
-Nothing already on a description is ever removed on that account. A body written
-before this record existed carries its agent message under an unmarked
-`_Last agent message:_` heading, and nothing can tell where that message ends
-and a human's own words begin -- so the tail stays where it is, historical, and
-the report comment is what a reader is pointed at.
+report nor has one settled: the report comment says it supersedes any agent
+message in the description, so a capped excerpt here would be a second,
+unmarked copy. Nothing already on a description is removed on that account --
+a legacy `_Last agent message:_` tail stays where it is, historical.
 
 Nor is anything removed on the reuse's account. A description somebody else
 wrote gets the closing reference and the attribution put ABOVE it, word for word
@@ -149,20 +140,9 @@ def _build_pr_body(
     preserved: str = "",
 ) -> str:
     """PR body: the `Resolves #N` line, the generating session's identity, and
-    the (capped) final agent message when the run produced one and this issue
-    owes no report of its own -- then, on a pull request somebody else
+    the (capped) final agent message when the run produced one and no report of
+    this issue's is owed or settled -- then, on a pull request somebody else
     described first, that description exactly as it stood.
-
-    The two lines above the message are what the description alone can say: the
-    reference that closes the issue on merge, and the session the reuse below
-    reads back before it adopts a pull request somebody else opened.
-
-    The message is the half a report replaces. An issue that owes one is going
-    to have it published as a comment carrying its own identity, revision and
-    digest, and saying that it supersedes any agent message here -- so writing a
-    capped excerpt of the same run into the description too would leave two
-    copies of one report, one of them unmarked and unversioned, in a place
-    nothing rereads -- and one whose report already SETTLED is the same case.
     """
     body_parts = [
         f"Resolves #{issue.number}",

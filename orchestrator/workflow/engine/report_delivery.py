@@ -18,19 +18,10 @@ session was actually handed, so a report held back by a failed push is still
 stamped with the requirements it answers rather than with an edit it never saw.
 
 A run that produced no report outcome records nothing at all where it did not
-COMPLETE: every recovery a stage makes on its own behalf -- none of them ran a
-developer, and the message they synthesize is the orchestrator's own -- and
-every launch a shutdown, a timeout, a provider refusal or a nonzero exit ended.
-Their code still publishes exactly as it did before, and a report an earlier run
-delivered is still there to be bound onto the pull request that code reaches.
-
-A synthesis nothing INVOKED is the one of those the pinned comment can still
-hold, and the stage that recovers with one is what asks: what it republishes is
-a developer's committed work from an earlier tick, so that run's report is on
-the comment or nowhere at all. `UNRECOVERED_PARK` is the notice for nowhere --
-the recording happens before the size gate and before the push, so commits with
-no record are the window it exists to close, a pinned write that failed or a
-restart inside it.
+COMPLETE: a recovery's own synthesized sentence, and a launch a shutdown, a
+timeout, a provider refusal or a nonzero exit ended. A recovery republishes an
+earlier run's commits, so that run's report is on the comment or nowhere --
+`UNRECOVERED_PARK` is the notice for nowhere, which the recovering stage posts.
 
 A run that DID complete and handed over no usable report is not that. Every
 developer prompt teaches the contract, so what a finished run with no report
@@ -166,12 +157,8 @@ _UNREPORTED_PARK = (
 )
 
 
-# Why a recovered publication is held, in the words its notice quotes. Taken
-# by the road that recovers a developer run's committed work from an earlier
-# tick and finds no report of that run anywhere on the comment: the recording
-# happens before the size gate and the push, so the only way past it with
-# commits and no record is the window that recording exists to close -- a
-# pinned write that failed, or a restart between the run and it.
+# Why a recovered publication is held: commits no recorded report describes,
+# which is the window the recording exists to close.
 UNRECOVERED_PARK = (
     "{mentions} this issue's branch carries committed work no run of this "
     "tick produced: a developer finished it on an earlier tick, and no "
@@ -204,13 +191,11 @@ def owes_a_report(state: _pinned_state.PinnedState) -> bool:
     transaction it cannot -- both with the record untouched for whoever
     repairs or abandons it.
 
-    The third is the debt of the roads with no record to leave -- a report
-    this build could not write down, a completed run that handed over none --
-    which every undeliverable park records as `OWED_REPORT` beside its reason.
-    The reason alone would not do: any later park replaces it, since the flags
-    are single, and a resumed run that timed out would turn the debt into a
-    timeout and the report that finally comes back into a question. Both are
-    retired the moment a report IS recorded, the condition they were taken for.
+    The third is the debt every undeliverable park records as `OWED_REPORT`
+    beside its reason, for the roads with no record to leave. Not the reason
+    alone: any later park -- a resumed run that timed out -- replaces it, and
+    the report that finally comes back would read as a question. Both are
+    retired the moment a report IS recorded.
     """
     return (
         _delivery_state.carries_delivered_report(state)
@@ -301,17 +286,11 @@ def _unreported_run_holds(
     can write the report the work is missing. The park itself is what
     remembers the debt, since there is no report to record.
 
-    A run that did NOT complete is left exactly as this stage always left it.
-    A launch nothing invoked, a shutdown kill, a timeout, a provider refusal
-    and a nonzero exit are failures its own roads answer -- the timeout that
-    committed first publishes its commit on purpose -- and a report is not
-    what any of them is missing. The syntheses a stage makes for a publication
-    no developer ran are the first of those: no process produced them, so the
-    contract has nobody to hold to it, and what each of them republishes is
-    work some EARLIER run made. Whether that run's report survived is a
-    question about the pinned comment rather than about the result in hand, so
-    it belongs to the road that knows which earlier run it is recovering --
-    `UNRECOVERED_PARK` above is the notice that road posts.
+    A run that did NOT complete -- nothing invoked, a shutdown kill, a
+    timeout, a provider refusal, a nonzero exit -- is left as this stage always
+    left it: those are failures their own roads answer. A recovery's synthesis
+    is one of them, and whether the earlier run it republishes reported is the
+    recovering road's question (`UNRECOVERED_PARK`).
     """
     if _outcomes._report_outcome_of_run(agent_result) in INCOMPLETE_RUNS:
         return False
@@ -349,11 +328,9 @@ def parks_an_undeliverable_report(
     retires it -- the resume that answers the reply is what clears the flags,
     exactly as it does for every other park a stage takes.
 
-    Public because every road that cannot deliver a report takes it: the
-    recording above, before anything is published; a binding refused after the
-    push; and a recovery finding commits no recorded report describes. Each
-    words its own notice, since what the work is in the middle of differs; what
-    they share is the flag, the reason, and the silence.
+    Public because every road that cannot deliver a report takes it, each with
+    its own notice; what they share is the flag, the reason, the debt, and the
+    silence.
     """
     if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT and state.get(_AWAITING_HUMAN):
         log.warning(

@@ -109,14 +109,9 @@ def binds_and_publishes(
 ) -> None:
     """Bind the report this issue delivered to this publication, and publish it.
 
-    Two steps rather than one, because the second is owed on ticks the first
-    has nothing to do on. A publication that has already bound its report and
-    failed to post it comes back here with no delivery and a transaction still
-    outstanding -- and that transaction is about THIS publication, which is the
-    one thing a retry needs to know before it may post.
-
-    Nothing to do at all on every issue that delivered no report: a recovery, a
-    run that came back with a question, a build older than the record.
+    Two steps, because a publication that bound its report and failed to post
+    it comes back with no delivery and a transaction still owed. Nothing to do
+    at all on an issue that delivered no report.
     """
     if _delivery_state.carries_delivered_report(state):
         _binds_the_delivery(gh, issue, state, published)
@@ -131,17 +126,9 @@ def _binds_the_delivery(
 ) -> None:
     """Turn the report a run delivered into the transaction it goes out as.
 
-    The write goes out before anything is posted, because the whole value of
-    the record is that it outlives this process.
-
-    Nothing is dropped on a refusal, whichever refusal it is: the delivered
-    record is what the run left and the only copy of it there is. What differs
-    is who is told. A comment that cannot carry the transaction is freed by
-    the routes a report still owed lets run, so it is reported and left for
-    the next tick. A record nobody can read, and a verification asserting a
-    report on another pull request, are refusals no later tick would answer
-    differently -- so the issue is parked once, with the record intact, for
-    the human who can decide between a fresh report and none.
+    Written before anything is posted. Nothing is dropped on a refusal: a
+    comment too full is reported and left for the next tick, and every other
+    refusal parks once with the record intact, for a human to answer.
     """
     delivered = _delivery_state.read_delivered_report(state)
     if delivered is None:
@@ -200,10 +187,8 @@ def _parks_the_debt(
 ) -> None:
     """Hold a published implementation whose report cannot be delivered.
 
-    Worded here rather than by the park's own owner because what a human needs
-    to know is where the WORK stands, and on this road it is already out: the
-    branch is on the remote and a pull request carries it, so the notice says
-    so and says that nothing of the report was thrown away either.
+    Worded here because on this road the work is already out, and the notice
+    says so, and that nothing of the report was thrown away either.
     """
     _delivery.parks_an_undeliverable_report(
         gh, issue, state, _UNBINDABLE_PARK.format(
@@ -268,17 +253,9 @@ def _names_this_publication(
 ) -> bool:
     """Whether an outstanding transaction is about the publication in hand.
 
-    Every member of the subject the publication settles, because each of them
-    is a way the two can be different work: another pull request is another
-    thread, another branch is another ref, another commit is another state of
-    the code the report describes, and another repository is somebody else's
-    entirely.
-
-    The requirements revision is deliberately not asked. It belongs to the run
-    that wrote the report rather than to the publication, so a transaction
-    bound on an earlier tick carries the revision that run was handed -- which
-    is exactly what a later tick has no way to reconstruct and no business
-    comparing.
+    Every member of the subject the publication settles, each a way the two
+    can be different work. Not the requirements revision, which belongs to the
+    run that wrote the report rather than to the publication.
     """
     subject = pending.subject
     return (

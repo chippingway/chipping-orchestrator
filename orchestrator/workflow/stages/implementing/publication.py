@@ -37,14 +37,10 @@ ahead of -- is `handoff`'s, for the same division: this owner decides only WHEN
 it is reached, which is once both proofs taken around the push have passed and
 the report the run wrote is on the pull request.
 
-That report is the third thing a publication owes, and it is bound and posted
-here because here is where the missing half of its record exists: until the
-push lands and a pull request carries it, the report names no publication at
-all. Binding and publishing are the engine's; this owner decides only WHEN,
-which is immediately once the pull request is known, and what an unpublished
-one COSTS, which is the handoff. Code handed to review under a report nothing
-posted is an implementation the reviewer has to ask for again -- and nothing
-under `validating` would ever come back for it.
+That report is the third thing a publication owes, bound and posted here
+because until the push lands the report names no publication at all. Binding
+and publishing are the engine's; this owner decides only WHEN, which is once
+the pull request is known, and what an unpublished one COSTS: the handoff.
 """
 from __future__ import annotations
 
@@ -254,14 +250,9 @@ def _on_commits(
     top of the disposition is a fact about a moment that has passed by the
     time either effect runs.
 
-    The report the developer wrote is bound to this publication and posted
-    once the pull request is known, and it is the third thing that can leave
-    this call unfinished. A report still owed refuses the handoff exactly as a
-    moved checkout does, and for the same reason: past the relabel the issue
-    belongs to another stage, and nothing there will publish a report or come
-    back for one. Refused, the debt is re-recorded and the next tick republishes
-    the same commit onto the same pull request -- so the recovery costs no
-    developer run and opens nothing new.
+    The report the developer wrote is bound and posted once the pull request
+    is known, and a report still owed refuses the handoff exactly as a moved
+    checkout does: nothing past the relabel comes back for one.
 
     Work that ENDED is refused immediately before the push, on the same terms
     every gated publication onto an open pull request refuses one. A close a
@@ -327,12 +318,9 @@ def _on_commits(
     _late_publication_state._record_publication(
         state, published, "", getattr(pr, "number", 0) or 0,
     )
-    # The pull request exists, so the report the run delivered can finally say
-    # where it goes: bound onto this publication, written durably, and posted.
-    # Here rather than past the two proofs below, because what those protect is
-    # the CHECKOUT this stage hands on, and a report is about the commit that
-    # is already on the remote -- so a worktree somebody moved is no reason to
-    # leave a finished report unpublished.
+    # The report can now say where it goes: bound, written durably, and posted
+    # -- ahead of the checkout proofs below, since it is about the commit that
+    # is already on the remote.
     #
     # What its DESCRIPTION says travels with it, read afresh rather than off
     # the object in hand: a report verified on that body is the one report this
@@ -370,21 +358,10 @@ def _still_owes_its_report(
 ) -> bool:
     """Whether this publication is unfinished because its report is unpublished.
 
-    The third way the handoff is refused, beside the two proofs about the
-    checkout, and the only one that is about the pull request rather than
-    about this host. Code published under a report nobody put on the thread is
-    exactly what a reviewer must not be handed: nothing under `validating`
-    comes back for a report, and implementing never sees the issue again once
-    the label moves.
-
-    Refused the same way a moved checkout is, which is what makes it
-    recoverable rather than terminal: the debt is re-recorded, so the next
-    tick recognizes the published branch, reuses the pull request that already
-    carries it, and reaches this line again -- with no second developer run
-    and no second pull request. Two roads publish the report before it gets
-    there: the reconciliation ahead of that tick's handler, which proves the
-    same world this tick just made, and the binding step above, which posts
-    the transaction it finds already bound to this very publication.
+    Nothing under `validating` comes back for a report, so the handoff is
+    refused as a moved checkout's is: the debt is re-recorded, and the next
+    tick republishes onto the same pull request with no second developer run
+    -- the reconciliation or the binding posting the report on the way.
     """
     if not _report_delivery.owes_a_report(state):
         return False
