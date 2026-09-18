@@ -149,7 +149,10 @@ def _lifts_the_park(
     if unanswerable:
         return False
     try:
-        thread = gh.comments_after(issue, state.get(_LAST_ACTION_COMMENT_ID))
+        thread = gh.comments_after(
+            issue, state.get(_LAST_ACTION_COMMENT_ID),
+            state_comment_id=state.comment_id,
+        )
     except Exception:
         log.exception(
             "issue=#%d could not be read for the command that buys it more "
@@ -359,7 +362,9 @@ def _answered_through(
     that, by the marker every comment this orchestrator writes carries, since
     a write that never landed leaves the id nowhere. Anything else stops the
     walk, whoever wrote it: what is at stake is somebody's unread comment, and
-    a mark that stops one comment short costs a tick rather than a word.
+    a mark that stops one comment short costs a tick rather than a word. Both
+    reads leave out the pinned comment by its id alone, since a reply quoting
+    the state marker is somebody's unread comment too.
 
     A thread that cannot be re-read answers with the batch alone -- or with
     nothing, where the batch begins below our notice. The receipt is then read
@@ -377,7 +382,9 @@ def _answered_through(
         if not isinstance(answered, int):
             return None
     try:
-        written = gh.comments_after(issue, answered)
+        written = gh.comments_after(
+            issue, answered, state_comment_id=state.comment_id,
+        )
     except Exception:
         log.exception(
             "issue=#%d could not be re-read for the answer just written to "

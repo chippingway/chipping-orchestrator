@@ -173,16 +173,28 @@ class ResumeSettlementTest(_support._ParkedThread, unittest.TestCase):
         # Somebody who asked to publish and then asked for a change has
         # replaced the command, so the developer answers the change and the
         # batch is consumed whole.
-        self._seed(**{
-            _state._PARK_REASON: _late_command.PARK_UNAUTHORIZED_EXEMPTION,
-        })
-        self._they_say(_consent_payloads.AUTHORIZE)
-        spoke = self._they_say(_support.GUIDANCE)
+        #
+        # Asked twice, the second over a reply quoting the pinned record's
+        # marker. The park's own reading names that record by id and counts
+        # the reply as the last word; a freeze reading it by marker would drop
+        # the reply, find the command last, reserve the tick for that park's
+        # road, and the two would hand it back and forth for good.
+        for said in (_support.GUIDANCE, _support.QUOTES_THE_RECORD):
+            with self.subTest(said=said):
+                self.setUp()
+                self._seed(**{
+                    _state._PARK_REASON: (
+                        _late_command.PARK_UNAUTHORIZED_EXEMPTION
+                    ),
+                })
+                self._they_say(_consent_payloads.AUTHORIZE)
+                spoke = self._they_say(said)
 
-        resumed = self._resumes()
+                resumed = self._resumes()
 
-        resumed.call.assert_called_once()
-        self.assertEqual(self._watermark(), spoke)
+                resumed.call.assert_called_once()
+                self.assertIn(said, resumed.followup)
+                self.assertEqual(self._watermark(), spoke)
 
     def test_a_marker_over_it_is_read_as_guidance(self) -> None:
         # Both roads have to agree which reply is LAST or each hands the tick

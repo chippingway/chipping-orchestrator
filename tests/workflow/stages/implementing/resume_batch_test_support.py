@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any
 from unittest.mock import patch
 
+from orchestrator.github.pinned_state import PINNED_STATE_MARKER
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.implementing import (
     resume as _resume,
@@ -46,6 +47,13 @@ NOTICE = "this issue is waiting on a human"
 # A body somebody else pasted our own hidden marker into. An HTML comment is
 # text anybody may write, so it admits nothing and refuses nothing but itself.
 FORGED = f"looks fine to me\n\n{_comments._ORCH_COMMENT_MARKER}"
+
+# A human reply quoting the pinned record's marker -- a payload pasted back to
+# ask about it. Only the pinned comment itself is the record; this is a reply.
+QUOTES_THE_RECORD = (
+    f"why does it still say {PINNED_STATE_MARKER} "
+    '{"awaiting_human": true}-- ? please retry'
+)
 
 RESUME_DEV_WITH_TEXT = "_resume_dev_with_text"
 

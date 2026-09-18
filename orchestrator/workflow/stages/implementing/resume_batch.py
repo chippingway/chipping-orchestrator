@@ -221,6 +221,16 @@ def _freeze(
     with it. Handed on, it would reach a developer as prose nobody meant as
     requirements -- the same reason the content hash does not count it.
 
+    The pinned state comment is taken out of that read by its IDENTITY, and
+    only it. The thread reader's other answer -- the state marker in a body --
+    also hides a human reply that quotes the marker, and the roads beside this
+    one read by identity: the authorization park's own reading would count
+    that reply as the last word while this batch dropped it and found the
+    command below it last, and each road would hand the tick to the other for
+    good. So the read, the delivery record, and the re-grounding conversation
+    all name the pinned comment by id, and a reply quoting its marker is a
+    reply like any other.
+
     The authorization park's is the third, and the one asked of a different
     batch: the LAST reply the ID LEDGER leaves, which is what that park's own
     road reads and reads it by. A command with guidance written over it has
@@ -233,7 +243,7 @@ def _freeze(
     last, the other deferring to the road that refused it.
     """
     ours = frozenset(_comments._orchestrator_ids(state))
-    thread = gh.comments_after(issue, None)
+    thread = gh.comments_after(issue, None, state_comment_id=state.comment_id)
     unclaimed = [
         seen for seen in filter_trusted(_since(thread, state))
         if seen.id not in ours
@@ -246,6 +256,7 @@ def _freeze(
         max_chars=_UNBOUNDED_EXCERPT,
         retained_ids=ours,
         state=state,
+        state_comment_id=state.comment_id,
     )
     quoted = _quoted(unclaimed, delivery)
     if _reserved_elsewhere(quoted, state, continue_claimed=continue_claimed):
@@ -258,7 +269,9 @@ def _freeze(
         state,
         delivery,
         quoted,
-        _prompt_context._thread_delivery(thread, retained_ids=ours),
+        _prompt_context._thread_delivery(
+            thread, retained_ids=ours, state_comment_id=state.comment_id,
+        ),
     )
 
 

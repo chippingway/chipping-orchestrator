@@ -24,6 +24,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from orchestrator.github.pinned_state import PINNED_STATE_MARKER
 from orchestrator.workflow.engine import comments as _comments, guards as _guards
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
 from tests.workflow.fixtures import LABEL_IMPLEMENTING
@@ -32,6 +33,10 @@ from tests.workflow.interleaving import _RacesPastTheStep
 _ISSUE_NUMBER = 613
 _NOTICE = "this issue is waiting on a human"
 _REPLY = "here is what to do instead"
+
+# A reply quoting the pinned record's marker, which only the pinned comment
+# itself is -- and that comment is named by id.
+_QUOTES_THE_RECORD = f"the record says {PINNED_STATE_MARKER} ... -- why?"
 _TRUSTED_AUTHOR = "alice"
 _POST_ISSUE_COMMENT = "_post_issue_comment"
 _WATERMARK = "last_action_comment_id"
@@ -128,13 +133,19 @@ class BoundedParkWatermarkTest(unittest.TestCase):
     def test_it_stops_at_a_reply_from_the_run(self) -> None:
         # The comment a human wrote while the agent was out. The notice this
         # park posts lands above it, so the unbounded floor would cross it.
-        self.state.set(_WATERMARK, self._reply())
-        landed = self._reply()
+        # Asked again of a reply quoting the pinned record's marker: the walk
+        # reads the thread with that record named by id, so the quote is a
+        # reply it stops at rather than one it cannot see and steps over.
+        for said in (_REPLY, _QUOTES_THE_RECORD):
+            with self.subTest(said=said):
+                self.setUp()
+                self.state.set(_WATERMARK, self._reply())
+                landed = self._reply(said)
 
-        self._park()
+                self._park()
 
-        self.assertLess(self.state.get(_WATERMARK), landed)
-        self.assertTrue(self.state.get(_AWAITING_HUMAN))
+                self.assertLess(self.state.get(_WATERMARK), landed)
+                self.assertTrue(self.state.get(_AWAITING_HUMAN))
 
     def test_it_still_clears_its_own_notice(self) -> None:
         # What the bound may not cost: our own sentence still has to be read
@@ -176,10 +187,10 @@ class BoundedParkWatermarkTest(unittest.TestCase):
 
         self.assertNotIn(_BOUNDED, self.github.recorded_events[0])
 
-    def _reply(self) -> int:
+    def _reply(self, said: str = _REPLY) -> int:
         identified = self.github.next_reply_id(self.issue)
         self.issue.comments.append(
-            FakeComment(identified, _REPLY, user=FakeUser(_TRUSTED_AUTHOR)),
+            FakeComment(identified, said, user=FakeUser(_TRUSTED_AUTHOR)),
         )
         return identified
 

@@ -13,7 +13,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import PINNED_STATE_MARKER, PinnedState
 from orchestrator.workflow.engine import (
     prompt_context as _prompt_context,
     prompt_delivery,
@@ -351,6 +351,31 @@ class PromptDeliverySnapshotTest(unittest.TestCase):
         self.assertEqual(len(snap.delivered_inputs()), 2)
         self.assertEqual(snap.requirements_revision, _HASH_V1)
         self.assertIn("@geserdugarov: one", snap.rendered_text)
+
+
+class PinnedRecordIdentityTest(unittest.TestCase):
+    """The pinned state comment, named by id wherever a read can name it."""
+
+    def test_the_pinned_record_is_named_by_id(self) -> None:
+        # A read taken by the pinned comment's identity names it, so a reply
+        # that merely quotes its marker is a reply like any other. A read that
+        # cannot name it falls back to the marker and drops both.
+        record = FakeComment(
+            id=_ID_FIRST, body=f"{PINNED_STATE_MARKER} {{}}-->",
+            user=_PAT_AUTHOR,
+        )
+        quoting = FakeComment(
+            id=_ID_SECOND, body=f"it says {PINNED_STATE_MARKER} -- why?",
+            user=_TRUSTED_AUTHOR,
+        )
+
+        self.assertEqual(
+            prompt_delivery.human_replies(
+                [record, quoting], state_comment_id=_ID_FIRST,
+            ),
+            [quoting],
+        )
+        self.assertEqual(prompt_delivery.human_replies([record, quoting]), [])
 
 
 class DeliverySettlementTest(unittest.TestCase):

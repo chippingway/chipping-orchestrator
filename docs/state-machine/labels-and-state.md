@@ -785,8 +785,10 @@ The keys that matter for the state machine fall into a few groups:
   `engine/park_watermarks.py`, because minutes passed inside the run and a human may have written in that window:
   the walk starts at whatever the resume settled and advances through the unbroken run of comments the
   `orchestrator_comment_ids` ledger claims, stopping at the first it does not, so a comment that landed while the
-  agent was out stays unread. It advances only through comments the tick actually posted and **identified** — a post
-  the ledger never gained moves the mark nowhere, since the frozen reply batch below refuses our own unrecorded
+  agent was out stays unread. The walk's read leaves out the pinned state comment by its id and nothing else — a
+  reply that merely quotes `<!--orchestrator-state` would otherwise be invisible to it and stepped over. It advances
+  only through comments the tick actually posted and **identified** — a post the ledger never gained moves the mark
+  nowhere, since the frozen reply batch below refuses our own unrecorded
   notice by its body marker and taking the tip for it would spend that human's comment instead. A thread with no
   watermark under it is the same answer for the same reason: the walk has nowhere to start, and the tip is exactly
   where a comment written DURING the run sits, with no id to tell it from the conversation the spawn already quoted.

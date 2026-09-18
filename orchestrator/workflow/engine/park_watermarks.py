@@ -55,7 +55,10 @@ def _read_this_far(
     So the walk stops at the first comment that is not ours, which is the
     boundary between what this tick read and what landed behind its back.
     Which comments are ours is read off the ledger every post writes to, since
-    that is the one record here that names them.
+    that is the one record here that names them. The pinned state comment is
+    left out of the read by its id and nothing else: read by its marker
+    instead, a reply that merely quotes the marker is invisible to the walk,
+    which then steps over it to the notice above and records it read.
 
     A post this ledger did not gain moves the watermark NOWHERE, and that is
     the same rule rather than an exception to it: what may be advanced through
@@ -94,7 +97,9 @@ def _read_this_far(
     if not isinstance(read_to, int):
         return None
     try:
-        thread = gh.comments_after(issue, read_to)
+        thread = gh.comments_after(
+            issue, read_to, state_comment_id=state.comment_id,
+        )
     except Exception:
         log.exception(
             "issue=#%d could not be re-read for how far its park may record "

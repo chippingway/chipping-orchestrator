@@ -103,8 +103,13 @@ Non-human content is filtered eight ways:
   follow-up, and the settlement. Beside the trust filter it drops the orchestrator's own comments by recorded id and
   refuses a body carrying `<!--orchestrator-comment-->` that the id ledger cannot vouch for — a marker is text
   anybody may paste, and the token's login may be a human's, so the id is the whole of the evidence in both
-  directions. The prompt is built from the delivery record the same freeze produced, so a forged marker or an
-  outsider's comment can neither reach an agent nor authorize consuming the reply beside it. That one read also
+  directions. The pinned state comment is left out by its id the same way (`comments_after(...,
+  state_comment_id=...)`, and the delivery record told the same id), never by the `<!--orchestrator-state` marker:
+  a human reply quoting that marker is a reply, and the authorization park's own reading already counts it as one
+  — read by marker here, the batch would drop it, find the command below it last, and the two roads would hand the
+  tick back and forth for good. The prompt is built from the delivery record the same freeze produced, so a forged
+  marker or an outsider's comment can neither reach an agent nor authorize consuming the reply beside it. That one
+  read also
   supplies the conversation a FRESH spawn is re-grounded with (a retired session — spent resume budget, silent-park
   streak, a transcript GitHub lost — turns the resume into a spawn that quotes the thread rather than continuing a
   transcript), through the SAME classification: a prompt that re-read the thread at spawn time would quote a comment

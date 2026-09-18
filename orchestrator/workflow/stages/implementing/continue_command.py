@@ -203,8 +203,12 @@ def _parked_continue_decision(
     # and let the resume feed the command to a developer as prose -- the
     # retry gone and the watermark moved past the words that bought it.
     comments = _delivery.human_replies(
-        gh.comments_after(issue, state.get(_state._LAST_ACTION_COMMENT_ID)),
+        gh.comments_after(
+            issue, state.get(_state._LAST_ACTION_COMMENT_ID),
+            state_comment_id=state.comment_id,
+        ),
         frozenset(_comments._orchestrator_ids(state)),
+        state_comment_id=state.comment_id,
     )
     # Nothing to decide, and a batch that is not this road's to decide about.
     # The measurement park's own road would re-measure on one of these, and

@@ -89,8 +89,14 @@ def _recover_quiet_implementer_timeout(
 ) -> bool:
     if state.get(_state._PARK_REASON) != _state._AGENT_TIMEOUT:
         return False
+    # Read by the pinned comment's identity, as the frozen batch behind this
+    # is: a reply quoting the state marker is a reply, and a recovery that
+    # could not see it would publish over the words meant to end the park.
     comments = filter_trusted(
-        gh.comments_after(issue, state.get(_state._LAST_ACTION_COMMENT_ID))
+        gh.comments_after(
+            issue, state.get(_state._LAST_ACTION_COMMENT_ID),
+            state_comment_id=state.comment_id,
+        ),
     )
     if comments:
         return False

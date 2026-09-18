@@ -58,8 +58,12 @@ def _answers_the_measurement_park(
     if not state.get(_state._AWAITING_HUMAN):
         return []
     replies = _delivery.human_replies(
-        gh.comments_after(issue, state.get(_state._LAST_ACTION_COMMENT_ID)),
+        gh.comments_after(
+            issue, state.get(_state._LAST_ACTION_COMMENT_ID),
+            state_comment_id=state.comment_id,
+        ),
         frozenset(_comments._orchestrator_ids(state)),
+        state_comment_id=state.comment_id,
     )
     return replies if _reserved_for_the_measurement_park(replies, state) else []
 

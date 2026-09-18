@@ -11,10 +11,12 @@ namespaces and provenance, preserving pinned watermark fields
 Forward updates are conservative: they never copy a live thread tip,
 combine unrelated namespaces, or take an unrestricted maximum across surfaces.
 Untrusted comments and forged orchestrator markers cannot authorize
-advancement. Independent watermarks are derived across surfaces without
-collapsing mixed snapshots. Unseen PR comments bound the PR conversation cursor
-without holding back the issue action watermark. Starting watermarks are
-incorporated so historical omitted context does not block forward progress.
+advancement. The pinned state comment is excluded by its id where a caller
+names it, so a human reply quoting its marker is still a reply. Independent
+watermarks are derived across surfaces without collapsing mixed snapshots.
+Unseen PR comments bound the PR conversation cursor without holding back the
+issue action watermark. Starting watermarks are incorporated so historical
+omitted context does not block forward progress.
 
 Consumed field pairs are exposed for durable report/checkpoint settlement and
 can be settled directly and idempotently into pinned state.
@@ -415,9 +417,22 @@ class _CandidateClassifier:
         comment: object,
         retained_ids: frozenset,
         pat_login: str | None = None,
+        state_comment_id: int | None = None,
     ) -> tuple[bool, str | None]:
+        """Whether one comment may enter a prompt, and why not where it may not.
+
+        The pinned state comment is answered by IDENTITY where the caller can
+        name it, and by its marker only where it cannot -- the same split the
+        thread reader makes. The marker is text a human can quote, and read as
+        the pinned comment it hides that human's reply from every prompt while
+        the reading beside it still counts the reply as there.
+        """
         body_text = getattr(comment, _ATTR_BODY, None) or ""
-        if "<!--orchestrator-state" in body_text:
+        if state_comment_id is None:
+            pinned = "<!--orchestrator-state" in body_text
+        else:
+            pinned = getattr(comment, _ATTR_ID, None) == state_comment_id
+        if pinned:
             return False, REASON_STATE_COMMENT
 
         posted_here = getattr(comment, _ATTR_ID, None) in retained_ids
@@ -433,7 +448,10 @@ class _CandidateClassifier:
 
     @classmethod
     def human_replies(
-        cls, read: Iterable, retained_ids: frozenset = _EMPTY_IDS,
+        cls,
+        read: Iterable,
+        retained_ids: frozenset = _EMPTY_IDS,
+        state_comment_id: int | None = None,
     ) -> list:
         """The replies one read of a thread leaves for a prompt to be built of.
 
@@ -454,10 +472,15 @@ class _CandidateClassifier:
         both directions -- an id admits a comment as ours and a marker without
         one admits nothing -- because the marker is an HTML comment anybody may
         paste and the login may be a token shared with a human.
+
+        `state_comment_id` names the pinned comment for a read that was taken
+        by it, so a reply quoting the state marker is a reply like any other.
         """
         return [
             reply for reply in read
-            if cls.classify_comment(reply, retained_ids) == _A_HUMAN_WROTE_IT
+            if cls.classify_comment(
+                reply, retained_ids, state_comment_id=state_comment_id,
+            ) == _A_HUMAN_WROTE_IT
         ]
 
     @classmethod
@@ -484,6 +507,7 @@ class _CandidateClassifier:
         raw_entry: object,
         retained_ids: frozenset,
         pat_login: str | None,
+        state_comment_id: int | None = None,
     ) -> tuple[DeliveredInput, bool]:
         if surface in (SURFACE_REVIEW_SUMMARY, SURFACE_INLINE_REVIEW):
             is_ok, reason = cls.classify_review(
@@ -491,7 +515,7 @@ class _CandidateClassifier:
             )
         else:
             is_ok, reason = cls.classify_comment(
-                raw_entry, retained_ids, pat_login,
+                raw_entry, retained_ids, pat_login, state_comment_id,
             )
 
         user_obj = getattr(raw_entry, _ATTR_USER, None)
@@ -541,12 +565,18 @@ class _CandidateClassifier:
         evaluated: list[DeliveredInput] = []
         for sname, batch in batches:
             retained = cls.surface_retained(options, sname)
-            for raw_input in batch:
-                evaluated.append(
-                    cls.evaluate(
-                        sname, raw_input, retained, options.get("pat_login"),
-                    )[0],
-                )
+            # The pinned comment lives on the issue thread, so the identity
+            # that names it answers for that surface and no other.
+            pinned = (
+                options.get("state_comment_id")
+                if sname == SURFACE_ISSUE_THREAD else None
+            )
+            evaluated.extend(
+                cls.evaluate(
+                    sname, raw_input, retained, options.get("pat_login"), pinned,
+                )[0]
+                for raw_input in batch
+            )
         return evaluated
 
     @classmethod
