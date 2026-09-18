@@ -19,9 +19,9 @@ the handoff withheld. A comment too full is reported at ERROR and retried. A
 record nobody can read, a verification on another pull request, and one on the
 very description this publication needs are refusals no later tick answers
 differently, so the issue parks once with the record intact. That last one is
-the collision: a description a report lives in may not be edited, and one left
-alone may close nothing -- so the work is held until a fresh report in a
-COMMENT frees the description to be named.
+the collision: nothing here rewrites a description, a report's least of all,
+and one left alone may close nothing -- so the work is held until a human names
+it and the resumed session's report supersedes the one that lived there.
 
 Publication itself is the engine's: scoped by the receipt so a retry finds what
 landed, and settled only on a reading that proves the report is there. The one
@@ -63,9 +63,9 @@ _UNREADABLE_DELIVERY = "the record of what the run reported cannot be read"
 _NEEDED_DESCRIPTION = (
     "it is the pull request's own description, which carries no reference "
     "closing this issue and no line naming the session that wrote the branch "
-    "-- and this orchestrator will not edit a description a report lives in; "
-    "once the report is in a comment, those two lines go above what the "
-    "description says, and every word of it is kept"
+    "-- and this orchestrator rewrites no description, since GitHub offers no "
+    "way to write one that cannot overwrite an edit saved a moment earlier; "
+    "add those two lines to it yourself before you reply"
 )
 
 _UNBINDABLE_PARK = (

@@ -333,7 +333,3 @@ _REASON_STUCK = "stuck"
 _PR_BODY_AGENT_MESSAGE_CAP = 60000
 
 _PR_BODY_TRUNCATION_MARKER = "_…(message truncated)_"
-
-# Where a reused pull request's own description goes once this implementation's
-# lines are put above it: kept word for word, under a heading saying what it is.
-_PR_BODY_EARLIER_HEADING = "_Description before this implementation:_"

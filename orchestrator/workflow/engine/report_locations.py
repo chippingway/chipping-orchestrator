@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which places on a pull request this issue's reports claim as their own.
 
-A report can live in a pull request's DESCRIPTION, the one place this workflow
-also edits -- and even an edit keeping every word moves a verified description
-off its digest. So the claim is asked BEFORE any such edit, of every record that
-can hold one, a record nobody can read included; a report in a comment is out of
-reach of a body edit. The second reading is what the description must say
+A report can live in a pull request's DESCRIPTION, the one place a publication
+also needs something of -- and even an edit keeping every word moves a verified
+description off its digest. So the claim is asked of every record that can hold
+one, a record nobody can read included, before anybody is told what to do with
+that description; a report in a comment is out of a body edit's reach. The
+second reading is what the description must say
 before the work is handed on -- a closing reference and the session -- and the
 third is which publication a SETTLED report is about, a claim its caller re-reads.
 """

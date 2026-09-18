@@ -119,25 +119,7 @@ class _PullCreationService:
         return self.pulls[pr_number]
 
 
-class _PullBodyService:
-    """The two ways a description is rewritten, each recorded as an edit."""
-
-    def edit_pr_body(self, pr: FakePR, body: str) -> None:
-        self.edited_pr_bodies.append((pr.number, body))
-        pr.body = body
-
-    def edit_unchanged_pr_body(
-        self, pr_number: int, expected: str | None, body: str,
-    ) -> bool:
-        """Rewrite the held pull request's body unless it moved off `expected`."""
-        held = self.pulls[pr_number]
-        if (held.body or "") != (expected or ""):
-            return False
-        self.edit_pr_body(held, body)
-        return True
-
-
-class _PullStatusService(_PullBodyService):
+class _PullStatusService:
     pr_state = _pr_state
     pr_is_mergeable = _pr_is_mergeable
     pr_is_approved = _pr_is_approved
@@ -219,6 +201,10 @@ class _PullStatusService(_PullBodyService):
         if self.pr_state(pr) == _STATE_OPEN:
             pr.state = _STATE_CLOSED
         return True
+
+    def edit_pr_body(self, pr: FakePR, body: str) -> None:
+        self.edited_pr_bodies.append((pr.number, body))
+        pr.body = body
 
     def delete_remote_branch(self, branch: str) -> bool:
         self.deleted_remote_branches.append(branch)

@@ -816,7 +816,8 @@ The keys that matter for the state machine fall into a few groups:
   `developer_report_owed`, set beside the reason and outliving any later park that replaces it, and while either
   stands the issue reads as still owing a report. The binding in `report_binding.py` and the description verdict in
   `stages/implementing/pr_description.py` take the same park after a push, for a report that cannot be bound and a
-  description that cannot be named. It is announced once while it stands, and retired the moment a report IS
+  description that does not close the issue and name the session — which no owner rewrites, so the notice quotes the
+  two lines for a human to put there. It is announced once while it stands, and retired the moment a report IS
   recorded, since that is the condition it was taken for. Nothing takes it yet, because no stage calls those
   owners. The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,

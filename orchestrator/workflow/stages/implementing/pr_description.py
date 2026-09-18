@@ -1,18 +1,22 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a reused pull request's description says, and what may be done to it.
+"""What a reused pull request's description says, and who may change it.
 
 `find_open_pr` promises only that something is open on the branch, so the
 description under a publication may be this stage's own, an operator's, the
 `discussion` stage's plan, or ours re-described by a human. The verdict here is
-the report-aware reading of it: a description that closes this issue and names
-the session stands; any other gets those two lines ABOVE it, every word kept
-beneath them -- written only while the description still reads as the one that
-was judged, so an edit somebody saved in between is judged next rather than
-written over. One a developer report of this issue's lives in -- delivered,
-pending, settled, or a record too damaged to say otherwise -- is never touched,
-since even an edit keeping every word moves it off the digest it was verified
-at, and none is cut to make room past what GitHub accepts.
+the report-aware reading of it, taken afresh by number: a description that
+closes this issue and names the session stands, and any other holds the work
+for a human to name it.
+
+Nothing here WRITES a description. GitHub offers no conditional write for one,
+so a body built from a reading -- however fresh, and however carefully it keeps
+every word -- goes out in a second request, and an edit somebody saved between
+the two is written over with nothing to say it happened. The two lines a
+publication needs are therefore quoted in the notice for the one party whose
+edit cannot race itself. That covers the description a developer report of this
+issue's lives in as well -- delivered, pending, settled, or a record too damaged
+to say otherwise -- which is told apart only because the notice has to say so.
 
 No caller asks it yet: the live reuse still answers through
 `dev_pr._attribute_reused_pr`, which knows nothing of reports.
@@ -24,7 +28,6 @@ import logging
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.agents.models import AgentResult
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
@@ -34,29 +37,33 @@ from orchestrator.workflow.stages.implementing import dev_pr as _dev_pr
 
 log = logging.getLogger("orchestrator.workflow")
 
-# GitHub holds a pull request's description to the same 65,536 characters it
-# holds a comment to, so a description near that ceiling cannot take the two
-# lines this implementation needs above it without something being cut.
-_TOO_LONG_PARK = (
-    "{mentions} PR #{pr}'s description is too long to have this issue's "
-    "closing reference and the developer session's attribution put above it: "
-    "with them it would be {length} characters, past the {limit} GitHub "
-    "accepts, and this orchestrator will not cut what anybody wrote there. The "
-    "branch and the pull request stand as they are; the work is held rather "
-    "than handed to review, because merging it would close nothing. Shorten "
-    "the description, then reply and the orchestrator resumes the session -- "
-    "the report it writes then goes out with the description named."
+# What every notice here ends on: the two lines, quoted for copying, and what
+# the reply does. Fenced so the attribution's own backticks survive the copy.
+_REPAIR = (
+    "Put these two lines in the description, as ordinary text rather than as "
+    "code, wherever you like:\n\n```\nResolves #{issue}\n\n{attribution}\n```\n\n"
+    "Then reply, and the orchestrator resumes the session; the report it "
+    "writes then is the one that gets published."
 )
 
-# A description a settled report lives in, which names nothing this issue needs.
+# A description somebody else wrote, which names nothing this issue needs.
+_UNNAMED_PARK = (
+    "{mentions} PR #{pr}'s description carries no reference closing this issue "
+    "and no line naming the session that wrote the branch, so merging it would "
+    "close nothing. This orchestrator does not rewrite a description: GitHub "
+    "offers no way to write one that cannot overwrite an edit saved a moment "
+    "earlier. The branch and the pull request stand as they are, and the work "
+    "is held rather than handed to review. "
+)
+
+# The same, where a settled report lives in that description.
 _CLAIMED_PARK = (
     "{mentions} PR #{pr}'s description is where this issue's developer report "
     "settled, and it carries no reference closing this issue and no line "
-    "naming the session that wrote the branch. This orchestrator will not edit "
-    "a description a report lives in, so the work is held rather than handed "
-    "to review. Reply and the orchestrator resumes the session; once the "
-    "report it writes is in a comment, those two lines go above what the "
-    "description says, and every word of it is kept."
+    "naming the session that wrote the branch. This orchestrator does not "
+    "rewrite a description, a report's least of all, so the work is held "
+    "rather than handed to review. Editing it moves that report off the text "
+    "it was verified at, which the report the resumed session writes replaces. "
 )
 
 
@@ -64,23 +71,18 @@ def _names_the_implementation(
     gh: _client.GitHubClient,
     issue: Issue,
     state: _pinned_state.PinnedState,
-    agent_result: AgentResult,
     pr,
 ) -> bool | None:
     """Whether the pull request's description closes this issue and names it.
 
     Judged on the description read again by number -- the object in hand is as
-    old as whatever fetched it -- since `find_open_pr` promises only that
-    something is open on the branch: a crashed attempt of ours, an operator's,
-    the `discussion` plan PR, or ours re-described by a human.
+    old as whatever fetched it -- and never changed, whatever it says.
 
-    True: it already does, and is left alone; or it did not, and has just had
-    the two lines put ABOVE it, every word kept. False: a report of this
-    issue's claims it, and no edit is safe -- parked where that report settled
-    already. None holds the tick: a description nobody could read, one too
-    long to take the lines, which parks, and one somebody edited between this
-    reading and the write -- the new body was built from words that are no
-    longer there, so nothing is written and the next tick judges what is.
+    True: it does. False: it does not and a report of this issue's claims it;
+    while that report is still owed the binding is what parks the collision,
+    and once it has settled no retry frees the description, so it parks here.
+    None holds the tick: a description nobody could read, which the next tick
+    reads again, or one nobody claims that names nothing, parked for a human.
     """
     try:
         current = gh.get_pr(pr.number)
@@ -90,64 +92,29 @@ def _names_the_implementation(
             "than deciding on one nobody read", issue.number, pr.number,
         )
         return None
+    attribution = _dev_pr._dev_pr_attribution(state)
     if _report_locations.describes_the_issue(
-        current, issue.number, _dev_pr._dev_pr_attribution(state), gh.repo_slug,
+        current, issue.number, attribution, gh.repo_slug,
     ):
         return True
-    if _report_locations.claims_the_description(state, pr.number):
+    claimed = _report_locations.claims_the_description(state, pr.number)
+    if claimed and _report_delivery.owes_a_report(state):
         log.warning(
-            "issue=#%s is not editing PR #%d's body: a developer report of this "
-            "issue's is published there, and any edit would move it",
-            issue.number, pr.number,
+            "issue=#%s has a developer report still owed on PR #%d's "
+            "description, which names nothing this issue needs; leaving the "
+            "collision to the binding", issue.number, pr.number,
         )
-        # Owed, the report bound or settled next may free it; with nothing
-        # owed, the report that claims it settled already and no retry frees it.
-        if not _report_delivery.owes_a_report(state):
-            _report_delivery.parks_an_undeliverable_report(
-                gh, issue, state, _CLAIMED_PARK.format(
-                    mentions=config.HITL_MENTIONS, pr=pr.number,
-                ),
-            )
         return False
-    return _names_it_above(gh, issue, state, agent_result, current)
-
-
-def _names_it_above(
-    gh: _client.GitHubClient,
-    issue: Issue,
-    state: _pinned_state.PinnedState,
-    agent_result: AgentResult,
-    current,
-) -> bool | None:
-    """Put this implementation's lines above a description nobody claims.
-
-    Every word of `current` -- the description as it was just judged -- is kept
-    beneath them, so nothing is cut to fit GitHub's ceiling, and nothing is
-    written once the description no longer reads as the one the body was built
-    from: both hold the tick, the first parked for a human to shorten it.
-    """
-    described = getattr(current, "body", None)
-    named = _dev_pr._build_pr_body(
-        state, issue, agent_result,
-        described if isinstance(described, str) else "",
+    log.warning(
+        "issue=#%s holds PR #%d for a human: its description does not close "
+        "this issue and name the session, and no description is rewritten",
+        issue.number, pr.number,
     )
-    if len(named) > _pinned_state.MAX_PINNED_BODY:
-        _report_delivery.parks_an_undeliverable_report(
-            gh, issue, state, _TOO_LONG_PARK.format(
-                mentions=config.HITL_MENTIONS, pr=current.number,
-                length=len(named), limit=_pinned_state.MAX_PINNED_BODY,
-            ),
-        )
-        return None
-    if not gh.edit_unchanged_pr_body(current.number, described, named):
-        log.warning(
-            "issue=#%s is not naming this implementation above PR #%d's "
-            "description: it was edited after it was read; holding so the next "
-            "tick judges what it says now", issue.number, current.number,
-        )
-        return None
-    log.info(
-        "issue=#%s named this implementation above PR #%d's description",
-        issue.number, current.number,
+    notice = _CLAIMED_PARK if claimed else _UNNAMED_PARK
+    _report_delivery.parks_an_undeliverable_report(
+        gh, issue, state, (notice + _REPAIR).format(
+            mentions=config.HITL_MENTIONS, pr=pr.number,
+            issue=issue.number, attribution=attribution,
+        ),
     )
-    return True
+    return False if claimed else None

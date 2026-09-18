@@ -37,8 +37,13 @@ _FENCE_OPENING_RE = re.compile(
     r"(?P<run>`{3,}(?!.*`)|~{3,}).*",
 )
 
-# An inline code span: a backtick run, then anything up to that same run alone.
-_CODE_SPAN_RE = re.compile(r"(`+)[\s\S]*?(?<!`)\1(?!`)")
+# What an inline code span is delimited by, and what cannot delimit one: a
+# backslash escape, whose character is literal text, and a backtick run. Read
+# left to right, so the backtick of an escape is never seen as a run.
+_INLINE_TOKEN_RE = re.compile(r"\\[\s\S]|`+")
+
+# What stands in for a code span taken out, so the words either side stay apart.
+_SPAN_GAP = " "
 
 # The markers a line inside a blockquote opens on, however deeply it is nested.
 _BLOCKQUOTE_RE = re.compile(r"^(?: {0,3}>[ ]?)+", re.MULTILINE)
@@ -110,7 +115,41 @@ def outside_code(text: str) -> str:
         and _fence_opened_by(line.group()) is None
         and _INDENTED_CODE_RE.fullmatch(line.group()) is None
     )
-    return _HTML_LITERAL_RE.sub(" ", _CODE_SPAN_RE.sub(" ", prose))
+    return _HTML_LITERAL_RE.sub(_SPAN_GAP, _without_code_spans(prose))
+
+
+def _without_code_spans(prose: str) -> str:
+    """`prose` with every inline code span taken out.
+
+    A span opens on a backtick run and closes on the next run of exactly that
+    length. An escaped backtick opens nothing -- it is a literal character, so
+    pairing it with a real opener would show the span's content as prose --
+    while inside a span a backslash is literal and escapes nothing, which is
+    why the closing run is looked for without regard to one. A run nothing
+    closes is literal too, and the reading goes on past it.
+    """
+    kept: list[str] = []
+    cursor = 0
+    token = _INLINE_TOKEN_RE.search(prose)
+    while token is not None:
+        resume = token.end()
+        closed = _span_closed_at(prose, token)
+        if closed is not None:
+            kept += [prose[cursor:token.start()], _SPAN_GAP]
+            cursor = closed
+            resume = closed
+        token = _INLINE_TOKEN_RE.search(prose, resume)
+    kept.append(prose[cursor:])
+    return "".join(kept)
+
+
+def _span_closed_at(prose: str, token: re.Match[str]) -> int | None:
+    """Where the code span `token` opens ends, or None when it opens none."""
+    run = token.group()
+    if not run.startswith("`"):
+        return None
+    closing = re.compile(f"(?<!`){run}(?!`)").search(prose, token.end())
+    return None if closing is None else closing.end()
 
 
 def _fence_opened_by(line: str) -> _OpenFence | None:

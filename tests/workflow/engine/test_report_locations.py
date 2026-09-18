@@ -73,6 +73,11 @@ SHOWN_AS_CODE = (
     f"<code>{FIXES}</code>",
     f"<pre>\n{FIXES}",
     f"<!-- {FIXES} -->",
+    # An escaped backtick is a literal character, so it opens no span and the
+    # real one after it still encloses the reference; an escaped BACKSLASH
+    # leaves the backtick behind it a real opener.
+    f"Escaped \\` then `{FIXES}`.",
+    f"A backslash \\\\`{FIXES}`",
 )
 
 # The same reference as prose, which a quote or a list item still is.
@@ -82,6 +87,11 @@ SHOWN_AS_PROSE = (
     f"- {FIXES}",
     f"<details>{FIXES}</details>",
     f"<pre>an example</pre>\n\n{FIXES}",
+    # The escaped backtick pairs with nothing, so it hides nothing either; and
+    # inside a span a backslash escapes nothing, so that span ends where it says.
+    f"A literal \\` and then {FIXES}, with `code` after.",
+    f"`a\\` {FIXES} `b`",
+    f"`unclosed {FIXES}",
 )
 
 

@@ -16,11 +16,10 @@ message in the description, so a capped excerpt here would be a second,
 unmarked copy. Nothing already on a description is removed on that account --
 a legacy `_Last agent message:_` tail stays where it is, historical.
 
-The body also takes a description somebody else wrote, kept word for word
-beneath those lines under a heading saying what it is. That is for
-`pr_description.py`, the report-aware verdict on a reused description, which no
-caller asks yet: the reuse below still answers through `_attribute_reused_pr`,
-which knows nothing of reports.
+`pr_description.py` is the report-aware verdict on a reused description, which
+reads this owner's attribution back and rewrites nothing. No caller asks it yet:
+the reuse below still answers through `_attribute_reused_pr`, which knows
+nothing of reports.
 
 The attribution line is what holds the two halves of this owner together. The
 body states it, and the reuse below reads it back off a pull request of unknown
@@ -118,15 +117,11 @@ def _dev_pr_attribution(state: _pinned_state.PinnedState) -> str:
 
 
 def _build_pr_body(
-    state: _pinned_state.PinnedState,
-    issue: Issue,
-    agent_result: AgentResult,
-    preserved: str = "",
+    state: _pinned_state.PinnedState, issue: Issue, agent_result: AgentResult,
 ) -> str:
     """PR body: the `Resolves #N` line, the generating session's identity, and
     the (capped) final agent message when the run produced one and no report of
-    this issue's is owed or settled -- then, on a pull request somebody else
-    described first, that description exactly as it stood.
+    this issue's is owed or settled.
     """
     body_parts = [
         f"Resolves #{issue.number}",
@@ -141,8 +136,6 @@ def _build_pr_body(
             "", "---", "_Last agent message:_", "",
             _format_pr_agent_message(agent_result.last_message),
         ]
-    if preserved.strip():
-        body_parts += ["", "---", _state._PR_BODY_EARLIER_HEADING, "", preserved]
     return "\n".join(body_parts)
 
 

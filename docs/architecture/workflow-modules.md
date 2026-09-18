@@ -219,8 +219,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             only on a bare run at its opening run's column, and stays open to the end past a line
                             that may have ended its list item. `outside_code` turns that round for the closing
                             keywords a description acts on, read with the blockquote markers off so quoted code is
-                            code: fenced lines, lines indented from the margin or a list marker, inline code, and
-                            what HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and comments
+                            code: fenced lines, lines indented from the margin or a list marker, inline code -- a
+                            span opened by a real backtick run only, since an escaped backtick is a literal
+                            character and pairing it with an opener would show that span's content as prose -- and
+                            what HTML shows literally or hides: `<pre>`, `<code>` and their kind, and comments
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the
@@ -446,7 +448,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             owed for the drift resume. Nothing is DISCARDED: a comment too full is retried; a record
                             nobody can read, a verification on another pull request, and one on the DESCRIPTION this
                             publication needs park once under `report_undeliverable` with the record intact -- that
-                            last the collision held for repair, freed by a fresh report in a COMMENT. A transaction
+                            last the collision, held for a human to name the description, since nothing here
+                            rewrites one. A transaction
                             the settled pair beside it refuses is left owed, for the reconciliation to park. No
                             stage CALLS this yet
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
@@ -1937,8 +1940,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             as clipped where it outgrows the cap, with a fence the cut left open closed first --
                             that message written only where the issue neither owes a report nor has one settled,
                             since the report comment is the authority and a capped excerpt would be a second,
-                            unmarked copy -- and, where it is handed one, a description somebody else wrote kept
-                            word for word beneath them;
+                            unmarked copy;
                             and the reuse of whatever is already open on the branch, which `find_open_pr`
                             promises nothing else about -- one whose body already names this session is adopted
                             as it stands, human annotations included, and one that does not (an operator's, or
@@ -1954,12 +1956,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             receipt naming work the branch no longer carries
       pr_description.py     the report-aware verdict on a reused description, read afresh by number, which no
                             caller asks yet -- the live reuse is still `dev_pr.py`'s: one closing this issue and
-                            naming this session stands; any other gets those two lines ABOVE it, word for word
-                            beneath, written only while the description still reads as the one judged -- one edited
-                            in between holds for the next tick; a failed re-read holds, one too long for GitHub
-                            parks, and one a report claims
-                            -- delivered, pending, settled, or too damaged to say -- is never edited, parking once
-                            that report has settled, since no retry frees it
+                            naming this session stands, and any other is held for a human, the two lines quoted in
+                            the notice. It WRITES no description: GitHub offers no conditional write for one, so a
+                            body built from any reading can overwrite an edit saved since, and human text, legacy
+                            tails and concurrent edits stand as found. A failed re-read holds silently; one a
+                            report claims -- delivered, pending, settled, or too damaged to say -- is left to the
+                            binding's collision park while that report is owed, and parks here once it has settled
       handoff.py            the one write and the one relabel a finished publication is handed on by: the pull
                             request and the branch recorded together, since a state that arrived without a
                             branch would leave the next tick resolving the legacy name while the live pull
