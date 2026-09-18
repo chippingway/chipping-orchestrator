@@ -98,6 +98,8 @@ CLOSING_NOTHING = (
     f"<http://example.com/`x> `{RESOLVES}`",
     f'[link](https://example.com "`") `{RESOLVES}`',
     f'![image](https://example.com/a.png "`") `{RESOLVES}`',
+    f'<code><a title="</code>">{RESOLVES}</a></code>',
+    f'<pre><a title="</pre>">{RESOLVES}</a></pre>',
     f"Resolves someone/else#{ISSUE}",
 )
 

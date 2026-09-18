@@ -48,14 +48,12 @@ _LINE_FEED = "\n"
 # Markdown lets prose stand.
 _CODE_INDENT_RE = re.compile(r" {4}| {0,3}\t")
 
-# The markup of any other tag, quoted attribute values and all -- `\x22` and
-# `\x27` being the two quotes; and a tag that opens a line with a value its quote
-# never closes, which an HTML block hands the browser as it is -- where that
-# value takes the rest of the text.
+# The markup of any other tag, attributes and all, as an HTML tokenizer reads
+# them; and a tag that opens a line and that nothing closes, which an HTML block
+# hands the browser as it is -- where it takes the rest of the text.
 _HTML_TAG_RE = re.compile(
-    r"</?[A-Za-z](?:\x22[^\x22]*\x22|\x27[^\x27]*\x27|[^<>\x22\x27])*+>"
-    r"|^[ \t>*+-]*</?[A-Za-z]"
-    r"(?:\x22[^\x22]*\x22|\x27[^\x27]*\x27|[^<>\x22\x27])*+[\x22\x27][\s\S]*\Z",
+    rf"</?[A-Za-z][^\s/>]*{_html.TAG_ATTRIBUTES}>"
+    rf"|^[ \t>*+-]*</?[A-Za-z][^\s/>]*{_html.TAG_ATTRIBUTES}\Z",
     re.MULTILINE,
 )
 

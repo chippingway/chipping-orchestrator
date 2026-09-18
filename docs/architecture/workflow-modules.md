@@ -249,9 +249,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             found. An escaped backtick opens nothing, and a backslash inside a span escapes nothing
     report_html_literals.py what HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and comments
                             -- read off the text AS WRITTEN, since an element is literal whether or not some
-                            reading pairs a backtick across its opening tag. A tag is read as HTML reads one, so a
-                            `>` or a closing tag inside a quoted attribute value ends nothing and a value never
-                            closed takes the rest. Opening tags are counted by name, so nesting holds; a CLOSING tag
+                            reading pairs a backtick across its opening tag. EVERY tag is read, as an HTML
+                            tokenizer reads one -- a quote opens a value only after a name's `=`, and a value never
+                            closed takes the rest -- so a closing tag in another tag's markup, a comment, or the
+                            bogus comment a `<!` opens closes nothing, while an opening tag counts wherever it is
+                            found, since what shelters it may be no tag as Markdown reads it; `report_prose.py`
+                            takes tag markup out by the same grammar. Opening tags are counted by name, so nesting
+                            holds; a CLOSING tag
                             is trusted only where it stands in the same possible code, or the same prose, as the
                             tag that opened the element; and an OPENING tag or comment opens nothing in DEFINITE
                             code -- a certain span or a definite fence -- since a tag quoted as an example is no

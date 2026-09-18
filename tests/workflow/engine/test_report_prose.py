@@ -97,6 +97,20 @@ CODE_IN_HTML = (
     f'<pre data-example="> </pre>">{FIXES}</pre>',
     f"<pre data-example='> </pre>'>{FIXES}</pre>",
     f'<pre data-example="x> </pre> {FIXES}',
+    # EVERY tag is read, so a closing tag inside another tag's value closes
+    # nothing -- a value being what follows a name's `=`, and a stray quote
+    # anywhere else a character like any other. Nor does one inside the bogus
+    # comment a `<!` opens.
+    f'<code><a title="</code>">{FIXES}</a></code>',
+    f'<pre><a title="</pre>">{FIXES}</a></pre>',
+    f"<pre><a title='</pre>'>{FIXES}</a></pre>",
+    f'<pre><a x" y="> </pre>">{FIXES}</a></pre>',
+    f'<pre><a =" d="> </pre>">{FIXES}</a></pre>',
+    f"<pre><!x </pre {FIXES}</pre>",
+    # An opening tag counts wherever it is found, since what shelters it may
+    # be no tag, and no comment, as Markdown reads it.
+    f'<a title="<pre>"> {FIXES}',
+    f"see <!-- a -- <pre> --> {FIXES}",
 )
 
 # A tag quoted as code is no tag only where the code is CERTAIN. Not after a
@@ -127,6 +141,7 @@ NO_REFERENCE = (
     f"Fixes\n    an indented line\n#{ISSUE}",
     f'<a title="{FIXES}">a link</a>',
     f'<a title="> {FIXES}">a link</a>',
+    f'<a x" y="> {FIXES} ">a link</a>',
     f'<div title="{FIXES}',
 )
 
@@ -158,6 +173,9 @@ PROSE = (
     f"```html\n<pre>\n```\n\n{FIXES}",
     f"> ```html\n> <pre>\n> ```\n\n{FIXES}",
     f"Example `<pre` then {FIXES}",
+    f'Example `<a title="` then <code>x</code> {FIXES}',
+    f'<a href="https://example.com">a link</a> {FIXES}',
+    f"<details><summary>More</summary>{FIXES}</details>",
     # A pipe is a cell's edge only where a table may be, and a `>` ends a tag
     # only where a `<` has begun one: a shell pipe in a span and a comparison
     # in prose leave the pairing as it was.
