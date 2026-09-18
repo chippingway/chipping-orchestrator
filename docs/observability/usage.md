@@ -25,8 +25,9 @@ and `model_names.py` the nested model-name lookup, `claude_rows.py` / `claude_su
 `codex_summary.py` the per-provider frame decoding and run summary, `shell_segments.py` / `skill_commands.py` /
 `skills_claude.py` / `skills_codex.py` the skill-evidence classification, and `trajectory_claude_blocks.py` /
 `trajectory_claude_stream.py` / `trajectory_claude_turns.py` plus `trajectory_codex.py` and the per-item-type
-`trajectory_codex_items.py` under it the timeline reconstruction. Antigravity's envelopes and completed-step usage
-live in `agy_events.py` / `agy_summary.py`, with its text and tool timeline in `trajectory_agy.py`. The
+`trajectory_codex_items.py` under it the timeline reconstruction. Antigravity's envelopes, tool lifecycles, and
+completed-step usage live in `agy_events.py` / `agy_summary.py`, with its text and tool timeline in
+`trajectory_agy.py`. The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
 initializer re-exports the public parsers and result types; callers name the defining owner so patches reach it.
@@ -48,6 +49,11 @@ Antigravity trajectories join each response step's text deltas, retain tool para
 tools from `init`, and take the final answer only from a successful terminal result. Interrupted response text is
 kept in the timeline without becoming a final answer. Skill evidence remains empty because this adapter does not
 infer skill loads from Antigravity's tools; no per-turn pricing or source-item accounting is emitted.
+
+Tool lifecycles fold repeated and sparse `step_update` frames by `step_index`, retaining tool identity across partial
+updates and recording each step's latest state. The lifecycle reducer reports every indexed tool step whose latest
+state is not `DONE`, ensuring earlier background commands remain authoritative even when later status checks finish
+and emit terminal output.
 
 **Cost precedence.** A `total_cost_usd` reported by the CLI itself always wins (`cost_source="reported"`); otherwise the
 parser walks first-party Anthropic / OpenAI price tables baked into the module and produces an estimate (`"estimated"`).
