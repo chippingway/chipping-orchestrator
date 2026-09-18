@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The groups every report record shares, read and written one way.
+"""The groups every report record shares, and the object one of them is written as.
 
 A pending transaction and the current report it settles into both name the same
 subject and both name a place on a pull request; a delivered report and the
@@ -9,6 +9,12 @@ mode's own half. So each spelling lives here rather than in each round trip.
 Two owners spelling one group is how the pending record comes to carry a field
 the settled one drops, and a reader of the second would then answer for a record
 the first could still write.
+
+The pending transaction's whole pinned object is written here for the same
+reason: the subject is the only thing that record adds to the report a run
+delivered, so everything else it carries is one of the groups above. Spelled in
+the round trip that stores it instead, a field added to the delivery would have
+to be added to an encoder in another module to reach the transaction beside it.
 
 Every group is read fail-closed and all-or-nothing. A subject short of any member is
 not a weaker binding, it is no binding: a completion proves the repository, the
