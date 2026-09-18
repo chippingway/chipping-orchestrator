@@ -70,8 +70,8 @@ and forbids, and how a role's command spec is parsed and pinned.
   issue or answering under it changes while that candidate is frozen, and the local verify gate that is a stage step
   rather than a role.
 - [`workflow/conversations.md`](workflow/conversations.md) — the `question` and `discussion` prompt contracts, what a
-  round may leave behind, the tracked-repository awareness block, and the report contract every developer prompt
-  teaches.
+  round may leave behind, the tracked-repository awareness block, the report contract every developer prompt
+  teaches, and the shared foreground execution guidance for asynchronous commands.
 - [`workflow/command-specs.md`](workflow/command-specs.md) — the spec grammar, backend selection, worked examples, and
   the in-flight session lock.
 

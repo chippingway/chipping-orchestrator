@@ -37,6 +37,11 @@ _PLAN_PATH = f"plans/issue-{_PROMPT_ISSUE_NUMBER}.md"
 # list would teach the wrong style everywhere else.
 _FORBIDDEN_PREFIXES = ("feat:", "chore:", "refactor:", "test:")
 _FOREGROUND_MARKER = "NEVER start a background job"
+_AGY_WAIT_MARKERS = (
+    "supported wait/status tools such as `manage_task` within the current response",
+    "a `RUNNING` status requires continued polling or waiting",
+    "ending the response to await a notification terminates AGY and cancels the command",
+)
 
 def _discussion_prompt(spec, issue, comments_text, specs) -> str:
     """The discussion builder called on the shared four, plus its own fifth.
@@ -179,9 +184,13 @@ class CommitProducingNotesTest(unittest.TestCase):
     suffix for the orchestrator: an agent copying one has only the issue
     number to reach for, and the subject would land naming the issue and the
     pull request both. The foreground note spells out the one-shot
-    execution model: a backgrounded build ("Miri is running, I'll continue
-    when it completes") outlives no session, so its result is never observed
-    and the issue parks forever.
+    execution model and the AGY asynchronous-command contract: a backgrounded
+    build ("Miri is running, I'll continue when it completes") outlives no
+    session, so its result is never observed and the issue parks forever.
+    Asynchronous commands (such as in AGY sessions) must be polled or waited on
+    within the current response using wait/status tools like `manage_task`,
+    because a `RUNNING` task is cancelled if the response ends to await a
+    notification.
     """
 
     def test_authoring_prompts_teach_local_style(self) -> None:
@@ -218,6 +227,8 @@ class CommitProducingNotesTest(unittest.TestCase):
         for name, prompt in _commit_producing_prompts().items():
             with self.subTest(prompt=name):
                 self.assertIn(_FOREGROUND_MARKER, prompt)
+                for marker in _AGY_WAIT_MARKERS:
+                    self.assertIn(marker, prompt)
 
 
 class ConflictResolutionPromptTest(unittest.TestCase):

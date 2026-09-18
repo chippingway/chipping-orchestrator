@@ -699,13 +699,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             greeting / hash / label / state order a start publishes in. The greeting anchors both
                             `pickup_comment_id` and `last_action_comment_id`, the floor the park ending the first
                             agent run walks from, since the spawn it opens quotes this thread as it stands
-    prompt_notes.py         shared empty-context placeholders, foreground execution instructions, the commit-subject
-                            contract every prompt that may author one carries -- mirror the repository's own recent
-                            history rather than any enumerated prefix set, and write the descriptive subject alone,
-                            since the ` (#N)` suffixes in that history are the publication metadata the orchestrator
-                            appends for the pull request and the tracked issue's number is never one of them -- the
-                            developer report contract spelled from the report vocabulary with its fresh-respawn
-                            counterpart, and the continuation notes for a session-limit retry
+    prompt_notes.py         shared empty-context placeholders, foreground execution and AGY asynchronous-command
+                            instructions, the commit-subject contract every prompt that may author one carries -- mirror
+                            the repository's own recent history rather than any enumerated prefix set, and write the
+                            descriptive subject alone, since the ` (#N)` suffixes in that history are the publication
+                            metadata the orchestrator appends for the pull request and the tracked issue's number is
+                            never one of them -- the developer report contract spelled from the report vocabulary with
+                            its fresh-respawn counterpart, and the continuation notes for a session-limit retry
     prompts.py              implementation, review, documentation, fixing, conflict-resolution, and fresh-session prompt
                             builders; each response marker agrees with the parser that settles its stage
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
