@@ -39,8 +39,9 @@ one issue's trace -- and each names the projection owner beside it:
 and ``issue_events`` each own one family's SQL and the rows it is read back as.
 Under them, ``query_rows`` names the columns of the widest SELECT lists so a
 projection reads them by field rather than by index, and ``raw_values`` narrows
-one column to what its result field declares, plus the cleared multiselect no
-row can match.
+one column to what its result field declares -- a JSONB cell included, decoded
+the same whether a driver adapted it or handed back its text -- plus the
+cleared multiselect no row can match.
 
 So is the second family. ``rollup_reads`` owns the seven answered off the
 day-bucketed rollup instead -- what a window totalled, what the window before it

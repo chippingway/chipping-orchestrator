@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Stage analytics records emitted by the dispatcher, label flips, and parks:
 `_process_issue` writes one `stage_evaluation` record per handler call
-(happy-path, no-stage pickup, error path, backlog-skip short-circuit,
-disabled-sink no-op); `set_workflow_label` writes one `stage_enter`
+(happy-path, a handler that parks, no-stage pickup, error path, backlog-skip
+short-circuit, disabled-sink no-op); `set_workflow_label` writes one `stage_enter`
 analytics record per non-None label transition; emitted `park_awaiting_human`
 events fan out to the analytics recorder."""
 from __future__ import annotations
@@ -46,6 +46,9 @@ _ANALYTICS_FILENAME = "analytics.jsonl"
 _VALIDATING_HANDLER = (
     "orchestrator.workflow.stages.validating.handler._handle_validating"
 )
+_IMPLEMENTING_HANDLER = (
+    "orchestrator.workflow.stages.implementing.handler._handle_implementing"
+)
 _ANALYTICS_PATH_ATTR = "ANALYTICS_LOG_PATH"
 _STAGE_KEY = "stage"
 _EVENT_KEY = "event"
@@ -53,15 +56,18 @@ _ISSUE_KEY = "issue"
 _REPO_KEY = "repo"
 _TS_KEY = "ts"
 _KEY_REASON = "reason"
+_RESULT_KEY = "result"
 _TIMEOUT_PR = 42
 _HARD_SKIPPED_ISSUE = 8004
 _SUCCESS_ISSUE = 8001
 _UNLABELED_ISSUE = 8002
 _ERROR_ISSUE = 8003
 _DISABLED_SINK_ISSUE = 8005
+_PARKING_ISSUE = 8006
 _STAGE_ENTER_ISSUE = 8101
 _LABEL_CLEAR_ISSUE = 8102
 _PARK_ISSUE = 8201
+_QUESTION_REASON = "agent_question"
 _PARK_REASON = "agent_timeout"
 _PARK_MESSAGE = "please advise"
 _PARK_LOG = "park_analytics.jsonl"
@@ -128,9 +134,28 @@ class StageEvaluationAnalyticsTest(unittest.TestCase):
             record = _stage_evaluations(path, _SUCCESS_ISSUE)[0]
         self.assertEqual(record[_REPO_KEY], TEST_REPO_SLUG)
         self.assertEqual(record[_STAGE_KEY], _IMPLEMENTING_STAGE)
-        self.assertEqual(record["result"], "ok")
+        self.assertEqual(record[_RESULT_KEY], "ok")
         self.assertIn("duration_s", record)
         self.assertGreaterEqual(record["duration_s"], 0)
+
+    def test_a_parking_handler_still_evaluates_ok(self) -> None:
+        # A park is the workflow waiting on a human, not the handler failing:
+        # the evaluation says the handler returned without raising, and the
+        # park record beside it is what says the issue did not progress.
+        with tempfile.TemporaryDirectory(prefix="analytics-park-eval-") as park_dir:
+            records = self._dispatch_parking_issue(
+                Path(park_dir, _ANALYTICS_FILENAME),
+            )
+        self.assertEqual(
+            [
+                (record[_EVENT_KEY], record.get(_RESULT_KEY), record.get(_KEY_REASON))
+                for record in records
+            ],
+            [
+                (EVENT_PARK_AWAITING_HUMAN, None, _QUESTION_REASON),
+                (EVENT_STAGE_EVALUATION, "ok", None),
+            ],
+        )
 
     def test_unlabeled_issue_records_no_stage(
         self,
@@ -151,7 +176,7 @@ class StageEvaluationAnalyticsTest(unittest.TestCase):
                 _issue_processing._process_issue(gh, _TEST_SPEC, issue)
             record = _stage_evaluations(path, _UNLABELED_ISSUE)[0]
         self.assertNotIn(_STAGE_KEY, record)
-        self.assertEqual(record["result"], "ok")
+        self.assertEqual(record[_RESULT_KEY], "ok")
 
     def test_error_is_recorded_and_propagated(
         self,
@@ -179,7 +204,7 @@ class StageEvaluationAnalyticsTest(unittest.TestCase):
                 )
             record = _stage_evaluations(path, _ERROR_ISSUE)[0]
         self.assertEqual(record[_STAGE_KEY], _VALIDATING_STAGE)
-        self.assertEqual(record["result"], "error")
+        self.assertEqual(record[_RESULT_KEY], "error")
         self.assertIn("duration_s", record)
 
     def test_hard_skip_records_no_evaluation(self) -> None:
@@ -208,6 +233,23 @@ class StageEvaluationAnalyticsTest(unittest.TestCase):
                 _issue_processing._process_issue(gh, _TEST_SPEC, issue)
             self.assertFalse(sentinel.exists())
             self.assertEqual(list(Path(td).iterdir()), [])
+
+    def _dispatch_parking_issue(self, path: Path) -> list[dict]:
+        client = FakeGitHubClient()
+        parking_issue = make_issue(_PARKING_ISSUE, label=LABEL_IMPLEMENTING)
+        client.add_issue(parking_issue)
+        with patch.object(analytics_settings, _ANALYTICS_PATH_ATTR, path), patch(
+            _IMPLEMENTING_HANDLER,
+            side_effect=lambda *_args, **_kwargs: _guards._park_awaiting_human(
+                client,
+                parking_issue,
+                MagicMock(),
+                _PARK_MESSAGE,
+                reason=_QUESTION_REASON,
+            ),
+        ):
+            _issue_processing._process_issue(client, _TEST_SPEC, parking_issue)
+        return _analytics_records(path)
 
 
 class StageEnterAnalyticsRecordTest(unittest.TestCase):

@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import unittest
 from datetime import UTC, datetime
+from types import MappingProxyType
 from typing import Any
 
 from orchestrator.observability.analytics.sync import columns, records, rows
@@ -40,6 +41,17 @@ _SAMPLE_HASH = "hash-abc"
 _FUTURE_FIELD = "future_key"
 
 _FUTURE_VALUE = "new"
+
+# The part of a human-wait record no column exists for: why it waited, the road
+# it came off, the pull request and commit it stands on, and a report revision
+# no recorder passes today -- standing in for a field a newer writer adds.
+_PARK_EXTRAS = MappingProxyType({
+    "reason": "agent_question",
+    "route": "dev_fix",
+    "pr_number": 42,
+    "sha": "0123456789abcdef0123456789abcdef01234567",
+    "report_revision": 3,
+})
 
 # The four columns the INSERT's parameter tuple ends with, after the promoted
 # list and the extras blob: where a row came from, and the hash it is
@@ -137,6 +149,24 @@ class ColumnRoutingTest(unittest.TestCase):
         )
         self.assertEqual(promoted["stage"], _SAMPLE_STAGE)
         self.assertEqual(extras, {_FUTURE_FIELD: _FUTURE_VALUE})
+
+    def test_a_park_keeps_its_correlation(self) -> None:
+        # The session is the one field here the table has a column for; the
+        # rest ride in the blob, including a field the recorder does not know
+        # yet, so widening a park is an emitter change rather than a migration.
+        promoted, extras = rows.split_row(
+            _record(
+                event="park_awaiting_human",
+                stage=_SAMPLE_STAGE,
+                session_id="sess-park-1",
+                **_PARK_EXTRAS,
+            ),
+        )
+        self.assertEqual(
+            (promoted[_EVENT_FIELD], promoted["stage"], promoted["session_id"]),
+            ("park_awaiting_human", _SAMPLE_STAGE, "sess-park-1"),
+        )
+        self.assertEqual(extras, _PARK_EXTRAS)
 
     def test_required_fields_stay_out_of_extras(self) -> None:
         promoted = records.required_columns(_record())

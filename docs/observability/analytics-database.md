@@ -100,6 +100,10 @@ matching `ANALYTICS_LOG_PATH`.
   passes no `stage`, so that promoted column is NULL on every one of its rows — which the schema already allows, and
   which the dashboard's stage filter is deliberately asymmetric about
   ([`analytics-dashboard.md`](analytics-dashboard.md#dashboard-orchestratorappsanalytics_dashboardpy)).
+  Human-wait transitions (`park_awaiting_human`) are a fifth: the run columns a park shares with `agent_exit` are
+  promoted, while its `reason`, `route`, pull request, commit, and the rest of its correlation ride in `extras`, and
+  `get_issue_events` reads both back
+  ([`event-streams.md`](event-streams.md#analytics-sink-analytics_log_path)).
   `source_path` / `source_line` are
   forensic context; the authoritative dedup key is `content_hash` — SHA-256 over the canonical (`sort_keys=True`)
   JSON form of the record.

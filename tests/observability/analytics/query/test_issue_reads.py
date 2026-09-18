@@ -3,14 +3,18 @@
 """One row per issue in a window, and one issue's trace inside it."""
 from __future__ import annotations
 
+import json
 import unittest
 from datetime import UTC, datetime
+from types import MappingProxyType
 
 from orchestrator.observability.analytics.query.issue_summaries import SORT_BY_COST
+from orchestrator.observability.analytics.query.query_rows import IssueEventQueryRow
 from orchestrator.observability.analytics.query.raw_reads import (
     get_issue_events,
     get_issues,
 )
+from orchestrator.observability.analytics.query.run_models import IssueEventRow
 from tests.observability.analytics.analytics_assertions import assert_row_fields, assert_sql_fragments
 from tests.observability.analytics.query.query_fake_driver import (
     FakeConnect,
@@ -95,6 +99,29 @@ _WINDOW_END = datetime(_YEAR, 5, _WINDOW_END_DAY, tzinfo=UTC)
 # SELECT list gained since reads back as unset rather than as a measured zero.
 _SHORT_ROW = (_REPO, _ISSUE, 1, _EVENT_TS, _EVENT_TS, None, 0, None, 0, 0)
 
+# One issue's trace as a row from before it read any correlation: the nine
+# columns the drill-down tabulates and nothing after them.
+_LEGACY_TRACE_ROW = (
+    _NOON_TS, _STAGE_ENTER, _STAGE_IMPLEMENTING, None, None, None, None, None, None,
+)
+
+# The run columns a full-width trace row carries between those nine and its
+# blob, all NULL.
+_NULL_RUN_COLUMNS = (None,) * (
+    len(IssueEventQueryRow._fields) - len(_LEGACY_TRACE_ROW) - 1
+)
+
+# What a trace row with nothing to correlate reads back as.
+_UNCORRELATED = MappingProxyType({
+    "agent_spec": None,
+    "session_id": None,
+    "resume_session_id": None,
+    "review_round": None,
+    "retry_count": None,
+    "timed_out": None,
+    "extras": {},
+})
+
 # What each ordering mode has to produce, and the ordering it must not fall
 # back on. Ranking by cost happens in SQL because ordering after the `LIMIT`
 # would drop the older expensive issues that mode exists to surface.
@@ -106,6 +133,17 @@ _SORT_MODES = (
         "ORDER BY last_seen DESC",
     ),
 )
+
+
+def _read_one_event(row: tuple) -> IssueEventRow:
+    """Read `row` back as the only event of one issue's trace."""
+    with configured_db_url():
+        trace = get_issue_events(
+            repo=_REPO,
+            issue=_ISSUE,
+            connect=FakeConnection(rows=(row,)).as_connect,
+        )
+    return trace[0]
 
 
 class IssuesOverviewTest(unittest.TestCase):
@@ -275,6 +313,39 @@ class IssueEventsTest(unittest.TestCase):
         scan_sql, bindings = conn.executed[0]
         self.assertIn("ORDER BY ts ASC, id ASC", scan_sql)
         self.assertEqual(bindings, (_REPO, _ISSUE))
+        assert_sql_fragments(
+            self,
+            scan_sql,
+            ("session_id", "review_round", "retry_count", "timed_out", "extras"),
+        )
+
+    def test_a_legacy_row_reads_with_no_correlation(self) -> None:
+        # A row from before the trace read correlation, and a full-width one
+        # whose run columns and blob are NULL, both read back as carrying
+        # none rather than as measured values.
+        full_width = (*_LEGACY_TRACE_ROW, *_NULL_RUN_COLUMNS, None)
+        for row in (_LEGACY_TRACE_ROW, full_width):
+            with self.subTest(width=len(row)):
+                event = _read_one_event(row)
+                self.assertEqual(event.event, _STAGE_ENTER)
+                assert_row_fields(self, event, _UNCORRELATED)
+
+    def test_a_blob_reads_back_as_a_mapping(self) -> None:
+        # A driver hands a JSONB object back adapted or as its text, and both
+        # read the same; a damaged or non-object blob reads as empty rather
+        # than taking the rest of the trace down with it.
+        correlation = {"reason": "agent_question"}
+        for blob, expected in (
+            (correlation, correlation),
+            (json.dumps(correlation), correlation),
+            ("{not json", {}),
+            ("[1, 2]", {}),
+        ):
+            with self.subTest(blob=blob):
+                event = _read_one_event(
+                    (*_LEGACY_TRACE_ROW, *_NULL_RUN_COLUMNS, blob),
+                )
+                self.assertEqual(event.extras, expected)
 
     def test_the_window_filters_thread_through(self) -> None:
         # The drill-down narrows with the dashboard above it, so a trace stays

@@ -291,7 +291,14 @@ foundation layer for the Postgres aggregation step.
   `duration_s` (handler wall-clock), `result` (`"ok"` / `"error"`); omitted for `backlog`- / `paused`-skipped issues
   (no handler runs), and for an open `workflow:blocked` / `workflow:umbrella` issue on a tick
   `DEPENDENCY_POLL_EVERY_N_TICKS` skips, since that issue is dropped before dispatch — so those two labels carry one
-  evaluation per due dependency poll rather than one per tick.
+  evaluation per due dependency poll rather than one per tick. `result` answers an execution question and nothing
+  else: `"ok"` means the handler completed without raising, and `"error"` that it raised (the exception still
+  propagates to the tick's per-issue isolation). It says nothing about whether the issue progressed — a handler that
+  parked the issue for a human evaluates `"ok"` exactly as one that pushed does. Whether the workflow is waiting on a
+  human is the separate progress question the `park_awaiting_human` record below answers, and a park is a workflow
+  decision rather than an execution error: it never turns an evaluation into `"error"`, and every failed-run count
+  the read side reports is taken over `agent_exit` rows alone, so a park carrying the `exit_code` of the run it
+  followed is not counted as a second failure.
 - `agent_exit` — `_run_agent_tracked` (in `workflow/engine/usage.py`); one record per tracked agent invocation; agent
   context + parsed token / model / cost details (see below).
 - `park_awaiting_human` — `GitHubClient.emit_event` (and the in-memory fake client) alongside the audit
@@ -301,6 +308,16 @@ foundation layer for the Postgres aggregation step.
   poll that meets a wait it did not open — a parked issue with nothing new on its thread — writes nothing, and an
   evaluation that ends in a push or a label flip writes nothing here at all. A resume that answers a park and then
   parks again is a second entry, and earns its own record.
+
+  The family needs no DDL, and reads back whole. The sync promotes the fields `analytics_events` has a column for —
+  `stage`, `agent_role`, `backend`, `agent_spec`, `session_id`, `resume_session_id`, `review_round`, `retry_count`,
+  `exit_code`, `timed_out` — and routes the rest — `reason`, `route`, `pr_number`, `conflict_round`, `dirty_files`,
+  `sha`, `reservation_id`, and any field a newer writer adds before the table knows it — into the existing `extras`
+  JSONB column. The per-issue read `get_issue_events` selects those columns and the blob beside them, so each
+  `IssueEventRow` it returns carries a park's correlation as fields plus a decoded `extras` mapping; a row written
+  before any of that, or by a family that carries none of it, reads back with those fields unset and an empty
+  `extras`. The dashboard's per-issue drill-down tabulates none of them: they are on the read model for a caller that
+  asks why an issue waited, not on the page.
 - `repo_skill_catalog` — `orchestrator.skills.catalog._emit_repo_skill_catalog`, driven once per tick per spec by the
   tick owner (`workflow.engine.tick.tick`); repo-level (not issue-scoped, so
   `issue` is

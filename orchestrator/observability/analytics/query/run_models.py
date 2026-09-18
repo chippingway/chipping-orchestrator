@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 RESULT_FIELD = "result"
 
@@ -138,10 +139,21 @@ class IssueSummaryRow:
 class IssueEventRow:
     """One row of the per-issue event trace.
 
-    Slim: only the columns useful for the per-issue drill-down view.
-    The dashboard can join back to `analytics_events` for the
-    forensic columns (`source_path`, `source_line`, `extras`) if a
-    debug view needs them later.
+    The first nine fields are what the drill-down tabulates. The rest are
+    what a `park_awaiting_human` record is correlated by: the promoted run
+    columns it may carry (`agent_spec`, `session_id`, `resume_session_id`,
+    `review_round`, `retry_count`, `timed_out`) and `extras`, the decoded
+    blob the ingest routes every other field into -- a park's `reason`,
+    `route`, `pr_number`, and `sha` among them. They default to unset so a
+    row built before they existed, or a record that never carried them,
+    reads back as having none rather than as a measured value; an empty
+    `extras` is a row with nothing outside the promoted set. The forensic
+    provenance columns (`source_path`, `source_line`) stay off the trace.
+
+    A park is a workflow-progress record, not an execution one: a handler
+    that parked an issue still evaluated to `result="ok"`, and the
+    `stage_evaluation` row beside a park says only that the handler returned
+    without raising.
     """
 
     ts: datetime
@@ -153,6 +165,13 @@ class IssueEventRow:
     backend: str | None
     exit_code: int | None
     cost_usd: float | None
+    agent_spec: str | None = None
+    session_id: str | None = None
+    resume_session_id: str | None = None
+    review_round: int | None = None
+    retry_count: int | None = None
+    timed_out: bool | None = None
+    extras: dict[str, Any] = field(default_factory=dict)
 
 
 setattr(IssueEventRow, RESULT_FIELD, property(public_event_result))
