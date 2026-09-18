@@ -32,17 +32,11 @@ watermarks the run consumed, the bookkeeping its route owed, and the drop of the
 pending record all land together, because every split between them is a window
 a crash turns into a second report, a lost round, or feedback answered twice.
 
-And it is the LAST thing asked, after the requirements are read once more off
-GitHub. Every earlier reading of the issue came before the post or the re-read
-this settles, and either request is long enough for a human to edit the issue
-under it -- so a settlement taken on those readings would record a report
-answering requirements the issue no longer has as the one the pull request
-carries, and hand it to a reviewer as current.
-
-What a settlement left is read here too, the same two ways, for the road that
-would hand a commit on because its report already went out: a settled record is
-never cleared, so it says what the pull request carried once, and only a fresh
-reading of that location says it still does.
+It is taken last, after the requirements are read once more off GitHub: a post
+or a re-read is long enough for a human to edit the issue under it. And what a
+settlement left is read here too, for the recovery that would hand a commit on
+because its report already went out -- a settled record says what the pull
+request carried once, and only a fresh reading says it still does.
 """
 from __future__ import annotations
 
@@ -260,28 +254,13 @@ def still_carries(
 ) -> _pr_reports.ReportPresence:
     """Whether the report a settlement recorded still reads where it settled.
 
-    A settlement is what a pull request carried at ONE moment, and the record
-    is never cleared: a comment can be edited or deleted after it, and so can
-    a report somebody verified. So a road that would hand work on because its
-    report already went out re-reads the location first, and PRESENT is the
-    only answer that lets it.
-
-    A comment this orchestrator posted is read as the report it renders: the
-    settlement recorded the digest of the report TEXT, which the comment wraps
-    in its header, so the comment has to re-render exactly and carry that
-    text. The header is held too, member by member, to the settled record and
-    the handoff beside it -- pull request, commit, requirements, revision and
-    receipt -- since a rewrite that keeps the words and renders consistently
-    would otherwise pass as the report that settled while claiming to be about
-    some other publication. Whose the comment is comes off this issue's own
-    ledger of posted comments rather than off the author, since that ledger is
-    what named it in the first place. Anything else is a location a developer
-    verified, held to the digest of what is there and to an author this
-    deployment trusts, exactly as the verification was.
-
-    UNCONFIRMED is a reading nobody could take, the author included, and a
-    caller holds on it; ABSENT and CHANGED are definite answers about content
-    a human owns.
+    A comment on this issue's own ledger has to re-render as a report of ours
+    whose text digest and whole header -- pull request, commit, requirements,
+    revision, and the handoff's receipt -- are the ones the settlement
+    recorded, since a consistent rewrite could keep the words while claiming
+    another publication. Any other location is one a developer verified, held
+    to the digest there and a trusted author, as the verification was.
+    UNCONFIRMED is a reading nobody could take, and a caller holds on it.
     """
     lookup = gh.reread_report_location(
         current.location, content_sha256=current.content_revision,
@@ -396,13 +375,10 @@ def settles(
     False on a settlement that landed, because the transaction is finished and
     the tick belongs to whatever runs behind it.
 
-    The requirements are proved again first, over an issue read afresh, and
-    for both modes on every road here: a post or a re-read takes as long as
-    GitHub does, and an edit landing inside it leaves the report answering
-    requirements the issue no longer has. Refused, nothing is written: the
-    report may be on the thread, but the transaction stays owed, which is what
-    withholds the handoff -- and the drift resume behind the reconciliation is
-    what answers the edit. A re-read nobody could take holds the tick.
+    The requirements are proved again first, over an issue read afresh, since
+    an edit can land inside the post or the re-read. Refused, nothing is
+    written and the transaction stays owed, which withholds the handoff for the
+    drift resume to answer; a re-read nobody could take holds the tick.
     """
     edited = _evidence.fresh_requirements_verdict(gh, issue, state, pending)
     if edited is not None:

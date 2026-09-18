@@ -352,21 +352,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             implementation delivery through `report_binding.py` below, or the reconciliation at
                             the end of this group a poll later
     report_locations.py     which places on a pull request this issue's reports claim, asked of all three records
-                            by the one writer that could lose one: the body edit a reused pull request earns. A
-                            report verified on a DESCRIPTION records the digest of what was read and nothing else,
-                            so even an edit that keeps every word moves the location off that digest, and the
-                            verification behind it refuses. Only descriptions: no body edit can reach a report in a
-                            comment. A record nobody can
-                            read claims this description unless the place it still names is readably elsewhere,
-                            since the roads that park such a record run after the rewrite. Preserving one is
-                            not free, so the second reading here is what a description WOULD have said: whether it
-                            already closes this issue -- in any spelling GitHub honours, a human's `Fixes #12`
-                            included -- and names the session whose branch this is. One that says neither is a
-                            publication whose merge leaves its issue open, which the binding below holds for repair.
-                            It also answers which publication the SETTLED pair is about -- agreeing with itself and
-                            naming this repository, pull request and commit -- since a settlement is never cleared
-                            and an older commit's report reads as well as the newest one's; the settled report it
-                            hands back is a claim, for its caller to re-read before trusting
+                            -- a record nobody can read included, for the place it still names -- before the one
+                            writer that could lose one: the body edit a reused pull request earns, since even an
+                            edit keeping every word moves a verified DESCRIPTION off its digest. The second reading
+                            is what a description WOULD have said: whether it closes this issue, in any spelling
+                            GitHub honours, and names the session -- one that says neither is a publication the
+                            binding below holds for repair. It also answers which publication the SETTLED pair is
+                            about, agreeing with itself and naming this repository, pull request and commit; what
+                            it hands back is a claim, for its caller to re-read
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
@@ -1420,23 +1413,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             candidate a gate record named is held there instead, through `unreported_recovery.py`,
                             where nothing on the comment describes it
       unreported_recovery.py
-                            committed work a recovery republishes, held under `report_undeliverable` before anything
-                            is measured, pushed or opened where no report describes it: the restart shortcut and every
-                            road that republishes a candidate a gate record named -- an approved commit, a frozen
-                            candidate, a measurement park retried, a checkout put back, an authorized rollback. What
-                            answers is a debt still owed (a delivery, a transaction) or a settled pair that agrees
-                            with itself and names this repository, this commit, and the pull request the receipt
-                            says it was pushed onto; a settlement is never cleared, so any other pair is about other
-                            work. Even that pair is only a claim about one moment, so the report is re-read where it
-                            settled and the issue's requirements read again before it lets the work past: a reading
-                            nobody could take holds the tick silently, and a report edited or deleted since, or
-                            requirements moved away from, parks for repair. The one commit owed no report at all is
-                            the one a run that never COMPLETED left -- a timeout, a provider refusal, a nonzero exit
-                            -- which the seam records as `implementing_incomplete_run_sha`, so a recovery of exactly
-                            that commit is not held for a report no run was going to write. Also the `invoked=False`
-                            result those recoveries hand the seam. The timeout-park
-                            recovery is not one of them: a timed-out run never completes, so none was recorded and
-                            its commit publishes as a timeout's always has
+                            committed work a recovery republishes -- the restart shortcut and every road that
+                            republishes a candidate a gate record named -- held under `report_undeliverable` before
+                            anything is measured, pushed or opened unless a debt is still owed or a settled pair
+                            names this repository, this commit and the receipt's pull request. That pair is re-read
+                            where it settled, with the requirements, first: an unreadable reading holds silently, a
+                            report that moved parks for repair. A commit a run that never COMPLETED left is recorded
+                            as `implementing_incomplete_run_sha` and owed no report. Also the `invoked=False` result
+                            those recoveries hand the seam; the timeout-park recovery never asks
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
                             take a fresh or resumed measurement; the verdict carries the basis admitting publication
       late_gate_permission.py
@@ -1993,21 +1977,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that message written only where the issue owes no report of its own, since the report
                             comment is the authority and a capped excerpt here would be a second, unmarked copy;
                             and the reuse of whatever is already open on the branch, which `find_open_pr`
-                            promises nothing else about. What that pull request's description says is
-                            `_names_the_implementation`'s, asked by the publication before the binding and again
-                            last, each time over the description read afresh by number rather than the body a
-                            lookup fetched, since a human can edit in between -- one that already closes this
-                            issue and names this session is adopted as it stands, a legacy `_Last agent message:_`
-                            tail and human annotations included, and one that does not (an operator's, the
-                            `discussion` stage's plan PR sitting on the very ref the dev commits went to, or one a
-                            human re-described or stripped after this stage pushed onto it) gets the closing
-                            reference and the attribution put ABOVE that description, which stays beneath them
-                            word for word under an earlier-description heading, with no agent message once any
-                            report of this issue's is owed or settled. A re-read that fails holds the publication,
-                            and so does a description the two lines would take past GitHub's 65,536 characters,
-                            which parks under `report_undeliverable` rather than cutting anybody's words. A
-                            description this issue's own report claims (`engine/report_locations.py`) is never
-                            edited at all, since any edit moves it off the digest it was verified at. One road
+                            promises nothing else about. `_names_the_implementation` judges its description, read
+                            afresh by number before the binding and again last before the handoff: one that closes
+                            this issue and names this session is adopted as it stands, legacy tail and human notes
+                            included; any other (an operator's, the `discussion` plan PR, one a human re-described)
+                            gets the closing reference and the attribution put ABOVE it, word for word beneath under
+                            an earlier-description heading, with no agent message once a report is owed or settled.
+                            A failed re-read holds; one the lines would take past GitHub's 65,536 characters parks
+                            under `report_undeliverable`; one a report of this issue's claims is never edited. One road
                             names its pull request instead and may
                             OPEN none: a publication the gate admitted because that pull request already carries
                             the commit is finishing bookkeeping rather than publishing, so it is resolved by

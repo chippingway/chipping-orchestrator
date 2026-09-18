@@ -1661,16 +1661,13 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        (the docs pass runs only as the final-docs handoff after approval). A reused PR is only known to be open on
        the branch — most sharply, an issue relabeled out of `discussion` arrives with its plan PR open on the very
        branch these commits went to — so its description is judged as GitHub holds it NOW, read again by number
-       rather than taken off the lookup, since a human can edit in between: once before the report is bound, and
-       once more last, before the handoff. One that already closes this issue and names this dev session is left as
-       it stands, a legacy `_Last agent message:_` tail and human annotations included; any other gets the
-       implementation's lines (`Resolves #N`, the dev session, and the agent's closing message where no report is
-       owed or settled) put ABOVE that description, which stays beneath them word for word under an
-       earlier-description heading. A re-read that fails holds the publication, and a description those lines
-       would take past GitHub's 65,536 characters parks under `report_undeliverable` rather than having anybody's
-       words cut. The same goes for a pull request this stage already pushed onto, the retry that finishes an owed
-       report included — and for a description a settled report claimed until this run's report settled in a
-       comment, which is why the second reading comes after the settlement. One description is never
+       before the report is bound and once more before the handoff. One that already closes this issue and names
+       this dev session stands as it is, legacy `_Last agent message:_` tail and human notes included; any other
+       gets the implementation's lines (`Resolves #N`, the dev session, and the agent's closing message where no
+       report is owed or settled) put ABOVE it, word for word beneath under an earlier-description heading. A
+       failed re-read holds, and a description those lines would take past GitHub's 65,536 characters parks under
+       `report_undeliverable` rather than having anybody's words cut. The second reading is what names a
+       description a settled report claimed until this run's report settled in a comment. One description is never
        edited whatever it says: the one this issue's own report claims as its location, since a verification
        recorded only the digest of what it read and any edit moves it off that — a record nobody can read claims
        it too, unless the place it still names is readably elsewhere. Without the edit the PR would name only the
@@ -1707,14 +1704,12 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        made it anywhere on the comment (no delivery, no transaction, and no settled pair about that commit on the
        pull request its receipt names — a settlement is never cleared, so an older commit's pair says nothing about
        this one), which is the lost-write window the recording exists to close. A pair that DOES match is re-read
-       first: the report where it settled — a comment of ours re-rendering as the report it settled as, its whole
-       header (pull request, commit, requirements, revision and receipt) held to the settled record, any other
-       location hashing to the digest verified under a trusted author — and the issue's requirements afresh. A
-       reading nobody could take holds the tick; a report edited or deleted since, or requirements moved away from,
-       parks for repair rather than letting the record vouch for it. A run that never COMPLETED — a timeout, a
-       provider refusal, a nonzero exit — recorded no report by design, so the commit it left is written down
-       (`implementing_incomplete_run_sha`) and a recovery of exactly that commit, a measurement retried or an
-       approval paid, is answered by that record rather than held; the timeout-park recovery never asks at all.
+       first: the report where it settled — a comment of ours re-rendering with the text and whole header the
+       settlement recorded, any other location hashing to the digest verified under a trusted author — and the
+       requirements afresh. An unreadable reading holds; a report edited or deleted since, or requirements moved,
+       parks for repair. A commit a run that never COMPLETED left (a timeout, a provider refusal, a nonzero exit) is
+       recorded as `implementing_incomplete_run_sha` and owed no report, so recovering exactly that commit is not
+       held; the timeout-park recovery never asks at all.
        After the
        push, with the code standing and only the
        handoff withheld: a delivered record nobody can read, a verification asserting a report on another pull

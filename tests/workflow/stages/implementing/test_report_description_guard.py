@@ -1,16 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a reused pull request's description keeps when this implementation names it.
+"""What a reused pull request's description keeps, and when it holds the work.
 
-A body that does not name this implementation gets the closing reference and the
-attribution put above it, and the edit is the one step of a publication nothing
-can take back: GitHub keeps no copy of the text it replaces. So what stays
-beneath them is the description as it stands NOW -- read afresh right before the
-write, so an edit a human lands after the lookup is the text kept -- and a
-description nobody could re-read is not written over at all.
-`test_report_publication` covers the bodies left alone because of what they
-SAY; the last case here is one left alone because a record nobody can read may
-still name it as its report's location.
+The description is judged as it stands NOW, read afresh, and a body that does
+not name this implementation gets the two lines above it with every word kept.
+`test_report_publication` covers the bodies left alone because of what they SAY.
 """
 
 from __future__ import annotations
@@ -109,13 +103,10 @@ class _ReusedPullRequest(support._ReportDeliveryMixin):
 
 class DescriptionGuardTest(unittest.TestCase, _ReusedPullRequest):
     def test_an_edit_after_the_lookup_is_kept(self) -> None:
-        # The lookup handed over the body as it was when GitHub answered it,
-        # and a human replaced it before the write -- a plan's, or this
-        # stage's own, which closed the issue and named the session. Decided
-        # on the snapshot, the first would have its replacement overwritten by
-        # the version it replaced, and the second would go to review closing
-        # nothing. Read afresh, what the human wrote stays beneath this
-        # implementation's lines, and the report goes out beside it.
+        # A human replaced the body after the lookup fetched it -- a plan's, or
+        # this stage's own complete one. Judged afresh, what they wrote stays
+        # beneath this implementation's lines instead of being overwritten or
+        # handed to review closing nothing.
         for looked_up in (LOOKED_UP_DESCRIPTION, OWN_DESCRIPTION):
             with self.subTest(looked_up=looked_up):
                 github, issue = self._edited_after_the_lookup(looked_up)
@@ -141,9 +132,8 @@ class DescriptionGuardTest(unittest.TestCase, _ReusedPullRequest):
                 )
 
     def test_an_unreadable_description_holds(self) -> None:
-        # Nobody could say what the description says now, so nothing is
-        # written over it and nothing is handed on: the push stands, and the
-        # commit it named is owed for the next tick to finish.
+        # Nothing is written over a description nobody could read, and nothing
+        # is handed on: the commit stays owed for the next tick.
         github, issue, reused = self._reused_over()
 
         with patch.object(github, GET_PR, _Unreadable(REUSED_PR, github.get_pr)):
@@ -158,10 +148,8 @@ class DescriptionGuardTest(unittest.TestCase, _ReusedPullRequest):
         )
 
     def test_a_damaged_record_keeps_the_description(self) -> None:
-        # The roads that park a damaged record run after the rewrite, so a
-        # record read as no claim is a description destroyed before anything
-        # says the record was damaged. The body stays, the record stays -- a
-        # settlement would write over it -- and the work is not handed on.
+        # A damaged record may still name the description, so the body stays,
+        # the record stays, and the work is not handed on.
         for record, run in (
             (support.DELIVERY_RECORD, self.republish),
             (support.CURRENT_RECORD, self._delivers),
@@ -196,12 +184,9 @@ class DescriptionHoldTest(unittest.TestCase, _ReusedPullRequest):
     """The descriptions a publication may not be handed on under."""
 
     def test_a_stale_lookup_hides_no_collision(self) -> None:
-        # The developer verified its report on the description as it stands:
-        # a human's, closing nothing and naming nobody. The lookup fetched it
-        # earlier, when it still said both. Judged off that snapshot, the
-        # report settles on a description a merge would close nothing with;
-        # judged off the description read again, it is the collision the
-        # binding holds for a human, and nothing is edited.
+        # The report was verified on the description as it stands -- closing
+        # nothing, naming nobody -- while the lookup still held a body saying
+        # both. Judged afresh, it is the collision the binding holds.
         github, issue = self._edited_after_the_lookup(OWN_DESCRIPTION)
 
         self.deliver(
@@ -215,11 +200,9 @@ class DescriptionHoldTest(unittest.TestCase, _ReusedPullRequest):
         )
 
     def test_a_description_freed_by_settling_is_named(self) -> None:
-        # A report settled on this description earlier, so nothing may edit it
-        # while that report claims it. This run reports in a comment, and the
-        # settlement that records it is what frees the description -- so the
-        # handoff waits for the closing reference and the attribution to go
-        # above it, rather than handing on a body that closes nothing.
+        # A report settled on this description earlier; this run's report
+        # settles in a comment, which frees it -- and the handoff waits for the
+        # two lines to go above it rather than handing on a body closing nothing.
         github, issue, reused = self._reused_over(
             **_settled_on_the_description(),
         )
@@ -240,10 +223,8 @@ class DescriptionHoldTest(unittest.TestCase, _ReusedPullRequest):
         )
 
     def test_a_description_too_long_to_name_is_held(self) -> None:
-        # GitHub will not take a description past its ceiling, and the two
-        # lines above one already near it would put it there. Cutting what
-        # somebody wrote is not this stage's to do, so nothing is edited and
-        # the issue waits for a human to make room.
+        # The two lines would take the description past GitHub's ceiling, and
+        # cutting what somebody wrote is not this stage's to do.
         github, issue, reused = self._reused_over()
         reused.body = NEAR_THE_CEILING
 

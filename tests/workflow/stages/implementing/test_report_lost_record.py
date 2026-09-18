@@ -133,11 +133,8 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
     def test_a_stale_settlement_holds_the_recovery(self) -> None:
-        # A settlement is never cleared, so the pair an earlier publication
-        # left reads as well as this commit's would. Only one about THIS head,
-        # on the pull request the receipt says it was pushed onto, says its
-        # report already went out; any other sends the commit to review with
-        # no report on it describing the work.
+        # A settlement is never cleared, so only a pair about THIS head, on the
+        # receipt's pull request, says its report already went out.
         for described, settled in (
             ("an older commit", _settled_state(OLDER_SHA, SETTLED_PR)),
             (
@@ -160,11 +157,9 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
                 ))
 
     def test_a_moved_settlement_holds_the_recovery(self) -> None:
-        # A settled pair is a record of one moment. The report edited or
-        # deleted since it settled, or an issue whose requirements have moved
-        # away from the ones it answered, is not what the pair says a reviewer
-        # would be handed -- so the recovery reads both again, where they are,
-        # and holds the work for a human rather than letting the record vouch.
+        # A settled pair is a record of one moment: a report edited, deleted
+        # or re-headed since, or requirements moved, holds the work for a human
+        # rather than letting the record vouch for it.
         for moved, move in _MOVES_AFTER_THE_SETTLEMENT:
             with self.subTest(moved=moved):
                 github, issue, settled_on = self._settled_before_the_relabel()
@@ -177,12 +172,10 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
                 self.assertIn(MOVED_NOTICE, issue.comments[-1].body)
 
     def _settled_before_the_relabel(self):
-        """A publication whose report settled on its PR and whose relabel failed.
+        """A publication whose report settled and whose relabel failed.
 
-        Everything the window leaves: the receipt, the settled pair about the
-        commit on the pull request standing on it, and the report comment
-        itself, on this issue's ledger of the comments it posted. Left as it
-        is, the recovery republishes it and finishes the handoff.
+        The receipt, the settled pair, and the report comment on this issue's
+        ledger; left as it is, the recovery finishes the handoff.
         """
         github, issue = self.seeded()
         requirements = _content_hash._compute_user_content_hash(issue, ())
@@ -257,11 +250,8 @@ class UnreportedCandidateTest(gate_support._GateCase, unittest.TestCase):
     """A candidate a gate record names, with no report of the run behind it."""
 
     def test_an_unreported_candidate_is_held(self) -> None:
-        # Every road that republishes a candidate a gate record named is a
-        # recovery: no developer runs, so what describes the commit is on the
-        # comment or nowhere. With nothing there -- no delivery, no
-        # transaction, no settled pair about it -- publishing it would hand
-        # review an implementation nobody described.
+        # No developer runs on a road republishing a candidate a gate record
+        # named, so with no report on the comment the work is held.
         for record, seeded in (
             ("an approved commit", {APPROVED_SHA: MEASURED_CANDIDATE_SHA}),
             ("a frozen candidate", gate_support.recorded_generation()),
@@ -293,12 +283,7 @@ def _edits_the_report(_issue, comments) -> None:
 
 
 def _rewrites_the_header(_issue, comments) -> None:
-    """Re-render the settled report as another publication's, keeping its words.
-
-    Self-consistent, so the comment still reads back as a report of ours with
-    the very text that settled -- only its header now claims another commit,
-    another revision and another transaction.
-    """
+    """Re-render the settled report, same words, under another header."""
     settled = _reports.developer_report_from_comment(comments[-1], bot_login=None)
     comments[-1].body = _reports.render_developer_report(replace(
         settled,

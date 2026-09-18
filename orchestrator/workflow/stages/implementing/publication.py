@@ -334,13 +334,9 @@ def _on_commits(
     # is already on the remote -- so a worktree somebody moved is no reason to
     # leave a finished report unpublished.
     #
-    # What this pull request's own DESCRIPTION says travels with it, because a
-    # report verified on that body is the one report this stage cannot both
-    # keep and manage: the edit that would put the closing reference and the
-    # attribution there is the edit that would move it. Read afresh rather
-    # than off the object in hand, which is as old as the lookup behind it --
-    # and a description nobody could read, or one held for repair, holds the
-    # tick with the commit owed.
+    # What its DESCRIPTION says travels with it, read afresh rather than off
+    # the object in hand: a report verified on that body is the one report this
+    # stage cannot both keep and edit around.
     described = _dev_pr._names_the_implementation(
         gh, issue, state, approved.agent_result, pr,
     )
@@ -350,14 +346,9 @@ def _on_commits(
                 pr, spec.slug, branch, published, described,
             ),
         )
-    # The description is proved AGAIN, last, because settling the report is
-    # what can change the answer: a description a report of this issue's was
-    # verified on is never edited while that report claims it, and once a
-    # report settles somewhere else nothing claims it any more -- so this is
-    # the first moment it can have the closing reference and the attribution
-    # put above it. Anything short of a description that closes this issue and
-    # names this session -- one nobody could read, or one held for repair,
-    # included -- holds the handoff with the commit owed.
+    # And proved AGAIN, last: settling a report elsewhere is what frees a
+    # description a report was verified on to be named. Anything short of one
+    # that closes this issue and names this session holds the handoff.
     if (
         _checkout._moved_after_the_push(gh, issue, state, published, wt)
         or _checkout._dirtied_after_the_push(gh, issue, state, published, wt)

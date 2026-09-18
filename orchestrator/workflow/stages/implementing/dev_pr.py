@@ -25,17 +25,11 @@ before this record existed carries its agent message under an unmarked
 and a human's own words begin -- so the tail stays where it is, historical, and
 the report comment is what a reader is pointed at.
 
-Nor is anything removed on the reuse's account. A pull request somebody else
-described -- an operator, the `discussion` stage's plan, a human editing one this
-stage already pushed onto -- gets the closing reference and the attribution put
-ABOVE what it says, and what it says stays beneath them word for word, read
-afresh by number so an edit landing after the lookup is the text judged and
-kept. The one description never touched is one a report lives in: a developer
-that verified one there recorded the digest of what it read, so even an edit
-that keeps every word moves the location off it. Such a body is left exactly as
-it stands until a report somewhere else frees it. And none is cut to make room:
-a description the two lines would take past what GitHub accepts is held for a
-human rather than shortened.
+Nor is anything removed on the reuse's account. A description somebody else
+wrote gets the closing reference and the attribution put ABOVE it, word for word
+beneath them, judged on a fresh read by number. One a report lives in is never
+touched -- even an edit that keeps every word moves it off the digest it was
+verified at -- and none is cut to make room past what GitHub accepts.
 
 The attribution line is what holds the two halves of this owner together. The
 body states it, and the verdict below reads it back off a pull request of unknown
@@ -168,9 +162,7 @@ def _build_pr_body(
     digest, and saying that it supersedes any agent message here -- so writing a
     capped excerpt of the same run into the description too would leave two
     copies of one report, one of them unmarked and unversioned, in a place
-    nothing rereads. An issue whose report has already SETTLED is the same
-    case one step later, and it is the one a description named after the
-    report went out is built in.
+    nothing rereads -- and one whose report already SETTLED is the same case.
     """
     body_parts = [
         f"Resolves #{issue.number}",
@@ -213,12 +205,9 @@ def _reuse_or_open_pr(
     Pinned, the same window answers None to the CALLER, which holds the tick
     and leaves the record exactly as it stands.
 
-    What the pull request found on either road SAYS is not decided here.
-    Whether its description closes this issue and names this session is
-    `_names_the_implementation`'s, asked by the caller of a description read
-    afresh -- once before the report is bound, and once more after it settles,
-    since settling a report elsewhere is what frees a description a report of
-    this issue's was verified on.
+    What the pull request's description says is `_names_the_implementation`'s,
+    which the caller asks before the report is bound and again after it
+    settles, since settling a report elsewhere is what frees a description.
     """
     if work.delivered_pr:
         return _delivered_pull_request(gh, issue, work)
@@ -317,33 +306,21 @@ def _names_the_implementation(
 ) -> bool | None:
     """Whether the pull request's description closes this issue and names it.
 
-    What `find_open_pr` returns is only known to be open on this branch. The
-    sharpest case is the `discussion` stage's plan PR: an issue relabeled here
-    arrives with it open on the very branch the dev commits go to, so a silent
-    reuse leaves a body saying the branch is one Markdown file and changes
-    nothing else -- a claim the push just made false -- under the decomposer's
-    session rather than the developer's, and with no `Resolves #N` to close
-    the issue when it merges. An operator's own PR on the branch is the same
-    problem with different words, and so is one of this stage's own that a
-    human has since re-described.
+    `find_open_pr` promises only that something is open on the branch: this
+    stage's own crashed attempt, an operator's, the `discussion` stage's plan PR
+    (which the push just made false, under the decomposer's session and with
+    no `Resolves #N`), or one of ours a human has since re-described. So the
+    description is judged as it stands NOW, read again by number -- the body on
+    the object in hand is as old as whatever fetched it -- with one request
+    left between that read and any edit, since GitHub has no conditional write.
 
-    What decides is the description as it stands NOW, read again by number.
-    The body on the object in hand is as old as whatever fetched it: a human
-    editing in between could have taken the closing reference or the
-    attribution out of a body that had both, and a verdict read off that
-    snapshot would hand review a pull request that closes nothing. GitHub
-    offers no conditional write, so the one request between that read and the
-    edit is the window left.
-
-    True is a description that already closes this issue and names this
-    session -- left alone, with everything a human added -- or one that did
-    not and has just had the closing reference and the attribution put ABOVE
-    it, every word it said kept beneath them. False is the one description
-    never edited whatever it says: the one this issue's own report claims as
-    its location, since even an edit that keeps every word moves it off the
-    digest it was verified at. None holds the tick: a description nobody could
-    read, and one too long to carry the two lines without cutting what
-    somebody wrote, which is a repair the issue parks for.
+    True: it already closes this issue and names this session, and is left
+    alone with everything a human added; or it did not, and has just had the
+    closing reference and the attribution put ABOVE it, every word kept. False:
+    a report of this issue's claims it as its location, and even an edit that
+    keeps every word would move it off the digest it was verified at. None
+    holds the tick: a description nobody could read, or one too long to take
+    the two lines without cutting what somebody wrote, which parks for repair.
     """
     try:
         current = gh.get_pr(pr.number)

@@ -2,46 +2,29 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which places on a pull request this issue's reports claim as their own.
 
-A report can live in a pull request's DESCRIPTION, and that is the one place
-this workflow also writes for reasons that have nothing to do with reports: a
-pull request opened elsewhere -- an operator's, or the `discussion` stage's plan
-sitting on the very ref the dev commits went to -- gets the closing reference and
-the attribution put above what it says, so it names the implementation now
-pushed onto it. Those two meet on exactly one pull request: the one a developer
-verified a report on, whose description says so and whose body that edit would
-change.
+A report can live in a pull request's DESCRIPTION, the one place this workflow
+also edits for its own reasons: a pull request opened elsewhere gets the closing
+reference and the attribution put above what it says. The two meet on the pull
+request a developer verified a report on, and changing that body by a single
+character -- even keeping every word -- moves it off the digest the
+verification recorded, so the transaction stays owed and the work never leaves
+this stage.
 
-Change it by a single character and the report is lost to this workflow, even
-with every word kept: a verification records the digest of what it read, never
-the words, so the location's content has moved, the verification refuses, the
-transaction stays owed, and the work never leaves this stage.
+So the claim is asked BEFORE any such edit, of every record that can hold one:
+the report a run delivered, the transaction it was bound into, and the report a
+pull request is recorded as carrying. A record nobody can read is asked too, for
+whatever place it still names. A report in a COMMENT is out of reach of a body
+edit, and nothing here edits a comment.
 
-So the claim is asked BEFORE any such edit, of every record that can hold
-one: the report a run delivered, the transaction it was bound into, and the
-report a pull request is already recorded as carrying. Any of the three naming
-this pull request's description means the description is a report's, and the
-caller leaves it exactly as it stands. A record nobody can read is asked too,
-for whatever place it still names, because the edit is the one step here that
-cannot be taken back.
+The settled record's other claim read here is WHICH publication its report is
+about: a settlement is never cleared, so an older commit's report reads as well
+as the newest one's. It stays a claim, for the caller to re-read.
 
-Only the description. A report in a COMMENT is not something a body edit can
-touch, and nothing here ever edits a comment.
-
-The settled record makes one more claim this owner reads: WHICH publication
-the report on a pull request is about. A settlement is never cleared, so an
-older commit's report reads as well as the newest one's -- and the recovery
-that republishes a commit because its report already went out has to be told
-the difference, or a newer commit goes out under a report about an older one.
-It is only a claim: whether the report still reads there is the recovery's to
-re-read before it hands anything on.
-
-Preserving one is not free, and the second reading here is what its caller owes
-the work. A description is also where a pull request says which issue it closes
-and whose implementation it carries, and the edit this withholds is what
-usually puts both there -- so a body left alone because a report lives in it can
-be one that closes nothing when it merges and names no session at all. Asked
-before the work is handed on, that is a publication a human can still fix; asked
-after, it is a merged pull request that left its issue open.
+Preserving a description is not free, and the second reading here is what its
+caller owes the work: a body left alone because a report lives in it can be one
+that closes nothing when it merges and names no session -- a publication a human
+can still fix before it is handed on, and a merged pull request that left its
+issue open after.
 """
 from __future__ import annotations
 
@@ -82,21 +65,12 @@ def claims_the_description(
 ) -> bool:
     """Whether a report of this issue's is the description of `pr_number`.
 
-    All three records, because the claim outlives each of them separately. A
-    delivered report holds one before its publication exists, the transaction
-    bound from it holds the same one until it settles, and the settled record
-    holds it for as long as that report is what the pull request carries --
-    and an edit is just as destructive at any of those moments.
-
-    A record nobody can read is asked for the place it still names, and it
-    claims this description unless that place is readably somewhere else. The
-    roads that act on such a record park it -- the binding a delivery, the
-    reconciliation a transaction -- but both come AFTER the reuse this answers,
-    so a damaged record read as no claim is a description destroyed before
-    anything says the record was damaged, and nothing can put the text back.
-
-    False for the ordinary issue carrying none of them, and for every report
-    that lives in a comment: a body edit cannot reach one.
+    All three records, since the claim outlives each of them separately. A
+    record nobody can read claims this description unless the place it still
+    names is readably elsewhere: the roads that park such a record run after
+    the edit this answers, so read as no claim it is a description changed
+    before anything says the record was damaged. False for an issue carrying
+    none of them, and for every report that lives in a comment.
     """
     return any(
         _claims(state.get(key), reader(state), pr_number)
@@ -129,19 +103,12 @@ def settled_publication(
 ) -> _records.CurrentReport | None:
     """The settled report about this commit on this pull request, or None.
 
-    Both settled records, and they have to agree with each other: they are
-    written in one write off one transaction, so a pair naming two different
-    publications is one nothing here wrote. Then the subject has to name the
-    very publication the caller holds -- this repository, this pull request,
-    this commit. A report on the same pull request about an earlier commit
-    describes work that has since moved on, and one about this commit on
-    another pull request is somewhere a reviewer of this one will not look.
-
-    What comes back is a CLAIM about the pull request, not a reading of it:
-    the report it names may have been edited or deleted since it settled, so
-    a caller about to hand the work on re-reads it there before trusting it.
-    None wherever either record cannot be read, which is the answer that holds
-    the work for a report rather than letting it past undescribed.
+    Both settled records, agreeing with each other -- they are written in one
+    write, so a pair naming two publications is one nothing here wrote -- and
+    naming this repository, this pull request and this commit. What comes back
+    is a CLAIM, not a reading: the report may have been edited or deleted
+    since, so a caller about to hand the work on re-reads it first. None
+    wherever either record cannot be read, which holds the work.
     """
     current = _settlement.read_current_report(state)
     handoff = _settlement.read_handoff(state)

@@ -2,42 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 """Committed work a recovery republishes, held where no report describes it.
 
-Every recovery on this stage republishes commits an EARLIER tick's developer
-made: the restart shortcut over a worktree that already carries them, and each
-road that answers a record the size gate left -- an approved commit, a frozen
-candidate, a measurement park retried, a checkout put back, an authorized
-rollback. No developer runs on any of them, so the result they hand the
-publication seam is the orchestrator's own sentence, `invoked=False`, and
-records no report. What describes the work is on the pinned comment or nowhere.
+Every recovery here republishes commits an EARLIER tick's developer made: the
+restart shortcut, and each road answering a record the size gate left -- an
+approved commit, a frozen candidate, a measurement park retried, a checkout put
+back, an authorized rollback. No developer runs on them, so their `invoked=False`
+result records no report, and what describes the work is on the pinned comment
+or nowhere: a debt still owed, or a settled pair about THIS commit on the pull
+request the receipt names, which is what a relabel that did not land leaves.
 
-The report is recorded before the size gate and before the push, so on the
-comment it is one of two things: a debt still owed -- a delivery waiting for a
-pull request, or a transaction waiting for its comment -- or a settled pair
-about THIS commit on the pull request the receipt says it was pushed onto,
-which is what a publication whose relabel did not land leaves behind. A
-settlement is never cleared, so any other pair is about other work.
+A settled pair is a record of one moment, so it is re-read where it settled,
+with the requirements, before it vouches for anything: a reading nobody could
+take holds the tick silently, and a report that no longer stands parks for
+repair. The one commit owed no report at all is one a run that did not COMPLETE
+left -- a timeout, a provider refusal, a nonzero exit -- which records none by
+design and is written down so a recovery of that exact commit is not held.
 
-And a settled pair is a record of one moment. The report it names can have been
-edited or deleted since, and the issue can have moved under the requirements it
-answered -- so before a settlement lets the work past, the report is re-read
-where it settled and the requirements are read again. A reading nobody could
-take holds the tick without a word, since the next one is as likely to succeed.
-A definite answer that the report is not what settled is a publication a human
-has to repair, and it parks with the work where it is.
-
-The one commit owed no report at all is the one a run left when it did not
-COMPLETE: a timeout, a provider refusal, a nonzero exit. Such a run records
-nothing by design and its commit publishes as it always has, so the publication
-seam remembers which commit it was -- and a recovery republishing exactly that
-commit later, a measurement retried or an approval paid, is answered by that
-record rather than held for a report nothing was ever going to write.
-
-Nothing on the comment otherwise is the window the recording exists to close --
-a pinned write that failed, a restart inside it. The session that could say
-what the commits do has ended, and published they would reach review
-undescribed. So the work is held under
-`report_undeliverable` before anything is measured, pushed or opened, and a
-reply resumes a developer that can write the report.
+Anything else is the lost-write window the recording exists to close: the
+session that could describe the commits has ended, so the work is held under
+`report_undeliverable` before anything is measured, pushed or opened.
 """
 from __future__ import annotations
 
@@ -107,12 +89,8 @@ def _waives_an_incomplete_run(
 ) -> None:
     """Remember the commit a run that never completed left, owing no report.
 
-    Asked of every result the publication seam is handed once its report
-    reading is done, and answering only for a process that really ran and did
-    not finish: a recovery's own sentence was never a run, and a run that
-    finished either recorded a report or was held for one. The commit is the
-    checkout's head, which is what the size gate goes on to measure; a head
-    that cannot be read waives nothing, so a later recovery is held instead.
+    Only for a process that really ran and did not finish; the commit is the
+    head the size gate goes on to measure, and an unread head waives nothing.
     """
     if not agent_result.invoked:
         return
@@ -132,12 +110,8 @@ def _holds_unreported_work(
 ) -> bool:
     """Hold recovered work no standing report describes; True where it held.
 
-    Held is parked, for a report nothing recorded or a settled one that has
-    moved -- or a tick that simply stops, where the settled report could not
-    be re-read. `source_sha` is the commit the recovery is about to republish:
-    the head the restart shortcut found, or the candidate a gate record named.
-    A caller that could name none is asking about nothing, and no settlement
-    answers it.
+    `source_sha` is the commit the recovery republishes: the head the restart
+    shortcut found, or the candidate a gate record named.
     """
     if _report_delivery.owes_a_report(state):
         return False
