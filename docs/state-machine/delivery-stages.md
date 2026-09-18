@@ -1660,16 +1660,18 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        `:sparkles: PR opened: #N`, publish the developer report onto that PR, then set label `workflow:validating`
        (the docs pass runs only as the final-docs handoff after approval). A reused PR is only known to be open on
        the branch — most sharply, an issue relabeled out of `discussion` arrives with its plan PR open on the very
-       branch these commits went to — so one whose body does not already name this dev session has that body
-       rewritten to the implementation's (`Resolves #N`, the dev session, and the agent's closing message where no
-       report supersedes it); one that does name it is left as it stands, a legacy `_Last agent message:_` tail and
-       human annotations included. One description is never rewritten whatever it says: the one this issue's own
-       report claims as its location, since a verification recorded only the digest of what it read and the rewrite
-       would destroy the only copy — a record nobody can read claims it too, unless the place it still names is
-       readably elsewhere. Nor is a pull request this stage already pushed onto, the retry that finishes an owed
-       report included: the pushing tick settled its description, so a body without the attribution now is a
-       human's edit. Without the rewrite the PR would keep claiming the branch is one Markdown file
-       that changes nothing else, under the decomposer's session, and would close no issue when it merged. Persists
+       branch these commits went to — so one whose body does not already name this dev session gets the
+       implementation's lines (`Resolves #N`, the dev session, and the agent's closing message where no report
+       supersedes it) put ABOVE its description, which stays beneath them word for word under an
+       earlier-description heading; one that does name it is left as it stands, a legacy `_Last agent message:_`
+       tail and human annotations included. The description kept is the one GitHub holds NOW, read again by number
+       immediately before the write, so an edit a human lands after the lookup is the text kept; a re-read that
+       fails holds the publication rather than writing over what nobody could read. The same goes for a pull request
+       this stage already pushed onto, the retry that finishes an owed report included. One description is never
+       edited whatever it says: the one this issue's own report claims as its location, since a verification
+       recorded only the digest of what it read and any edit moves it off that — a record nobody can read claims
+       it too, unless the place it still names is readably elsewhere. Without the edit the PR would name only the
+       plan, under the decomposer's session, and would close no issue when it merged. Persists
        `pr_number` / `branch` and resets `review_round=0` and `retry_count=0` via
        `handoff._reset_implementing_counters`.
      - **the report the run wrote** is what the publication owes beside the code; the records it goes through are
@@ -1678,7 +1680,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        BOUND to the publication and posted once the pull request is known, the first moment the repository, number,
        branch and commit it is about are settled. The requirements are proved afresh first, over an issue read again
        from GitHub: an edit landing during the run leaves the report answering requirements the issue no longer has,
-       so it is left owed for the drift resume. Where the report IS published, a new description carries only what
+       so it is left owed for the drift resume. They are proved once more after the post or the re-read and before
+       the settlement, on the reconciliation's road too, since an edit can land during either request. Where the
+       report IS published, a new description carries only what
        it alone can (`Resolves #N` and the attribution), because the report comment says it supersedes any agent
        message there. A run that did not COMPLETE — a timeout, a provider refusal, a nonzero exit, or a synthesis a
        recovery makes with `invoked=False` — records nothing and publishes as it always did, with its last message in
@@ -1694,16 +1698,20 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
      - **a report this build cannot deliver parks the issue** under `report_undeliverable` instead. Before the size
        gate, with nothing measured, pushed or opened: a report that cannot be RECORDED (past what the pinned comment
        holds, or otherwise refused by its writer); a run that COMPLETED and handed over no usable report at all (no
-       marker, one that missed the contract, a verification on another repository); and the recovered-worktree
-       path — no developer ran this tick — finding committed work with no report of the run that made it anywhere on
-       the comment (no delivery, no transaction, and no settled pair about that head on the pull request its receipt
-       names — a settlement is never cleared, so an older commit's pair says nothing about this one), which is the
-       lost-write window the recording exists to close. After the push, with the code standing and only the
+       marker, one that missed the contract, a verification on another repository); and every recovery — the
+       restart shortcut, an approved commit, a frozen candidate, a measurement park retried, a checkout put back, an
+       authorized rollback, none of which runs a developer — finding committed work with no report of the run that
+       made it anywhere on the comment (no delivery, no transaction, and no settled pair about that commit on the
+       pull request its receipt names — a settlement is never cleared, so an older commit's pair says nothing about
+       this one), which is the lost-write window the recording exists to close. The timeout-park recovery is not
+       among them: a timed-out run never completed, so no report was ever recorded for it to have lost. After the
+       push, with the code standing and only the
        handoff withheld: a delivered record nobody can read, a verification asserting a report on another pull
        request, and one asserting it on the very DESCRIPTION of the pull request the code reached while that body
        neither closes this issue nor names the session — the collision held for repair rather than overwritten, since
-       the rewrite would destroy the report and leaving it would merge a pull request that closes nothing; the reply's
-       report goes in a comment and the description stays as its author left it. Nothing is
+       any edit would move the report and leaving it would merge a pull request that closes nothing; the reply's
+       report goes in a comment, which frees the description, and only then does it get the closing reference and
+       the attribution above every word it already says. Nothing is
        discarded on any of them, no park is announced twice while it stands, and the reason itself is the debt where
        no record exists. The reply resumes the developer, and a run that comes back with a report and moved no head
        publishes the commits already on the branch — held to a debt owed, a report outcome, and a branch that

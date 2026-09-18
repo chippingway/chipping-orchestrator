@@ -24,18 +24,15 @@ before this record existed carries its agent message under an unmarked
 and a human's own words begin -- so the tail stays where it is, historical, and
 the report comment is what a reader is pointed at.
 
-And nothing is removed on the reuse's account either where the description IS a
-report. A developer that verified one there recorded the digest of what it read
-and nothing else, so the rewrite below would destroy the only copy -- the report
-and whatever a human wrote around it -- and the verification that follows would
-find a location whose content had moved and refuse, leaving the work here for
-good. Such a body is left exactly as it stands, `Resolves #N` and all, and the
-sentence this reuse would have added is one an operator can add themselves.
-
-Nor on a pull request this stage has already published onto. The tick that
-pushed there wrote, adopted or preserved its description, so whatever it says
-now is what a human made of it since -- and the retry that finishes an owed
-report is exactly the window such an edit lands in.
+Nor is anything removed on the reuse's account. A pull request somebody else
+described -- an operator, the `discussion` stage's plan, a human editing one this
+stage already pushed onto -- gets the closing reference and the attribution put
+ABOVE what it says, and what it says stays beneath them word for word, read
+afresh immediately before the write so an edit landing after the lookup is the
+text kept. The one description never touched is one a report lives in: a
+developer that verified one there recorded the digest of what it read, so even
+an edit that keeps every word moves the location off it. Such a body is left
+exactly as it stands until a report somewhere else frees it.
 
 The attribution line is what holds the two halves of this owner together. The
 body states it, and the reuse below reads it back off a pull request of unknown
@@ -68,7 +65,6 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
-    late_publication_state as _late_publication_state,
     models as _models,
     session_read as _session_read,
     state as _state,
@@ -134,11 +130,15 @@ def _dev_pr_attribution(state: _pinned_state.PinnedState) -> str:
 
 
 def _build_pr_body(
-    state: _pinned_state.PinnedState, issue: Issue, agent_result: AgentResult,
+    state: _pinned_state.PinnedState,
+    issue: Issue,
+    agent_result: AgentResult,
+    preserved: str = "",
 ) -> str:
     """PR body: the `Resolves #N` line, the generating session's identity, and
     the (capped) final agent message when the run produced one and this issue
-    owes no report of its own.
+    owes no report of its own -- then, on a pull request somebody else
+    described first, that description exactly as it stood.
 
     The two lines above the message are what the description alone can say: the
     reference that closes the issue on merge, and the session the reuse below
@@ -161,6 +161,8 @@ def _build_pr_body(
             "", "---", "_Last agent message:_", "",
             _format_pr_agent_message(agent_result.last_message),
         ]
+    if preserved.strip():
+        body_parts += ["", "---", _state._PR_BODY_EARLIER_HEADING, "", preserved]
     return "\n".join(body_parts)
 
 
@@ -187,23 +189,25 @@ def _reuse_or_open_pr(
     Pinned, the same window answers None to the CALLER, which holds the tick
     and leaves the record exactly as it stands.
 
-    Nor is that pull request's body ever rewritten. It is the one this stage
-    already published the very commit onto, and the tick that did so opened,
-    adopted or deliberately preserved its description -- so a body without the
-    attribution now is one a human changed since, or one a report was published
-    in. Either is somebody's text, and the retry that finishes an owed report
-    would erase it on the way to handing the work on.
+    That road is attributed like any other reuse, and for one publication it
+    matters: a description a report was verified on is left alone while the
+    report claims it, and a later report in a comment frees it -- so the retry
+    that finishes the publication is where the closing reference and the
+    attribution finally go above it. A pull request whose description cannot
+    be re-read for that holds the tick on either road.
     """
     if work.delivered_pr:
-        return _delivered_pull_request(gh, issue, work)
+        delivered = _delivered_pull_request(gh, issue, work)
+        if delivered is None:
+            return None
+        return _attribute_reused_pr(gh, issue, state, work, delivered)
     pr = gh.find_open_pr(branch=work.branch, base=spec.base_branch)
     if pr is not None:
         log.info(
             "issue=#%s reusing existing PR #%d for %s",
             issue.number, pr.number, work.branch,
         )
-        _attribute_reused_pr(gh, issue, state, work, pr)
-        return pr
+        return _attribute_reused_pr(gh, issue, state, work, pr)
     pr = gh.open_pr(
         branch=work.branch, base=spec.base_branch,
         title=_derive_pr_title(spec, issue, work.worktree),
@@ -289,8 +293,8 @@ def _attribute_reused_pr(
     state: _pinned_state.PinnedState,
     work: _models._PRWork,
     pr,
-) -> None:
-    """Make a PR opened elsewhere describe the work now pushed onto it.
+):
+    """Make a PR opened elsewhere name the work now pushed onto it.
 
     What `find_open_pr` returns is only known to be open on this branch. The
     sharpest case is the `discussion` stage's plan PR: an issue relabeled here
@@ -301,47 +305,57 @@ def _attribute_reused_pr(
     the issue when it merges. An operator's own PR on the branch is the same
     problem with different words.
 
-    The dev attribution is what decides. Its absence means the body is about
-    something other than this implementation and is rewritten; its presence
-    means this stage already wrote it (a tick that died between `open_pr` and
-    the relabel), and everything it says -- including what a human added
-    underneath -- is left alone.
+    The dev attribution is what decides. Its presence means this stage already
+    wrote the body (a tick that died between `open_pr` and the relabel), and
+    everything it says -- including what a human added underneath -- is left
+    alone. Its absence earns the closing reference and the attribution, put
+    ABOVE the description rather than in its place: whatever an operator, the
+    plan, or a human editing a pull request this stage already pushed onto
+    wrote there is somebody's text, and it stays beneath them word for word.
 
-    Nor is a pull request this stage has already published onto, whatever its
-    body says: the tick that pushed there already wrote, adopted or preserved
-    that description, so an attribution missing now was removed by a human
-    since -- and what they wrote instead is theirs.
+    What stays is what the description says NOW, so it is read again, by
+    number, immediately before the write. The body in hand is as old as the
+    lookup that fetched it, and a human editing in between would have their
+    edit replaced by the version they edited. GitHub offers no conditional
+    write, so the one request between that read and the edit is the window
+    left. A read that fails is no description to keep, and None holds the
+    publication rather than writing over one nobody could read.
 
-    And one body is never rewritten whatever it says: the one this issue's own
+    One body is never touched whatever it says: the one this issue's own
     report claims as its location. A developer verifying a report on a pull
     request's DESCRIPTION records the digest of what it read and nothing else,
-    so a rewrite destroys the only copy there is -- the report, and whatever a
-    human wrote around it -- and the verification behind it then reads a
-    location whose content has moved and refuses, which leaves the work on
-    this stage with a report nothing can ever settle. Preserved, the pull
-    request keeps a body this implementation did not write; what that costs is
-    the closing reference and the attribution, which a human can add and which
-    neither destroys anything nor blocks the publication.
+    so even an edit that keeps every word moves the location off that digest,
+    and the verification behind it refuses. What leaving it costs is the
+    closing reference and the attribution, which the binding holds the
+    publication for until a report somewhere else frees the body.
+
+    Answers the pull request to hand on, or None to hold the tick.
     """
-    if _dev_pr_attribution(state) in (getattr(pr, "body", "") or ""):
-        return
-    if _late_publication_state._published_pull_request(state) == pr.number:
-        log.info(
-            "issue=#%s leaving reused PR #%d's body as it stands: this stage "
-            "already published onto it", issue.number, pr.number,
-        )
-        return
+    attribution = _dev_pr_attribution(state)
+    if attribution in (getattr(pr, "body", "") or ""):
+        return pr
     if _report_locations.claims_the_description(state, pr.number):
         log.warning(
-            "issue=#%s is not rewriting reused PR #%d's body: a developer "
-            "report of this issue's is published there, and the rewrite would "
-            "replace it -- the pull request keeps the description it has, "
-            "without this implementation's `Resolves` line or attribution",
+            "issue=#%s is not editing reused PR #%d's body: a developer report "
+            "of this issue's is published there, and any edit would move it",
             issue.number, pr.number,
         )
-        return
-    log.info(
-        "issue=#%s rewriting reused PR #%d body to name this implementation",
-        issue.number, pr.number,
-    )
-    gh.edit_pr_body(pr, _build_pr_body(state, issue, work.agent_result))
+        return pr
+    try:
+        described = gh.get_pr(pr.number).body or ""
+    except Exception:
+        log.exception(
+            "issue=#%s could not re-read reused PR #%d's description; holding "
+            "rather than writing over whatever it says now",
+            issue.number, pr.number,
+        )
+        return None
+    if attribution not in described:
+        log.info(
+            "issue=#%s naming this implementation above reused PR #%d's "
+            "description", issue.number, pr.number,
+        )
+        gh.edit_pr_body(
+            pr, _build_pr_body(state, issue, work.agent_result, described),
+        )
+    return pr

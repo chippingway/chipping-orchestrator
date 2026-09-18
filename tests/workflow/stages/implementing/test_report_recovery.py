@@ -34,7 +34,8 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
 )
-from tests.workflow.fixtures import LABEL_VALIDATING, _agent
+from tests.support.fakes import FakeComment, FakeUser
+from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _open_pr_for
 from tests.workflow.stages.implementing import report_test_support as support
 
 # The pull request the first tick opens: this client numbers the ones it opens
@@ -52,6 +53,18 @@ PUSH_BRANCH = "_push_branch"
 
 # The edit a human makes to the issue while a run is working.
 EDITED_BODY = "the requirements moved while the agent was running"
+
+# The two requests a transaction's settlement waits on: the post a PUBLISH makes,
+# and the re-read a VERIFY takes of the location it names.
+POST_REPORT = "_post_report"
+
+REREAD_REPORT = "reread_report_location"
+
+# The pull request already open on the branch whose comment a developer
+# verified, and that comment.
+VERIFIED_PR = 55
+
+VERIFIED_COMMENT = 9100
 
 # What a human replaces the pull request's description with while its report
 # is still owed.
@@ -148,12 +161,62 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
 
+    def test_an_edit_during_the_request_is_left_owed(self) -> None:
+        # The issue is edited while GitHub answers the post, or the re-read a
+        # verification takes, which is after every earlier reading of it.
+        # Settled on those, the pull request would record a report answering
+        # requirements the issue no longer has as the one it carries, and
+        # review would be handed it as current.
+        for request in (POST_REPORT, REREAD_REPORT):
+            with self.subTest(request=request):
+                github, issue = self.seeded()
+                during = _EditsTheIssueDuring(issue, getattr(github, request))
+
+                with patch.object(github, request, during):
+                    self.deliver(
+                        github, issue, self._reporting_for(github, request),
+                    )
+
+                recorded = github.pinned_data(support.REPORT_ISSUE)
+                self.assertEqual(
+                    (
+                        during.calls,
+                        recorded[support.PENDING_RECORD] is not None,
+                        support.CURRENT_RECORD in recorded,
+                    ),
+                    (1, True, False),
+                )
+                self.assertNotIn(
+                    (support.REPORT_ISSUE, LABEL_VALIDATING),
+                    github.label_history,
+                )
+
+    def _reporting_for(self, github, request: str) -> str:
+        """The report outcome whose settlement waits on `request`.
+
+        A post needs only a report to publish. A re-read needs a location, so
+        a pull request carrying a human's report is opened and that is what
+        the developer verifies.
+        """
+        if request == POST_REPORT:
+            return support.ready_message()
+        reused = _open_pr_for(
+            github, issue_number=support.REPORT_ISSUE, pr_number=VERIFIED_PR,
+        )
+        github.existing_open_pr[support.BRANCH] = reused
+        reused.issue_comments.append(FakeComment(
+            id=VERIFIED_COMMENT, body=support.REPORT_TEXT, user=FakeUser("alice"),
+        ))
+        return support.verified_message(
+            VERIFIED_PR, support.REPORT_TEXT, comment_id=VERIFIED_COMMENT,
+        )
+
     def _retry_settles(self, github, issue) -> None:
         """Run the next poll and prove it published what the first one owed.
 
         A human replaces the pull request's description in the window, which
-        is as long as the report stays owed. The retry is finishing a
-        publication rather than making one, so what they wrote stays.
+        is as long as the report stays owed. What they wrote stays word for
+        word: the closing reference and the attribution go above it.
         """
         # What the push left on the remote, which is what makes this the
         # gate's delivered road: the pull request is standing on the commit
@@ -181,9 +244,10 @@ class ReportDebtTest(unittest.TestCase, support._ReportDeliveryMixin):
                 recorded[support.DELIVERY_RECORD],
                 recorded[support.PENDING_RECORD],
                 recorded[support.CURRENT_RECORD]["pr"],
-                opened.body,
+                opened.body.startswith(f"Resolves #{support.REPORT_ISSUE}"),
+                opened.body.endswith(f"\n{EDITED_DESCRIPTION}"),
             ),
-            (1, 1, None, None, OPENED_PR, EDITED_DESCRIPTION),
+            (1, 1, None, None, OPENED_PR, True, True),
         )
         self.assertIn(
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
@@ -244,6 +308,25 @@ _FAILURES_AFTER_THE_PUSH = (
     ),
     ("an unread issue", _unread_issue),
 )
+
+
+class _EditsTheIssueDuring:
+    """One report request a human edits the issue underneath.
+
+    The edit lands inside the request, which is after the re-read the
+    publication takes before it and before the settlement behind it.
+    """
+
+    def __init__(self, issue, request) -> None:
+        self._issue = issue
+        self._request = request
+        self.calls = 0
+
+    def __call__(self, *args, **kwargs):
+        """Edit the issue, then answer the request as GitHub would."""
+        self.calls += 1
+        self._issue.body = EDITED_BODY
+        return self._request(*args, **kwargs)
 
 
 class _EditsTheIssue:

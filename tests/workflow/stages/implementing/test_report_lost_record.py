@@ -31,8 +31,16 @@ from orchestrator.workflow.engine import (
     report_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.implementing import state as _state
-from tests.workflow.fixtures import _TEST_SPEC, LABEL_VALIDATING, SHA_LENGTH
-from tests.workflow.stages.implementing import report_test_support as support
+from tests.workflow.fixtures import (
+    _TEST_SPEC,
+    LABEL_VALIDATING,
+    MEASURED_CANDIDATE_SHA,
+    SHA_LENGTH,
+)
+from tests.workflow.stages.implementing import (
+    late_gate_test_support as gate_support,
+    report_test_support as support,
+)
 
 # The pull request the recovery finally opens: this client numbers the ones it
 # opens from 1.
@@ -65,6 +73,9 @@ RECEIPT_PR = 8
 
 # The comment the settled report is recorded at.
 SETTLED_COMMENT = 8800
+
+# The commit an approval says is owed a push.
+APPROVED_SHA = "late_approved_sha"
 
 
 class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
@@ -177,6 +188,38 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
             support.DELIVERY_RECORD, github.pinned_data(support.REPORT_ISSUE),
         )
         return github, issue
+
+class UnreportedCandidateTest(gate_support._GateCase, unittest.TestCase):
+    """A candidate a gate record names, with no report of the run behind it."""
+
+    def test_an_unreported_candidate_is_held(self) -> None:
+        # Every road that republishes a candidate a gate record named is a
+        # recovery: no developer runs, so what describes the commit is on the
+        # comment or nowhere. With nothing there -- no delivery, no
+        # transaction, no settled pair about it -- publishing it would hand
+        # review an implementation nobody described.
+        for record, seeded in (
+            ("an approved commit", {APPROVED_SHA: MEASURED_CANDIDATE_SHA}),
+            ("a frozen candidate", gate_support.recorded_generation()),
+        ):
+            with self.subTest(record=record):
+                self.setUp()
+                self._seed(**{support.DELIVERY_RECORD: None, **seeded})
+
+                mocks = self._run_gate()
+
+                self._assert_no_agent(mocks)
+                self._assert_held(mocks)
+                pinned = self._pinned()
+                self.assertEqual(
+                    (
+                        pinned[AWAITING_HUMAN],
+                        pinned[PARK_REASON],
+                        self.github.label_history,
+                    ),
+                    (True, _report_delivery.UNDELIVERABLE_REPORT, []),
+                )
+
 
 def _settled_state(source_sha: str, pushed_to: int) -> dict:
     """What a publication that settled its report on `SETTLED_PR` leaves behind.

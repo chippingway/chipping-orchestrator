@@ -35,7 +35,7 @@ than a second source of truth: where the two disagree, the handler pages are aut
      a finished run's report      ─► recorded on the pinned comment between
                                      the tree and the gate; one that will not
                                      record, a completed run that reported
-                                     nothing, and a recovered worktree whose
+                                     nothing, and any recovery whose
                                      commits no record describes all park
                                      report_undeliverable with nothing
                                      measured, pushed or opened

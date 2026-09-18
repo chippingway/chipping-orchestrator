@@ -336,8 +336,8 @@ def _on_commits(
     #
     # What this pull request's own DESCRIPTION says travels with it, because a
     # report verified on that body is the one report this stage cannot both
-    # keep and manage: the rewrite that would put the closing reference and
-    # the attribution there is the rewrite that would destroy it. Read here,
+    # keep and manage: the edit that would put the closing reference and the
+    # attribution there is the edit that would move it. Read here,
     # where the body in hand is the one the reuse just decided about.
     _report_binding.binds_and_publishes(
         gh, issue, state, _report_binding.ReportPublication(

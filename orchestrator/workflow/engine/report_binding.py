@@ -39,13 +39,13 @@ either, so the issue is parked once with the record intact and a reply resumes
 the developer that can write it again.
 
 That last one is the collision this owner refuses rather than resolves. A
-description a report lives in may not be rewritten -- the rewrite would destroy
-the only copy of the report -- and a description that is left alone is one that
-may close no issue when it merges and name no session at all. Neither half can
-be given up quietly, so the work is held and a human told: a fresh report in a
-COMMENT settles the report, which is what a reply buys, and the description
-stays exactly as its author left it -- a closing reference there is theirs to
-add, since nothing rewrites a body this stage has already pushed onto.
+description a report lives in may not be edited -- any edit moves the report off
+the digest it was verified at -- and a description that is left alone is one
+that may close no issue when it merges and name no session at all. Neither half
+can be given up quietly, so the work is held and a human told: a fresh report in
+a COMMENT frees the description, which is what a reply buys, and the tick that
+publishes it puts the closing reference and the attribution above every word
+the description already says.
 
 Publication itself is the engine's, unchanged: the post is scoped by the
 transaction's receipt, so a retry finds what an earlier attempt landed instead
@@ -105,9 +105,9 @@ _UNREADABLE_DELIVERY = "the record of what the run reported cannot be read"
 _NEEDED_DESCRIPTION = (
     "it is the pull request's own description, which carries no reference "
     "closing this issue and no line naming the session that wrote the branch "
-    "-- and this orchestrator will not rewrite a description a report lives "
-    "in, or one it has already pushed onto, so a closing reference there is "
-    "yours to add"
+    "-- and this orchestrator will not edit a description a report lives in; "
+    "once the report is in a comment, those two lines go above what the "
+    "description says, and every word of it is kept"
 )
 
 _UNBINDABLE_PARK = (
@@ -145,7 +145,7 @@ class ReportPublication:
     description is the one report this workflow cannot both keep and manage --
     the body it lives in is the same body the publication needs -- and only
     the caller knows what that body says. True for every publication whose
-    description this stage wrote or may rewrite, which is all of them but one.
+    description this stage wrote or may edit, which is all of them but one.
     """
 
     pull_request: Any

@@ -5,27 +5,26 @@
 A report can live in a pull request's DESCRIPTION, and that is the one place
 this workflow also writes for reasons that have nothing to do with reports: a
 pull request opened elsewhere -- an operator's, or the `discussion` stage's plan
-sitting on the very ref the dev commits went to -- is re-bodied so it names the
-implementation now pushed onto it. Those two meet on exactly one pull request:
-the one a developer verified a report on, whose description says so and whose
-body that rewrite would replace.
+sitting on the very ref the dev commits went to -- gets the closing reference and
+the attribution put above what it says, so it names the implementation now
+pushed onto it. Those two meet on exactly one pull request: the one a developer
+verified a report on, whose description says so and whose body that edit would
+change.
 
-Replace it and everything is lost at once. The report itself is gone, and with
-it whatever a human wrote around it; the verification that follows reads a
-location whose content has moved and refuses, so the transaction stays owed and
-the work never leaves this stage; and nothing can put the text back, because the
-only copy was the one on GitHub -- a verification records the digest of what it
-read, never the words.
+Change it by a single character and the report is lost to this workflow, even
+with every word kept: a verification records the digest of what it read, never
+the words, so the location's content has moved, the verification refuses, the
+transaction stays owed, and the work never leaves this stage.
 
-So the claim is asked BEFORE any such rewrite, of every record that can hold
+So the claim is asked BEFORE any such edit, of every record that can hold
 one: the report a run delivered, the transaction it was bound into, and the
 report a pull request is already recorded as carrying. Any of the three naming
 this pull request's description means the description is a report's, and the
 caller leaves it exactly as it stands. A record nobody can read is asked too,
-for whatever place it still names, because the rewrite is the one step here
-that cannot be taken back.
+for whatever place it still names, because the edit is the one step here that
+cannot be taken back.
 
-Only the description. A report in a COMMENT is not something a body rewrite can
+Only the description. A report in a COMMENT is not something a body edit can
 touch, and nothing here ever edits a comment.
 
 The settled record makes one more claim this owner reads: WHICH publication
@@ -36,7 +35,7 @@ the difference, or a newer commit goes out under a report about an older one.
 
 Preserving one is not free, and the second reading here is what its caller owes
 the work. A description is also where a pull request says which issue it closes
-and whose implementation it carries, and the rewrite this preserves is what
+and whose implementation it carries, and the edit this withholds is what
 usually puts both there -- so a body left alone because a report lives in it can
 be one that closes nothing when it merges and names no session at all. Asked
 before the work is handed on, that is a publication a human can still fix; asked
@@ -85,7 +84,7 @@ def claims_the_description(
     delivered report holds one before its publication exists, the transaction
     bound from it holds the same one until it settles, and the settled record
     holds it for as long as that report is what the pull request carries --
-    and a rewrite is just as destructive at any of those moments.
+    and an edit is just as destructive at any of those moments.
 
     A record nobody can read is asked for the place it still names, and it
     claims this description unless that place is readably somewhere else. The
@@ -95,7 +94,7 @@ def claims_the_description(
     anything says the record was damaged, and nothing can put the text back.
 
     False for the ordinary issue carrying none of them, and for every report
-    that lives in a comment: a body rewrite cannot reach one.
+    that lives in a comment: a body edit cannot reach one.
     """
     return any(
         _claims(state.get(key), reader(state), pr_number)
@@ -154,7 +153,7 @@ def describes_the_issue(
 ) -> bool:
     """Whether a description still says what a publication needs it to say.
 
-    Two things, and a pull request this stage may not rewrite has to carry
+    Two things, and a pull request this stage may not edit has to carry
     both. The CLOSING reference is what makes merging the pull request end the
     issue, and GitHub honours it in the description and nowhere else -- no
     comment, however worded, closes anything. The ATTRIBUTION is what says
@@ -188,7 +187,7 @@ def costs_the_description(
     The two readings above asked as the one question their caller has. A
     report anywhere but this pull request's description costs it nothing, and
     a description that already closes the issue and names the session is one
-    nothing was going to rewrite anyway -- so the collision is exactly a
+    nothing was going to edit anyway -- so the collision is exactly a
     verification on a body that says neither.
 
     Whether it SAYS them is the caller's reading rather than one taken here,

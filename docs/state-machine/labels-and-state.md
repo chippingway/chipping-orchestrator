@@ -797,7 +797,8 @@ The keys that matter for the state machine fall into a few groups:
   [`delivery-stages.md`](delivery-stages.md#the-developer-report-transaction-every-dispatch)).
   `workflow/engine/report_delivery.py` re-sets `report_undeliverable` for a reason of a third kind. The implementing
   publication takes it on four roads: a report this build cannot record, a completed run that handed over none at all,
-  the recovered-worktree path finding committed work no recorded report describes, and — after the push — a delivery
+  a recovery (the restart shortcut, or a road that republishes a candidate a gate record named) finding committed
+  work no recorded report describes, and — after the push — a delivery
   the binding cannot bind or a verification on a description the publication needs. The first three leave no record
   behind them, so the reason is the whole of the DEBT as well as the notice's bookkeeping, and while it stands the
   issue reads as still owing a report: the handoff is withheld, and a resumed run that brings a report back publishes

@@ -19,8 +19,9 @@ What answers any of them is a human's reply: the developer resumes and writes a
 report that can be delivered, and the run that brings one back publishes the
 commits already on the branch rather than parking as a question -- the park
 itself being the debt that tells one from the other. On the description road
-that reply's report goes in a comment, and the description it was verified on
-stays exactly as its author left it.
+that reply's report goes in a comment, and only then does the description it was
+verified on get this implementation's lines above it -- every word its author
+wrote kept beneath them.
 """
 
 from __future__ import annotations
@@ -65,6 +66,9 @@ OTHER_REPORT_ID = 9200
 DESCRIBED_PR = 4300
 
 HUMAN_DESCRIPTION = "### Report\n\nThe branch adds the thing. Verified by hand."
+
+# What that description sits under once this implementation is named above it.
+EARLIER_HEADING = "_Description before this implementation:_"
 
 # The report a resumed session writes in place of one that could not be
 # delivered.
@@ -161,37 +165,33 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
 
-    def test_a_needed_description_stays_as_written(self) -> None:
+    def test_a_freed_description_is_named_above(self) -> None:
         # The park a report verified on the publication's own description
-        # takes, and what the reply buys. The resumed session writes its report
-        # as text, so it goes in a COMMENT and settles -- and the description
-        # stays as its author wrote it, since this stage has already pushed
-        # onto that pull request and whatever it says now is theirs.
-        github, issue = self.seeded()
-        reused = _open_pr_for(
-            github, issue_number=support.REPORT_ISSUE, pr_number=DESCRIBED_PR,
+        # takes, and what the reply buys. Held, the body is not touched at all;
+        # the resumed session writes its report as text, so it goes in a
+        # COMMENT -- and the description no report claims any more gets this
+        # issue's closing reference and the session's name above it, with
+        # every word the human wrote kept beneath them.
+        github, issue, reused = self._collided_on_the_description()
+        self.assertEqual(
+            (github.edited_pr_bodies, github.label_history), ([], []),
         )
-        reused.body = HUMAN_DESCRIPTION
-        github.existing_open_pr[support.BRANCH] = reused
-        self.deliver(
-            github,
-            issue,
-            support.verified_message(DESCRIBED_PR, HUMAN_DESCRIPTION),
-        )
-        reused.head.sha = support.PUBLISHED_SHA
         support.replies(github, issue, "put the report in a comment")
 
         self.redeliver(
             github, issue, support.ready_message(REPLACEMENT_REPORT),
         )
 
-        posted = support.published_reports(
-            github, DESCRIBED_PR, REPLACEMENT_REVISION,
-        )
-        self.assertEqual(len(posted), 1)
-        self.assertIn(REPLACEMENT_REPORT, posted[0].body)
         self.assertEqual(
-            (github.edited_pr_bodies, reused.body), ([], HUMAN_DESCRIPTION),
+            (
+                len(support.published_reports(
+                    github, DESCRIBED_PR, REPLACEMENT_REVISION,
+                )),
+                reused.body.startswith(f"Resolves #{support.REPORT_ISSUE}"),
+                support.DEV_SESSION in reused.body,
+                reused.body.endswith(f"{EARLIER_HEADING}\n\n{HUMAN_DESCRIPTION}"),
+            ),
+            (1, True, True, True),
         )
         recorded = github.pinned_data(support.REPORT_ISSUE)
         self.assertEqual(
@@ -247,6 +247,28 @@ class UndeliverableReportTest(unittest.TestCase, support._ReportDeliveryMixin):
         self.assertIn(
             (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
         )
+
+
+    def _collided_on_the_description(self):
+        """Park a verification on the reused pull request's own description.
+
+        The description is a human's and says neither thing a publication
+        needs it to, so the binding holds the work over it; the pull request
+        is then left standing on the pushed commit, as the push left it.
+        """
+        github, issue = self.seeded()
+        reused = _open_pr_for(
+            github, issue_number=support.REPORT_ISSUE, pr_number=DESCRIBED_PR,
+        )
+        reused.body = HUMAN_DESCRIPTION
+        github.existing_open_pr[support.BRANCH] = reused
+        self.deliver(
+            github,
+            issue,
+            support.verified_message(DESCRIBED_PR, HUMAN_DESCRIPTION),
+        )
+        reused.head.sha = support.PUBLISHED_SHA
+        return github, issue, reused
 
 
 class ReportOnlyReplyTest(unittest.TestCase):

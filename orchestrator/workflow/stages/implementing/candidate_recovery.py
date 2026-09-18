@@ -12,7 +12,6 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
@@ -32,8 +31,8 @@ from orchestrator.workflow.stages.implementing import (
     late_gate as _late_gate,
     late_park_state as _late_park_state,
     publication as _publication,
-    session_read as _session_read,
     state as _state,
+    unreported_recovery as _unreported_recovery,
 )
 from orchestrator.workflow.stages.implementing.models import _AgentWork, _ApprovedWork, _RecoveredWork
 
@@ -104,6 +103,11 @@ def _publish_committed_work(
     developer left it and a reply resumes the session that writes the report
     again. Waved through instead, the code would reach review with no report
     and no record of what the run said.
+
+    A `_RecoveredWork` records nothing there -- no developer ran -- so what
+    describes it has to be on the comment already, and `unreported_recovery`
+    holds it where nothing is: every road that republishes a candidate a gate
+    record named asks that, not only the restart shortcut.
     """
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
     tree = _worktree_status._worktree_status(work.worktree)
@@ -119,6 +123,12 @@ def _publish_committed_work(
         return
     if _report_delivery.recording_stops_the_tick(
         gh, issue, state, work.agent_result, _state._REPORT_ROUTE,
+    ):
+        return
+    if isinstance(work, _RecoveredWork) and (
+        _unreported_recovery._holds_unreported_work(
+            gh, spec, issue, state, work.candidate_sha,
+        )
     ):
         return
     verdict = _late_gate._holds_committed_work(
@@ -241,21 +251,13 @@ def _dispose_approved_commit(
     a human or a reading stood behind is cleared for a commit neither ever
     saw. Named, the gate refuses it before anything is persisted or pushed.
     """
-    _, _, _, dev_sid = _session_read._read_dev_session(state)
-    agent_result = AgentResult(
-        session_id=dev_sid,
-        last_message=(
-            "(orchestrator recovery: publishing the approved commit)"
-        ),
-        exit_code=0,
-        timed_out=False,
-        stdout="",
-        stderr="",
-        invoked=False,
-    )
     _publish_committed_work(
         gh, spec, issue, state, _RecoveredWork(
-            agent_result, worktree, _late_approval_reading._approved_commit(state),
+            _unreported_recovery._recovery_result(
+                state, "(orchestrator recovery: publishing the approved commit)",
+            ),
+            worktree,
+            _late_approval_reading._approved_commit(state),
         ),
     )
 
@@ -354,20 +356,12 @@ def _dispose_recorded_candidate(
     no reading covers -- measured and published under a record naming the one
     the crashed tick froze.
     """
-    _, _, _, dev_sid = _session_read._read_dev_session(state)
-    agent_result = AgentResult(
-        session_id=dev_sid,
-        last_message=(
-            "(orchestrator recovery: reconciling the frozen candidate)"
-        ),
-        exit_code=0,
-        timed_out=False,
-        stdout="",
-        stderr="",
-        invoked=False,
-    )
     _publish_committed_work(
         gh, spec, issue, state, _RecoveredWork(
-            agent_result, worktree, _late_park_state._recorded_candidate(state),
+            _unreported_recovery._recovery_result(
+                state, "(orchestrator recovery: reconciling the frozen candidate)",
+            ),
+            worktree,
+            _late_park_state._recorded_candidate(state),
         ),
     )
