@@ -20,7 +20,10 @@ that merely mentions `<pre>` would close nothing.
 
 What is taken out leaves a character no keyword, number or whitespace is made
 of, so the words either side of code never read as one reference; and a tag's
-own markup goes the same way, since an attribute is nothing GitHub shows.
+own markup goes the same way, since an attribute is nothing GitHub shows. A
+tag nothing closes is no tag, unless it opens its line -- behind markers, or
+behind what was taken out, which may have opened an HTML block -- where it
+takes the rest of the text.
 """
 from __future__ import annotations
 
@@ -48,14 +51,15 @@ _LINE_FEED = "\n"
 # Markdown lets prose stand.
 _CODE_INDENT_RE = re.compile(r" {4}| {0,3}\t")
 
-# The markup of any other tag, attributes and all, as an HTML tokenizer reads
-# them; and a tag that opens a line and that nothing closes, which an HTML block
-# hands the browser as it is -- where it takes the rest of the text.
-_HTML_TAG_RE = re.compile(
-    rf"</?[A-Za-z][^{_html.HTML_SPACE}/>]*{_html.TAG_ATTRIBUTES}>"
-    rf"|^[ \t>*+-]*</?[A-Za-z][^{_html.HTML_SPACE}/>]*{_html.TAG_ATTRIBUTES}\Z",
-    re.MULTILINE,
-)
+# What opens any other tag, whose markup is read as an HTML tokenizer reads it;
+# and what a line may open on before one -- markers, and whatever was taken out,
+# since a comment or its like opens an HTML block that holds the rest of its
+# line. A tag that opens a line and that nothing closes is what an HTML block
+# hands the browser as it is -- where it takes the rest of the text. One nothing
+# closes anywhere else is no tag.
+_TAG_OPENER_RE = re.compile("</?[A-Za-z]")
+
+_LINE_OPENING_RE = re.compile(rf"[ \t>*+{_GAP}-]*")
 
 # A stretch of the text, as its two offsets.
 type _Stretch = tuple[int, int]
@@ -68,7 +72,7 @@ def outside_code(text: str) -> str:
     code = _merged((*_code_lines(written), *spans.possible))
     definite = _merged((*_fences.definite_fences(written), *spans.certain))
     literal = _merged((*code, *_html.html_literals(written, code, definite)))
-    return _HTML_TAG_RE.sub(_GAP, _without(written, literal))
+    return _without_tags(_without(written, literal))
 
 
 def _without(text: str, stretches: list[_Stretch]) -> str:
@@ -80,6 +84,41 @@ def _without(text: str, stretches: list[_Stretch]) -> str:
         cursor = end
     kept.append(text[cursor:])
     return "".join(kept)
+
+
+def _without_tags(text: str) -> str:
+    """`text` with the markup of every tag in it left as a gap."""
+    return _without(text, list(_tag_markup(text)))
+
+
+def _tag_markup(text: str) -> Iterator[_Stretch]:
+    """The markup of every tag in `text`, in order and apart."""
+    tags = _html.TagEnds(text)
+    read_to = 0
+    opener = _TAG_OPENER_RE.search(text)
+    while opener is not None:
+        closed = tags.closed_at(opener.end())
+        if closed is None:
+            line = _line_opened_at(text, opener.start(), read_to)
+            if line is not None:
+                yield line, len(text)
+                return
+            closed = opener.start() + 1
+        else:
+            yield opener.start(), closed
+            read_to = closed
+        opener = _TAG_OPENER_RE.search(text, closed)
+
+
+def _line_opened_at(text: str, position: int, read_to: int) -> int | None:
+    """Where the line begins that `position` opens; None where it opens none.
+
+    Nor does it where that line began in a tag already read, up to `read_to`.
+    """
+    line = text.rfind(_LINE_FEED, 0, position) + 1
+    if line < read_to or _LINE_OPENING_RE.fullmatch(text, line, position) is None:
+        return None
+    return line
 
 
 def _code_lines(text: str) -> Iterator[_Stretch]:

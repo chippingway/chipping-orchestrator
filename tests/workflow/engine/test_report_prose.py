@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
     report_code_spans as _code_spans,
+    report_html_literals as _html,
     report_locations as _locations,
 )
 
@@ -119,6 +121,33 @@ CODE_IN_HTML = (
     # of these closing tags names the element it stands in.
     *(f"<pre>Literal </pre{space}> {FIXES}</pre>" for space in NO_HTML_SPACE),
     f"<kbd>Literal </\N{KELVIN SIGN}bd> {FIXES}</kbd>",
+    # A name runs on through a `<`, so the opening tag right behind one is
+    # looked for inside it; and an element opened in a tag's markup is literal
+    # from where that markup began, the attributes before it included.
+    f"<x<code>{FIXES}</code>",
+    f"<a <b<code>{FIXES}</code>",
+    f'see <a title="{FIXES} <pre>"> the link',
+)
+
+# What GitHub renders as nothing: a declaration, a processing instruction, a
+# CDATA section, and the bogus comment any other `<!`, `<?` or `</` opens. Each
+# to the later of Markdown's terminator and HTML's `>`, or to the end of a text
+# with neither; and read on as HTML from that `>`, where a comment may open that
+# Markdown's terminator does not close.
+HIDDEN = (
+    f"<!DOCTYPE html {FIXES}>",
+    f"<?{FIXES}?>",
+    f"<![CDATA[{FIXES}]]>",
+    f"<?php a > {FIXES} ?>",
+    f"<![CDATA[ a > {FIXES} ]]>",
+    f"<?php {FIXES}",
+    f"<!x {FIXES}",
+    f"<div>\n</ {FIXES}>\n</div>",
+    f"<![CDATA[ > <!-- ]]> {FIXES}",
+    f"<?php > <pre> ?> {FIXES}",
+    # Whatever was taken out opens a line as a marker does, since it may have
+    # opened an HTML block: a tag behind it that nothing closes takes the rest.
+    f'<!-- a note --> <div title="{FIXES}',
 )
 
 # A tag quoted as code is no tag only where the code is CERTAIN. Not after a
@@ -140,6 +169,11 @@ UNCERTAIN_QUOTING = (
     f"Example `</pre` then <pre>{FIXES}</pre>",
     f"Example `<!--` then <code>{FIXES}</code>",
     f"```\n<pre\n```\n\n<code>{FIXES}</code>",
+    # Nor at its name, which runs on through the backtick that ends its code
+    # and into the tag behind it.
+    f"`<x`<code>{FIXES}</code>",
+    f"`<x<y`<code>{FIXES}</code>",
+    f"`<?`<code>{FIXES}</code>",
 )
 
 # No reference at all, however the text around it reads: a keyword parted from
@@ -205,7 +239,24 @@ PROSE = (
     f"```\n<pre\n```\n\n{FIXES}",
     # Not a tag at all, so its apostrophe is no unclosed attribute value.
     f"When n <m it's fine. {FIXES}",
+    # What is hidden has ended, by either reading of it; quoted as code it
+    # never began.
+    f"<?php a ?> {FIXES}",
+    f"<!DOCTYPE html> {FIXES}",
+    f"<![CDATA[x]]> {FIXES}",
+    f"<?php a > {FIXES}",
+    f"Use the </> icon. {FIXES}",
+    f"Open one with `<?php` or `<![CDATA[`.\n\n{FIXES}",
+    # A name is read whole, as HTML reads one: a quote inside it opens no value.
+    f'- <ab="> then {FIXES}',
 )
+
+# As long as GitHub lets a description be, and nothing but openers: tags that
+# nothing closes, their names run together or apart, or behind an attribute
+# value that never closes.
+LONGEST = 65536
+
+OPENERS = ("<a", "<a ", '<a b="x" c="', "`<a")
 
 # One more backticked line than a block's spans are looked for from.
 CROWDED = _code_spans._MAX_SPAN_READINGS + 1
@@ -219,11 +270,25 @@ def _describes(reference: str) -> bool:
     )
 
 
+class _Budgeted:
+    """The attribute pattern, read no more than `budget` times."""
+
+    def __init__(self, budget: int) -> None:
+        self._left = budget
+        self._pattern = _html._ATTRIBUTE_RE
+
+    def match(self, text: str, position: int) -> object:
+        self._left -= 1
+        if self._left < 0:
+            raise AssertionError("more attributes read than the text allows")
+        return self._pattern.match(text, position)
+
+
 class CertainProseTest(unittest.TestCase):
     def test_a_reference_shown_as_code_closes_nothing(self) -> None:
         for shown in (
-            *CODE_LINES, *CODE_SPANS, *CODE_IN_HTML, *UNCERTAIN_QUOTING,
-            *NO_REFERENCE,
+            *CODE_LINES, *CODE_SPANS, *CODE_IN_HTML, *HIDDEN,
+            *UNCERTAIN_QUOTING, *NO_REFERENCE,
         ):
             with self.subTest(shown=shown):
                 self.assertFalse(_describes(shown))
@@ -232,6 +297,17 @@ class CertainProseTest(unittest.TestCase):
         for shown in PROSE:
             with self.subTest(shown=shown):
                 self.assertTrue(_describes(shown))
+
+    def test_a_text_of_openers_is_read_once(self) -> None:
+        # Every tag nothing closes is read to the end of the text, so what one
+        # reading found is remembered: the attributes read stay in proportion
+        # to the text, where reading each opener afresh squares them.
+        for opener in OPENERS:
+            with self.subTest(opener=opener):
+                openers = opener * (LONGEST // len(opener))
+                budgeted = _Budgeted(2 * LONGEST)
+                with patch.object(_html, "_ATTRIBUTE_RE", budgeted):
+                    self.assertTrue(_describes(f"{FIXES} {openers}"))
 
     def test_a_crowded_block_is_code_throughout(self) -> None:
         # The readings a block is given are bounded, so one with more

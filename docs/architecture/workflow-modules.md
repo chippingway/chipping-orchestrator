@@ -232,7 +232,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             possible and everything `report_html_literals.py` finds literal. What is taken out
                             leaves a character no reference is made of, so a keyword and a number either side of
                             code are never read as one, and a tag's own markup goes the same way, quoted attribute
-                            values and all
+                            values and all -- to its `>`, or to the end of the text for one that opens a line, behind
+                            markers or what was taken out, and that nothing closes
     report_code_spans.py    the inline code spans of a text, POSSIBLE and CERTAIN. Markdown pairs backticks within
                             one stretch of inline text, and where one begins is the doubt: a heading or a list item
                             starts a block with no blank line above it, a table reads each cell on its own, and a
@@ -247,22 +248,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that ends before the next place a reading could begin, begun where no earlier reading's
                             span runs in, with no taker before it in its block outside the certain spans already
                             found. An escaped backtick opens nothing, and a backslash inside a span escapes nothing
-    report_html_literals.py what HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and comments
-                            -- read off the text AS WRITTEN, since an element is literal whether or not some
+    report_html_literals.py what HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and what renders
+                            as nothing: a comment, a declaration, a processing instruction, a CDATA section, and the
+                            bogus comment any other `<!`, `<?` or `</` opens, each hidden to the LATER of Markdown's
+                            terminator and HTML's `>` and read on as HTML from that `>` -- read off the text AS
+                            WRITTEN, since an element is literal whether or not some
                             reading pairs a backtick across its opening tag. EVERY tag is read, as an HTML
                             tokenizer reads one -- a quote opens a value only after a name's `=`, a value never
                             closed takes the rest, whitespace is HTML's own five characters rather than `\s`, and a
                             name is folded in ASCII alone -- so a closing tag in another tag's markup, a comment, or the
                             bogus comment a `<!` opens closes nothing, while an opening tag counts wherever it is
                             found, since what shelters it may be no tag as Markdown reads it; `report_prose.py`
-                            takes tag markup out by the same grammar. Opening tags are counted by name, so nesting
-                            holds; a CLOSING tag
+                            takes tag markup out through the same reader, `TagEnds`, which remembers what one
+                            reading found unclosed so a text of nothing but openers is read once. Opening tags are
+                            counted by name, so nesting holds, and an element opened in another tag's markup is
+                            literal from where that markup began; a CLOSING tag
                             is trusted only where it stands in the same possible code, or the same prose, as the
                             tag that opened the element; and an OPENING tag or comment opens nothing in DEFINITE
                             code -- a certain span or a definite fence -- since a tag quoted as an example is no
                             tag, unless an element is already open, where no Markdown is read. A tag is found by
                             its opener and read to its end only once it counts: a quoted one is passed over at its
-                            name, so one cut short inside its code never takes a real tag after it as attributes
+                            `<`, so one cut short inside its code never takes a real tag after it as attributes, nor
+                            one right behind that code into its name
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the
