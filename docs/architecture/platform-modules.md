@@ -207,7 +207,8 @@ orchestrator/
                         report revision, and what it supersedes, and ends with a hidden header carrying that
                         identity, the transaction receipt, and the text digest. A report the header cannot carry,
                         one quoting a receipt marker, and one past a comment's length are refused rather than cut,
-                        and a comment reads back as a report only when it is ours and re-renders byte for byte
+                        and a comment reads back as a report only when it is ours and re-renders byte for byte --
+                        never one whose header claims a count of more digits than Python converts
     events.py           audit event record construction and the optional JSONL sink
     issue_polling.py    the one walk over a repository's issues a tick is served from: the open poll, the
                         cadenced closed sweep beside it, and the shared number set both filter through so an
@@ -267,7 +268,8 @@ orchestrator/
                         reading is present, absent, changed, or unconfirmed, and only absent is posted onto, so a
                         retry finds the comment an earlier attempt landed -- scoped by its transaction receipt, so a
                         later report on the same commit is a comment of its own -- while a pasted copy is not ours
-                        and a post whose response was lost stays unconfirmed until a read settles it. A human's
+                        and a post whose response was lost stays unconfirmed until a read settles it, as does a
+                        thread whose comment authors would not read, since those tell ours from a copy. A human's
                         report is reread by its exact pull request and comment (or description) against the
                         content digest somebody verified, and the description is never written. A reading also
                         carries the identity of what it found, resolved ONCE when the reading is taken rather

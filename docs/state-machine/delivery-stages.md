@@ -1660,7 +1660,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        handoff after approval). A reused PR is only known to be open on the branch — most sharply, an issue relabeled
        out of `discussion` arrives with its plan PR open on the very branch these commits went to — so one whose body
        does not already name this dev session has that body rewritten to the implementation's (`Resolves #N`, the dev
-       session, the agent's closing message); one that does name it is left as it stands, human annotations included.
+       session, and the agent's closing message wherever no developer report of the issue's is owed or settled, since
+       that report is then the authority); one that does name it is left as it stands, human annotations included.
        Without the rewrite the PR would keep claiming the branch is one Markdown file that changes nothing else, under
        the decomposer's session, and would close no issue when it merged. Persists `pr_number` / `branch` and
        resets `review_round=0` and `retry_count=0` via `handoff._reset_implementing_counters`.
