@@ -2015,9 +2015,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             push carried (decided once ahead of the push --
                             the one that passed the gate, or the checkout's own head where the switch named none
                             -- and made durable there, with a checkout that can name none at all publishing
-                            nothing), with everything from there to the relabel handed to `report_handoff.py` and
-                            the handoff left owed wherever that refuses it, so the next tick republishes the same
-                            commit onto the same pull request
+                            nothing); the receipt naming that commit and pull request is written the moment the
+                            pull request is known, before one this tick opened is announced, and everything from
+                            there to the relabel is handed to `report_handoff.py`, the handoff left owed wherever
+                            that refuses it, so the next tick republishes the same commit onto the same pull request
       report_handoff.py     a landed push to the handoff: the description judged on a fresh read, the report the
                             run delivered bound and published through `engine/report_binding.py` with that verdict,
                             and the relabel reached last -- held until no report is still owed (a debt no retry
