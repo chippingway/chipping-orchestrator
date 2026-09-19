@@ -53,9 +53,32 @@ _UNREADABLE_NOTICES = (
     [_SENTENCE],
 )
 
+# The park a run-limit park goes up in front of: a timeout the resume that
+# spent the last run was answering.
+_DISPLACED_REASON = "agent_timeout"
+
+_DISPLACED = _run_limit_values.AGENT_RUN_LIMIT_DISPLACED
+
+# Records a grant can find, and the park each comes down to. Anything but a
+# flagged park with a string reason is no reason to put back.
+_RECORDS = tuple(
+    ({_limit_seeds.AWAITING_HUMAN: flag, _limit_seeds.PARK_REASON: reason}, awaiting, restored)
+    for flag, reason, awaiting, restored in (
+        (True, _DISPLACED_REASON, True, _DISPLACED_REASON),
+        (True, None, True, None),
+        (True, 7, True, None),
+        (False, _DISPLACED_REASON, False, None),
+        ("yes", _DISPLACED_REASON, False, None),
+    )
+) + (({}, False, None), ("awaiting", False, None), (None, False, None))
+
 
 class StandingParkTest(unittest.TestCase):
-    """What makes this park recognizable to the tick after it."""
+    """What makes this park recognizable, and the park it goes up in front of.
+
+    That displaced park is what a grant puts back, so the refused launch's own
+    road is the one the tick after the grant reaches.
+    """
 
     def test_both_halves_are_asked(self) -> None:
         # The flag alone is every stage's park and the reason alone outlives
@@ -73,6 +96,57 @@ class StandingParkTest(unittest.TestCase):
 
     def test_the_pair_is_the_park(self) -> None:
         self.assertTrue(_run_limit_state._park_stands(_limit_seeds.parked_state()))
+
+    def test_a_grant_restores_the_standing_park(self) -> None:
+        # Recorded as the run-limit park goes up and restored as the grant
+        # takes it down: the refused launch's own road is the one the tick
+        # after the grant reaches, and the record is forgotten with it.
+        state = _limit_seeds.state_with(**{
+            _limit_seeds.AWAITING_HUMAN: True,
+            _limit_seeds.PARK_REASON: _DISPLACED_REASON,
+        })
+        state.set(
+            _DISPLACED, _run_limit_values.DisplacedPark.standing(state).as_record(),
+        )
+        _run_limit_state._stage_park(state, _limit_seeds.ledger())
+
+        _run_limit_state._restore_displaced(state)
+
+        self.assertTrue(state.get(_limit_seeds.AWAITING_HUMAN))
+        self.assertEqual(state.get(_limit_seeds.PARK_REASON), _DISPLACED_REASON)
+        self.assertNotIn(_DISPLACED, state.data)
+
+    def test_a_leftover_run_limit_reason_is_no_park(self) -> None:
+        # A flag some road took down with the run-limit reason left behind is
+        # nothing to go back to -- and a reason that is no string names nothing.
+        for fields, expected in (
+            ({_limit_seeds.PARK_REASON: _run_limit_values.PARK_AGENT_RUN_LIMIT},
+             _run_limit_values.DisplacedPark()),
+            ({_limit_seeds.AWAITING_HUMAN: True, _limit_seeds.PARK_REASON: 7},
+             _run_limit_values.DisplacedPark(awaiting=True)),
+        ):
+            with self.subTest(fields=fields):
+                self.assertEqual(
+                    _run_limit_values.DisplacedPark.standing(
+                        _limit_seeds.state_with(**fields),
+                    ),
+                    expected,
+                )
+
+    def test_a_record_is_read_strictly(self) -> None:
+        # A park taken before the field existed, or a hand-edited record,
+        # comes down to no park rather than to a reason nobody recorded.
+        for recorded, awaiting, reason in _RECORDS:
+            with self.subTest(recorded=recorded):
+                state = _limit_seeds.parked_state(**{_DISPLACED: recorded})
+                if recorded is None:
+                    state.data.pop(_DISPLACED)
+
+                _run_limit_state._restore_displaced(state)
+
+                self.assertIs(state.get(_limit_seeds.AWAITING_HUMAN), awaiting)
+                self.assertEqual(state.get(_limit_seeds.PARK_REASON), reason)
+                self.assertNotIn(_DISPLACED, state.data)
 
 
 class ParkStagingTest(unittest.TestCase):

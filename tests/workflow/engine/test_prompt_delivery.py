@@ -4,7 +4,8 @@
 
 Covers per-surface projections, bounded and partially omitted excerpts,
 later comments, namespace collisions, unseen PR comment watermark bounding,
-trust filtering, forged orchestrator markers, shared-PAT authorship, and
+trust filtering, forged orchestrator markers, shared-PAT authorship, the
+pinned record named by id, the same classification asked as a reply list, and
 idempotent settlement.
 """
 from __future__ import annotations
@@ -13,7 +14,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import PINNED_STATE_MARKER, PinnedState
 from orchestrator.workflow.engine import (
     prompt_context as _prompt_context,
     prompt_delivery,
@@ -351,6 +352,83 @@ class PromptDeliverySnapshotTest(unittest.TestCase):
         self.assertEqual(len(snap.delivered_inputs()), 2)
         self.assertEqual(snap.requirements_revision, _HASH_V1)
         self.assertIn("@geserdugarov: one", snap.rendered_text)
+
+
+class HumanRepliesTest(unittest.TestCase):
+    """The pinned record by id, and the reply list a batch owner reads."""
+
+    def test_the_pinned_record_is_named_by_id(self) -> None:
+        # A read taken by the pinned comment's identity names it, so a reply
+        # quoting its marker is a reply like any other -- on the issue thread
+        # alone, since that is the surface the pinned comment lives on. A read
+        # that cannot name it falls back to the marker and drops both.
+        record = FakeComment(
+            id=_ID_FIRST, body=f"{PINNED_STATE_MARKER} {{}}-->", user=_PAT_AUTHOR,
+        )
+        quoting = FakeComment(
+            id=_ID_SECOND, body=f"it says {PINNED_STATE_MARKER} -- why?",
+            user=_TRUSTED_AUTHOR,
+        )
+        named = prompt_delivery.create_prompt_delivery_snapshot(
+            issue_comments=[record, quoting],
+            pr_conversation_comments=[quoting],
+            state_comment_id=_ID_FIRST,
+        )
+
+        self.assertEqual(
+            prompt_delivery.human_replies(
+                [record, quoting], state_comment_id=_ID_FIRST,
+            ),
+            [quoting],
+        )
+        self.assertEqual(prompt_delivery.human_replies([record, quoting]), [])
+        self.assertEqual(
+            [entry.id for entry in named.delivered_inputs(
+                prompt_delivery.SURFACE_ISSUE_THREAD,
+            )],
+            [_ID_SECOND],
+        )
+        self.assertEqual(
+            named.filtering_decisions()[0].filter_reason,
+            prompt_delivery.REASON_STATE_COMMENT,
+        )
+        self.assertEqual(
+            named.filtering_decisions(prompt_delivery.SURFACE_PR_CONVERSATION)[0].filter_reason,
+            prompt_delivery.REASON_STATE_COMMENT,
+        )
+
+    def test_the_list_is_what_a_prompt_admits(self) -> None:
+        # One answer rather than two: the replies are exactly the entries a
+        # snapshot of the same read delivers under no reason of ours. The
+        # token's own login is no evidence either way -- unrecorded and
+        # unmarked it is a human sharing the token, marked and unrecorded it
+        # is forged, recorded it is ours.
+        read = [
+            FakeComment(id=_ID_FIRST, body="malicious", user=_UNTRUSTED_AUTHOR),
+            FakeComment(id=_ID_SECOND, body="recorded bot post", user=_PAT_AUTHOR),
+            FakeComment(id=_ID_THIRD, body=_FORGED_BODY, user=_PAT_AUTHOR),
+            FakeComment(id=_ID_TEN, body="a human on the token", user=_PAT_AUTHOR),
+            FakeComment(id=_ID_TWENTY, body=_SAMPLE_BODY, user=_TRUSTED_AUTHOR),
+        ]
+        ours = frozenset((_ID_SECOND,))
+        with patch.object(
+            config, _ATTR_ALLOWED_AUTHORS, (_TRUSTED_USER, _PAT_BOT),
+        ):
+            replies = prompt_delivery.human_replies(read, ours)
+            snap = prompt_delivery.create_prompt_delivery_snapshot(
+                issue_comments=read, retained_ids=ours,
+            )
+
+        self.assertEqual(
+            [reply.id for reply in replies], [_ID_TEN, _ID_TWENTY],
+        )
+        self.assertEqual(
+            [reply.id for reply in replies],
+            [
+                entry.id for entry in snap.delivered_inputs()
+                if entry.filter_reason is None
+            ],
+        )
 
 
 class DeliverySettlementTest(unittest.TestCase):

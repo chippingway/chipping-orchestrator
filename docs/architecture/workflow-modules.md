@@ -79,11 +79,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             succeed there -- leaving the settled report at a comment the ledger never learned
     prompt_context.py       trusted-author thread reads, retained orchestrator comment ids, quoted comment lines, and
                             bounded tracked-repository awareness for agent prompts; marker text alone cannot admit a
-                            comment
+                            comment, and a delivery snapshot over a read taken by the pinned comment's id is handed
+                            that id too
     prompt_delivery.py      shared process-local input-delivery snapshot and conservative settlement contract recording
                             exact delivered issue-thread, PR-conversation, inline-review, and review-summary inputs;
                             preserves distinct namespaces, watermark fields, bounded-excerpt omissions, filtering decisions,
-                            and requirements revisions without copying live thread tips or taking unrestricted maximums
+                            and requirements revisions without copying live thread tips or taking unrestricted maximums.
+                            A caller that names the pinned state comment has it excluded by id on the issue thread, so a
+                            reply quoting its marker is still a reply; one that does not keeps the marker test.
+                            `human_replies` is the same classification asked as a list question -- the trust filter,
+                            the pinned comment, our own posts by recorded id, and a marker the ledger cannot vouch for
+                            -- for a road that decides who OWNS a batch before a prompt is built from it; only the
+                            dormant frozen reply batch below asks it yet
     community.py            the open pull requests this orchestrator never opened, which is why the tick sweeps
                             them itself: one opened by somebody else carries no pinned state for a handler to
                             consult, so nothing dispatches it. `ALLOWED_ISSUE_AUTHORS` decides there is anything
@@ -194,7 +201,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that write, and on a park waiting for a reply, reading the tip there consumes the answer
                             with the question. A post whose id nothing could read falls back to the tip, since a
                             watermark that never moved leaves the park's own notice to be read back as somebody's
-                            guidance on every later tick
+                            guidance on every later tick. `bounded=True` is the opt-in no stage passes yet: it
+                            stamps `park_watermarks.py`'s walk instead, and is popped before the correlation screen
+    park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read:
+                            through the comments our id ledger names, stopping at the first it does not -- a reply
+                            from the run, one quoting the pinned record's marker (the thread is read by that
+                            record's id), or our own sentence whose recording write was lost. It never reads the
+                            tip: no floor to walk from, a post the ledger did not gain, and a thread the re-read
+                            fails on all leave the mark where it was, the last without raising, since the notice
+                            is already posted and the park still has to be recorded. Only the funnel's
+                            `bounded=True` reaches it; the implementing stage's own `park_watermarks.py` keeps its
+                            tip fallback
     messages.py             the `ACK:` acknowledgement read out of an agent's last message, the one blockquote
                             form every agent output an issue carries is quoted in, and the two commands a HUMAN writes:
                             `/orchestrator continue` with the refusal a park needing real guidance owes it, and the
@@ -615,10 +632,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             settlement clears only reservation fields, and PROJECTED_KEYS retains the allowance and
                             count across state projection
     run_limit_values.py     the lifetime-limit notice record, the allowance and spent count it explains, the audit
-                            phases, and the pinned park fields
+                            phases, and the pinned park fields; `DisplacedPark` is the park a run-limit park goes up in
+                            front of, read off the standing flag and reason (the run-limit reason itself reads as
+                            none) and back off its `agent_run_limit_displaced` record, which anything missing or
+                            malformed reads as no park. Nothing records one yet
     run_limit_state.py      the standing lifetime-limit park and its owed sentence; changed ledger coordinates replace
                             the notice, and settlement clears the sentence without lifting the park or changing the
-                            charge
+                            charge. `_restore_displaced` puts back and forgets the park a record names, which no
+                            grant calls yet
     run_limit.py            persist a supplied exhaustion reading before its budget event and notice, reconcile
                             bot-authored delivery, and replay the sentence still owed; this owner grants and spends no
                             additional run
@@ -1464,6 +1485,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since that is the read that road takes: reserved off a narrower one, this tick
                             would defer what that road then refuses and the two would hand the thread back and
                             forth forever
+      resume_batch.py       the frozen reply batch no resume reads yet: ONE whole-thread fetch, by the pinned
+                            comment's id, from which the quoted followup, the delivery record naming exactly the
+                            quoted ids, the whole and the retry re-grounding conversations, and command ownership
+                            are all cut. The measurement retry and, where the caller says it has already looked,
+                            the parked-continue classifier are asked of the delivered replies; the authorization
+                            command is asked of the last reply the id ledger leaves. An owned batch is handed back
+                            whole, delivering and settling nothing. Settlement is the ordinary
+                            issue-only `prompt_delivery` ratchet, taken after the run and only for an outcome that
+                            counts as delivered: not a live pause, a shutdown kill, or a launch never invoked
+      parked_replies.py     the one cut of a parked thread's fresh replies the batch above and the command roads
+                            are to share: `prompt_delivery.human_replies`, less a bare `/orchestrator
+                            add-agent-runs` the run-limit hold has already answered. No road reads it yet
       resume_request.py     what one such call supplied, frozen and checked before a run is built: the stage
                             its records are attributed to, and the unknown option a named parameter would
                             have refused on its own
