@@ -75,5 +75,34 @@ class FailFastSequencingTest(
         )
 
 
+class UnreadableTreeIdentityTest(
+    command_helpers.VerifyCommandsFixtureMixin,
+    unittest.TestCase,
+):
+    """An unreadable tree identity refuses fail-closed before commands execute."""
+
+    def test_unreadable_tree_refuses_fail_closed(self) -> None:
+        marker = self.worktree / SKIPPED_MARKER
+        with patch.object(probes, "_tree_sha", return_value=""):
+            run = runner._run_verify_commands(
+                self.worktree,
+                (f"touch {marker}",),
+                60,
+                context_revision="ctx-rev-99",
+            )
+
+        self.assertEqual(run.status, VERIFY_FAILED)
+        self.assertEqual(run.output, "unreadable tree identity")
+        self.assertIsNone(run.tree_identity)
+        self.assertEqual(run.configured_commands, (f"touch {marker}",))
+        self.assertEqual(run.attempted_commands, ())
+        self.assertEqual(run.context_revision, "ctx-rev-99")
+        self.assertFalse(run.is_reusable)
+        self.assertFalse(
+            marker.exists(),
+            f"command ran despite unreadable tree identity; {marker} was created",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

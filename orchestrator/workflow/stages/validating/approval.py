@@ -5,15 +5,15 @@
 The reviewer's verdict is not the last gate. The local verify run comes first
 so an obviously-broken branch never reaches `in_review`, where the next reader
 is a human deciding whether to merge; a default-empty `VERIFY_COMMANDS`
-short-circuits to ok, and a failure parks in `validating` with a durable
-reason rather than advancing. The squash follows, and its failure parks
-WITHOUT relabeling on purpose -- the original commits are still on the branch,
-and only a human can decide whether to keep the history or force it flat. The
-notice it parks with says which of the four places the failure left the branch
-in, because the errand differs: the approved commits at HEAD, the approved
-commits off the tip and in the reflog behind a recorded head, the approved
-commits still in the branch's own history under work committed on top of them,
-or a reading that placed them nowhere at all.
+short-circuits to an explicit not-run result, and a failure parks in `validating`
+with a durable reason rather than advancing. The squash follows, and its failure
+parks WITHOUT relabeling on purpose -- the original commits are still on the
+branch, and only a human can decide whether to keep the history or force it flat.
+The notice it parks with says which of the four places the failure left the
+branch in, because the errand differs: the approved commits at HEAD, the
+approved commits off the tip and in the reflog behind a recorded head, the
+approved commits still in the branch's own history under work committed on top of
+them, or a reading that placed them nowhere at all.
 
 The ordering inside the handoff matters too. The squash notice is posted
 BEFORE `handoff` is asked to seed the watermarks, so that its own id lands in
@@ -378,7 +378,8 @@ def _finalize_validating_approval(
     The verify gate is the first gate after the reviewer so an obviously-broken
     branch never reaches `in_review` (GitHub CI still runs against the PR for
     the human merging it). Default-empty `VERIFY_COMMANDS` short-circuits to
-    "ok". A failed / timed-out command or a dirty tree left behind parks
+    an explicit not-run result, retaining the gate's existing no-op behavior.
+    A failed / timed-out command or a dirty tree left behind parks
     awaiting_human in `validating` with a stable `park_reason`. A failed
     squash / force-push also parks and STAYS in `validating` (no relabel), and
     its notice says which of the two places it left the branch: the original
@@ -397,7 +398,7 @@ def _finalize_validating_approval(
     verify = _verify_runner._run_verify_commands(
         reviewer_run.wt, config.VERIFY_COMMANDS, config.VERIFY_TIMEOUT,
     )
-    if verify.status != "ok":
+    if verify.status not in ("ok", "not_run"):
         _verify._park_verify_failure(gh, issue, state, verify)
         gh.write_pinned_state(issue, state)
         return

@@ -28,13 +28,6 @@ class VerifyCommandMutationTest(
     """Report verify-time commits, dirty output, and process registration."""
 
     def test_commit_command_reports_head_change(self) -> None:
-        # Regression: a verify command that runs `git commit` leaves
-        # `git status --porcelain` clean and exits 0, so the previous
-        # dirty+exit-code-only gate accepted it as "ok". The squash-on-
-        # approval + force-push that followed would then publish the
-        # unreviewed verify-created commit to the PR branch. Snapshotting
-        # HEAD before the loop and refusing any command that moves it
-        # closes that hole.
         head_before = subprocess.run(
             [GIT_COMMAND, WORKTREE_FLAG, str(self.worktree), "rev-parse", "HEAD"],
             check=True,
@@ -42,55 +35,35 @@ class VerifyCommandMutationTest(
             text=True,
         ).stdout.strip()
 
-        # Stage and commit a new file inside the verify command itself --
-        # exactly the dangerous shape (a verify rule that auto-fixes and
-        # commits its own fix).
         cmd = (
             "sh -c 'echo VERIFY_AUTO_FIXED > autofix.txt && "
             "git add autofix.txt && "
             'git commit -q -m "chore: verify-time auto-fix"\''
         )
         run = runner._run_verify_commands(self.worktree, (cmd,), 60)
-        self.assertEqual(run.status, VERIFY_HEAD_CHANGED)
-        self.assertEqual(run.command, cmd)
-        self.assertEqual(run.head_before, head_before)
-        self.assertNotEqual(run.head_after, head_before)
-        # And the worktree was clean on detection (not the dirty branch).
-        self.assertEqual(run.dirty_files, ())
+        self._assert_commit_head_change(run, cmd, head_before)
 
     def test_dirty_result_keeps_command_output(self) -> None:
-        # Regression: previously the dirty check ran once at the end of
-        # the loop, so a dirty failure always blamed `commands[-1]` and
-        # discarded every command's captured output. The fix checks
-        # dirtiness AFTER EACH command so the actual command that left
-        # the worktree dirty is named, with its own stdout/stderr
-        # preserved for the park comment.
         cmds = (
-            PASSING_COMMAND,  # clean, exit 0
-            "sh -c 'echo BUILD_LOG_LINE; touch leftover.txt'",  # leaves untracked file
-            PASSING_COMMAND,  # should never run
+            PASSING_COMMAND,
+            "sh -c 'echo BUILD_LOG_LINE; touch leftover.txt'",
+            PASSING_COMMAND,
         )
         run = runner._run_verify_commands(self.worktree, cmds, 60)
-        self.assertEqual(run.status, VERIFY_DIRTY)
-        # Named command is the SECOND command (the one that left the
-        # tree dirty), NOT `commands[-1]`.
-        self.assertEqual(run.command, cmds[1])
-        self.assertEqual(run.exit_code, 0)
-        # The dirty file lands in `dirty_files`.
-        self.assertIn(LEFTOVER_FILE, run.dirty_files)
-        # The command's stdout is preserved for the park comment so the
-        # operator can triage what the command actually did.
-        self.assertIn("BUILD_LOG_LINE", run.output)
+        self._assert_dirty_run(run, cmds)
+
+    def test_tree_mutation_refuses_fail_closed(self) -> None:
+        with patch.object(probes, "_tree_sha", side_effect=("tree1", "tree2")):
+            run = runner._run_verify_commands(
+                self.worktree, (PASSING_COMMAND,), 60,
+            )
+
+        self.assertEqual(run.status, VERIFY_HEAD_CHANGED)
+        self.assertEqual(len(run.attempted_commands), 1)
+        self.assertEqual(run.attempted_commands[0].status, VERIFY_HEAD_CHANGED)
+        self.assertFalse(run.is_reusable)
 
     def test_running_command_registered_for_shutdown(self) -> None:
-        # The shutdown sweep (`agents.processes.terminate_all_running`) only reaches
-        # process groups registered in `processes._running_procs`. A verify
-        # command must be registered for the lifetime of its run -- otherwise
-        # the watchdog's `os._exit` leaves a slow command running and
-        # mutating the worktree after the orchestrator has stopped -- and
-        # cleared in the `finally` afterward so a finished command does not
-        # leak into the registry. Popen is faked so the registry can be
-        # inspected mid-run deterministically.
         proc = MagicMock()
         proc.pid = 4242
         proc.returncode = 0
@@ -101,6 +74,7 @@ class VerifyCommandMutationTest(
             patch.object(process.subprocess, "Popen", return_value=proc),
             patch.object(_worktree_status, "_worktree_dirty_files", return_value=[]),
             patch.object(probes, "_head_sha", return_value="sha"),
+            patch.object(probes, "_tree_sha", return_value="treesha"),
         ):
             run = runner._run_verify_commands(self.worktree, (PASSING_COMMAND,), 60)
 
@@ -111,6 +85,31 @@ class VerifyCommandMutationTest(
         )
         with processes._running_procs_lock:
             self.assertNotIn(proc, processes._running_procs)
+
+    def _assert_commit_head_change(
+        self, run: runner._models.VerifyResult, cmd: str, head_before: str,
+    ) -> None:
+        self.assertEqual(run.status, VERIFY_HEAD_CHANGED)
+        self.assertEqual(run.command, cmd)
+        self.assertEqual(run.head_before, head_before)
+        self.assertNotEqual(run.head_after, head_before)
+        self.assertEqual(run.dirty_files, ())
+        self.assertEqual(len(run.attempted_commands), 1)
+        self.assertEqual(run.attempted_commands[0].status, VERIFY_HEAD_CHANGED)
+        self.assertFalse(run.is_reusable)
+
+    def _assert_dirty_run(
+        self, run: runner._models.VerifyResult, cmds: tuple[str, ...],
+    ) -> None:
+        self.assertEqual(run.status, VERIFY_DIRTY)
+        self.assertEqual(run.command, cmds[1])
+        self.assertEqual(run.exit_code, 0)
+        self.assertIn(LEFTOVER_FILE, run.dirty_files)
+        self.assertIn("BUILD_LOG_LINE", run.output)
+        self.assertEqual(len(run.attempted_commands), 2)
+        self.assertEqual(run.attempted_commands[0].status, VERIFY_OK)
+        self.assertEqual(run.attempted_commands[1].status, VERIFY_DIRTY)
+        self.assertFalse(run.is_reusable)
 
 
 if __name__ == "__main__":

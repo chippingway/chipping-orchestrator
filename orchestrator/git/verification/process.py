@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""One verify command's subprocess lifecycle and its `VerifyResult` verdict.
+"""One verify command's subprocess lifecycle and its `VerifyCommandOutcome` verdict.
 
 Spawning, group teardown, and bounded draining live beside the classification
 that reads their outcome because the verdict depends on how the shell was torn
@@ -93,13 +93,13 @@ def _spawn_verify_command(
 
 def _timeout_verify_result(
     proc: subprocess.Popen, command: str,
-) -> _models.VerifyResult:
+) -> _models.VerifyCommandOutcome:
     """Kill a timed-out verify group and retain its bounded partial output."""
     _kill_verify_group(proc)
     partial_output = _combine_output(*_drain_verify_output(proc))
-    return _models.VerifyResult(
-        status="timeout",
+    return _models.VerifyCommandOutcome(
         command=command,
+        status=_models.VERIFY_STATUS_TIMEOUT,
         exit_code=None,
         output=_output._truncate_verify_output(partial_output),
     )
@@ -110,34 +110,55 @@ def _completed_verify_result(
     command: str,
     drained: tuple[str, str],
     worktree: Path,
-    head_before: str,
-) -> _models.VerifyResult | None:
-    """Classify one completed command, returning None only when it passed."""
-    combined_output = _combine_output(*drained)
+    baselines: tuple[str, str],
+) -> _models.VerifyCommandOutcome:
+    """Classify one completed command into its outcome record."""
+    head_before, tree_before = baselines
+    truncated = _output._truncate_verify_output(_combine_output(*drained))
+    head_after = _probes._head_sha(worktree)
     if proc.returncode != 0:
-        return _models.VerifyResult(
-            status="failed",
+        return _models.VerifyCommandOutcome(
             command=command,
+            status=_models.VERIFY_STATUS_FAILED,
             exit_code=proc.returncode,
-            output=_output._truncate_verify_output(combined_output),
+            output=truncated,
+            head_before=head_before,
+            head_after=head_after,
         )
     dirty_files = _worktree_status._worktree_dirty_files(worktree)
     if dirty_files:
-        return _models.VerifyResult(
-            status="dirty",
+        return _models.VerifyCommandOutcome(
             command=command,
+            status=_models.VERIFY_STATUS_DIRTY,
             exit_code=proc.returncode,
-            output=_output._truncate_verify_output(combined_output),
+            output=truncated,
             dirty_files=tuple(dirty_files),
+            head_before=head_before,
+            head_after=head_after,
         )
-    head_after = _probes._head_sha(worktree)
-    if head_after == head_before:
-        return None
-    return _models.VerifyResult(
-        status="head_changed",
+    if head_after != head_before:
+        return _models.VerifyCommandOutcome(
+            command=command,
+            status=_models.VERIFY_STATUS_HEAD_CHANGED,
+            exit_code=proc.returncode,
+            output=truncated,
+            head_before=head_before,
+            head_after=head_after,
+        )
+    if tree_before and _probes._tree_sha(worktree) != tree_before:
+        return _models.VerifyCommandOutcome(
+            command=command,
+            status=_models.VERIFY_STATUS_HEAD_CHANGED,
+            exit_code=proc.returncode,
+            output=truncated,
+            head_before=head_before,
+            head_after=head_after,
+        )
+    return _models.VerifyCommandOutcome(
         command=command,
+        status=_models.VERIFY_STATUS_OK,
         exit_code=proc.returncode,
-        output=_output._truncate_verify_output(combined_output),
+        output=truncated,
         head_before=head_before,
         head_after=head_after,
     )

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from orchestrator import config
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification.models import VerifyResult
 from tests.workflow import patch_models as _support, patch_publication as _patch_publication
@@ -120,7 +121,8 @@ def _publication_mocks(context: _WorkflowRunContext) -> dict[str, object]:
 def _validation_mocks(context: _WorkflowRunContext) -> dict[str, object]:
     verify_result = context.verify_result
     if verify_result is None:
-        verify_result = VerifyResult(status="ok")
+        verify_status = "ok" if config.VERIFY_COMMANDS else "not_run"
+        verify_result = VerifyResult(status=verify_status)
     return {
         "_squash_and_force_push": _patch_publication._squashed(context.squash_result),
         "_run_verify_commands": MagicMock(return_value=verify_result),

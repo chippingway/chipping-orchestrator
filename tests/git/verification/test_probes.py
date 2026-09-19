@@ -26,6 +26,7 @@ from tests.workflow.fixtures import TEST_BASE_BRANCH
 GIT_COMMAND = "git"
 QUIET_FLAG = "-q"
 GIT_CONFIG = "config"
+GIT_CALL = "_git"
 HARDENED_GIT = "_git_hardened"
 SEED_FILE = "seed"
 LEFTOVER_FILE = "leftover.txt"
@@ -84,21 +85,39 @@ def _run_git(*args: str, cwd: Path) -> None:
     )
 
 
-class HeadShaProbeTest(unittest.TestCase):
-    """`_head_sha` snapshots HEAD so a verify-time commit can be detected."""
+class IdentityShaProbeTest(unittest.TestCase):
+    """`_head_sha` and `_tree_sha` snapshot HEAD and tree identities."""
 
     def test_reports_the_trimmed_rev_parse_output(self) -> None:
-        with patch.object(commands, "_git", return_value=_completed(0, f"{HEAD_SHA}\n")) as git:
+        with patch.object(commands, GIT_CALL, return_value=_completed(0, f"{HEAD_SHA}\n")) as git:
             self.assertEqual(probes._head_sha(WORKTREE), HEAD_SHA)
             self.assertEqual(git.call_args.args, ("rev-parse", "HEAD"))
             self.assertEqual(git.call_args.kwargs["cwd"], WORKTREE)
 
     def test_unreadable_head_reports_no_snapshot(self) -> None:
-        # An uninitialized repo has no HEAD to read. The runner treats the
-        # empty baseline as "no HEAD ever existed" and accepts only an
-        # unchanged "" afterwards, so the probe must not invent a SHA.
-        with patch.object(commands, "_git", return_value=_completed(GIT_FAILURE, "fatal: bad revision")):
+        with patch.object(commands, GIT_CALL, return_value=_completed(GIT_FAILURE, "fatal: bad revision")):
             self.assertEqual(probes._head_sha(WORKTREE), "")
+
+    def test_tree_reports_trimmed_rev_parse(self) -> None:
+        with patch.object(commands, GIT_CALL, return_value=_completed(0, f"{TREE_OBJECT}\n")) as git:
+            self.assertEqual(probes._tree_sha(WORKTREE), TREE_OBJECT)
+            self.assertEqual(git.call_args.args, ("rev-parse", "--verify", "HEAD^{tree}"))
+            self.assertEqual(git.call_args.kwargs["cwd"], WORKTREE)
+
+    def test_reports_tree_of_named_revision(self) -> None:
+        with patch.object(commands, GIT_CALL, return_value=_completed(0, f"{TREE_OBJECT}\n")) as git:
+            self.assertEqual(probes._tree_sha(WORKTREE, "cafe1234"), TREE_OBJECT)
+            self.assertEqual(git.call_args.args, ("rev-parse", "--verify", "cafe1234^{tree}"))
+
+    def test_unreadable_tree_reports_empty_string(self) -> None:
+        with patch.object(commands, GIT_CALL, return_value=_completed(GIT_FAILURE, "fatal: bad revision")):
+            self.assertEqual(probes._tree_sha(WORKTREE), "")
+
+    def test_empty_revision_returns_empty_without_git(self) -> None:
+        with patch.object(commands, GIT_CALL) as git:
+            self.assertEqual(probes._tree_sha(WORKTREE, ""), "")
+            git.assert_not_called()
+
 
 
 class PorcelainParsingTest(unittest.TestCase):
