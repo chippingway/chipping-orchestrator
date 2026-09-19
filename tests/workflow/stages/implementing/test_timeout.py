@@ -30,6 +30,7 @@ from tests.workflow.fixtures import (
     LABEL_VALIDATING,
     _agent,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.stages.implementing_fixing_test_cases import IssueScenario
 
@@ -203,7 +204,10 @@ class HandleImplementingTimeoutDispositionTest(unittest.TestCase, _PatchedWorkfl
                 last_message="partial trace before the kill",
             ),
             head_shas=(PRE_TIMEOUT_SHA, POST_TIMEOUT_SHA),  # HEAD advanced.
-            has_new_commits=True,  # ... onto this branch's own commit
+            # Nothing on the branch before the run, this run's commit after:
+            # a branch already carrying commits is a previous run's work, and
+            # the tick would recover that rather than spawn this one.
+            has_new_commits=[False, True],
             dirty_files=(),
             push_branch=True,
         )
@@ -230,7 +234,7 @@ class HandleImplementingTimeoutDispositionTest(unittest.TestCase, _PatchedWorkfl
             issue,
             run_agent=_agent(timed_out=True, last_message="committed then died"),
             head_shas=(PRE_TIMEOUT_SHA, POST_TIMEOUT_SHA),  # HEAD advanced.
-            has_new_commits=True,  # onto this branch's own commit
+            has_new_commits=[False, True],  # onto this branch's own commit
             dirty_files=["leftover.py"],
         )
 
@@ -461,7 +465,9 @@ class HandleImplementingTimeoutRecoveryTest(unittest.TestCase, _PatchedWorkflowM
             mocks = self._run_implementing(
                 scenario.github,
                 scenario.issue,
-                run_agent=_agent(session_id=RECOVERY_SESSION, last_message="done"),
+                run_agent=_agent(
+                    session_id=RECOVERY_SESSION, last_message=_reported("done"),
+                ),
                 head_shas=(PRE_TIMEOUT_SHA,),  # before_sha snapshot for the resume.
                 has_new_commits=[True],
                 dirty_files=(),
@@ -520,7 +526,10 @@ class HandleImplementingTimeoutRecoveryTest(unittest.TestCase, _PatchedWorkflowM
                 mocks = self._run_implementing(
                     gh,
                     issue,
-                    run_agent=_agent(session_id=RECOVERY_SESSION, last_message="done"),
+                    run_agent=_agent(
+                        session_id=RECOVERY_SESSION,
+                        last_message=_reported("done"),
+                    ),
                     # The resume's own watermark, then the head its dev
                     # run left: a head that has not moved is a run that
                     # committed nothing, and this one did.

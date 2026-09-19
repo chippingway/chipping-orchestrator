@@ -61,15 +61,10 @@ comment by its receipt, so two reports sharing one would leave the later one
 reading the earlier one's comment as its own publication, edited beyond
 recognition.
 
-One reader here is live: `owes_a_report`, which the implementing stage's
-pull-request body asks before writing the run's closing message beside a report
-that owns it. It answers False on every live issue, because nothing records a
-delivery or takes this owner's park yet -- no stage calls the recording, the
-park, or `redelivers_an_owed_report`. What is here is the durable half of the
-contract -- the record, the refusals that leave a caller's state untouched, and
-the debt an undeliverable report leaves -- proved on its own. The write that
-exchanges a delivery for the transaction it becomes, once a push has reached a
-pull request, is asked through `report_binding`.
+The implementing stage's publication seam is what calls in, between proving a
+clean tree and the size gate; the binding that exchanges a delivery for the
+transaction it becomes, once the push has reached a pull request, is
+`report_binding`'s.
 """
 from __future__ import annotations
 
@@ -137,8 +132,9 @@ _UNRECORDABLE_PARK = (
 # The refusals that are not a contract violation: no process produced the
 # result at all, or the one that did never got to the end of its own run. Each
 # is a failure answered elsewhere, and none of them is a developer declining to
-# report.
-_INCOMPLETE_RUNS = frozenset((
+# report. Public for the stage that has to remember which commit such a run
+# left, since a recovery of that commit later is owed no report either.
+INCOMPLETE_RUNS = frozenset((
     _outcome_models._ReportRefusal.NOT_INVOKED,
     _outcome_models._ReportRefusal.INTERRUPTED,
     _outcome_models._ReportRefusal.TIMED_OUT,
@@ -281,7 +277,7 @@ def _unreported_run_holds(
     committed work an earlier run left is writing the orchestrator's own
     sentence rather than reading a developer declining to report.
     """
-    if _outcomes._report_outcome_of_run(agent_result) in _INCOMPLETE_RUNS:
+    if _outcomes._report_outcome_of_run(agent_result) in INCOMPLETE_RUNS:
         return False
     log.error(
         "issue=#%d finished a developer run with committed work and no "

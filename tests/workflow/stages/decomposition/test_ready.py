@@ -15,6 +15,7 @@ from tests.workflow.fixtures import (
     _TEST_SPEC,
     _agent,
     _PatchedWorkflowMixin,
+    _reported,
 )
 
 LABEL_READY = "workflow:ready"
@@ -38,7 +39,7 @@ class HandleReadyTest(unittest.TestCase, _PatchedWorkflowMixin):
             lambda: _blocked._handle_ready(gh, _TEST_SPEC, issue),
             run_agent=_agent(
                 session_id=DEV_SESSION_ID,
-                last_message="implemented",
+                last_message=_reported(),
             ),
             has_new_commits=[False, True],
             push_branch=True,
@@ -76,7 +77,7 @@ class HandleReadyTest(unittest.TestCase, _PatchedWorkflowMixin):
             lambda: _blocked._handle_ready(gh, _TEST_SPEC, issue),
             run_agent=_agent(
                 session_id=DEV_SESSION_ID,
-                last_message="done",
+                last_message=_reported("done"),
             ),
             has_new_commits=[False, True],
             push_branch=True,
@@ -121,7 +122,7 @@ class HandleReadyTest(unittest.TestCase, _PatchedWorkflowMixin):
             lambda: _blocked._handle_ready(gh, _TEST_SPEC, issue),
             run_agent=_agent(
                 session_id=DEV_SESSION_ID,
-                last_message="done",
+                last_message=_reported("done"),
             ),
             has_new_commits=[False, True],
             push_branch=True,
@@ -156,7 +157,7 @@ class HandleReadyTest(unittest.TestCase, _PatchedWorkflowMixin):
             lambda: _blocked._handle_ready(gh, _TEST_SPEC, issue),
             run_agent=_agent(
                 session_id=DEV_SESSION_ID,
-                last_message="done",
+                last_message=_reported("done"),
             ),
             has_new_commits=[False, True],
             push_branch=True,

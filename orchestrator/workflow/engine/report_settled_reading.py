@@ -6,7 +6,9 @@ A settled record says what the pull request carried once; only a fresh reading
 of the exact location says it still does. Asked by whoever would hand work on
 BECAUSE its report already went out, and posting nothing: the content, the
 header a publication of ours went out under, and who wrote it, each held to the
-road the settlement says it took. No caller asks it yet.
+road the settlement says it took. The implementing stage's publication asks it
+last before its handoff, for the report it settled and for the one a recovery
+would hand on.
 """
 from __future__ import annotations
 

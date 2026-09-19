@@ -16,19 +16,18 @@ message in the description, so a capped excerpt here would be a second,
 unmarked copy. Nothing already on a description is removed on that account --
 a legacy `_Last agent message:_` tail stays where it is, historical.
 
-`pr_description.py` is the report-aware verdict on a reused description, which
-reads this owner's attribution back and rewrites nothing. No caller asks it yet:
-the reuse below still answers through `_attribute_reused_pr`, which knows
-nothing of reports.
-
-The attribution line is what holds the two halves of this owner together. The
-body states it, and the reuse below reads it back off a pull request of unknown
-provenance: `find_open_pr` promises only that something is open on the branch,
-so what it hands over may be this stage's own crashed attempt, an operator's,
-or the `discussion` stage's plan PR sitting on the very ref the dev commits went
-to. Its presence is the one thing that separates the first from the others,
-which is why the same sentence is generated for both readings rather than
-written twice.
+The body is written once, when this owner opens the pull request, and never
+again: a pull request it reuses keeps its description exactly as it stands.
+GitHub offers no conditional write for a description, so an edit built from any
+reading of it can overwrite one a human saved in between. What a reused
+description has to say is judged by `pr_description`, which reads this owner's
+attribution back off a pull request of unknown provenance -- `find_open_pr`
+promises only that something is open on the branch, so what it hands over may
+be this stage's own crashed attempt, an operator's, or the `discussion` stage's
+plan PR sitting on the very ref the dev commits went to. The attribution beside
+this issue's closing reference is the one thing that separates the first from
+the others, which is why the same sentence is generated for both readings
+rather than written twice.
 
 Reuse rather than a second open is also what makes the publication re-runnable:
 a tick that died between `open_pr` and the relabel comes back to a pull request
@@ -107,9 +106,9 @@ def _derive_pr_title(spec: _config_models.RepoSpec, issue: Issue, wt: Path) -> s
 def _dev_pr_attribution(state: _pinned_state.PinnedState) -> str:
     """Which dev session the branch on this PR was written by.
 
-    Its own line because two owners need it: the body that states it, and the
-    reuse below, which reads a PR of unknown provenance for it before adopting
-    that PR as this implementation's.
+    Its own line because two owners need it: the body that states it, and
+    `pr_description`, which reads a PR of unknown provenance for it before the
+    handoff adopts that PR as this implementation's.
     """
     _, dev_backend, _, dev_sid = _session_read._read_dev_session(state)
     session_id = dev_sid or "?"
@@ -146,12 +145,14 @@ def _reuse_or_open_pr(
     state: _pinned_state.PinnedState,
     work: _models._PRWork,
 ):
-    """Return the PR for `branch`, reusing an open one or opening a new one.
+    """Return the PR for `branch`, reused or opened, and whether this opened it.
 
     Recovers gracefully if a previous tick crashed between `open_pr` and the
     relabel: an existing open PR is reused instead of 422-ing on a duplicate.
-    Opening a new PR posts the ":sparkles: PR opened" comment and emits the
-    `pr_opened` event; reuse only logs.
+    Opening one announces nothing yet: the announcement is a request of its
+    own, and a response lost there must find the caller's receipt naming this
+    pull request already written -- so the caller writes that first, then asks
+    `_announce_opened_pr`. Reuse only logs.
 
     `work.delivered_pr` is the other road, and on it nothing may be opened at
     all: the gate let this candidate past BECAUSE that pull request is already
@@ -161,33 +162,49 @@ def _reuse_or_open_pr(
     and here answers None and a second one is opened over the same work.
     Pinned, the same window answers None to the CALLER, which holds the tick
     and leaves the record exactly as it stands.
+
+    A reused pull request is handed back with its description untouched; the
+    caller asks `pr_description` what it says, before the report is bound and
+    again before the handoff.
     """
     if work.delivered_pr:
-        return _delivered_pull_request(gh, issue, work)
+        return _delivered_pull_request(gh, issue, work), False
     pr = gh.find_open_pr(branch=work.branch, base=spec.base_branch)
     if pr is not None:
         log.info(
             "issue=#%s reusing existing PR #%d for %s",
             issue.number, pr.number, work.branch,
         )
-        _attribute_reused_pr(gh, issue, state, work, pr)
-        return pr
-    pr = gh.open_pr(
+        return pr, False
+    return gh.open_pr(
         branch=work.branch, base=spec.base_branch,
         title=_derive_pr_title(spec, issue, work.worktree),
         body=_build_pr_body(state, issue, work.agent_result),
-    )
+    ), True
+
+
+def _announce_opened_pr(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    pr,
+    branch: str,
+) -> None:
+    """Post the ":sparkles: PR opened" comment and emit the `pr_opened` event.
+
+    Asked only for a pull request this tick opened, and only once the receipt
+    naming it is on the pinned comment.
+    """
     _comments._post_issue_comment(gh, issue, state, f":sparkles: PR opened: #{pr.number}")
     gh.emit_event(
         "pr_opened",
         issue_number=issue.number,
         stage=_state._IMPLEMENTING_STAGE,
         pr_number=pr.number,
-        branch=work.branch,
+        branch=branch,
         sha=getattr(pr.head, "sha", None) or None,
         retry_count=state.get(_state._RETRY_COUNT),
     )
-    return pr
 
 
 def _delivered_pull_request(
@@ -249,36 +266,3 @@ def _delivered_pull_request(
         issue.number, work.delivered_pr, work.branch,
     )
     return delivered
-
-
-def _attribute_reused_pr(
-    gh: _client.GitHubClient,
-    issue: Issue,
-    state: _pinned_state.PinnedState,
-    work: _models._PRWork,
-    pr,
-) -> None:
-    """Make a PR opened elsewhere describe the work now pushed onto it.
-
-    What `find_open_pr` returns is only known to be open on this branch. The
-    sharpest case is the `discussion` stage's plan PR: an issue relabeled here
-    arrives with it open on the very branch the dev commits go to, so a silent
-    reuse leaves a body saying the branch is one Markdown file and changes
-    nothing else -- a claim the push just made false -- under the decomposer's
-    session rather than the developer's, and with no `Resolves #N` to close
-    the issue when it merges. An operator's own PR on the branch is the same
-    problem with different words.
-
-    The dev attribution is what decides. Its absence means the body is about
-    something other than this implementation and is rewritten; its presence
-    means this stage already wrote it (a tick that died between `open_pr` and
-    the relabel), and everything it says -- including what a human added
-    underneath -- is left alone.
-    """
-    if _dev_pr_attribution(state) in (getattr(pr, "body", "") or ""):
-        return
-    log.info(
-        "issue=#%s rewriting reused PR #%d body to name this implementation",
-        issue.number, pr.number,
-    )
-    gh.edit_pr_body(pr, _build_pr_body(state, issue, work.agent_result))

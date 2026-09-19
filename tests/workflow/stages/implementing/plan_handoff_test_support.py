@@ -29,6 +29,8 @@ from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
+    _recovered_report,
+    _reported,
 )
 from tests.workflow.stages.implementing import read_only_relabel_test_support as _support
 
@@ -43,7 +45,7 @@ PLAN_COMMIT = "the-commit-the-plan-pr-carried"
 # What a human's own work on the plan PR leaves as its head: a correction
 # pushed to the Markdown, or the base merged in to make the PR mergeable.
 AMENDED_PLAN_COMMIT = "the-commit-a-human-edit-left-on-the-plan-pr"
-IMPLEMENTED = "implemented"
+IMPLEMENTED = _reported()
 KEY_BRANCH = "branch"
 
 
@@ -83,6 +85,15 @@ def _seed_published_plan(issue_number: int, *, head_sha: str, merged: bool = Tru
         },
     )
     _add_plan_pr(*seeded, head_sha=head_sha, merged=merged)
+    # The report of the run whose commit this shape is about, since that is
+    # what one looks like in production: a developer committed on an earlier
+    # tick and recorded its report before the gate, and this tick is the
+    # publication that never happened. Without one the stage holds the work
+    # for a human rather than handing it to review.
+    github, issue = seeded
+    github.seed_state(issue.number, **{
+        **github.pinned_data(issue.number), **_recovered_report(issue),
+    })
     return seeded
 
 
@@ -114,6 +125,15 @@ def _seed_accepted_handoff(
         },
     )
     _add_plan_pr(*seeded, head_sha=head_sha, merged=merged)
+    # The report of the run whose commit this shape is about, since that is
+    # what one looks like in production: a developer committed on an earlier
+    # tick and recorded its report before the gate, and this tick is the
+    # publication that never happened. Without one the stage holds the work
+    # for a human rather than handing it to review.
+    github, issue = seeded
+    github.seed_state(issue.number, **{
+        **github.pinned_data(issue.number), **_recovered_report(issue),
+    })
     return seeded
 
 

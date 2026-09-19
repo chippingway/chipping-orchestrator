@@ -12,7 +12,6 @@ from __future__ import annotations
 from github.Issue import Issue
 
 from orchestrator import config
-from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
@@ -21,15 +20,18 @@ from orchestrator.git.worktrees import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import guards as _guards
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    report_delivery as _report_delivery,
+)
 from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
     late_approval_reading as _late_approval_reading,
     late_park_state as _late_park_state,
     models as _models,
     parks as _parks,
-    session_read as _session_read,
     state as _state,
+    unreported_recovery as _unreported_recovery,
 )
 
 
@@ -99,21 +101,17 @@ def _try_recover_implementing_timeout_park(
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
     state.set(_state._PRE_IMPLEMENT_SHA, None)
-    _, _, _, dev_sid = _session_read._read_dev_session(state)
-    agent_result = AgentResult(
-        session_id=dev_sid,
-        last_message=(
-            "(orchestrator recovery: publishing commit produced around the "
-            "agent timeout)"
-        ),
-        exit_code=0,
-        timed_out=False,
-        stdout="",
-        stderr="",
+    work = _models._AgentWork(_unreported_recovery._recovery_result(
+        state,
+        "(orchestrator recovery: publishing commit produced around the agent "
+        "timeout)",
+    ), wt)
+    # The commit a timeout stranded is an incomplete run's, owed no report --
+    # recorded before the gate, so a retry of a reading it fails is not held.
+    _unreported_recovery._waives_an_incomplete_run(
+        gh, issue, state, work, stranded=True,
     )
-    _candidate_recovery._publish_committed_work(
-        gh, spec, issue, state, _models._AgentWork(agent_result, wt),
-    )
+    _candidate_recovery._publish_committed_work(gh, spec, issue, state, work)
     return "pushed"
 
 
@@ -163,6 +161,17 @@ def _run_left_commits(
     `_attributable_run` refuses on, and a recovered run is the one road past
     it -- it is defined by commits that predate the tick, so there is no run
     here to attribute anything to.
+
+    A head that did not move has one exception, and it is the park this stage
+    takes over a report it could not deliver. Such an issue was never waiting
+    for code: the commits are on the branch already, published or not, and
+    what was asked for was a report this workflow could record and bind. So a
+    run that comes back with one is publishing rather than asking, and the
+    seam below records its report in place of the one nothing could deliver
+    and carries the same commits through. What that exception is held to
+    belongs to the owner that spells it -- a debt owed, a report outcome, and
+    a branch that carries something -- so an ordinary reply, a question, or a
+    run that fell short is read here exactly as it always was.
     """
     if not _worktree_creation._has_new_commits(spec, prepared.worktree):
         return False
@@ -171,7 +180,11 @@ def _run_left_commits(
     head = _verification_probes._head_sha(prepared.worktree)
     if not _attributable_run(prepared, head):
         return False
-    return head != _inherited_floor(state) and head != prepared.before_sha
+    if head != _inherited_floor(state) and head != prepared.before_sha:
+        return True
+    return _report_delivery.redelivers_an_owed_report(
+        spec, state, prepared.agent_result, prepared.worktree,
+    )
 
 
 def _attributable_run(
@@ -298,6 +311,21 @@ def _dispose_agent_result(
     `before_sha` on the timeout half (`_timeout_left_commits`), and the
     certified baseline a read-only relabel left beside it on the clean one
     (`_run_left_commits`).
+
+    A RECOVERED run is the clean half's own exception, and what it turns on is
+    the pinned comment rather than the tree. No agent ran on this tick: the
+    commits are a developer's from an earlier one, and that run's report is on
+    the comment or nowhere, because recording it is the first thing that
+    happens after a run returns and it happens before the size gate and the
+    push. So committed work with no report recorded means the tick that made
+    it never got the record out -- a pinned write that failed, or a restart
+    between the run and it -- and the session that could say what it did has
+    ended. Published, that is a reviewer handed an implementation nobody
+    described; held, it is a reply away from the report it is missing.
+
+    What counts as a report of it -- a debt still owed, or a settled pair
+    about this very head -- is `unreported_recovery`'s, which every other
+    recovery that republishes an earlier run's commits asks too.
     """
     if prepared.agent_result.timed_out:
         # The implementer can commit clean work and then get killed by the
@@ -319,19 +347,24 @@ def _dispose_agent_result(
         gh.write_pinned_state(issue, state)
         return
 
-    if _run_left_commits(spec, state, prepared):
-        _candidate_recovery._publish_committed_work(
-            gh,
-            spec,
-            issue,
-            state,
-            _models._AgentWork(prepared.agent_result, prepared.worktree),
-        )
-    else:
+    if not _run_left_commits(spec, state, prepared):
         _parks._on_question(
             gh, issue, state,
             _guards._ParkedRun(
                 prepared.agent_result, _guards._ROUTE_DEV_RUN,
             ),
         )
+        gh.write_pinned_state(issue, state)
+        return
+    if prepared.recovered and _unreported_recovery._holds_unreported_work(
+        gh, spec, issue, state, prepared.before_sha,
+    ):
+        return
+    _candidate_recovery._publish_committed_work(
+        gh,
+        spec,
+        issue,
+        state,
+        _models._AgentWork(prepared.agent_result, prepared.worktree),
+    )
     gh.write_pinned_state(issue, state)

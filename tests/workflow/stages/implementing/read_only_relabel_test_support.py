@@ -33,6 +33,7 @@ from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
     _agent,
     _issue_branch,
+    _reported,
 )
 
 PUSH_BRANCH = "_push_branch"
@@ -168,7 +169,7 @@ class _ReadOnlyRelabelMixin:
             gh,
             issue,
             unpushed_branch=_issue_branch(issue.number),
-            run_agent=_agent(session_id=DEV_SESSION, last_message="implemented"),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=_reported()),
             has_new_commits=True,
             branch_tip_sha=HEAD_BEFORE_ROUND,
             head_shas=(HEAD_BEFORE_ROUND, HEAD_BEFORE_ROUND, HEAD_AFTER_COMMIT),

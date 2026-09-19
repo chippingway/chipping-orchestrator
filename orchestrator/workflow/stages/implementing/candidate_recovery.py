@@ -12,7 +12,6 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
@@ -21,7 +20,10 @@ from orchestrator.git.worktrees import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import guards as _guards
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    report_delivery as _report_delivery,
+)
 from orchestrator.workflow.stages.implementing import (
     checkout_parks as _checkout_parks,
     late_approval_reading as _late_approval_reading,
@@ -29,8 +31,8 @@ from orchestrator.workflow.stages.implementing import (
     late_gate as _late_gate,
     late_park_state as _late_park_state,
     publication as _publication,
-    session_read as _session_read,
     state as _state,
+    unreported_recovery as _unreported_recovery,
 )
 from orchestrator.workflow.stages.implementing.models import _AgentWork, _ApprovedWork, _RecoveredWork
 
@@ -83,6 +85,36 @@ def _publish_committed_work(
     something different there, and the gate is told which kind of tick it is
     by the work it is handed rather than left to guess from a checkout that
     cannot say.
+
+    The report the run wrote is recorded between the tree and the gate, and
+    the placement is the whole of what makes it recoverable. Past this line
+    the candidate can be frozen for a human to adjudicate, the push can fail,
+    and the process can die -- and on every one of those the session that
+    wrote the report is gone, so a report only held in memory is a report
+    nothing can ever get back. Behind the tree reading because a tree that
+    cannot publish is one this disposition is not finishing at all. Ahead of
+    the gate because the gate is the first thing that can hold the work for a
+    human. A run that produced no report records nothing and pays nothing,
+    which is every recovery that reaches this seam.
+
+    A report this build cannot record HOLDS the tick there, and holding it at
+    this line is what makes the refusal cheap: nothing has been measured,
+    nothing pushed, no pull request opened, so the commit is exactly where the
+    developer left it and a reply resumes the session that writes the report
+    again. Waved through instead, the code would reach review with no report
+    and no record of what the run said.
+
+    A `_RecoveredWork` records nothing there -- no developer ran -- so what
+    describes it has to be on the comment already, and `unreported_recovery`
+    holds it where nothing is: every road that republishes a candidate a gate
+    record named asks that, not only the restart shortcut. A run that did not
+    complete records nothing either, by design, and the commit it left is
+    written down here, durably and ahead of the gate, so a later recovery of
+    that commit is not held for a report no run was ever going to write --
+    unless a report an earlier run recorded is still waiting to go out, which
+    describes the branch before that commit and is never bound to it: the
+    commit is held there instead. A run that did complete retires that note in
+    the very write that records its report, so no crash leaves the two apart.
     """
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
     tree = _worktree_status._worktree_status(work.worktree)
@@ -95,6 +127,19 @@ def _publish_committed_work(
             ),
             tree,
         )
+        return
+    _unreported_recovery._waives_an_incomplete_run(gh, issue, state, work)
+    if _report_delivery.recording_stops_the_tick(
+        gh, issue, state, work.agent_result, _state._REPORT_ROUTE,
+    ):
+        return
+    if _unreported_recovery._holds_an_unfinished_run(gh, issue, state, work):
+        return
+    if isinstance(work, _RecoveredWork) and (
+        _unreported_recovery._holds_unreported_work(
+            gh, spec, issue, state, work.candidate_sha,
+        )
+    ):
         return
     verdict = _late_gate._holds_committed_work(
         gh, spec, issue, state, work,
@@ -216,20 +261,13 @@ def _dispose_approved_commit(
     a human or a reading stood behind is cleared for a commit neither ever
     saw. Named, the gate refuses it before anything is persisted or pushed.
     """
-    _, _, _, dev_sid = _session_read._read_dev_session(state)
-    agent_result = AgentResult(
-        session_id=dev_sid,
-        last_message=(
-            "(orchestrator recovery: publishing the approved commit)"
-        ),
-        exit_code=0,
-        timed_out=False,
-        stdout="",
-        stderr="",
-    )
     _publish_committed_work(
         gh, spec, issue, state, _RecoveredWork(
-            agent_result, worktree, _late_approval_reading._approved_commit(state),
+            _unreported_recovery._recovery_result(
+                state, "(orchestrator recovery: publishing the approved commit)",
+            ),
+            worktree,
+            _late_approval_reading._approved_commit(state),
         ),
     )
 
@@ -328,19 +366,12 @@ def _dispose_recorded_candidate(
     no reading covers -- measured and published under a record naming the one
     the crashed tick froze.
     """
-    _, _, _, dev_sid = _session_read._read_dev_session(state)
-    agent_result = AgentResult(
-        session_id=dev_sid,
-        last_message=(
-            "(orchestrator recovery: reconciling the frozen candidate)"
-        ),
-        exit_code=0,
-        timed_out=False,
-        stdout="",
-        stderr="",
-    )
     _publish_committed_work(
         gh, spec, issue, state, _RecoveredWork(
-            agent_result, worktree, _late_park_state._recorded_candidate(state),
+            _unreported_recovery._recovery_result(
+                state, "(orchestrator recovery: reconciling the frozen candidate)",
+            ),
+            worktree,
+            _late_park_state._recorded_candidate(state),
         ),
     )

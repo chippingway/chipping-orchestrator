@@ -99,6 +99,7 @@ _OWNERS = (
     "relabel_evidence",
     "relabel_hazard",
     "relabel_refusal",
+    "report_handoff",
     "resume",
     "resume_batch",
     "resume_request",
@@ -107,6 +108,7 @@ _OWNERS = (
     "session_read",
     "spawn",
     "state",
+    "unreported_recovery",
     "worktree",
 )
 

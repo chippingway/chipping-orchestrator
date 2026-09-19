@@ -497,8 +497,8 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
   alone, without waiting for a local reading to convict: that marker is written before the push, so the branch may be
   on the remote with a PR open against it, and on a fresh clone every local probe reads clean at once — no checkout,
   nothing ahead of base, no tip to compare. Handed over there, the developer builds from base and the push takes a
-  lease read live off the remote: the published plan is overwritten, its PR adopted, and its body rewritten to close
-  the issue. So the refusal names which half died and leads with the way out that finishes it — relabel back to
+  lease read live off the remote: the published plan is overwritten and its PR adopted as the implementation's. So the
+  refusal names which half died and leads with the way out that finishes it — relabel back to
   `discussion`, whose own recovery restores the checkout from the PR head, adopts that PR, and records it — rather
   than a reset that would destroy the plan. Those two records are read AHEAD of the terminals rather than behind
   them, which is the one place the guard's position in the preflight is not enough: the `pr_number` such an issue

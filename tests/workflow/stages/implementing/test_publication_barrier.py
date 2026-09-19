@@ -27,7 +27,6 @@ from pathlib import Path
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.agents.models import AgentResult
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
     models as _models,
@@ -46,6 +45,7 @@ from tests.workflow.fixtures import (
 )
 from tests.workflow.interleaving import _RacesPastTheStep, _RacesTheStep
 from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.report_values import _named_description, _reported
 
 _REPO_SLUG = _TEST_SPEC.slug
 
@@ -57,7 +57,7 @@ _BRANCH = _issue_branch(_ISSUE)
 _OPEN = "open"
 _CLOSED = "closed"
 _DEV_SESSION = "sess-barrier"
-_IMPLEMENTED = "implemented"
+_IMPLEMENTED = _reported()
 
 # The transport this barrier must never let be reached, and the spawn a poll
 # behind a refusal may not need.
@@ -132,13 +132,8 @@ def _approved_work(**fields) -> _models._ApprovedWork:
     what it decides on is the record, the latch and the remote.
     """
     return _models._ApprovedWork(
-        agent_result=AgentResult(
-            session_id=_DEV_SESSION,
-            last_message=_IMPLEMENTED,
-            exit_code=0,
-            timed_out=False,
-            stdout="",
-            stderr="",
+        agent_result=_agent(
+            session_id=_DEV_SESSION, last_message=_IMPLEMENTED,
         ),
         worktree=Path(_ABSENT_WORKTREE),
         **fields,
@@ -218,6 +213,7 @@ class _BarrierCase(ObservedCloseCase, _PatchedWorkflowMixin):
         """
         pull_request = _open_pr_for(
             self.github, issue_number=_ISSUE, pr_number=_PR_NUMBER,
+            body=_named_description(_ISSUE, _DEV_SESSION),
         )
         self.github.existing_open_pr[_BRANCH] = pull_request
 

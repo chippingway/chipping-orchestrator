@@ -31,9 +31,11 @@ LABEL_IMPLEMENTING = fixtures.LABEL_IMPLEMENTING
 _PatchedWorkflowMixin = fixtures._PatchedWorkflowMixin
 _TEST_SPEC = fixtures._TEST_SPEC
 _agent = fixtures._agent
+_reported = fixtures._reported
+_named_description = fixtures._named_description
 
 DEV_SESSION = "sess-1"
-DONE_MESSAGE = "done"
+DONE_MESSAGE = _reported("done")
 FEATURE_PREFIX = "feat"
 TEST_ISSUE_TITLE = "add a thing"
 SPARKLY_TITLE = "add a sparkly thing"
