@@ -204,7 +204,9 @@ which reaches the same two labels by projecting the comment the issue already ha
 The drift-sensitive handlers hash the issue title, body, and every human-authored issue-thread comment, and react
 once to a change: `workflow:decomposing` re-spawns inline, `workflow:ready` / `workflow:blocked` /
 `workflow:umbrella` route back to `workflow:decomposing`, the dev stages resume the locked dev session, and
-`workflow:documenting` unwinds to `workflow:validating`. `_handle_fixing`, `_handle_question`, and
+`workflow:documenting` unwinds to `workflow:validating`. A reply to a parked `workflow:implementing` or
+`workflow:validating` issue is not such a change: those stages measure a parked tick by what the park had already
+read, and the frozen reply batch delivers the reply. `_handle_fixing`, `_handle_question`, and
 `_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and
 `/orchestrator authorize-oversized <commit>`), the
