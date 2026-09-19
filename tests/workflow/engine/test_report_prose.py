@@ -11,6 +11,7 @@ it pairs that Markdown does not.
 
 from __future__ import annotations
 
+import re
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -18,6 +19,7 @@ from unittest.mock import patch
 from orchestrator.workflow.engine import (
     report_code_spans as _code_spans,
     report_html_literals as _html,
+    report_link_fields as _link_fields,
     report_locations as _locations,
 )
 
@@ -163,6 +165,12 @@ HIDDEN = (
 # behind whatever markers its line opens on -- and, behind a link's or an
 # image's text, the destination and the title, or the label of the definition it
 # names. An image's description is an attribute once rendered.
+# Deeper in parentheses than a destination is read pair by pair, and a
+# destination that deep with every pair closed.
+DEEPER = 40
+
+DEEP_DESTINATION = "x".join(("(" * DEEPER, ")" * DEEPER))
+
 UNSHOWN = (
     f"[{FIXES}]: https://example.com",
     f'[docs]: https://example.com "{FIXES}"',
@@ -180,6 +188,21 @@ UNSHOWN = (
     f"[text][{FIXES}]",
     f'![image](https://example.com/a.png "{FIXES}")',
     f"![{FIXES}](https://example.com/a.png)",
+    # A destination holds parentheses in pairs however deep, and a description
+    # brackets, a link or another image; an escaped bracket closes nothing, and
+    # neither does one in a tag's attribute.
+    f'[link](https://example.com/a_(b_(c)) "{FIXES}")',
+    f'[link]({DEEP_DESTINATION} "{FIXES}")',
+    f"![nested [label] {FIXES}](https://example.com/a.png)",
+    f"![a ![b](c) {FIXES}](https://example.com/a.png)",
+    f"![a \\] {FIXES}](https://example.com/a.png)",
+    f'![a <b title="]"> {FIXES}](https://example.com/a.png)',
+    # An image is one by a definition elsewhere too, collapsed or shortcut or
+    # by another label, and nobody looks the definition up.
+    f"![{FIXES}][]\n\n[{FIXES}]: https://example.com/a.png",
+    f"![{FIXES}]\n\n[{FIXES}]: https://example.com/a.png",
+    f"![{FIXES}][image]\n\n[image]: https://example.com/a.png",
+    f"![{FIXES}]",
 )
 
 # A tag quoted as code is no tag only where the code is CERTAIN. Not after a
@@ -274,6 +297,10 @@ PROSE = (
     f"[see](the docs) {FIXES}",
     f"A list [a, b] and f(x) here. {FIXES}",
     f"- [x] done (mostly). {FIXES}",
+    f"![an image](https://example.com/a.png) {FIXES}",
+    f"![an image][] {FIXES}\n\n[an image]: https://example.com/a.png",
+    f"![unclosed {FIXES}",
+    f"Done! [The docs](https://example.com) say so. {FIXES}",
     f"- [x] done with `a`. {FIXES} and `b`",
     f"It costs $5 for `a`. {FIXES} and `b`",
     f"`a[0]` and `f(x)` stay code. {FIXES} as `b` does.",
@@ -301,6 +328,9 @@ LONGEST = 65536
 
 OPENERS = ("<a", "<a ", '<a b="x" c="', "`<a")
 
+# And nothing but links whose destinations open more parentheses than any closes.
+DEEP_DESTINATIONS = ("[a](x(", "[](".ljust(DEEPER, "("))
+
 # One more backticked line than a block's spans are looked for from.
 CROWDED = _code_spans._MAX_SPAN_READINGS + 1
 
@@ -314,17 +344,24 @@ def _describes(reference: str) -> bool:
 
 
 class _Budgeted:
-    """The attribute pattern, read no more than `budget` times."""
+    """A pattern of the readers', asked no more than `budget` times."""
 
-    def __init__(self, budget: int) -> None:
+    def __init__(self, pattern: re.Pattern[str], budget: int) -> None:
         self._left = budget
-        self._pattern = _html._ATTRIBUTE_RE
+        self._pattern = pattern
 
     def match(self, text: str, position: int) -> object:
+        self._spend()
+        return self._pattern.match(text, position)
+
+    def search(self, text: str, position: int) -> object:
+        self._spend()
+        return self._pattern.search(text, position)
+
+    def _spend(self) -> None:
         self._left -= 1
         if self._left < 0:
-            raise AssertionError("more attributes read than the text allows")
-        return self._pattern.match(text, position)
+            raise AssertionError("the text was read more often than it allows")
 
 
 class CertainProseTest(unittest.TestCase):
@@ -348,8 +385,19 @@ class CertainProseTest(unittest.TestCase):
         for opener in OPENERS:
             with self.subTest(opener=opener):
                 openers = opener * (LONGEST // len(opener))
-                budgeted = _Budgeted(2 * LONGEST)
+                budgeted = _Budgeted(_html._ATTRIBUTE_RE, 2 * LONGEST)
                 with patch.object(_html, "_ATTRIBUTE_RE", budgeted):
+                    self.assertTrue(_describes(f"{FIXES} {openers}"))
+
+    def test_a_text_of_deep_destinations_is_read_once(self) -> None:
+        # A destination deeper in parentheses than is read pair by pair runs to
+        # the whitespace that ends it, which is looked for once for the run
+        # they all stand in rather than once from each.
+        for opener in DEEP_DESTINATIONS:
+            with self.subTest(opener=opener):
+                openers = opener * (LONGEST // len(opener))
+                budgeted = _Budgeted(_link_fields._DESTINATION_END_RE, 2)
+                with patch.object(_link_fields, "_DESTINATION_END_RE", budgeted):
                     self.assertTrue(_describes(f"{FIXES} {openers}"))
 
     def test_a_crowded_block_is_code_throughout(self) -> None:

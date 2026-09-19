@@ -233,10 +233,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             leaves a character no reference is made of, so a keyword and a number either side of
                             code are never read as one, and a tag's own markup goes the same way, quoted attribute
                             values and all -- to its `>`, or to the end of the text for one that opens a line, behind
-                            markers or what was taken out, and that nothing closes. So does what Markdown reads and
-                            shows nothing of, wherever it may be one: a link reference definition with its title, the
-                            destination and title behind a link's or an image's text, the label a reference link
-                            names, and an image's description
+                            markers or what was taken out, and that nothing closes. So does what
+                            `report_link_fields.py` finds read and not shown, asked once the tags are out
+    report_link_fields.py   what of a text a link, an image or a definition reads and shows nothing of, each
+                            wherever it MAY be one. An image's description, an `alt` attribute once rendered: from
+                            its `!` to the bracket that closes it, brackets paired innermost first and a backslash
+                            escaping one, whatever follows it -- a collapsed or a shortcut image is one by a
+                            definition nobody looks up. What stands behind a link's or an image's text: the
+                            destination and title in parentheses, or the label it names; a bare destination holds
+                            parentheses in pairs as deep as the renderer GitHub runs reads them, and one that goes
+                            deeper runs to the whitespace that ends it, found once for the run it stands in. And a
+                            link reference definition whole, behind the markers its line opens on, its destination
+                            on the next line and its title on the one after included
     report_code_spans.py    the inline code spans of a text, POSSIBLE and CERTAIN. Markdown pairs backticks within
                             one stretch of inline text, and where one begins is the doubt: a heading or a list item
                             starts a block with no blank line above it, a table reads each cell on its own, and a
