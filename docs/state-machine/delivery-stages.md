@@ -50,6 +50,12 @@ unread human comment past those watermarks to `workflow:fixing`, so the drift ch
 changes the ID scan didn't catch (title/body edits, and edits to existing issue-thread comments whose ids are already
 below the watermark).
 
+`_handle_implementing` and `_handle_validating` narrow the check on a PARKED tick the same way. Each freezes its one
+reply batch before asking, and measures the requirements by what the park had already read — the frozen comments at or
+below `last_action_comment_id` — so a reply to the park is the batch's to deliver rather than a drift that resumes the
+developer on the whole thread. Only a title/body edit, or an edit to a comment the park had already read, takes the
+drift road there, and settling the batch records `user_content_hash` through the reply it delivered.
+
 `_handle_fixing`, `_handle_question`, and `_handle_discussion` deliberately skip the drift check. `_handle_fixing`
 refreshes `user_content_hash` itself once it has consumed the PR-side feedback; `_handle_question` and
 `_handle_discussion` run their own conversation flows on an operator-applied label nothing routes into, so rerouting
