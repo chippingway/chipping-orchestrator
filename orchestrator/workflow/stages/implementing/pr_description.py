@@ -81,20 +81,23 @@ def _names_the_implementation(
     True: it does. False: it does not and a report of this issue's claims it;
     while that report is still owed the binding is what parks the collision,
     and once it has settled no retry frees the description, so it parks here.
-    None holds the tick: a description nobody could read, which the next tick
-    reads again, or one nobody claims that names nothing, parked for a human.
+    None holds the tick: a description nobody could read, or a repository
+    nobody could name for the qualified reference in it, which the next tick
+    reads again; or a description nobody claims that names nothing, parked for
+    a human.
     """
     try:
-        current = gh.get_pr(pr.number)
+        current, repo_slug = gh.get_pr(pr.number), gh.repo_slug
     except Exception:
         log.exception(
-            "issue=#%s could not re-read PR #%d's description; holding rather "
-            "than deciding on one nobody read", issue.number, pr.number,
+            "issue=#%s could not re-read PR #%d's description, or the "
+            "repository a qualified reference in it has to name; holding "
+            "rather than deciding on what nobody read", issue.number, pr.number,
         )
         return None
     attribution = _dev_pr._dev_pr_attribution(state)
     if _report_locations.describes_the_issue(
-        current, issue.number, attribution, gh.repo_slug,
+        current, issue.number, attribution, repo_slug,
     ):
         return True
     claimed = _report_locations.claims_the_description(state, pr.number)

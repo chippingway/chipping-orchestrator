@@ -7,14 +7,16 @@ where such a stretch begins is the doubt. A heading, a list item or a quote
 starts a block with no blank line above it, and a table reads each CELL on its
 own. And a backtick is no delimiter where something else has TAKEN it: an HTML
 tag or an autolink binds as tightly as a code span with the leftmost winning, a
+bare URL is linked where it stands and runs through a backtick to whitespace, a
 link or an image reads its destination and title itself once its text has
 closed, and a `$` may open math -- past any of which the pairing starts afresh.
 
 So a span is looked for from EVERY place a reading could begin, within what
 blank lines certainly bound: each line, each cell of a block that may hold a
-table, and -- from the first `<`, `[` or `$` standing in no certain code -- past
-each `>`, `]`, `)` and `$`. POSSIBLE is whatever any of those readings
-encloses, for `report_prose`, to which a doubt is code.
+table, and -- from the first `<`, `[`, `$` or bare URL standing in no certain
+code -- past each `>`, `]`, `)` and `$` and the end of each bare URL. POSSIBLE
+is whatever any of those readings encloses, for `report_prose`, to which a doubt
+is code.
 
 CERTAIN is the other end of the same doubt, for a reader that must not take a
 tag quoted as code for a tag: a span every reading agrees on. One that ends
@@ -47,13 +49,22 @@ _INLINE_TOKEN_RE = re.compile(r"\\[\s\S]|`+")
 
 _BACKTICK = "`"
 
-# What may take a backtick for its own opens on one of these: a tag or an
-# autolink, a link or an image or a footnote, and math. And each ends on one of
-# those -- a link on its text's `]` where it is a reference, and on the `)` of
-# its destination and title where it is not.
-_TAKER_RE = re.compile(r"[<\[$]")
+# A bare URL as GitHub links one where it stands: from its scheme or its `www.`
+# through every character, a backtick included, to whitespace -- the six ASCII
+# characters GitHub ends one on, not what `\s` does -- or a `<`. In any case, and
+# whatever stands before it: whether it IS a link is one more doubt.
+_BARE_URL = r"(?:(?:https?|ftp)://|www\.)"
 
-_TAKER_END_RE = re.compile(r"[>\])$]")
+_BARE_URL_RE = re.compile(rf"{_BARE_URL}[^ \t\n\v\f\r<]*", re.IGNORECASE)
+
+# What may take a backtick for its own opens on one of these: a tag or an
+# autolink, a link or an image or a footnote, math, and a bare URL. And each
+# ends on one of those -- a link on its text's `]` where it is a reference, and
+# on the `)` of its destination and title where it is not -- or where the bare
+# URL does.
+_TAKER_RE = re.compile(rf"[<\[$]|{_BARE_URL}", re.IGNORECASE)
+
+_TAKER_ENDS = (re.compile(r"[>\])$]"), _BARE_URL_RE)
 
 # Where a reading could begin: each line; and each cell as well, in a block
 # that may hold a table. Every pipe is taken for a cell's edge, an escaped one
@@ -125,7 +136,7 @@ class _Block:
         """The spans of this block, one too crowded to read being code throughout."""
         if _BACKTICK not in text[self.start:self.end]:
             return CodeSpans((), ())
-        begun = self._begun_past(text, self._edges(text), self.start)
+        begun = self._begun_past(text, (self._edges(text),), self.start)
         if len(begun) > _MAX_SPAN_READINGS:
             return CodeSpans(((self.start, self.end),), ())
         readings = [list(runs.spans_from(start, self.end)) for start in begun]
@@ -150,15 +161,20 @@ class _Block:
         there ends nothing.
         """
         taken = self._first_taker(text, certain)
-        return [] if taken is None else self._begun_past(text, _TAKER_END_RE, taken)
+        return [] if taken is None else self._begun_past(text, _TAKER_ENDS, taken)
 
-    def _begun_past(self, text: str, edge: re.Pattern[str], since: int) -> list[int]:
-        """Where a reading could begin: past each `edge` of the block from `since`.
+    def _begun_past(
+        self, text: str, edges: tuple[re.Pattern[str], ...], since: int,
+    ) -> list[int]:
+        """Where a reading could begin: past each of `edges` in the block from `since`.
 
         Less those with no backtick before the next, which read as the next
         does -- so a text of many lines costs a reading per backticked one.
         """
-        begun = [past.end() for past in edge.finditer(text, since, self.end)]
+        found = chain.from_iterable(
+            edge.finditer(text, since, self.end) for edge in edges
+        )
+        begun = sorted({past.end() for past in found})
         following = [*begun, self.end][1:]
         return [
             start for start, until in zip(begun, following, strict=True)

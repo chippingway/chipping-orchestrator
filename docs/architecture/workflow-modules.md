@@ -238,10 +238,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             one stretch of inline text, and where one begins is the doubt: a heading or a list item
                             starts a block with no blank line above it, a table reads each cell on its own, and a
                             backtick is no delimiter where something else has TAKEN it -- a tag or an autolink,
-                            which binds as tightly as a span, a link or an image, which reads its destination and
+                            which binds as tightly as a span, a bare `https://`, `ftp://` or `www.` URL, which
+                            GitHub links where it stands through every backtick to ASCII whitespace or a `<`, a
+                            link or an image, which reads its destination and
                             title itself, a reference's label, math -- so the pairing starts afresh past it. So a
                             span is looked for from every line, every cell of a block that may hold a table, and
-                            past every `>`, `]`, `)` and `$` from the first `<`, `[` or `$` standing in no certain
+                            past every `>`, `]`, `)`, `$` and bare URL's end from the first `<`, `[`, `$` or bare
+                            URL standing in no certain
                             code, within what blank lines bound and against one index of the text's backtick runs;
                             possible is whatever any reading encloses, and a block with more places to begin than
                             the readings allow is code throughout. Certain is what every reading agrees on: a span

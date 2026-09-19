@@ -40,6 +40,11 @@ _CLOSES_THE_ISSUE = re.compile(
     re.IGNORECASE,
 )
 
+# What a number is compared without. As digits, never as a number: a
+# description may hold more of them than Python will convert, and one that long
+# names no issue.
+_LEADING_ZERO = "0"
+
 # Every record a report's location can be claimed by, beside the reader that
 # types it.
 _CLAIMING_RECORDS = (
@@ -150,7 +155,7 @@ def describes_the_issue(
     found = _CLOSES_THE_ISSUE.finditer(_prose.outside_code(body))
     closing = (reference for reference in found if reference.group().isascii())
     return attribution in body and any(
-        int(reference["issue"]) == issue_number
+        reference["issue"].lstrip(_LEADING_ZERO) == str(issue_number)
         and (reference["repo"] or repo_slug).lower() == repo_slug.lower()
         for reference in closing
     )

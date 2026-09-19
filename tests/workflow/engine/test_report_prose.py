@@ -71,6 +71,14 @@ CODE_SPANS = (
     f"Field | Value\n:-- | --:\nstray ` | `{FIXES}`",
     f'see <a title="`">a link</a> `{FIXES}`',
     f"<http://example.com/`x> `{FIXES}`",
+    # So does a bare URL, which GitHub links where it stands: by scheme or by
+    # `www.`, in any case, through every backtick to the whitespace GitHub ends
+    # one on -- which a no-break space is not.
+    f"https://example.com/`x `{FIXES}`",
+    f"www.example.com/`x `{FIXES}`",
+    f"see HTTP://example.com/`x and `{FIXES}`",
+    f"ftp://example.com/`x `{FIXES}`",
+    f"https://example.com/`x\N{NO-BREAK SPACE}`y `{FIXES}`",
     # A link or an image reads its destination and title itself once its text
     # has closed, and a reference its label: a backtick there pairs with nothing.
     f'[link](https://example.com "`") `{FIXES}`',
@@ -231,6 +239,7 @@ PROSE = (
     f"Where a > b use `x`. {FIXES} as `y` does.",
     # Nor does a link, a task box or a price, where the backticks past it pair.
     f"[The docs](https://example.com) mention `a`. {FIXES} with `b`.",
+    f"See https://example.com/docs for `a`. {FIXES} with `b`.",
     f"- [x] done with `a`. {FIXES} and `b`",
     f"It costs $5 for `a`. {FIXES} and `b`",
     f"`a[0]` and `f(x)` stay code. {FIXES} as `b` does.",

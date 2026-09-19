@@ -17,7 +17,7 @@ from __future__ import annotations
 import copy
 import unittest
 from types import MappingProxyType
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 from orchestrator.github import developer_reports as _reports
 from orchestrator.github.pinned_state import PinnedState
@@ -102,6 +102,8 @@ CLOSING_NOTHING = (
     f'<pre><a title="</pre>">{RESOLVES}</a></pre>',
     f"<pre>Literal </pre\N{NO-BREAK SPACE}> {RESOLVES}</pre>",
     f"`<x`<code>{RESOLVES}</code>",
+    f"https://example.com/`x `{RESOLVES}`",
+    f"www.example.com/`x `{RESOLVES}`",
     f"<!DOCTYPE html {RESOLVES}>",
     f"<?{RESOLVES}?>",
     f"<![CDATA[{RESOLVES}]]>",
@@ -125,6 +127,10 @@ UNREAD = "GitHub did not answer the pull-request read"
 SAVED_MEANWHILE = "### Notes\n\nSaved after the orchestrator's last read."
 
 GET_PR = "get_pr"
+
+UNREAD_REPOSITORY = "GitHub did not answer the repository read"
+
+REPO_SLUG = "repo_slug"
 
 # The client's one request that rewrites a description, which nothing here may
 # make: a case that reached it fails on the spot rather than on a later assert.
@@ -373,6 +379,21 @@ class DescriptionVerdictTest(unittest.TestCase, _ReusedPullRequest):
         self.assertEqual(
             (verdict, self.live.body, self.notices()),
             (None, HUMAN_DESCRIPTION, []),
+        )
+
+    def test_an_unreadable_repository_holds(self) -> None:
+        # The description was read and the repository a qualified reference
+        # in it has to name was not -- a fresh worker's client fetches it on
+        # that read. Nothing is decided on half of what the verdict compares.
+        self.reused(_own_description())
+        unread = PropertyMock(side_effect=RuntimeError(UNREAD_REPOSITORY))
+
+        with patch.object(type(self.github), REPO_SLUG, unread):
+            verdict = self.names()
+
+        self.assertEqual(
+            (verdict, unread.call_count, self.live.body, self.notices()),
+            (None, 1, _own_description(), []),
         )
 
 
