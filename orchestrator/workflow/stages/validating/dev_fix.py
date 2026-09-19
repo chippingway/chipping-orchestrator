@@ -52,11 +52,18 @@ from orchestrator.workflow.stages.validating import (
 def _park_dev_fix_timeout(
     gh: GitHubClient, issue: Issue, state: PinnedState, before_sha: str,
 ) -> None:
+    """Park a fix round whose agent the timeout killed, bounded by our ledger.
+
+    Bounded for the reason implementing's counterpart is: the notice lands
+    above anything a human wrote during the run, and the transient recovery
+    that retries this park fires only on a thread with nothing new on it.
+    """
     _guards._park_awaiting_human(
         gh, issue, state,
         f"{config.HITL_MENTIONS} agent timed out after {config.AGENT_TIMEOUT}s, "
         "manual intervention needed.",
         reason=_state._REASON_AGENT_TIMEOUT,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._REASON_AGENT_TIMEOUT)
     state.set(_state._PRE_DEV_FIX_SHA, before_sha or "")
@@ -177,6 +184,7 @@ def _publish_dev_fix(
         gh, issue, state,
         f"{config.HITL_MENTIONS} git push failed; see orchestrator logs.",
         reason=_state._REASON_PUSH_FAILED,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._REASON_PUSH_FAILED)
     return False

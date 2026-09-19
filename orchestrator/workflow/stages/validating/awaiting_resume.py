@@ -19,6 +19,10 @@ pushed fix bumps the round and emits no relabel, so the issue stays on
 the final-docs hop after approval. It always answers `"return"` -- every path
 through it has fully handled the tick -- while the decisions above may answer
 `"spawn_reviewer"` and send the caller on to the round-cap check.
+
+Everything on this road reads the context's one frozen batch, and the reply is
+recorded as consumed by the run that read it rather than ahead of it, so a live
+pause or an interruption leaves the thread exactly as it found it.
 """
 from __future__ import annotations
 
@@ -44,7 +48,9 @@ def _resume_validating_awaiting_dev(context: _models._AwaitingValidation) -> str
         if context.comments else "passthrough"
     )
     if continue_action == "refuse":
-        _messages._refuse_parked_continue(context.gh, context.issue, context.state)
+        _messages._refuse_parked_continue(
+            context.gh, context.issue, context.state, context.comments,
+        )
         context.gh.write_pinned_state(context.issue, context.state)
         return _state._OUTCOME_RETURN
     attempt = _awaiting._run_awaiting_dev(context, continue_action)

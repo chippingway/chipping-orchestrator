@@ -9,11 +9,12 @@ never reads the thread's tip: a tip is where a comment nothing here has looked
 at lands, and crossing one is the only failure on this road that a later poll
 cannot undo.
 
-It sits in the engine rather than in one stage because the park funnel in
-`guards.py` beside it asks for it: `bounded=True` stamps this walk instead of
-the id of the notice the park just posted. No stage passes that yet, and the
-implementing stage's own `park_watermarks` keeps its tip fallback for the parks
-that read it -- this owner is the bounded answer those parks are moved onto.
+It sits in the engine rather than in one stage because every park that waits
+for a human after an agent run owes it, and the funnel those parks go through
+is `guards.py` beside it: `bounded=True` stamps this walk instead of the id of
+the notice the park just posted. The implementing question and checkout parks,
+which post and emit for themselves, stamp it directly, and so do the run-limit
+notice and the refusal a parked `/orchestrator continue` earns.
 
 `guards.py` reads this owner rather than the other way round, so nothing here
 may reach back for it: the park is built on the watermark, not beside it.
@@ -64,7 +65,9 @@ def _read_this_far(
       ledger entry behind it, so every delivery reading refuses it as forged
       and the worst it costs is a poll rather than somebody's comment.
     - A thread with no watermark to walk from. The tip is where the comment
-      written DURING the run is too, and nothing distinguishes the two by id.
+      written DURING the run is too, and nothing distinguishes the two by id;
+      the pickup that starts an issue anchors the mark to its own comment so
+      that this is a legacy issue rather than the ordinary road.
     - A thread this call cannot re-read, which must not raise. Every caller
       asks this AFTER its notice is on the thread and BEFORE its own write
       records the park, so an exception here strands one notice said with

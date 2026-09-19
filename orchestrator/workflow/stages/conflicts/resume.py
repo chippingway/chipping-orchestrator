@@ -241,7 +241,9 @@ def _awaiting_human_followup(ctx: _models._ConflictContext) -> str | None:
         else _messages._continue_command_action(new_comments, park_reason)
     )
     if continue_action == "refuse":
-        _messages._refuse_parked_continue(ctx.gh, ctx.issue, ctx.state)
+        _messages._refuse_parked_continue(
+            ctx.gh, ctx.issue, ctx.state, new_comments,
+        )
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return None
     ctx.state.set(

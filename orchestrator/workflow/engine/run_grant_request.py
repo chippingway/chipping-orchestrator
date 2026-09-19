@@ -119,9 +119,11 @@ def _requested(comments: list) -> _Request | None:
 
     What the record carries out of here is the whole batch as well as the
     command: the words a human wrote above or below it are read by the same
-    tick, and answering the command is answering them. The batch ends at the
-    last TRUSTED comment, since that is all this reading is handed -- an
-    outsider's is left where it is for the next tick to filter out again.
+    tick, and answering the command is answering the replies to the park. The
+    batch ends at the last TRUSTED comment, since that is all this reading is
+    handed -- an outsider's is left where it is for the next tick to filter out
+    again. Which of those words are replies to the park, rather than input the
+    park interrupted, is the consuming owner's question rather than this one.
     """
     latest = None
     for comment in comments:
