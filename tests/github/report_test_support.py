@@ -40,9 +40,20 @@ UNREADABLE = "unreadable"
 REFUSED = "refused"
 LOST = "lost"
 
+_UNANSWERED = "GitHub did not answer the read"
+
 _FIRST_WIRE_ID = 5000
 _HTTP_UNPROCESSABLE = 422
 _HTTP_BAD_GATEWAY = 502
+
+
+class UnreadableUser:
+    """An author whose login is a request GitHub would not answer."""
+
+    @property
+    def login(self) -> str:
+        """Raise the way a lazy member does on a completion that failed."""
+        raise RuntimeError(_UNANSWERED)
 
 
 def wire_pull_request(number: int, body: str, ids: Iterator[int]) -> MagicMock:

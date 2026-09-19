@@ -40,6 +40,10 @@ _MODE = "mode"
 
 _REFUSED = "GitHub did not answer the read"
 
+_GITHUB_LOG = "orchestrator.github"
+
+_WARNING = "WARNING"
+
 # The two counts a published report's header carries, and one of more digits
 # than Python converts.
 _COUNT_RE = re.compile(":pr=[0-9]+:")
@@ -226,6 +230,18 @@ class UnpayableDebtTest(unittest.TestCase, _Readings):
 
         self.gh.report_failures.unreadable.add(support.PR_NUMBER)
         self.assertFalse(self.refuses_for_good(pending))
+
+    def test_an_unread_publication_author_holds(self) -> None:
+        # Who wrote the comment under the receipt is a request of its own, and
+        # one GitHub would not answer is a reading nobody took: the debt stays
+        # one a retry can pay, and nothing is raised out of the tick.
+        pending = self.posted_and_unsettled()
+        self.pull_request.issue_comments[-1].user = _UnreadableUser()
+
+        with self.assertLogs(_GITHUB_LOG, _WARNING):
+            refused = self.refuses_for_good(pending)
+
+        self.assertFalse(refused)
 
     def test_a_moved_verification_is_unpayable(self) -> None:
         # Changed, gone, or written by somebody untrusted: each a definite
