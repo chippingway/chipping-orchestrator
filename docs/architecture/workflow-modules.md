@@ -202,7 +202,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             with the question. A post whose id nothing could read falls back to the tip, since a
                             watermark that never moved leaves the park's own notice to be read back as somebody's
                             guidance on every later tick. `bounded=True` is the opt-in no stage passes yet: it
-                            stamps `park_watermarks.py`'s walk instead, and is popped before the correlation screen
+                            stamps `park_watermarks.py`'s walk instead, and is popped before the correlation screen.
+                            Only a bounded park reads the comment-id ledger ahead of its post, since the walk needs
+                            it; the ordinary park only appends to that ledger, so a malformed legacy entry parks it
+                            all the same
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read:
                             through the comments our id ledger names, stopping at the first it does not -- a reply
                             from the run, one quoting the pinned record's marker (the thread is read by that
