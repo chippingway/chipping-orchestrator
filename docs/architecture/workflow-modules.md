@@ -217,9 +217,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report reader and the reviewer verification reader, judged without a Markdown parser so
                             that a doubt reads as fenced: a fence opens at the top level or in a list item, closes
                             only on a bare run at its opening run's column, and stays open to the end past a line
-                            that may have ended its list item. On request it reads the fences a blockquote holds
-                            too, behind any nesting of list and quote markers, closing one only behind the markers
-                            it opened behind; the marker readers do not ask, since no marker line opens on `>`.
+                            that may have ended its list item. Asked by `report_prose.py` of a pull request's
+                            description, it reads the fences a blockquote holds too, behind any nesting of list and
+                            quote markers, closing one only behind the markers it opened behind; the marker readers
+                            do not ask, since no marker line opens on `>`.
                             That reading errs towards code, so `definite_fences` answers the other end of the
                             doubt: the closed fences that are fences however the text is read -- opened at the
                             margin of their markers, outside anything an HTML block may hold, and closed where
