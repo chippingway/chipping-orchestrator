@@ -203,6 +203,23 @@ UNSHOWN = (
     f"![{FIXES}]\n\n[{FIXES}]: https://example.com/a.png",
     f"![{FIXES}][image]\n\n[image]: https://example.com/a.png",
     f"![{FIXES}]",
+    # A title goes on over a line ending, one behind a backslash included --
+    # which escapes nothing there, and ends no title -- and so does a label.
+    # Nor does a backslash escape the whitespace that ends a destination.
+    f'[link](url "first\\\n{FIXES}")',
+    f"[link](url 'first\\\n{FIXES}')",
+    f"[link](url (first\\\n{FIXES}))",
+    f'![image](url "first\\\n{FIXES}")',
+    f'[docs]: url "first\\\n{FIXES}"',
+    f"[docs]: url\n  'first\\\n{FIXES}'",
+    f"[{FIXES}\\\nmore]: url",
+    f'[link](a\\ "{FIXES}")',
+    # The parts of a link stand either side of a line ending behind the
+    # blockquote markers the next line opens on, which Markdown has off first.
+    f'> [docs]: url\n> "{FIXES}"',
+    f'> [docs]:\n> url\n> "{FIXES}"',
+    f'> [link](url\n> "{FIXES}")',
+    f'> > [link](\n> > url\n> > "{FIXES}"\n> > )',
 )
 
 # A tag quoted as code is no tag only where the code is CERTAIN. Not after a
@@ -300,6 +317,10 @@ PROSE = (
     f"![an image](https://example.com/a.png) {FIXES}",
     f"![an image][] {FIXES}\n\n[an image]: https://example.com/a.png",
     f"![unclosed {FIXES}",
+    f'[link](url "a title\\\nin two lines") {FIXES}',
+    f'[link](url "first\\\\" {FIXES} "x")',
+    f"> [docs]: url\n> {FIXES}",
+    f"> [link](url)\n> {FIXES}",
     f"Done! [The docs](https://example.com) say so. {FIXES}",
     f"- [x] done with `a`. {FIXES} and `b`",
     f"It costs $5 for `a`. {FIXES} and `b`",

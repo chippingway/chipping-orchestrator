@@ -244,7 +244,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parentheses in pairs as deep as the renderer GitHub runs reads them, and one that goes
                             deeper runs to the whitespace that ends it, found once for the run it stands in. And a
                             link reference definition whole, behind the markers its line opens on, its destination
-                            on the next line and its title on the one after included
+                            on the next line and its title on the one after included. A title goes on over line
+                            endings, one behind a backslash included, and the parts of a link stand either side of
+                            one behind the blockquote markers the next line opens on
     report_code_spans.py    the inline code spans of a text, POSSIBLE and CERTAIN. Markdown pairs backticks within
                             one stretch of inline text, and where one begins is the doubt: a heading or a list item
                             starts a block with no blank line above it, a table reads each cell on its own, and a

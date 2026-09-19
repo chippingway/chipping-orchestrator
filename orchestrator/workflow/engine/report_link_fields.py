@@ -22,6 +22,10 @@ And a link reference DEFINITION whole, behind the markers its line opens on:
 its destination may stand on the next line and its title on the one after, and
 the rest of the line either ends on goes with it. Below a paragraph it cannot
 interrupt it is taken all the same.
+
+A title goes on over line endings, one behind a backslash included, and the
+parts of a link stand either side of one behind whatever blockquote markers the
+next line opens on, which Markdown has off before it reads the link.
 """
 from __future__ import annotations
 
@@ -33,26 +37,41 @@ from typing import Final
 # What Markdown counts as whitespace inside a link, in a character class.
 _SPACE = r" \t\n\v\f"
 
+# The blockquote markers a line may open on, behind the line ending before
+# them: Markdown has them off before it reads a link, so what stands either
+# side of a line ending inside one stands there behind them too.
+_QUOTED_LINE = r"\n(?:[ \t]*+>)*+"
+
+# The whitespace between the parts of what stands behind a link's text.
+_BETWEEN = rf"(?:[ \t\v\f]|{_QUOTED_LINE})"
+
+# A backslash and whatever it stands before, a line ending included. It
+# escapes punctuation alone and is a character of its own before anything else,
+# but nothing else it could stand before delimits a title, a label or a bracket
+# -- and read as `\\.` reads it, one before a line ending would end a title
+# that goes on to the next line.
+_ESCAPED = r"\\[\s\S]"
+
 # A link's title, in any of its three spellings, with whatever a backslash
 # escapes inside it; `\x22` and `\x27` being the two quotes.
 _TITLE = (
-    r"(?:\x22(?:[^\x22\\]++|\\.)*+\x22|\x27(?:[^\x27\\]++|\\.)*+\x27"
-    r"|\((?:[^()\\]++|\\.)*+\))"
+    rf"(?:\x22(?:[^\x22\\]++|{_ESCAPED})*+\x22|\x27(?:[^\x27\\]++|{_ESCAPED})*+\x27"
+    rf"|\((?:[^()\\]++|{_ESCAPED})*+\))"
 )
 
 # As long as Markdown lets a label be, which bounds what is read for one.
-_LABEL = r"(?:[^\]\[\\]|\\.){1,999}+"
+_LABEL = rf"(?:[^\]\[\\]|{_ESCAPED}){{1,999}}+"
 
 # A definition, behind the markers its line opens on.
 _DEFINITION_RE = re.compile(
     rf"^(?: {{0,3}}(?:>|[-+*]|[0-9]{{1,9}}[.)]) ?)*+ {{0,3}}\[{_LABEL}\]:"
-    rf"[ \t]*+\n?[ \t]*+(?:<[^<>\n]*+>|[^{_SPACE}]++)"
-    rf"(?:[ \t]*+\n?[ \t]*+{_TITLE})?[^\n]*+",
+    rf"[ \t]*+(?:{_QUOTED_LINE})?[ \t]*+(?:<[^<>\n]*+>|[^{_SPACE}]++)"
+    rf"(?:[ \t]*+(?:{_QUOTED_LINE})?[ \t]*+{_TITLE})?[^\n]*+",
     re.MULTILINE,
 )
 
 # The brackets of a text, and the escapes that are none.
-_BRACKET_RE = re.compile(r"\\.|[\[\]]")
+_BRACKET_RE = re.compile(rf"{_ESCAPED}|[\[\]]")
 
 _BRACKET_OPENER = "["
 
@@ -62,9 +81,9 @@ _IMAGE_MARK = "!"
 
 # What opens the parentheses behind a link's text, and what closes them past
 # the destination: a title, or none.
-_TAIL_OPENING_RE = re.compile(rf"\([{_SPACE}]*+")
+_TAIL_OPENING_RE = re.compile(rf"\({_BETWEEN}*+")
 
-_TAIL_CLOSING_RE = re.compile(rf"(?:[{_SPACE}]++{_TITLE})?[{_SPACE}]*+\)")
+_TAIL_CLOSING_RE = re.compile(rf"(?:{_BETWEEN}++{_TITLE})?{_BETWEEN}*+\)")
 
 # A destination in angle brackets, which holds anything but a line ending.
 _POINTED_DESTINATION_RE = re.compile(r"<[^<>\n]*+>")
@@ -72,8 +91,11 @@ _POINTED_DESTINATION_RE = re.compile(r"<[^<>\n]*+>")
 _POINTED_OPENER = "<"
 
 # What a bare destination is read by: the parentheses it holds in pairs and
-# the whitespace that ends it, past the escapes that are neither.
-_DESTINATION_MARK_RE = re.compile(rf"\\.|[()]|(?P<space>[{_SPACE}])")
+# the whitespace that ends it, past the escapes that are neither. Whitespace
+# ends one behind a backslash too, which escapes none of it.
+_DESTINATION_MARK_RE = re.compile(
+    rf"\\[^{_SPACE}]|[()]|(?P<space>[{_SPACE}])",
+)
 
 _ENDING_SPACE = "space"
 
