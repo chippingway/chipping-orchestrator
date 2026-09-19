@@ -11,6 +11,11 @@ only that it wrote.
 The theme marks every reading a formatter was handed, so a count reaching the
 markup raw can be told from one the page shortened, and the reads are answered
 with their own names, so a case can say which read family reached which panel.
+
+A pass driven end-to-end rather than against stubs needs the rest of the page
+surface and rows the panels can actually draw; both live beside this module in
+`section_render_test_support`, which reads its window, theme, and page state
+back off the names here so the two sets of cases stay comparable.
 """
 
 from __future__ import annotations
@@ -45,6 +50,15 @@ LAST_COVERED_DATE = "2026-05-07"
 
 # The offset the sidebar picked, which two of the panels are handed.
 TZ_OFFSET = 3
+
+# The filter set a page nobody narrowed carries: the window and nothing else.
+WIDE_OPEN_FILTERS = page_models.DashboardFilters(
+    window=WINDOW,
+    repo=None,
+    issue_input=None,
+    events=None,
+    stages=None,
+)
 
 # The theme, with each formatter marking what it was handed so a case can say
 # which readings reached the markup shortened rather than raw.
@@ -105,18 +119,17 @@ def page(
     topbar: Any = None,
     meta: Any = None,
     reads: Any = None,
+    filters: page_models.DashboardFilters | None = None,
 ) -> page_models.DashboardPage:
-    """A page opened on the window above, with the two chrome slots given."""
+    """A page opened on the window above, with the two chrome slots given.
+
+    `filters` replaces the wide-open default with whatever the sidebar
+    resolved, which is what opens the trace at the foot of the page.
+    """
     return page_models.DashboardPage(
         extent=DataExtent(min_ts=WINDOW_START, max_ts=WINDOW_END),
         controls=page_models.DashboardControls(
-            filters=page_models.DashboardFilters(
-                window=WINDOW,
-                repo=None,
-                issue_input=None,
-                events=None,
-                stages=None,
-            ),
+            filters=filters or WIDE_OPEN_FILTERS,
             topbar_slot=topbar,
             meta_slot=meta,
             timezone_offset=TZ_OFFSET,
