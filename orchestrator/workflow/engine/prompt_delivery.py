@@ -11,10 +11,12 @@ namespaces and provenance, preserving pinned watermark fields
 Forward updates are conservative: they never copy a live thread tip,
 combine unrelated namespaces, or take an unrestricted maximum across surfaces.
 Untrusted comments and forged orchestrator markers cannot authorize
-advancement. Independent watermarks are derived across surfaces without
-collapsing mixed snapshots. Unseen PR comments bound the PR conversation cursor
-without holding back the issue action watermark. Starting watermarks are
-incorporated so historical omitted context does not block forward progress.
+advancement. The pinned state comment is excluded by its id where a caller
+names it, so a human reply quoting its marker is still a reply. Independent
+watermarks are derived across surfaces without collapsing mixed snapshots.
+Unseen PR comments bound the PR conversation cursor without holding back the
+issue action watermark. Starting watermarks are incorporated so historical
+omitted context does not block forward progress.
 
 Consumed field pairs are exposed for durable report/checkpoint settlement and
 can be settled directly and idempotently into pinned state.
@@ -102,6 +104,12 @@ _ATTR_BODY = "body"
 _ATTR_ID = "id"
 _ATTR_USER = "user"
 _ATTR_LOGIN = "login"
+
+# What `classify_comment` answers for a comment somebody outside this process
+# wrote and nothing here refuses: admitted, with no filtering reason recorded
+# against it. Our own posts come back admitted too, under the reason that
+# names them, which is why the reason is half of the test.
+_A_HUMAN_WROTE_IT = (True, None)
 
 SurfaceBatch = tuple[str, Iterable]
 Batches = dict[str, Iterable] | Iterable[SurfaceBatch]
@@ -409,9 +417,26 @@ class _CandidateClassifier:
         comment: object,
         retained_ids: frozenset,
         pat_login: str | None = None,
+        state_comment_id: int | None = None,
     ) -> tuple[bool, str | None]:
+        """Whether one comment may enter a prompt, and why not where it may not.
+
+        The pinned state comment is answered by IDENTITY where the caller can
+        name it, and by its marker only where it cannot -- the same split the
+        thread reader makes. The marker is text a human can quote, and read as
+        the pinned comment it hides that human's reply from every prompt.
+
+        The login is no evidence either way. A comment under the token's own
+        account that the ledger does not name is a human sharing that token,
+        admitted like any other author; one carrying our marker without a
+        ledger entry is refused as forged whoever posted it.
+        """
         body_text = getattr(comment, _ATTR_BODY, None) or ""
-        if "<!--orchestrator-state" in body_text:
+        if state_comment_id is None:
+            pinned = "<!--orchestrator-state" in body_text
+        else:
+            pinned = getattr(comment, _ATTR_ID, None) == state_comment_id
+        if pinned:
             return False, REASON_STATE_COMMENT
 
         posted_here = getattr(comment, _ATTR_ID, None) in retained_ids
@@ -424,6 +449,37 @@ class _CandidateClassifier:
         user_obj = getattr(comment, _ATTR_USER, None)
         trusted = is_trusted_author(user_obj)
         return trusted, None if trusted else REASON_UNTRUSTED_AUTHOR
+
+    @classmethod
+    def human_replies(
+        cls,
+        read: Iterable,
+        retained_ids: frozenset = _EMPTY_IDS,
+        state_comment_id: int | None = None,
+    ) -> list:
+        """The replies one read of a thread leaves for a prompt to be built of.
+
+        The same classification `evaluate` records per entry, asked as a list
+        question, for a road that has to decide who OWNS a batch before
+        anything builds a prompt from it. One answer rather than two: a
+        command classifier reading the raw thread and a delivery record
+        reading the filtered one disagree the moment a comment is in exactly
+        one of them -- a park notice of ours above a bare command makes the
+        batch look mixed to the classifier, which passes it through to a
+        resume that then delivers the command as prose.
+
+        Four kinds come out: an untrusted author, the pinned state comment,
+        our own posts by recorded id, and a body carrying our marker that the
+        ledger cannot vouch for. `state_comment_id` names the pinned comment
+        for a read that was taken by it, so a reply quoting the state marker
+        is a reply like any other.
+        """
+        return [
+            reply for reply in read
+            if cls.classify_comment(
+                reply, retained_ids, state_comment_id=state_comment_id,
+            ) == _A_HUMAN_WROTE_IT
+        ]
 
     @classmethod
     def classify_review(
@@ -449,6 +505,7 @@ class _CandidateClassifier:
         raw_entry: object,
         retained_ids: frozenset,
         pat_login: str | None,
+        state_comment_id: int | None = None,
     ) -> tuple[DeliveredInput, bool]:
         if surface in (SURFACE_REVIEW_SUMMARY, SURFACE_INLINE_REVIEW):
             is_ok, reason = cls.classify_review(
@@ -456,7 +513,7 @@ class _CandidateClassifier:
             )
         else:
             is_ok, reason = cls.classify_comment(
-                raw_entry, retained_ids, pat_login,
+                raw_entry, retained_ids, pat_login, state_comment_id,
             )
 
         user_obj = getattr(raw_entry, _ATTR_USER, None)
@@ -506,12 +563,18 @@ class _CandidateClassifier:
         evaluated: list[DeliveredInput] = []
         for sname, batch in batches:
             retained = cls.surface_retained(options, sname)
-            for raw_input in batch:
-                evaluated.append(
-                    cls.evaluate(
-                        sname, raw_input, retained, options.get("pat_login"),
-                    )[0],
-                )
+            # The pinned comment lives on the issue thread, so the identity
+            # that names it answers for that surface and no other.
+            pinned = (
+                options.get("state_comment_id")
+                if sname == SURFACE_ISSUE_THREAD else None
+            )
+            evaluated.extend(
+                cls.evaluate(
+                    sname, raw_input, retained, options.get("pat_login"), pinned,
+                )[0]
+                for raw_input in batch
+            )
         return evaluated
 
     @classmethod
@@ -677,3 +740,4 @@ def create_prompt_delivery_snapshot(
 
 classify_comment_trust = _CandidateClassifier.classify_comment
 classify_review_trust = _CandidateClassifier.classify_review
+human_replies = _CandidateClassifier.human_replies

@@ -6,7 +6,8 @@ Only trusted authors and explicitly retained orchestrator comment ids may enter
 a rebuilt conversation. Marker text alone cannot admit a comment. Repository
 context contains configured source paths and branches, with a bounded listing.
 Process-local delivery snapshots record exact delivered inputs and conservative
-settlement watermarks.
+settlement watermarks; a snapshot over a read taken by the pinned comment's id
+names that comment the same way.
 """
 from __future__ import annotations
 
@@ -160,16 +161,19 @@ def _thread_delivery(
     max_chars: int = 4000,
     *,
     retained_ids: frozenset = _NO_RETAINED_IDS,
-    pat_login: str | None = None,
-    requirements_revision: str | None = None,
+    **naming,
 ) -> prompt_delivery.PromptDeliverySnapshot:
-    """Build a delivery snapshot for an already-read list of comments."""
+    """Build a delivery snapshot for an already-read list of comments.
+
+    `naming` carries what the snapshot is told about who wrote what, beyond
+    the recorded ids: `pat_login`, `requirements_revision`, and the
+    `state_comment_id` of a read taken by the pinned comment's identity.
+    """
     return prompt_delivery.create_prompt_delivery_snapshot(
         issue_comments=issue_comments,
         max_chars=max_chars,
         retained_ids=retained_ids,
-        pat_login=pat_login,
-        requirements_revision=requirements_revision,
+        **naming,
     )
 
 

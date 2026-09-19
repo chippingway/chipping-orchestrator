@@ -4,7 +4,9 @@
 
 An owed notice is valid only for the count and allowance it names. A changed
 ledger replaces that obligation; settlement clears the notice, never the
-lifetime charge or the separate park waiting for an operator grant."""
+lifetime charge or the separate park waiting for an operator grant.
+`_restore_displaced` puts back the park a recorded `DisplacedPark` names; no
+park records one and no grant calls it yet."""
 from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
@@ -60,6 +62,22 @@ def _stage_park(state: PinnedState, ledger: AgentRunLedger) -> bool:
     if not owed.explains(ledger):
         _owe_notice(state, ledger)
     return True
+
+
+def _restore_displaced(state: PinnedState) -> None:
+    """Put back the park a grant lifts the run-limit park off of, and forget it.
+
+    What the tick the grant hands on then reaches is the road the refused
+    launch was on -- for an awaiting-human resume, the reply it was handed is
+    still unread there -- so the run a human paid for is the one this issue
+    was stopped for. A park with nothing recorded -- one taken before the
+    field existed, or a hand-edited one -- comes down to no park at all.
+    """
+    displaced = _run_limit_values.DisplacedPark.recorded(
+        state.data.pop(_run_limit_values.AGENT_RUN_LIMIT_DISPLACED, None),
+    )
+    state.set(_run_limit_values._AWAITING_HUMAN, displaced.awaiting)
+    state.set(_run_limit_values._PARK_REASON, displaced.reason)
 
 
 def _owed_notice(state: PinnedState) -> _run_limit_values.OwedNotice | None:

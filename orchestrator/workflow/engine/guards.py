@@ -12,9 +12,10 @@ in-memory `PinnedState` mutations it already staged are dropped and the next
 tick re-derives the run from the state the prior tick left. `_park_awaiting_human`
 goes the other way -- it posts the HITL comment, sets `awaiting_human`, forwards
 explicit bounded correlation fields to the emitted event and analytics sink, and
-ratchets `last_action_comment_id` past it -- and still leaves the write to the
-caller, so a park composes with whatever else that handler staged rather than
-committing ahead of it.
+ratchets `last_action_comment_id` past it -- or, asked with `bounded=True`, only
+as far as `park_watermarks` can walk our own identified comments -- and still
+leaves the write to the caller, so a park composes with whatever else that
+handler staged rather than committing ahead of it.
 
 The three refusals answer different questions and none covers the others.
 A launch that never became a process is read off the result the agent-run
@@ -48,7 +49,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import comments as _comments, park_watermarks as _park_watermarks
 from orchestrator.workflow.state import stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -296,16 +297,36 @@ def _park_awaiting_human(
     is the lesser of the two failures left: a watermark that never moved
     leaves the park's own notice to be read back as somebody's fresh guidance
     on every dispatch after this one.
+
+    `bounded=True` asks for the other answer, the one a park following an
+    agent RUN owes. The notice-id answer above is right for a refusal decided
+    between two of one tick's own steps and wrong after minutes of somebody's
+    compute: there the notice lands above whatever a human wrote while the
+    agent was out, and crossing it is the answer being thrown away by the
+    question. So a bounded park records the thread read only as far as
+    `park_watermarks` can walk it -- through our own identified comments and
+    no further, and nowhere at all where the walk has no floor, the post was
+    never identified, or the thread cannot be re-read. It is popped like
+    `reason` rather than admitted as a correlation field: it decides a WRITE,
+    so it belongs to neither the event nor the analytics payload. Only a
+    bounded park reads the ledger before posting: the walk needs it, and the
+    ordinary park appends to that ledger without parsing what it already holds.
     """
     reason = correlation.pop("reason", None)
-    screened = _screened_correlation(correlation)
+    bounded = correlation.pop("bounded", False)
+    _screened_correlation(correlation)
+    said_before = _comments._orchestrator_ids(state) if bounded else None
     posted = _comments._post_issue_comment(gh, issue, state, message)
     state.set("awaiting_human", True)
     state.set("park_reason", None)
-    said = getattr(posted, "id", None)
-    latest = gh.latest_comment_id(issue) if said is None else said
-    if latest is not None:
-        state.set("last_action_comment_id", latest)
+    if bounded:
+        _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
+    else:
+        latest = getattr(posted, "id", None)
+        if latest is None:
+            latest = gh.latest_comment_id(issue)
+        if latest is not None:
+            state.set("last_action_comment_id", latest)
     # Read the label AFTER the comment post and state writes so the
     # captured stage reflects the handler that drove the park (the label
     # itself is unchanged by this call -- callers relabel only after the
@@ -315,5 +336,5 @@ def _park_awaiting_human(
         issue_number=issue.number,
         stage=stage_name(gh.workflow_label(issue)),
         reason=reason,
-        **screened,
+        **correlation,
     )
