@@ -134,6 +134,7 @@ def _park_for_the_checkout(
     """
     _guards._park_awaiting_human(
         gh, issue, state, message, reason=_state._CANDIDATE_MOVED,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._CANDIDATE_MOVED)
 
@@ -209,6 +210,7 @@ def _moved_off_the_candidate(
             head=head or "an unreadable head",
         ),
         reason=_state._CANDIDATE_MOVED,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._CANDIDATE_MOVED)
     # What the refusal is waiting on, written where something can act on it.
@@ -320,6 +322,7 @@ def _moved_after_the_push(
             mentions=config.HITL_MENTIONS, published=published, head=head,
         ),
         reason=_state._CANDIDATE_MOVED,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._CANDIDATE_MOVED)
     return True

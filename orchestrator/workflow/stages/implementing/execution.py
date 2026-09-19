@@ -129,9 +129,7 @@ class _DevResumeContext:
                 self.spec,
                 self.issue,
                 self.followup_text,
-                followup_has_tracked_repos=(
-                    self.options.followup_has_tracked_repos
-                ),
+                self.options,
                 fresh=fresh,
             ),
             cwd=self.worktree,

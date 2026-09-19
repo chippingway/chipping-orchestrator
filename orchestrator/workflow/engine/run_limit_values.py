@@ -3,7 +3,7 @@
 """Lifetime run-limit notice records, audit phases, and pinned park fields.
 
 `DisplacedPark` is the park a run-limit park goes up in front of, in the pinned
-shape a grant would put back; nothing records or restores one yet."""
+shape the grant puts back."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,8 +23,8 @@ PARK_AGENT_RUN_LIMIT = "agent_run_limit"
 # what the park has to explain, not how a thread was addressed.
 AGENT_RUN_LIMIT_NOTICE = "agent_run_limit_notice"
 
-# The park a spent ledger takes the issue off, for the grant that takes the
-# run-limit park down to put back. A refused launch is very often a resume of
+# The park a spent ledger took the issue off, recorded when the run-limit park
+# goes up and put back by the grant that takes it down. A refused launch is very often a resume of
 # that park -- a developer handed the reply a human wrote on it -- and the
 # circuit refuses on the DURABLE state, before the road that launched has
 # written anything, so this is exactly the park the run the human paid for was
@@ -127,8 +127,8 @@ class DisplacedPark:
     a flag a road took down and left its reason behind -- so it reads as none.
 
     A record that is missing or malformed -- a park taken before the field
-    existed, or a hand-edited one -- reads as no park at all, which is what a
-    grant puts back where there is no record to read.
+    existed, or a hand-edited one -- reads as no park at all, which is what
+    every grant put back before there was a record to read.
     """
 
     awaiting: bool = False

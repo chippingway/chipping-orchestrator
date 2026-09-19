@@ -24,7 +24,7 @@ _USER_CONTENT_HASH = "user_content_hash"
 
 
 def _detect_user_content_change(
-    gh: GitHubClient, issue: Issue, state: PinnedState
+    gh: GitHubClient, issue: Issue, state: PinnedState, *, answered=None,
 ) -> str | None:
     """Return the new hash if the user-visible content drifted since the
     prior stored value, or None when unchanged.
@@ -47,6 +47,15 @@ def _detect_user_content_change(
     delta is purely the algorithm change, so persist the new baseline and report
     no drift. This keeps a bare continue outstanding at deploy time from firing
     one false "issue body/content changed" route.
+
+    `answered` is what a park waiting on a human had already read -- the
+    frozen comments at or below its watermark. Replies past that watermark
+    are answers to the park, and the frozen reply batch is what delivers,
+    filters, and settles them; counted as an edit here they would take the
+    drift road instead, which quotes the whole live thread and marks it read
+    to the tip before the run. So on a parked tick only a change the replies
+    do not explain -- the title, the body, a comment the park had already
+    read -- is drift.
     """
     orchestrator_ids = _comments._orchestrator_ids(state)
     current = _content_hash._compute_user_content_hash(issue, orchestrator_ids)
@@ -63,6 +72,13 @@ def _detect_user_content_change(
     if legacy == prior:
         state.set(_USER_CONTENT_HASH, current)
         gh.write_pinned_state(issue, state)
+        return None
+    if answered is not None and prior in {
+        _content_hash._compute_user_content_hash(
+            issue, orchestrator_ids, include_bare_continue=legacy_mode, comments=answered,
+        )
+        for legacy_mode in (False, True)
+    }:
         return None
     return current
 
@@ -126,12 +142,13 @@ def _mark_drift_comments_consumed(
     been fed the full conversation, so the next validating->in_review
     handoff (via `_seed_watermark_past_self`) must NOT classify those same
     comments as fresh, unconsumed feedback and replay them as a duplicate
-    dev resume on the next in_review tick. Mirrors the pre-resume bump in
-    `_resume_developer_on_human_reply`; the post here uses
+    dev resume on the next in_review tick. It reads
     `latest_comment_id` rather than the `comments_after` walk because the
     drift prompt feeds the full thread (`_recent_comments_text`), not just
     a single new-comments slice. One-way ratchet so a higher prior value
-    (e.g. a recent park comment id) is never lowered.
+    (e.g. a recent park comment id) is never lowered. A parked tick whose only
+    change is replies to the park never reaches this: the frozen reply batch
+    delivers and settles those instead.
     """
     latest = gh.latest_comment_id(issue)
     if not isinstance(latest, int):

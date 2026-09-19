@@ -206,7 +206,8 @@ Where the contract is carried:
 
 - **Whole** in the initial `_build_implement_prompt`, the automated-review `_build_fix_prompt`, the requirements-drift
   `_build_user_content_change_prompt`, the PR-feedback `_build_pr_comment_followup`, the human-reply resume
-  `_build_human_reply_followup` (`_resume_developer_on_human_reply`), the late revision's `_revision_prompt`
+  `_build_human_reply_followup` (`_resume_developer_on_human_reply`, over the replies
+  `implementing/resume_batch.py` froze and recorded as delivered), the late revision's `_revision_prompt`
   (`decomposition/late_revision.py`), which resumes the developer against a human's guidance on an oversized
   candidate, and `_DEVELOPER_CONTINUE_RETRY_PROMPT`, the retry a bare `/orchestrator continue` on a session-failure
   park resumes the developer on (`implementing/continue_command.py`, `validating/awaiting.py`). The resumes carry it
@@ -218,7 +219,10 @@ Where the contract is carried:
 - **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the report covers the
   whole branch, the previous session's commits included, ownership and publication are restated, and the outcome is
   the one the task below the preamble describes — that preamble also precedes tasks that close on markers of their
-  own.
+  own. Its conversation block is the caller's FROZEN, classified thread read wherever the caller holds one — the
+  awaiting-human resumes and the explicit `/orchestrator continue` retries (less the commands they consume) take it
+  from `implementing/resume_batch.py` — so the preamble and the record of what the prompt delivered come off one
+  reading and one filter. A caller with no frozen read gets the read `_build_dev_spawn_prompt` takes for itself.
 - **Absent** from the documentation, review, and conflict-resolution prompts, which close on markers of their own, and
   from the conflict stage's own reply resume and bare-continue retry, which stays on the plain
   `_CONTINUE_RETRY_PROMPT`.
@@ -243,6 +247,9 @@ owes a report it could not deliver, and is read as any other no-commit reply eve
 road is still routed by its commits, its `ACK:` line, and the question parks the [delivery stages][delivery-stages]
 describe, and a no-commit reply that ends on a report outcome is read there the way its stage reads any other
 no-commit reply without `ACK:`.
+The awaiting-human resumes settle the input they delivered straight into pinned state: the report transaction a
+run may record carries no consumed watermarks to freeze it onto. The settlement records delivery and nothing more, so
+the question the run came back with is still the disposition's to answer.
 
 Publication is recoverable because the records outlive the process. The additive `developer_report_delivery` /
 `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group

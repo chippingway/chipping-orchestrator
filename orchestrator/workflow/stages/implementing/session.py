@@ -46,6 +46,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.implementing import (
     models as _models,
+    resume_request as _resume_request,
     session_read as _session_read,
     state as _state,
 )
@@ -168,8 +169,8 @@ def _build_dev_spawn_prompt(
     spec: _config_models.RepoSpec,
     issue: Issue,
     followup_text: str,
+    options: _resume_request._DevResumeOptions,
     *,
-    followup_has_tracked_repos: bool,
     fresh: bool,
 ) -> str:
     """Prompt text for a dev resume/spawn.
@@ -182,14 +183,26 @@ def _build_dev_spawn_prompt(
     tracked-repos block (documentation prompts), no sibling specs are passed so
     the block builder returns "" -- otherwise the composed prompt would list
     the tracked repos twice.
+
+    The conversation is the caller's frozen one wherever it holds one, because
+    the prompt and the record of what the prompt delivered have to come off
+    ONE reading of the thread: taken here instead, this read is minutes newer
+    than the batch its caller will settle, so a comment written in between
+    reaches the agent and is handed to it again on the next poll. An EMPTY
+    frozen conversation is still the caller's answer -- a retry whose only
+    fresh words were the commands it consumes freezes one -- so only a caller
+    with no frozen read at all (None) gets the read taken here.
     """
     if not fresh:
         return followup_text
     preamble_specs = (
-        [] if followup_has_tracked_repos else config.default_repo_specs()
+        [] if options.followup_has_tracked_repos else config.default_repo_specs()
     )
+    conversation = options.thread_text
+    if conversation is None:
+        conversation = _prompt_context._recent_comments_text(issue)
     preamble = _prompts._build_fresh_respawn_preamble(
-        spec, issue, _prompt_context._recent_comments_text(issue), preamble_specs,
+        spec, issue, conversation, preamble_specs,
     )
     return f"{preamble}\n\n{followup_text}"
 

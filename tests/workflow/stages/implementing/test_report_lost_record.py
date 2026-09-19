@@ -240,6 +240,7 @@ class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
         github, issue = self.seeded()
         github.seed_state(
             support.REPORT_ISSUE,
+            **github.pinned_data(support.REPORT_ISSUE),
             dev_agent=DEV_BACKEND,
             dev_session_id=support.DEV_SESSION,
         )

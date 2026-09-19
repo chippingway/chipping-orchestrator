@@ -47,12 +47,18 @@ def _park_agent_timeout(
     next-tick recovery (`_try_recover_implementing_timeout_park`) can publish a
     commit a lingering descendant finishes after this point without waiting for
     a human reply.
+
+    The park is bounded because a timeout is a run that ENDED after
+    `AGENT_TIMEOUT` seconds: its notice lands above anything a human wrote in
+    that window, and the quiet recovery that fires only on a thread with
+    nothing new on it would otherwise run over the reply meant to end the park.
     """
     _guards._park_awaiting_human(
         gh, issue, state,
         f"{config.HITL_MENTIONS} agent timed out after "
         f"{config.AGENT_TIMEOUT}s, manual intervention needed.",
         reason=_state._AGENT_TIMEOUT,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._AGENT_TIMEOUT)
     state.set(_state._PRE_IMPLEMENT_SHA, before_sha or "")

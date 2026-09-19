@@ -10,9 +10,10 @@ read is taken here, once, and what it produces is the batch both questions are
 answered from: the replies the prompt quotes are exactly the inputs the record
 names, because the record is what the prompt is built from.
 
-This is a contract no stage handler reads yet. The implementing resume keeps
-its own read and its pre-run watermark bump until it is switched onto
-`_freeze`, and nothing here changes what a live tick does.
+Every `implementing` and `validating` awaiting-human resume reads it. On
+`validating` the park-reason decisions and the resume behind them are
+different owners, so the batch is built once with the awaiting context and
+handed to both; the non-agent routes there consume exactly this batch too.
 
 Three filters decide what is in the batch, and none may be dropped. Untrusted
 authors come out first, so nothing an outsider posts reaches the prompt or the
@@ -29,14 +30,14 @@ conversations a fresh spawn is re-grounded with: one snapshot each, over the
 one read, built by the owner that decides what a prompt may carry.
 
 What is settled is settled AFTER the run, from the frozen batch, and only for
-an outcome that counts the input as delivered. There is no report transaction
-on this road, so the settlement is the ordinary pinned one: `prompt_delivery`
-ratchets the issue-thread watermark forward and touches no field it did not
-deliver against.
+an outcome that counts the input as delivered. The report transaction a run
+may record carries no consumed watermarks, so the settlement is the ordinary
+pinned one: `prompt_delivery` ratchets the issue-thread watermark forward and
+touches no field it did not deliver against.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from github.Issue import Issue
 
@@ -47,6 +48,7 @@ from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
+    content_hash as _content_hash,
     conversation_prompts as _conversation_prompts,
     messages as _messages,
     prompt_context as _prompt_context,
@@ -102,6 +104,10 @@ class _ReplyBatch:
     `/orchestrator continue` retry: that road consumes the bare commands and
     hands the developer the orchestrator's retry prompt instead, so quoting
     them would hand the agent the command as the last thing a human said.
+
+    `read` is that one read itself and `floor` the watermark it was bounded
+    by, kept for the drift check a parked tick asks before any road spends
+    the batch (`answered`).
     """
 
     state: PinnedState
@@ -110,6 +116,8 @@ class _ReplyBatch:
     regrounding: _delivery.PromptDeliverySnapshot = _DELIVERED_NOTHING
     reserved: bool = False
     retrying: _delivery.PromptDeliverySnapshot = _DELIVERED_NOTHING
+    read: tuple = ()
+    floor: int | None = None
 
     @property
     def followup(self) -> str:
@@ -128,6 +136,20 @@ class _ReplyBatch:
         """The re-grounding conversation an explicit retry is handed."""
         return self.retrying.rendered_text
 
+    @property
+    def answered(self) -> tuple:
+        """What the park had already read: the comments at or below `floor`.
+
+        The drift check measures a parked issue's requirements by this rather
+        than by the live thread, because the replies past the floor are this
+        batch's to deliver -- counted as an edit, they would take the drift
+        road, which quotes the whole live thread and marks it read to the tip
+        before the run. No floor is a park that has read nothing.
+        """
+        if not isinstance(self.floor, int):
+            return ()
+        return tuple(seen for seen in self.read if seen.id <= self.floor)
+
     @classmethod
     def delivering(
         cls,
@@ -136,25 +158,65 @@ class _ReplyBatch:
         quoted: tuple,
         *,
         thread: list,
-        ours: frozenset,
+        issue: Issue,
     ) -> _ReplyBatch:
         """This batch, with both conversations a fresh spawn is re-grounded on.
 
         Both off the one read the batch came from, through the same
-        classification, and both without an answered run-grant command.
+        classification, and both without a command only a park's own road
+        may act on (`for_the_developer`).
+
+        The delivery record names the requirements revision it answers as
+        well: the fingerprint of this read through the last reply it
+        delivers, which its settlement records as `user_content_hash`.
+        Otherwise those replies move the hash the moment they are consumed,
+        and the next drift check -- on this stage or the one a handoff reaches
+        -- answers them again as an edit to the issue.
         """
-        spoken = _parked_replies._answering(thread)
+        spoken = cls.for_the_developer(thread, state)
         delivered_ids = {seen.id for seen in quoted}
         regrounding, retrying = (
             _prompt_context._thread_delivery(
-                conversation, retained_ids=ours, state_comment_id=state.comment_id,
+                conversation,
+                retained_ids=frozenset(_comments._orchestrator_ids(state)),
+                state_comment_id=state.comment_id,
             )
             for conversation in (
                 spoken,
                 [seen for seen in spoken if seen.id not in delivered_ids],
             )
         )
-        return cls(state, delivery, quoted, regrounding, retrying=retrying)
+        through = max(delivered_ids, default=0)
+        return cls(
+            state,
+            replace(delivery, requirements_revision=_content_hash._compute_user_content_hash(
+                issue,
+                _comments._orchestrator_ids(state),
+                comments=[seen for seen in thread if seen.id <= through],
+            )) if delivered_ids else delivery,
+            quoted,
+            regrounding,
+            retrying=retrying,
+            read=tuple(thread),
+            floor=state.get(_state._LAST_ACTION_COMMENT_ID),
+        )
+
+    @classmethod
+    def for_the_developer(cls, read: list, state: PinnedState) -> list:
+        """The comments of one read a developer may be handed as prose.
+
+        `parked_replies`' cut, less the command that ends a standing
+        authorization park. That command is a control only the park's own
+        road may act on: left last it reserves the whole batch for that road,
+        and anywhere else something written after it demoted it -- guidance,
+        which is what the developer is owed instead, or a pasted marker the
+        delivery refuses, which leaves the developer nothing at all. Either
+        way the command itself reaches no prompt.
+        """
+        return [
+            seen for seen in _parked_replies._answering(read)
+            if not _late_command._reserved_for_the_park(seen, state)
+        ]
 
     def settle(self) -> tuple:
         """Record this batch as consumed, forward only and idempotently.
@@ -189,14 +251,18 @@ def _freeze(
     that spends it as guidance.
 
     The measurement park's retry is always asked. The parked-continue
-    classifier's is asked only where the caller says that road has already
-    looked -- `continue_claimed` -- since a bare command landing after it is in
-    this batch and in nobody else's; the auto-rebase reasons are excluded as
-    that classifier excludes them. The authorization park's is asked of the
+    classifier's is asked only where the caller says that road already looked
+    at an EARLIER read -- `continue_claimed` -- since a bare command landing
+    after it is in this batch and in nobody else's; the auto-rebase reasons are
+    excluded as that classifier excludes them. Neither stage's handler passes
+    it: each freezes once and classifies this very batch. The authorization park's is asked of the
     LAST reply the id ledger leaves, which is how that park reads its thread:
     a marker somebody pasted over the command is still a reply that demotes
     it. A bare `/orchestrator add-agent-runs` is out of every one of these
-    lists, since it is a control the run-limit hold has already answered.
+    lists, since it is a control the run-limit hold has already answered --
+    and while the authorization park stands its own command is out of what a
+    developer is handed as well, so a command something demoted is neither
+    acted on nor delivered as prose.
     """
     ours = frozenset(_comments._orchestrator_ids(state))
     thread = gh.comments_after(issue, None, state_comment_id=state.comment_id)
@@ -205,19 +271,23 @@ def _freeze(
         if seen.id not in ours
     ]
     delivery = _delivery.create_prompt_delivery_snapshot(
-        issue_comments=_parked_replies._answering(unclaimed),
+        issue_comments=_ReplyBatch.for_the_developer(unclaimed, state),
         max_chars=_UNBOUNDED_EXCERPT,
         retained_ids=ours,
         state=state,
         state_comment_id=state.comment_id,
     )
     quoted = _quoted(unclaimed, delivery)
-    if _reserved_elsewhere(quoted, state, continue_claimed=continue_claimed):
-        return _ReplyBatch(state, _DELIVERED_NOTHING, (), reserved=True)
-    if _last_word_reserved(unclaimed, state):
-        return _ReplyBatch(state, _DELIVERED_NOTHING, (), reserved=True)
+    if (
+        _reserved_elsewhere(quoted, state, continue_claimed=continue_claimed)
+        or _last_word_reserved(unclaimed, state)
+    ):
+        return _ReplyBatch(
+            state, _DELIVERED_NOTHING, (), reserved=True,
+            read=tuple(thread), floor=state.get(_state._LAST_ACTION_COMMENT_ID),
+        )
     return _ReplyBatch.delivering(
-        state, delivery, quoted, thread=thread, ours=ours,
+        state, delivery, quoted, thread=thread, issue=issue,
     )
 
 

@@ -21,6 +21,7 @@ from orchestrator.workflow.stages.implementing import (
     late_authorship as _authorship,
     late_command_reading as _late_command_reading,
     late_gate_models as _late_gate_models,
+    parked_replies as _parked_replies,
     state as _state,
 )
 
@@ -125,9 +126,10 @@ class _Reading:
 
     Spelled as one record because the three come from ONE fetch and mean
     nothing apart from each other. `answer` is the reply to act on, `spoke`
-    says whether any fresh trusted word of somebody else's is there at all,
-    and `furthest` is how far this look got -- ours and untrusted comments
-    included, since what a watermark records is what has been LOOKED at.
+    says whether any fresh trusted word of somebody else's is there at all --
+    an already-answered run-grant command is none -- and `furthest` is how far
+    this look got -- ours, untrusted comments, and that command included,
+    since what a watermark records is what has been LOOKED at.
 
     `answer` and `spoke` are deliberately not one field: a None answer is two
     different threads. Nothing new on it is a park with nothing to do but
@@ -207,15 +209,21 @@ def _reads_the_thread(
 
     The door above is the caller's. This owner answers what the thread says;
     whether anybody is waiting behind it is a fact about the record.
+
+    A bare `/orchestrator add-agent-runs` is no word on this park -- the cut
+    this reading shares with the frozen resume batch (`parked_replies`). A
+    grant can leave one unread, and read as the last word it would hide a
+    command written just above it. Our own comments are read by the id ledger
+    alone, so a marker somebody pasted still demotes the command under it.
     """
     examined = gh.comments_after(
         issue,
         state.get(_state._LAST_ACTION_COMMENT_ID),
         state_comment_id=state.comment_id,
     )
-    replies = [
+    replies = _parked_replies._answering(
         reply for reply in filter_trusted(examined) if not _late_command_reading._ours(reply, state)
-    ]
+    )
     furthest = _late_command_reading._furthest_read(
         examined, _payloads.as_identity(
             state.get(_state._LAST_ACTION_COMMENT_ID),

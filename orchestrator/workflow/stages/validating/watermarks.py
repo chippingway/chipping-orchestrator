@@ -13,7 +13,9 @@ approval, and squash notices as human feedback and resumes the dev on them;
 too high advertises the PR as ready over a human comment nobody read. The
 walk therefore advances only through the leading run of orchestrator-authored
 comments plus the issue-thread ids a dev resume already consumed, and stops at
-the first comment that is neither.
+the first comment that is neither. A bare `/orchestrator add-agent-runs` is
+walked past as well: it is an operator control, never feedback, and a grant can
+leave it unread above the reply its park interrupted.
 
 Self-authorship is decided by recorded id OR by the hidden body marker,
 because either alone is wrong in a way that loses feedback: the id set is
@@ -37,7 +39,10 @@ from github.Issue import Issue
 
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    run_grant_request as _run_grant_request,
+)
 
 
 def _watermark_comment_pairs(
@@ -75,7 +80,11 @@ class _WatermarkWalker:
         if is_self:
             self.watermark = comment.id
             self.seen_self = True
-        elif (not self.seen_self and comment.id < self.pickup_comment_id) or already_consumed:
+        elif (
+            (not self.seen_self and comment.id < self.pickup_comment_id)
+            or already_consumed
+            or _run_grant_request._is_bare_command(comment)
+        ):
             self.watermark = comment.id
         else:
             return False
@@ -102,7 +111,9 @@ def _seed_watermark_past_self(
     call during implementing/validating), stopping at the first
     not-yet-consumed non-orchestrator comment. This preserves human
     feedback posted during validating that the dev has not yet seen while
-    NOT replaying feedback the dev has already consumed.
+    NOT replaying feedback the dev has already consumed. A bare
+    `/orchestrator add-agent-runs` is walked past on either surface: it is a
+    control, never feedback, and a grant can leave one unread.
 
     `consumed_through` is intentionally NOT applied to PR-conversation
     comments. `last_action_comment_id` only records issue-thread ids fed

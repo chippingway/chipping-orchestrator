@@ -13,6 +13,8 @@ from __future__ import annotations
 from orchestrator.github import developer_reports as _reports
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    comments as _comments,
+    content_hash as _content_hash,
     report_delivery_state as _delivery_state,
     report_records as _records,
 )
@@ -48,6 +50,11 @@ FOREIGN_SLUG = "someone/else"
 
 # The thread read a park stamps, which a reply has to land above.
 WATERMARK = "last_action_comment_id"
+
+# The comment a pickup posts and anchors both thread cursors on.
+PICKUP_GREETING = "picking this up"
+PICKUP_COMMENT_ID = "pickup_comment_id"
+USER_CONTENT_HASH = "user_content_hash"
 
 # A whole digest, since that is what a requirements revision is read at.
 REQUIREMENTS_REVISION = "a" * max(_formats.DIGEST_LENGTHS)
@@ -131,10 +138,22 @@ class _ReportDeliveryMixin(_PatchedWorkflowMixin):
     """One implementing tick over a worktree that carries a fresh commit."""
 
     def seeded(self, issue_number: int = REPORT_ISSUE):
-        """An open issue labelled `implementing`, with nothing recorded yet."""
+        """An open issue labelled `implementing`, as the pickup left it.
+
+        Its greeting anchors the watermark -- the floor the park ending a run
+        walks from, which reads no further than our own identified comments --
+        and nothing else is recorded yet.
+        """
         github = FakeGitHubClient()
         issue = make_issue(issue_number, label=LABEL_IMPLEMENTING)
         github.add_issue(issue)
+        greeting = github.comment(issue, _comments._with_orch_marker(PICKUP_GREETING))
+        github.seed_state(issue_number, **{
+            WATERMARK: greeting.id,
+            PICKUP_COMMENT_ID: greeting.id,
+            _comments._ORCH_COMMENT_IDS: [greeting.id],
+            USER_CONTENT_HASH: _content_hash._compute_user_content_hash(issue, {greeting.id}),
+        })
         return github, issue
 
     def deliver(self, github, issue, message: str, **run_options):

@@ -63,6 +63,7 @@ from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
     drift_preflight as _drift_preflight,
     models as _models,
+    resume_batch as _resume_batch,
     session as _session,
     session_read as _session_read,
     state as _state,
@@ -259,7 +260,11 @@ def _prepare_active_dev_run(
 
 
 def _prepare_dev_run(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient,
+    spec: config.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    batch: _resume_batch._ReplyBatch | None = None,
 ) -> _models._PreparedDevRun | None:
     """Set up and run (or recover) the dev agent for one implementing tick.
 
@@ -274,9 +279,15 @@ def _prepare_dev_run(
     `before_sha` is the pre-agent HEAD watermark the timeout disposition uses
     to tell a commit produced by THIS run from carried-over commits already on
     the branch.
+
+    `batch` is the tick's frozen reply batch, which an awaiting-human run is
+    resumed on; a caller holding none has one frozen here.
     """
     if state.get(_state._AWAITING_HUMAN):
-        prepared = _drift_preflight._prepare_awaiting_dev_run(gh, spec, issue, state)
+        prepared = _drift_preflight._prepare_awaiting_dev_run(
+            gh, spec, issue, state,
+            batch or _resume_batch._freeze(gh, issue, state),
+        )
     else:
         prepared = _prepare_active_dev_run(gh, spec, issue, state)
     if prepared is not None:

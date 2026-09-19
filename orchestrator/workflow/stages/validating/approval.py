@@ -210,6 +210,7 @@ def _park_squash_failure(
         state,
         f"{config.HITL_MENTIONS} squash-on-approval failed ({error}); {left}",
         reason=_state._REASON_SQUASH_FAILED,
+        bounded=True,
     )
     # Re-set behind the guard, which clears whatever reason it found: this one
     # is durable, and it is what a later tick's re-entry is recognized by.

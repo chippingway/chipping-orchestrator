@@ -10,16 +10,19 @@ override, and keyword options. It is bound through an explicit `inspect`
 signature rather than named parameters so that shape is enforced in one place
 and a mistyped option raises instead of being ignored.
 
-`_resume_developer_on_human_reply` is the narrower one: it reads the new
-issue-level comments itself and is what implementing and validating park
-against. Two rules matter more than the read. Untrusted authors are dropped
-BEFORE anything else, so nothing an outsider posts on a parked issue reaches
-the dev prompt or advances the consumed watermark. And the watermark is
-advanced BEFORE the agent runs, because the dev DID see those comments in its
-prompt: leaving it behind would let the validating -> in_review handoff replay
-the same human reply as fresh PR feedback and resume the dev on input it
-already handled, and advancing it afterwards would lose that record whenever
-the run crashed.
+`_resume_developer_on_human_reply` is the narrower one: it is what implementing
+and validating park against, and both of them resume from ONE frozen batch --
+`resume_batch` beside this, which reads the thread once and produces the
+quoted replies and the delivery record together. The prompt is built from that
+record, so what the developer was handed and what the issue may mark answered
+cannot disagree.
+
+What it settles, it settles AFTER the run and only for an outcome that counts
+the batch as delivered: a never-invoked, shutdown-killed, or live-paused run
+consumes nothing, since the developer never read the batch. Nothing is lost by
+waiting, because every caller that returns on a pause or an interruption
+returns without writing pinned state, so a bump taken ahead of the run would
+be dropped by that return anyway.
 """
 from __future__ import annotations
 
@@ -32,18 +35,10 @@ from github.Issue import Issue
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.comments import filter_trusted
-from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import (
-    comments as _comments,
-    conversation_prompts as _conversation_prompts,
-)
 from orchestrator.workflow.stages.implementing import (
     execution as _execution,
-    late_command as _late_command,
-    late_measurement_reply as _late_measurement_reply,
+    resume_batch as _resume_batch,
     resume_request as _resume_request,
-    state as _state,
 )
 
 _DEV_RESUME_SIGNATURE = inspect.Signature((
@@ -141,101 +136,53 @@ _resume_dev_with_text.__signature__ = _DEV_RESUME_SIGNATURE
 
 
 def _resume_developer_on_human_reply(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
+    batch: _resume_batch._ReplyBatch,
     *,
     pause_guard: bool = False,
 ) -> tuple[Path, AgentResult, bool] | None:
     """Resume the developer's agent session with new issue-level comments.
 
-    Returns (worktree, agent_result, paused) on resume, or None if there are no
-    new comments since the last park (caller should return without writing
-    state). `paused` is forwarded from `_resume_dev_with_text` and is only ever
-    True when `pause_guard` is set; both callers (implementing and validating)
-    pass it True and honor the flag.
+    Returns (worktree, agent_result, paused) on resume, or None when there is
+    nothing this road may resume on -- no fresh reply, or a batch a command
+    road owns -- in which case the caller returns without writing state.
+    `paused` is forwarded from `_resume_dev_with_text` and is only ever True
+    when `pause_guard` is set; both callers (implementing and validating) pass
+    it True and honor the flag.
 
     Used by `implementing` and `validating` -- both deliberately watch only
     the issue's comment thread, not the PR's. The `in_review` handler watches
-    PR comments too via `_resume_dev_with_text` directly.
+    PR comments too via `_resume_dev_with_text` directly. Which is why the
+    settlement advances the issue watermark alone: a PR comment below the
+    reply consumed here was never in this prompt.
 
-    Bumps `last_action_comment_id` to the highest consumed comment id BEFORE
-    spawning the agent. Without this, a successful resume during implementing
-    or validating leaves `last_action_comment_id` at the prior park id, so
-    the validating->in_review handoff treats the just-consumed human reply
-    as fresh PR feedback and re-resumes the dev on input it has already
-    handled. This pre-resume bump is also robust to mid-resume failures:
-    if the agent crashes or times out, those comments are still recorded
-    as consumed (the dev DID see them via the resume prompt), and the
-    failure is surfaced via the timeout/dirty/question paths instead.
+    `batch` is the caller's own frozen read, carrying the pinned state that
+    read was bounded by: `validating` hands over the very batch its
+    park-reason decisions were made from. What is IN it is `resume_batch`'s to
+    decide; this owner honors `reserved` by resuming nothing and consuming
+    nothing, since the park its run takes would otherwise stamp the thread
+    read past the command a road owns.
 
-    Untrusted authors are dropped up front so nothing they post drives the
-    resume: with `ALLOWED_ISSUE_AUTHORS` set an outsider reply posted while the
-    issue is parked awaiting human must not reach the dev prompt NOR advance the
-    consumed watermark. Only trusted comments are consumed, so an outsider reply
-    trailing a trusted one is left unconsumed rather than persisted as the
-    watermark; an all-untrusted batch is treated as "no new reply".
-
-    The orchestrator's OWN comments are dropped beside them, by the ledger of
-    ids it recorded posting. Nothing this process wrote is a human's guidance,
-    and the default empty allowlist trusts every author, so without this a
-    park notice the write recording it never reached is read back as somebody
-    asking for a change -- and the developer is resumed against the
-    orchestrator talking to itself. The ledger is the whole of the evidence
-    for the reason it is everywhere else here: the marker is a body anybody
-    may paste, and the author login may be a token shared with a reviewer
-    whose real replies this must not swallow. A sentence one of those parks said
-    and lost the id write for is put into that ledger by `late_authorship`
-    ahead of this read, so the id is the whole of what is asked here.
-
-    A batch whose LAST fresh reply is a command ending the authorization park
-    is not resumed on at all: the whole tick is deferred, unconsumed, to the
-    poll whose own road can act on it. This read comes after that road has
-    looked at the thread and handed the tick back, so a command landing
-    between the two reads is in this batch and in nobody else's -- and the
-    last-reply rule that park is read by says the command is what the human
-    decided, not the guidance under it.
-
-    Deferring rather than merely sparing the command, because a watermark is
-    one number and nothing here is the last thing to move it. Consuming the
-    guidance would resume a developer, and the park its run takes stamps the
-    thread read to the id of the notice it posts -- above the command, which
-    is then gone for good. Nothing consumed, nothing is lost: the next poll
-    reads the command as the last fresh word and publishes on it, and the
-    guidance underneath was superseded by it anyway.
-
-    Only where the command is LAST. One with guidance written over it has been
-    replaced -- the safe reading of somebody who asked to publish and then
-    asked for a change is the one that publishes nothing -- so that batch is
-    an ordinary resume and the developer answers the change.
-
-    The measurement park's own retry is deferred the same way and through the
-    same window, on ALL of the batch rather than its last reply: what ends
-    that park is a reply asking for nothing else, so a batch carrying real
-    words is guidance and feeding it to the developer is exactly what it is
-    owed. Asked of the trusted read before our own comments come out of it,
-    since that is the read the retry itself takes -- reserved off a narrower
-    batch, this tick would defer what that road then refuses.
+    `last_action_comment_id` is settled once the run is back, and only for an
+    outcome that counts the batch as delivered. Without it a successful resume
+    leaves the watermark at the prior park id, and the validating -> in_review
+    handoff replays the consumed reply as fresh PR feedback; with it taken on a
+    refused launch, a shutdown kill, or a live pause, the reply is marked
+    answered by a run that never read it. A timeout or an empty result did
+    reach the agent, so the batch is consumed and the failure is surfaced
+    through the timeout / dirty / question parks instead.
     """
-    ours = _comments._orchestrator_ids(state)
-    fresh_batch = filter_trusted(gh.comments_after(
-        issue, state.get(_state._LAST_ACTION_COMMENT_ID),
-    ))
-    # Asked of the batch BEFORE our own comments come out of it, because that
-    # is the read the measurement park's own road takes: reserved off a
-    # narrower one, this tick would defer what that road then refuses, and the
-    # two would hand the same thread back and forth forever.
-    if _late_measurement_reply._reserved_for_the_measurement_park(fresh_batch, state):
+    if batch.reserved or not batch.comments:
         return None
-    new_comments = [seen for seen in fresh_batch if seen.id not in ours]
-    if new_comments and _late_command._reserved_for_the_park(
-        new_comments[-1], state,
-    ):
-        return None
-    if not new_comments:
-        return None
-    consumed_max = max(comment.id for comment in new_comments)
-    state.set(_state._LAST_ACTION_COMMENT_ID, consumed_max)
-
-    followup = _conversation_prompts._build_human_reply_followup(new_comments)
-    return _resume_dev_with_text(
-        gh, spec, issue, state, followup, pause_guard=pause_guard,
+    resumed = _resume_dev_with_text(
+        gh,
+        spec,
+        issue,
+        batch.state,
+        batch.followup,
+        pause_guard=pause_guard,
+        thread_text=batch.thread_text,
     )
+    if _resume_batch._counts_as_delivered(resumed[1], resumed[2]):
+        batch.settle()
+    return resumed

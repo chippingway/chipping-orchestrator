@@ -4,14 +4,15 @@
 
 Several roads read a parked `implementing` thread in one tick, one after the
 other -- the measurement park's retry, the parked-`/orchestrator continue`
-classifier, the authorization park, and the resume behind all of them, which
-delivers whatever they leave. Each asks a question of the fresh replies and
-hands the tick on by the answer, so the answer has to come off ONE list: a
-reply counted on one side of a hand-off and missing on the other is a tick
-each road leaves to the next, on every poll, with nothing retried, refused, or
-said. This owner is that list, cut the way `resume_batch` cuts its frozen
-batch. No stage road reads it yet; they keep their own reads until they are
-moved onto this one.
+classifier, the quiet timeout recovery, the authorization park, and the resume
+behind all of them, which delivers whatever they leave. Each asks a question of
+the fresh replies and hands the tick on by the answer, so the answer has to
+come off ONE list: a reply counted on one side of a hand-off and missing on the
+other is a tick each road leaves to the next, on every poll, with nothing
+retried, refused, or said. This owner is that list, cut the way `resume_batch`
+cuts its frozen batch. The authorization park keeps its own first cut -- the id
+ledger alone, so a pasted marker still demotes the command under it -- and
+takes the second through `_answering` all the same.
 
 `prompt_delivery`'s classification is the first cut -- the trust filter, the
 pinned comment by identity, our own posts by recorded id, and a body carrying

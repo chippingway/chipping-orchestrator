@@ -611,11 +611,13 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    `discussion` drains the same PR itself. Nothing let past can spend a
                                    run: the circuit every launch goes through
                                    reads the same ledger and refuses on it
-       + a trusted, bounded    ─► allowance = used + N, this park alone
-       /orchestrator               cleared, the command consumed with the
-       add-agent-runs N on         receipt that acknowledges it, a granted
-       the unread thread           phase, and the tick goes on to the stage
-                                   its label names. Every other request --
+       + a trusted, bounded    ─► allowance = used + N, this park taken down
+       /orchestrator               and the park it displaced put back, the
+       add-agent-runs N on         command consumed with the receipt that
+       the unread thread           acknowledges it (unless a reply the
+                                   refused resume was handed sits under it),
+                                   a granted phase, and the tick goes on to
+                                   the stage its label names. Every other request --
                                    malformed, zero, negative, past the
                                    per-command maximum -- keeps the park and
                                    earns one marker-scoped receipt; an
