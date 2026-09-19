@@ -250,8 +250,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     report_html_literals.py what HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and comments
                             -- read off the text AS WRITTEN, since an element is literal whether or not some
                             reading pairs a backtick across its opening tag. EVERY tag is read, as an HTML
-                            tokenizer reads one -- a quote opens a value only after a name's `=`, and a value never
-                            closed takes the rest -- so a closing tag in another tag's markup, a comment, or the
+                            tokenizer reads one -- a quote opens a value only after a name's `=`, a value never
+                            closed takes the rest, whitespace is HTML's own five characters rather than `\s`, and a
+                            name is folded in ASCII alone -- so a closing tag in another tag's markup, a comment, or the
                             bogus comment a `<!` opens closes nothing, while an opening tag counts wherever it is
                             found, since what shelters it may be no tag as Markdown reads it; `report_prose.py`
                             takes tag markup out by the same grammar. Opening tags are counted by name, so nesting

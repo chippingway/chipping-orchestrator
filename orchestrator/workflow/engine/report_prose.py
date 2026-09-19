@@ -52,8 +52,8 @@ _CODE_INDENT_RE = re.compile(r" {4}| {0,3}\t")
 # them; and a tag that opens a line and that nothing closes, which an HTML block
 # hands the browser as it is -- where it takes the rest of the text.
 _HTML_TAG_RE = re.compile(
-    rf"</?[A-Za-z][^\s/>]*{_html.TAG_ATTRIBUTES}>"
-    rf"|^[ \t>*+-]*</?[A-Za-z][^\s/>]*{_html.TAG_ATTRIBUTES}\Z",
+    rf"</?[A-Za-z][^{_html.HTML_SPACE}/>]*{_html.TAG_ATTRIBUTES}>"
+    rf"|^[ \t>*+-]*</?[A-Za-z][^{_html.HTML_SPACE}/>]*{_html.TAG_ATTRIBUTES}\Z",
     re.MULTILINE,
 )
 

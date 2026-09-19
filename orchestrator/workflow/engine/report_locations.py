@@ -31,9 +31,11 @@ from orchestrator.workflow.engine import (
 # Every spelling GitHub closes an issue on, as it documents them: one of the
 # keywords, then the issue -- bare, or qualified `owner/repository#N`. Read
 # here rather than compared against the line this workflow writes, because what
-# is being asked is whether the MERGE will close the issue.
+# is being asked is whether the MERGE will close the issue. Only spaces and
+# tabs part the keyword from the issue: a no-break space is no space to GitHub,
+# and neither is the end of a line.
 _CLOSES_THE_ISSUE = re.compile(
-    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b\s*:?\s*"
+    r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b[ \t]*:?[ \t]*"
     r"(?P<repo>[\w.-]+/[\w.-]+)?#(?P<issue>[0-9]+)\b",
     re.IGNORECASE,
 )
@@ -137,13 +139,16 @@ def describes_the_issue(
     nowhere else, and the ATTRIBUTION every later reuse reads back. Any
     spelling GitHub accepts counts -- `Fixes #12`, or `Fixes owner/repo#12`
     naming this repository -- outside literal code, which GitHub does not act
-    on; one naming another repository does not. An unread body says nothing,
+    on; one naming another repository does not. A reference is ASCII from end
+    to end: matched without case, a pattern takes a long s for an `s` and a
+    Kelvin sign for a `k`, which GitHub does not. An unread body says nothing,
     which holds the work back.
     """
     body = getattr(pull_request, "body", None)
     if not isinstance(body, str):
         return False
-    closing = _CLOSES_THE_ISSUE.finditer(_prose.outside_code(body))
+    found = _CLOSES_THE_ISSUE.finditer(_prose.outside_code(body))
+    closing = (reference for reference in found if reference.group().isascii())
     return attribution in body and any(
         int(reference["issue"]) == issue_number
         and (reference["repo"] or repo_slug).lower() == repo_slug.lower()

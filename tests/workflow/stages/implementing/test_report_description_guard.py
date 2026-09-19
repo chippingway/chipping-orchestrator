@@ -100,6 +100,7 @@ CLOSING_NOTHING = (
     f'![image](https://example.com/a.png "`") `{RESOLVES}`',
     f'<code><a title="</code>">{RESOLVES}</a></code>',
     f'<pre><a title="</pre>">{RESOLVES}</a></pre>',
+    f"<pre>Literal </pre\N{NO-BREAK SPACE}> {RESOLVES}</pre>",
     f"Resolves someone/else#{ISSUE}",
 )
 

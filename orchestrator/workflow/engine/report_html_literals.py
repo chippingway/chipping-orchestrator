@@ -10,7 +10,10 @@ EVERY tag is read, not those elements' alone, and read as an HTML tokenizer
 reads one: a quote opens an attribute's value only after its `=`, a value never
 closed takes the rest of the text, and whatever stands inside a tag -- or a
 comment, or the bogus comment a `<!` or a `<?` opens -- is that tag's markup.
-So a closing tag inside another tag's quoted value closes nothing.
+So a closing tag inside another tag's quoted value closes nothing. Whitespace
+is HTML's own five characters and a name is folded as HTML folds one, in ASCII
+alone: a no-break space is a character of the name it stands in, so `</pre` and
+one after it names an element that is not `pre`, and closes nothing.
 
 Whether a tag-like stretch IS a tag is a doubt of its own, since Markdown hands
 HTML on as written only where its own, stricter syntax is met. It is settled
@@ -45,10 +48,16 @@ _LITERAL_TAGS = frozenset((
     "pre", "code", "samp", "kbd", "tt", "script", "style", "textarea",
 ))
 
+# What HTML counts as whitespace, inside a character class: the tab, the line
+# feed, the form feed, the carriage return and the space. Not what `\s` does --
+# a no-break space, a vertical tab and a line separator are characters of
+# whatever name or value they stand in.
+HTML_SPACE: Final = r" \t\n\f\r"
+
 # What opens a comment, a bogus comment, or a tag of any name -- as far as the
 # name, which is all a tag quoted as code is read for.
 _OPENER_RE = re.compile(
-    r"<!--|<[!?]|</(?![A-Za-z])|<(?P<closes>/?)(?P<tag>[A-Za-z][^\s/>]*)",
+    rf"<!--|<[!?]|</(?![A-Za-z])|<(?P<closes>/?)(?P<tag>[A-Za-z][^{HTML_SPACE}/>]*)",
 )
 
 # A tag's attributes as an HTML tokenizer reads them, `\x22` and `\x27` being the
@@ -56,8 +65,9 @@ _OPENER_RE = re.compile(
 # `=`; a quote opens a value only after the `=` behind a name, and anywhere else
 # is a character like any other; a value never closed takes the rest of the text.
 TAG_ATTRIBUTES: Final = (
-    r"(?:[\s/]+|(?:=[^\s/>=]*|[^\s/>=]+)"
-    r"(?:\s*=\s*(?:\x22[^\x22]*(?:\x22|\Z)|\x27[^\x27]*(?:\x27|\Z)|[^\s>]*))?)*+"
+    rf"(?:[{HTML_SPACE}/]+|(?:=[^{HTML_SPACE}/>=]*|[^{HTML_SPACE}/>=]+)"
+    rf"(?:[{HTML_SPACE}]*=[{HTML_SPACE}]*"
+    rf"(?:\x22[^\x22]*(?:\x22|\Z)|\x27[^\x27]*(?:\x27|\Z)|[^{HTML_SPACE}>]*))?)*+"
 )
 
 # The rest of a tag past its name, and of a bogus comment past its opener: each
@@ -101,6 +111,16 @@ def html_literals(
         opener = _OPENER_RE.search(text, resume)
     if reading.open_since is not None:
         yield reading.open_since, len(text)
+
+
+def _name_of(opener: re.Match[str]) -> str:
+    """The element a tag names, folded as HTML folds a name; "" for none.
+
+    In ASCII alone: a name holding any other character names no element here,
+    whatever a wider case folding would make of it.
+    """
+    tag = opener[_TAG] or ""
+    return tag.lower() if tag.isascii() else ""
 
 
 def _ends_at(text: str, opener: re.Match[str]) -> int:
@@ -158,7 +178,7 @@ class _LiteralReading:
         if opener[_TAG] is None or not opener["closes"]:
             self.opened_by(opener)
             return None
-        return self._closed_by(opener[_TAG].lower(), opener.start(), end)
+        return self._closed_by(_name_of(opener), opener.start(), end)
 
     def opened_by(self, opener: re.Match[str]) -> None:
         """Count `opener` where it is the opening tag of a literal element.
@@ -166,7 +186,7 @@ class _LiteralReading:
         Wherever that is: the markup of another tag, or a comment, is no
         shelter, since it may be neither as Markdown reads it.
         """
-        tag = (opener[_TAG] or "").lower()
+        tag = _name_of(opener)
         if tag not in _LITERAL_TAGS or opener["closes"] or self.quotes(opener):
             return
         if self.open_since is None:

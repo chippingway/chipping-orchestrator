@@ -183,6 +183,13 @@ class DescribesTheIssueTest(unittest.TestCase):
             (f"Fixes #{OTHER_ISSUE}", ATTRIBUTION, False),
             (FIXES, "", False),
             (f"Write `{FIXES}` to close it.", ATTRIBUTION, False),
+            (f"FIXES:\t#{ISSUE}", ATTRIBUTION, True),
+            # Spaces and tabs part the keyword from the issue, and a reference
+            # is ASCII throughout: GitHub takes no no-break space for a space,
+            # no line end for one, and no long s for an `s`.
+            (f"Fixes\N{NO-BREAK SPACE}#{ISSUE}", ATTRIBUTION, False),
+            (f"Fixes\n#{ISSUE}", ATTRIBUTION, False),
+            (f"fixe\N{LATIN SMALL LETTER LONG S} #{ISSUE}", ATTRIBUTION, False),
         ):
             with self.subTest(reference=reference, signed=bool(signed)):
                 self.assertEqual(_describes(reference, signed), closes)
