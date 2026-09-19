@@ -26,7 +26,8 @@ forbids is in [`../workflow.md`](../workflow.md).
 - **Input**: issue title/body/comments; `config.DECOMPOSE` (default on); `config.ALLOWED_ISSUE_AUTHORS` (default empty
   → allow all).
 - **Action**: when `ALLOWED_ISSUE_AUTHORS` is set, an issue authored by anyone outside the list is silently skipped
-  (log only); otherwise post a "picking this up" comment, anchor `pickup_comment_id`, snapshot `user_content_hash`
+  (log only); otherwise post a "picking this up" comment, anchor `pickup_comment_id` and `last_action_comment_id` on
+  it (the floor the bounded park ending the first agent run walks from), snapshot `user_content_hash`
   over title + body + non-orchestrator comments, then route to `workflow:decomposing` (`DECOMPOSE=on`) or
   `workflow:implementing` (`DECOMPOSE=off`) and run that stage's handler in the same tick, so an unlabeled issue's
   first tick ends inside its second stage.
@@ -1331,7 +1332,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
      take that park down and hand the issue an unbudgeted session. The full spec persisted
      in `dev_agent` is re-parsed via `_read_dev_session` and
      reused; flipping `DEV_AGENT` in env does not migrate in-flight issues. When parked on `agent_timeout` with **no**
-     new comment, first attempt `_try_recover_implementing_timeout_park` (the implementing counterpart to validating's
+     new reply (the `implementing/parked_replies.py` cut the resume delivers from, so our own recorded notice, a pasted
+     marker, or an answered `add-agent-runs` does not count), first attempt `_try_recover_implementing_timeout_park` (the implementing counterpart to validating's
      transient-park recovery): on a clean worktree whose HEAD advanced past the persisted `pre_implement_sha` **and
      carries commits `<remote>/<base>` does not**, clear the park and hand the recovered commit to the shared
      committed-work seam — the same one a finished run publishes through, so it is measured by the size gate and only
@@ -1395,7 +1397,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
        `_CONTINUE_PARK_REASONS` = `agent_silent` / `agent_timeout`) a content-free continue retries the dev
        intentionally (`_retry_parked_dev_session`): the command watermark is consumed, the session is resumed on a
        neutral retry prompt — NOT the bare command text, so the dev is grounded on its transcript (or, once
-       `_resume_dev_with_text` rotates it, a fresh respawn preamble) rather than the nudge — and the result disposes
+       `_resume_dev_with_text` rotates it, a fresh respawn preamble quoting the classifier's frozen conversation less
+       the commands) rather than the nudge — and the result disposes
        through the normal commit / timeout / question paths, with no "issue body changed" notice. A park needing a real
        answer (any other `park_reason`) consumes the command and posts a refusal (`_refuse_parked_continue`) once, then
        stays parked (no per-tick loop). The size gate's own `late_measurement_failed` park is answered one step
@@ -2959,8 +2962,8 @@ thread's last word after the system has healed itself. The wording is chosen by
 `_recovery_followup_comment(gh, issue, state, park_reason, outcome)` from the (reason, outcome) pair: the failed push
 retried, the timed-out run's commit pushed, the timed-out run having left nothing to publish, or the reviewer being
 re-spawned. It carries no @mention (closing the loop must not notify a second time), and it is skipped entirely when
-pinned state carries no `last_action_comment_id` — no mention was ever posted, so there is nothing to retire — or
-when the pair has no wording. A `stuck` outcome posts nothing at all, so a still-failing retry stays silent poll
+pinned state carries no `last_action_comment_id` — nothing then says a mention was posted (the pickup anchors one on
+every issue it starts, so only a legacy issue can lack it) — or when the pair has no wording. A `stuck` outcome posts nothing at all, so a still-failing retry stays silent poll
 after poll.
 
 Exactly one lands per park episode, and the receipt for that is the thread rather than pinned state. The post and
@@ -2968,7 +2971,8 @@ the write that clears the park are two operations, so a process that dies betwee
 comment no local record names — any receipt written beside the clear would die with it. So every follow-up carries
 `_RECOVERY_FOLLOWUP_MARKER` (`<!--orchestrator-recovery-followup-->`), and `_episode_already_announced` looks for it
 among the comments past `last_action_comment_id` before wording a new one. That watermark is the park's own mention
-id, which scopes the search to this episode: a later park stamps a higher one, so an older follow-up sitting below it
+id — the bounded walk every such park takes reaches that mention whenever nothing unread sits under it, and an unread
+reply is what keeps the recovery from firing at all — which scopes the search to this episode: a later park stamps a higher one, so an older follow-up sitting below it
 cannot silence the next recovery. A forged marker costs its author the notification they would have been spared
 anyway.
 

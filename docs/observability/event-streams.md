@@ -153,8 +153,8 @@ file is the durable record.
   — emitted by the dispatcher's own hold, which stops the tick before any handler is reached, so it reports once per
   tick that REACHES it: a `paused` / `backlog` hard skip runs no dispatch at all, a closed issue is let past to its
   terminal, and a guard ahead of the hold can own the tick itself), `granted` (a trusted
-  `/orchestrator add-agent-runs N` widened the allowance and the park came down, so the tick went on to the stage its
-  label names), `refused` (a request the park could not act on — malformed, zero, negative, or past the per-command
+  `/orchestrator add-agent-runs N` widened the allowance and the park came down, with the park it displaced put back,
+  so the tick went on to the stage its label names), `refused` (a request the park could not act on — malformed, zero, negative, or past the per-command
   maximum — left both counts where they were and earned its one receipt; emitted on the replay that recognizes a
   receipt already on the thread too, since what the phase records is the tick's own answer). The
   `park_awaiting_human` record with `reason="agent_run_limit"` is emitted beside the `delivered` one, by the shared

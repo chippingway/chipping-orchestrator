@@ -102,8 +102,9 @@ good, so a spent issue behind either would sit on a park nothing lifts over work
 reading is a request per parked poll and fails OPEN, since a remote that would not answer says nothing about whether
 the work is over. The one reading of
 a thread that lifts it is answered in the same place: a trusted `/orchestrator add-agent-runs N`, bounded per
-command, which persists an allowance of exactly `used + N` and lets that tick go on to the stage its label names —
-what it widens is what the issue may still spend, since nothing returns a run already taken.
+command, which persists an allowance of exactly `used + N`, puts back the park the refused launch was on, and lets
+that tick go on to the stage its label names — so a resume refused on a reply is resumed on that reply. What it widens
+is what the issue may still spend, since nothing returns a run already taken.
 
 The second is `report_record_damaged`, taken by the developer-report reconciliation for the same kind of reason: the
 record is the dispatcher's to act on, so a record nobody can read is nobody below's to explain. It is announced once
@@ -186,8 +187,8 @@ do is in [`workflow.md`](workflow.md).
 ### `_handle_pickup` (no label → `workflow:decomposing` or `workflow:implementing`)
 
 An open issue with no workflow label: when `ALLOWED_ISSUE_AUTHORS` is set an issue from outside the list is silently
-skipped; otherwise the handler posts the pickup comment, anchors `pickup_comment_id`, snapshots `user_content_hash`,
-and routes to `workflow:decomposing` (`DECOMPOSE=on`) or `workflow:implementing` (off), running that stage's handler
+skipped; otherwise the handler posts the pickup comment, anchors `pickup_comment_id` and `last_action_comment_id` on
+it (the floor the park ending the first agent run walks from), snapshots `user_content_hash`, and routes to `workflow:decomposing` (`DECOMPOSE=on`) or `workflow:implementing` (off), running that stage's handler
 in the same tick. Full flow: [`state-machine/delivery-stages.md`][pickup].
 
 No unlabeled issue that already carries a pinned comment reaches it. Greeting one a second time writes a second
