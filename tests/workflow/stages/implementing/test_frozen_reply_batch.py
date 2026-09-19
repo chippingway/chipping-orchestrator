@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """One frozen read of a parked thread, and everything a resume derives from it.
 
-`resume_batch._freeze` is a contract no stage handler calls yet, so these cases
-drive it directly. Each asks one question of a single read: what the followup
-quotes against the ids the delivery record names, what the settlement then
-records as answered, which run outcome counts the batch as delivered, which
-comments the classification admits, which command road owns the batch, and
-what the two re-grounding conversations carry.
+These cases drive `resume_batch._freeze` directly; the resume tests beside
+them ask the same of the roads that call it. Each asks one question of a
+single read: what the followup quotes against the ids the delivery record
+names, what the settlement then records as answered, which run outcome counts
+the batch as delivered, which comments the classification admits, which
+command road owns the batch, and what the two re-grounding conversations carry.
 """
 from __future__ import annotations
 
@@ -80,7 +80,8 @@ class _Owned(NamedTuple):
 
     The park it was read on, the words on the thread past the floor, whether
     the parked-continue classifier has already looked, and the replies
-    delivered -- None where a command road owns the batch.
+    delivered -- None where a command road owns the batch. An authorization
+    command is never among them: last it is owned, and demoted it is dropped.
     """
 
     described: str
@@ -93,11 +94,11 @@ class _Owned(NamedTuple):
 _OWNERSHIP = tuple(_Owned(*case) for case in (
     ("an authorization command", _AUTHORIZATION_PARK, (_AUTHORIZE,), False, None),
     ("one over an answered grant", _AUTHORIZATION_PARK, (_AUTHORIZE, _ANSWERED_GRANT), False, None),
-    ("guidance over one", _AUTHORIZATION_PARK, (_AUTHORIZE, _GUIDANCE), False, (_AUTHORIZE, _GUIDANCE)),
+    ("guidance over one", _AUTHORIZATION_PARK, (_AUTHORIZE, _GUIDANCE), False, (_GUIDANCE,)),
     ("a quoted record over one", _AUTHORIZATION_PARK, (_AUTHORIZE, _QUOTES_THE_RECORD), False, (
-        _AUTHORIZE, _QUOTES_THE_RECORD,
+        _QUOTES_THE_RECORD,
     )),
-    ("a forged marker over one", _AUTHORIZATION_PARK, (_AUTHORIZE, _FORGED), False, (_AUTHORIZE,)),
+    ("a forged marker over one", _AUTHORIZATION_PARK, (_AUTHORIZE, _FORGED), False, ()),
     ("a measurement retry", _MEASUREMENT_PARK, (_CONTINUE,), False, None),
     ("words beside that retry", _MEASUREMENT_PARK, (_CONTINUE, _GUIDANCE), False, (_CONTINUE, _GUIDANCE)),
     ("a claimed retry", _TIMEOUT_PARK, (_CONTINUE,), True, None),
@@ -328,7 +329,9 @@ class OwnershipTest(_ParkedThread):
     def test_a_command_road_owns_all_of_it_or_none(self) -> None:
         # Owned, the tick is handed back whole: nothing delivered, nothing to
         # re-ground with, and a settlement that moves nothing. Otherwise the
-        # command is words like any other beside the guidance written with it.
+        # words written beside the command are delivered -- and an
+        # authorization command, a control only its park's road acts on, is
+        # in no prompt text at all.
         for case in _OWNERSHIP:
             with self.subTest(thread=case.described):
                 batch = self._frozen_on(
@@ -339,6 +342,9 @@ class OwnershipTest(_ParkedThread):
                 self.assertIs(batch.reserved, case.delivered is None)
                 self.assertEqual(
                     tuple(seen.body for seen in batch.comments), case.delivered or (),
+                )
+                self.assertNotIn(
+                    _AUTHORIZE, batch.followup + batch.thread_text + batch.retry_thread_text,
                 )
                 if case.delivered is None:
                     self.assertEqual(batch.delivery.entries, ())

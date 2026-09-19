@@ -153,6 +153,11 @@ def _answered_question(
         )
         return _consumed(context, signal)
     if signal.bare_continue:
+        # Nothing handed over to consume: `_consumed` below settles the shared
+        # watermark from this signal's own frozen fingerprint, which already
+        # covers the command. The refusal itself needs no crossing either --
+        # this mode reads the thread through the id ledger, so our own note is
+        # dropped where it is read rather than skipped by a mark.
         _messages._refuse_parked_continue(
             context.gh, context.issue, context.state,
         )

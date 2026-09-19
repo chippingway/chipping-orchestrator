@@ -797,9 +797,26 @@ The keys that matter for the state machine fall into a few groups:
   tick explicitly re-sets it after the park call. `last_action_comment_id` is stamped at the id of the notice that
   call POSTED, not at whatever the thread ends on once it has: the two differ only when a human replies between the
   post and the write, and on a park whose whole point is waiting for a reply, reading the tip there is the answer
-  being thrown away by the question. A post whose id nothing could read falls back to the tip, which is the lesser
-  of the two failures left — a watermark that never moved leaves the park's own notice to be read back as somebody's
-  fresh guidance on every tick after. That field doubles as the record that a mention was
+  being thrown away by the question. A post this call could not identify moves the mark **nowhere** — reading the
+  tip for one nothing named would cross whatever else stands on the thread, while our own unrecorded sentence carries
+  the marker with no ledger entry behind it, so every prompt reading refuses it as forged.
+
+  The parks that FOLLOW an agent run read the field differently, through `engine/park_watermarks.py`, because a human
+  may have written while the agent was out: the walk starts at whatever the resume settled and advances through the
+  unbroken run of comments the `orchestrator_comment_ids` ledger claims (the pinned comment left out by its id),
+  stopping at the first it does not. A post the ledger never gained, a thread with no watermark under it, and a thread
+  the walk cannot re-read all leave the mark where it is, never the tip, and the last never raises, since the notice
+  is already posted and the park still has to be recorded. `_handle_pickup` writes the floor the first run walks from:
+  the pickup comment anchors `last_action_comment_id` beside `pickup_comment_id`, because the spawn it opens quotes the
+  thread as it stands. EVERY park the `workflow:implementing` and `workflow:validating` handlers take after a run reads
+  the field that way — the agent question and checkout refusals call the walk directly, and every other one asks
+  `_park_awaiting_human` for it with `bounded=True` (both timeout parks, both push failures, the measurement failure,
+  the unauthorized-exemption hold, the checkout-moved refusals, the squash and verify failures, the reviewer timeout
+  and no-VERDICT parks, and the review cap) — and so do the agent-run-limit notice and the repair of its lost write,
+  because the launch the circuit refuses is very often one of these resumes. Where nothing is unread the bound IS the
+  notice id, so it is never the worse answer.
+
+  That field doubles as the record that a mention was
   posted: a transient park that later self-recovers reads it back to decide whether it owes the thread a follow-up
   (see [`delivery-stages.md`](delivery-stages.md), **Recovery follow-up**). Park reasons that route via
   `_park_auto_rebase_failure` (`auto_base_rebase_failed` / `auto_base_rebase_dirty` /
@@ -852,9 +869,9 @@ The keys that matter for the state machine fall into a few groups:
   it returned, so a
   command landing in either window is in its batch and in nobody else's — refused and consumed past its own refusal
   by the classifier, or fed to a developer as guidance by the resume. Deferred entire, the next poll reads the same
-  batch and re-measures the pair on it. The reservation is asked of the trusted read before the orchestrator's own
-  comments come out of it, since that is the read the retry itself takes: asked of a narrower batch, a tick would
-  defer what the road it deferred to then refuses. It is also the one of them a tick can retire with no
+  batch and re-measures the pair on it. The reservation is asked of the replies a resume would deliver
+  (`implementing/parked_replies.py`), since that is the read the retry itself takes: asked of any other batch, a tick
+  would defer what the road it deferred to then refuses. It is also the one of them a tick can retire with no
   answer at all, and under a label it is never taken on: a park standing over a record whose split has already
   become children is the
   reconciliation's own false positive — what a settled split keeps the publication group for is the releases and the
@@ -1231,13 +1248,16 @@ The keys that matter for the state machine fall into a few groups:
   otherwise reach an agent as somebody asking for a change — and be paid for.
 
   That resume also **defers its whole tick** where the batch's last fresh reply is the command ending this park
-  and the park is standing. It reads the thread *after* `late_recovery` has classified it and handed the tick
-  back, so a command landing between the two reads is in its batch and in nobody else's. Sparing just that one
+  and the park is standing — an answered `/orchestrator add-agent-runs` read past on both sides, since this park's
+  own reading does not count it as a reply. It reads the thread *after* `late_recovery` has classified it and handed
+  the tick back, so a command landing between the two reads is in its batch and in nobody else's. Sparing just that one
   reply would not save it: a watermark is one number and the resume is not the last thing to move it, so the run
   it starts parks and that park stamps the thread read to the id of the notice it posts — above the command, which
   is then gone for good. Nothing consumed, nothing is lost: the next poll reads the command as the last fresh word
   and publishes on it, and the guidance underneath was superseded by it anyway. Only where the command is last,
-  since guidance written after one is the decision that replaced it.
+  since guidance written after one is the decision that replaced it. Either way the command itself is in no
+  developer prompt while this park stands: demoted, the resume delivers the words written after it, and where those
+  are nothing it may deliver — a pasted `<!--orchestrator-comment-->` — nobody is resumed at all.
 
   The park goes down *before* the notice, so a
   restarted tick finds somebody already waiting behind this candidate rather than an unparked issue to announce all
@@ -1635,7 +1655,8 @@ The keys that matter for the state machine fall into a few groups:
   nothing — the reading is taken and acted on at the tracked spawn boundary
   ([The agent-run circuit](#the-agent-run-circuit)), and the one writer of `agent_run_allowance` is the operator
   command below.
-- **The agent-run-limit park.** `awaiting_human` + `park_reason="agent_run_limit"` + `agent_run_limit_notice` are
+- **The agent-run-limit park.** `awaiting_human` + `park_reason="agent_run_limit"` + `agent_run_limit_notice` +
+  `agent_run_limit_displaced` are
   staged by [`run_limit_state.py`](../../orchestrator/workflow/engine/run_limit_state.py), then persisted and reported
   by [`run_limit.py`](../../orchestrator/workflow/engine/run_limit.py), which is handed the ledger reading — so the
   park quotes the numbers the refusal was made on rather than
@@ -1648,6 +1669,9 @@ The keys that matter for the state machine fall into a few groups:
   that can tell one exhaustion from another — a recorded sentence about the reading the ledger still shows is kept
   **verbatim** (the thread is searched for exactly that text, so rewording it would find nothing and say it twice),
   and one about any other reading is replaced, since it quotes an allowance or a spend the issue has moved off.
+  `agent_run_limit_displaced` is the park this one went up in front of — `{"awaiting_human": bool, "park_reason":
+  str | null}`, read off the durable state the circuit refused on and recorded only when the park is TAKEN (a park
+  re-taken over itself would record itself). It is what the grant below puts back.
   Before it is said again the thread is read for it, and only a comment **this orchestrator wrote** above the
   `last_action_comment_id` watermark counts as the receipt (`github.comments.authored_by_us`, the same author check
   every park-notice reconciliation gates on); a thread that could not be READ is its own answer and the tick says
@@ -1665,9 +1689,9 @@ The keys that matter for the state machine fall into a few groups:
   ending, so it is carved out there and nowhere else — `discussion` itself drains that same pull request through its
   own terminal, and behind a permanent park nothing comes back for it. That reading costs a request per parked poll,
   fails *open*, and is taken **before** the command below, which mutates. A later tick
-  that meets the same explained park says nothing and records `standing`. Both fields are additive and default safe:
-  an issue recorded before them, or hand-edited into a shape neither fits, reads back as unparked and owing nothing
-  rather than as a tick that raises.
+  that meets the same explained park says nothing and records `standing`. All three fields are additive and default
+  safe: an issue recorded before them, or hand-edited into a shape none fits, reads back as unparked, owing nothing,
+  and displacing no park rather than as a tick that raises.
 - **The one command that lifts it.** `/orchestrator add-agent-runs N`, owned by
   [`orchestrator/workflow/engine/run_grant.py`](../../orchestrator/workflow/engine/run_grant.py) over the request
   [`run_grant_request.py`](../../orchestrator/workflow/engine/run_grant_request.py) hands it, and asked by the
@@ -1675,21 +1699,31 @@ The keys that matter for the state machine fall into a few groups:
   would say it. It is read only while THIS park stands on an OPEN issue (a command on any other park, or on a running
   issue, is a ceiling nobody was held to; a closed one is let past to its terminal before the read is taken), only
   past `last_action_comment_id` from an author `ALLOWED_ISSUE_AUTHORS` trusts, only
-  once the park's own sentence has been said (the delivery moves the response boundary, so a command read before it
-  would be bought and then consumed by the notice explaining the park), and only as an exact positive whole number no
+  once the park's own sentence has been said (a command read before it would be a command written before the question
+  was put), and only as an exact positive whole number no
   larger than `MAX_RUNS_PER_COMMAND` (50) — leading zeros are dropped first, so `007` is seven and a digit string too
   long to be inside the bound is turned away *before* `int()` sees it, since the interpreter refuses to convert one
   past its own limit and a request that raised would be neither granted nor refused. The last command in the unread
   batch is the request. A valid one writes
   `agent_run_allowance` = `used + N` — an absolute ceiling rather than an increment, so a tick that dies between the
-  receipt and the write buys the same runs again rather than a second `N` on top of them — clears `awaiting_human`
-  and `park_reason` and drops any `agent_run_limit_notice` record beside them, ratchets the watermark past both the
+  receipt and the write buys the same runs again rather than a second `N` on top of them — puts `awaiting_human` and
+  `park_reason` back to the park `agent_run_limit_displaced` recorded (none, where nothing was recorded) and drops that
+  record and any `agent_run_limit_notice` beside it, ratchets the watermark past both the
   command and its own acknowledgement, records `granted`, and returns the tick to the stage handler its label names.
+  Putting the displaced park back is what makes the run a human just paid for the one the issue was stopped for: a
+  resume the circuit refused on a reply finds that reply still unread and is run again on it, from its own frozen
+  batch — rather than an ordinary spawn quoting it with no record, or a reviewer on `workflow:validating`.
   That watermark is derived from what the tick actually read — the last comment of the batch the command came out of,
   walked forward only over comments this orchestrator wrote (by recorded `orchestrator_comment_ids`, else by
   `_ORCH_COMMENT_MARKER` + author) and stopped by the first that is not. A comment posted between the batch read and
   the receipt is therefore left above the mark for the next tick, since a watermark is how every stage decides what
-  is unread and a comment swept under it is lost rather than delayed.
+  is unread and a comment swept under it is lost rather than delayed. And the batch is not answered at all where it
+  BEGINS below a notice of ours: the bounded run-limit notice leaves a reply a refused resume was handed under the
+  mark, and the watermark is one number, so the walk starts at the mark, crosses our own comments, and stops at that
+  reply. The command is left unread with its receipt on the thread, and every later reader cuts it out: the
+  `workflow:implementing` roads through `implementing/parked_replies.py` (so a later bare `/orchestrator continue` is
+  still the retry or refusal it would be alone, and it is no last word on the authorization park), the frozen reply
+  batch on both stages, the in_review seed walk at approval, and the in_review and fixing feedback scans.
   Every other request leaves `agent_runs_used` and `agent_run_allowance` exactly as it found them, keeps the park,
   and posts one receipt carrying `<!--orchestrator-add-agent-runs-refused:issue=N:comment=M-->`. Both answers are
   marked that way — the acknowledgement carries `<!--orchestrator-add-agent-runs-granted:issue=N:comment=M-->`; each
@@ -3180,7 +3214,8 @@ rather than preserving.
   retry, review-round and park counters, `agent_run_reservation` (a launch, not a fact about the issue — the fresh
   cycle has none),
   `agent_run_limit_notice` beside the park it explains (an obligation is a claim about one park, and the sentence it
-  carries quotes a spend the fresh cycle will re-read for itself), and every
+  carries quotes a spend the fresh cycle will re-read for itself), `agent_run_limit_displaced` with it (the park it
+  names is one the fresh cycle is not on), and every
   timestamp.
 
 ### Exemption identity and rotation

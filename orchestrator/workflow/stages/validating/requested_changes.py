@@ -128,6 +128,7 @@ def _park_reviewer_no_verdict(
         review_round=_guards._safe_int(round_val),
         retry_count=_guards._safe_int(state.get("retry_count")),
         pr_number=_guards._safe_int(pr_val),
+        bounded=True,
     )
     if outcome[0] == _state._REASON_REVIEWER_FAILED:
         state.set(_state._PARK_REASON, _state._REASON_REVIEWER_FAILED)
@@ -283,6 +284,7 @@ def _park_review_cap(
         "`/orchestrator add-review-rounds N` "
         "(N = additional rounds, e.g. `1`).",
         reason=_state._REASON_REVIEW_CAP,
+        bounded=True,
     )
     # `_park_awaiting_human` clears `park_reason` by contract; the
     # awaiting-human branch needs this transient reason to route the

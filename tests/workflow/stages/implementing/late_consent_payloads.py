@@ -107,6 +107,12 @@ GUIDANCE = "make it smaller, please"
 # own read it as a command carrying no answer.
 CONTINUE = "/orchestrator continue"
 
+# The command a run-limit grant answered and could not consume: the park it
+# lifted interrupted a reply below it, and a watermark is one number, so the
+# command is still unread when a later park is taken. Nothing said to that
+# park, and no reply to anything.
+ANSWERED_GRANT = "/orchestrator add-agent-runs 3"
+
 # The receipt the park's own notice is stamped with, which is what a tick that
 # died before saying it leaves on the record and what the sentence itself
 # carries once it lands.

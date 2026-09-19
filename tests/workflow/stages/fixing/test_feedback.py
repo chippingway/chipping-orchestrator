@@ -51,6 +51,11 @@ patch = support.patch
 timedelta = support.timedelta
 timezone = support.timezone
 
+ADD_RUNS = "/orchestrator add-agent-runs 3"
+TIGHTEN = "tighten the retry message"
+# Long enough ago that no quiet window is still waiting on either comment.
+LONG_SETTLED = datetime.fromtimestamp(0, tz=timezone.utc)
+
 
 class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
     def test_newer_comment_extends_debounce_window(self) -> None:
@@ -143,6 +148,35 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
             scenario.github.pinned_data(ISSUE).get(PR_LAST_COMMENT_ID),
             FOLLOWUP_ID,
         )
+
+    def test_a_grant_command_is_no_feedback(self) -> None:
+        # A bare `/orchestrator add-agent-runs` a grant left unread is a
+        # control, not review: the rescan quotes the human's feedback and not
+        # the command, however the command came to be past the watermark.
+        scenario = IssueScenario(*self._seed(
+            pr=self._open_pr(),
+            issue_comments=[
+                FakeComment(
+                    id=TRIGGER_ID, body=TIGHTEN, user=FakeUser(ALICE), created_at=LONG_SETTLED,
+                ),
+                FakeComment(
+                    id=FOLLOWUP_ID, body=ADD_RUNS, user=FakeUser(BOB), created_at=LONG_SETTLED,
+                ),
+            ],
+        ))
+
+        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
+            mocks = self._run_fixing(
+                scenario.github,
+                scenario.issue,
+                run_agent=_agent(session_id=DEV_SESSION, last_message=PUSHED_MESSAGE),
+                head_shas=(SHA_BEFORE, SHA_AFTER),
+            )
+
+        mocks[RUN_AGENT].assert_called_once()
+        prompt = mocks[RUN_AGENT].call_args.args[1]
+        self.assertIn(TIGHTEN, prompt)
+        self.assertNotIn(ADD_RUNS, prompt)
 
     # --- dev resume + push --> flip to validating ------------------------
 

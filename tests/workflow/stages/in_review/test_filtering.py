@@ -37,6 +37,15 @@ HANDOFF_ISSUE = 101
 HANDOFF_PR = 210
 MARKER_FILTER_ISSUE = 120
 MARKER_FILTER_PR = 220
+CONTROL_FILTER_ISSUE = 121
+CONTROL_FILTER_PR = 221
+ADD_RUNS = "/orchestrator add-agent-runs 3"
+ISSUE_THREAD = "issue_thread"
+PR_CONVERSATION = "pr_conversation"
+# When the grant command was written: long enough ago that no quiet window is
+# still waiting on it, so the only thing keeping it out of a route is what it is.
+GRANTED_AT = datetime.fromtimestamp(0, tz=UTC)
+CONTROL_HEAD_SHA = "control-sha"
 LEGACY_LOOP_ISSUE = 431
 LEGACY_LOOP_PR = 433
 INLINE_COLLISION_ISSUE = 160
@@ -405,6 +414,65 @@ class OrchestratorMarkerFeedbackFilterTest(
             docs_verdict="no_change",
         )
         return scenario.github, scenario.issue
+
+
+class OperatorControlFeedbackFilterTest(
+    unittest.TestCase,
+    _DebouncedInReviewMixin,
+):
+    """A bare `/orchestrator add-agent-runs` is no review on either surface.
+
+    It is a control the run-limit hold reads only while its park stands, and
+    a grant can leave one unread above the reply its park interrupted -- so an
+    issue can reach in_review with it past the watermark. Routed as feedback,
+    a developer is paid to "fix" a command already handled.
+    """
+
+    def test_a_grant_command_does_not_route(self) -> None:
+        for surface in (ISSUE_THREAD, PR_CONVERSATION):
+            with self.subTest(surface=surface):
+                gh, issue = self._reviewed_with_a_command_on(surface)
+
+                mocks = self._run_debounced(gh, issue)
+
+                mocks[RUN_AGENT].assert_not_called()
+                self.assertNotIn((CONTROL_FILTER_ISSUE, LABEL_FIXING), gh.label_history)
+                self._assert_ready_ping(gh)
+
+    def _reviewed_with_a_command_on(self, surface: str):
+        """An approved pull request with one grant command past its watermark."""
+        gh = FakeGitHubClient()
+        command = FakeComment(
+            id=FEEDBACK_ID, body=ADD_RUNS, user=FakeUser(ALLOWED_LOGIN), created_at=GRANTED_AT,
+        )
+        issue = make_issue(
+            CONTROL_FILTER_ISSUE,
+            label=LABEL_IN_REVIEW,
+            comments=[command] if surface == ISSUE_THREAD else [],
+        )
+        gh.add_issue(issue)
+        gh.add_pr(FakePR(
+            number=CONTROL_FILTER_PR,
+            head_branch=_issue_branch(CONTROL_FILTER_ISSUE),
+            head=FakePRRef(sha=CONTROL_HEAD_SHA),
+            mergeable=True,
+            check_state=CHECKS_SUCCESS,
+            issue_comments=[command] if surface == PR_CONVERSATION else [],
+        ))
+        gh.seed_state(
+            CONTROL_FILTER_ISSUE,
+            pr_number=CONTROL_FILTER_PR,
+            branch=_issue_branch(CONTROL_FILTER_ISSUE),
+            dev_agent=BACKEND_CLAUDE,
+            dev_session_id=DEV_SESSION,
+            pr_last_comment_id=FEEDBACK_WATERMARK,
+            pr_last_review_comment_id=0,
+            pr_last_review_summary_id=0,
+            orchestrator_comment_ids=[PICKUP_COMMENT_ID, PR_OPEN_COMMENT_ID],
+            docs_checked_sha=CONTROL_HEAD_SHA,
+            docs_verdict="no_change",
+        )
+        return gh, issue
 
 
 class CrossNamespaceFilterTest(unittest.TestCase, _DebouncedInReviewMixin):

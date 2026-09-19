@@ -6,7 +6,7 @@ A park posts its notice and then writes the watermark, and those are two
 operations. What goes down is the id of the comment this call POSTED rather
 than whatever the thread ends on afterwards -- on a park whose whole point is
 waiting for a reply, reading the tip would throw away the answer with the
-question.
+question -- and a post nothing identified moves it nowhere.
 
 A park asked with `bounded=True` answers differently: minutes passed inside
 the run it follows, so its notice lands above whatever a human wrote in them.
@@ -99,16 +99,17 @@ class ParkWatermarkTest(unittest.TestCase):
         self.assertEqual(len(landed), 1)
         self.assertLess(self.state.get(_WATERMARK), landed[0])
 
-    def test_an_unreadable_post_falls_back_to_the_tip(self) -> None:
-        # The lesser of the two failures left: a watermark that never moved
-        # would leave the park's own notice to be read back as somebody's
-        # fresh guidance on every dispatch after this one.
-        standing = self._reply()
+    def test_an_unreadable_post_moves_nothing(self) -> None:
+        # An id nothing read identifies no comment to read past, and the tip
+        # would cross the reply standing on the thread; our own unrecorded
+        # sentence is refused as forged by every prompt reading instead.
+        self._reply()
 
         with patch.object(_comments, _POST_ISSUE_COMMENT, return_value=None):
             self._park()
 
-        self.assertEqual(self.state.get(_WATERMARK), standing)
+        self.assertIsNone(self.state.get(_WATERMARK))
+        self.assertTrue(self.state.get(_AWAITING_HUMAN))
 
     def _reply(self) -> int:
         identified = self.github.next_reply_id(self.issue)

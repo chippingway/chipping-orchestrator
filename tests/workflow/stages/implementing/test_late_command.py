@@ -154,6 +154,42 @@ class UnreadReplyTest(_consent_case._ParkedCase, unittest.TestCase):
         return _command._read_the_park(self.github, self.issue, self._state())
 
 
+class AnsweredGrantTest(_consent_case._ParkedCase, unittest.TestCase):
+    """A run-limit grant's command, and why it is no word on this park.
+
+    The grant cannot consume its own command without the reply its park
+    interrupted, so the command is still past the mark when this park is
+    taken -- and it is a control that hold already answered, not anything
+    said to this one. The frozen resume batch takes it out the same way, so
+    the two halves of this park's question read one thread.
+    """
+
+    def test_it_hides_no_command_above_it(self) -> None:
+        # Written to lift the hold, it can land just below a command meant
+        # for this park. Read as the last word it hides that command, and the
+        # resume the tick is handed drops it and delivers the command as prose.
+        acted = self._reply(_consent_payloads.AUTHORIZE)
+        granted = self._reply(_consent_payloads.ANSWERED_GRANT)
+
+        read = self._reads()
+
+        self.assertEqual(read.answer.comment_id, acted)
+        self.assertEqual(read.answer.watermark, granted)
+
+    def test_alone_it_is_nobody_speaking(self) -> None:
+        # With nothing written after it, the park holds the tick rather than
+        # handing it to a resume that drops the command and delivers nothing.
+        self._reply(_consent_payloads.ANSWERED_GRANT)
+
+        read = self._reads()
+
+        self.assertIsNone(read.answer)
+        self.assertFalse(read.spoke)
+
+    def _reads(self):
+        return _command._reads_the_thread(self.github, self.issue, self._state())
+
+
 class OrchestratorAuthorshipTest(_consent_case._ParkedCase, unittest.TestCase):
     """What it takes to prove a reply was this process's own, and why.
 

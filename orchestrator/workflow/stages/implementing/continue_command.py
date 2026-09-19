@@ -25,12 +25,19 @@ also the one park that holds the tick with no command on the thread at all --
 falling through, an ordinary reply would reach the resume, which takes the
 flag down as a side effect and starts a session no budget was charged for.
 
+What it classifies is a batch `resume_batch.py` froze, the one the resume
+behind it would deliver, because whether a thread is all bare commands and
+whether a developer would be handed prose are one question: a park notice of
+ours lands above a command a human wrote while the agent was out, and counted
+as somebody's words here it turns an explicit retry into a generic resume.
+
 The retry itself does not hand the command text to the agent: the poisoned
 session already carries the issue context in its transcript, or the resume
-rotates it to a re-grounded fresh spawn. The command comments are marked
-consumed up front so the retry cannot re-fire next tick -- safe only because
-every fresh comment being a bare continue is the retry's own precondition, so
-nothing with content is dropped. `user_content_hash` is deliberately left alone:
+rotates it to a fresh spawn re-grounded off that same freeze's conversation,
+less the commands the retry consumes. The command comments are marked consumed
+up front so the retry cannot re-fire next tick -- safe only because every
+fresh reply being a bare continue is the retry's own precondition, so nothing
+with content is dropped. `user_content_hash` is deliberately left alone:
 masking it here would swallow a real body edit that landed in the same window.
 """
 from __future__ import annotations
@@ -48,7 +55,6 @@ from orchestrator.git.worktrees import (
     paths as _worktree_paths,
 )
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
@@ -58,9 +64,9 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.implementing import (
     disposition as _disposition,
-    late_measurement_reply as _late_measurement_reply,
     models as _models,
     resume as _resume,
+    resume_batch as _resume_batch,
     retry_cap as _retry_cap,
     state as _state,
 )
@@ -71,7 +77,7 @@ def _retry_parked_dev_session(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
-    new_comments: list,
+    batch: _resume_batch._ReplyBatch,
 ) -> None:
     """Resume the locked dev session as an intentional `/orchestrator continue`
     retry of a session-failure park (`agent_silent` / `agent_timeout`), then
@@ -82,15 +88,18 @@ def _retry_parked_dev_session(
     session already carries the issue context in its transcript, or
     `_resume_dev_with_text` rotates it to a re-grounded fresh spawn. The
     command comment(s) are marked consumed up front so the retry does not
-    re-fire next tick -- every fresh comment is a bare continue here (the
-    classifier's retry precondition), so this drops no guidance.
+    re-fire next tick -- every fresh reply is a bare continue here (the
+    classifier's retry precondition), so this drops no guidance. The mark
+    lands on the last of THOSE rather than on the thread tip, and a fresh
+    spawn is handed the batch's own conversation less those commands, so what
+    the agent reads and what the mark says it read are one reading.
     `user_content_hash` is deliberately NOT refreshed: a bare continue never
     shifts it, and masking it here would swallow a real body edit that landed
     in the same window before the dev could see it.
     """
     state.set(
         _state._LAST_ACTION_COMMENT_ID,
-        max(comment.id for comment in new_comments),
+        max(comment.id for comment in batch.comments),
     )
     wt = _worktree_paths._worktree_path(spec, issue.number)
     if not wt.exists():
@@ -102,6 +111,7 @@ def _retry_parked_dev_session(
     wt, agent_result, paused = _resume._resume_dev_with_text(
         gh, spec, issue, state, _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
         pause_guard=True,
+        thread_text=batch.retry_thread_text,
     )
     state.set("last_agent_action_at", _usage._now_iso())
     state.set(
@@ -156,19 +166,28 @@ def _handle_parked_continue_command(
     if decision is None:
         return False
     if decision.action == "refuse":
-        _messages._refuse_parked_continue(gh, issue, state)
+        _messages._refuse_parked_continue(
+            gh, issue, state, decision.comments,
+        )
         gh.write_pinned_state(issue, state)
     else:
         _retry_parked_dev_session(
-            gh, spec, issue, state, decision.comments,
+            gh, spec, issue, state, decision.batch,
         )
     return True
 
 
 @dataclass(frozen=True)
 class _ParkedContinueDecision:
+    """What the classifier answered, and the one frozen read it answered off."""
+
     action: str
-    comments: list
+    batch: _resume_batch._ReplyBatch
+
+    @property
+    def comments(self) -> list:
+        """The replies classified, which are the replies an answer consumes."""
+        return list(self.batch.comments)
 
 
 def _parked_continue_decision(
@@ -180,21 +199,22 @@ def _parked_continue_decision(
     # Refresh-time auto-rebase parks own their operator retry comment.
     if park_reason in _base_sync_state._AUTO_REBASE_PARK_REASONS:
         return None
-    comments = filter_trusted(
-        gh.comments_after(issue, state.get(_state._LAST_ACTION_COMMENT_ID))
-    )
+    # The batch a developer would be HANDED: our own notice above a command,
+    # a pasted marker, or an answered run-grant command read here as somebody
+    # speaking would pass the batch through to a resume that spends the
+    # command as prose -- or reserves what this passed through.
+    batch = _resume_batch._freeze(gh, issue, state)
     # Nothing to decide, and a batch that is not this road's to decide about.
     # The measurement park's own road would re-measure on one of these, and
     # this read comes after it handed the tick back -- so a command landing
     # between the two is in this batch and in nobody else's. Classified here
     # it is a continue on a park needing real guidance: refused, and consumed
     # past the refusal, so the operator's retry is gone and the reading they
-    # asked for is one nothing will ever take.
-    if not comments or _late_measurement_reply._reserved_for_the_measurement_park(
-        comments, state,
-    ):
+    # asked for is one nothing will ever take. The freeze reserves it -- and
+    # an authorization park's last command -- for the road that owns it.
+    if batch.reserved or not batch.comments:
         return None
-    action = _messages._continue_command_action(comments, park_reason)
+    action = _messages._continue_command_action(list(batch.comments), park_reason)
     if action == "passthrough":
         return None
-    return _ParkedContinueDecision(action, comments)
+    return _ParkedContinueDecision(action, batch)

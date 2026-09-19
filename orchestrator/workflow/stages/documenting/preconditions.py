@@ -130,7 +130,7 @@ def _refuse_parked_continue_command(
         return False
     if _messages._continue_command_action(new_comments, park_reason) != "refuse":
         return False
-    _messages._refuse_parked_continue(gh, issue, state)
+    _messages._refuse_parked_continue(gh, issue, state, new_comments)
     gh.write_pinned_state(issue, state)
     return True
 
