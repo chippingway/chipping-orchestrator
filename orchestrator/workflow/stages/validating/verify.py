@@ -93,5 +93,9 @@ def _park_verify_failure(
         quoted = _messages._as_blockquote(output.rstrip())
         message = f"{message}\n\n_Verify output (tail):_\n\n{quoted}"
 
-    _guards._park_awaiting_human(gh, issue, state, message, reason=reason)
+    _guards._park_awaiting_human(
+        gh, issue, state, message,
+        reason=reason,
+        bounded=True,
+    )
     state.set(_state._PARK_REASON, reason)

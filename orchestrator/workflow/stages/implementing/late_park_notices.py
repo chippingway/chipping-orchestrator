@@ -147,6 +147,7 @@ def _parked(
     _guards._park_awaiting_human(
         gate.gh, gate.issue, gate.state, message,
         reason=_late_measurement_state.PARK_MEASUREMENT_FAILED,
+        bounded=True,
     )
     gate.state.set(_state._PARK_REASON, _late_measurement_state.PARK_MEASUREMENT_FAILED)
     return True

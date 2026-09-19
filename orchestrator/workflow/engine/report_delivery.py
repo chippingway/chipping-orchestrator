@@ -320,6 +320,12 @@ def parks_an_undeliverable_report(
     A park still standing gets no second notice, but it does get the debt: one
     taken before `OWED_REPORT` existed carries the reason alone, and the park
     that replaces that reason next would take the debt with it.
+
+    It is BOUNDED, like every park that ends an agent run: the run whose
+    report failed took minutes, a human may have written in them, and the
+    notice lands above that reply. Stamped at the notice, the watermark would
+    cross it and the reply would be lost; walked through our own identified
+    comments instead, it stays unread for the resume that answers this park.
     """
     if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT and state.get(_AWAITING_HUMAN):
         log.warning(
@@ -331,7 +337,7 @@ def parks_an_undeliverable_report(
             gh.write_pinned_state(issue, state)
         return
     _guards._park_awaiting_human(
-        gh, issue, state, notice, reason=UNDELIVERABLE_REPORT,
+        gh, issue, state, notice, reason=UNDELIVERABLE_REPORT, bounded=True,
     )
     state.set(_PARK_REASON, UNDELIVERABLE_REPORT)
     state.set(OWED_REPORT, True)

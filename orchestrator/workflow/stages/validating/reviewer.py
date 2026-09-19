@@ -157,6 +157,7 @@ def _dispatch_reviewer_result(
             review_round=reviewer_run.round_n,
             retry_count=_guards._safe_int(state.get("retry_count")),
             pr_number=pr_num,
+            bounded=True,
         )
         # Tag as transient so the next tick re-spawns the reviewer instead
         # of waiting for a human comment that the timeout itself does not

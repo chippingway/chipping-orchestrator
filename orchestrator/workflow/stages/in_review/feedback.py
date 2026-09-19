@@ -9,7 +9,9 @@ stripped from that stream is everything the orchestrator itself said: by
 recorded id AND by the hidden body marker, because the id ledger is capped and
 evicts while the marker stays on the comment forever. Missing one is how the
 stage reads its own HITL ping as human feedback and routes the issue to
-`fixing` against it.
+`fixing` against it. A bare `/orchestrator add-agent-runs` comes out beside
+them: it is an operator control, never anybody's review, and a grant can leave
+one unread above the reply its park interrupted.
 
 The trusted-author filter sits above all four surfaces rather than inside the
 route, so an outsider commenting on a public PR cannot bookmark a pending fix
@@ -26,7 +28,10 @@ from __future__ import annotations
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    run_grant_request as _run_grant_request,
+)
 from orchestrator.workflow.stages.in_review import (
     fixing_route as _fixing_route,
     models as _models,
@@ -42,13 +47,16 @@ def _drop_orchestrator_comments(comments, orchestrator_ids) -> list:
     Issue-thread and PR-conversation comments share the IssueComment id
     namespace. Filter orchestrator comments by recorded id AND by the hidden
     body marker: older state can miss an id, and the bounded id list can
-    eventually evict it, but the marker stays on the GitHub comment.
+    eventually evict it, but the marker stays on the GitHub comment. A bare
+    run-grant command is dropped too, since it is a control rather than
+    feedback on any surface.
     """
     return [
         comment
         for comment in comments
         if comment.id not in orchestrator_ids
         and _comments._ORCH_COMMENT_MARKER not in (comment.body or "")
+        and not _run_grant_request._is_bare_command(comment)
     ]
 
 

@@ -46,6 +46,7 @@ from orchestrator.workflow.stages.implementing import resume as _dev_resume
 from orchestrator.workflow.stages.validating import (
     drift_models as _drift_models,
     drift_outcomes as _outcomes,
+    models as _models,
     rounds as _rounds,
     state as _state,
 )
@@ -109,7 +110,11 @@ def _finish_validating_drift(
 
 
 def _resume_dev_on_validating_drift(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    parked: _models._AwaitingValidation | None = None,
 ) -> bool:
     """Resume the dev session when a human edited the issue title/body while the
     reviewer was running.
@@ -136,8 +141,16 @@ def _resume_dev_on_validating_drift(
     hash, so without this bypass the drift block would fire first and the
     command would never be parsed. The new baseline hash is persisted here
     either way so the next tick's drift check has a stable comparison point.
+
+    `parked` is the awaiting context a parked tick built first. Its frozen
+    batch says what the park had already read, and the requirements are
+    measured by that: the replies past it are that batch's to deliver and
+    settle, so they are no edit here.
     """
-    new_hash = _engine_drift._detect_user_content_change(gh, issue, state)
+    new_hash = _engine_drift._detect_user_content_change(
+        gh, issue, state,
+        answered=None if parked is None else parked.batch.answered,
+    )
     if new_hash is None:
         return False
     state.set("user_content_hash", new_hash)
@@ -151,7 +164,7 @@ def _resume_dev_on_validating_drift(
     # Mark the full issue thread as consumed: the dev sees it via
     # `_recent_comments_text` in the resume prompt, so the eventual
     # handoff to in_review must not replay those comments as fresh
-    # feedback. Mirrors `_resume_developer_on_human_reply`'s pre-spawn bump.
+    # feedback.
     _engine_drift._mark_drift_comments_consumed(gh, issue, state)
     run = _run_validating_drift(gh, spec, issue, state)
     state.set("last_agent_action_at", _usage._now_iso())

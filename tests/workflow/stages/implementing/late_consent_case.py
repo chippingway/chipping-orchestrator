@@ -16,6 +16,7 @@ from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github.pinned_state import (
     PinnedState,
 )
+from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.implementing import (
     late_command as _command,
     late_gate_models as _late_gate_models,
@@ -37,6 +38,8 @@ from tests.workflow.stages.implementing import (
     late_consent_comments as _consent_comments,
     late_consent_payloads as _consent_payloads,
 )
+
+_USER_CONTENT_HASH = "user_content_hash"
 
 
 class _ParkedTickAssertions:
@@ -189,6 +192,14 @@ class _ParkedCase(
         } if parked else {}
         self.github.seed_state(_consent_payloads.ISSUE_NUMBER, **{
             _state._LAST_ACTION_COMMENT_ID: _consent_payloads.PRIOR_ACTION_COMMENT_ID,
+            # The requirements baseline a real park carries: the thread as it
+            # had been read, so a reply moves the hash as in production.
+            _USER_CONTENT_HASH: _content_hash._compute_user_content_hash(
+                self.issue, set(), comments=[
+                    seen for seen in self.issue.comments
+                    if seen.id <= _consent_payloads.PRIOR_ACTION_COMMENT_ID
+                ],
+            ),
             _consent_payloads.KEY_EXEMPT_SHA: MEASURED_CANDIDATE_SHA,
             # The report of the run that committed this candidate, which every
             # tick over already-committed work carries: without one the stage

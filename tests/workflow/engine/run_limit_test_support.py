@@ -48,6 +48,12 @@ USED_FIELD = AGENT_RUNS_USED
 # orchestrator reads back off a thread may carry.
 BOT_LOGIN = "orchestrator"
 
+# A human whose reply is the input a refused launch was handed.
+TRUSTED_AUTHOR = "alice"
+
+# Where the ids of the comments this orchestrator posted are recorded.
+LEDGER_FIELD = "orchestrator_comment_ids"
+
 OUTSIDER = "stranger"
 
 # The launch a park is taken against, as the boundary that refuses one hands

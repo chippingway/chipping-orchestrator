@@ -21,10 +21,10 @@ streak is counting.
 A commit-less reply has one more reading, and it is the same one the ordinary
 disposition makes: an issue still owing a report it could not deliver was never
 waiting for code, so a run that comes back with a report publishes the commits
-the branch already carries rather than parking as a question. A human answering
-this stage's undeliverable-report park lands HERE rather than on the park's own
-resume, because their reply is user content and moves the drift hash -- so the
-road an edit earns is the road that has to recognize it.
+the branch already carries rather than parking as a question. A human's reply
+to a park reaches the park's own resume rather than this road -- the drift
+check measures a parked issue by what the park had already read -- so this
+road meets that debt only where an edit came with the reply.
 """
 from __future__ import annotations
 

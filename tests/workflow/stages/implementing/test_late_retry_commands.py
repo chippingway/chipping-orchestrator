@@ -42,6 +42,30 @@ class LateGateContinueTest(support._ParkedRetryCase, unittest.TestCase):
             pinned[support.LAST_ACTION_COMMENT_ID], support.REPLY_COMMENT_ID,
         )
 
+    def test_an_undelivered_comment_still_remeasures(self) -> None:
+        # Two comments past the mark that no resume hands a developer, and
+        # each one read as a second voice makes this road call the batch
+        # mixed and decline the retry. Our own notice is the window the park
+        # itself opens: the operator writes while the agent is out and the
+        # notice lands above them, so the resume behind this pays a developer
+        # to answer `/orchestrator continue` as prose. A grant's command is
+        # the run-limit cycle's leftover: the resume drops it, sees the
+        # continue bare, and reserves it for this road -- which declined it,
+        # so the park stands with nothing measured, refused, or said.
+        for described, park in (
+            ("our notice over it", self._park_under_our_notice),
+            ("an answered grant under it", self._park_over_an_answered_grant),
+        ):
+            with self.subTest(comment=described):
+                self.setUp()
+                park()
+
+                mocks = self._run_gate(added_lines=support.SMALL_ADDITIONS)
+
+                self._assert_no_agent(mocks)
+                self._assert_measured(mocks)
+                self._assert_published(mocks)
+
     def test_a_step_no_retry_can_change_parks_at_once(self) -> None:
         # A diff nothing here can pin, one git refused, one nothing could
         # read: a second reading of any of them buys the same answer, so the

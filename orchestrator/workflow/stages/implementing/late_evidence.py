@@ -352,6 +352,7 @@ def _holds_unpublished_commit(
             head=head.sha or "an unreadable head",
         ),
         reason=_state._CANDIDATE_MOVED,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, _state._CANDIDATE_MOVED)
     return True

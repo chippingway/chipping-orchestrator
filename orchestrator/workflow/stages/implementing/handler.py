@@ -58,6 +58,7 @@ from orchestrator.workflow.stages.implementing import (
     read_only_relabel as _read_only_relabel,
     spawn as _spawn,
 )
+from orchestrator.workflow.stages.implementing.resume_batch import _ReplyBatch
 from orchestrator.workflow.stages.implementing.state import (
     _PR_NUMBER,
 )
@@ -251,11 +252,11 @@ def _terminal_or_relabel_holds(
     first one already finished. It is asked before the spawn because that is
     the only place it can be.
 
-    The command handler that ends this is the last thing asked before the
-    drift check, and it answers two parks rather than one: the spent spawn
-    budget it opens with holds the tick outright, since the resume below
-    would otherwise lift that park on any reply at all and start a session
-    nothing charges.
+    The parked-continue command handler is asked right after this, over the
+    tick's one frozen reply batch, and it answers two parks rather than one:
+    the spent spawn budget it opens with holds the tick outright, since the
+    resume below would otherwise lift that park on any reply at all and start
+    a session nothing charges.
     """
     if _terminals._finalize_if_issue_closed(gh, spec, issue, state):
         return True
@@ -263,15 +264,25 @@ def _terminal_or_relabel_holds(
         return True
     if _late_recovery._recovers_a_late_park(gh, spec, issue, state):
         return True
-    if _candidate_recovery._holds_unreconciled_candidate(gh, spec, issue, state):
-        return True
-    return _continue_command._handle_parked_continue_command(gh, spec, issue, state)
+    return _candidate_recovery._holds_unreconciled_candidate(gh, spec, issue, state)
 
 
 def _handle_detected_implementing_drift(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    batch: _ReplyBatch | None,
 ) -> bool:
-    new_hash = _engine_drift._detect_user_content_change(gh, issue, state)
+    """Whether a requirements edit owns this tick, judged off the parked read.
+
+    On a parked tick the replies past the watermark are the frozen batch's to
+    deliver, so what the park had already read is what the edit is measured
+    by (`_ReplyBatch.answered`).
+    """
+    new_hash = _engine_drift._detect_user_content_change(
+        gh, issue, state, answered=None if batch is None else batch.answered,
+    )
     return new_hash is not None and _drift._handle_user_content_drift(
         gh, spec, issue, state, new_hash,
     )
@@ -285,6 +296,12 @@ def _handle_implementing(gh: GitHubClient, spec: _config_models.RepoSpec, issue:
     _retry_budget._replay_owed_notice(gh, issue, state)
     if _implementing_preflight(gh, spec, issue, state):
         return
+    # The one read an awaiting-human tick answers from: the continue
+    # classifier, the drift check, and the resume behind them all read this
+    # batch, so a reply landing between two of them is in none of them.
+    batch = _continue_command._parked_batch(gh, issue, state)
+    if _continue_command._handle_parked_continue_command(gh, spec, issue, state, batch):
+        return
 
     # User-content drift: a human edited the issue title/body after the dev
     # session was spawned. `_handle_user_content_drift` persists the new hash
@@ -292,10 +309,10 @@ def _handle_implementing(gh: GitHubClient, spec: _config_models.RepoSpec, issue:
     # (returning True), parks recovered pre-edit work, or -- when no dev
     # session exists yet -- clears any park and returns False so the fresh-
     # spawn path below picks up the new body via `_build_implement_prompt`.
-    if _handle_detected_implementing_drift(gh, spec, issue, state):
+    if _handle_detected_implementing_drift(gh, spec, issue, state, batch):
         return
 
-    prepared = _spawn._prepare_dev_run(gh, spec, issue, state)
+    prepared = _spawn._prepare_dev_run(gh, spec, issue, state, batch)
     if prepared is None:
         return
 

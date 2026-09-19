@@ -8,6 +8,7 @@ import pathlib
 from unittest import mock
 
 from orchestrator import config as _config
+from orchestrator.github.comments import ORCHESTRATOR_COMMENT_MARKER
 from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support import fakes
 from tests.workflow import fixtures
@@ -57,6 +58,12 @@ SECONDARY_PR = 18
 TRUST_CAP_ISSUE = 90
 TRUST_RETRY_ISSUE = 91
 HUMAN_COMMENT_ID = 1100
+# The notice the park itself posted, above the command because comment ids
+# ascend and the post is the last thing the tick that parked did. Ours by
+# recorded id, which is what says so when a shared token's login cannot.
+PARK_NOTICE_COMMENT_ID = 1150
+PARK_NOTICE = "agent timed out, manual intervention needed."
+BOT_LOGIN = "orchestrator"
 FOLLOWUP_COMMENT_ID = 1200
 CAP_COMMAND_ID = 2000
 ACTION_COMMENT_ID = 950
@@ -152,7 +159,23 @@ class FixLoopFixtureMixin(_PatchedWorkflowMixin):
 
 
 class ContinueCommandFixtureMixin(_PatchedWorkflowMixin):
-    def _seed(self, number, *, park_reason, command="/orchestrator continue"):
+    def _seed(
+        self,
+        number,
+        *,
+        park_reason,
+        command="/orchestrator continue",
+        under_our_notice=False,
+    ):
+        """One parked validating issue with the operator's command on it.
+
+        `under_our_notice` is the thread a bounded park leaves whenever the
+        command was written while the agent was out: our own notice lands
+        above it and the watermark stops below both. It is ours by recorded
+        id, so it is no part of the batch this stage classifies -- read as a
+        second voice it would demote the command to prose and buy a developer
+        run over words nobody meant as requirements.
+        """
         github = FakeGitHubClient()
         issue = make_issue(number, label=LABEL_VALIDATING, body="the requirements")
         issue.comments.append(
@@ -162,12 +185,23 @@ class ContinueCommandFixtureMixin(_PatchedWorkflowMixin):
                 user=FakeUser("dave"),
             ),
         )
+        recorded = []
+        if under_our_notice:
+            issue.comments.append(
+                FakeComment(
+                    id=PARK_NOTICE_COMMENT_ID,
+                    body=f"{PARK_NOTICE}\n\n{ORCHESTRATOR_COMMENT_MARKER}",
+                    user=FakeUser(BOT_LOGIN),
+                ),
+            )
+            recorded = [PARK_NOTICE_COMMENT_ID]
         github.add_issue(issue)
         github.seed_state(
             number,
             awaiting_human=True,
             park_reason=park_reason,
             last_action_comment_id=ACTION_COMMENT_ID,
+            orchestrator_comment_ids=recorded,
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
             silent_park_count=1,

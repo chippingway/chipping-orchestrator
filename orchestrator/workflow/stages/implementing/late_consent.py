@@ -167,6 +167,7 @@ def _parked_for_authorization(
             candidate=generation.candidate_sha,
         ) + _decided_by(gate, generation.candidate_sha) + f"\n\n{receipt}",
         reason=_command.PARK_UNAUTHORIZED_EXEMPTION,
+        bounded=True,
     )
     gate.state.set(_state._PARK_REASON, _command.PARK_UNAUTHORIZED_EXEMPTION)
     gate.state.set(_state._HELD_RECEIPT, None)

@@ -14,10 +14,10 @@ failed run's own text says about its health, `session` decides when it is
 retired and gates a fresh spawn against the per-issue daily cap, `resume` keeps
 the call shape every other stage wrote against, and `execution` runs one attempt
 plus the single poisoned-session retry behind it, in `worktree`'s checkout.
-`resume_batch` freezes one read of a parked thread into what a resume would
-quote, record, re-ground with, and settle, and `parked_replies` is the cut of
-that thread's fresh replies the command roads are to share with it; no resume
-or road reads either yet.
+`resume_batch` freezes one read of a parked thread into what a resume
+quotes, records, re-grounds with, and settles -- here and on `validating` --
+and `parked_replies` is the cut of that thread's fresh replies the command
+roads share with it.
 
 Finished work follows the publication owners: `disposition` compares HEAD
 against the pre-agent SHA to tell this run's commit from carried-over work,

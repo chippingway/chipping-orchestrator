@@ -27,7 +27,11 @@ re-mentioned every poll.
 Drift comes next, ahead of the awaiting-human branch, because a body edit
 mid-review means the work under review is answering the wrong requirements;
 the three parks that defer back out of it are the ones whose reply belongs to
-the reviewer or to the operator's round-cap command instead of to the dev.
+the reviewer or to the operator's round-cap command instead of to the dev. On
+a parked tick the awaiting context -- and its one frozen reply batch -- is
+built first, and the drift check measures the requirements by what that park
+had already read: the replies past it are the batch's to deliver, so they
+reach the awaiting-human branch rather than the drift resume.
 
 The awaiting-human branch then either finishes the tick or clears the park
 into a fresh reviewer round, which is why it answers in words rather than a
@@ -46,6 +50,7 @@ from orchestrator.workflow.stages.validating import (
     awaiting_resume as _awaiting_resume,
     collapse as _collapse,
     drift as _drift,
+    models as _models,
     reviewer as _reviewer,
     state as _state,
 )
@@ -100,7 +105,11 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     # tick; a reviewer-side (`reviewer_timeout` / `reviewer_failed`) or
     # `review_cap` park defers to the awaiting-human branch below (that branch
     # owns the human's "retry" / `/orchestrator add-review-rounds` comment).
-    if _drift._resume_dev_on_validating_drift(gh, spec, issue, state):
+    parked = (
+        _models._AwaitingValidation.build(gh, spec, issue, state)
+        if state.get("awaiting_human") else None
+    )
+    if _drift._resume_dev_on_validating_drift(gh, spec, issue, state, parked):
         return
 
     # Awaiting-human path: human replied after a park (or a transient
@@ -109,8 +118,8 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     # park into a reviewer re-run. "return" -> the tick is fully handled;
     # "spawn_reviewer" -> fall through to the round-cap check and reviewer
     # spawn below.
-    if state.get("awaiting_human"):
-        outcome = _awaiting_resume._handle_validating_awaiting_human(gh, spec, issue, state)
+    if parked is not None:
+        outcome = _awaiting_resume._handle_validating_awaiting_human(parked)
         if outcome == _state._OUTCOME_RETURN:
             return
 

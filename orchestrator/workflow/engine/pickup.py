@@ -69,9 +69,18 @@ def _pickup_author_allowed(spec: _config_models.RepoSpec, issue: Issue) -> bool:
 
 
 def _record_pickup_comment(state: PinnedState, pickup) -> None:
+    """Anchor both thread cursors on the comment this pickup just posted.
+
+    `pickup_comment_id` is the validating handoff's floor; the shared
+    `last_action_comment_id` is the floor the park ending the first agent run
+    walks from, which may not read the thread's tip. It is true as well as
+    needed: the spawn below quotes this thread as it stands, and the comment
+    we just posted is the last word of that reading.
+    """
     pickup_id = getattr(pickup, "id", None)
     if pickup_id is not None:
         state.set("pickup_comment_id", int(pickup_id))
+        state.set("last_action_comment_id", int(pickup_id))
 
 
 def _start_decomposing(

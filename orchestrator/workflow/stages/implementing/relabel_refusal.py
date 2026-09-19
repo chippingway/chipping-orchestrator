@@ -79,6 +79,7 @@ def _park_unsafe_read_only_relabel(
         f"that -- so the orchestrator refuses to push it. "
         f"{_relabel_remediation(state, hazard)}",
         reason=unsafe_reason,
+        bounded=True,
     )
     state.set(_state._PARK_REASON, unsafe_reason)
 

@@ -12,10 +12,11 @@ in-memory `PinnedState` mutations it already staged are dropped and the next
 tick re-derives the run from the state the prior tick left. `_park_awaiting_human`
 goes the other way -- it posts the HITL comment, sets `awaiting_human`, forwards
 explicit bounded correlation fields to the emitted event and analytics sink, and
-ratchets `last_action_comment_id` past it -- or, asked with `bounded=True`, only
-as far as `park_watermarks` can walk our own identified comments -- and still
-leaves the write to the caller, so a park composes with whatever else that
-handler staged rather than committing ahead of it.
+ratchets `last_action_comment_id` past it -- or, for a park that follows an
+agent run (`bounded=True`), only as far as `park_watermarks` can walk our own
+identified comments -- and still leaves the write to the caller, so a park
+composes with whatever else that handler staged rather than committing ahead
+of it.
 
 The three refusals answer different questions and none covers the others.
 A launch that never became a process is read off the result the agent-run
@@ -293,17 +294,19 @@ def _park_awaiting_human(
     that is the answer being thrown away by the question. Read off the comment
     we wrote, their reply is still there for the next poll.
 
-    A post whose id nothing could read falls back to the thread's tip, which
-    is the lesser of the two failures left: a watermark that never moved
-    leaves the park's own notice to be read back as somebody's fresh guidance
-    on every dispatch after this one.
+    A post whose id nothing could read moves the mark nowhere. What a park
+    may record itself as having read past is a comment actually posted and
+    identified, and the thread's tip would cross whatever else stands on it;
+    our own unrecorded sentence carries our marker with no ledger entry
+    behind it, so every prompt reading refuses it as forged and the worst it
+    costs is a poll rather than somebody's comment.
 
-    `bounded=True` asks for the other answer, the one a park following an
-    agent RUN owes. The notice-id answer above is right for a refusal decided
-    between two of one tick's own steps and wrong after minutes of somebody's
-    compute: there the notice lands above whatever a human wrote while the
-    agent was out, and crossing it is the answer being thrown away by the
-    question. So a bounded park records the thread read only as far as
+    `bounded=True` asks for the other answer, and every park that follows an
+    agent RUN asks for it. The notice-id answer above is right for a refusal
+    decided between two of one tick's own steps and wrong after minutes of
+    somebody's compute: there the notice lands above whatever a human wrote
+    while the agent was out, and crossing it is the answer being thrown away
+    by the question. So a bounded park records the thread read only as far as
     `park_watermarks` can walk it -- through our own identified comments and
     no further, and nowhere at all where the walk has no floor, the post was
     never identified, or the thread cannot be re-read. It is popped like
@@ -321,12 +324,8 @@ def _park_awaiting_human(
     state.set("park_reason", None)
     if bounded:
         _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
-    else:
-        latest = getattr(posted, "id", None)
-        if latest is None:
-            latest = gh.latest_comment_id(issue)
-        if latest is not None:
-            state.set("last_action_comment_id", latest)
+    elif getattr(posted, "id", None) is not None:
+        state.set("last_action_comment_id", posted.id)
     # Read the label AFTER the comment post and state writes so the
     # captured stage reflects the handler that drove the park (the label
     # itself is unchanged by this call -- callers relabel only after the

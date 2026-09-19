@@ -288,6 +288,7 @@ def _on_commits(
             gh, issue, state,
             f"{config.HITL_MENTIONS} git push failed; see orchestrator logs.",
             reason="push_failed",
+            bounded=True,
         )
         # _handle_implementing writes pinned state after we return.
         return

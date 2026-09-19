@@ -22,10 +22,13 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.git.verification.status import _WorktreeStatus
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, guards as _guards
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    guards as _guards,
+    park_watermarks as _park_watermarks,
+)
 from orchestrator.workflow.stages.implementing import (
     park_correlation as _park_correlation,
-    park_watermarks as _park_watermarks,
     session_read as _session_read,
     state as _state,
 )
@@ -146,9 +149,7 @@ def _park_unpushable_tree(
     # must not auto-recover over it.
     state.set(_state._PARK_REASON, None)
     state.set(_state._SILENT_PARK_COUNT, 0)
-    read_to = _park_watermarks._read_this_far(gh, issue, state, said_before)
-    if read_to is not None:
-        state.set(_state._LAST_ACTION_COMMENT_ID, read_to)
+    _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
     gh.emit_event(
         "park_awaiting_human",
         issue_number=issue.number,

@@ -86,9 +86,13 @@ def _comment_body_for_hash(
 
 def _compute_user_content_hash(
     issue: Issue, orchestrator_ids: set[int],
-    *, include_bare_continue: bool = False,
+    *, include_bare_continue: bool = False, comments=None,
 ) -> str:
     """SHA-256 over title + body + human-authored comments.
+
+    `comments` is a read the caller already holds, hashed in place of the
+    thread's own: a frozen reply batch fingerprints the requirements as of
+    that one read rather than as of a second one taken beside it.
 
     Used by `_detect_user_content_change` so the orchestrator can react
     when a human edits the issue body or adds acceptance criteria after
@@ -138,7 +142,7 @@ def _compute_user_content_hash(
     expected to list the reviewer login they post under.
     """
     parts = [issue.title or "", issue.body or ""]
-    for issue_comment in issue.get_comments():
+    for issue_comment in issue.get_comments() if comments is None else comments:
         comment_body = _comment_body_for_hash(
             issue_comment,
             orchestrator_ids,

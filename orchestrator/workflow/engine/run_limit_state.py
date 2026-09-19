@@ -4,9 +4,9 @@
 
 An owed notice is valid only for the count and allowance it names. A changed
 ledger replaces that obligation; settlement clears the notice, never the
-lifetime charge or the separate park waiting for an operator grant.
-`_restore_displaced` puts back the park a recorded `DisplacedPark` names; no
-park records one and no grant calls it yet."""
+lifetime charge or the separate park waiting for an operator grant. Taking
+the park records the park it goes up in front of, and `_restore_displaced` is
+how the grant puts that one back."""
 from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
@@ -35,6 +35,10 @@ def _stage_park(state: PinnedState, ledger: AgentRunLedger) -> bool:
     it durable is the caller's own write, which is what keeps the park and the
     obligation it carries in one write rather than two.
 
+    The park it goes up in front of is recorded as it goes up, and only
+    then: it is what the grant puts back (`_restore_displaced`), and a park
+    re-taken over itself would record itself.
+
     Returns whether the thread is now owed a sentence. A park already standing
     whose notice has been said is not announced again -- that repeat is the
     whole failure this protocol exists to stop, and nothing else would stop
@@ -52,6 +56,10 @@ def _stage_park(state: PinnedState, ledger: AgentRunLedger) -> bool:
     numbers is being asked about a state that is over.
     """
     if not _park_stands(state):
+        state.set(
+            _run_limit_values.AGENT_RUN_LIMIT_DISPLACED,
+            _run_limit_values.DisplacedPark.standing(state).as_record(),
+        )
         state.set(_run_limit_values._AWAITING_HUMAN, True)
         state.set(_run_limit_values._PARK_REASON, _run_limit_values.PARK_AGENT_RUN_LIMIT)
         _owe_notice(state, ledger)
@@ -69,9 +77,10 @@ def _restore_displaced(state: PinnedState) -> None:
 
     What the tick the grant hands on then reaches is the road the refused
     launch was on -- for an awaiting-human resume, the reply it was handed is
-    still unread there -- so the run a human paid for is the one this issue
-    was stopped for. A park with nothing recorded -- one taken before the
-    field existed, or a hand-edited one -- comes down to no park at all.
+    still unread there and is delivered from its own frozen batch -- so the
+    run a human paid for is the one this issue was stopped for. A park with
+    nothing recorded -- one taken before the field existed, or a hand-edited
+    one -- comes down to no park at all.
     """
     displaced = _run_limit_values.DisplacedPark.recorded(
         state.data.pop(_run_limit_values.AGENT_RUN_LIMIT_DISPLACED, None),

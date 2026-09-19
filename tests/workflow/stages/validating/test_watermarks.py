@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator import config
+from orchestrator.workflow.engine import (
+    issue_processing as _issue_processing,
+    poll_models as _poll_models,
+    run_ledger_values as _run_ledger_values,
+)
 from tests.support.fakes import (
+    DEFAULT_PR_HEAD_SHA,
     FakeComment,
     FakeGitHubClient,
     FakeLabel,
@@ -17,6 +23,8 @@ from tests.support.fakes import (
     make_issue,
 )
 from tests.workflow.fixtures import (
+    _TEST_SPEC,
+    MEASURED_CANDIDATE_SHA,
     REVIEW_APPROVED_MESSAGE,
     _agent,
     _PatchedWorkflowMixin,
@@ -46,6 +54,25 @@ CHECKS_SUCCESS = "success"
 PR_LAST_COMMENT_ID = "pr_last_comment_id"
 DEBOUNCE_SETTING = "IN_REVIEW_DEBOUNCE_SECONDS"
 RUN_AGENT = "run_agent"
+
+# An issue that spent its lifetime ledger on a validating park, and the grant
+# that bought it more. The grant cannot consume its own command without the
+# reply its park interrupted, so the command outlives the grant.
+GRANTED_ISSUE = 30
+GRANTED_PR = 35
+GRANTED_BRANCH = "orchestrator/chippingway__orchestrator/issue-30"
+PARK_COMMENT_ID = 910
+PARKED_QUESTION = "@hitl agent needs your input to proceed"
+HUMAN_REPLY = "answer: use sqlite"
+STILL_ASKING = "which of the two did you mean?"
+FIXED = "fixed it"
+ADD_RUNS = "/orchestrator add-agent-runs 3"
+SPENT_RUNS = 3
+READY_PING = "ready for review/merge"
+PENDING_FIX_ISSUE_IDS = "pending_fix_issue_ids"
+EVENT_NAME = "event"
+EVENT_AGENT_SPAWN = "agent_spawn"
+AGENT_ROLE = "agent_role"
 
 
 class _HumanFeedbackHandoffFixtureMixin(_PatchedWorkflowMixin):
@@ -285,3 +312,133 @@ class PrePickupChatterHandoffTest(
         # fires because the watermark fix kept the pre-pickup chatter
         # out of `new_comments`.
         self._assert_ready_path(gh, mocks)
+
+
+class RunLimitToInReviewTest(unittest.TestCase, _PatchedWorkflowMixin):
+    """A run-grant command the grant left unread, carried to in_review.
+
+    The developer the grant pays for fixes the branch over the reply the run
+    limit interrupted, and the reviewer approves it -- with the command still
+    past the issue's mark. The approval seeds in_review's watermark by walking
+    the thread, and a walk that stops on the command, or an in_review scan
+    that reads it, routes the issue to `fixing` over a control already
+    handled.
+    """
+
+    def setUp(self) -> None:
+        self.github = FakeGitHubClient()
+        self.issue = make_issue(
+            GRANTED_ISSUE,
+            label=LABEL_VALIDATING,
+            comments=[
+                FakeComment(
+                    id=PICKUP_COMMENT_ID, body=PICKUP_MESSAGE, user=FakeUser(BOT_LOGIN),
+                ),
+                FakeComment(
+                    id=PARK_COMMENT_ID, body=PARKED_QUESTION, user=FakeUser(BOT_LOGIN),
+                ),
+            ],
+        )
+        self.github.add_issue(self.issue)
+        self.pr = FakePR(
+            number=GRANTED_PR,
+            head_branch=GRANTED_BRANCH,
+            head=FakePRRef(sha=DEFAULT_PR_HEAD_SHA),
+            mergeable=True,
+            check_state=CHECKS_SUCCESS,
+        )
+        self.github.add_pr(self.pr)
+        self.github.seed_state(
+            GRANTED_ISSUE,
+            pr_number=GRANTED_PR,
+            branch=GRANTED_BRANCH,
+            dev_agent=BACKEND_CLAUDE,
+            dev_session_id=DEV_SESSION,
+            review_round=0,
+            orchestrator_comment_ids=[PICKUP_COMMENT_ID, PARK_COMMENT_ID],
+            pickup_comment_id=PICKUP_COMMENT_ID,
+            awaiting_human=True,
+            park_reason=None,
+            last_action_comment_id=PARK_COMMENT_ID,
+            **{
+                _run_ledger_values.AGENT_RUN_ALLOWANCE: SPENT_RUNS,
+                _run_ledger_values.AGENT_RUNS_USED: SPENT_RUNS,
+            },
+        )
+
+    def test_the_grant_command_is_no_review(self) -> None:
+        commanded = self._approved_over_a_grant()
+        seeded = self.github.pinned_data(GRANTED_ISSUE)[PR_LAST_COMMENT_ID]
+
+        reviewed = self._reviews()
+
+        self.assertEqual(
+            [
+                recorded[AGENT_ROLE] for recorded in self.github.recorded_events
+                if recorded[EVENT_NAME] == EVENT_AGENT_SPAWN
+            ],
+            ["developer", "reviewer"],
+        )
+        self.assertGreater(seeded, commanded)
+        reviewed[RUN_AGENT].assert_not_called()
+        self.assertNotIn((GRANTED_ISSUE, LABEL_FIXING), self.github.label_history)
+        self.assertNotIn(PENDING_FIX_ISSUE_IDS, self.github.pinned_data(GRANTED_ISSUE))
+        self.assertEqual(
+            sum(READY_PING in body for _, body in self.github.posted_comments), 1,
+        )
+
+    def _approved_over_a_grant(self) -> int:
+        """The whole validating arc, from the refused resume to the approval.
+
+        The reply a spent ledger refuses the developer on, the command that
+        buys more runs and the poll repairing the park's notice, the grant's
+        own poll -- the developer resumed on the reply, committing the fix
+        the size gate measures -- and the reviewer approving it. Answers the
+        command's id, which is still past the issue's mark at the end.
+        """
+        self._they_say(HUMAN_REPLY)
+        self._polls()
+        commanded = self._they_say(ADD_RUNS)
+        self._polls()
+        self._polls(
+            _agent(session_id=DEV_SESSION, last_message=FIXED),
+            (DEFAULT_PR_HEAD_SHA, MEASURED_CANDIDATE_SHA),
+            has_new_commits=True,
+        )
+        self.pr.head = FakePRRef(sha=MEASURED_CANDIDATE_SHA)
+        self._polls(
+            _agent(last_message=REVIEW_APPROVED_MESSAGE), (MEASURED_CANDIDATE_SHA,),
+        )
+        return commanded
+
+    def _reviews(self):
+        """One in_review tick over the approved pull request.
+
+        The final-docs hop between the approval and in_review seeds through
+        the same walk, so the issue is carried straight to in_review here.
+        """
+        self.pr.approved = True
+        self.issue.labels = [FakeLabel(LABEL_IN_REVIEW)]
+        with patch.object(config, DEBOUNCE_SETTING, REVIEW_DEBOUNCE_SECONDS):
+            return self._run_in_review(self.github, self.issue, run_agent=_agent())
+
+    def _they_say(self, body: str) -> int:
+        identified = self.github.next_reply_id(self.issue)
+        self.issue.comments.append(
+            FakeComment(identified, body, user=FakeUser(HUMAN_LOGIN)),
+        )
+        return identified
+
+    def _polls(self, answers=None, heads=(DEFAULT_PR_HEAD_SHA,), **run_options):
+        """One whole validating poll, through the dispatcher's run-limit hold."""
+        return self._run(
+            lambda: _issue_processing._route_issue_to_handler(
+                self.github, _TEST_SPEC, self.issue, LABEL_VALIDATING,
+                reading=_poll_models._POLLED_OPEN,
+            ),
+            run_agent=MagicMock(
+                return_value=answers or _agent(session_id=DEV_SESSION, last_message=STILL_ASKING),
+            ),
+            head_shas=heads,
+            **run_options,
+        )
