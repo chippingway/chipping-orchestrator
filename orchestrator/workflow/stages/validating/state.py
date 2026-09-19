@@ -65,6 +65,16 @@ _OUTCOME_CLEARED = "cleared"
 
 _OUTCOME_PUSHED = "pushed"
 
+# A requirements-drift resume that committed nothing and wrote a report: the
+# report is recorded and bound to the head the pull request already carries,
+# so the caller routes it as it routes an `ACK:` -- the same head, re-reviewed
+# against the new requirements -- rather than as a question.
+_OUTCOME_REPORTED = "reported"
+
+# The drift outcomes that can leave a recorded report for the caller to bind,
+# once its own bookkeeping -- and on `in_review` its relabel -- is written.
+_REPORTING_OUTCOMES = frozenset((_OUTCOME_PUSHED, _OUTCOME_REPORTED))
+
 _OUTCOME_STUCK = "stuck"
 
 # The recovery finished and the tick is over, without anything having healed.

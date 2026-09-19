@@ -27,6 +27,7 @@ from tests.workflow.fixtures import (
     _agent,
     _open_pr_for,
     _PatchedWorkflowMixin,
+    _reported,
 )
 
 LATE_APPROVED_SHA = "late_approved_sha"
@@ -865,7 +866,7 @@ class HandleValidatingResumeOnHashChangeTest(
         self._run_validating(
             body_drift_gh,
             issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="fixed"),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=_reported("fixed")),
             has_new_commits=True,
             dirty_files=(),
             push_branch=True,

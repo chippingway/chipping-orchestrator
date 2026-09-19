@@ -492,6 +492,26 @@ class DeliveredRevisionTest(unittest.TestCase):
             (2, f"issue-{delivery_support.ISSUE_NUMBER}-report-2"),
         )
 
+    def test_a_handed_revision_outranks_the_baseline(self) -> None:
+        # A caller that snapshotted what it handed the run is believed over
+        # the baseline on the comment, which may have moved on since the
+        # spawn; the route travels with the snapshot unchanged.
+        state = PinnedState()
+        state.set(delivery_support.BASELINE, support.REQUIREMENTS)
+        handed = "b" * len(support.REQUIREMENTS)
+
+        _delivery.recording_stops_the_tick(
+            *delivery_support.seeded_issue(), state,
+            _agent(last_message=delivery_support.ready("the resume's report")),
+            _records.HandedRun(WorkflowLabel.VALIDATING, handed),
+        )
+
+        recorded = state.get(_records.DELIVERED_REPORT)
+        self.assertEqual(
+            (recorded["requirements"], recorded["route"]),
+            (handed, WorkflowLabel.VALIDATING),
+        )
+
     def test_the_delivery_is_durable(self) -> None:
         # The write is the owner's own, because what makes the report
         # recoverable is that it is on GitHub before the size gate reads the

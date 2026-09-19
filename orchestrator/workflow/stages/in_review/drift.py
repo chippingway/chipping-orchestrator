@@ -4,12 +4,25 @@
 
 The dev session is still the one that wrote the branch, so the edit resumes it
 rather than re-deciding the work. What makes this route different from the
-same edit during implementing is where it ends: both a pushed fix and a
-no-commit `ACK:` hand the issue back to `validating` with `review_round`
-reset, because the approval that carried it to `in_review` was earned against
-requirements that no longer exist. Docs deliberately do not run on the way
-out -- the single docs pass belongs to the final-docs handoff after a fresh
-reviewer approval.
+same edit during implementing is where it ends: a pushed fix, a no-commit
+`ACK:`, and a report with no commit all hand the issue back to `validating`
+with `review_round` reset, because the approval that carried it to `in_review`
+was earned against requirements that no longer exist. Docs deliberately do not
+run on the way out -- the single docs pass belongs to the final-docs handoff
+after a fresh reviewer approval.
+
+The session's report is handled as the validating drift handles it -- recorded
+before the push, stamped with the hash the drift check took here -- and bound
+only once the relabel is behind it. The fresh round the stale approval earns,
+and the marker saying this issue owes that move at all, are persisted BEFORE
+the relabel: a label that moves and a write that is then lost cannot hand the
+reviewer the budget the old approval was under, and a relabel that does not
+land is remade on the next tick even where the outcome recorded no report. A pushed head has already outrun the
+approval, so the issue goes back to `validating` without waiting for the
+report, and it is there that the reviewer is held until the report is
+confirmed. A report this stage still finds owed on a later tick -- a failed
+push, a held candidate an adjudication published, a process that died in
+between -- sends the issue back there too, ahead of everything else here.
 
 The PR conversation is read BEFORE the notice and the ratchet, and that
 ordering is the whole reason `_drift_unread_pr_conv` exists: the resume quotes
@@ -26,6 +39,8 @@ all discarded and the next process re-detects the same edit.
 """
 from __future__ import annotations
 
+import logging
+
 from github.Issue import Issue
 
 from orchestrator.git.verification import probes as _verification_probes
@@ -36,17 +51,36 @@ from orchestrator.workflow.engine import (
     drift as _engine_drift,
     guards as _guards,
     prompt_context as _prompt_context,
+    report_delivery as _report_delivery,
+    report_records as _records,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import resume as _dev_resume
 from orchestrator.workflow.stages.in_review import (
     feedback as _feedback,
     models as _models,
+    state as _state,
     surfaces as _surfaces,
     watermarks as _watermarks,
 )
-from orchestrator.workflow.stages.validating import drift_outcomes as _drift_outcomes
+from orchestrator.workflow.stages.validating import (
+    drift_outcomes as _drift_outcomes,
+    report_settlement as _report_settlement,
+    state as _validating_state,
+)
 from orchestrator.workflow.state import WorkflowLabel
+
+log = logging.getLogger("orchestrator.workflow")
+
+# The outcomes that take the issue back to review: new work on the pull
+# request, an acknowledgement that the existing work covers the edit, and a
+# report of that same head written against the new requirements. Each leaves
+# an approval earned against the old requirements, so each re-reviews.
+_BACK_TO_REVIEW = frozenset((
+    _validating_state._OUTCOME_PUSHED,
+    "ack",
+    _validating_state._OUTCOME_REPORTED,
+))
 
 
 def _build_drift_resume_prompt(issue: Issue, unread_pr_conv: list) -> str:
@@ -89,23 +123,8 @@ def _drift_unread_pr_conv(ctx: _models._InReviewContext) -> list:
     )
 
 
-def _drift_worktree(ctx: _models._InReviewContext):
-    """Resolve the PR worktree for the drift resume, recreating it on the
-    resolved branch if the path is gone.
-    """
-    wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
-    if not wt.exists():
-        wt = _worktree_creation._ensure_worktree(
-            ctx.spec, ctx.issue.number,
-            branch=_naming._resolve_branch_name(
-                ctx.state, ctx.spec, ctx.issue.number,
-            ),
-        )
-    return wt
-
-
 def _resume_dev_for_drift(
-    ctx: _models._InReviewContext, unread_pr_conv: list,
+    ctx: _models._InReviewContext, unread_pr_conv: list, new_hash: str,
 ) -> _models._DriftResume:
     """Notify both surfaces, mark the issue-thread drift comments consumed,
     resolve the worktree, and resume the locked dev session with the updated
@@ -124,7 +143,16 @@ def _resume_dev_for_drift(
         ":pencil2: issue body changed; resuming dev session.",
     )
     _engine_drift._mark_drift_comments_consumed(ctx.gh, ctx.issue, ctx.state)
-    wt = _drift_worktree(ctx)
+    # The checkout this resume runs in, recreated on the resolved branch
+    # where the path is gone.
+    wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
+    if not wt.exists():
+        wt = _worktree_creation._ensure_worktree(
+            ctx.spec, ctx.issue.number,
+            branch=_naming._resolve_branch_name(
+                ctx.state, ctx.spec, ctx.issue.number,
+            ),
+        )
     before_sha = _verification_probes._head_sha(wt)
     wt, dev_result, paused = _dev_resume._resume_dev_with_text(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
@@ -134,6 +162,7 @@ def _resume_dev_for_drift(
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     return _models._DriftResume(
         worktree=wt, dev_result=dev_result, paused=paused, before_sha=before_sha,
+        requirements_revision=new_hash,
     )
 
 
@@ -144,8 +173,8 @@ def _dispose_drift_result(
 ) -> None:
     """Post the dev result (a no-commit reply is an ack, not a park), ratchet
     the in_review issue-side watermark past everything consumed this tick, and
-    on either outcome (pushed fix or ack) bounce DIRECTLY back to `validating`
-    with `review_round` reset.
+    on a pushed fix, an ack, or a report with no commit bounce DIRECTLY back to
+    `validating` with `review_round` reset.
 
     The drift invalidated the prior validation either way: the reviewer approved
     against the OLD requirements, so `review_round` must reset before the issue
@@ -159,12 +188,91 @@ def _dispose_drift_result(
     outcome = _drift_outcomes._post_user_content_change_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
         resume.worktree, resume.dev_result, resume.before_sha,
+        handed=_records.HandedRun(
+            WorkflowLabel.IN_REVIEW, resume.requirements_revision,
+        ),
     )
     _watermarks._bump_in_review_watermarks(ctx, issue_space_new=unread_pr_conv)
-    if outcome in ("pushed", "ack"):
-        ctx.state.set("review_round", 0)
-        ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
+    if outcome in _BACK_TO_REVIEW:
+        _relabels_for_review(ctx)
+    else:
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+    # Bound only once the relabel and its write are behind it, so no tick
+    # ever finds a settled report beside a label still claiming the approval
+    # it made stale: a process dying before this line leaves the report owed,
+    # which the next tick answers on `validating` either way.
+    if outcome in _validating_state._REPORTING_OUTCOMES:
+        _report_settlement._settles_the_report(
+            ctx.gh, ctx.spec, ctx.issue, ctx.state, WorkflowLabel.VALIDATING,
+        )
+
+
+def _relabels_for_review(ctx: _models._InReviewContext) -> None:
+    """Move the label to `validating`, around the writes that make it durable.
+
+    The fresh round and the MOVE THIS ISSUE OWES both go down before the
+    label is touched, because a label move and a pinned write cannot be made
+    one operation and only this order is recoverable. Moved first, a write
+    that then failed would leave the issue under a reviewer with the round
+    count the stale approval was earned under -- one tick's budget for
+    requirements nobody has reviewed at all, where the cap was nearly spent.
+
+    Written first, nothing is lost whichever half fails. A write nobody made
+    leaves the label where it was, so the same tick simply runs again. A
+    relabel that does not land leaves the marker standing, and the hand-back
+    below remakes the move on the next tick -- which is what an `ACK:` reply
+    needs, since it records no report and there would otherwise be nothing to
+    recognise the debt by: no drift left to re-detect, and a ready ping one
+    tick away on an approval that is over.
+
+    The marker comes off in a write of its own, behind the move it was about.
+    Lost, it costs one spurious hand-back the next time this issue reaches
+    `in_review` -- a re-review rather than a ping on a stale approval -- and
+    that tick clears it.
+    """
+    ctx.state.set(_state._HANDOFF_PENDING, True)
+    ctx.state.set("review_round", 0)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+    ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
+    ctx.state.set(_state._HANDOFF_PENDING, None)
+    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+
+
+def _hands_a_stale_approval_back(ctx: _models._InReviewContext) -> bool:
+    """Send an issue whose approval a requirements edit made stale back to review.
+
+    True where it did, and the caller must return. Two things say so, and
+    each is what the other cannot say.
+
+    A developer report still OWED is one: the resume that recorded it was
+    answering an edit, so the approval is stale whatever became of the report
+    -- a push that failed, a candidate the size gate held and an adjudication
+    later published, or a process that died between the record and the
+    relabel. Left here the report is never bound, since the hold that binds it
+    is `validating`'s.
+
+    A handoff MARKER is the other, and it covers the outcomes that record no
+    report at all: an `ACK:` reply whose relabel did not land leaves no debt,
+    no drift to re-detect, and nothing else on the comment to say the label
+    still owes a move.
+
+    Either way nothing else this stage does runs first: `validating` recovers
+    a failed push, binds and settles what a publication carried, and holds the
+    reviewer until the pull request carries the report. A park standing beside
+    the debt moves with it, and is answered there.
+    """
+    if not (
+        _report_delivery.owes_a_report(ctx.state)
+        or ctx.state.get(_state._HANDOFF_PENDING)
+    ):
+        return False
+    log.warning(
+        "issue=#%s owes PR #%s a move to validating its approval no longer "
+        "covers; handing it back rather than acting on a stale approval",
+        ctx.issue.number, ctx.pr_number,
+    )
+    _relabels_for_review(ctx)
+    return True
 
 
 def _handle_user_content_drift(ctx: _models._InReviewContext) -> bool:
@@ -180,7 +288,7 @@ def _handle_user_content_drift(ctx: _models._InReviewContext) -> bool:
         return False
     ctx.state.set("user_content_hash", new_hash)
     unread_pr_conv = _drift_unread_pr_conv(ctx)
-    resume = _resume_dev_for_drift(ctx, unread_pr_conv)
+    resume = _resume_dev_for_drift(ctx, unread_pr_conv, new_hash)
     # Interrupted (shutdown sweep) or live-paused (operator added `paused` /
     # `backlog` mid-run) resume: bail WITHOUT writing pinned state so everything
     # staged above -- refreshed `user_content_hash`, consumed drift comments,

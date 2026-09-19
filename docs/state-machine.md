@@ -206,7 +206,10 @@ once to a change: `workflow:decomposing` re-spawns inline, `workflow:ready` / `w
 `workflow:umbrella` route back to `workflow:decomposing`, the dev stages resume the locked dev session, and
 `workflow:documenting` unwinds to `workflow:validating`. A reply to a parked `workflow:implementing` or
 `workflow:validating` issue is not such a change: those stages measure a parked tick by what the park had already
-read, and the frozen reply batch delivers the reply. `_handle_fixing`, `_handle_question`, and
+read, and the frozen reply batch delivers the reply. On `workflow:validating` and `in_review` the resumed session's
+report is recorded before its push under the requirements revision the drift check handed it, a report with no
+commit is published onto the unchanged head, and the reviewer is held until the report is confirmed.
+`_handle_fixing`, `_handle_question`, and
 `_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and
 `/orchestrator authorize-oversized <commit>`), the
@@ -311,7 +314,8 @@ sending the unchanged head straight back. Full flow:
 Spawns a **fresh** reviewer every round (so a `REVIEW_AGENT` flip takes effect on the next tick) with a read-only
 prompt that must end in `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`. An approval runs the local verify gate,
 then `SQUASH_ON_APPROVAL`, then hands off to `workflow:documenting`; `CHANGES_REQUESTED` flips to `workflow:fixing`
-**before** the dev spawn. `MAX_REVIEW_ROUNDS` parks with the `/orchestrator add-review-rounds N` escape hatch.
+**before** the dev spawn. `MAX_REVIEW_ROUNDS` parks with the `/orchestrator add-review-rounds N` escape hatch. No
+reviewer spawns while a developer report this issue recorded is still owed to the pull request.
 
 A squash this issue began and did not finish is answered ahead of all of that, behind only the terminals and ahead of
 every route that could point an agent at the branch: a branch mid-rewrite is not one a reviewer or a body-edit resume
@@ -383,11 +387,14 @@ descendant, a fix, the docs pass, a conflict resolution, and a heuristic match e
 ### `_handle_in_review` (label `in_review`)
 
 A PR is open and humans drive the merge — the orchestrator never merges from here, so any `merged` state it observes
-was produced externally. The handler scans four feedback surfaces over three id namespaces — the issue thread and the
-PR conversation share one, so each is read against its own cursors before the two merge — and routes to
-`workflow:fixing` without advancing the watermarks, falls back to the drift check, and otherwise posts the one-shot
-`:bell:` HITL ping when the head is mergeable, docs-complete or GitHub-approved, and carries no standing human
-CHANGES_REQUESTED. Full flow: [`state-machine/delivery-stages.md`][in-review].
+was produced externally. Behind the terminals, an issue whose approval a requirements edit made stale — one still
+owing a developer report a drift resume recorded, or carrying the marker a hand-back whose relabel did not land
+leaves — goes straight back to `workflow:validating`, since only that stage binds the report and re-reviews. The
+handler scans four feedback surfaces over three id namespaces — the issue thread and the PR conversation share one,
+so each is read against its own cursors before the two merge — and routes to `workflow:fixing` without advancing the
+watermarks, falls back to the drift check, and otherwise posts the one-shot `:bell:` HITL ping when the head is
+mergeable, docs-complete or GitHub-approved, and carries no standing human CHANGES_REQUESTED. Full flow:
+[`state-machine/delivery-stages.md`][in-review].
 
 ### `_handle_fixing` (label `workflow:fixing`)
 

@@ -17,7 +17,19 @@ It sits here rather than on the owner that carries it because the owner that
 writes it is rarely the one that reads it: the handoff and the migration seed,
 `watermarks` carries it over what a tick wrote, `surfaces` reads it, and
 `feedback` scans what those reads answer.
+
+`in_review_handoff_pending` is the other, and it answers a different kind of
+question: whether this issue owes `workflow:validating` a label move it has
+not made yet. A requirements edit leaves the approval this label stands on
+stale, so the round is reset and the label moved -- two operations a process
+can die between. The marker goes down with the reset and comes off once the
+label has moved, so a relabel nobody made is found and remade rather than
+leaving an issue here to be pinged as ready on an approval that is over. It
+is additive: an issue without it owes no move, which is every issue that
+predates it.
 """
 from __future__ import annotations
 
 _PR_LAST_COMMENT_ID = "pr_last_comment_id"
+
+_HANDOFF_PENDING = "in_review_handoff_pending"

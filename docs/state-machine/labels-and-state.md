@@ -630,8 +630,10 @@ The keys that matter for the state machine fall into a few groups:
   finished run into a delivery is `report_delivery.py`, what binds it and publishes it once the code reaches a pull
   request is `report_binding.py`, and what reconciles an outstanding transaction ahead of every handler is
   [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch). The
-  initial implementation delivery is the stage that produces them
-  ([`_handle_implementing`](delivery-stages.md#_handle_implementing-label-workflowimplementing)).
+  initial implementation delivery produces them
+  ([`_handle_implementing`](delivery-stages.md#_handle_implementing-label-workflowimplementing)), and so does a
+  requirements-drift resume on an open pull request, recorded under the `workflow:validating` or `in_review` route
+  it ran on ([user-content drift](delivery-stages.md#user-content-drift-detection)).
 
   `developer_report_delivery` is what one completed run wrote, recorded **before** the size gate reads its candidate
   and before the push sends it — which is the last moment the report is certainly recoverable, since the session
@@ -639,11 +641,13 @@ The keys that matter for the state machine fall into a few groups:
   carries the receipt the transaction will be named by, the report revision, whether a publication or a
   verification is owed, the route that produced it, the complete report text or the exact location and content
   revision a verification asserts, the feedback watermarks the run consumed, the bookkeeping its route closes, and
-  the requirements revision the run was actually handed. It names no pull request, no branch and no commit, because
-  none of those is settled until the code is published: the write that binds the record adds them as the subject
-  below and drops the delivery in the same write. The revision is minted one past every report the issue has already
-  recorded — the settled one, any transaction still outstanding, and any delivery still waiting to be bound —
-  because the receipt is spelled from it and a retry finds its own comment by that receipt. That last one is the
+  the requirements revision the run was actually handed — for a drift resume, the hash its drift check took of the
+  content it handed the run, carried with the run rather than read back off the comment. It names no pull request,
+  no branch and no commit, because none of those is settled until the code is published: the write that binds the
+  record adds them as the subject below and drops the delivery in the same write. The revision is minted one past
+  every report the issue has already recorded — the settled one, any transaction still outstanding, and any delivery
+  still waiting to be bound — because the receipt is spelled from it and a retry finds its own comment by that
+  receipt. That last one is the
   road a park answers: the reply it earns writes a fresh report over the delivery standing there, and minted at its
   revision the replacement would carry the receipt that record already carries.
 
@@ -675,14 +679,23 @@ The keys that matter for the state machine fall into a few groups:
   full for the transaction is retried silently on the next call, since the routes a report still owed lets run are
   what give that room back, while a record no comment would ever hold, a delivery nothing can read, and a
   verification on the very description the publication needs for its closing reference park under the same reason.
+  On `workflow:validating` the report hold that keeps the reviewer off an owed report parks under it too, for what no
+  retry there settles: a record written against requirements the pinned baseline has moved past, a code-publication
+  receipt naming no publication of this pull request, a checkout on a commit the pull request never received, a
+  checkout that has picked up loose work, a report the thread has moved out of reach — a comment of ours somebody
+  edited, or a verified location gone, changed, or written by an author this deployment does not trust — and a
+  `developer_report_owed` debt no record describes. An `in_review`
+  issue still owing any of these is handed back to `workflow:validating` before that stage does anything else,
+  since the approval it stands on is stale.
   On every one of them the record that exists is left exactly as it stands.
 
   `developer_report_owed` is the debt those parks leave, a bare `true` written beside the reason by every road that
-  parks under `report_undeliverable`. The flags are single, so any later park — a resumed run that times out, a
-  question — replaces `park_reason`, and without the flag the report that finally comes back would read as an
-  ordinary reply on an issue owing nothing. `owes_a_report` reads it beside the two records and the reason, and the
-  write that records a delivered report retires it with the reason. Additive: an issue without it owes nothing on
-  that account, and an older park carrying the reason alone still reads as a debt and is given the flag, with no
+  parks under `report_undeliverable` — and by the drift resume's tree park, which names the loose files rather than the
+  report though the run it refused to record had written one. The flags are single, so any later park — a resumed run
+  that times out, a question — replaces `park_reason`, and without the flag the report that finally comes back would
+  read as an ordinary reply on an issue owing nothing. `owes_a_report` reads it beside the two records and the reason,
+  and the write that records a delivered report retires it with the reason. Additive: an issue without it owes nothing
+  on that account, and an older park carrying the reason alone still reads as a debt and is given the flag, with no
   second notice, the next time a road meets that park still standing.
 
   `developer_report_pending` is one publication transaction, written **before the report it carries is published**
@@ -1432,6 +1445,15 @@ The keys that matter for the state machine fall into a few groups:
   for the issue thread alone — stopping at the first it cannot. A carry to the newest comment would skip a PR comment
   written while the tick was deciding, permanently (see [`delivery-stages.md`](delivery-stages.md),
   `_handle_in_review`).
+- **The label move `in_review` owes.** `in_review_handoff_pending`, additive and `true` only while one is outstanding.
+  A requirements edit leaves the approval that carried the issue to `in_review` stale, so the round resets to 0 and
+  the label moves to `workflow:validating` — two operations a process can die between, and the marker goes down with
+  the reset and comes off in a write of its own behind the move. A relabel that did not land is then found by the
+  hand-back at the top of the next `in_review` tick and remade, which is what an `ACK:` outcome needs: it records no
+  report, so without the marker nothing on the comment would say the move is owed, the drift is already consumed, and
+  the ready ping is one tick away on an approval that is over. A marker whose clearing write is lost costs one
+  spurious hand-back the next time the issue reaches `in_review` — a re-review rather than that ping — and that tick
+  clears it. An issue without the key owes no move, which is every issue that predates it.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one

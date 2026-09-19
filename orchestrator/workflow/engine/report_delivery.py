@@ -62,9 +62,10 @@ reading the earlier one's comment as its own publication, edited beyond
 recognition.
 
 The implementing stage's publication seam is what calls in, between proving a
-clean tree and the size gate; the binding that exchanges a delivery for the
-transaction it becomes, once the push has reached a pull request, is
-`report_binding`'s.
+clean tree and the size gate, and so does the requirements-drift disposition an
+open pull request's review stages share, which names the revision its resume
+was handed; the binding that exchanges a delivery for the transaction it
+becomes, once the push has reached a pull request, is `report_binding`'s.
 """
 from __future__ import annotations
 
@@ -193,7 +194,7 @@ def recording_stops_the_tick(
     issue: Issue,
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
-    route: WorkflowLabel,
+    route: WorkflowLabel | _records.HandedRun,
 ) -> bool:
     """Record what a finished run wrote, or hold the tick over what it wrote.
 
@@ -390,7 +391,7 @@ def _delivered_report(
     issue: Issue,
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
-    route: WorkflowLabel,
+    route: WorkflowLabel | _records.HandedRun,
 ) -> _records.DeliveredReport | None:
     """The record one run's report outcome earns, or None where it earns none.
 
@@ -400,11 +401,12 @@ def _delivered_report(
     anybody wrote, and recording one would publish a transcript under a header
     saying it is this issue's completion report.
 
-    The requirements revision is read off the pinned baseline rather than
-    computed here, because what is wanted is the revision the RUN was handed:
-    the drift check ahead of the spawn is what put it there, and a human
-    editing the issue while the agent worked leaves the current content one
-    revision further on than anything this session ever saw.
+    The requirements revision is the one the RUN was handed, never one
+    computed here: a human editing the issue while the agent worked leaves the
+    current content one revision further on than anything this session ever
+    saw. A caller that snapshotted it names it on the `HandedRun` it passes;
+    otherwise it is read off the pinned baseline the drift check ahead of the
+    spawn put there.
 
     The revision moves past every report this issue has already recorded: the
     settled one, any transaction still outstanding, and any delivery still
@@ -434,11 +436,14 @@ def _delivered_report(
         (report.report_revision for report in recorded if report is not None),
         default=0,
     )
-    requirements = state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)
+    handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
+    requirements = handed.requirements_revision or state.get(
+        _prompt_delivery.PINNED_USER_CONTENT_HASH,
+    )
     return _records.DeliveredReport(
         receipt=_RECEIPT.format(issue=issue.number, revision=revision),
         report_revision=revision,
-        route=route,
+        route=handed.route,
         requirements_revision=requirements if isinstance(requirements, str) else "",
         **carried,
     )

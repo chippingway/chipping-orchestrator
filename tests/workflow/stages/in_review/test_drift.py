@@ -28,6 +28,7 @@ from tests.workflow.fixtures import (
     _issue_branch,
     _PatchedWorkflowMixin,
 )
+from tests.workflow.report_values import _reported
 
 PUSHED_DRIFT_ISSUE = 80
 PUSHED_DRIFT_PR = 800
@@ -105,7 +106,7 @@ class HandleInReviewResumeOnHashChangeTest(
         self._run_in_review(
             gh,
             issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="addressed"),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=_reported("addressed")),
             has_new_commits=True,
             dirty_files=(),
             push_branch=True,
@@ -433,7 +434,7 @@ class InReviewDriftPromptTrustFilterTest(
             mocks = self._run_in_review(
                 gh,
                 issue,
-                run_agent=_agent(session_id=DEV_SESSION, last_message="addressed"),
+                run_agent=_agent(session_id=DEV_SESSION, last_message=_reported("addressed")),
                 has_new_commits=True,
                 dirty_files=(),
                 push_branch=True,

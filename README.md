@@ -58,7 +58,9 @@ this path:
    split there, the open pull request is closed over a notice naming the children it was handed to and the
    immutable ref the committed work is preserved on, and the issue becomes an umbrella; adjudicated as one change,
    it waits for you there with the pull request left open and nothing pushed, and authorizing it puts the commit on
-   that pull request and hands the issue back to the stage it came from.
+   that pull request and hands the issue back to the stage it came from. Editing the issue while its pull request is
+   open resumes the dev agent here or from `in_review`; the report it writes is posted on the pull request — with its
+   fix, or on its own where no code had to change — and no reviewer runs until the pull request carries it.
 4. `workflow:documenting` — the dev agent makes the final documentation pass after reviewer approval.
 5. `in_review` — the orchestrator pings you once for each PR head that becomes ready; you merge by hand.
 6. `done` / `rejected` — the terminal result after the PR is merged or closed without merging.

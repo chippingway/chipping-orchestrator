@@ -10,8 +10,9 @@ folds the parsed verdict together with the run, and its `feedback` falls back
 to the agent's last message so a reviewer that put its reasoning above the
 VERDICT line still reaches the dev. `_DevFixRun` carries `before_sha` -- the
 pre-agent HEAD is the only thing that tells a commit this run produced from
-one already on the branch -- and an optional `after_sha` for the caller that
-has already read it.
+one already on the branch -- an optional `after_sha` for the caller that
+has already read it, and, for a requirements-drift resume, what that resume
+was handed, which its report is stamped with.
 
 `_AwaitingValidation` is the awaiting-human context: it snapshots the park
 reason and the one frozen reply batch every route through that park reads --
@@ -97,6 +98,14 @@ class _DevFixRun:
     # taken against rather than from the pull request afterwards, which is the
     # reading a head somebody moved in between would win.
     stranded_head: str = ""
+    # The route and requirements revision a requirements-drift resume was
+    # handed, where the run is one. Named, the disposition holds the run to the
+    # report contract and publishes what it reported; the revision is the
+    # snapshot the drift check took before the spawn, because the report is
+    # about the requirements that session saw rather than whatever the issue
+    # says by the time the report reaches the pull request. Every other fix
+    # route names none and publishes code alone.
+    handed: Any = None
 
     @property
     def entered_head(self) -> str:
@@ -183,7 +192,7 @@ def _dev_fix_run(context_args: tuple, fields: dict) -> tuple[_pinned_state.Pinne
         raise TypeError("expected state, worktree, result, and before_sha")
     state, worktree, agent_result, before_sha = context_args
     unknown = set(fields) - {
-        "after_sha", "stage", "spends", "stranded_head",
+        "after_sha", "stage", "spends", "stranded_head", "handed",
     }
     if unknown:
         raise TypeError(f"unexpected fix-result option(s): {sorted(unknown)!r}")
@@ -191,4 +200,5 @@ def _dev_fix_run(context_args: tuple, fields: dict) -> tuple[_pinned_state.Pinne
         worktree, agent_result, before_sha,
         fields.get("after_sha"), fields.get("stage"),
         fields.get("spends"), fields.get("stranded_head") or "",
+        fields.get("handed"),
     )

@@ -243,10 +243,20 @@ reads one out of the run the disposition is publishing and records it before the
 `report_binding.py` binds it to the pull request the code reaches and publishes it there
 ([`_handle_implementing`](../state-machine/delivery-stages.md#_handle_implementing-label-workflowimplementing)).
 There a no-commit reply ending on a report outcome publishes the commits already on the branch where the issue still
-owes a report it could not deliver, and is read as any other no-commit reply everywhere else. Every other developer
-road is still routed by its commits, its `ACK:` line, and the question parks the [delivery stages][delivery-stages]
-describe, and a no-commit reply that ends on a report outcome is read there the way its stage reads any other
-no-commit reply without `ACK:`.
+owes a report it could not deliver, and is read as any other no-commit reply everywhere else.
+
+The **requirements-drift resume on an open pull request** acts on one too, on `workflow:validating` and `in_review`
+([user-content drift](../state-machine/delivery-stages.md#user-content-drift-detection)). A commit the resume made
+has its report recorded before the size gate, under the requirements revision the drift check handed the resume, and
+bound and settled once the push lands and the stage's own bookkeeping is written; one with no usable report parks
+rather than being pushed, and stays unpublished until a reply brings the report. A no-commit reply ending on a report
+outcome is published onto the head the pull request already carries — over a tree proved clean, or parked on the
+tree with nothing recorded — and routed as an `ACK:` is, and the reviewer waits until the report is confirmed on the
+pull request. `ACK:` and a question keep their own roads.
+
+Every other developer road is still routed by its commits, its `ACK:` line, and the question parks the
+[delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read there the way
+its stage reads any other no-commit reply without `ACK:`.
 The awaiting-human resumes settle the input they delivered straight into pinned state: the report transaction a
 run may record carries no consumed watermarks to freeze it onto. The settlement records delivery and nothing more, so
 the question the run came back with is still the disposition's to answer.
