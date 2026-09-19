@@ -10,6 +10,7 @@ what tells a debt a retry can pay from one no retry ever will.
 
 from __future__ import annotations
 
+import re
 import unittest
 from unittest.mock import patch
 
@@ -38,6 +39,16 @@ _STRANGER = "mallory"
 _MODE = "mode"
 
 _REFUSED = "GitHub did not answer the read"
+
+# The two counts a published report's header carries, and one of more digits
+# than Python converts.
+_COUNT_RE = re.compile(":pr=[0-9]+:")
+
+_REVISION_RE = re.compile(":revision=[0-9]+:")
+
+_DIGITS = 5000
+
+_UNCONVERTIBLE = "1" * _DIGITS
 
 
 class _UnreadableUser:
@@ -121,6 +132,10 @@ class SettledReadingTest(unittest.TestCase, _Readings):
             f"{settled}\n\nEdited once it settled.",
             settled.replace(support.SOURCE_SHA, support.MOVED_SHA),
             support.REPORT_TEXT,
+            # A header claiming a count of more digits than Python converts,
+            # in a comment GitHub still holds: no report, and nothing raised.
+            _COUNT_RE.sub(f":pr={_UNCONVERTIBLE}:", settled, count=1),
+            _REVISION_RE.sub(f":revision={_UNCONVERTIBLE}:", settled, count=1),
         ):
             with self.subTest(rewritten=rewritten):
                 self.assertNotEqual(rewritten, settled)

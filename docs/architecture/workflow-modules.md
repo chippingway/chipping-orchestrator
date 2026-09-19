@@ -233,7 +233,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             leaves a character no reference is made of, so a keyword and a number either side of
                             code are never read as one, and a tag's own markup goes the same way, quoted attribute
                             values and all -- to its `>`, or to the end of the text for one that opens a line, behind
-                            markers or what was taken out, and that nothing closes
+                            markers or what was taken out, and that nothing closes. So does what Markdown reads and
+                            shows nothing of, wherever it may be one: a link reference definition with its title, the
+                            destination and title behind a link's or an image's text, the label a reference link
+                            names, and an image's description
     report_code_spans.py    the inline code spans of a text, POSSIBLE and CERTAIN. Markdown pairs backticks within
                             one stretch of inline text, and where one begins is the doubt: a heading or a list item
                             starts a block with no blank line above it, a table reads each cell on its own, and a

@@ -158,6 +158,30 @@ HIDDEN = (
     f'<!-- a note --> <div title="{FIXES}',
 )
 
+# What Markdown itself reads and shows nothing of: a link reference definition
+# -- its label, its destination, and a title on its line or the lines below,
+# behind whatever markers its line opens on -- and, behind a link's or an
+# image's text, the destination and the title, or the label of the definition it
+# names. An image's description is an attribute once rendered.
+UNSHOWN = (
+    f"[{FIXES}]: https://example.com",
+    f'[docs]: https://example.com "{FIXES}"',
+    f"[docs]: https://example.com\n  '{FIXES}'",
+    f'[docs]:\n  https://example.com\n  "a title\n{FIXES}"',
+    f"> [docs]: <https://example.com> ({FIXES})",
+    f'- [docs]: https://example.com "{FIXES}"',
+    f'[link](https://example.com "{FIXES}")',
+    f"[link](https://example.com '{FIXES}')",
+    f"[link](https://example.com ({FIXES}))",
+    f'[link](https://example.com "a \\" {FIXES}")',
+    f'[link](https://example.com/a_(b) "{FIXES}")',
+    f"[link](<{FIXES}>)",
+    f"[link](fixes:#{ISSUE})",
+    f"[text][{FIXES}]",
+    f'![image](https://example.com/a.png "{FIXES}")',
+    f"![{FIXES}](https://example.com/a.png)",
+)
+
 # A tag quoted as code is no tag only where the code is CERTAIN. Not after a
 # `<` that may have taken the backtick into a tag of its own; not in a fence an
 # HTML block may hold, one Markdown closes sooner than the strict reading, or a
@@ -240,6 +264,16 @@ PROSE = (
     # Nor does a link, a task box or a price, where the backticks past it pair.
     f"[The docs](https://example.com) mention `a`. {FIXES} with `b`.",
     f"See https://example.com/docs for `a`. {FIXES} with `b`.",
+    # What is not shown has ended: a link's or an image's destination and
+    # title, a definition on lines of its own, and the label a link names.
+    # Brackets and parentheses that are no link hide nothing.
+    f"[The docs](https://example.com) say so. {FIXES}",
+    f'![image](https://example.com/a.png "a title") {FIXES}',
+    f'[1]: https://example.com "docs"\n[2]: https://example.org\n\n{FIXES}',
+    f"See [the docs][1]. {FIXES}\n\n[1]: https://example.com",
+    f"[see](the docs) {FIXES}",
+    f"A list [a, b] and f(x) here. {FIXES}",
+    f"- [x] done (mostly). {FIXES}",
     f"- [x] done with `a`. {FIXES} and `b`",
     f"It costs $5 for `a`. {FIXES} and `b`",
     f"`a[0]` and `f(x)` stay code. {FIXES} as `b` does.",
@@ -296,7 +330,7 @@ class _Budgeted:
 class CertainProseTest(unittest.TestCase):
     def test_a_reference_shown_as_code_closes_nothing(self) -> None:
         for shown in (
-            *CODE_LINES, *CODE_SPANS, *CODE_IN_HTML, *HIDDEN,
+            *CODE_LINES, *CODE_SPANS, *CODE_IN_HTML, *HIDDEN, *UNSHOWN,
             *UNCERTAIN_QUOTING, *NO_REFERENCE,
         ):
             with self.subTest(shown=shown):

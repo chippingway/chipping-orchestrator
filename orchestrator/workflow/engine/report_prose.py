@@ -24,6 +24,12 @@ own markup goes the same way, since an attribute is nothing GitHub shows. A
 tag nothing closes is no tag, unless it opens its line -- behind markers, or
 behind what was taken out, which may have opened an HTML block -- where it
 takes the rest of the text.
+
+So does what Markdown itself reads and shows nothing of: a link reference
+definition, label, destination and title; the destination and title behind a
+link's or an image's text; the label a reference link names; and an image's
+description, which is an attribute once rendered. Each wherever it MAY be one,
+a definition below a paragraph it cannot interrupt included.
 """
 from __future__ import annotations
 
@@ -61,6 +67,35 @@ _TAG_OPENER_RE = re.compile("</?[A-Za-z]")
 
 _LINE_OPENING_RE = re.compile(rf"[ \t>*+{_GAP}-]*")
 
+# A link's title, in any of its three spellings, with whatever a backslash
+# escapes inside it; and its destination, in angle brackets or bare -- where it
+# holds no whitespace, and parentheses only in pairs.
+_TITLE = (
+    r"(?:\x22(?:[^\x22\\]++|\\.)*+\x22|\x27(?:[^\x27\\]++|\\.)*+\x27"
+    r"|\((?:[^()\\]++|\\.)*+\))"
+)
+
+_DESTINATION = (
+    r"(?:<[^<>\n]*+>|(?:[^ \t\n()\\]++|\\.|\([^ \t\n()]*+\))*+)"
+)
+
+# As long as Markdown lets a label be, which bounds what is read for one.
+_LABEL = r"(?:[^\]\[\\]|\\.){1,999}+"
+
+# What Markdown reads and shows nothing of. Behind a link's or an image's text,
+# the destination and title, or the label of the definition it names -- with an
+# image's description before them. And a definition whole, behind the markers
+# its line opens on: its destination may stand on the next line and its title
+# on the one after, and the rest of the line either ends on goes with it.
+_HIDDEN_FIELD_RE = re.compile(
+    rf"(?:!\[[^\]]{{0,999}}+)?\](?:\([ \t\n]*+{_DESTINATION}"
+    rf"(?:[ \t\n]++{_TITLE})?[ \t\n]*+\)|\[{_LABEL}\])"
+    rf"|^(?: {{0,3}}(?:>|[-+*]|[0-9]{{1,9}}[.)]) ?)*+ {{0,3}}\[{_LABEL}\]:"
+    rf"[ \t]*+\n?[ \t]*+(?:<[^<>\n]*+>|[^ \t\n]++)"
+    rf"(?:[ \t]*+\n?[ \t]*+{_TITLE})?[^\n]*+",
+    re.MULTILINE,
+)
+
 # A stretch of the text, as its two offsets.
 type _Stretch = tuple[int, int]
 
@@ -72,7 +107,7 @@ def outside_code(text: str) -> str:
     code = _merged((*_code_lines(written), *spans.possible))
     definite = _merged((*_fences.definite_fences(written), *spans.certain))
     literal = _merged((*code, *_html.html_literals(written, code, definite)))
-    return _without_tags(_without(written, literal))
+    return _without_tags(_HIDDEN_FIELD_RE.sub(_GAP, _without(written, literal)))
 
 
 def _without(text: str, stretches: list[_Stretch]) -> str:

@@ -104,6 +104,8 @@ CLOSING_NOTHING = (
     f"`<x`<code>{RESOLVES}</code>",
     f"https://example.com/`x `{RESOLVES}`",
     f"www.example.com/`x `{RESOLVES}`",
+    f"[{RESOLVES}]: https://example.com",
+    f'[link](https://example.com "{RESOLVES}")',
     f"<!DOCTYPE html {RESOLVES}>",
     f"<?{RESOLVES}?>",
     f"<![CDATA[{RESOLVES}]]>",
