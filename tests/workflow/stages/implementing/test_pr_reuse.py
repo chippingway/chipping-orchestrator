@@ -33,7 +33,9 @@ class OnCommitsPRReuseTest(unittest.TestCase, _PatchedWorkflowMixin):
         existing = FakePR(
             number=EXISTING_PR_NUMBER,
             head_branch="orchestrator/chippingway__orchestrator/issue-4",
+            body=support._named_description(4, DEV_SESSION),
         )
+        gh.add_pr(existing)
         gh.existing_open_pr["orchestrator/chippingway__orchestrator/issue-4"] = existing
 
         self._run_implementing(
@@ -65,7 +67,11 @@ class OnCommitsPRReuseTest(unittest.TestCase, _PatchedWorkflowMixin):
         gh = FakeGitHubClient()
         issue = make_issue(4, label=LABEL_IMPLEMENTING)
         gh.add_issue(issue)
-        self._existing = FakePR(number=EXISTING_PR_NUMBER, head_branch=LEGACY)
+        self._existing = FakePR(
+            number=EXISTING_PR_NUMBER, head_branch=LEGACY,
+            body=support._named_description(4, DEV_SESSION),
+        )
+        gh.add_pr(self._existing)
         gh.existing_open_pr[LEGACY] = self._existing
         # Pinned state mirrors what an issue picked up before this
         # change would carry.

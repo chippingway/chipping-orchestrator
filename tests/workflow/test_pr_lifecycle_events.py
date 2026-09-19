@@ -12,6 +12,7 @@ from orchestrator import config
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.stages.in_review import handler as _in_review
 from tests.workflow import pr_lifecycle_test_support as support
+from tests.workflow.report_values import _reported
 
 
 class PrLifecycleEventEmissionTest(unittest.TestCase, support._PatchedWorkflowMixin):
@@ -33,7 +34,9 @@ class PrLifecycleEventEmissionTest(unittest.TestCase, support._PatchedWorkflowMi
         gh.add_issue(issue)
         self._run(
             lambda: _implementing._handle_implementing(gh, support._TEST_SPEC, issue),
-            run_agent=support._agent(session_id="sess-1", last_message="implemented"),
+            run_agent=support._agent(
+                session_id="sess-1", last_message=_reported(),
+            ),
             # First call: recovered-worktree check (False) -> agent runs;
             # second call: post-agent _has_new_commits check (True) -> push path.
             has_new_commits=[False, True],
@@ -67,7 +70,9 @@ class PrLifecycleEventEmissionTest(unittest.TestCase, support._PatchedWorkflowMi
         gh.existing_open_pr["orchestrator/chippingway__orchestrator/issue-51"] = existing
         self._run(
             lambda: _implementing._handle_implementing(gh, support._TEST_SPEC, issue),
-            run_agent=support._agent(session_id="sess-1", last_message="implemented"),
+            run_agent=support._agent(
+                session_id="sess-1", last_message=_reported(),
+            ),
             has_new_commits=[False, True],
             push_branch=True,
         )

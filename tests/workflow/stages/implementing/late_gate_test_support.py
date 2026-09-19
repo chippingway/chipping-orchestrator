@@ -37,6 +37,8 @@ from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
     _PatchedWorkflowMixin,
+    _recovered_report,
+    _reported,
     _stand_opened_prs_on_the_push,
 )
 
@@ -304,11 +306,22 @@ class _GateCase(
         self.github = FakeGitHubClient()
         self.issue = make_issue(GATE_ISSUE_NUMBER, label=LABEL_IMPLEMENTING)
         self.github.add_issue(self.issue)
-        self.github.seed_state(GATE_ISSUE_NUMBER)
+        self.github.seed_state(
+            GATE_ISSUE_NUMBER, **_recovered_report(self.issue),
+        )
 
     def _seed(self, **state) -> None:
-        """Replace this issue's pinned state with the one a test is about."""
-        self.github.seed_state(self.issue.number, **state)
+        """Replace this issue's pinned state with the one a test is about.
+
+        The report of the run that committed this candidate goes down with
+        every seed, because a gate case IS a tick over commits an earlier run
+        left: one carrying no report at all is the lost-write window the stage
+        holds for a human, which is `test_report_recovery`'s subject rather
+        than any measurement's.
+        """
+        self.github.seed_state(
+            self.issue.number, **{**_recovered_report(self.issue), **state},
+        )
 
     def _reply(self, body: str) -> None:
         """Add one trusted human comment past the consumed watermark."""
@@ -326,7 +339,15 @@ class _GateCase(
         and would be asserting on that park instead of on the gate.
         """
         run_options.setdefault("has_new_commits", True)
-        run_options.setdefault("run_agent", _agent(last_message="implemented"))
+        run_options.setdefault(
+            "run_agent", _agent(last_message=_reported()),
+        )
+        # Re-stamped here rather than at the seed, because a case that posts a
+        # command or a reply moves the requirements the issue reads at: a
+        # record naming an older revision is a human editing mid-run, which
+        # holds the report for the drift resume and is `test_report_recovery`'s
+        # subject rather than any measurement's.
+        self._seed(**self._pinned())
         opened_before = len(self.github.opened_prs)
         with patch.object(
             _worktree_paths, WORKTREE_PATH, return_value=worktree,

@@ -24,6 +24,7 @@ from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.stages.implementing import read_only_relabel_test_support as _support
 from tests.workflow.stages.implementing.read_only_relabel_test_support import _ReadOnlyRelabelMixin
@@ -48,7 +49,7 @@ _PR_HANDOFF_ISSUE_NUMBER = 997
 _PUBLISHED_ISSUE_NUMBER = 998
 _UNREADABLE_ISSUE_NUMBER = 999
 _HANDOFF_PR_NUMBER = 5150
-_IMPLEMENTED = "implemented"
+_IMPLEMENTED = _reported()
 
 
 class ReadOnlyHandoffTest(

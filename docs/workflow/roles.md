@@ -1213,12 +1213,13 @@ can be cut from a candidate about to be superseded, and an accepted candidate su
 copy of it would record an obligation with nothing on the other end. And it does not rewrite the held pull request:
 the
 description this generation replaced is restored over the hold text, and what happens to that pull request afterwards
-is the ordinary reconciliation's — the publication that follows reuses it and rewrites its body when the push lands
-on it, and leaves it alone when it does not. Only a body that IS this cycle's hold, verbatim, in either spelling
-this orchestrator can reconstruct, is restored — so a description a human rewrote, or edited a sentence of, marker
-and all, while the hold stood stays theirs, and a settled pull request still wearing an older binary's hold is still
-put back. That settled case is the one release the retry above cannot have migrated first: a pull request nobody can
-merge is left exactly as it is by the reconciliation, so what the release meets there is whichever spelling wrote it.
+is the ordinary reconciliation's — the publication that follows reuses it when the push lands on it and judges the
+restored description as it judges any reused one, never rewriting it, and leaves it alone when it does not. Only a body
+that IS this cycle's hold, verbatim, in either spelling this orchestrator can reconstruct, is restored — so a
+description a human rewrote, or edited a sentence of, marker and all, while the hold stood stays theirs, and a settled
+pull request still wearing an older binary's hold is still put back. That settled case is the one release the retry
+above cannot have migrated first: a pull request nobody can merge is left exactly as it is by the reconciliation, so
+what the release meets there is whichever spelling wrote it.
 
 What a failed release may *stop* is narrower than what a failed hold stops, and for the reason the hold exists: the
 danger is a change a human can still merge while it wears a notice saying not to, which is a property of an **open**

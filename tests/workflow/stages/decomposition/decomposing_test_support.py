@@ -10,6 +10,7 @@ from tests.workflow.fixtures import (
     _TEST_SPEC,
     _manifest,
     _PatchedWorkflowMixin,
+    _reported,
 )
 
 KEY_DECOMPOSER_AGENT = "decomposer_agent"
@@ -78,7 +79,7 @@ SPLIT_MANIFEST = _manifest(
     '{"decision": "split", "children": [{"title": "A", "body": "a"},{"title": "B", "body": "b"}]}'
 )
 READ_ONLY_FRAGMENT = "read-only"
-IMPLEMENTED_MESSAGE = "implemented"
+IMPLEMENTED_MESSAGE = _reported()
 
 
 class _DecomposingWorkflowMixin(_PatchedWorkflowMixin):

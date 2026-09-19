@@ -26,13 +26,16 @@ Everything past that handoff reads the checkout and none of it measures again.
 
 What the pull request itself says -- its title, its body, and the dev session
 the body attributes the branch to -- is `dev_pr`'s, along with the reuse that
-reads that attribution back off a pull request somebody else opened. This owner
-decides only WHEN one is opened, which is once the push has landed.
+hands back a pull request somebody else opened with its description untouched.
+This owner decides only WHEN one is opened, which is once the push has landed.
 
-What the handoff itself writes -- the pull request and the branch it records,
-the records it spends, the counters it resets, and the relabel it goes out
-ahead of -- is `handoff`'s, for the same division: this owner decides only WHEN
-it is reached, which is once both proofs taken around the push have passed.
+The developer's report is the third thing a publication owes, and it cannot be
+bound any earlier: until the push lands the report names no publication at
+all. Everything from there to the relabel is `report_handoff`'s -- the
+description judged, the report bound and posted, and the last readings of the
+requirements, the report, the checkout and the description -- and this owner
+decides only what a refusal COSTS: the handoff, left owed for the next tick to
+republish the same commit onto the same pull request.
 """
 from __future__ import annotations
 
@@ -47,16 +50,19 @@ from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.workflow.engine import guards as _guards
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    report_binding as _report_binding,
+)
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
     dev_pr as _dev_pr,
-    handoff as _handoff,
     late_approval_reading as _late_approval_reading,
     late_approval_state as _late_approval_state,
     late_publication_state as _late_publication_state,
     models as _models,
     push_barrier as _barrier,
+    report_handoff as _report_handoff,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -238,6 +244,13 @@ def _on_commits(
     top of the disposition is a fact about a moment that has passed by the
     time either effect runs.
 
+    The report the developer wrote is bound and posted once the pull request
+    is known, and a report still owed refuses the handoff exactly as a moved
+    checkout does: nothing past the relabel comes back for one. What has to
+    hold for that handoff -- the requirements, the report, the checkout, the
+    description -- is `report_handoff`'s to prove, and a refusal leaves the
+    handoff owed here.
+
     Work that ENDED is refused immediately before the push, on the same terms
     every gated publication onto an open pull request refuses one. A close a
     poll observed is one half: the gate's own barrier ends the CYCLE, which
@@ -255,7 +268,6 @@ def _on_commits(
     owed. `push_barrier` owns both readings and the one ending that is not an
     ending for this push.
     """
-    agent_result = approved.agent_result
     wt = _worktree_paths._worktree_path(spec, issue.number)
     published = _publication_intent(gh, issue, state, approved, wt)
     if published is None:
@@ -279,36 +291,46 @@ def _on_commits(
         )
         # _handle_implementing writes pinned state after we return.
         return
-    pr = _dev_pr._reuse_or_open_pr(
+    pr, opened = _dev_pr._reuse_or_open_pr(
         gh, spec, issue, state,
         _models._PRWork(
-            agent_result, wt, branch, approved.delivered_pr, published,
+            approved.agent_result, wt, branch, approved.delivered_pr, published,
         ),
     )
     if pr is None:
         return
-    # The push landed, so what was an intent is now a receipt: staged here so
-    # the handoff write below carries it, and so a relabel that does not land
-    # leaves the next tick something to recognize an already published branch
-    # by rather than work nobody has ruled on. It names no head it replaced --
-    # an initial publication froze none and reads the remote for itself -- and
-    # says so rather than leaving whatever the last published-side push wrote,
-    # which would date this receipt to an attempt it was not made under.
+    # The push landed, so what was an intent is now a receipt: written here, so
+    # a relabel that does not land leaves the next tick something to recognize
+    # an already published branch by rather than work nobody has ruled on. It
+    # names no head it replaced -- an initial publication froze none and reads
+    # the remote for itself -- and says so rather than leaving whatever the last
+    # published-side push wrote, which would date this receipt to an attempt it
+    # was not made under.
     #
     # The pull request goes down WITH it, and this is the only line that can
     # write it: `pr_number` is the relabel's, which is the very write the
     # window this receipt exists for is missing. Recorded here, a tick that
     # dies before that relabel leaves an identity the next poll can prove
     # instead of a branch it would have to search.
+    #
+    # Durably, before anything else: the announcement of a pull request this
+    # tick opened is a request, and the handoff below reads the pull request
+    # again, posts the report and waits on GitHub for each. A response lost in
+    # any of them, or a process dying there, with the receipt only in memory
+    # leaves an opened pull request nothing records -- so a poll that finds it
+    # closed opens another over the same work and delivers the report there.
     _late_publication_state._record_publication(
         state, published, "", getattr(pr, "number", 0) or 0,
     )
-    if _checkout._moved_after_the_push(
-        gh, issue, state, published, wt,
-    ) or _checkout._dirtied_after_the_push(gh, issue, state, published, wt):
+    gh.write_pinned_state(issue, state)
+    if opened:
+        _dev_pr._announce_opened_pr(gh, issue, state, pr, branch)
+    if not _report_handoff._hands_on(
+        gh, issue, state,
+        _report_binding.ReportPublication(pr, spec.slug, branch, published),
+        wt,
+    ):
         _owes_the_handoff(state, published)
-        return
-    _handoff._advance_to_validating(gh, issue, state, pr, branch)
 
 
 def _owes_the_handoff(

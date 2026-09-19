@@ -12,8 +12,7 @@ second reading is what the description must say before the work is handed on
 SETTLED report is about, a claim its caller re-reads.
 
 `report_binding` and the implementing stage's `pr_description` ask the first
-two, and no stage calls either of them yet: the publication keeps reading and
-writing a description as it does until its integration stands on these answers.
+two, and that stage's `unreported_recovery` the third.
 """
 from __future__ import annotations
 

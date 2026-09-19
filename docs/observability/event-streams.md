@@ -163,14 +163,16 @@ file is the durable record.
   run. The five phases here are about a notice and a command; the moment the park is *taken*, and the counts behind
   it, are on the `agent_run_budget` stream below, which is where an operator counts a refusal against the runs that
   spent it.
-- `pr_opened` — `_reuse_or_open_pr` (in `workflow/stages/implementing/dev_pr.py`, reached from `_on_commits`) after
-  `gh.open_pr` succeeds; extras: `pr_number`, `branch`, `sha`, `retry_count`. One road never reaches it at all: a
-  publication the size gate admitted BECAUSE its pull request is already standing on the commit resolves that pull
-  request by number and opens none, so a crash-recovery tick that finishes the bookkeeping emits nothing here — and
-  one whose pull request was closed between the gate's proof and the bookkeeping holds instead of opening a second
-  one, which is what would otherwise show up on this stream as a duplicate publication. The `discussion` stage's plan
-  publication emits the same event with `stage="discussion"` when it opens (never when it reuses) a plan PR; it
-  carries no `retry_count`, having no retry budget of its own.
+- `pr_opened` — `_announce_opened_pr` (in `workflow/stages/implementing/dev_pr.py`, reached from `_on_commits`) for a
+  pull request `_reuse_or_open_pr` opened this tick, once the publication receipt naming it is written; extras:
+  `pr_number`, `branch`, `sha`, `retry_count`. A tick that dies after the open and before the announcement emits nothing
+  here, and the retry that finishes that publication reuses the pull request rather than opening one, so it emits
+  nothing either. One road never reaches it at all: a publication the size gate admitted BECAUSE its pull request is
+  already standing on the commit resolves that pull request by number and opens none, so a crash-recovery tick that
+  finishes the bookkeeping emits nothing here — and one whose pull request was closed between the gate's proof and the
+  bookkeeping holds instead of opening a second one, which is what would otherwise show up on this stream as a duplicate
+  publication. The `discussion` stage's plan publication emits the same event with `stage="discussion"` when it opens
+  (never when it reuses) a plan PR; it carries no `retry_count`, having no retry budget of its own.
 - `pr_merged` — External merge terminal arcs in `_handle_in_review`, `_handle_fixing`, `_handle_resolving_conflict`;
   plus `_pr_terminal_stops_the_tick` (in `workflow/engine/terminals.py`, which also owns those arcs) from
   `_handle_implementing` / `_handle_documenting` / `_handle_validating` entry checks — those three hold no PR at

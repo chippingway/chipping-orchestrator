@@ -304,6 +304,7 @@ def _publishes_under_the_park(
                 timed_out=False,
                 stdout="",
                 stderr="",
+                invoked=False,
             ),
             _worktree_paths._worktree_path(spec, issue.number),
             _checkout_recovery._the_parked_candidate(state),

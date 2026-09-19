@@ -43,6 +43,14 @@ this path:
    [`/orchestrator authorize-oversized <commit>`](#holding-and-unsticking-an-issue) publishes it as it stands. With
    `DECOMPOSE=off` a *new* candidate skips that measurement and publishes as it always did — but one already recorded
    goes on being measured and adjudicated, so flipping the switch never publishes work nobody looked at.
+
+   The dev agent ends finished work on a completion report, which the orchestrator records before that measurement and
+   posts as a comment on the pull request — or, where the agent names a report already there, reads again where it
+   stands; the issue moves to `workflow:validating` only once the report is there and still reads as it was recorded. A
+   finished run with no report, or a report that cannot be delivered, waits for your reply, which resumes the dev agent
+   to write it again — no new commit needed. A pull request already open on the branch is reused and its description is
+   never rewritten: if it does not close the issue and name the dev session, the issue waits for you to add the two
+   lines the park comment quotes, then reply.
 3. `workflow:validating` — a fresh reviewer checks the diff. Requested changes enter `workflow:fixing` and return
    here after the dev agent addresses them. Every fix is measured before it is pushed too, and for what the pull
    request would come to rather than for what the fix changed, so a PR cannot be grown past `MAX_ADDED_LINES` one
@@ -214,11 +222,13 @@ Once you confirm the design is settled, the agent writes and commits only `plans
 validates that plan-only change and opens a pull request. Merge the PR to accept the design and finish the issue as
 `done`, or close it unmerged to finish as `rejected`. Closing the issue itself does not decide an open plan PR.
 
-To send the plan straight to implementation, relabel the issue to `workflow:implementing` before deciding the plan
-PR. Do not simply remove the `discussion` label: an unlabeled issue the orchestrator has already met is left exactly
-where you put it rather than greeted a second time, so nothing runs again until a workflow label goes back on. See the
-[discussion-stage contract][discussion-lifecycle] for the full prompt and what each round may write, and the
-[discussion handler][discussion-handler] for the safety checks and recovery steps.
+To send the plan straight to implementation, relabel the issue to `workflow:implementing` before deciding the plan PR.
+The implementation is pushed onto that same pull request, whose description the orchestrator does not rewrite, so once
+it is published the issue waits for you to put the `Resolves #N` line and the dev-session line the park comment quotes
+at the top of that description, then reply. Do not simply remove the `discussion` label: an unlabeled issue the
+orchestrator has already met is left exactly where you put it rather than greeted a second time, so nothing runs again
+until a workflow label goes back on. See the [discussion-stage contract][discussion-lifecycle] for the full prompt and
+what each round may write, and the [discussion handler][discussion-handler] for the safety checks and recovery steps.
 
 ## Holding and unsticking an issue
 

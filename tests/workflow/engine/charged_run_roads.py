@@ -265,7 +265,9 @@ IMPLEMENTING_FRESH = ChargedRoad(
     number=IMPLEMENTING_FRESH_ISSUE,
     label=_support.LABEL_IMPLEMENTING,
     drive=_drive_implementing_fresh,
-    agent_result=_support._agent(session_id="sess-fresh", last_message="implemented"),
+    agent_result=_support._agent(
+        session_id="sess-fresh", last_message=_support._reported(),
+    ),
 )
 
 # The road a poisoned session is recovered on, and so the one launch here
@@ -275,7 +277,9 @@ IMPLEMENTING_RESUME = ChargedRoad(
     number=IMPLEMENTING_RESUME_ISSUE,
     label=_support.LABEL_IMPLEMENTING,
     drive=_drive_implementing_resume,
-    agent_result=_support._agent(session_id=DEV_SESSION, last_message="carried on"),
+    agent_result=_support._agent(
+        session_id=DEV_SESSION, last_message=_support._reported("carried on"),
+    ),
 )
 
 FIXING = ChargedRoad(

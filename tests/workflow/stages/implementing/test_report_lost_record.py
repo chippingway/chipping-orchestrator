@@ -1,0 +1,365 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""The report a run wrote and the pinned write never carried, and recoveries.
+
+A recovery republishes an earlier run's commits and spawns nothing, so what
+describes them is on the pinned comment or nowhere: nothing there parks the
+work for the reply that resumes the developer, and a settled report is held to
+this commit and re-read where it settled before it vouches for anything.
+"""
+
+from __future__ import annotations
+
+import unittest
+from dataclasses import replace
+from unittest.mock import patch
+
+from orchestrator.github import developer_reports as _reports
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pull_request_reports import ReportLocation
+from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
+    report_delivery as _report_delivery,
+    report_records as _records,
+    report_settlement_state as _settlement,
+)
+from orchestrator.workflow.stages.implementing import state as _state
+from tests.support.fakes import FakeComment, FakeUser
+from tests.workflow.fixtures import (
+    _TEST_SPEC,
+    LABEL_VALIDATING,
+    MEASURED_CANDIDATE_SHA,
+    SHA_LENGTH,
+    _named_description,
+    _open_pr_for,
+)
+from tests.workflow.stages.implementing import (
+    late_gate_test_support as gate_support,
+    report_test_support as support,
+)
+
+# The pull request the recovery finally opens: this client numbers the ones it
+# opens from 1.
+OPENED_PR = 1
+
+PUSH_BRANCH = "_push_branch"
+
+RUN_AGENT = "run_agent"
+
+AWAITING_HUMAN = "awaiting_human"
+
+PARK_REASON = "park_reason"
+
+WRITE_PINNED_STATE = "write_pinned_state"
+
+DEV_BACKEND = "claude"
+
+# The report the resumed session writes in place of the one nothing recorded.
+REPLACEMENT_REPORT = "Adds the thing, reported inline this time."
+
+# What an earlier publication settled its report about: a commit the branch
+# has since moved past, and the pull request that carried it.
+OLDER_SHA = "d" * SHA_LENGTH
+
+# The revision a rewritten header claims for a report that settled as the first.
+REWRITTEN_REVISION = 7
+
+SETTLED_PR = 7
+
+# The pull request the last push went onto, where that is not the one the
+# settled report is on.
+RECEIPT_PR = 8
+
+# A branch this issue's publication never pushed.
+OTHER_BRANCH = "orchestrator/someone-else"
+
+# The comment the settled report is recorded at.
+SETTLED_COMMENT = 8800
+
+# What the notice a settled report that moved since says, and a lost one does not.
+MOVED_NOTICE = "cannot be delivered as things stand"
+
+# The commit an approval says is owed a push.
+APPROVED_SHA = "late_approved_sha"
+
+
+class LostReportRecordTest(unittest.TestCase, support._ReportDeliveryMixin):
+    def test_a_lost_record_holds_the_recovery(self) -> None:
+        # The report's write never landed, so the next tick finds commits no
+        # record describes, spawns nothing, and holds them.
+        github, issue = self._lost_the_report_write()
+
+        mocks = self.republish(github, issue)
+
+        mocks[RUN_AGENT].assert_not_called()
+        self._assert_held(github, mocks)
+
+    def test_a_lost_record_is_redelivered(self) -> None:
+        # The reply resumes the session and the commits already on the branch
+        # go out under its report: one pull request, no second developer run.
+        github, issue = self._lost_the_report_write()
+        self.republish(github, issue)
+        support.replies(github, issue, "please report it again")
+
+        self.redeliver(
+            github, issue, support.ready_message(REPLACEMENT_REPORT),
+        )
+
+        posted = support.published_reports(github, OPENED_PR)
+        self.assertEqual(len(posted), 1)
+        self.assertIn(REPLACEMENT_REPORT, posted[0].body)
+        recorded = github.pinned_data(support.REPORT_ISSUE)
+        self.assertEqual(
+            (
+                len(github.opened_prs),
+                recorded[support.DELIVERY_RECORD],
+                recorded[support.PENDING_RECORD],
+                recorded.get(AWAITING_HUMAN),
+            ),
+            (1, None, None, False),
+        )
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+    def test_a_stale_settlement_holds_the_recovery(self) -> None:
+        # A settlement is never cleared, so only a pair about THIS head, on the
+        # receipt's pull request, says its report already went out.
+        for described, settled in (
+            ("an older commit", _settled_state(OLDER_SHA, SETTLED_PR)),
+            (
+                "another pull request",
+                _settled_state(support.PUBLISHED_SHA, RECEIPT_PR),
+            ),
+            (
+                "another branch",
+                _settled_state(
+                    support.PUBLISHED_SHA, SETTLED_PR, branch=OTHER_BRANCH,
+                ),
+            ),
+        ):
+            with self.subTest(settlement=described):
+                github, issue = self.seeded()
+                github.seed_state(
+                    support.REPORT_ISSUE,
+                    dev_agent=DEV_BACKEND,
+                    dev_session_id=support.DEV_SESSION,
+                    **settled,
+                )
+
+                self._assert_held(github, self.republish(
+                    github, issue,
+                    head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
+                ))
+
+    def test_a_settlement_vouches_only_as_it_stands(self) -> None:
+        # As it settled, the report is found where it settled -- by its own
+        # rendering, with its id gone from the capped ledger of posted ones --
+        # and the recovery finishes the handoff. Edited, deleted or re-headed
+        # since, or answering moved requirements, it holds the work instead.
+        github, issue = self._settled_before_the_relabel()[:2]
+        self.republish(
+            github, issue,
+            head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
+        )
+        self.assertIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+        for moved, move in _MOVES_AFTER_THE_SETTLEMENT:
+            with self.subTest(moved=moved):
+                github, issue, settled_on = self._settled_before_the_relabel()
+                move(issue, settled_on.issue_comments)
+
+                self._assert_held(github, self.republish(
+                    github, issue,
+                    head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
+                ))
+                self.assertIn(MOVED_NOTICE, issue.comments[-1].body)
+        # Or the requirements moving under the recovery's own push: asked
+        # again last, the work is held once pushed rather than handed on.
+        github, issue, settled_on = self._settled_before_the_relabel()
+        self._assert_held(github, self.republish(
+            github, issue,
+            head_shas=(support.PUBLISHED_SHA, support.PUBLISHED_SHA),
+            push_branch=lambda *_args, **_kwargs: (
+                _edits_the_requirements(issue, settled_on.issue_comments) or True
+            ),
+        ), pushes=1)
+        self.assertIn(MOVED_NOTICE, issue.comments[-1].body)
+
+    def _settled_before_the_relabel(self):
+        """A publication whose report settled and whose relabel failed."""
+        github, issue = self.seeded()
+        requirements = _content_hash._compute_user_content_hash(issue, ())
+        settled_on = _open_pr_for(
+            github, issue_number=support.REPORT_ISSUE, pr_number=SETTLED_PR,
+            body=_named_description(
+                support.REPORT_ISSUE, support.DEV_SESSION, DEV_BACKEND,
+            ),
+        )
+        settled_on.head.sha = support.PUBLISHED_SHA
+        settled_on.issue_comments.append(FakeComment(
+            id=SETTLED_COMMENT,
+            body=_reports.render_developer_report(_reports.DeveloperReport(
+                pr_number=SETTLED_PR,
+                source_sha=support.PUBLISHED_SHA,
+                requirements_revision=requirements,
+                report_revision=1,
+                receipt=f"issue-{support.REPORT_ISSUE}-report-1",
+                text=support.REPORT_TEXT,
+            )),
+            user=FakeUser(github._bot_login),
+        ))
+        github.seed_state(
+            support.REPORT_ISSUE,
+            dev_agent=DEV_BACKEND,
+            dev_session_id=support.DEV_SESSION,
+            **_settled_state(
+                support.PUBLISHED_SHA, SETTLED_PR, requirements=requirements,
+            ),
+        )
+        return github, issue, settled_on
+
+    def _assert_held(self, github, mocks, pushes: int = 0) -> None:
+        """Prove the recovery opened nothing, handed nothing on, and parked."""
+        self.assertEqual(mocks[PUSH_BRANCH].call_count, pushes)
+        recorded = github.pinned_data(support.REPORT_ISSUE)
+        self.assertEqual(
+            (
+                github.opened_prs,
+                recorded.get(AWAITING_HUMAN),
+                recorded.get(PARK_REASON),
+            ),
+            ([], True, _report_delivery.UNDELIVERABLE_REPORT),
+        )
+        self.assertNotIn(
+            (support.REPORT_ISSUE, LABEL_VALIDATING), github.label_history,
+        )
+
+    def _lost_the_report_write(self):
+        """One tick whose run reported, and whose pinned write never landed."""
+        github, issue = self.seeded()
+        github.seed_state(
+            support.REPORT_ISSUE,
+            dev_agent=DEV_BACKEND,
+            dev_session_id=support.DEV_SESSION,
+        )
+        losing = patch.object(
+            github, WRITE_PINNED_STATE, _LosesTheReportWrite(github),
+        )
+        with losing, self.assertRaises(RuntimeError):
+            self.deliver(github, issue, support.ready_message())
+        self.assertNotIn(
+            support.DELIVERY_RECORD, github.pinned_data(support.REPORT_ISSUE),
+        )
+        return github, issue
+
+class UnreportedCandidateTest(gate_support._GateCase, unittest.TestCase):
+    """A candidate a gate record names, with no report of the run behind it."""
+
+    def test_an_unreported_candidate_is_held(self) -> None:
+        # No developer runs on a road republishing a candidate a gate record
+        # named, so with no report on the comment the work is held.
+        for record, seeded in (
+            ("an approved commit", {APPROVED_SHA: MEASURED_CANDIDATE_SHA}),
+            ("a frozen candidate", gate_support.recorded_generation()),
+        ):
+            with self.subTest(record=record):
+                self.setUp()
+                self._seed(**{support.DELIVERY_RECORD: None, **seeded})
+
+                mocks = self._run_gate()
+
+                self._assert_no_agent(mocks)
+                self._assert_held(mocks)
+                pinned = self._pinned()
+                self.assertEqual(
+                    (
+                        pinned[AWAITING_HUMAN],
+                        pinned[PARK_REASON],
+                        self.github.label_history,
+                    ),
+                    (True, _report_delivery.UNDELIVERABLE_REPORT, []),
+                )
+
+
+def _edits_the_report(_issue, comments) -> None:
+    """Edit the settled report by hand, as anybody with write access can."""
+    comments[-1].body = comments[-1].body.replace(
+        support.REPORT_TEXT, "Edited by hand.",
+    )
+
+
+def _rewrites_the_header(_issue, comments) -> None:
+    """Re-render the settled report, same words, under another header."""
+    settled = _reports.developer_report_from_comment(comments[-1], bot_login=None)
+    comments[-1].body = _reports.render_developer_report(replace(
+        settled,
+        source_sha=OLDER_SHA,
+        report_revision=REWRITTEN_REVISION,
+        receipt=f"issue-{support.REPORT_ISSUE}-report-{REWRITTEN_REVISION}",
+    ))
+
+
+def _edits_the_requirements(issue, _comments) -> None:
+    """Move the issue away from the requirements the report answered."""
+    issue.body = "the requirements moved after the report settled"
+
+
+_MOVES_AFTER_THE_SETTLEMENT = (
+    ("an edited report", _edits_the_report),
+    ("a deleted report", lambda _issue, comments: comments.pop()),
+    ("a rewritten header", _rewrites_the_header),
+    ("moved requirements", _edits_the_requirements),
+)
+
+
+def _settled_state(
+    source_sha: str,
+    pushed_to: int,
+    *,
+    requirements: str = support.REQUIREMENTS_REVISION,
+    branch: str = support.BRANCH,
+) -> dict:
+    """What a publication that settled its report on `SETTLED_PR` leaves behind."""
+    state = PinnedState()
+    _settlement.record_current_report(state, _records.CurrentReport(
+        subject=_records.ReportSubject(
+            repo_slug=_TEST_SPEC.slug,
+            pr_number=SETTLED_PR,
+            branch=branch,
+            source_sha=source_sha,
+            requirements_revision=requirements,
+        ),
+        report_revision=1,
+        content_revision=_reports.content_digest(support.REPORT_TEXT),
+        location=ReportLocation(pr_number=SETTLED_PR, comment_id=SETTLED_COMMENT),
+    ))
+    _settlement.record_handoff(state, _records.ReportHandoff(
+        receipt=f"issue-{support.REPORT_ISSUE}-report-1",
+        pr_number=SETTLED_PR,
+        report_revision=1,
+        source_sha=source_sha,
+    ))
+    return {
+        **state.state_data,
+        _state._PUBLISHED_SHA: source_sha,
+        _state._PUBLISHED_PR: pushed_to,
+        _state._PUBLISHED_LEASE: None,
+    }
+
+
+class _LosesTheReportWrite:
+    """A pinned write that fails exactly where the report record goes down."""
+
+    def __init__(self, github) -> None:
+        self._wrote = github.write_pinned_state
+
+    def __call__(self, issue, state):
+        """Write, unless this is the write that carries the report."""
+        if state.get(support.DELIVERY_RECORD) is not None:
+            raise RuntimeError("the pinned write never landed")
+        return self._wrote(issue, state)
+
+
+if __name__ == "__main__":
+    unittest.main()

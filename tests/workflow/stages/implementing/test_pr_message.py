@@ -81,7 +81,14 @@ class FormatPrAgentMessageTest(unittest.TestCase):
 
 class OnCommitsBodyTruncationTest(unittest.TestCase, _PatchedWorkflowMixin):
     """End-to-end: a long dev message yields a PR body that fits GitHub's
-    65,536-char limit and carries the visible truncation marker."""
+    65,536-char limit and carries the visible truncation marker.
+
+    Over a run the TIMEOUT killed, which is where that message still reaches
+    the description: a run that finished owes a report, and where one is owed
+    the report comment is the authority and the description carries no copy of
+    the agent's words at all. A killed run owes none -- it never got to the
+    end of its own work -- so its last words are what the pull request has.
+    """
 
     def test_long_body_is_capped_and_marked(self) -> None:
         gh = FakeGitHubClient()
@@ -93,7 +100,11 @@ class OnCommitsBodyTruncationTest(unittest.TestCase, _PatchedWorkflowMixin):
         self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message=long_message),
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message=long_message,
+                timed_out=True,
+            ),
             has_new_commits=[False, True],
             dirty_files=(),
             push_branch=True,
@@ -115,7 +126,11 @@ class OnCommitsBodyTruncationTest(unittest.TestCase, _PatchedWorkflowMixin):
         self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="all done"),
+            run_agent=_agent(
+                session_id=DEV_SESSION,
+                last_message="all done",
+                timed_out=True,
+            ),
             has_new_commits=[False, True],
             dirty_files=(),
             push_branch=True,

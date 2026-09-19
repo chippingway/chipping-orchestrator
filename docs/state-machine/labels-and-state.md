@@ -626,9 +626,9 @@ The keys that matter for the state machine fall into a few groups:
   `workflow/engine/report_record*`, `report_delivery_state` and `report_settlement_state` modules, what turns a
   finished run into a delivery is `report_delivery.py`, what binds it and publishes it once the code reaches a pull
   request is `report_binding.py`, and what reconciles an outstanding transaction ahead of every handler is
-  [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch).
-  No stage PRODUCES a record yet, so the group is empty on every live issue; the dispatcher's reconciliation is what
-  finishes one the moment a stage does.
+  [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch). The
+  initial implementation delivery is the stage that produces them
+  ([`_handle_implementing`](delivery-stages.md#_handle_implementing-label-workflowimplementing)).
 
   `developer_report_delivery` is what one completed run wrote, recorded **before** the size gate reads its candidate
   and before the push sends it — which is the last moment the report is certainly recoverable, since the session
@@ -664,9 +664,10 @@ The keys that matter for the state machine fall into a few groups:
   nothing staged, since a transaction bound to another revision would claim the report answers content the run
   never saw, and it is held to the record the comment CARRIES: a report the delivery field has none for, one
   nothing can read, and one a later report has already replaced are each refused, since the write drops whatever is
-  there and binding on any of them would replace a finished run's report with a value the comment never held. Two
+  there and binding on any of them would replace a finished run's report with a value the comment never held. Three
   roads on the recording side park the issue under `report_undeliverable`: a report this workflow cannot write down
-  at all, and a completed run that handed over no usable report to write. A binding REFUSES rather than parks — it
+  at all, a completed run that handed over no usable report to write, and a recovery that republishes committed
+  work no recorded report describes. A binding REFUSES rather than parks — it
   stages nothing and says which refusal it was — and `report_binding.py` is what answers the refusal: a comment too
   full for the transaction is retried silently on the next call, since the routes a report still owed lets run are
   what give that room back, while a record no comment would ever hold, a delivery nothing can read, and a
@@ -820,15 +821,19 @@ The keys that matter for the state machine fall into a few groups:
   handler behind this guard (see
   [`delivery-stages.md`](delivery-stages.md#the-developer-report-transaction-every-dispatch)).
   `workflow/engine/report_delivery.py` re-sets `report_undeliverable` for a reason of a third kind: the roads on the
-  recording side that take it — a report this build cannot record, and a completed run that handed over none at all
-  — leave no record behind them, so the park is the DEBT as well as the notice's bookkeeping. That debt is
-  `developer_report_owed`, set beside the reason and outliving any later park that replaces it, and while either
-  stands the issue reads as still owing a report. The binding in `report_binding.py` and the description verdict in
+  recording side that take it — a report this build cannot record, a completed run that handed over none at all,
+  and a recovery (the restart shortcut, or a road that republishes a candidate a gate record named) finding
+  committed work no recorded report describes — leave no record behind them, so the park is the DEBT as well as the
+  notice's bookkeeping. That debt is `developer_report_owed`, set beside the reason and outliving any later park that
+  replaces it — a resumed run that times out included — and while either stands the issue reads as still owing a
+  report: the handoff is withheld, and a resumed run that brings a report back publishes the commits already on the
+  branch rather than parking as a question. The binding in `report_binding.py` and the description verdict in
   `stages/implementing/pr_description.py` take the same park after a push, for a report that cannot be bound and a
   description that does not close the issue and name the session — which no owner rewrites, so the notice quotes the
-  two lines for a human to put there. It is announced once while it stands, and retired the moment a report IS
-  recorded, since that is the condition it was taken for. Nothing takes it yet, because no stage calls those
-  owners. The late
+  two lines for a human to put there — and `stages/implementing/report_handoff.py` takes it for a debt no retry can
+  pay and a settled report that no longer stands. It is announced once while it stands, retired the moment a report
+  IS recorded, and spent by the publication handoff beside the agent timeout's, since reaching that line means the
+  report the park was about has reached the pull request. The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,
   `late_candidate_moved`, `late_unauthorized_exemption`, `late_evidence_missing`, `late_plan_pr_hold_failed`,
   `late_generation_incomplete`, `late_worktree_missing`, `late_worktree_mutated`, `late_adjudicator_timeout`,
@@ -2929,6 +2934,19 @@ rather than preserving.
   alone: `late_approved_basis` goes down, is carried, and is dropped with it by every write named above, and says
   which owner granted the debt — spelled out beside the accepted candidate it shares its window with, under
   [late generation state](#late-generation-state).
+- **Incomplete run.** `implementing_incomplete_run_sha` is the commit a developer run left when it did not COMPLETE — a
+  timeout, a provider refusal, a nonzero exit — and so recorded no report by design rather than by loss. The publication
+  seam writes it from the checkout's head for every such run, and the timeout-park recovery for the commit a timeout
+  stranded, durably and before the size gate; a run that COMPLETES retires it in the same write that records its report
+  — or parks it for the one it lacks — since that report describes the branch it leaves, and a crash between two writes
+  would leave the new report beside a waiver that reads it as an older run's. A recovery that republishes exactly this
+  commit later — a measurement retried, an approval paid — is owed no report either; any other commit is not covered,
+  and a value that is not the commit a recovery proved matches nothing, so a hand edit waives nothing. The one waiver it
+  does not grant is over a delivery or transaction an earlier run recorded and has not settled: that report describes
+  the branch before this commit, so the commit parks under `report_undeliverable` before the size gate, the record kept,
+  rather than going out beneath it. Owing no report is not owing no reading: the requirements such a commit was written
+  against are still read again before its handoff, and an edit since holds it for the drift resume. Additive: an issue
+  without it simply has no incomplete run recorded.
 - **Published pull request.** `implementing_published_pr` is the pull request the recorded publication went onto,
   written with the receipt below and never on its own. The receipt says a commit reached a remote and the head it
   replaced dates that to one attempt; neither says which pull request now carries the work, which is what the

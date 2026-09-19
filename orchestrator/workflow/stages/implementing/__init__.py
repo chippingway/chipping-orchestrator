@@ -53,12 +53,36 @@ asked immediately before the transport and nowhere else -- a close a poll
 latched, and the pull request this push would join, with a `discussion` plan
 the humans settled carved out of it, since merging a design is an agreement
 rather than a delivery; `dev_pr` owns what that
-pull request says and whose work it says it carries, including the reuse that
-reads the attribution back off one somebody else opened; `pr_description`
-owns the report-aware verdict on such a description, which rewrites none --
-one that does not name this implementation is held for a human to name -- and
-which no caller asks yet; and
+pull request says when this stage opens it and whose work it says it carries,
+and hands a reused one back untouched; `pr_description` owns the report-aware
+verdict on such a description, which rewrites none -- one that does not name
+this implementation is held for a human to name; and
 `handoff` owns the last write and the relabel it goes out ahead of.
+
+The developer's report is what a publication owes beside the code, and it is
+handled by those same owners at the moments its record exists; the records and
+the transaction behind them are the engine's. `candidate_recovery` records the
+report a finished run delivered between the clean-tree proof and the size gate,
+through `report_delivery`, and holds the work there -- nothing measured, pushed
+or opened -- where the run delivered none that can be recorded.
+`unreported_recovery` holds every recovery whose commits no recorded debt or
+settled pair describes: the restart shortcut `disposition` takes, and each road
+that republishes a candidate a gate record named, since no developer runs on
+any of them -- and a settled pair that does describe them is re-read where the
+report settled, with the requirements, before it vouches for anything. The one
+commit it lets past with no report at all is one a run that never completed
+left, which records none by design and is written down where the seam sees it
+-- and held instead while a report an earlier run recorded is still waiting to
+go out, since that report describes the branch before it.
+Once the push lands and the pull request is known, `publication` hands the
+rest to `report_handoff`, which binds the report to that publication and posts
+or verifies it through `report_binding`, whose settlement in
+`report_publishing` reads the issue's requirements once more before it records
+anything. It withholds the handoff while any report is still owed, so the next
+tick republishes the same commit onto the same pull request with no developer
+run and nothing new opened; and last before the handoff it re-reads the
+requirements, what settled, the checkout and the description, in that order,
+handing on only when all four still stand.
 
 `late_gate` is the order its own questions are asked in and nothing else, so
 nine owners sit under it: what one gate call is ABOUT and the identity every

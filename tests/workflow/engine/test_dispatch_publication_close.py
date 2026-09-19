@@ -57,13 +57,14 @@ from tests.workflow.fixtures import (
 )
 from tests.workflow.interleaving import _RacesPastTheStep
 from tests.workflow.observation_support import ObservedCloseCase
+from tests.workflow.report_values import _named_description, _reported
 
 _ISSUE = 6310
 _PR_NUMBER = 63100
 _BRANCH = _issue_branch(_ISSUE)
 
 _DEV_SESSION = "sess-polled-close"
-_IMPLEMENTED = "implemented"
+_IMPLEMENTED = _reported()
 
 _PUSH_BRANCH = "_push_branch"
 _WORKTREE_PATH = "_worktree_path"
@@ -108,6 +109,7 @@ class _PublishingCase(ObservedCloseCase, _PatchedWorkflowMixin):
         self.github.add_issue(self.issue)
         pull_request = _open_pr_for(
             self.github, issue_number=_ISSUE, pr_number=_PR_NUMBER,
+            body=_named_description(_ISSUE, _DEV_SESSION),
         )
         self.github.existing_open_pr[_BRANCH] = pull_request
         self.github.seed_state(_ISSUE, branch=_BRANCH, pr_number=_PR_NUMBER)
