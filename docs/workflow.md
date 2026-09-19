@@ -103,17 +103,17 @@ orchestrator publishes it as routine work that needs no permission, a report tha
 commit, and finished work ends on exactly one outcome — the report between `REPORT: READY` and `REPORT: END` lines,
 or a `REPORT: VERIFIED <location> <revision>` line naming
 a report already on the pull request. A fresh respawn's preamble restates the ownership and defers the outcome to the
-task below it. `workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and no stage
-handler calls it. The durable half is live beside it: `workflow/engine/report_delivery.py` turns one completed run's
-outcome into the record a publication is read from, and the additive `developer_report_*` pinned records
-(`workflow/engine/report_record*`, `report_delivery_state.py` and `report_settlement_state.py`) carry that report
-and the publication transaction it is bound into across a process that dies mid-way;
-`workflow/engine/report_transaction.py` reconciles an outstanding transaction ahead of every stage handler — proving
-the world it was recorded against, publishing or re-reading the report, and settling the record in a single write.
-`workflow/engine/report_binding.py` is the step between them, binding a delivery to the repository, pull request,
-branch and commit its code reached before anything is posted. No stage produces such a record or calls the binding
-yet; the implementing stage's pull-request body only asks whether a report is owed or settled, and leaves the run's
-closing message out where one is. Full contract:
+task below it. `workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and the
+initial implementation delivery is the road that acts on one: `workflow/engine/report_delivery.py` records what the
+run wrote before the size gate and the push, and `workflow/engine/report_binding.py` binds it to the repository, pull
+request, branch and commit the code reaches and publishes it there before the issue may move to
+`workflow:validating`. The additive `developer_report_*` pinned records (`workflow/engine/report_record*`,
+`report_delivery_state.py` and `report_settlement_state.py`) carry that report and the publication transaction it is
+bound into across a process that dies mid-way; `workflow/engine/report_transaction.py` reconciles an outstanding
+transaction ahead of every stage handler — proving the world it was recorded against, publishing or re-reading the
+report, and settling the record in a single write once the issue's requirements read unchanged after that request,
+on this road and the binding's alike. The pull-request body leaves the run's closing message out wherever a report
+is owed or settled, and a reused pull request's description is never rewritten. Full contract:
 [`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts).
 
 ## Examples

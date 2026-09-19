@@ -25,10 +25,13 @@ class AgentResult:
     # Whether a process was invoked for this result at all. True for every
     # run any backend produced, including the ones a shutdown kill or a
     # timeout cut short -- those reached a CLI, and what they left behind on
-    # disk is theirs. False only for a launch turned away before the spawn,
-    # which the stages have to be able to tell apart: a worktree they would
-    # otherwise read a killed run's leavings out of carries nothing this
-    # result put there.
+    # disk is theirs. False for every result no process produced: a launch
+    # turned away before the spawn, and the ones a stage SYNTHESIZES when it
+    # publishes committed work an earlier run left behind. The stages have to
+    # be able to tell those apart from a run's own output -- a worktree they
+    # would otherwise read a killed run's leavings out of carries nothing this
+    # result put there, and a developer-report contract answered by a sentence
+    # the orchestrator wrote itself is no report at all.
     invoked: bool = True
 
 

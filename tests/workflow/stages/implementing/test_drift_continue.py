@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import unittest
 
+from tests.workflow.fixtures import _reported
 from tests.workflow.stages.implementing import drift_test_support as support
 
 AWAITING_HUMAN = support.AWAITING_HUMAN
@@ -47,13 +48,21 @@ class ImplementingContinueCommandTest(
             *_seed_parked_implementing(
                 CONTINUE_RETRY_ISSUE,
                 park_reason="agent_silent",
+                # The baseline matches what the issue says, which is what an
+                # issue whose drift has been handled carries: this case is
+                # about the command rather than about an edit, and a stale
+                # baseline would hold the report its retry writes for the
+                # drift resume that answers the edit instead.
+                drift_neutral=True,
             )
         )
 
         mocks = self._run_implementing(
             scenario.github,
             scenario.issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="finished it"),
+            run_agent=_agent(
+                session_id=DEV_SESSION, last_message=_reported("finished it"),
+            ),
             has_new_commits=True,
             dirty_files=(),
             push_branch=True,

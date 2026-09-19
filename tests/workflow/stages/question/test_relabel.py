@@ -15,6 +15,7 @@ from tests.workflow.fixtures import (
     KEY_PARK_REASON,
     LABEL_IMPLEMENTING,
     _agent,
+    _reported,
 )
 from tests.workflow.stages.question.question_conversation_test_support import (
     _ImplementingStageCall,
@@ -174,7 +175,7 @@ class QuestionRelabelToImplementingTest(
             lambda: _implementing._handle_implementing(gh, _TEST_SPEC, issue),
             run_agent=_agent(
                 session_id="dev-sess-1",
-                last_message="implemented",
+                last_message=_reported(),
             ),
             has_new_commits=[False, True],
             push_branch=True,
@@ -219,7 +220,7 @@ class QuestionRelabelToImplementingTest(
                 ),
                 run_agent=_agent(
                     session_id="dev-sess-recovered",
-                    last_message="implemented",
+                    last_message=_reported(),
                 ),
                 # Three `_has_new_commits` calls fire, and the first is
                 # the guard's own reading of the CHECKOUT: with no

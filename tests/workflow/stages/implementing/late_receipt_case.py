@@ -10,6 +10,7 @@ from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     SHA_LENGTH,
     _issue_branch,
+    _named_description,
 )
 from tests.workflow.stages.implementing import late_gate_test_support as support
 
@@ -22,6 +23,8 @@ _KEY_PUBLISHED_PR = "implementing_published_pr"
 # The head that push replaced, the third member. An initial publication froze
 # none and records none, so it is absent rather than damaged there.
 _KEY_PUBLISHED_LEASE = "implementing_published_lease"
+
+_DEV_BACKEND = "codex"
 
 # The pull request that note was written about, and the branch it is on.
 _PR_NUMBER = 812
@@ -66,6 +69,9 @@ _PUBLISHED_BY_THIS_STAGE = MappingProxyType({
     _KEY_PUBLISHED_PR: _PR_NUMBER,
     _KEY_PR_NUMBER: _PR_NUMBER,
     "branch": _BRANCH,
+    # The session that wrote the branch, which the description it opened names.
+    "dev_agent": _DEV_BACKEND,
+    "dev_session_id": support.DEV_SESSION,
 })
 
 
@@ -93,6 +99,9 @@ class _ReceiptCase(support._GateCase):
             head_branch=branch,
             head=FakePRRef(
                 sha=head, ref=branch, repo=FakePRRepo(full_name=repo),
+            ),
+            body=_named_description(
+                support.GATE_ISSUE_NUMBER, support.DEV_SESSION, _DEV_BACKEND,
             ),
         )
         self.github.add_pr(opened)

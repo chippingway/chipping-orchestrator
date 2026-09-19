@@ -18,8 +18,9 @@ edit cannot race itself. That covers the description a developer report of this
 issue's lives in as well -- delivered, pending, settled, or a record too damaged
 to say otherwise -- which is told apart only because the notice has to say so.
 
-No caller asks it yet: the live reuse still answers through
-`dev_pr._attribute_reused_pr`, which knows nothing of reports.
+`publication` asks it twice: before the report is bound, which is told the
+answer, and again last before the handoff, which it withholds on anything short
+of True.
 """
 from __future__ import annotations
 

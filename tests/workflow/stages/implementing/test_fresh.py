@@ -20,6 +20,8 @@ from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
     _agent,
     _PatchedWorkflowMixin,
+    _recovered_report,
+    _reported,
 )
 from tests.workflow.stages.implementing import fresh_test_support
 from tests.workflow.stages.implementing_fixing_test_cases import IssueScenario
@@ -53,7 +55,7 @@ class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
         self._run_implementing(
             scenario.github,
             scenario.issue,
-            run_agent=_agent(session_id="sess-1", last_message="implemented"),
+            run_agent=_agent(session_id="sess-1", last_message=_reported()),
             # First call: not a recovered worktree -> codex runs.
             # Second call: codex produced commits -> push path.
             has_new_commits=[False, True],
@@ -169,7 +171,7 @@ class HandleImplementingFreshRunTest(unittest.TestCase, _PatchedWorkflowMixin):
         mocks = self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id="sess-1", last_message="done"),
+            run_agent=_agent(session_id="sess-1", last_message=_reported("done")),
             has_new_commits=[False, True],
             dirty_files=(),
             push_branch=False,
@@ -233,7 +235,7 @@ class HandleImplementingAwaitingHumanTest(unittest.TestCase, _PatchedWorkflowMix
         mocks = self._run_implementing(
             gh,
             issue,
-            run_agent=_agent(session_id=LEGACY_SESSION, last_message="ok"),
+            run_agent=_agent(session_id=LEGACY_SESSION, last_message=_reported("ok")),
             # awaiting_human path skips the recovered-worktree probe; only
             # the post-codex commit check runs.
             has_new_commits=[True],
@@ -349,7 +351,13 @@ class HandleImplementingRecoveredWorktreeTest(unittest.TestCase, _PatchedWorkflo
         gh = FakeGitHubClient()
         issue = make_issue(3, label=LABEL_IMPLEMENTING)
         gh.add_issue(issue)
-        gh.seed_state(3, codex_session_id="sess-prev")
+        # The report that previous run recorded before the size gate, which
+        # is what a branch carrying its commits also carries: a recovery
+        # finding committed work no report describes holds it for a human
+        # instead (`test_report_recovery`).
+        gh.seed_state(
+            3, codex_session_id="sess-prev", **_recovered_report(issue),
+        )
 
         mocks = self._run_implementing(
             gh,

@@ -234,31 +234,30 @@ that fence opened at the top level or in a list item (`workflow/engine/report_fe
 location and revision are parsed for shape only; completing on one is owed a fresh read of that location whose text
 still hashes to the revision.
 
-No stage handler calls `report_outcomes` or records a report transaction. What turns an outcome into one is
-`workflow/engine/report_delivery.py`, which reads it off a finished run and writes the durable delivery record a
-transaction is bound from — and no stage calls that recording either, so no developer's outcome becomes a record
-today. The one part of that owner read live is `owes_a_report`, which the implementing stage's pull-request body asks
-before writing the run's closing message, and which answers False on every live issue for that reason.
-A developer run is still routed by its commits, its `ACK:` line, and the question parks the
-[delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read the way its
-stage reads any other no-commit reply without `ACK:`.
+The **initial implementation delivery** is the road that acts on an outcome: `workflow/engine/report_delivery.py`
+reads one out of the run the disposition is publishing and records it before the size gate and the push, and
+`report_binding.py` binds it to the pull request the code reaches and publishes it there
+([`_handle_implementing`](../state-machine/delivery-stages.md#_handle_implementing-label-workflowimplementing)).
+There a no-commit reply ending on a report outcome publishes the commits already on the branch where the issue still
+owes a report it could not deliver, and is read as any other no-commit reply everywhere else. Every other developer
+road is still routed by its commits, its `ACK:` line, and the question parks the [delivery stages][delivery-stages]
+describe, and a no-commit reply that ends on a report outcome is read there the way its stage reads any other
+no-commit reply without `ACK:`.
 
-What publication there is belongs to the dispatcher rather than to any stage. The additive `developer_report_delivery` /
+Publication is recoverable because the records outlive the process. The additive `developer_report_delivery` /
 `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group
 ([`../state-machine/labels-and-state.md#pinned-state`](../state-machine/labels-and-state.md#pinned-state)) is what
 carries one report from the run that wrote it across a process that dies mid-way — the complete report text included,
 since a transaction recovered from a text nobody kept would have to ask an agent to write it again, and a second run is
-not the same report. Exactly one of the four is reconciled: where a `developer_report_pending` transaction exists,
-[the developer-report transaction][report-transaction] finishes it ahead of every handler and publishes through the
-developer-report comment owners (`github/developer_reports.py`, `github/pull_request_reports.py`, and
-`workflow/engine/comments.py`'s `_publish_developer_report`). It never reads an agent's message: what it acts on is the
-record a stage will write, and on an issue carrying no such record it costs one pinned read that has already happened.
-The other three are read by nobody ahead of a handler. `developer_report_delivery` in particular is inert: the
-recording that would write one is not called, the only live reader that asks after one is the pull-request body's
-`owes_a_report`, which decides nothing but whether the run's closing message is written, and no reconciliation would
-act on one if it were there — binding it to a publication is a step a stage has to take, through
-`workflow/engine/report_binding.py`, which exchanges the delivery for its transaction in one write before anything is
-posted and which no stage calls yet.
+not the same report. The publication that records one also tries to complete it on the tick it pushes; where that
+did not happen, [the developer-report transaction][report-transaction] finishes a `developer_report_pending`
+transaction ahead of every handler. Both publish through the developer-report comment owners
+(`github/developer_reports.py`, `github/pull_request_reports.py`, and `workflow/engine/comments.py`'s
+`_publish_developer_report`). The reconciliation never reads an agent's message: what it acts on is the record a stage
+wrote, and on an issue carrying none it costs one pinned read that has already happened. No reconciliation acts on a
+`developer_report_delivery`: binding one to a publication is the implementing stage's step, exchanging the delivery
+for its transaction in one write before anything is posted, and taken again on every tick that republishes the same
+commit onto the same pull request until it lands.
 
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion

@@ -16,6 +16,8 @@ question) rather than by the backend that emits it.
 """
 from __future__ import annotations
 
+from orchestrator.workflow.state import WorkflowLabel
+
 _SILENT_PARKS_BEFORE_FRESH_SESSION = 2
 
 # How many consecutive readings one frozen pair may lose before the size gate
@@ -300,6 +302,13 @@ _PUBLISHED_LEASE = "implementing_published_lease"
 # a relabel, a debt and a receipt to somebody else's pull request.
 _PUBLISHED_PR = "implementing_published_pr"
 
+# The commit a developer run left when it did not COMPLETE -- a timeout, a
+# provider refusal, a nonzero exit -- and so recorded no report, by design
+# rather than by loss. A recovery that republishes exactly this commit later
+# (a measurement retried, an approval paid) is owed no report either; any
+# other commit is not covered by it.
+_INCOMPLETE_RUN_SHA = "implementing_incomplete_run_sha"
+
 _PARK_REASON = "park_reason"
 
 _PRE_IMPLEMENT_SHA = "pre_implement_sha"
@@ -327,6 +336,12 @@ _BRANCH = "branch"
 _PR_NUMBER = "pr_number"
 
 _IMPLEMENTING_STAGE = "implementing"
+
+# The route a developer report produced on this stage is recorded under, and a
+# wire value like every key beside it: it goes into the pinned transaction and
+# is read back through the label vocabulary, so what it says is which road's
+# bookkeeping the completion closes.
+_REPORT_ROUTE = WorkflowLabel.IMPLEMENTING
 
 _REASON_STUCK = "stuck"
 

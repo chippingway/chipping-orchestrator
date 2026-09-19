@@ -484,7 +484,8 @@ class LateGateExemptionTest(support._ParkedRetryCase, unittest.TestCase):
         self._reply("put it back on the commit we already agreed")
         return self._run_gate(
             run_agent=_fixtures._agent(
-                session_id=support.DEV_SESSION, last_message="reset",
+                session_id=support.DEV_SESSION,
+                last_message=_fixtures._reported("reset"),
             ),
             head_shas=(_OTHER_SHA, _fixtures.MEASURED_CANDIDATE_SHA),
         )

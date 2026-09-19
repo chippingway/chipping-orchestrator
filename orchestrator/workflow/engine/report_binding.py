@@ -30,7 +30,8 @@ report whose requirements moved is left owed for the drift resume. A transaction
 that does not settle stays owed, which is what the caller reads before handing
 the work on; the reconciliation ahead of the next handler finishes it.
 
-No stage calls any of this yet: nothing records a delivery for it to bind.
+The implementing stage's publication is the caller, once its push has reached
+a pull request.
 """
 from __future__ import annotations
 

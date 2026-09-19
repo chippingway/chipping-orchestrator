@@ -30,6 +30,7 @@ from tests.workflow.fixtures import (
     SHA_LENGTH,
     _agent,
     _authorized_exemption,
+    _reported,
 )
 from tests.workflow.stages.implementing import late_gate_test_support as support
 
@@ -49,7 +50,7 @@ _OPENED_PR_NUMBER = 1
 # The reply a human writes to make the developer change the work, and what a
 # resumed run says when it has.
 _GUIDANCE = "drop the generated fixtures from this"
-_FINISHED = "done"
+_FINISHED = _reported("done")
 # What a resumed run says when it answered instead of building.
 _ASKED = "which half of this did you mean?"
 
@@ -312,7 +313,7 @@ class RefusedRelabelRecoveryTest(support._GateCase, unittest.TestCase):
         # to hold back, which is the one outcome the gate exists to prevent.
         self._published_without_the_relabel()
 
-        mocks = self._run_gate(added_lines=support.OVERSIZED_ADDITIONS)
+        mocks = self._run_the_next_tick()
 
         self._assert_no_agent(mocks)
         self._assert_unmeasured(mocks)
@@ -325,7 +326,7 @@ class RefusedRelabelRecoveryTest(support._GateCase, unittest.TestCase):
         # write lands.
         self._published_without_the_relabel()
 
-        self._run_gate(added_lines=support.OVERSIZED_ADDITIONS)
+        self._run_the_next_tick()
 
         self.assertEqual(len(self.github.opened_prs), 1)
         self.assertIn(
@@ -342,7 +343,7 @@ class RefusedRelabelRecoveryTest(support._GateCase, unittest.TestCase):
         # on and could route it to adjudication with the pull request open.
         self._published_without_the_relabel(decomposing=False)
 
-        mocks = self._run_gate(added_lines=support.OVERSIZED_ADDITIONS)
+        mocks = self._run_the_next_tick()
 
         self._assert_no_agent(mocks)
         self._assert_unmeasured(mocks)
@@ -350,6 +351,18 @@ class RefusedRelabelRecoveryTest(support._GateCase, unittest.TestCase):
         self.assertIn(
             (support.GATE_ISSUE_NUMBER, LABEL_VALIDATING),
             self.github.label_history,
+        )
+
+    def _run_the_next_tick(self):
+        """Tick two, over the checkout the first one pushed from.
+
+        Oversized, so a tick that measured would be routed away. The head is
+        the commit tick one published, which is what the settled report of
+        that publication has to be about for the recovery to republish it.
+        """
+        return self._run_gate(
+            added_lines=support.OVERSIZED_ADDITIONS,
+            head_shas=(MEASURED_CANDIDATE_SHA, MEASURED_CANDIDATE_SHA),
         )
 
     def _published_without_the_relabel(self, decomposing: bool = True) -> None:

@@ -28,6 +28,7 @@ from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.stages.implementing import read_only_relabel_test_support as _support
 from tests.workflow.stages.implementing.read_only_relabel_test_support import _ReadOnlyRelabelMixin
@@ -83,8 +84,8 @@ def _published_plan_pr(issue_number: int) -> FakePR:
     """The plan PR a crashed publication opened and never recorded.
 
     Open on the per-issue branch, which is exactly where a dev push would land,
-    so `find_open_pr` hands it straight to the reuse that rewrites its body to
-    close the issue on merge.
+    so `find_open_pr` hands it straight to the reuse that adopts it as this
+    issue's implementation.
     """
     return FakePR(
         number=_PUBLISHED_PR_NUMBER,
@@ -189,7 +190,9 @@ class DiscussionRelabelToImplementingTest(
             gh,
             issue,
             unpushed_branch=None,
-            run_agent=_agent(session_id=_support.DEV_SESSION, last_message="implemented"),
+            run_agent=_agent(
+                session_id=_support.DEV_SESSION, last_message=_reported(),
+            ),
             has_new_commits=[False, True],
             branch_tip_sha="",
             head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
@@ -213,7 +216,9 @@ class DiscussionRelabelToImplementingTest(
             gh,
             issue,
             unpushed_branch=None,
-            run_agent=_agent(session_id=_support.DEV_SESSION, last_message="implemented"),
+            run_agent=_agent(
+                session_id=_support.DEV_SESSION, last_message=_reported(),
+            ),
             has_new_commits=[False, True],
             head_shas=(_support.HEAD_BEFORE_ROUND, _support.HEAD_BEFORE_ROUND, _support.HEAD_AFTER_COMMIT),
         )
@@ -275,9 +280,8 @@ class CrashedDiscussionRelabelTest(
     So a tick that died after the agent committed, or after its plan PR was
     opened, leaves no park at all and a branch carrying the plan. Read as an
     ordinary relabel, the fresh-spawn path's recovered-worktree shortcut pushes
-    that plan as a dev implementation: one push, the plan PR reused and its body
-    rewritten to close the issue, and the label moved to validating with no
-    developer having run.
+    that plan as a dev implementation: one push, and the plan PR adopted as this
+    issue's implementation with no developer having run.
     """
 
     def test_an_unreported_round_refuses_the_relabel(self) -> None:
@@ -355,8 +359,7 @@ class CrashedDiscussionRelabelTest(
         # marker is the only thing left that knows a publication is out there.
         # Handed over on that reading, the dev builds from base and its push
         # takes a lease read live off the remote: the published plan is
-        # overwritten, its PR adopted, and its body rewritten to close the
-        # issue on merge.
+        # overwritten and its PR adopted as this issue's implementation.
         gh, refusal = self._relabel_over_crash(
             _LOST_CHECKOUT_ISSUE_NUMBER,
             evidence=_NO_LOCAL_EVIDENCE,
@@ -390,8 +393,7 @@ class CrashedDiscussionRelabelTest(
         fresh clone -- nothing at all. `pull_request` is what GitHub holds
         beside that, which no local probe can see: the plan PR a crashed
         publication opened and never recorded. It is put where `find_open_pr`
-        looks, so a handover would really reach the reuse that rewrites its
-        body to close the issue.
+        looks, so a handover would really reach the reuse that adopts it.
         """
         gh, issue = _support._seed_relabeled_discussion(issue_number, None, **records)
         if pull_request is not None:
