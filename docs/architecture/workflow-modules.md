@@ -408,17 +408,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the notice worded by whichever road took it, and it is retired the moment a report IS
                             recorded. `owes_a_report` beside it is what a publication would ask before it hands
                             work on: both records asked as a CLAIM so a truncated one counts as a debt, and the
-                            park itself, which is the only debt the two roads with no record to leave have. And
+                            park, which writes `developer_report_owed` beside its reason so the debt of a road with
+                            no record to leave outlives any later park that replaces that reason -- and onto an
+                            older park still standing with the reason alone, with no second notice. And
                             `redelivers_an_owed_report` is what a disposition would ask of a run that moved no
                             head -- a debt owed, a run that finished on a report outcome, and a branch that
                             carries something -- so the reply answering such a park publishes rather than parking
-                            as a question. No stage CALLS any of this yet
+                            as a question. `owes_a_report` is the one part read live: `dev_pr.py`'s body asks it
+                            before writing the run's closing message, and it answers False on every live issue,
+                            since no stage CALLS the recording, the park, or `redelivers_an_owed_report` yet
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
                             one -- so either key is claimed by its presence alone, `null` included, which is the
                             one place this parts company with the pending record whose ordinary resting state that
-                            is. No stage PRODUCES this group yet; what consumes one is the reconciliation below
+                            is. No stage PRODUCES this group yet; what consumes one is the reconciliation below,
+                            and `dev_pr.py`'s body asks `carries_settled_record` before writing the run's closing
+                            message
     report_locations.py     which places on a pull request this issue's reports claim, asked of all three records
                             -- a record nobody can read, or a settled pair missing its current report, included --
                             since even an edit keeping every word moves a verified DESCRIPTION off its digest, while
@@ -430,7 +436,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             session; `costs_the_description` is that answer held against a verification living on
                             the same description. It also answers which publication the SETTLED pair is about,
                             agreeing with itself and naming this repository, pull request, branch and commit; what
-                            it hands back is a claim, for its caller to re-read. No stage CALLS any of this yet
+                            it hands back is a claim, for its caller to re-read. Asked by `report_binding.py` and
+                            `stages/implementing/pr_description.py`, which no stage CALLS yet
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
@@ -440,7 +447,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading, which every other one stands behind, and the rest composed behind it cheapest
                             first. The requirements revision closes it, held against the one the run was handed and
                             COMPUTED here rather than read, so the comment walk that computes it answers with a
-                            hold rather than leaving the reading by an exception
+                            hold rather than leaving the reading by an exception. That last reading is published on
+                            its own as well, over an issue read AGAIN from GitHub, for a caller completing the
+                            publication it has just made: the issue it holds was fetched before its developer ran,
+                            and a re-read that fails answers HOLD, since nobody could say the issue is unchanged.
+                            `refuses_for_good` says, posting nothing, whether an owed transaction can ever settle: a
+                            report of ours a human edited, or a verified location gone, changed or untrusted
     report_checkout_evidence.py the checkout half: on this host, clean by a reading that HAPPENED rather than by an
                             empty path list, and standing on the commit the report is about
     report_remote_evidence.py the remote half, which the checkout cannot answer: the recorded branch is fetched and
@@ -472,8 +484,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record's whole subject AND the content that transaction would have left -- a
                             publication's own digest at a location that IS a comment, a verification's own exact
                             location and revision -- which is the only half of a settled record that says which
-                            report actually landed and where. A `null` comment field is the pull request's
-                            description, which a verification records and a publication never writes. Believed on
+                            report actually landed and where. The road is held first wherever the settlement
+                            names one: a settlement saying it verified is no completion of a publication, and one
+                            naming no road, written before any did, is held to the content alone. A `null` comment
+                            field is the pull request's description, which a verification records and a
+                            publication never writes. Believed on
                             the receipt alone, or on the digest without the kind of place beside it, it would drop
                             a pending record whose report was never published. A current report
                             already recorded at this revision or a later one says the transaction in hand is stale,
@@ -494,7 +509,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is not an author this deployment refuses. Both roads prove the room first: the
                             settlement is re-measured against the comment as it stands before anything is posted,
                             since what the record reserved may since have been spent by the routes a deferred
-                            transaction let run
+                            transaction let run -- and the REQUIREMENTS last, over the issue read afresh after the
+                            request, since a post is long enough for an edit to land under it. Each settlement
+                            records which road made it, for the re-read below
+    report_settled_reading.py a SETTLED report read again where it settled, posting nothing, and held to the
+                            road the record says settled it: a VERIFIED location has to hash to the digest still,
+                            under a trusted author; a PUBLISHED one has to re-render in its comment as our report,
+                            written by the login this client posts under, with the text digest and whole header
+                            (pull request, commit, requirements, revision, receipt) recorded -- so a comment cut
+                            down to its bare text is CHANGED though it hashes. A record naming no road is read off
+                            its location: a description was verified, a comment is held to the rendering. An
+                            author nobody could read is UNCONFIRMED. No caller asks it yet
+    report_binding.py       what a publication does with the report its run delivered once the push has landed:
+                            the record bound to that repository, pull request, branch and commit in one write made
+                            BEFORE anything is posted, then published. Both steps on every call, held to the
+                            publication in hand, so a record naming other work is the reconciliation's. The
+                            REQUIREMENTS are proved afresh first, and a report answering an edited issue is left
+                            owed for the drift resume. Nothing is DISCARDED: a comment too full is retried; a record
+                            nobody can read, a verification on another pull request, and one on the DESCRIPTION this
+                            publication needs park once under `report_undeliverable` with the record intact -- that
+                            last the collision, held for a human to name the description, since nothing here
+                            rewrites one. A transaction the settled pair beside it refuses is left owed, for the
+                            reconciliation to park. No stage CALLS this yet
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
                             and the stage: it hands work that has ENDED straight back -- a closed issue, or one
@@ -1980,8 +2016,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             line it reuses since the body below is what links that issue; the body pairing the
                             `Resolves #N` that closes the issue with the dev session the branch was written by
                             and the run's closing message, cut on a paragraph, line, or word boundary and marked
-                            as clipped where it outgrows the cap, with a fence the cut left open closed first;
-                            and the reuse of whatever is already open on the branch, which `find_open_pr`
+                            as clipped where it outgrows the cap, with a fence the cut left open closed first --
+                            that message written only where the issue neither owes a report nor has one settled,
+                            since the report comment is the authority and a capped excerpt would be a second,
+                            unmarked copy; and the reuse of whatever is already open on the branch, which `find_open_pr`
                             promises nothing else about -- one whose body already names this session is adopted
                             as it stands, human annotations included, and one that does not (an operator's, or
                             the `discussion` stage's plan PR sitting on the very ref the dev commits went to) is
@@ -1994,6 +2032,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reviewer that pull request. One somebody closed OR MOVED between the gate's proof and
                             here holds the tick rather than earning a second pull request over the same work or a
                             receipt naming work the branch no longer carries
+      pr_description.py     the report-aware verdict on a reused description, read afresh by number, which no
+                            caller asks yet -- the live reuse is still `dev_pr.py`'s: one closing this issue and
+                            naming this session stands, and any other is held for a human, the two lines quoted in
+                            the notice. It WRITES no description: GitHub offers no conditional write for one, so a
+                            body built from any reading can overwrite an edit saved since, and human text, legacy
+                            tails and concurrent edits stand as found. A failed re-read holds silently; one a
+                            report claims -- delivered, pending, settled, or too damaged to say -- is left to the
+                            binding's collision park while that report is owed, and parks here once it has settled
       handoff.py            the one write and the one relabel a finished publication is handed on by: the pull
                             request and the branch recorded together, since a state that arrived without a
                             branch would leave the next tick resolving the legacy name while the live pull

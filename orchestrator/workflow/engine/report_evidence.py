@@ -37,16 +37,23 @@ The local readings follow, cheapest of the rest first, so a transaction that was
 never going to complete this tick spends as little as it can: the checkout costs
 no request at all, the remote reading costs one fetch, and the requirements hash
 costs the comment walk the drift owner already makes.
+
+The requirements reading is offered on its own too, over an issue read again,
+for the callers that made the publication or settle it; and `refuses_for_good`
+says, posting nothing, whether an owed transaction can ever settle as it stands.
 """
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
+from orchestrator.github import comments as _trust, developer_reports as _reports
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pull_request_reports import ReportPresence
 from orchestrator.workflow.engine import (
     comments as _comments,
     content_hash as _content_hash,
@@ -119,8 +126,39 @@ def evidence_for(
     return found if edited is None else edited
 
 
+def fresh_requirements_verdict(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    pending: _records.PendingReport | _records.CurrentReport,
+) -> _evidence_models.ReportEvidence | None:
+    """Refuse a report the issue has moved under since the run, or None.
+
+    The same reading as the composition's, over an issue read AGAIN: the one
+    in hand was fetched before the developer ran, so an edit during the run or
+    the publication after it is invisible there. A fetch that failed HOLDS,
+    since nobody could say the issue is unchanged. A settled report answers
+    the same question, over the subject it froze.
+    """
+    try:
+        fresh = gh.get_issue(issue.number)
+    except Exception:
+        log.exception(
+            "issue=#%d could not be re-read to say whether its requirements "
+            "have moved since the run that wrote its developer report",
+            issue.number,
+        )
+        return _evidence_models.ReportEvidence(
+            _evidence_models.ReportEvidenceVerdict.HOLD,
+            "the issue could not be re-read for its requirements",
+        )
+    return _requirements_verdict(fresh, state, pending)
+
+
 def _requirements_verdict(
-    issue: Issue, state: PinnedState, pending: _records.PendingReport,
+    issue: Issue,
+    state: PinnedState,
+    pending: _records.PendingReport | _records.CurrentReport,
 ) -> _evidence_models.ReportEvidence | None:
     """Refuse a report whose requirements have moved under it, or None.
 
@@ -162,3 +200,44 @@ def _requirements_verdict(
         _evidence_models.ReportEvidenceVerdict.DEFER,
         "the issue requirements moved since the run that wrote the report",
     )
+
+
+def refuses_for_good(
+    gh: GitHubClient, pending: _records.PendingReport, pull_request: Any,
+) -> bool:
+    """Whether an owed transaction can never settle as the thread stands.
+
+    Our comment under a publication's receipt no longer rendering as the
+    report, or a verified location gone, changed or untrusted: content a human
+    owns, which no retry settles. A reading nobody could take is not one.
+    """
+    if pending.mode is _records.ReportMode.PUBLISH:
+        return _published_reading(gh, pending, pull_request) is ReportPresence.CHANGED
+    lookup = gh.reread_report_location(
+        pending.location, content_sha256=pending.content_revision,
+    )
+    if lookup.presence is not ReportPresence.PRESENT:
+        return lookup.presence in {ReportPresence.ABSENT, ReportPresence.CHANGED}
+    try:
+        return not _trust.is_trusted_author(getattr(lookup.found, "user", None))
+    except Exception:
+        log.exception("the author of a verified developer report would not read")
+        return False
+
+
+def _published_reading(
+    gh: GitHubClient, pending: _records.PendingReport, pull_request: Any,
+) -> ReportPresence:
+    """What the thread holds under a publication's receipt, posting nothing."""
+    try:
+        report = _reports.DeveloperReport(
+            pr_number=pending.subject.pr_number,
+            source_sha=pending.subject.source_sha,
+            requirements_revision=pending.subject.requirements_revision,
+            report_revision=pending.report_revision,
+            receipt=pending.receipt,
+            text=pending.report,
+        )
+    except _reports.ReportRefusedError:
+        return ReportPresence.UNCONFIRMED
+    return gh.find_developer_report(pull_request, report).presence

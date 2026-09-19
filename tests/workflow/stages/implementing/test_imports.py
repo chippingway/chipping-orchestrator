@@ -92,6 +92,7 @@ _OWNERS = (
     "parks",
     "plan_handoff",
     "plan_reading",
+    "pr_description",
     "publication",
     "read_only_relabel",
     "relabel_evidence",

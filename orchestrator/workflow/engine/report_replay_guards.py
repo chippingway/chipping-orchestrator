@@ -177,7 +177,15 @@ def _settles_the_content(
 
     What the pull-request half of either location has to be is already settled
     by the subject the caller compares above.
+
+    The ROAD is held first, wherever the settlement names one. A settlement
+    copies its record's mode, so one saying it VERIFIED is not the completion
+    of a publication, whatever else of it agrees: read as one, a report that
+    was never posted is dropped as posted. A settlement naming none was written
+    before any did, and is held to the content alone as it always was.
     """
+    if current.mode is not None and current.mode is not pending.mode:
+        return False
     if pending.mode is _records.ReportMode.VERIFY:
         return (
             current.location == pending.location

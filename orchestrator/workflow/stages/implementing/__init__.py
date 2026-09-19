@@ -50,7 +50,10 @@ latched, and the pull request this push would join, with a `discussion` plan
 the humans settled carved out of it, since merging a design is an agreement
 rather than a delivery; `dev_pr` owns what that
 pull request says and whose work it says it carries, including the reuse that
-reads the attribution back off one somebody else opened; and
+reads the attribution back off one somebody else opened; `pr_description`
+owns the report-aware verdict on such a description, which rewrites none --
+one that does not name this implementation is held for a human to name -- and
+which no caller asks yet; and
 `handoff` owns the last write and the relabel it goes out ahead of.
 
 `late_gate` is the order its own questions are asked in and nothing else, so

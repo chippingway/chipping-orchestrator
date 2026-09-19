@@ -19,11 +19,22 @@ DEFAULT_BOT_LOGIN = "orchestrator"
 _STATE_CLOSED = "closed"
 _STATE_OPEN = "open"
 
+_UNANSWERED_LOGIN = "GitHub did not answer the author's login read"
+
 
 @dataclass
 class FakeUser:
     login: str = "human"
     type: str = "User"
+
+
+class UnreadableUser:
+    """An author whose login is a request GitHub would not answer."""
+
+    @property
+    def login(self) -> str:
+        """Raise the way a lazy member does on a completion that failed."""
+        raise RuntimeError(_UNANSWERED_LOGIN)
 
 
 @dataclass

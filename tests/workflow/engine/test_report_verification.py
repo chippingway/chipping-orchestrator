@@ -36,7 +36,7 @@ from orchestrator.workflow.engine import (
     report_settlement_state as _settlement,
 )
 from orchestrator.workflow.state import WorkflowLabel
-from tests.support.fakes import FakeComment, FakeUser
+from tests.support.fakes import FakeComment, FakeUser, UnreadableUser
 from tests.workflow.engine import report_transaction_test_support as support
 
 _HUMAN_REPORT = "A report a maintainer wrote by hand."
@@ -55,15 +55,6 @@ _LOGIN = "login"
 _AUTHOR_READS = (_LOGIN, "user")
 
 
-class _UnreadableUser:
-    """An author whose login is a request GitHub would not answer."""
-
-    @property
-    def login(self) -> str:
-        """Raise the way a lazy member does on a completion that failed."""
-        raise RuntimeError(_REFUSED)
-
-
 def _refuses_the_author_read(case, read: str):
     """One of the two reads between a verified report and its author, failing.
 
@@ -73,7 +64,7 @@ def _refuses_the_author_read(case, read: str):
     entered, so it is refused at the reader's own name.
     """
     if read == _LOGIN:
-        case.human.user = _UnreadableUser()
+        case.human.user = UnreadableUser()
         return patch.object(config, "ALLOWED_ISSUE_AUTHORS", (_AUTHOR,))
     return patch.object(
         _trust, "is_trusted_author", side_effect=RuntimeError(_REFUSED),

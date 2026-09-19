@@ -110,7 +110,10 @@ outcome into the record a publication is read from, and the additive `developer_
 and the publication transaction it is bound into across a process that dies mid-way;
 `workflow/engine/report_transaction.py` reconciles an outstanding transaction ahead of every stage handler — proving
 the world it was recorded against, publishing or re-reading the report, and settling the record in a single write.
-No stage produces such a record yet. Full contract:
+`workflow/engine/report_binding.py` is the step between them, binding a delivery to the repository, pull request,
+branch and commit its code reached before anything is posted. No stage produces such a record or calls the binding
+yet; the implementing stage's pull-request body only asks whether a report is owed or settled, and leaves the run's
+closing message out where one is. Full contract:
 [`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts).
 
 ## Examples

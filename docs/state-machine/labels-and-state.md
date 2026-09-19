@@ -624,8 +624,8 @@ The keys that matter for the state machine fall into a few groups:
   carries the transaction beside the previous report and its receipt, which are what a reader still needs while the
   new one is outstanding and are exactly what the settlement then replaces. The owners are the
   `workflow/engine/report_record*`, `report_delivery_state` and `report_settlement_state` modules, what turns a
-  finished run into a delivery is `report_delivery.py`, and what reconciles an outstanding transaction ahead of
-  every handler is
+  finished run into a delivery is `report_delivery.py`, what binds it and publishes it once the code reaches a pull
+  request is `report_binding.py`, and what reconciles an outstanding transaction ahead of every handler is
   [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch).
   No stage PRODUCES a record yet, so the group is empty on every live issue; the dispatcher's reconciliation is what
   finishes one the moment a stage does.
@@ -665,12 +665,21 @@ The keys that matter for the state machine fall into a few groups:
   never saw, and it is held to the record the comment CARRIES: a report the delivery field has none for, one
   nothing can read, and one a later report has already replaced are each refused, since the write drops whatever is
   there and binding on any of them would replace a finished run's report with a value the comment never held. Two
-  roads park the issue under `report_undeliverable`, and both are on the recording side: a report this workflow
-  cannot write down at all, and a completed run that handed over no usable report to write. A binding REFUSES
-  rather than parks — it stages nothing and says which refusal it was, so whatever comes to call it can tell a
-  comment too full for the transaction, which the routes a report still owed lets run give that room back for,
-  from a record no comment would ever hold. On every one of them the record that exists is left exactly as it
-  stands.
+  roads on the recording side park the issue under `report_undeliverable`: a report this workflow cannot write down
+  at all, and a completed run that handed over no usable report to write. A binding REFUSES rather than parks — it
+  stages nothing and says which refusal it was — and `report_binding.py` is what answers the refusal: a comment too
+  full for the transaction is retried silently on the next call, since the routes a report still owed lets run are
+  what give that room back, while a record no comment would ever hold, a delivery nothing can read, and a
+  verification on the very description the publication needs for its closing reference park under the same reason.
+  On every one of them the record that exists is left exactly as it stands.
+
+  `developer_report_owed` is the debt those parks leave, a bare `true` written beside the reason by every road that
+  parks under `report_undeliverable`. The flags are single, so any later park — a resumed run that times out, a
+  question — replaces `park_reason`, and without the flag the report that finally comes back would read as an
+  ordinary reply on an issue owing nothing. `owes_a_report` reads it beside the two records and the reason, and the
+  write that records a delivered report retires it with the reason. Additive: an issue without it owes nothing on
+  that account, and an older park carrying the reason alone still reads as a debt and is given the flag, with no
+  second notice, the next time a road meets that park still standing.
 
   `developer_report_pending` is one publication transaction, written **before the report it carries is published**
   — that ordering is the whole of what makes the publication recoverable. Whether the CODE that report is about is
@@ -687,23 +696,36 @@ The keys that matter for the state machine fall into a few groups:
 
   `developer_report_current` is what the pull request carries now — subject, revision, exact location, and content
   digest — and it outlives every transaction that put one there, so a later reader can tell a report this
-  orchestrator published from one a human has edited since. `developer_report_handoff` is the receipt that one
-  transaction finished; a replay under the same receipt recognizes its own completed work instead of repeating it.
+  orchestrator published from one a human has edited since. Its `mode` member (`publish` / `verify`) says which road
+  settled it, because the digest proves a different thing on each: a verified location IS the text that hashes to
+  it, while a published comment is that text under a header, and a comment cut down to the bare text hashes the
+  same. It is the one additive member of the record: a settlement written without it reads back with no road and is
+  re-read by what its location allows (`workflow/engine/report_settled_reading.py`), while a value that names no
+  road is damage like any other — `null` included, since only the member's absence is what an older settlement
+  left. A replay holds a settlement to it too (`workflow/engine/report_replay_guards.py`): a record naming one road
+  is never the completion of a pending transaction on the other, which parks as a disagreeing handoff with the debt
+  intact, and a record without the member is held to the content as it always was. `developer_report_handoff` is
+  the receipt that one transaction finished; a replay under the same receipt recognizes its own completed work
+  instead of repeating it.
   Both settled records, the watermarks the run consumed, the bookkeeping its route owed, and the drop of the pending
   record land in ONE durable write, because every split between them is a window a crash turns into a second report
   or a round spent twice. That write is composed whole before any of it is installed, so a settled record its own
   writer refuses lands none of itself rather than dropping the pending record beside a published report.
 
-  Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record.
+  Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record,
+  the one member named below excepted.
   Both a pending verification's location and the settled `developer_report_current` location are bound to their own
   subject's pull request, since a location is exact in both halves and still names a place anywhere in the
   repository — a subject naming one pull request beside a location on another would say the report this pull
   request carries is somewhere else. Every optional-looking field is written on *every* record, so its absence is
   damage rather than a default: an empty watermark or bookkeeping array is "nothing owed" while an absent or `null`
   one is a truncation, and a location without its comment field is a truncation while the `null` spelled there is
-  the description. The only legacy-safe absence is the whole additive record. Because that absence is also what an
-  issue with nothing recorded reads as, presence is asked apart from meaning: an issue that CLAIMS a record nobody
-  can describe is the one answer a guard may not confuse with an issue that owes none.
+  the description. The legacy-safe absences are the whole additive record and one member: `developer_report_current`
+  without `mode`, which is what a settlement written before that member existed carries and reads back with no
+  road, while a `mode` that is present and names none — `null` included — is damage like any other member. Because
+  a record's absence is also what an issue with nothing recorded reads as, presence is asked apart from meaning: an
+  issue that CLAIMS a record nobody can describe is the one answer a guard may not confuse with an issue that owes
+  none.
 
   What counts as a claim differs across the four, and it follows from which of them is ever cleared.
   `developer_report_delivery` is cleared by the write that binds it — and by nothing else, since a refusal that
@@ -797,12 +819,16 @@ The keys that matter for the state machine fall into a few groups:
   standing it takes no park at all and does not hold either, because the route that answers a foreign park is the
   handler behind this guard (see
   [`delivery-stages.md`](delivery-stages.md#the-developer-report-transaction-every-dispatch)).
-  `workflow/engine/report_delivery.py` re-sets `report_undeliverable` for a reason of a third kind: the two roads
-  that take it — a report this build cannot record, and a completed run that handed over none at all — leave no
-  record behind them, so the reason is the whole of the DEBT as well as the notice's bookkeeping, and while it
-  stands the issue reads as still owing a report. It is announced once while it stands, and retired the moment a
-  report IS recorded, since that is the condition it was taken for. Nothing takes it yet, because nothing calls
-  that owner. The late
+  `workflow/engine/report_delivery.py` re-sets `report_undeliverable` for a reason of a third kind: the roads on the
+  recording side that take it — a report this build cannot record, and a completed run that handed over none at all
+  — leave no record behind them, so the park is the DEBT as well as the notice's bookkeeping. That debt is
+  `developer_report_owed`, set beside the reason and outliving any later park that replaces it, and while either
+  stands the issue reads as still owing a report. The binding in `report_binding.py` and the description verdict in
+  `stages/implementing/pr_description.py` take the same park after a push, for a report that cannot be bound and a
+  description that does not close the issue and name the session — which no owner rewrites, so the notice quotes the
+  two lines for a human to put there. It is announced once while it stands, and retired the moment a report IS
+  recorded, since that is the condition it was taken for. Nothing takes it yet, because no stage calls those
+  owners. The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,
   `late_candidate_moved`, `late_unauthorized_exemption`, `late_evidence_missing`, `late_plan_pr_hold_failed`,
   `late_generation_incomplete`, `late_worktree_missing`, `late_worktree_mutated`, `late_adjudicator_timeout`,

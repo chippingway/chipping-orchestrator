@@ -122,19 +122,25 @@ class GitHubPullRequestReports:
         which a caller holds on rather than posts past, since a second comment
         under one receipt would leave two claims to one transaction. A copy
         anybody else pasted is neither: it is not ours, so it is not there.
+
+        UNCONFIRMED is a thread nobody could read, or one whose comments would
+        not say who wrote them: an author is a request on a worker that has
+        not completed it, and one that raised decides nothing about a comment.
         """
         _refuse_another_pull_request(pr, report)
         try:
-            thread = self._report_thread(pr)
+            lookup = _report_on_thread(
+                self._report_thread(pr), report,
+                bot_login=getattr(self, "_bot_login", None),
+            )
         except Exception:
             log.warning(
-                "could not read PR #%s for developer report revision %s",
+                "could not read PR #%s, or who wrote what is on it, for "
+                "developer report revision %s",
                 report.pr_number, report.report_revision, exc_info=True,
             )
-            return ReportLookup(ReportPresence.UNCONFIRMED)
-        return _report_on_thread(
-            thread, report, bot_login=getattr(self, "_bot_login", None),
-        )
+            lookup = ReportLookup(ReportPresence.UNCONFIRMED)
+        return lookup
 
     def publish_developer_report(
         self, pr: PullRequest, report: _reports.DeveloperReport,
