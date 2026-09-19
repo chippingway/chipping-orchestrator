@@ -18,8 +18,9 @@ behavior belong to [`state-machine.md`](state-machine.md).
   role.
 - [`workflow/conversations.md`](workflow/conversations.md) — the two operator-applied conversation labels: what the
   `question` and `discussion` prompts grant and forbid, what a round may leave behind, the plan PR a confirmed design
-  earns, the tracked-repository awareness block the working-agent prompts carry, and the report contract every
-  developer prompt teaches with the reader of its outcomes.
+  earns, the tracked-repository awareness block the working-agent prompts carry, the report contract every
+  developer prompt teaches with the reader of its outcomes, and the shared foreground execution guidance for
+  asynchronous commands.
 - [`workflow/command-specs.md`](workflow/command-specs.md) — the spec grammar, backend selection and `CODEX_BIN` /
   `CLAUDE_BIN` / `AGY_BIN`, worked examples, and what pinning a spec buys.
 
@@ -113,6 +114,17 @@ the world it was recorded against, publishing or re-reading the report, and sett
 No stage produces such a record yet. Full contract:
 [`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts).
 
+## Foreground execution and asynchronous command guidance
+
+Every developer and commit-producing prompt carries one shared foreground-execution note (`_FOREGROUND_ONLY_NOTE` in
+`workflow/engine/prompt_notes.py`); read-only prompts (reviewer, question, decomposition) do not carry it. Under the
+orchestrator's stateless, one-shot process execution model, an agent session terminates immediately upon responding, so
+background jobs die with the session and are never observed. For agent backends that support asynchronous tool execution
+such as Antigravity (`agy`), the note instructs the agent to use supported wait/status tools such as `manage_task` to
+wait within the current response, treat a `RUNNING` status as requiring continued polling or waiting, and avoid ending
+the response to await a notification, which terminates AGY and cancels the command. Contract details:
+[`workflow/conversations.md#foreground-execution-and-asynchronous-command-guidance`][foreground-guidance].
+
 ## Examples
 
 Any of the lines below is a valid value for any of the three role env vars; the full set, including the codex quoting
@@ -143,3 +155,4 @@ validating tick. Per-role keys, the resume path, and the legacy values still hon
 [workflow-labels]: state-machine/labels-and-state.md#workflow-labels
 [question-handler]: state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: state-machine/conversation-stages.md#_handle_discussion-label-discussion
+[foreground-guidance]: workflow/conversations.md#foreground-execution-and-asynchronous-command-guidance
