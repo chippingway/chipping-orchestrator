@@ -22,6 +22,7 @@ FakeComment = fakes.FakeComment
 FakeGitHubClient = fakes.FakeGitHubClient
 FakePR = fakes.FakePR
 FakeUser = fakes.FakeUser
+LazyPullRequest = fakes.LazyPullRequest
 make_issue = fakes.make_issue
 IssueScenario = implementing_fixing_test_cases.IssueScenario
 posted_comment_contains = implementing_fixing_test_cases.posted_comment_contains

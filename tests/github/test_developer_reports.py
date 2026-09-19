@@ -20,6 +20,9 @@ _LATER_REVISION = 2
 _HEADER_PREFIX = "<!--orchestrator-developer-report"
 # How many characters an excerpt loses from the end of its text.
 _CUT = 10
+# A count of more digits than Python converts, in a comment GitHub still holds.
+_DIGITS = 5000
+_UNCONVERTIBLE = "1" * _DIGITS
 _REPORT = make_developer_report(_PR_NUMBER)
 
 
@@ -165,6 +168,19 @@ class ReportOwnershipTest(unittest.TestCase):
                 self.assertIsNone(
                     _reports.developer_report_from_comment(comment, bot_login=_BOT_LOGIN),
                 )
+
+    def test_an_unconvertible_count_is_not_a_report(self) -> None:
+        # Either count of the header, claimed in more digits than Python
+        # converts: no rendering wrote it, and reading it raises nothing.
+        body = _reports.render_developer_report(_REPORT)
+        for claimed in (f":pr={_PR_NUMBER}:", ":revision=1:"):
+            with self.subTest(claimed=claimed):
+                field = claimed.partition("=")[0]
+                endless = body.replace(claimed, f"{field}={_UNCONVERTIBLE}:")
+                self.assertNotEqual(endless, body)
+                self.assertIsNone(_reports.developer_report_from_comment(
+                    _comment(endless), bot_login=_BOT_LOGIN,
+                ))
 
 
 if __name__ == "__main__":

@@ -11,9 +11,9 @@ second reading is what the description must say before the work is handed on
 -- a closing reference and the session -- and the third is which publication a
 SETTLED report is about, a claim its caller re-reads.
 
-Nothing in the workflow asks any of the three yet: the publication keeps
-reading and writing a description as it does until its integration stands on
-these answers.
+`report_binding` and the implementing stage's `pr_description` ask the first
+two, and no stage calls either of them yet: the publication keeps reading and
+writing a description as it does until its integration stands on these answers.
 """
 from __future__ import annotations
 

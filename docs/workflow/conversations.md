@@ -236,7 +236,9 @@ still hashes to the revision.
 
 No stage handler calls `report_outcomes` or records a report transaction. What turns an outcome into one is
 `workflow/engine/report_delivery.py`, which reads it off a finished run and writes the durable delivery record a
-transaction is bound from — and nothing calls that owner either, so no developer's outcome becomes a record today.
+transaction is bound from — and no stage calls that recording either, so no developer's outcome becomes a record
+today. The one part of that owner read live is `owes_a_report`, which the implementing stage's pull-request body asks
+before writing the run's closing message, and which answers False on every live issue for that reason.
 A developer run is still routed by its commits, its `ACK:` line, and the question parks the
 [delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read the way its
 stage reads any other no-commit reply without `ACK:`.
@@ -251,9 +253,12 @@ not the same report. Exactly one of the four is reconciled: where a `developer_r
 developer-report comment owners (`github/developer_reports.py`, `github/pull_request_reports.py`, and
 `workflow/engine/comments.py`'s `_publish_developer_report`). It never reads an agent's message: what it acts on is the
 record a stage will write, and on an issue carrying no such record it costs one pinned read that has already happened.
-The other three are read by nobody ahead of a handler. `developer_report_delivery` in particular is inert: the owner
-that would write one is not called, nothing looks for one, and no reconciliation would act on one if it were there —
-binding it to a publication is a step a stage has to take.
+The other three are read by nobody ahead of a handler. `developer_report_delivery` in particular is inert: the
+recording that would write one is not called, the only live reader that asks after one is the pull-request body's
+`owes_a_report`, which decides nothing but whether the run's closing message is written, and no reconciliation would
+act on one if it were there — binding it to a publication is a step a stage has to take, through
+`workflow/engine/report_binding.py`, which exchanges the delivery for its transaction in one write before anything is
+posted and which no stage calls yet.
 
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion

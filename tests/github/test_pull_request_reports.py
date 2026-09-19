@@ -23,7 +23,7 @@ from orchestrator.github.pull_request_reports import (
     ReportPresence,
 )
 from tests.github import report_test_support as support
-from tests.support.fakes import make_developer_report
+from tests.support.fakes import UnreadableUser, make_developer_report
 
 _GITHUB_LOG = "orchestrator.github"
 _WARNING = "WARNING"
@@ -38,6 +38,7 @@ _LATER_REPORT = make_developer_report(
     text="Reworded the summary the reviewer asked about.",
 )
 _HUMAN_REPORT = "## Report\n\nEverything the reviewer asked for is done."
+_UNCONFIRMED = ReportLookup(ReportPresence.UNCONFIRMED)
 
 
 def _publish(case, report=_REPORT) -> ReportLookup:
@@ -153,6 +154,29 @@ class _RecoveryContract:
                     [comment.body for comment in self.pull_request.issue_comments],
                     [render_developer_report(_REPORT)],
                 )
+
+    def both_readings(self) -> list[ReportLookup]:
+        """What a lookup and then a publication each read of the report."""
+        reads = (self.gh.find_developer_report, self.gh.publish_developer_report)
+        return [read(self.pull_request, _REPORT) for read in reads]
+
+    def test_an_unreadable_author_is_unconfirmed(self) -> None:
+        # Our own rendering, under an author GitHub would not name: whose it
+        # is decides PRESENT from ABSENT, so neither is answered, nothing is
+        # posted beside it, and the next reading tells them apart.
+        landed = self.seed(render_developer_report(_REPORT), login=support.BOT_LOGIN)
+        author = landed.user
+        landed.user = UnreadableUser()
+
+        with self.assertLogs(_GITHUB_LOG, _WARNING):
+            unread = self.both_readings()
+        landed.user = author
+        reread = self.both_readings()
+
+        present = ReportLookup(ReportPresence.PRESENT, landed)
+        self.assertEqual(unread, [_UNCONFIRMED, _UNCONFIRMED])
+        self.assertEqual(reread, [present, present])
+        self.assertEqual(self.pull_request.issue_comments, [landed])
 
     def test_a_location_is_reread_exactly(self) -> None:
         human = self.seed(_HUMAN_REPORT, login=_HUMAN_LOGIN)

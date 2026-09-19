@@ -41,6 +41,9 @@ from tests.workflow.fixtures import (
 )
 from tests.workflow.git_owners import seam_patch
 
+# A notice offered to a park that is still standing, which nobody may be sent.
+_SECOND_NOTICE = "The report this issue owes still cannot be delivered."
+
 
 class DeliveredReportRecordTest(unittest.TestCase):
     def test_both_modes_round_trip(self) -> None:
@@ -285,6 +288,55 @@ class ReportedRunTest(unittest.TestCase):
                     (state.get(delivery_support.PARK_REASON), _delivery.owes_a_report(state)),
                     (_delivery.UNDELIVERABLE_REPORT, True),
                 )
+
+    def test_the_debt_outlives_its_park(self) -> None:
+        # The flags are single, so a later park -- a resumed run that timed out
+        # -- replaces the reason. The debt is kept beside it, so the issue
+        # still owes its report, until a run that reports retires both.
+        seeded = delivery_support.seeded_issue()
+        state = PinnedState(state_data={delivery_support.BASELINE: support.REQUIREMENTS})
+        _delivery.recording_stops_the_tick(
+            *seeded, state, _agent(last_message="implemented"),
+            WorkflowLabel.IMPLEMENTING,
+        )
+        state.set(delivery_support.PARK_REASON, "agent_timeout")
+        self.assertEqual(
+            (state.get(_delivery.OWED_REPORT), _delivery.owes_a_report(state)),
+            (True, True),
+        )
+
+        self.assertFalse(_delivery.recording_stops_the_tick(
+            *seeded, state,
+            _agent(last_message=delivery_support.ready("The report.")),
+            WorkflowLabel.IMPLEMENTING,
+        ))
+
+        self.assertIsNone(state.get(_delivery.OWED_REPORT))
+        self.assertTrue(_delivery_state.carries_delivered_report(state))
+
+    def test_a_standing_legacy_park_takes_the_debt(self) -> None:
+        # A park taken before the debt had a field of its own carries the
+        # reason alone. Met again while it stands, it is told nothing new, and
+        # the debt is written down, so the park that replaces the reason next
+        # leaves the report still owed.
+        github, issue = delivery_support.seeded_issue()
+        state = PinnedState(state_data=dict(delivery_support.OWED) | {
+            delivery_support.AWAITING_HUMAN: True,
+        })
+
+        _delivery.parks_an_undeliverable_report(
+            github, issue, state, _SECOND_NOTICE,
+        )
+        state.set(delivery_support.PARK_REASON, "agent_timeout")
+
+        self.assertEqual(
+            (
+                [posted.body for posted in issue.comments].count(_SECOND_NOTICE),
+                github.pinned_data(issue.number)[_delivery.OWED_REPORT],
+                _delivery.owes_a_report(state),
+            ),
+            (0, True, True),
+        )
 
     def test_a_run_no_process_finished_holds_nothing(self) -> None:
         # Every way a run falls short of its own end: one no process produced

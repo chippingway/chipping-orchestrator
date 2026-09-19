@@ -629,7 +629,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     transaction still owed rather than retried quietly. The tick otherwise carries on to the handler.
   - **Held** (tick stops, nothing written) → a reading nobody could take, and only that: an unreadable worktree or
     head, a fetch that failed, a recorded pull request that would not read, an issue whose comments would not read
-    (the requirements revision is computed from them), a post or re-read GitHub did not confirm
+    (the requirements revision is computed from them), an issue that would not re-read for the settlement's own
+    last look at those requirements, a post or re-read GitHub did not confirm
     (`ReportPresence.UNCONFIRMED`), and a verification whose AUTHOR would not read — `user` comes off the object
     GitHub handed back and `login` comes off that, so either is a request that can fail, and a failure is nobody
     saying rather than an author this deployment refuses. Beside them is the one damaged reading that holds rather
@@ -641,7 +642,9 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   - **Stood down** (tick carries on, transaction still owed) → every *definite* refusal. The structural ones: a
     dirty tree, a head that moved, a checkout on another host, a commit the pull request does not carry yet, a
     publication receipt naming another commit or another pull request, a recorded pull request on another branch
-    or built from a fork, requirements a human edited. And the ones about the report itself: a comment of ours under
+    or built from a fork, requirements a human edited — asked with the rest of the evidence, and once more over the
+    issue read afresh after the post or re-read and before the settlement is written, since that request is long
+    enough for an edit to land under it. And the ones about the report itself: a comment of ours under
     this receipt that no longer renders as the report (`CHANGED` — somebody edited it), a verification whose
     location no longer holds anything (`ABSENT` — somebody deleted it), and a location whose author this deployment
     does not trust. And one about the pinned comment itself: a settlement that would no longer fit it. The room was

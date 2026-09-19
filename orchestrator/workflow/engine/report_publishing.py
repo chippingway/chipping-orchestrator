@@ -31,6 +31,11 @@ The settlement is ONE write. The current report, the handoff receipt, the
 watermarks the run consumed, the bookkeeping its route owed, and the drop of the
 pending record all land together, because every split between them is a window
 a crash turns into a second report, a lost round, or feedback answered twice.
+
+It is taken last, after the requirements are read once more off GitHub: a post
+or a re-read is long enough for a human to edit the issue under it. Each
+settlement records which road made it, which is what `report_settled_reading`
+holds a later re-read of that report to.
 """
 from __future__ import annotations
 
@@ -49,6 +54,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     report_consumed_values as _consumed,
+    report_evidence as _evidence,
     report_record_state as _record_state,
     report_records as _records,
     report_settlement_state as _settlement,
@@ -179,6 +185,7 @@ def publishes_the_report(
         location=_pr_reports.ReportLocation(
             pr_number=pending.subject.pr_number, comment_id=posted,
         ),
+        mode=_records.ReportMode.PUBLISH,
     ))
 
 
@@ -239,6 +246,7 @@ def verifies_the_report(
         report_revision=pending.report_revision,
         content_revision=pending.content_revision,
         location=pending.location,
+        mode=_records.ReportMode.VERIFY,
     ))
 
 
@@ -320,7 +328,21 @@ def settles(
 
     False on a settlement that landed, because the transaction is finished and
     the tick belongs to whatever runs behind it.
+
+    The requirements are proved again first, over an issue read afresh, since
+    an edit can land inside the post or the re-read. Refused, nothing is
+    written and the transaction stays owed, which withholds the handoff for the
+    drift resume to answer; a re-read nobody could take holds the tick.
     """
+    edited = _evidence.fresh_requirements_verdict(gh, issue, state, pending)
+    if edited is not None:
+        log.info(
+            "issue=#%d is not settling developer report revision %d on PR #%d: "
+            "%s; leaving it owed",
+            issue.number, pending.report_revision, pending.subject.pr_number,
+            edited.refusal,
+        )
+        return edited.holds
     settled = PinnedState(state_data=dict(state.data))
     recorded = _settlement.record_current_report(settled, current)
     handed = _settlement.record_handoff(settled, _records.ReportHandoff(

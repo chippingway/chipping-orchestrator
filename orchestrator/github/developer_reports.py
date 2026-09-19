@@ -155,8 +155,10 @@ def developer_report_from_comment(
     Ours by author, and a report by exact re-rendering: the identity and text
     are read back out of the body and rendered again, and anything but the same
     body -- an edited sentence, a stale digest, text appended after the marker,
-    an excerpt cut short -- is not a report. A client with no login of its own
-    takes the content alone, the same fallback `authored_by_us` takes.
+    an excerpt cut short -- is not a report. Nor is one whose header claims a
+    number of more digits than Python converts, which no rendering wrote. A
+    client with no login of its own takes the content alone, the same fallback
+    `authored_by_us` takes.
     """
     body = getattr(comment, "body", None)
     if not isinstance(body, str) or len(body) > MAX_PINNED_BODY:
@@ -174,7 +176,8 @@ def developer_report_from_comment(
             receipt=claimed["receipt"],
             text=body[len(preamble):claimed.start()].removesuffix(_SEPARATOR),
         )
-    except ReportRefusedError:
+    except ValueError:
+        # A refusal, which is one, or a count too long to convert.
         return None
     return report if render_developer_report(report) == body else None
 
