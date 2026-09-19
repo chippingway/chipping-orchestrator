@@ -2918,12 +2918,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      or a verified location gone, changed, or written by an author this deployment does not trust
      (`report_evidence.refuses_for_good`, the reading the implementing handoff takes) — and a debt no record
      describes at all, a run that committed and wrote no report whose park a reply answered without writing one
-     either. The last three are content a human owns, which the reconciliation deliberately stands down on rather
-     than holding, so nothing else would ever say so and the reviewer would be suppressed for the life of the issue
-     in silence. The binding itself is
+     either. The loose checkout and the report the thread moved are content a human owns, which the reconciliation
+     deliberately stands down on rather than holding, so nothing else would ever say so and the reviewer would be
+     suppressed for the life of the issue in silence. The binding itself is
      `report_settlement`'s, over the pull request, its description, and the issue read again. A reply resumes the
-     session through the drift route, whose report supersedes the undelivered one. A transaction the reconciliation
-     stood down on holds silently until it settles. A park the awaiting-human branch cleared into this round is
+     session through the drift route, whose report supersedes the undelivered one. Anything else still owed — a
+     reading nobody could take, or a pull request somebody moved under the report — holds silently, since the next
+     tick is as likely to settle it. A park the awaiting-human branch cleared into this round is
      written when the hold stops it, so its reply is not answered twice.
   4. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
      `/orchestrator add-review-rounds N` escape hatch.
