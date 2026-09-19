@@ -217,7 +217,79 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report reader and the reviewer verification reader, judged without a Markdown parser so
                             that a doubt reads as fenced: a fence opens at the top level or in a list item, closes
                             only on a bare run at its opening run's column, and stays open to the end past a line
-                            that may have ended its list item
+                            that may have ended its list item. On request it reads the fences a blockquote holds
+                            too, behind any nesting of list and quote markers, closing one only behind the markers
+                            it opened behind; the marker readers do not ask, since no marker line opens on `>`.
+                            That reading errs towards code, so `definite_fences` answers the other end of the
+                            doubt: the closed fences that are fences however the text is read -- opened at the
+                            margin of their markers, outside anything an HTML block may hold, and closed where
+                            Markdown closes them rather than only where the stricter reading does
+    report_prose.py         what of a description is certainly prose, for the closing keywords GitHub does not act
+                            on inside code. Not one reading of the Markdown but what EVERY reading leaves, so a
+                            doubt reads as code. Lines are ended as Markdown ends them, a bare carriage return
+                            included; a line a fence may enclose and a line indented as code are code behind any
+                            nesting of list and blockquote markers; so is every span `report_code_spans.py` finds
+                            possible and everything `report_html_literals.py` finds literal. What is taken out
+                            leaves a character no reference is made of, so a keyword and a number either side of
+                            code are never read as one, and a tag's own markup goes the same way, quoted attribute
+                            values and all -- to its `>`, or to the end of the text for one that opens a line,
+                            behind markers or what was taken out, and that nothing closes. So does what
+                            `report_link_fields.py` finds read and not shown, asked once the tags are out. Both are
+                            read TWICE, which backticks pair being a doubt of theirs too: with every possible span
+                            out, where a span may hide a closing bracket, and with nothing out but certain code,
+                            since a span only some reading encloses -- from a backtick a bare URL took, into a
+                            title -- takes the link's syntax along and leaves the rest of the title as prose
+    report_link_fields.py   what of a text a link, an image or a definition reads and shows nothing of, each
+                            wherever it MAY be one. An image's description, an `alt` attribute once rendered: from
+                            its `!` to the bracket that closes it, brackets paired innermost first and a backslash
+                            escaping one, whatever follows it -- a collapsed or a shortcut image is one by a
+                            definition nobody looks up. What stands behind a link's or an image's text: the
+                            destination and title in parentheses, or the label it names; a bare destination holds
+                            parentheses in pairs as deep as the renderer GitHub runs reads them, and one that goes
+                            deeper runs to the whitespace that ends it, found once for the run it stands in. And a
+                            link reference definition whole, behind the markers its line opens on, its destination
+                            on the next line and its title on the one after included. A title goes on over line
+                            endings, one behind a backslash included, and the parts of a link stand either side of
+                            one behind the blockquote markers the next line opens on
+    report_code_spans.py    the inline code spans of a text, POSSIBLE and CERTAIN. Markdown pairs backticks within
+                            one stretch of inline text, and where one begins is the doubt: a heading or a list item
+                            starts a block with no blank line above it, a table reads each cell on its own, and a
+                            backtick is no delimiter where something else has TAKEN it -- a tag or an autolink,
+                            which binds as tightly as a span, a bare `https://`, `ftp://` or `www.` URL, which
+                            GitHub links where it stands through every backtick to ASCII whitespace or a `<`, a
+                            link or an image, which reads its destination and title itself, a reference's label,
+                            math -- so the pairing starts afresh past it. So a span is looked for from every line,
+                            every cell of a block that may hold a table, and past every `>`, `]`, `)`, `$` and bare
+                            URL's end from the first `<`, `[`, `$` or bare URL standing in no certain code, within
+                            what blank lines bound and against one index of the text's backtick runs; possible is
+                            whatever any reading encloses, and a block with more places to begin than the readings
+                            allow is code throughout. Certain is what every reading agrees on: a span that ends
+                            before the next place a reading could begin, begun where no earlier reading's span runs
+                            in, with no taker before it in its block outside the certain spans already found. An
+                            escaped backtick opens nothing, and a backslash inside a span escapes nothing
+    report_html_literals.py what HTML shows literally or hides -- `<pre>`, `<code>` and their kind, and what renders
+                            as nothing: a comment, a declaration, a processing instruction, a CDATA section, and the
+                            bogus comment any other `<!`, `<?` or `</` opens, each hidden to the LATER of Markdown's
+                            terminator and HTML's `>` and read on as HTML from that `>` -- read off the text AS
+                            WRITTEN, since an element is literal whether or not some reading pairs a backtick
+                            across its opening tag. EVERY tag is read, as an HTML tokenizer reads one -- a quote
+                            opens a value only after a name's `=`, a value never closed takes the rest, whitespace
+                            is HTML's own five characters rather than `\s`, and a name is folded in ASCII alone --
+                            so a closing tag in another tag's markup, a comment, or the bogus comment a `<!` opens
+                            closes nothing, while an opening tag counts wherever it is found, since what shelters
+                            it may be no tag as Markdown reads it; `report_prose.py` takes tag markup out through
+                            the same reader, `TagEnds`, which remembers what one reading found unclosed so a text
+                            of nothing but openers is read once. Opening tags are counted by name, so nesting
+                            holds, and an element opened in another tag's markup is literal from where that markup
+                            began; a CLOSING tag is trusted only where it stands in the same possible code, or the
+                            same prose, as the tag that opened the element under every reading -- each span is asked
+                            apart, since two that overlap may come from readings that each hide one tag only; and an
+                            OPENING tag or comment opens nothing in DEFINITE code -- a certain span or a definite
+                            fence -- since a tag quoted as an example is no tag, unless an element is already open,
+                            where no Markdown is read. A tag is found by its opener and read to its end only once
+                            it counts: a quoted one is passed over at its `<`, so one cut short inside its code
+                            never takes a real tag after it as attributes, nor one right behind that code into its
+                            name
     report_records.py       the four additive pinned records one developer report goes through: the DELIVERED
                             report a completed run wrote before any of its code was published, the PENDING
                             transaction that report is bound into once a pull request carries the code, the
@@ -346,6 +418,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             one -- so either key is claimed by its presence alone, `null` included, which is the
                             one place this parts company with the pending record whose ordinary resting state that
                             is. No stage PRODUCES this group yet; what consumes one is the reconciliation below
+    report_locations.py     which places on a pull request this issue's reports claim, asked of all three records
+                            -- a record nobody can read, or a settled pair missing its current report, included --
+                            since even an edit keeping every word moves a verified DESCRIPTION off its digest, while
+                            a report in a comment is out of a body edit's reach. A damaged record claims the
+                            description unless the place it still names is readably elsewhere. The second reading
+                            is what a description has to say: whether it closes this issue -- any spelling GitHub
+                            accepts, bare or qualified with this repository, outside everything `report_prose.py`
+                            takes out, ASCII from end to end, its number compared as digits -- and names the
+                            session; `costs_the_description` is that answer held against a verification living on
+                            the same description. It also answers which publication the SETTLED pair is about,
+                            agreeing with itself and naming this repository, pull request, branch and commit; what
+                            it hands back is a claim, for its caller to re-read. No stage CALLS any of this yet
     report_evidence_models.py the four answers one reading gives: PROVED, which alone licenses a publication and
                             alone carries the pull request it proved; HOLD for a reading nobody could take; DEFER
                             for everything structural, which the routes behind the evidence are what clear; and
