@@ -220,6 +220,15 @@ UNSHOWN = (
     f'> [docs]:\n> url\n> "{FIXES}"',
     f'> [link](url\n> "{FIXES}")',
     f'> > [link](\n> > url\n> > "{FIXES}"\n> > )',
+    # Which backticks pair is a doubt of a link's and a tag's too. A span only
+    # SOME reading encloses -- from a backtick a bare URL or math took, into a
+    # title, a description or an attribute -- takes the syntax around it along,
+    # so what is not shown is read with such a span still in the text as well.
+    f'https://example.com/`x [link](url "a ` {FIXES}")',
+    f'www.example.com/`x [link](url\n"a ` {FIXES}")',
+    f"https://example.com/`x ![a ` {FIXES}](url)",
+    f'https://example.com/`x <a title="a ` {FIXES}">link</a>',
+    f'$a ` b$ [link](url "a ` {FIXES}")',
 )
 
 # A tag quoted as code is no tag only where the code is CERTAIN. Not after a
@@ -320,6 +329,14 @@ PROSE = (
     f'[link](url "a title\\\nin two lines") {FIXES}',
     f'[link](url "first\\\\" {FIXES} "x")',
     f"> [docs]: url\n> {FIXES}",
+    # Read with possible code still in the text, a link or a tag hides what is
+    # its own and no more; one quoted in certain code is never read at all, and
+    # a tag nothing closes takes no rest of a text its line may be code in.
+    f'https://example.com/`x [link](url "a ` title") {FIXES}',
+    f'Write `[a](url "` then {FIXES} ")',
+    f'Write `<a title="` then {FIXES} ">',
+    f"See `![` and later ] {FIXES}",
+    f"    <T extends Comparable\n\n{FIXES}",
     f"> [link](url)\n> {FIXES}",
     f"Done! [The docs](https://example.com) say so. {FIXES}",
     f"- [x] done with `a`. {FIXES} and `b`",

@@ -113,6 +113,8 @@ CLOSING_NOTHING = (
     f'[link](url "first\\\n{RESOLVES}")',
     f'[docs]: url "first\\\n{RESOLVES}"',
     f'> [link](url\n> "{RESOLVES}")',
+    f'https://example.com/`x [link](url "a ` {RESOLVES}")',
+    f'https://example.com/`x <a title="a ` {RESOLVES}">link</a>',
     f"<!DOCTYPE html {RESOLVES}>",
     f"<?{RESOLVES}?>",
     f"<![CDATA[{RESOLVES}]]>",

@@ -29,6 +29,14 @@ So does what Markdown itself reads and shows nothing of -- a link reference
 definition, what stands behind a link's or an image's text, and an image's
 description -- which is `report_link_fields`'s question, asked once the tags
 are out, so a bracket in a tag's attribute pairs with nothing.
+
+Both are read TWICE, since which backticks pair is a doubt of theirs too. Once
+with every possible code span out, where a span may hide the bracket that
+closes a link's text. And once with nothing out but what is code however the
+text is read: a span only SOME reading encloses may run from a backtick a bare
+URL took into a title, and taken out it takes the link's own syntax along and
+leaves the rest of that title standing as prose. What either reading finds is
+taken out.
 """
 from __future__ import annotations
 
@@ -67,6 +75,9 @@ _TAG_OPENER_RE = re.compile("</?[A-Za-z]")
 
 _LINE_OPENING_RE = re.compile(rf"[ \t>*+{_GAP}-]*")
 
+# Whatever a stretch is blanked character by character leaves where it stood.
+_KEPT_RE = re.compile(r"[^\n]")
+
 # A stretch of the text, as its two offsets.
 type _Stretch = tuple[int, int]
 
@@ -77,33 +88,50 @@ def outside_code(text: str) -> str:
     spans = _code_spans.code_spans(written)
     code = _merged((*_code_lines(written), *spans.possible))
     definite = _merged((*_fences.definite_fences(written), *spans.certain))
-    literal = _merged((*code, *_html.html_literals(written, code, definite)))
-    return _without_markup(_without(written, literal))
+    shown = _without(written, _merged((
+        *code,
+        *_html.html_literals(written, code, definite),
+        *_unshown(_without(written, definite, blanked=True), open_lines=False),
+    )))
+    return _without(shown, _unshown(shown, open_lines=True))
 
 
-def _without(text: str, stretches: list[_Stretch]) -> str:
-    """`text` with each of `stretches`, in order and apart, left as one gap."""
+def _without(
+    text: str, stretches: list[_Stretch], *, blanked: bool = False,
+) -> str:
+    """`text` with each of `stretches`, in order and apart, left as one gap.
+
+    Or, `blanked`, as a gap for every character of it but a line ending, so
+    whatever is left stands where it stood.
+    """
     kept: list[str] = []
     cursor = 0
     for start, end in stretches:
-        kept += [text[cursor:start], _GAP]
+        gap = _KEPT_RE.sub(_GAP, text[start:end]) if blanked else _GAP
+        kept += [text[cursor:start], gap]
         cursor = end
     kept.append(text[cursor:])
     return "".join(kept)
 
 
-def _without_markup(text: str) -> str:
-    """`text` with what is read and not shown left as gaps.
+def _unshown(text: str, *, open_lines: bool) -> list[_Stretch]:
+    """What of `text` is read and not shown, in order and apart.
 
     The markup of every tag first, and then what a link, an image or a
-    definition reads of what is left.
+    definition reads once that is blanked.
     """
-    shown = _without(text, list(_tag_markup(text)))
-    return _without(shown, _merged(_link_fields.unshown_fields(shown)))
+    tags = list(_tag_markup(text, open_lines=open_lines))
+    fields = _link_fields.unshown_fields(_without(text, tags, blanked=True))
+    return _merged((*tags, *fields))
 
 
-def _tag_markup(text: str) -> Iterator[_Stretch]:
-    """The markup of every tag in `text`, in order and apart."""
+def _tag_markup(text: str, *, open_lines: bool) -> Iterator[_Stretch]:
+    """The markup of every tag in `text`, in order and apart.
+
+    One that nothing closes takes the rest only where `open_lines` says a line
+    it opens is read as one: not in a text with possible code still in it, where
+    the line may be code and the rest of the text anything.
+    """
     tags = _html.TagEnds(text)
     read_to = 0
     opener = _TAG_OPENER_RE.search(text)
@@ -111,7 +139,7 @@ def _tag_markup(text: str) -> Iterator[_Stretch]:
         closed = tags.closed_at(opener.end())
         if closed is None:
             line = _line_opened_at(text, opener.start(), read_to)
-            if line is not None:
+            if open_lines and line is not None:
                 yield line, len(text)
                 return
             closed = opener.start() + 1

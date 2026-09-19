@@ -234,7 +234,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             code are never read as one, and a tag's own markup goes the same way, quoted attribute
                             values and all -- to its `>`, or to the end of the text for one that opens a line, behind
                             markers or what was taken out, and that nothing closes. So does what
-                            `report_link_fields.py` finds read and not shown, asked once the tags are out
+                            `report_link_fields.py` finds read and not shown, asked once the tags are out. Both are
+                            read TWICE, which backticks pair being a doubt of theirs too: with every possible span
+                            out, where a span may hide a closing bracket, and with nothing out but certain code,
+                            since a span only some reading encloses -- from a backtick a bare URL took, into a
+                            title -- takes the link's syntax along and leaves the rest of the title as prose
     report_link_fields.py   what of a text a link, an image or a definition reads and shows nothing of, each
                             wherever it MAY be one. An image's description, an `alt` attribute once rendered: from
                             its `!` to the bracket that closes it, brackets paired innermost first and a backslash
