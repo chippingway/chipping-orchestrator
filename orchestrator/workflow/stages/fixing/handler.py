@@ -239,7 +239,17 @@ def _bounce_without_feedback(
     # no-op, where recomputing the round from the pinned comment would count
     # it twice.
     owed = _resume._spends_fix_round(state, pending_fix_at_was_set)
-    stranded = _publish_stranded_fix(gh, spec, issue, state, owed)
+    # A report this issue still owes is carrying the same bookkeeping on its
+    # own record, so the gate is handed NOTHING to close while one stands: a
+    # receipt write that cleared the bookmarks here would leave an
+    # outstanding publication with no batch to replay and a round already
+    # spent for a report that may still fail to post. What closes them then
+    # is the write that completes the transaction.
+    reporting = _report_delivery.owes_a_report(state)
+    stranded = _publish_stranded_fix(
+        gh, spec, issue, state,
+        _late_gate_models._SPENDS_NOTHING if reporting else owed,
+    )
     if stranded.held:
         # The gate owns the issue from here -- parked, or handed to the
         # adjudication -- and the relabel below belongs to a bounce that is
@@ -249,25 +259,29 @@ def _bounce_without_feedback(
         # memory for its caller to persist.
         gh.write_pinned_state(issue, state)
         return
-    if stranded.pushed:
-        # The commit this push just landed, read off the receipt the gate has
-        # written for THIS attempt -- never the standing value, which on a
-        # tick that pushed nothing names an older round.
+    if stranded.pushed and reporting:
+        # The commit this bounce carried to the pull request is the one the
+        # report an earlier round recorded describes, and binding it here is
+        # the only road left: nothing else republishes this commit, so a
+        # delivery left unbound would never become a transaction anything
+        # could finish. The commit is read off the receipt the gate wrote for
+        # THIS attempt, never the standing value, which on a tick that pushed
+        # nothing names an older round.
+        #
+        # Still owed afterwards, the label stays put and the bookmarks with
+        # it, for the reconciliation ahead of a later handler to settle from
+        # the record. Settled, that write has already closed this route's
+        # bookkeeping from the record's own frozen pairs, so nothing is
+        # applied here on top of it.
         if _reporting._holds_an_unpublished_report(
             _models._FixingContext(gh, spec, issue, state, pr),
             _late_publication_state._published_commit(state),
         ):
-            # The commit this bounce carried to the pull request is the one a
-            # report an earlier round recorded describes, and that report is
-            # not on the pull request yet. Binding it here is the only road
-            # left: nothing else republishes this commit, so a delivery left
-            # unbound would never become a transaction anything could finish.
-            # Held, the label stays put for the reconciliation ahead of a
-            # later handler to settle from the record.
             gh.write_pinned_state(issue, state)
             return
+    elif stranded.pushed:
         _late_gate_models._spend(state, owed)
-    elif _report_delivery.owes_a_report(state):
+    elif reporting:
         # Nothing was published and a report is still owed, which is the one
         # thing this exit may not clear or relabel past: the bookmarks below
         # are what an outstanding publication replays from, and a reviewer

@@ -74,7 +74,18 @@ second. Whether the code went out is re-proved against the checkout rather than
 remembered off a receipt, which is persistent and on a tick that pushed nothing
 names an older round; and a binding that takes the delivery ends the tick,
 finishing the recovered route back to `validating` where the publication
-settled and relabelling nothing where it is still owed.
+settled and relabelling nothing where it is still owed. A worktree that is
+gone has nothing left to prove either way, so that one parks once for a human
+rather than leaving every tick to find no feedback, no checkout and an owed
+report and do nothing with any of them.
+
+Everything an owed report touches is held to one rule: what an outstanding
+publication replays from may not be spent before it lands. The bounce hands
+the size gate nothing to close while one stands, the roads that publish
+nothing settle their own consumption rather than leaving a record to carry it,
+and a report this build cannot record at all settles the batch it consumed on
+its way to the park -- left open, the next tick reads that feedback as fresh
+and clears the very park just taken.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

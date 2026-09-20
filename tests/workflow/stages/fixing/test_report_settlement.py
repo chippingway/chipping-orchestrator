@@ -26,7 +26,9 @@ import unittest
 from pathlib import Path
 from types import MappingProxyType
 
+from orchestrator.github.pinned_state import MAX_PINNED_BODY as _MAX_PINNED_BODY
 from orchestrator.workflow.engine import (
+    report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
     report_record_state as _record_state,
     report_transaction as _report_transaction,
@@ -42,6 +44,16 @@ from tests.workflow.stages.fixing import (
 )
 
 AUTHORIZATION = "authorized: go ahead and vendor the parser"
+
+# The road that parks the run for a human with nothing left to carry what it
+# consumed.
+_AT_LENGTH = "the change, at length. "
+
+# Repeated past anything a pinned comment can carry, which is the one report
+# this build refuses to RECORD.
+_PAST_ANY_COMMENT = _MAX_PINNED_BODY // len(_AT_LENGTH) + 1
+_OVERSIZED_BODY = _AT_LENGTH * _PAST_ANY_COMMENT
+_OVERSIZED_REPORT = f"REPORT: READY\n{_OVERSIZED_BODY}\nREPORT: END"
 
 _ABSENT_COMMENT = 999
 _UNCONFIRMABLE = hashlib.sha256(b"a report nobody posted").hexdigest()
@@ -67,6 +79,7 @@ IN_REVIEW = support.IN_REVIEW
 IssueScenario = support.IssueScenario
 ISSUE = support.ISSUE
 LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
+PARK_REASON = support.PARK_REASON
 PENDING_FIX_AT = support.PENDING_FIX_AT
 PENDING_FIX_ISSUE_IDS = support.PENDING_FIX_ISSUE_IDS
 PENDING_FIX_ISSUE_MAX_ID = support.PENDING_FIX_ISSUE_MAX_ID
@@ -173,12 +186,10 @@ class _ReportRoundMixin(_FixingFixtureMixin):
         """
         run_options.setdefault("head_shas", (head, head))
         with (
-            tempfile.TemporaryDirectory() as checkout,
-            patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS),
-            patch.object(
+            recovery.on_a_real_checkout(
                 support.worktree_paths, support.WORKTREE_PATH,
-                return_value=Path(checkout),
             ),
+            patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS),
         ):
             return self._run_fixing(
                 seeded.github,
@@ -254,6 +265,32 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         self.assertEqual(pinned_data.get(REVIEW_ROUND), 1)
         self.assertFalse(self._went_back_to_review(seeded))
         self.assertFalse(pinned_data.get(AWAITING_HUMAN))
+
+    def test_an_owed_report_keeps_the_bookmarks(self) -> None:
+        # The bounce publishes the commit a failed push stranded and binds the
+        # report to it -- and the post fails. The round is NOT spent and the
+        # bookmarks are NOT cleared: an outstanding publication replays from
+        # them, and the write that completes the transaction is what closes
+        # them once the report is really there.
+        seeded = self._seed_round()
+        seeded.github.report_failures.refused.add(support.PR_NUMBER)
+        recovery.recorded_delivery(
+            seeded.github, seeded.issue,
+            recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID),
+            spends=FROZEN_SPENDS,
+        )
+
+        self._tick(
+            seeded, head=SHA_AFTER, branch_ahead_behind=(1, 0),
+        )
+
+        pinned_data = self._pinned(seeded)
+        self.assertTrue(_record_state.carries_pending_report(
+            self._record(seeded),
+        ))
+        self.assertEqual(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID), TRIGGER_ID)
+        self.assertEqual(pinned_data.get(REVIEW_ROUND), 1)
+        self.assertFalse(self._went_back_to_review(seeded))
 
     def test_the_recovery_settles_it(self) -> None:
         # The recovery is the dispatcher's own guard, and what it settles is
@@ -438,6 +475,24 @@ class FixingReportRefusalTest(unittest.TestCase, _ReportRoundMixin):
         self.assertEqual(self._reports_posted(seeded), 0)
         self.assertFalse(self._went_back_to_review(seeded))
 
+    def test_an_unrecordable_report_consumes(self) -> None:
+        # A report past what the pinned comment holds parks the run for a
+        # human, and nothing is carrying its consumed pairs -- so this road
+        # closes them itself. Left open, the next tick reads the same feedback
+        # as fresh, clears the very park just taken, and pays a second
+        # developer with no human having said a word.
+        seeded = self._seed_round()
+
+        self._round(
+            seeded.github, seeded.issue,
+            message=_OVERSIZED_REPORT,
+            head_shas=(SHA_BEFORE, SHA_BEFORE),
+        )
+
+        self.assertTrue(self._pinned(seeded).get(AWAITING_HUMAN))
+        mocks = self._tick(seeded)
+        mocks[RUN_AGENT].assert_not_called()
+
     def test_a_head_the_pr_lacks_publishes_nothing(self) -> None:
         # The checkout is clean and did not move, and it is still not standing
         # on what the pull request carries: the report would describe work the
@@ -505,6 +560,33 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         self.assertEqual(self._reports_posted(seeded), 1)
         self.assertTrue(self._went_back_to_review(seeded))
         self.assertIsNone(self._pinned(seeded).get(PENDING_FIX_AT))
+
+    def test_a_checkoutless_report_parks_for_a_human(self) -> None:
+        # With the worktree gone there is nothing left to republish and
+        # nothing left to prove: the commit the report describes is either on
+        # the pull request already or gone with the checkout, and no reading
+        # on this host can say which. Said once, the issue waits -- rather
+        # than every tick finding no feedback, no checkout and an owed report
+        # and quietly doing nothing with any of them.
+        seeded = self._seed_round()
+        recovery.recorded_delivery(
+            seeded.github, seeded.issue,
+            recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID),
+            spends=FROZEN_SPENDS,
+        )
+
+        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
+            mocks = self._run_fixing(
+                seeded.github, seeded.issue,
+                run_agent=_agent(session_id=DEV_SESSION),
+                head_shas=(SHA_BEFORE, SHA_BEFORE),
+            )
+
+        mocks[RUN_AGENT].assert_not_called()
+        pinned_data = self._pinned(seeded)
+        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
+        self.assertEqual(pinned_data.get(PARK_REASON), _report_delivery.UNDELIVERABLE_REPORT)
+        self.assertEqual(len(seeded.github.posted_comments), 1)
 
     def test_an_unposted_report_holds_the_tick(self) -> None:
         # The binding landed and the post did not, so a transaction is owed.

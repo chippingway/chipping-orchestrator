@@ -244,7 +244,9 @@ def _records_what_was_consumed(
     A run that finished on a report outcome owes a publication this tick
     cannot guarantee, so its consumed pairs and its route bookkeeping ride the
     record of that report (`reporting.py`) and are closed by the write that
-    completes the transaction. Every other outcome writes no report, so it
+    completes the transaction. Where that record could not be MADE there is no
+    transaction to wait for, only the park it earned, so the pairs are closed
+    here instead. Every other outcome writes no report, so it
     closes its own -- directly and before the disposition, since the size
     gate's own durable write and a park's both land inside that disposition
     and a settlement taken afterwards would be lost to a crash in the window a
@@ -261,7 +263,17 @@ def _records_what_was_consumed(
     if not reporting:
         _feedback._settle_consumed_feedback(ctx.state, feedback)
         return False
-    return _reporting._recording_stops_the_tick(ctx, run, feedback, owed)
+    if not _reporting._recording_stops_the_tick(ctx, run, feedback, owed):
+        return False
+    # The record could not be made, so nothing is carrying these pairs: the
+    # park that holds the run for a human is the whole of what this issue now
+    # has. Settled here, and written, because the park itself leaves the flags
+    # in memory for its caller to persist -- left unsettled, the next tick
+    # reads the same feedback as fresh, clears the very park just taken, and
+    # runs a second developer over it with no human having said anything.
+    _feedback._settle_consumed_feedback(ctx.state, feedback)
+    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+    return True
 
 
 def _delivered_nothing(

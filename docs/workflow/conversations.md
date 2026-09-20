@@ -281,7 +281,12 @@ answered in the report with no commit for it. Such a round is recorded, publishe
   tree provably clean, a head it can name, and the pull request standing on it — rather than remembered off the
   persistent publication receipt, which on a tick that pushed nothing names an older round. Proved, the delivery is
   bound and posted with no developer run at all, and the recovered round is finished back to `workflow:validating`;
-  bound but unposted, nothing is relabelled and the reconciliation finishes it.
+  bound but unposted, nothing is relabelled and the reconciliation finishes it. A worktree that is gone leaves
+  nothing to prove either way, so that one parks once for a human.
+- One rule covers every road an owed report touches: what an outstanding publication replays from may not be spent
+  before it lands. A bounce that publishes a stranded commit while a report stands hands the size gate nothing to
+  close, and a report this build cannot record at all settles the batch it consumed on its way to the park — left
+  open, the next tick reads that feedback as fresh and clears the very park just taken.
 
 Delivery is still not completion: an `ACK:` may settle a round whose comments named no actionable change, and it does
 not answer the automated `CHANGES_REQUESTED` review that asked for a concrete one — that route has no ACK fast path

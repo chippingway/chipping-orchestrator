@@ -1484,7 +1484,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             against the checkout rather than remembered off a receipt -- a clean tree, a head it can
                             name, and the pull request standing on it. A binding that TAKES the delivery ends the
                             tick, finishing the recovered route back to `workflow:validating` where the publication
-                            settled and relabelling nothing where it is still owed
+                            settled and relabelling nothing where it is still owed; a worktree that is GONE has
+                            nothing left to prove either way and parks once, since every other refusal here leaves
+                            a checkout the bounce still republishes from
       resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
                             nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
                             outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix

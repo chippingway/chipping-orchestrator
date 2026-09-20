@@ -15,11 +15,11 @@ from __future__ import annotations
 import contextlib
 import tempfile
 from pathlib import Path
-from types import SimpleNamespace
+from unittest import mock
 
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.git.verification.status import _WorktreeStatus
-from orchestrator.github import pinned_state as _pinned_state
+from orchestrator.github.pinned_state import PinnedState as _PinnedState
 from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.fixing import (
     feedback as _feedback,
@@ -32,6 +32,9 @@ from tests.workflow.git_owners import seam_patch
 
 # The pinned field a recorded, unbound report stands on.
 _DELIVERED_REPORT = "developer_report_delivery"
+
+# The pinned field naming the pull request a receipt is recorded against.
+_PR_NUMBER = "pr_number"
 
 
 @contextlib.contextmanager
@@ -64,7 +67,7 @@ def _readings(checkout: Path, head: str) -> dict:
         "_worktree_path": lambda *_args: checkout,
         "_worktree_status": lambda *_args: _WorktreeStatus(readable=True),
         "_head_sha": lambda *_args: head,
-        "_authed_fetch": lambda *_args, **_fields: SimpleNamespace(returncode=0),
+        "_authed_fetch": lambda *_args, **_fields: mock.Mock(returncode=0),
         "_branch_divergence": lambda *_args: _BranchDivergence(
             tip=head, readable=True,
         ),
@@ -96,14 +99,9 @@ def recorded_delivery(
     })
     if landed:
         _publication_state._record_publication(
-            state, landed, "", _pull_number(github, issue),
+            state, landed, "", state.get(_PR_NUMBER),
         )
     github.write_pinned_state(issue, state)
-
-
-def _pull_number(github, issue) -> int:
-    """The pull request this issue's pinned record names."""
-    return github.read_pinned_state(issue).get("pr_number")
 
 
 def consumed_pairs(issue, readers, comment_id: int) -> tuple:
@@ -114,7 +112,7 @@ def consumed_pairs(issue, readers, comment_id: int) -> tuple:
     pairs this stage derives -- not about a tuple a fixture chose that both
     sides happen to match.
     """
-    seeded = _pinned_state.PinnedState(state_data=dict(readers))
+    seeded = _PinnedState(state_data=dict(readers))
     batch = _models._FixingFeedback(
         issue_thread=[
             seen for seen in issue.comments if seen.id == comment_id
@@ -124,3 +122,17 @@ def consumed_pairs(issue, readers, comment_id: int) -> tuple:
         review_summaries=[],
     )
     return _feedback._consumed_delivery(seeded, batch).consumed_pairs(seeded)
+
+
+@contextlib.contextmanager
+def on_a_real_checkout(worktree_paths, attribute: str):
+    """A tick whose worktree probe answers a directory that is really there.
+
+    What every report road re-proves is the checkout, so a case about one has
+    to have one: the default probe names a path no host holds, which is the
+    answer this owner's own missing-worktree case is about.
+    """
+    with tempfile.TemporaryDirectory() as checkout, mock.patch.object(
+        worktree_paths, attribute, return_value=Path(checkout),
+    ):
+        yield

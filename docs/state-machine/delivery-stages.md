@@ -3164,6 +3164,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      too full — leaves the tick to carry on, since stopping would hold the roads that answer a human. A pre-push
      crash binds nothing: the commit is still local, and the no-feedback bounce below republishes it and binds the
      report once it lands.
+
+     A worktree that is GONE is the one refusal no later tick answers differently, and it **parks once**
+     (`report_recovery._holds_a_checkoutless_report`). There is nothing to republish and nothing to prove — the
+     commit the report describes is either on the pull request already or went with the checkout, and no reading on
+     this host can say which — so the issue waits for a human rather than every tick finding no feedback, no
+     checkout and an owed report and quietly doing nothing with any of them. The park is an ordinary one: a reply
+     clears it through the parked dispatch, which resumes the developer, and the report that session writes
+     supersedes the one nothing could deliver.
   4. Rescan unread feedback from the three watermarks across all four surfaces, reading the two IssueComment-space
      surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread past
      `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past
