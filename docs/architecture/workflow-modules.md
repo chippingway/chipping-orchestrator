@@ -450,7 +450,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             older park still standing with the reason alone, with no second notice. Both holding
                             roads write `UNREPORTED_WORK` as well, which is the narrower fact the debt cannot
                             carry: these commits are undescribed, whatever record an EARLIER run left, and only a
-                            report recorded over the branch as it stands retires it. And
+                            report recorded over the branch as it stands retires it. `OWED_ROUND_RESET` is the
+                            third, and the only one no road here writes: the fresh review budget an `in_review`
+                            requirements edit earned, recorded by that stage's hand-back where the publication the
+                            edit produced is still owed, read by `stages/validating/rounds.py` so the delayed road
+                            spends none of it, and retired with the debt by the settlement that ends it. And
                             `redelivers_an_owed_report` is what both implementing dispositions ask of a run that
                             moved no head -- a debt owed, a run that finished on a report outcome, and a branch
                             that carries something -- so the reply answering such a park publishes rather than

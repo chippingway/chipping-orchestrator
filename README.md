@@ -62,7 +62,10 @@ this path:
    open resumes the dev agent here or from `in_review`; the report it writes is posted on the pull request — with its
    fix, or on its own where no code had to change — and no reviewer runs until the pull request carries it.
 4. `workflow:documenting` — the dev agent makes the final documentation pass after reviewer approval.
-5. `in_review` — the orchestrator pings you once for each PR head that becomes ready; you merge by hand.
+5. `in_review` — the orchestrator pings you once for each PR head that becomes ready; you merge by hand. Editing
+   the issue while it waits here retires that approval: whatever the resumed dev agent answers — a fix, an
+   acknowledgement, a report alone, or a question it needs you for — the issue goes back to `workflow:validating`
+   for a fresh review against the requirements you changed, and the next ping waits for that.
 6. `done` / `rejected` — the terminal result after the PR is merged or closed without merging.
 
 A PR branch that cannot be rebased cleanly onto the base branch detours through `workflow:resolving_conflict` and

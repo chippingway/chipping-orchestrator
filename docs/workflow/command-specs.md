@@ -85,8 +85,9 @@ How it works per role:
   On a resume, `_read_dev_session` re-parses `dev_agent` via `config._parse_agent_spec` to recover `(backend,
   extra_args)` and passes the args through to `run_agent`. `_handle_documenting`, `_handle_validating`,
   `_handle_fixing`, and `_handle_resolving_conflict` all resume the dev session via the same path, so the locked spec
-  applies to every dev-side resume for the lifetime of the issue. `_handle_in_review` does not resume the dev itself —
-  fresh PR feedback routes the issue to `workflow:fixing` instead.
+  applies to every dev-side resume for the lifetime of the issue. `_handle_in_review` resumes it on exactly one road,
+  the requirements-drift resume its own drift owner runs; fresh PR feedback is routed to `workflow:fixing` instead of
+  being resumed there.
 - **Decomposer (`DECOMPOSE_AGENT`).** Same mechanic in `_handle_decomposing`: the spec is persisted to
   `decomposer_agent` before the spawn and re-parsed via `_read_decomposer_session` on every resume. The same backend
   (not the same session) also drives the question stage — `_handle_question` reads `DECOMPOSE_AGENT_SPEC` as the

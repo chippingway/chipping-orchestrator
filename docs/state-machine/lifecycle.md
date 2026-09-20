@@ -370,6 +370,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
               discriminator is `pending_fix_at`
      workflow:validating --(awaiting-human resume / drift / transient-
        recovery push)──► ++review_round, label stays workflow:validating
+     the same push for a publication an in_review hand-back already reset
+       the budget for ─► no round spent (developer_report_owed_round_reset),
+       label stays workflow:validating
      workflow:validating --(drift report with no commit)──► report posted
        on the unchanged head, review_round unchanged, label stays
        workflow:validating
