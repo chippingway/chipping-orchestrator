@@ -2360,9 +2360,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             on a parked tick the edit is measured by what the park had already read
       drift_models.py       the frozen record that route's resume hands the helper that finishes it
       drift_outcomes.py     the claim that the edit is still unanswered, written beside every park a resume ends
-                            on and dropped by every outcome that answers it, with the fresh review budget a
-                            hand-back recorded for a publication that has now happened; the `ACK:` reply that must
-                            not park, over the shared fix disposition, and -- where the
+                            on and dropped by every outcome that answers it -- with the fresh review budget a
+                            hand-back recorded, but only once the publication that budget was reset for has
+                            happened, so an `ACK:` leaving a commit withheld for its report keeps it; the `ACK:`
+                            reply that must not park, over the shared fix disposition, and -- where the
                             caller names what its resume was `handed` -- the report reply that is neither, recorded
                             for the unchanged head as `reported`, and a commit held to the same contract
       drift_reports.py      that contract for a drift resume on an open pull request: the run's report recorded
@@ -2395,15 +2396,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             suppress every later reviewer with nobody told
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
                             timeout's commit is the one road to a published pull request nothing else measures --
-                            the debt the push that lands pays, the held outcome that owes the caller no follow-up and
+                            the debt the push that lands pays, the round `rounds.py` says that push spends, which
+                            is none where the park was delaying a publication an `in_review` hand-back had already
+                            reset the budget for, the held outcome that owes the caller no follow-up and
                             no relabel, and the one sentence a park that healed itself owes the thread
       rounds.py             the `review_round` a fix pays for on the one event `MAX_REVIEW_ROUNDS` counts -- a head
                             the reviewer has not seen reaching the pull request -- spent by the push that lands and
                             by the hold that sends the candidate to the adjudication, the held form handed to the
-                            gate so the count is not lost to a crash in the relabel window; and the one road that
-                            spends nothing -- a publication a drift park still owes, whose budget an `in_review`
+                            gate so the count is not lost to a crash in the relabel window; and the one publication
+                            that spends nothing -- one a drift park still owes, whose budget an `in_review`
                             requirements edit already reset, and whose delayed landing would otherwise charge that
-                            edit twice
+                            edit twice, asked by the resume that answers such a park and by the silent retry that
+                            finishes its push
       models.py             the frozen records several owners in this stage hand each other -- a record one
                             route builds and reads alone stays beside that route instead -- and the park clear
                             every awaiting road takes, which drops the unanswered-edit claim with the park it was

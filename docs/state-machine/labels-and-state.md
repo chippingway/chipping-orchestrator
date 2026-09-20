@@ -717,9 +717,12 @@ The keys that matter for the state machine fall into a few groups:
   publication still owed then lands on `workflow:validating`, where a fix reaching the pull request spends a round.
   The flag is what keeps the delayed road from spending the budget that reset just made, which would leave an edit
   answered a tick late one round short of the same edit answered at once. A resume that answered the edit with
-  nothing at all earns it too, since what the hand-back is for is the publication that reply will bring. Additive, a
-  bare `true` while it stands, and retired by the settlement that ends the debt it is about — or, where nothing is
-  left to settle, by the drift outcome that answers the edit.
+  nothing at all earns it too, since what the hand-back is for is the publication that reply will bring. Every road
+  that lands that publication reads it: the resume answering the park, and the silent retry that finishes a push the
+  park was delaying. Additive, a bare `true` while it stands, and retired by the settlement that ends the debt it is
+  about — or by the drift outcome that answers the edit, but only once the publication the reset was for has
+  actually happened: an `ACK:` leaving a commit withheld for the report it owes publishes nothing, and dropping the
+  record there would charge the reply that finally publishes a round the edit had already bought back.
 
   `developer_report_pending` is one publication transaction, written **before the report it carries is published**
   — that ordering is the whole of what makes the publication recoverable. Whether the CODE that report is about is
@@ -1475,7 +1478,8 @@ The keys that matter for the state machine fall into a few groups:
   would reach the reviewer with no report of it anywhere. Nothing else on the comment says which road a park came
   off, so the claim goes down beside the park through the shared drift disposition and comes off with it — cleared
   by the road that clears the park, and by any outcome that answers the edit, together with the
-  `developer_report_owed_round_reset` a hand-back recorded for a publication that has now happened. It is read
+  `developer_report_owed_round_reset` a hand-back recorded, where the publication that record is about has by then
+  happened. It is read
   before the resume that continues the road, since that resume clears the park it was written beside. `in_review`
   reads it for the budget its hand-back owes. An issue without the key has no edit outstanding.
 - **The label move `in_review` owes.** `in_review_handoff_pending`, additive and `true` only while one is outstanding.

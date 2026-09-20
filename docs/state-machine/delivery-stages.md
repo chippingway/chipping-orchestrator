@@ -2895,7 +2895,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      **Recovery follow-up** described below before clearing the park. Its two git-touching retries — the deferred push
      and the commit a timeout killed the disposition before it saw — publish through the same [size
      gate](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr) the shared dev-fix publication passes,
-     which is why it has a fourth answer: `held`, meaning the gate took the candidate and the tick is over. The caller
+     and spend the same round `rounds.py` decides for a resume answering such a park: none where the park was
+     delaying a publication an `in_review` hand-back had already reset the budget for, since the retry lands that
+     very publication, and the ordinary next round otherwise. That is why it has a fourth answer: `held`, meaning the
+     gate took the candidate and the tick is over. The caller
      then posts no follow-up, clears no park, and moves no label — the gate has already parked on a reading nobody could
      take, or handed the issue to `workflow:decomposing`, and written its own state, so a follow-up would announce a
      recovery that did not happen and a relabel would move the issue off the state the gate just set. Exception: on a
@@ -3034,7 +3037,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      of every later rescan.
 - **Output**: label moved to `workflow:documenting` (approval after verify + squash) OR `workflow:fixing`
   (CHANGES_REQUESTED) OR `workflow:decomposing` (the size gate held a fix or a transient-park recovery push) OR no
-  label change with `review_round` bumped (awaiting-human resume, drift, transient-park recovery push) OR no label
+  label change with `review_round` bumped (awaiting-human resume, drift, transient-park recovery push — except where
+  an `in_review` hand-back already reset the budget for exactly that publication) OR no label
   change and no reviewer (a developer report still owed) OR a HITL park.
 
 ## `_handle_in_review` (label `in_review`)
