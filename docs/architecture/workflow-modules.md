@@ -556,7 +556,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             replied to -- an edited report restored, a checkout cleaned -- so the settlement is
                             the only thing that would ever end the wait, and a debt outliving it would hold the
                             reviewer over a report the pull request carries. Any other park reason belongs to
-                            whoever took it and stands
+                            whoever took it and stands. NOTHING is retired at all while the issue records work
+                            nobody has described: a report written over the branch as it stands retires that flag
+                            as it is recorded, so one still standing says this transaction was written before
+                            those commits existed -- a true account of an earlier head, and no account of the head
+                            the branch is on now
     report_settled_reading.py a SETTLED report read again where it settled, posting nothing, and held to the
                             road the record says settled it: a VERIFIED location has to hash to the digest still,
                             under a trusted author; a PUBLISHED one has to re-render in its comment as our report,

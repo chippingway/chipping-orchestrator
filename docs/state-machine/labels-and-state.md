@@ -709,7 +709,12 @@ The keys that matter for the state machine fall into a few groups:
   record an EARLIER run left is still a record: a reply that publishes the newer commits under it would settle a
   report of work it was written before, and the reviewer would read it as the account of the whole branch. So while
   this flag stands, a reply that brings no report publishes nothing and the review is held for the one the work is
-  missing. Additive: an issue without it has no undescribed commits on that account.
+  missing — and it answers that on its own, ahead of the debt it is normally written beside, so the answer cannot
+  turn on which key an owner cleared first. A settlement retires nothing at all while it stands, for the same
+  reason: an earlier transaction can settle long after those commits were made, and taking the debt, the park
+  asking for their report, and the budget their publication is owed off with it would hand the next reply exactly
+  the publication this flag exists to stop. Additive: an issue without it has no undescribed commits on that
+  account.
 
   `developer_report_owed_round_reset` is the fresh review budget an `in_review` requirements edit earned, written
   beside the debt where the publication that edit produced is still owed as the hand-back moves the label. That stage
