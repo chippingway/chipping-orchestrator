@@ -320,7 +320,18 @@ def _retires_the_debt(state: PinnedState) -> None:
     comment did not already carry is bytes the record reserved nothing for:
     the ceiling is measured before a transaction is accepted, and a
     settlement that grows the comment is one the measurement did not model.
+
+    NOTHING is retired while this issue records work nobody has described. A
+    report recorded over the branch as it stands retires that flag as it is
+    recorded, so a flag still standing here says the transaction just settled
+    was written before those commits existed -- it is a true account of an
+    earlier head, and the head the branch is on now is still owed one of its
+    own. Retired anyway, the debt, the park asking for that report, and the
+    budget its publication is owed would all come off together, and the next
+    reply would publish those commits under a report that never saw them.
     """
+    if state.get(_delivery.UNREPORTED_WORK):
+        return
     for owing in (_delivery.OWED_REPORT, _delivery.OWED_ROUND_RESET):
         if state.get(owing):
             state.set(owing, None)

@@ -60,6 +60,15 @@ LOOSE_PATH = "scratch.txt"
 # earlier run recorded was written before, and was never about.
 SECOND_HEAD = "b" * len(world.FIXED_HEAD)
 
+# The same resume over a checkout carrying only the later commit, one ahead of
+# a head the pull request already carries a published report for.
+ONE_STRANDED = MappingProxyType({
+    "head_shas": (SECOND_HEAD,),
+    "candidate_commit": FrozenCommit(sha=SECOND_HEAD),
+    "branch_ahead_behind": (1, 0),
+    "fetched_branch_tip": world.FIXED_HEAD,
+})
+
 # A resume that committed nothing over a checkout carrying both of them, two
 # commits ahead of the head the pull request stands on.
 TWO_STRANDED = MappingProxyType({
@@ -287,6 +296,31 @@ class DriftReportDebtTest(unittest.TestCase, world._DriftReportMixin):
         self.assertEqual(self.published_reports(), [])
         self.assertIsNone(self.records()[CURRENT])
         self._assert_the_later_report_publishes()
+
+    def test_a_settled_report_covers_no_later_commit(self) -> None:
+        # The same debt under a report that reaches the pull request. The
+        # first one is bound to head A and left owed, since the requirements
+        # moved while the agent was out; a later resume then commits head B
+        # and reports nothing, so B stays in the worktree. The requirements
+        # go back to what the bound report was written against and it settles
+        # -- a true account of head A, and of nothing after it. Retired with
+        # it, the debt, the park asking for B's report and the budget its
+        # publication is owed would all come off together, and this `ACK:`
+        # would publish B under a report that never saw it.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.drift(self.mid_run("edit", world.reported()))
+        self.drift(
+            "no report for this one",
+            head_shas=(world.FIXED_HEAD, SECOND_HEAD),
+        )
+        world.edits(self, world.EDITED_BODY)
+        self.reconcile()
+
+        held = self.drift(ACK_REPLY, **ONE_STRANDED)
+
+        held[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(len(self.published_reports()), 1)
+        self._assert_the_debt_holds_the_review()
 
     def test_a_missing_report_is_owed_until_written(self) -> None:
         # A resume committed and wrote no report, so its commit stayed in the

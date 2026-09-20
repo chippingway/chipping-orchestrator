@@ -104,11 +104,18 @@ def _owes_an_unrecorded_report(state: PinnedState) -> bool:
     is the other: a flag, or the park's own reason, and no record to publish
     from. Records are asked as CLAIMS, so one nobody can read is still a
     record -- parked by the owner that reads it -- and not this.
+
+    The undescribed-work flag answers for itself, ahead of the debt it is
+    normally written beside. Only a report written over the branch as it
+    stands retires it, and that report retires the debt in the same write --
+    so a flag standing without one says an owner cleared the debt over a
+    report about some earlier head, and the commits it never saw are
+    undescribed whatever the comment says is owed.
     """
-    if not _report_delivery.owes_a_report(state):
-        return False
     if state.get(_report_delivery.UNREPORTED_WORK):
         return True
+    if not _report_delivery.owes_a_report(state):
+        return False
     return not (
         _delivery_state.carries_delivered_report(state)
         or _record_state.carries_pending_report(state)
