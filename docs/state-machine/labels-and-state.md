@@ -719,10 +719,13 @@ The keys that matter for the state machine fall into a few groups:
   answered a tick late one round short of the same edit answered at once. A resume that answered the edit with
   nothing at all earns it too, since what the hand-back is for is the publication that reply will bring. Every road
   that lands that publication reads it: the resume answering the park, and the silent retry that finishes a push the
-  park was delaying. Additive, a bare `true` while it stands, and retired by the settlement that ends the debt it is
-  about — or by the drift outcome that answers the edit, but only once the publication the reset was for has
-  actually happened: an `ACK:` leaving a commit withheld for the report it owes publishes nothing, and dropping the
-  record there would charge the reply that finally publishes a round the edit had already bought back.
+  park was delaying. Additive, a bare `true` while it stands, and retired by whatever ends the publication it is
+  about. The settlement that ends the debt is one. The drift outcome that answers the edit is another, but only
+  once that publication has actually happened: an `ACK:` leaving a commit withheld for the report it owes publishes
+  nothing, and dropping the record there would charge the reply that finally publishes a round the edit had already
+  bought back. A transient retry that clears its park is the third, and it drops the record with the park: that
+  retry either pushed the publication or read the branch and found none, so nothing is left for the budget to pay
+  for and the next unrelated publication this stage owes would otherwise spend nothing.
 
   `developer_report_pending` is one publication transaction, written **before the report it carries is published**
   — that ordering is the whole of what makes the publication recoverable. Whether the CODE that report is about is
@@ -1493,7 +1496,10 @@ The keys that matter for the state machine fall into a few groups:
   without it the answer a human writes is read by the feedback scan and routed to `workflow:fixing`, where no report
   is owed and the stale approval survives. A marker whose clearing write is lost costs one
   spurious hand-back the next time the issue reaches `in_review` — a re-review rather than that ping — and that tick
-  clears it. An issue without the key owes no move, which is every issue that predates it.
+  clears it. An issue without the key owes no move, which is every issue that predates it. It goes down in one
+  staged write with the fresh round and the budget record beside it, spelled on the stage owner that holds the key
+  rather than at the hand-back that makes it — a developer report recorded on the drift road is accepted only where
+  the comment has room for that whole write, so a field added to it moves that refusal too.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one

@@ -2897,7 +2897,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      gate](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr) the shared dev-fix publication passes,
      and spend the same round `rounds.py` decides for a resume answering such a park: none where the park was
      delaying a publication an `in_review` hand-back had already reset the budget for, since the retry lands that
-     very publication, and the ordinary next round otherwise. That is why it has a fourth answer: `held`, meaning the
+     very publication, and the ordinary next round otherwise. A retry that resolves also drops that budget record
+     with the park it clears — the publication it was for has happened, or the branch turned out to carry none, so
+     a record left standing would spend nothing for the next unrelated publication this stage owes. That is why it
+     has a fourth answer: `held`, meaning the
      gate took the candidate and the tick is over. The caller
      then posts no follow-up, clears no park, and moves no label — the gate has already parked on a reading nobody could
      take, or handed the issue to `workflow:decomposing`, and written its own state, so a follow-up would announce a
@@ -3109,7 +3112,14 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      past `pr_last_comment_id` BEFORE posting the notice — they are quoted into the prompt below, and the same list is
      what tells the watermark carry those ids were delivered rather than leaving it stopped under the lowest. Resume
      the locked dev session with `_build_user_content_change_prompt` (quoting issue body + recent comments + the
-     captured PR-conversation comments). All three successful outcomes — a pushed fix, an `ACK: <reason>` no-commit
+     captured PR-conversation comments). The carry over that list is taken TWICE, once before the disposition and
+     once after: the disposition writes durably — the report ahead of the size gate, the receipt the push leaves, a
+     park's own state — and a process dying past one of those writes with the carry still to come leaves a report
+     and a push standing over feedback marked unread, which buys a `fixing` round next time the issue is in review
+     for words the prompt already quoted. The early pass crosses what the prompt delivered so the first durable
+     write carries it; the late one crosses the notices the disposition posts, which do not exist yet. Both stop at
+     the first comment nothing vouches for, so the early pass can only ever cross less.
+     All three successful outcomes — a pushed fix, an `ACK: <reason>` no-commit
      reply, and a no-commit reply ending on a report outcome (`"reported"`) — reset `review_round=0` and bounce
      directly back to `workflow:validating` — the reset and the handoff marker persisted before the relabel, for the
      reason step 3 carries, so an `ACK:` whose relabel does not land is still handed back by step 3 next tick.
