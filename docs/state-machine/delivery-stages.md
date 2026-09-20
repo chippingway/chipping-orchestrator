@@ -179,8 +179,8 @@ Per-stage specifics:
 
 - For **`in_review`** drift, both the "pushed" and "ack" outcomes reset `review_round` (a drift invalidates the prior
   approval) and bounce directly back to `workflow:validating`. The drift block also captures unread PR-conversation
-  comments past `pr_last_comment_id` BEFORE posting its notice so the shared id space doesn't silently swallow a PR
-  comment.
+  comments past `pr_last_comment_id` BEFORE posting its notice: that capture is both how they reach the resume prompt
+  and how the watermark carry afterwards learns it may advance over them.
 - For **`workflow:resolving_conflict`** drift, ONLY the "pushed" outcome relabels back to `workflow:validating` (with
   `review_round=0`, `conflict_round` bumped). Ack and parked outcomes stay on `workflow:resolving_conflict` — the
   rebase work is still unfinished. An `interrupted` resume (shutdown sweep killed the run mid-flight) short-circuits
@@ -3004,7 +3004,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
   4. **User-content drift → relabel back to `workflow:validating`.** Reached when no fresh PR-side ID surfaced a
      comment but `_detect_user_content_change` still reports a hash change (a title/body edit, or an edit to an
      existing issue-thread comment whose id is already below the watermark). Capture unread PR-conversation comments
-     past `pr_last_comment_id` BEFORE posting the notice (the shared id space could otherwise leap past one). Resume
+     past `pr_last_comment_id` BEFORE posting the notice — they are quoted into the prompt below, and the same list is
+     what tells the watermark carry those ids were delivered rather than leaving it stopped under the lowest. Resume
      the locked dev session with `_build_user_content_change_prompt` (quoting issue body + recent comments + the
      captured PR-conversation comments). Both successful outcomes — pushed fix AND `ACK: <reason>` no-commit reply —
      reset `review_round=0` and bounce directly back to `workflow:validating`. A no-commit response without the `ACK:`
