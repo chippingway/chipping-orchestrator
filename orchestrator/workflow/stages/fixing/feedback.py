@@ -38,6 +38,11 @@ park path (the next fixing tick's stay-parked gate drops it), which is why the
 settlement runs on every outcome that counts the prompt as delivered rather
 than on success alone -- and on none that does not.
 
+DIRECTLY, though, only where no report is owed for it. A round that finished
+on a report outcome records these same pairs onto its report transaction
+instead, and the write that completes that publication applies them; this
+owner still derives them, so the two roads write the same fields the same way.
+
 Orchestrator comments are stripped by recorded id AND by the hidden body
 marker, because the id ledger is capped and evicts on long-lived issues while
 the marker stays on the comment forever. A bare `/orchestrator add-agent-runs`
@@ -233,10 +238,14 @@ def _settle_consumed_feedback(
     their own in_review watermarks and nothing else, so feedback no prompt
     carried is left for the scan that owns it.
 
-    Called on every outcome that counts the prompt as delivered -- the pushed
-    fix, the ACK, and the park or failure alike -- and before the disposition
-    that may publish or park, so the durable write that disposition makes
-    carries this settlement instead of leaving it to a write a crash can lose.
+    Called on every outcome that counts the prompt as delivered AND owes no
+    report for it -- the pushed fix, the ACK, and the park or failure alike --
+    and before the disposition that may publish or park, so the durable write
+    that disposition makes carries this settlement instead of leaving it to a
+    write a crash can lose. A round that finished on a report outcome does not
+    come through here at all: `reporting` freezes these same pairs onto the
+    report transaction, and the write that completes the publication is what
+    applies them.
     Consumed ids and nothing else, because a comment the dev never saw in its
     prompt would otherwise be silently swallowed on the pushed path (the next
     in_review tick would miss it) and on the park/failure path (the next fixing

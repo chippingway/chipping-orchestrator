@@ -7,21 +7,23 @@ round can finish on `REPORT: READY` exactly as an initial implementation can --
 and when it does, the round owes a publication this tick cannot guarantee: the
 push can fail, the post can fail, the process can die between them.
 
-So the ROUTE bookkeeping such a round owes does not close here. It is recorded
-on the transaction the report goes out as and settled by the write that
-completes it, whichever tick makes that. The consumption is the other half and
-goes the other way: it is applied into the state before any of it, so whichever
-durable write happens next carries it -- a crash between the two would leave
-the feedback unread and pay a second developer to answer the same prompt.
+So neither group such a round owes closes here. Both are recorded on the
+transaction the report goes out as -- the pairs its run consumed and the
+reviewer round its route spends -- and the write that completes that
+publication is the one that applies them, whichever tick makes it. Settled
+here instead, a crash in that window leaves feedback recorded as answered for
+a report no reviewer has, with the replay source cleared along with it.
+
+The mark beside them is what the settlement leaves for the tick that has to
+hand the round back, since the one thing that write cannot do is move a label.
 
 Every other outcome -- the `ACK:`, the question, the timeout -- writes no
-report and closes its own bookkeeping directly, which `test_feedback.py`
-beside this covers.
+report and settles its own consumption directly, ahead of the disposition,
+which `test_feedback.py` beside this covers.
 """
 
 from __future__ import annotations
 
-import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -34,7 +36,10 @@ from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_transaction as _report_transaction,
 )
-from orchestrator.workflow.stages.fixing import resume as _resume
+from orchestrator.workflow.stages.fixing import (
+    reporting as _reporting,
+    resume as _resume,
+)
 from tests.workflow.repo_values import _TEST_SPEC
 from tests.workflow.report_values import _recovered_report
 from tests.workflow.stages.fixing import (
@@ -42,6 +47,7 @@ from tests.workflow.stages.fixing import (
     report_crash_support as crash,
     report_settlement_support as recovery,
 )
+from tests.workflow.stages.fixing.prompt_expectations import only_prompt
 
 AWAITING_HUMAN = support.AWAITING_HUMAN
 CHECK_SUCCESS = support.CHECK_SUCCESS
@@ -110,18 +116,10 @@ _PAST_ANY_COMMENT = _MAX_PINNED_BODY // len(_AT_LENGTH) + 1
 _OVERSIZED_BODY = _AT_LENGTH * _PAST_ANY_COMMENT
 _OVERSIZED_REPORT = f"REPORT: READY\n{_OVERSIZED_BODY}\nREPORT: END"
 
-# A location shaped the way the contract spells one, naming a comment this pull
-# request does not carry: what those cases are about is the ROAD a verified
-# outcome takes, and a location nothing can confirm keeps the publication
-# itself out of the way of that question.
 # A human reply that lands after the crash, which is what turns the stalled
 # issue back into an ordinary fix round.
 LATER_COMMENT_ID = TRIGGER_ID + 1
 LATER_COMMENT = "one more thing: rename the helper"
-
-_ABSENT_COMMENT = 999
-_UNCONFIRMABLE = hashlib.sha256(b"a report nobody posted").hexdigest()
-
 
 def _keeps_the_replay_state(pinned_data) -> bool:
     """Whether the batch and round an owed publication replays from stand."""
@@ -131,12 +129,6 @@ def _keeps_the_replay_state(pinned_data) -> bool:
     )
 
 
-def _verified(slug: str) -> str:
-    """A run's last message asserting its report is already on the PR."""
-    return (
-        f"REPORT: VERIFIED https://github.com/{slug}/pull/{support.PR_NUMBER}"
-        f"#issuecomment-{_ABSENT_COMMENT} sha256:{_UNCONFIRMABLE}"
-    )
 
 
 class _ReportRoundMixin(_FixingFixtureMixin):
@@ -263,9 +255,9 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         self.assertEqual(owed.watermarks, crash.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID))
         self.assertEqual(
             dict(owed.spends),
-            dict(_resume._spends_fix_round(
+            dict(_reporting._closes_the_round(_resume._spends_fix_round(
                 self._record(seeded), True,
-            ).fields),
+            ))),
         )
         self.assertEqual(
             pinned_data.get(PR_LAST_COMMENT_ID), INITIAL_PR_COMMENT_WATERMARK,
@@ -318,6 +310,32 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         self.assertIsNone(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID))
         self.assertEqual(pinned_data.get(REVIEW_ROUND), 0)
 
+    def test_a_historical_report_answers_nothing(self) -> None:
+        # A settled report is REPLACED rather than retired, and the
+        # publication receipt beside it is persistent, so a pull request
+        # standing on the commit one names says only that some round once
+        # published it. Read as proof that a round has just settled, this
+        # manual relabel onto `workflow:fixing` -- which carries neither
+        # route's own anchor -- would be bounced straight back to the reviewer
+        # with the reply it was moved here to answer never scanned.
+        seeded = self._seed_round()
+        recovery.records_a_settled_report(
+            seeded, head=PR_HEAD_SHA,
+            clears=(PENDING_FIX_AT, PENDING_FIX_ISSUE_MAX_ID),
+        )
+
+        mocks = self._round(
+            seeded.github, seeded.issue,
+            message="which of the two parsers did you mean?",
+            head_shas=(PR_HEAD_SHA, PR_HEAD_SHA),
+        )
+
+        # One developer, handed the authorization this tick was moved here to
+        # answer, and no bounce to the reviewer over its head.
+        self.assertIn(AUTHORIZATION, only_prompt(mocks))
+        self.assertFalse(self._went_back_to_review(seeded))
+        self.assertTrue(self._pinned(seeded).get(AWAITING_HUMAN))
+
 
 class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
     """Which road each report outcome a fix round can reach takes."""
@@ -348,7 +366,9 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
 
         self._round(
             seeded.github, seeded.issue,
-            message=_verified(seeded.github.repo_slug),
+            message=recovery.verified_report(
+                seeded.github.repo_slug, support.PR_NUMBER,
+            ),
             head_shas=(SHA_BEFORE, SHA_BEFORE),
         )
 
@@ -719,6 +739,9 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # settlement closed.
         mocks[RUN_AGENT].assert_not_called()
         self.assertTrue(self._went_back_to_review(seeded))
+        # The mark that said so is retired with the relabel, so the round it
+        # finished cannot be finished again over a later one's feedback.
+        self.assertFalse(self._pinned(seeded).get(recovery.SETTLED_ROUND))
 
     def test_a_dirty_checkout_parks_for_a_human(self) -> None:
         # A tree this host PROVED dirty is the other refusal nothing takes

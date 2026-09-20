@@ -1477,8 +1477,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             relabel while a report is still owed. A binding is held to the commit its CALLER proved
                             and never to the standing `implementing_published_sha`, which on a tick that pushed
                             nothing names an older round. What closes the two groups is the write that completes the
-                            transaction, here or in the reconciliation ahead of a later handler; where nothing was
-                            published there is no transaction to wait for, so the consumption is settled on the spot
+                            transaction, here or in the reconciliation ahead of a later handler -- a push that did
+                            not land and a post GitHub refused both leave the record carrying them, since the report
+                            is still ahead of the issue and the bounce that republishes that commit is what binds it.
+                            The one road that settles on the spot is the park a report this build cannot record
+                            takes, where no transaction exists to wait for. Also the mark that settlement raises
+                            (`fixing_round_settled`), which is the whole of what tells the next tick a round closed
+                            while the label never moved, and the relabel that retires it
       report_recovery.py    a report an earlier tick recorded and never bound, answered before anything rescans: the
                             watermarks that record carries applied off the record itself, and the binding re-proved
                             against the checkout rather than remembered off a receipt -- a clean tree, a head it can
@@ -1497,13 +1502,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             handing the issue back. Whether a report is owed is read off the RECORD rather than off
                             the run, so a round whose own reply carried none still binds the one an earlier tick
                             recorded before it spends a bookmark or relabels. Which write carries the settlement
-                            forks on the run's report outcome -- and the consumption goes the other way, applied
-                            into the state ahead of every durable write so whichever one comes next carries it: a round that finished on one records its consumed pairs and its route
-                            bookkeeping onto the report transaction (`engine/report_delivery.py`) and binds it to
-                            the publication afterwards (`engine/report_binding.py`), so the write that completes the
-                            publication is the one that closes them and a report still owed holds the relabel;
-                            every other outcome closes its own directly, ahead of the disposition, where the size
-                            gate's own durable write and a park's both carry it
+                            forks on the run's report outcome. A round that finished on one records its consumed
+                            pairs and its route bookkeeping onto the report transaction
+                            (`engine/report_delivery.py`) and binds it to the publication afterwards
+                            (`engine/report_binding.py`), so the write that COMPLETES the publication is the one
+                            that applies both and a report still owed holds the relabel, the bookmarks and the
+                            readers where they stand. Every other outcome settles its own consumption directly,
+                            into the state ahead of the disposition so that whichever durable write comes next --
+                            the size gate's receipt, a park's own -- carries it. A replay settles the batch it
+                            REPLAYED joined with the fresh rescan, each item against the reader of the surface it
+                            was posted on
       parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough

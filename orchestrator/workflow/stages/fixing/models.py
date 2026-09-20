@@ -19,7 +19,11 @@ them could not say which half that field may be advanced over.
 `_ParkedFixingDecision` is how a parked tick answers without the caller having
 to re-derive it: `stop` says the tick is fully handled, and `replay_batch`
 carries the preserved feedback an accepted `/orchestrator continue` resumes on
-instead of the per-tick rescan.
+instead of the per-tick rescan. It is a `_FixingFeedback` rather than one flat
+list for the reason the rescan is: a replay is delivered, so it is settled --
+and a batch that had flattened the reconstruction could not say which reader
+owns which half of it, leaving the issue thread's own boundary behind on
+exactly the replay that quoted it.
 
 `_FixingResumeRun` carries what the disposition cannot re-derive after the run:
 the worktree it actually ran in (the resolve may have recreated it), whether an
@@ -70,11 +74,59 @@ class _FixingFeedback:
             self.issue_space + self.review_comments + self.review_summaries
         )
 
+    def merged_with(self, other: _FixingFeedback) -> _FixingFeedback:
+        """Two readings of one round, joined on the surface each was read from.
+
+        What a `/orchestrator continue` delivers is the preserved batch the
+        park never answered AND the fresh feedback that arrived with the
+        command, and what it consumed is both -- so they are joined per
+        surface rather than concatenated. Flattened, the reconstruction's
+        issue-thread half would settle whatever reader the merged list was
+        attributed to, which is how the issue-action boundary gets left behind
+        on the one road that replays across it.
+
+        Each item once, in the id order GitHub gave them: the two readings
+        overlap by construction, since a bookmarked comment still above the
+        readers is in the reconstruction and in the rescan alike, and a
+        prompt that quoted it twice would ask for it to be answered twice.
+        """
+        return _FixingFeedback(
+            issue_thread=_joined(self.issue_thread, other.issue_thread),
+            pr_conversation=_joined(
+                self.pr_conversation, other.pr_conversation,
+            ),
+            review_comments=_joined(
+                self.review_comments, other.review_comments,
+            ),
+            review_summaries=_joined(
+                self.review_summaries, other.review_summaries,
+            ),
+        )
+
+
+def _joined(read: list, also_read: list) -> list:
+    """One surface's two readings, each item once and in id order."""
+    by_id = {
+        feedback_item.id: feedback_item
+        for feedback_item in (*read, *also_read)
+    }
+    return [by_id[feedback_id] for feedback_id in sorted(by_id)]
+
+
+def _no_fixing_feedback() -> _FixingFeedback:
+    """The reading that found nothing, on every surface."""
+    return _FixingFeedback(
+        issue_thread=[],
+        pr_conversation=[],
+        review_comments=[],
+        review_summaries=[],
+    )
+
 
 @dataclass(frozen=True)
 class _ParkedFixingDecision:
     stop: bool
-    replay_batch: list | None = None
+    replay_batch: _FixingFeedback | None = None
 
 
 @dataclass(frozen=True)

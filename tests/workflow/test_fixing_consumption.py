@@ -61,6 +61,10 @@ ORCHESTRATOR = "orchestrator"
 # the one IssueComment id space GitHub gives the issue thread.
 PARK_NOTICE_ID = 800
 AUTHORIZATION_ID = 810
+# The retry an operator types into the PULL REQUEST's conversation, numbered
+# in the same IssueComment space the thread above is: the two surfaces share
+# GitHub's numbering and share no reader at all.
+PR_CONTINUE_ID = 820
 
 PARK_NOTICE_BODY = ":raising_hand: waiting on a human."
 AUTHORIZATION = "authorized: go ahead and vendor the parser"
@@ -73,6 +77,7 @@ DEBOUNCE_SECONDS = 600
 AWAITING_HUMAN = "awaiting_human"
 PARK_REASON = "park_reason"
 LAST_ACTION_COMMENT_ID = "last_action_comment_id"
+PR_LAST_COMMENT_ID = "pr_last_comment_id"
 PENDING_FIX_ISSUE_IDS = "pending_fix_issue_ids"
 PENDING_FIX_AT_TS = "2026-05-24T00:00:00+00:00"
 AGENT_TIMEOUT = "agent_timeout"
@@ -101,7 +106,7 @@ class _FixRoundFixtureMixin(_PatchedWorkflowMixin):
     reconstructable after every reader has moved past it.
     """
 
-    def _seed(self, *, issue_comments=()):
+    def _seed(self, *, issue_comments=(), pr_conversation=(), **overrides):
         gh = FakeGitHubClient()
         issue = make_issue(ISSUE, label=LABEL_FIXING, comments=[
             _comment(PARK_NOTICE_ID, PARK_NOTICE_BODY, author=ORCHESTRATOR),
@@ -115,24 +120,43 @@ class _FixRoundFixtureMixin(_PatchedWorkflowMixin):
             head=FakePRRef(sha=HEAD_SHA),
             mergeable=True,
             check_state="success",
+            issue_comments=list(pr_conversation),
         ))
-        gh.seed_state(
-            ISSUE,
-            pr_number=PR_NUMBER,
-            branch=BRANCH,
-            dev_agent=DEV_AGENT,
-            dev_session_id=DEV_SESSION,
-            review_round=1,
-            orchestrator_comment_ids=[PARK_NOTICE_ID],
-            pr_last_comment_id=PARK_NOTICE_ID,
-            last_action_comment_id=PARK_NOTICE_ID,
-            pr_last_review_comment_id=0,
-            pr_last_review_summary_id=0,
-            pending_fix_at=PENDING_FIX_AT_TS,
-            pending_fix_issue_max_id=AUTHORIZATION_ID,
-            pending_fix_issue_ids=[AUTHORIZATION_ID],
-        )
+        pinned = {
+            "pr_number": PR_NUMBER,
+            "branch": BRANCH,
+            "dev_agent": DEV_AGENT,
+            "dev_session_id": DEV_SESSION,
+            "review_round": 1,
+            "orchestrator_comment_ids": [PARK_NOTICE_ID],
+            "pr_last_comment_id": PARK_NOTICE_ID,
+            LAST_ACTION_COMMENT_ID: PARK_NOTICE_ID,
+            "pr_last_review_comment_id": 0,
+            "pr_last_review_summary_id": 0,
+            "pending_fix_at": PENDING_FIX_AT_TS,
+            "pending_fix_issue_max_id": AUTHORIZATION_ID,
+            PENDING_FIX_ISSUE_IDS: [AUTHORIZATION_ID],
+        }
+        pinned.update(overrides)
+        gh.seed_state(ISSUE, **pinned)
         return gh, issue
+
+    def _seed_pre_upgrade_park(self):
+        """A park filed before a fix round settled the issue-action boundary.
+
+        The round that opened it quoted the authorization and advanced the
+        PR-side cursor past it, leaving `last_action_comment_id` exactly where
+        it found it -- which is what every issue parked before this settlement
+        existed carries. The retry arrives on the PULL REQUEST's conversation,
+        so the batch the replay delivers spans two surfaces answering to two
+        different readers.
+        """
+        return self._seed(
+            pr_conversation=[_comment(PR_CONTINUE_ID, CONTINUE_COMMAND)],
+            pr_last_comment_id=AUTHORIZATION_ID,
+            awaiting_human=True,
+            park_reason=AGENT_TIMEOUT,
+        )
 
     def _newest(self, issue, body: str) -> None:
         """Put one reply at the top of the thread, above the round's notices.
@@ -232,6 +256,51 @@ class DeliveredFixFeedbackTest(unittest.TestCase, _FixRoundFixtureMixin):
             replayed_task(only_prompt(retry_mocks)),
             pr_feedback_prompt([self._authorization(issue)]),
         )
+
+
+class ReplayedFixFeedbackTest(unittest.TestCase, _FixRoundFixtureMixin):
+    """A replay settles the reader each half of what it delivered owns."""
+
+    def test_a_replay_across_surfaces_settles_both(self) -> None:
+        # #1790's first sequence, on an issue parked before this settlement
+        # shipped: the authorization is on the ISSUE THREAD and the retry that
+        # replays it is typed into the PULL REQUEST's conversation. Flattened,
+        # the replay records what it delivered against whichever reader the
+        # merged list is attributed to -- and the issue-action boundary, the
+        # one field the stage a relabel hands the issue to reads, stays below
+        # the reply this round just answered.
+        gh, issue = self._seed_pre_upgrade_park()
+
+        retry_mocks = self._tick(
+            self._run_fixing, gh, issue, last_message=DEV_QUESTION,
+        )
+
+        # One developer, handed the preserved authorization entire and alone:
+        # never the bare command that asked for the retry.
+        self.assertEqual(
+            replayed_task(only_prompt(retry_mocks)),
+            pr_feedback_prompt([self._authorization(issue)]),
+        )
+        pinned_data = gh.pinned_data(ISSUE)
+        # The replayed half was read off the issue thread, so the issue-action
+        # boundary moves with it; the command was read off the pull request,
+        # so only the PR-side cursor covers that.
+        self.assertGreaterEqual(
+            pinned_data.get(LAST_ACTION_COMMENT_ID), AUTHORIZATION_ID,
+        )
+        self.assertGreaterEqual(
+            pinned_data.get(PR_LAST_COMMENT_ID), PR_CONTINUE_ID,
+        )
+
+        gh.apply_foreign_label(issue, LABEL_VALIDATING)
+        validating_mocks = self._tick(
+            self._run_validating, gh, issue, last_message=DEV_QUESTION,
+        )
+
+        # Nothing is spawned: the authorization is answered for every reader
+        # that owns a piece of it, so the move finds no work to pay for.
+        self.assertEqual(self._prompts(validating_mocks), [])
+        validating_mocks[RUN_AGENT].assert_not_called()
 
 
 if __name__ == "__main__":

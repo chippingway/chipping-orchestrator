@@ -34,6 +34,14 @@ validating one and parks an ordinary `ACK:` instead of answering it. A binding
 whose post did not land relabels nothing: the transaction is the
 reconciliation's to finish ahead of the next handler, and the bookmarks an
 outstanding publication replays from have to outlive this tick.
+
+The round a settlement finished ELSEWHERE -- the reconciliation ahead of this
+handler, or a tick that died between that write and its own relabel -- is
+handed back on the strength of the mark that settlement raised, and on nothing
+weaker. A settled report and a publication receipt both outlive the
+transaction that made them, so a pull request standing on the commit one names
+is no evidence that this round just closed; taken for it, a manual relabel
+would be bounced back to the reviewer with its feedback unread.
 """
 from __future__ import annotations
 
@@ -44,18 +52,12 @@ from orchestrator.workflow.engine import (
     report_consumed_values as _consumed,
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
-    report_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.fixing import (
     models as _models,
     reporting as _reporting,
     state as _state,
 )
-from orchestrator.workflow.state import WorkflowLabel
-
-# The validating route's own record of the round it opened, which the
-# settlement clears along with the in_review route's bookmarks.
-_REVIEWER_ANCHOR = "pending_fix_reviewer_comment_id"
 
 # What a report no road on this host can publish is held under.
 _UNPUBLISHABLE_PARK = (
@@ -103,7 +105,7 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return False
     if not still_owed:
-        ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
+        _reporting._hands_the_round_back(ctx)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     return True
 
@@ -193,34 +195,24 @@ def _finishes_a_settled_round(ctx: _models._FixingContext) -> bool:
     is read on the next poll, by the stage the label now names, on the route
     that batch really belongs to.
 
-    What says the round is over is the settled report itself: it names this
-    pull request and the very commit the pull request is standing on, so the
-    work it describes is published and nothing is owed for it. A round still
-    running says otherwise on the same comment -- `pending_fix_at` for the
-    in_review route, the reviewer anchor for the validating one -- and either
-    leaves this alone.
+    What says the round is over is the mark that settlement raised, and
+    nothing else. Every other reading on the comment OUTLIVES a transaction:
+    the settled report is replaced rather than retired, and the publication
+    receipt beside it is persistent, so a pull request standing on the commit
+    a report names says only that some round once published it. Read that way,
+    a manual relabel onto `workflow:fixing` -- or any route that reaches this
+    stage without leaving its own anchor -- would be taken for a round that
+    just settled and bounced straight back to the reviewer with the fresh
+    feedback it was moved here to answer never scanned. The mark says THIS
+    transaction, it is written by the settlement that closed it, and the
+    relabel below clears it, so it can neither misfire on an older round nor
+    stand once this one is handed back.
     """
-    settled = _settlement.read_current_report(ctx.state)
-    unfinished = (
-        _report_delivery.owes_a_report(ctx.state)
-        or settled is None
-        or any(
-            ctx.state.get(recorded) is not None
-            for recorded in (_state._PENDING_FIX_AT, _REVIEWER_ANCHOR)
-        )
-    )
-    if unfinished or not _about_this_publication(ctx, settled.subject):
+    if not ctx.state.get(_state._SETTLED_ROUND):
         return False
-    ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
+    _reporting._hands_the_round_back(ctx)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     return True
-
-
-def _about_this_publication(ctx: _models._FixingContext, subject) -> bool:
-    """Whether a settled report names the head this pull request carries."""
-    if subject.pr_number != getattr(ctx.pr, "number", 0):
-        return False
-    return subject.source_sha == getattr(ctx.pr.head, "sha", "")
 
 
 def _published_checkout(ctx: _models._FixingContext) -> str:

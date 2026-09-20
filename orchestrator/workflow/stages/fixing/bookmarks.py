@@ -14,6 +14,12 @@ recorded ids. Filtering by id inherently drops the orchestrator's own comments
 (their ids were never in the batch) and survives any watermark advance; an item
 deleted on GitHub since simply falls out.
 
+The two IssueComment surfaces share one recorded id set and are rebuilt apart,
+because the replay is DELIVERED and therefore settled: the issue thread
+answers to `last_action_comment_id` beside the PR-side cursor and the pull
+request answers to neither, so a reconstruction that merged them could not say
+which reader each half moves.
+
 The validating route records no id lists at all -- its single replay anchor is
 the reviewer-feedback PR comment, which the orchestrator authored itself, so it
 is fetched separately here and the caller adds it OUTSIDE the trust filter.
@@ -106,61 +112,68 @@ def _reviewer_anchor_comment(gh, pr, state):
     return None
 
 
-def _reconstruct_issue_space(gh, issue, pr, state) -> list:
-    """Batch items from the shared issue-thread + PR-conversation id space.
+def _reconstruct_issue_space(gh, issue, pr, state) -> tuple:
+    """The batch's two IssueComment surfaces, rebuilt APART.
 
-    Re-fetches both surfaces in full (`after_id=None`) and keeps only the ids
-    recorded at route time, sorted by id -- so the reconstruction survives the
-    watermark advancement that follows the first dev resume.
+    One recorded id set, because GitHub numbers the issue thread and the pull
+    request's conversation from one space -- and two lists out of it, because
+    the settlement behind the replay owes a different reader for each: the
+    thread answers to `last_action_comment_id` as well as the PR-side cursor,
+    and the pull request answers to neither. Handed back as one list, the
+    replay could not say which half the issue-action boundary may be advanced
+    over, so a retry that quoted an issue-thread reply would leave that reader
+    behind and pay the next stage's developer to deliver the reply again.
+
+    Re-fetches each surface in full (`after_id=None`) and keeps only the ids
+    recorded at route time, so the reconstruction survives the watermark
+    advancement that follows the first dev resume.
     """
-    issue_ids = _pending_fix_id_set(
+    recorded = _pending_fix_id_set(
         state, "pending_fix_issue_ids", "pending_fix_issue_max_id",
     )
-    if not issue_ids:
-        return []
-    matched = [
-        issue_comment
-        for issue_comment in gh.comments_after(issue, None)
-        if issue_comment.id in issue_ids
-    ]
-    matched += [
-        pr_comment
-        for pr_comment in gh.pr_conversation_comments_after(pr, None)
-        if pr_comment.id in issue_ids
-    ]
-    matched.sort(key=lambda comment: comment.id)
-    return matched
+    if not recorded:
+        return [], []
+    return (
+        _matched(gh.comments_after(issue, None), recorded),
+        _matched(gh.pr_conversation_comments_after(pr, None), recorded),
+    )
 
 
-def _reconstruct_review_comments(gh, pr, state) -> list:
-    """Inline review-comment batch items recorded at route time, sorted by id."""
-    review_ids = _pending_fix_id_set(
+def _reconstruct_review_surfaces(gh, pr, state) -> tuple:
+    """The batch's inline review comments and review summaries, each apart.
+
+    Two id spaces of their own, neither shared with anything and neither
+    shared with each other, so they are read under their own bookmarks and
+    settle their own in_review watermarks. Each surface is fetched only where
+    its bookmark names something, since the fetch is a request and a round
+    that recorded no review feedback has nothing on either to rebuild.
+    """
+    inline_ids = _pending_fix_id_set(
         state, "pending_fix_review_ids", "pending_fix_review_max_id",
     )
-    if not review_ids:
-        return []
-    matched = [
-        review_comment
-        for review_comment in gh.pr_inline_comments_after(pr, None)
-        if review_comment.id in review_ids
-    ]
-    matched.sort(key=lambda comment: comment.id)
-    return matched
-
-
-def _reconstruct_review_summaries(gh, pr, state) -> list:
-    """Review-summary batch items recorded at route time, sorted by id."""
     summary_ids = _pending_fix_id_set(
         state,
         "pending_fix_review_summary_ids",
         "pending_fix_review_summary_max_id",
     )
-    if not summary_ids:
+    return (
+        _matched(gh.pr_inline_comments_after(pr, None), inline_ids)
+        if inline_ids else [],
+        _matched(gh.pr_reviews_after(pr, None), summary_ids)
+        if summary_ids else [],
+    )
+
+
+def _matched(read, recorded: set) -> list:
+    """One surface's recorded batch items, sorted by id.
+
+    An id recorded at route time that this surface does not carry simply is
+    not here -- it was posted on the other half of a shared space, or the
+    comment has been deleted on GitHub since.
+    """
+    if not recorded:
         return []
-    matched = [
-        review
-        for review in gh.pr_reviews_after(pr, None)
-        if review.id in summary_ids
-    ]
-    matched.sort(key=lambda review: review.id)
-    return matched
+    return sorted(
+        (found for found in read if found.id in recorded),
+        key=lambda found: found.id,
+    )

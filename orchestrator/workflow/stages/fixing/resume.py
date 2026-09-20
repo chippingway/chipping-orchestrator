@@ -17,11 +17,24 @@ do and bounce a PR head that is missing the fix. Leaving it on disk is what
 lets a later clean run republish it through the stranded-fix tail.
 
 Past those three the prompt reached an agent, whatever it came back with, so
-the batch is SETTLED there -- once, ahead of every disposition below it. The
-readers it settles are the surfaces it was read from (`feedback.py`), and the
-moment is what makes it durable: the size gate's own write and a park's own
-write both land inside the disposition, so a settlement taken afterwards would
-be lost to a crash in exactly the window a hold's relabel opens.
+the batch it quoted is DELIVERED -- and which write records that forks on the
+run's report outcome. A run that wrote no report settles its own readers right
+there, ahead of every disposition below it, because nothing else is going to:
+the size gate's own write and a park's own write both land inside the
+disposition, so a settlement taken afterwards would be lost to a crash in
+exactly the window a hold's relabel opens. A run that DID write one settles
+nothing here at all -- both groups ride the record of that report, and the
+write that completes the publication is what applies them, so a report no
+reviewer ever receives cannot leave the feedback behind it recorded as
+answered.
+
+What the batch is, on a `/orchestrator continue`, is the replay JOINED with
+the fresh rescan. The prompt quotes the replay alone -- the bare command is a
+control and must never be what the dev is asked to implement -- while the
+settlement covers both, each item against the reader of the surface it was
+posted on (`feedback.py`). That is what advances the issue-action boundary
+over a replayed issue-thread reply instead of leaving it for the stage a
+relabel hands the issue to.
 
 Then the disposition. The ACK fast path is in_review-route only -- the
 validating reviewer asked for a concrete change, so an ACK there is not an
@@ -312,7 +325,7 @@ def _delivered_nothing(
 def _resume_fixing_and_dispatch_result(
     ctx: _models._FixingContext,
     feedback: _models._FixingFeedback,
-    replay_batch,
+    replay_batch: _models._FixingFeedback | None,
 ) -> None:
     """Resume the locked dev session over the unread feedback (or a preserved
     `/orchestrator continue` batch), then dispatch the result: the in_review-
@@ -334,8 +347,20 @@ def _resume_fixing_and_dispatch_result(
     # (plus any new feedback that came with the command), not the command
     # text -- the whole point of the command is to not lose the review
     # feedback the parked session never addressed.
+    #
+    # What that round CONSUMED is the replay joined with the whole fresh
+    # rescan, and the difference between the two is deliberate: the prompt
+    # drops the bare command because the dev must not be told to implement the
+    # word "continue", while the settlement has to record it as answered or
+    # the retry re-fires on the next poll. Every other item is in both, on the
+    # surface it was posted on -- which is what advances the issue-action
+    # boundary over a replayed issue-thread reply instead of leaving it for
+    # the stage a relabel hands the issue to.
+    delivered = (
+        feedback if replay_batch is None else replay_batch.merged_with(feedback)
+    )
     run = _run_fixing_resume(ctx, _conversation_prompts._build_pr_comment_followup(
-        feedback.all_items if replay_batch is None else replay_batch,
+        (feedback if replay_batch is None else replay_batch).all_items,
     ))
 
     # Nothing below may run for a batch no agent read (`_delivered_nothing`),
@@ -354,9 +379,9 @@ def _resume_fixing_and_dispatch_result(
     # whatever the run came back with -- a fix, a timeout, an empty message, a
     # question. Which WRITE records that is the fork below, and a report this
     # build cannot record ends the tick where the commit is still unpublished.
-    reporting = _report_outcomes._finished_on_a_report(run.dev_result)
     if _records_what_was_consumed(
-        ctx, run, feedback, owed, reporting=reporting,
+        ctx, run, delivered, owed,
+        reporting=_report_outcomes._finished_on_a_report(run.dev_result),
     ):
         return
 
@@ -384,7 +409,7 @@ def _resume_fixing_and_dispatch_result(
     ):
         return
 
-    _disposes(ctx, run, feedback, owed, owes=owes)
+    _disposes(ctx, run, delivered, owed, owes=owes)
 
 
 def _disposes(
@@ -402,8 +427,11 @@ def _disposes(
     ISSUE owes one -- its own, or one an earlier tick recorded and a crash
     left unbound, since this push is the publication that report was waiting
     for -- and on the frozen pairs where none is owed. And a round that
-    published nothing settles its consumption here, because the record a
-    reporting round left is a delivery no road goes back to on its own.
+    published nothing closes nothing: a non-reporting run already settled its
+    own readers ahead of this call, and a reporting one is still carrying both
+    groups on its record for the write that completes the publication. The
+    bounce that republishes that commit is what binds it; settled here
+    instead, the feedback would read as answered for a report no reviewer has.
     """
     # A round whose whole answer IS the report never reaches the publication
     # tail: there is no commit to push, and the prompt asked for exactly that
@@ -429,8 +457,10 @@ def _disposes(
 
     if not pushed:
         # A hold has already spent this route's round durably, from inside the
-        # gate's own write; what is left here is the caller's ordinary write,
-        # which carries the consumption settled ahead of all of it.
+        # gate's own write; what is left here is the caller's ordinary write.
+        # It carries the consumption a NON-reporting run settled ahead of all
+        # of it, and nothing at all for a reporting one -- that round's pairs
+        # are on its record, for the write that finally publishes the report.
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 

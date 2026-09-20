@@ -16,6 +16,12 @@ of a later handler. Settled here instead, a crash in that window leaves the
 feedback answered and the reviewer round spent for a report nobody published,
 with the `pending_fix_*` replay source cleared along with them.
 
+A mark rides beside that bookkeeping for the one thing the settlement cannot
+do: move a label. It says THIS transaction settled, so the tick that finds the
+round finished acts on evidence rather than on an inference from the settled
+report and the head a pull request happens to carry -- both of which outlive
+every transaction. It is cleared by the relabel that closes the round.
+
 Every other outcome a fix round reaches -- the `ACK:`, the question, the
 timeout, the dirty tree -- writes no report at all, and those close their own
 bookkeeping directly in `resume`. Telling the two apart is the whole of what
@@ -32,11 +38,18 @@ from orchestrator.workflow.engine import (
     report_outcomes as _report_outcomes,
     report_records as _report_records,
 )
-from orchestrator.workflow.stages.fixing import models as _models
+from orchestrator.workflow.stages.fixing import models as _models, state as _state
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
 )
 from orchestrator.workflow.state import WorkflowLabel
+
+# The mark this route's settlement raises, recorded beside the bookkeeping it
+# closes so the one write that completes a publication carries both. It is the
+# only thing that says a fixing round's report SETTLED while the label never
+# moved -- the settled report and the publication receipt are persistent, so a
+# head a pull request is standing on proves nothing about this transaction.
+_SETTLES_THE_ROUND = ((_state._SETTLED_ROUND, True),)
 
 # What a reply that reached for the report contract and missed is held under.
 # The run is over, so nothing here clears on its own: what it asks for is a
@@ -145,9 +158,47 @@ def _recording_stops_the_tick(
         _report_records.RouteDebt(
             route=WorkflowLabel.FIXING,
             watermarks=consumed,
-            spends=owed.fields,
+            spends=_closes_the_round(owed),
         ),
     )
+
+
+def _closes_the_round(owed) -> tuple:
+    """This route's bookkeeping, plus the mark that says its round is over.
+
+    The two travel together because one write applies them. A settlement can
+    close `pending_fix_at`, the bookmarks and `review_round`, and it cannot
+    move a label -- so without the mark the tick that finds the round finished
+    would have to INFER it from the settled report and the head the pull
+    request happens to carry, and neither of those says anything about this
+    transaction: both outlive it, so a manual relabel onto `workflow:fixing`
+    would be read as a round that just settled and bounce straight back to the
+    reviewer without reading the feedback it was moved here to answer.
+    """
+    return owed.fields + _SETTLES_THE_ROUND
+
+
+def _hands_the_round_back(ctx: _models._FixingContext) -> None:
+    """Send the reviewer the head, and retire the mark that round settled on.
+
+    One owner for both halves because they are one act, and because the mark
+    is what stops a LATER round being finished by this one: cleared in the
+    same write that moves the label, the only window it outlives is the crash
+    between the two -- and the tick that follows one reads the round as
+    settled, hands it back again, and clears it then.
+
+    Every road that can reach a relabel with the mark RAISED comes through
+    here, and those are exactly the roads a settlement lands on: this round's
+    own publication, the recovery's binding, the no-feedback bounce that
+    republishes a stranded commit, and the tick that finds a round settled
+    elsewhere. No other fixing road can carry one, because the read that
+    finds a raised mark runs first in the handler and ends the tick there.
+    The bounce comes through anyway on the roads that never saw a report: a
+    mark that is not up is nothing to clear, and a road that has to remember
+    whether to clear one is a road that comes to forget.
+    """
+    ctx.state.set(_state._SETTLED_ROUND, None)
+    ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
 
 
 def _holds_an_unpublished_report(
@@ -210,5 +261,5 @@ def _finishes_a_reported_round(
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
     _late_gate_models._spend(ctx.state, owed)
-    ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
+    _hands_the_round_back(ctx)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)

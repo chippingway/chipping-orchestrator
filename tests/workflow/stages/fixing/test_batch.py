@@ -161,7 +161,7 @@ class ReconstructPendingFixBatchTest(
             issue,
             pr,
             self._pinned_state,
-        )
+        ).all_items
 
         # Exact batch: issue-space, then inline, then summaries; each surface
         # sorted by id.
@@ -198,7 +198,7 @@ class ReconstructPendingFixBatchTest(
         )
         state = gh.read_pinned_state(issue)
 
-        batch = _reconstruct_pending_fix_batch(gh, issue, pr, state)
+        batch = _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items
 
         # Only the single max-id item per surface; a legacy bookmark cannot
         # prove lower ids were in the batch.
@@ -219,7 +219,9 @@ class ReconstructPendingFixBatchTest(
         )
         state = gh.read_pinned_state(issue)
 
-        self.assertEqual(_reconstruct_pending_fix_batch(gh, issue, pr, state), [])
+        self.assertEqual(
+            _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items, [],
+        )
 
     def test_drops_untrusted_recorded_ids(self) -> None:
         # An issue parked before the trust gate shipped can carry an untrusted
@@ -259,7 +261,9 @@ class ReconstructPendingFixBatchTest(
         self._state = gh.read_pinned_state(issue)
 
         with patch.object(config, ALLOWED_AUTHORS_CONFIG, (ALLOWED_AUTHOR,)):
-            batch = _reconstruct_pending_fix_batch(gh, issue, pr, self._state)
+            batch = _reconstruct_pending_fix_batch(
+                gh, issue, pr, self._state,
+            ).all_items
 
         # Only the trusted recorded id survives.
         self.assertEqual(

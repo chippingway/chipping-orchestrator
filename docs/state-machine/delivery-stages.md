@@ -3158,7 +3158,12 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      lets the tick carry on — is finished here FIRST (`report_recovery._finishes_a_settled_round`): that write closed
      this route's bookkeeping, so a scan running past it reads whatever landed since under a route that no longer
      exists and answers an in_review batch as a validating one, refusing an ordinary `ACK:`. The issue goes back to
-     `workflow:validating` and the tick ends.
+     `workflow:validating` and the tick ends. What says the round settled is the `fixing_round_settled` mark that
+     settlement raised through its own recorded spends, and nothing weaker: `developer_report_current` is REPLACED
+     rather than retired and `implementing_published_sha` is persistent, so a pull request standing on the commit
+     either names says only that some round once published it — read as proof, a manual relabel onto
+     `workflow:fixing` would bounce straight back to the reviewer with its fresh feedback never scanned. The relabel
+     retires the mark in the same write, so it can never finish a later round.
 
      A binding that TAKES the delivery **ends the tick** too. Settled, the round the record froze is closed and the
      issue is handed back to `workflow:validating` — the recovered route is finished exactly as the live road would
@@ -3333,7 +3338,7 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      [the developer-report transaction](#the-developer-report-transaction-every-dispatch) ahead of a later handler
      finishes the publication and settles both groups from the record.
 
-     Two report roads do NOT wait for a push. A **report-only** round is what the prompt asks for where an item wants
+     One report road does NOT wait for a push. A **report-only** round is what the prompt asks for where an item wants
      report content only — it binds against the head the pull request already stands on, publishes, and hands the
      issue back to `workflow:validating` without an artificial commit. Every reading that admits it is POSITIVE
      (`reporting._is_report_only`): the run completed, its checkout NAMED a head, that head is the one the run began
@@ -3343,12 +3348,16 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      both for a branch in sync and for a fetch that failed, a remote that moved, or a divergence nothing could count.
      Any of those read as "nothing to publish" would bind a report against whatever head the preflight happened to
      see. The commit a binding is held to is always the one its CALLER proved, never the standing
-     `implementing_published_sha`, which on a tick that pushed nothing names an older round. And a push
-     that did NOT land settles the consumption right there
-     (`reporting._settles_unless_a_transaction_will`): nothing bound the report, so the record is a
-     delivery the reconciliation never reads, and leaving the consumption on it would hand the same feedback to a
-     second developer on the next tick. The rule both share: the transaction keeps the pairs only while a PENDING
-     transaction exists to apply them.
+     `implementing_published_sha`, which on a tick that pushed nothing names an older round.
+
+     A push that did NOT land settles nothing either. The record keeps both groups, exactly as a refused post leaves
+     them, because the report is still ahead of the issue rather than behind it: the no-feedback bounce republishes
+     that commit, binds the delivery to it, and the settlement that completes the publication is what advances the
+     readers. Holding them back costs one re-delivery of the batch in that window — the round that runs in it binds
+     the standing record before it spends or relabels, so the report is not lost by it — and the alternative costs
+     the thing this split exists to prevent: feedback recorded as answered for a report no reviewer has. The single
+     road that settles on the spot is one that ENDS in a park: a report this build cannot record has no transaction
+     to wait for, so the consumed half goes into that park's own durable write.
   10. **On a pushed fix**: clear `pending_fix_*`, adjust `review_round` per the route discriminator (in_review route
       resets to 0 — the previous approval was for the prior head; validating route bumps by 1 — same review cycle),
       flip DIRECTLY back to `workflow:validating`. Docs do not run on this exit.

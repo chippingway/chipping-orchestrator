@@ -290,7 +290,9 @@ answered in the report with no commit for it. Such a round is recorded, publishe
   the route's bookkeeping, so a scan running past it reads whatever landed since under a route that no longer
   exists — an in_review batch answered as a validating one, where an ordinary `ACK:` is refused. The issue goes back
   to `workflow:validating` and the tick ends; the later feedback is read on the next poll by the stage the label now
-  names.
+  names. What says it settled is the `fixing_round_settled` mark that settlement raised, and nothing weaker: the
+  settled report and the publication receipt beside it both outlive the transaction that made them, so a manual
+  relabel read off either would be bounced back to the reviewer with fresh feedback nobody scanned.
 - One rule covers every road an owed report touches: **nothing an outstanding publication carries may be spent
   before it lands** — not the bookmarks, not the round, not the readers. A bounce that publishes a stranded commit
   while a report stands hands the size gate nothing to close. The single exception is a road that ENDS in a park:

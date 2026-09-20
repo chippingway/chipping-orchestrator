@@ -9,9 +9,18 @@ the session that failed is dropped, a fresh one is grounded on the preserved
 batch, and anything the operator wrote beside the command rides along verbatim.
 The command line itself does not: what a replay is handed is rendered to the
 dev as PR feedback to act on, and the one thing this retry must not tell it to
-implement is the word "continue". Nothing is lost by dropping it, because the
-resume tail advances the watermarks past all of the fresh feedback rather than
-past what it replayed.
+implement is the word "continue". Nothing is lost by dropping it, because what
+the resume settles is the replayed batch JOINED with the whole fresh rescan,
+so the command is consumed like any other delivered comment.
+
+The batch is rebuilt per surface for that settlement's sake. A replay reaches
+a developer, so it is delivered, so each half of it answers to the reader that
+owns it -- and a flattened batch could not say that its issue-thread half
+moves `last_action_comment_id` while its PR-conversation half never may. A
+pre-upgrade park is where that shows: the round before the settlement existed
+left the issue-action boundary behind, the replay is the tick that quotes the
+reply again, and a relabel out of `fixing` after it would otherwise pay a
+second developer to deliver the very comment this retry just answered.
 
 Not every park may be retried. A park still waiting on a real human answer (an
 agent question, a worktree it could not finish) is refused rather than
@@ -39,7 +48,9 @@ from orchestrator.workflow.stages.implementing import session as _dev_session
 log = logging.getLogger("orchestrator.workflow")
 
 
-def _reconstruct_pending_fix_batch(gh, issue, pr, state) -> list:
+def _reconstruct_pending_fix_batch(
+    gh, issue, pr, state,
+) -> _models._FixingFeedback:
     """Rebuild the exact feedback batch that drove the `in_review` -> `fixing`
     route from the pinned `pending_fix_*` metadata.
 
@@ -47,23 +58,26 @@ def _reconstruct_pending_fix_batch(gh, issue, pr, state) -> list:
     watermarks, which advance past the triggering feedback the moment a dev
     resume consumes it -- so once a fix has been attempted the batch can no
     longer be recovered by rescanning. This helper reconstructs it from the
-    persisted ids instead, returned in the same order the route built them --
-    issue-space (issue-thread + PR-conversation) then inline review comments
-    then review summaries, each sorted by id. Filtering by the recorded id set
-    inherently drops the orchestrator's own comments (their ids were never in
-    the batch) and survives watermark advancement because the fetch is
-    unbounded. A batch item deleted on GitHub since the route simply drops out.
+    persisted ids instead, per SURFACE and each sorted by id, so the reading
+    it hands back is the shape every other batch in this stage has. That
+    matters past the prompt: a replay is delivered, so it is settled, and a
+    batch flattened into one list could not say that its issue-thread half
+    moves `last_action_comment_id` while its PR-conversation half never may.
+    Filtering by the recorded id set inherently drops the orchestrator's own
+    comments (their ids were never in the batch) and survives watermark
+    advancement because the fetch is unbounded. A batch item deleted on GitHub
+    since the route simply drops out.
 
     The validating -> fixing route preserves no `pending_fix_*_ids`; its lone
     replay anchor is the reviewer-feedback PR comment recorded in
     `pending_fix_reviewer_comment_id`. `_reviewer_anchor_comment` re-fetches it
-    and it is prepended to the batch OUTSIDE `filter_trusted` (it is the
-    orchestrator's own trusted reviewer output, which the author allowlist
-    would otherwise drop). Consulted ONLY on the validating route
-    (`pending_fix_at` unset): a stale anchor left behind by an earlier
-    validating park must not be prepended to an in_review-route batch. The two
-    routes are mutually exclusive in practice, so the anchor is de-duplicated
-    against the id-set batch defensively.
+    and it joins the PR CONVERSATION -- the surface it was posted on -- OUTSIDE
+    `filter_trusted` (it is the orchestrator's own trusted reviewer output,
+    which the author allowlist would otherwise drop). Consulted ONLY on the
+    validating route (`pending_fix_at` unset): a stale anchor left behind by an
+    earlier validating park must not be added to an in_review-route batch. The
+    two routes are mutually exclusive in practice, so the anchor is
+    de-duplicated against that surface's id-set batch defensively.
 
     Re-apply the author allowlist at reconstruction time, not only at route
     time: an issue parked before the trust gate shipped can carry untrusted ids
@@ -72,21 +86,40 @@ def _reconstruct_pending_fix_batch(gh, issue, pr, state) -> list:
     carry only `pending_fix_*_max_id` (no id lists) get the conservative
     single-item reconstruction from `_pending_fix_id_set`.
     """
-    trusted_batch = filter_trusted(
-        _bookmarks._reconstruct_issue_space(gh, issue, pr, state)
-        + _bookmarks._reconstruct_review_comments(gh, pr, state)
-        + _bookmarks._reconstruct_review_summaries(gh, pr, state)
+    thread, conversation = _bookmarks._reconstruct_issue_space(
+        gh, issue, pr, state,
     )
-    if state.get(_state._PENDING_FIX_AT) is None:
-        anchor = _bookmarks._reviewer_anchor_comment(gh, pr, state)
-        if anchor is not None and all(
-            feedback_item.id != anchor.id for feedback_item in trusted_batch
-        ):
-            return [anchor] + trusted_batch
-    return trusted_batch
+    inline, summaries = _bookmarks._reconstruct_review_surfaces(gh, pr, state)
+    return _models._FixingFeedback(
+        issue_thread=filter_trusted(thread),
+        pr_conversation=_anchored(
+            gh, pr, state, filter_trusted(conversation),
+        ),
+        review_comments=filter_trusted(inline),
+        review_summaries=filter_trusted(summaries),
+    )
 
 
-def _carried_fresh_feedback(feedback: _models._FixingFeedback) -> list:
+def _anchored(gh, pr, state, rebuilt: list) -> list:
+    """The PR conversation this replay rebuilt, plus the validating anchor.
+
+    The anchor is a PR-conversation comment, so it belongs on that surface
+    rather than at the head of a merged list -- which is also what keeps the
+    settlement behind the replay from recording it against the issue thread.
+    """
+    if state.get(_state._PENDING_FIX_AT) is not None:
+        return rebuilt
+    anchor = _bookmarks._reviewer_anchor_comment(gh, pr, state)
+    if anchor is None or any(
+        feedback_item.id == anchor.id for feedback_item in rebuilt
+    ):
+        return rebuilt
+    return [anchor] + rebuilt
+
+
+def _carried_fresh_feedback(
+    feedback: _models._FixingFeedback,
+) -> _models._FixingFeedback:
     """Return the fresh comments a replay may show the dev, minus the command.
 
     A bare `/orchestrator continue` is a control signal addressed to the
@@ -97,13 +130,26 @@ def _carried_fresh_feedback(feedback: _models._FixingFeedback) -> list:
     included: mixed comments are guidance, and mangling their body is not this
     owner's call.
 
-    Dropping the bare command costs nothing downstream. The resume tail
-    advances the watermarks past ALL of `feedback` rather than past what it
-    replayed, so the command is still consumed and does not re-fire next tick.
+    Cut per surface, like every other reading this stage takes, so the batch
+    the prompt quotes stays the batch a settlement can attribute.
+
+    Dropping the bare command costs nothing downstream. What the resume
+    SETTLES is this reading joined with the whole fresh rescan, so the command
+    is consumed exactly as the refusal road consumes one and does not re-fire
+    next tick.
     """
+    return _models._FixingFeedback(
+        issue_thread=_carrying(feedback.issue_thread),
+        pr_conversation=_carrying(feedback.pr_conversation),
+        review_comments=_carrying(feedback.review_comments),
+        review_summaries=_carrying(feedback.review_summaries),
+    )
+
+
+def _carrying(read: list) -> list:
+    """One surface's fresh items, minus the bare commands among them."""
     return [
-        comment
-        for comment in feedback.all_items
+        comment for comment in read
         if not _messages._is_bare_orchestrator_continue(comment)
     ]
 
@@ -152,12 +198,14 @@ def _handle_continue_command(
         `pending_fix_reviewer_comment_id` anchor). Drops the poisoned dev
         session (so the retry re-grounds a FRESH session on the committed
         branch rather than replaying the transcript that already failed) and
-        clears the park, as side effects; `batch` is the preserved PR-feedback
-        batch (`_reconstruct_pending_fix_batch`) followed by the fresh feedback
-        that carries something (`_carried_fresh_feedback`) -- any guidance
-        posted with or beside the command, verbatim, but never the bare
-        command itself. Pinned state is NOT written here (the caller's resume
-        tail writes it).
+        clears the park, as side effects; `batch` is a `_FixingFeedback`
+        joining the preserved PR-feedback batch
+        (`_reconstruct_pending_fix_batch`) with the fresh feedback that
+        carries something (`_carried_fresh_feedback`) -- any guidance posted
+        with or beside the command, verbatim, but never the bare command
+        itself -- each item on the surface it was posted on, so the resume
+        settles the replay against the readers that own it. Pinned state is
+        NOT written here (the caller's resume tail writes it).
       * ``("refuse", None)`` -- a content-free continue (every fresh comment is
         a bare command) on a park it cannot retry: an unsafe park that still
         needs real human guidance, or an eligible park with no reconstructable
@@ -174,18 +222,20 @@ def _handle_continue_command(
     park_reason = ctx.state.get(_state._PARK_REASON)
     batch = (
         _reconstruct_pending_fix_batch(ctx.gh, ctx.issue, ctx.pr, ctx.state)
-        if park_reason in _messages._CONTINUE_PARK_REASONS else []
+        if park_reason in _messages._CONTINUE_PARK_REASONS
+        else _models._no_fixing_feedback()
     )
-    if batch:
+    preserved = batch.all_items
+    if preserved:
         _dev_session._drop_poisoned_dev_session(ctx.state)
         ctx.state.set(_state._AWAITING_HUMAN, False)
         ctx.state.set(_state._PARK_REASON, None)
         log.info(
             "issue=#%s /orchestrator continue: replaying %d preserved feedback "
             "item(s) on a fresh dev session (park_reason=%s)",
-            ctx.issue.number, len(batch), park_reason,
+            ctx.issue.number, len(preserved), park_reason,
         )
-        return "replay", batch + _carried_fresh_feedback(feedback)
+        return "replay", batch.merged_with(_carried_fresh_feedback(feedback))
 
     if all(
         _messages._is_bare_orchestrator_continue(comment)

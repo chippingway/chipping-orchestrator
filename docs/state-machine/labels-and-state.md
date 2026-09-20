@@ -1439,7 +1439,16 @@ The keys that matter for the state machine fall into a few groups:
   spent, and the write that completes that publication is the one that applies both. The exception is a report
   road that ENDS
   in a park -- one this build could not record, one no checkout can prove -- where the park's own durable write
-  carries the consumed half, since no publication is coming to carry it.
+  carries the consumed half, since no publication is coming to carry it. A push that did not land is not that
+  exception: the record keeps both groups until the no-feedback bounce republishes that commit and binds the report
+  to it.
+
+  `fixing_round_settled` is the additive mark such a settlement leaves. The write that completes a fixing report
+  transaction applies that route's bookkeeping and cannot move a label, so the round ends with the issue still on
+  `workflow:fixing` — and nothing else on the comment says so, since `developer_report_current` is replaced rather
+  than retired and `implementing_published_sha` is persistent. The fixing stage reads it before it scans anything,
+  hands the issue back to `workflow:validating`, and retires the mark in the same write; no other stage reads or
+  writes it, and an issue that has never settled a fixing report does not carry it at all.
 
   Every writer of these fields stops before unread human input, and none of them reads a tip. The
   approval handoff's seed walk stops at the first unread non-orchestrator comment on either surface; the legacy
@@ -1486,12 +1495,17 @@ The keys that matter for the state machine fall into a few groups:
   question or disagreement park, and a publication the issue still owes all depend on the bookmarks outliving the
   readers the same round moved. The last of those is why a reporting fix round hands the size gate nothing to close:
   the clear rides its report transaction, so a report GitHub has not accepted yet leaves the replay source
-  standing. The `validating → fixing` route instead records a single
-  `pending_fix_reviewer_comment_id` — the id of the PR conversation comment carrying the reviewer's
-  CHANGES_REQUESTED feedback — and does NOT set `pending_fix_at` (that key is the route discriminator that drives the
-  review-round reset). `_reconstruct_pending_fix_batch` re-fetches that
-  exact comment by id (outside `filter_trusted`, since it is the orchestrator's own reviewer output the author allowlist
-  would otherwise drop) as the validating-route replay anchor. The rebuilt batch is what the `/orchestrator continue`
+  standing. The batch an accepted retry rebuilds keeps each surface apart, because the replay is delivered and so is
+  settled: its issue-thread half advances `last_action_comment_id` beside the PR-side cursor and its PR-conversation
+  half advances neither — and what the retry settles is that batch JOINED with the fresh rescan, so the bare
+  `/orchestrator continue` the prompt deliberately drops is still recorded as answered.
+
+  The `validating → fixing` route instead records a single `pending_fix_reviewer_comment_id` — the id of the PR
+  conversation comment carrying the reviewer's CHANGES_REQUESTED feedback — and does NOT set `pending_fix_at` (that
+  key is the route discriminator that drives the review-round reset). `_reconstruct_pending_fix_batch` re-fetches
+  that exact comment by id — onto the PR conversation, the surface it was posted on, and outside `filter_trusted`,
+  since it is the orchestrator's own reviewer output the author allowlist would otherwise drop — as the
+  validating-route replay anchor. The rebuilt batch is what the `/orchestrator continue`
   operator command replays when retrying a session-failure park (see
   [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing)); the anchor is cleared on a
   pushed fix and inside `_clear_pending_fix_bookmarks`.

@@ -233,6 +233,7 @@ def _bounce_without_feedback(
     discriminator is read BEFORE the clear below drops it, which is what keeps
     the in_review route's reset apart from this route's bump.
     """
+    ctx = _models._FixingContext(gh, spec, issue, state, pr)
     pending_fix_at_was_set = state.get(_state._PENDING_FIX_AT) is not None
     # Frozen before the push and re-applied after it, so the gate's own write
     # and this tail cannot disagree: re-applying a value already written is a
@@ -274,8 +275,7 @@ def _bounce_without_feedback(
         # bookkeeping from the record's own frozen pairs, so nothing is
         # applied here on top of it.
         if _reporting._holds_an_unpublished_report(
-            _models._FixingContext(gh, spec, issue, state, pr),
-            _late_publication_state._published_commit(state),
+            ctx, _late_publication_state._published_commit(state),
         ):
             gh.write_pinned_state(issue, state)
             return
@@ -295,7 +295,7 @@ def _bounce_without_feedback(
         # in_review->fixing route must write fresh values rather than mix
         # rounds with them.
         _bookmarks._clear_pending_fix_bookmarks(state)
-    gh.set_workflow_label(issue, WorkflowLabel.VALIDATING)
+    _reporting._hands_the_round_back(ctx)
     gh.write_pinned_state(issue, state)
 
 
@@ -329,15 +329,17 @@ def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
     # `replay_batch` is set only by an accepted `/orchestrator continue`
     # command inside `_dispatch_parked_fixing`: the PRESERVED PR-feedback batch
     # (plus any genuinely new feedback that arrived with the command) to resume
-    # the fresh dev on, instead of the per-tick rescan. It skips the debounce
-    # and re-grounds a dropped session in the resume tail.
+    # the fresh dev on, instead of the per-tick rescan. It carries its surfaces
+    # apart exactly as the rescan does, because the resume settles what it
+    # replayed. It skips the debounce and re-grounds a dropped session in the
+    # resume tail.
     #
     # `_dispatch_parked_fixing` bails (`stop=True`) unless something new has
     # arrived since the park bump: the watermarks were advanced past the
     # previously-consumed feedback, so `feedback` can only carry genuinely new
     # content, and without that guard a single poisoned tick would loop on
     # every poll, spamming the same dev-resume prompt.
-    replay_batch: list | None = None
+    replay_batch: _models._FixingFeedback | None = None
     if state.get(_state._AWAITING_HUMAN):
         parked = _parked._dispatch_parked_fixing(
             _models._FixingContext(gh, spec, issue, state, pr), feedback,

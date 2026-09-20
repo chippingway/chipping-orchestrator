@@ -20,9 +20,13 @@ replay from.
 
 That is why `feedback` and `bookmarks` are separate owners: one reads forward
 from a watermark, the other reconstructs backward from recorded ids, and only
-`continue_command` needs the second. `feedback` also owns the settlement,
-because what a consumed batch is allowed to hide is the same decision as what
-an unread scan is allowed to see -- and it is a settlement rather than one
+`continue_command` needs the second. Both keep their four surfaces apart, and
+the reconstruction has to because a replay is DELIVERED: what an accepted
+`/orchestrator continue` settles is the batch it replayed joined with the
+fresh rescan, so the issue-thread half of a preserved batch moves the
+issue-action boundary and its PR-conversation half never does. `feedback` also
+owns the settlement, because what a consumed batch is allowed to hide is the
+same decision as what an unread scan is allowed to see -- and it is a settlement rather than one
 watermark bump because a fix prompt quotes four surfaces and each answers to a
 different reader. The issue thread answers to the issue-action boundary
 `last_action_comment_id` as well as the PR-side cursor, since the implementing
@@ -50,11 +54,12 @@ Until then the bookmarks stand, the readers stand, and the label stays put, so
 no reviewer is sent to a head whose report nothing on the pull request carries.
 A round whose whole answer IS the report publishes it against the head its pull
 request already stands on -- the prompt asks for exactly that, an item wanting
-report content only answered with no commit for it -- and a push that did not
-land settles its consumption on the spot instead, since nothing bound the
-record and nothing goes back for a delivery. Every other outcome -- the
-ordinary `ACK:`, the question, the timeout -- writes no report and closes its
-own bookkeeping directly, ahead of the disposition. A reply that reached for
+report content only answered with no commit for it. A push that did NOT land
+settles nothing either: the record keeps both groups, and the no-feedback
+bounce that republishes that commit is what binds the delivery so the
+settlement can close them. Every other outcome -- the ordinary `ACK:`, the
+question, the timeout -- writes no report and closes its own bookkeeping
+directly, ahead of the disposition. A reply that reached for
 the contract and missed is none of these: it is held for a human ahead of
 every road, because its two halves say opposite things -- an `ACK:` returns
 the pull request to review as needing no change, and a commit beside it would
@@ -74,23 +79,27 @@ second. Whether the code went out is re-proved against the checkout rather than
 remembered off a receipt, which is persistent and on a tick that pushed nothing
 names an older round; and a binding that takes the delivery ends the tick,
 finishing the recovered route back to `validating` where the publication
-settled and relabelling nothing where it is still owed. A worktree that is
-gone has nothing left to prove either way, and neither has a tree this host
+settled and relabelling nothing where it is still owed. A round the
+reconciliation settled elsewhere is finished there too, on the
+`fixing_round_settled` mark that settlement raised and on nothing weaker --
+the settled report and the publication receipt both outlive the transaction
+that made them, so a manual relabel read off either would be bounced back to
+the reviewer with its feedback unread. The relabel retires the mark in the
+same write. A worktree that is gone has nothing left to prove either way, and neither has a tree this host
 proved dirty -- the republishing bounce declines that one exactly as the
 recovery does -- so both park once for a human rather than leaving every tick
 to find no feedback, no publishable checkout and an owed report and do nothing
 with any of them.
 
 Everything an owed report touches is held to one rule: what an outstanding
-publication replays from may not be spent before it lands. The bounce hands
-the size gate nothing to close while one stands, the roads that publish
-nothing settle their own consumption rather than leaving a record to carry it,
-and nothing a report carries is spent before it lands -- not the bookmarks,
-not the round, not the readers. The one exception is a road that ENDS in a
-park: a report this build cannot record, and a recovery no checkout can
-prove, each write what their run consumed into that park's own durable write,
-since no publication is coming to carry it and the next tick would otherwise
-read that feedback as fresh and clear the very park just taken.
+publication carries may not be spent before it lands. The bounce hands the
+size gate nothing to close while one stands, and nothing a report carries is
+spent before it lands -- not the bookmarks, not the round, not the readers.
+The one exception is a road that ENDS in a park: a report this build cannot
+record, and a recovery no checkout can prove, each write what their run
+consumed into that park's own durable write, since no publication is coming to
+carry it and the next tick would otherwise read that feedback as fresh and
+clear the very park just taken.
 
 Holding the readers back has a bounded cost: the window between a recorded
 report and its publication can re-deliver a batch once. The report is not lost
