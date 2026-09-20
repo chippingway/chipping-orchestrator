@@ -2874,9 +2874,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      got to move (and drops the record behind it), or drops it unspent where the pull request has since moved off
      the commit it names.
   2. Awaiting-human path: resume on the dev's locked spec; on a successful pushed fix, bump `review_round` and stay on
-     `workflow:validating`. A park this stage took over a report it owes is the one claim that changes what the resume's
-     answer MEANS, since a reply to a park is no drift and this is the road that delivers it: the notice asked for a
-     report, so the reply is read the way the drift resume's is — a report with no commit publishes onto the head the
+     `workflow:validating`. A park standing over an unanswered requirements edit is the one claim that changes what the
+     resume's answer MEANS, since a reply to a park is no drift and this is the road that delivers it. Two parks carry
+     it: one this stage took over a report it owes, whose notice asked for a report in so many words, and one a drift
+     resume ended on without answering the edit at all — a question, a timeout, a tree nobody could publish — which
+     `requirements_drift_open` is what records, since nothing else on the comment says which road a park came off. The
+     claim is read BEFORE the run, because the resume clears the park it was written beside. Either way the reply is
+     read the way the drift resume's is — a report with no commit publishes onto the head the
      pull request carries instead of parking as a question, a commit is held to the same contract before the gate sees
      it, and the report is stamped with the revision that batch delivered, which its own settlement records as the
      baseline. What that publication SPENDS is the round `rounds.py` says it does: nothing where the debt came back
@@ -3056,7 +3060,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      resume recorded and this issue still owes its pull request — a delivery its push never carried, a transaction
      not yet settled, or the debt of a run that committed with no report. Or `in_review_handoff_pending`, the marker
      a hand-back leaves until its own relabel has landed, which is what an outcome recording NO report needs: an
-     `ACK:` whose relabel failed leaves no debt, no drift to re-detect, and nothing else to say the move is owed.
+     `ACK:` whose relabel failed leaves no debt, no drift to re-detect, and nothing else to say the move is owed, and
+     a resume that PARKED — a question, a timeout — leaves the same silence over an edit it answered with nothing.
      Either way the issue stands on an approval earned against requirements that no longer exist. Left here the
      report is never bound, since the hold that binds it is `validating`'s, and the ready ping below could invite a
      merge on the stale approval. So `review_round` resets to 0 and the marker goes down in a write taken
@@ -3102,7 +3107,13 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      The session's report is recorded before the push and bound only after the relabel, so no tick finds a settled
      report beside a label still claiming the stale approval; `validating`
      holds its reviewer until the report is confirmed. A no-commit response without the `ACK:` marker or a report
-     outcome parks via `_on_question`, and a push that fails parks here for that tick — step 3 hands it on after. An
+     outcome parks via `_on_question`, and a push that fails parks here for that tick — step 3 hands it on after, on
+     the handoff marker every parked outcome writes: the edit is unanswered, so the approval is stale and only
+     `validating` reads the reply as the rest of that resume, ahead of the feedback scan that would otherwise route
+     it to `workflow:fixing`. The watermark bump this route takes stops at what the tick actually READ — the thread
+     as the pre-run read and the bounded park walk left it, plus the captured PR-conversation comments — rather than
+     at the thread's tip: the run took minutes, and a notice of ours landing above a comment written in them would
+     carry the mark past words nothing here has looked at and skip them for good. An
      `interrupted` resume short-circuits via `_ignore_if_interrupted` BEFORE `_post_user_content_change_result` and
      the watermark bump, returning WITHOUT writing pinned state so the drift stays unconsumed for the next process to
      retry. A mid-run `paused` / `backlog` (`pause_guard=True`)

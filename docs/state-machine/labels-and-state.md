@@ -706,8 +706,10 @@ The keys that matter for the state machine fall into a few groups:
   resets `review_round` before it relabels, because the approval was earned against requirements that are gone — and a
   publication still owed then lands on `workflow:validating`, where a fix reaching the pull request spends a round.
   The flag is what keeps the delayed road from spending the budget that reset just made, which would leave an edit
-  answered a tick late one round short of the same edit answered at once. Additive, a bare `true` while it stands, and
-  retired by the settlement that ends the debt it is about.
+  answered a tick late one round short of the same edit answered at once. A resume that answered the edit with
+  nothing at all earns it too, since what the hand-back is for is the publication that reply will bring. Additive, a
+  bare `true` while it stands, and retired by the settlement that ends the debt it is about — or, where nothing is
+  left to settle, by the drift outcome that answers the edit.
 
   `developer_report_pending` is one publication transaction, written **before the report it carries is published**
   — that ordering is the whole of what makes the publication recoverable. Whether the CODE that report is about is
@@ -1456,13 +1458,26 @@ The keys that matter for the state machine fall into a few groups:
   for the issue thread alone — stopping at the first it cannot. A carry to the newest comment would skip a PR comment
   written while the tick was deciding, permanently (see [`delivery-stages.md`](delivery-stages.md),
   `_handle_in_review`).
+- **The requirements edit nothing has answered.** `requirements_drift_open`, additive and `true` only while a drift
+  resume's park stands. A resume the edit earned can end without answering it — a question, a timeout, a tree nobody
+  could publish, a push that did not land — and the reply that clears such a park is the rest of that resume rather
+  than an ordinary fix: the report the edit is owed is the one that reply writes, and read as a plain fix the commit
+  would reach the reviewer with no report of it anywhere. Nothing else on the comment says which road a park came
+  off, so the claim goes down beside the park through the shared drift disposition and comes off with it — cleared
+  by the road that clears the park, and by any outcome that answers the edit, together with the
+  `developer_report_owed_round_reset` a hand-back recorded for a publication that has now happened. It is read
+  before the resume that continues the road, since that resume clears the park it was written beside. `in_review`
+  reads it for the budget its hand-back owes. An issue without the key has no edit outstanding.
 - **The label move `in_review` owes.** `in_review_handoff_pending`, additive and `true` only while one is outstanding.
   A requirements edit leaves the approval that carried the issue to `in_review` stale, so the round resets to 0 and
   the label moves to `workflow:validating` — two operations a process can die between, and the marker goes down with
   the reset and comes off in a write of its own behind the move. A relabel that did not land is then found by the
   hand-back at the top of the next `in_review` tick and remade, which is what an `ACK:` outcome needs: it records no
   report, so without the marker nothing on the comment would say the move is owed, the drift is already consumed, and
-  the ready ping is one tick away on an approval that is over. A marker whose clearing write is lost costs one
+  the ready ping is one tick away on an approval that is over. A drift resume that PARKED writes it for the same
+  reason: it answered the edit with nothing, so the move is owed from a tick that recorded no report either — and
+  without it the answer a human writes is read by the feedback scan and routed to `workflow:fixing`, where no report
+  is owed and the stale approval survives. A marker whose clearing write is lost costs one
   spurious hand-back the next time the issue reaches `in_review` — a re-review rather than that ping — and that tick
   clears it. An issue without the key owes no move, which is every issue that predates it.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s

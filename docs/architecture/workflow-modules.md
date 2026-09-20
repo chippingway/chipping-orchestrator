@@ -2247,7 +2247,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             move -- and the report bound only once the relabel is behind it; and the hand-back a
                             later tick gives an issue whose approval an edit made stale, read off a report it still
                             owes (a failed push, a held candidate, a tick that died mid-way) or off that marker,
-                            which is the only thing an `ACK:` leaves. A publication still owed when either move
+                            which is the only thing an `ACK:` and a resume that PARKED leave -- a question answers
+                            the edit with nothing, so the move is owed from there too, and made ahead of the
+                            feedback scan that would otherwise route the answer to `workflow:fixing` -- with the
+                            comment a human wrote while the resume was out still unread beneath the carry, so the
+                            move hands on the reply they wrote. A publication still owed when either move
                             is made is recorded as belonging to the budget that reset gives it, so the road that
                             lands it on `workflow:validating` spends no round the edit has already paid for
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
@@ -2344,13 +2348,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the handler built before its drift check -- and, where the park was one this stage took
                             over a report it owes, the drift reading of that resume's answer, stamped with the
                             revision the batch delivered, since a reply to a park is no drift and this is the road
-                            it arrives on, and spending the round `rounds.py` says it does, which is none where
-                            the debt came back from `in_review` with the budget already reset for it
+                            it arrives on -- a park over an edit its own resume never answered reads the same
+                            way, off a claim taken BEFORE the run, since the resume clears the park it was written
+                            beside -- and spending the round `rounds.py` says it does, which is none where the
+                            park came back from `in_review` with the budget already reset for it
       drift.py              a body edit mid-review, the three parks that defer, the consumed-thread watermark, and
                             the requirements revision the drift check hands the resume its report is stamped with;
                             on a parked tick the edit is measured by what the park had already read
       drift_models.py       the frozen record that route's resume hands the helper that finishes it
-      drift_outcomes.py     the `ACK:` reply that must not park, over the shared fix disposition, and -- where the
+      drift_outcomes.py     the claim that the edit is still unanswered, written beside every park a resume ends
+                            on and dropped by every outcome that answers it, with the fresh review budget a
+                            hand-back recorded for a publication that has now happened; the `ACK:` reply that must
+                            not park, over the shared fix disposition, and -- where the
                             caller names what its resume was `handed` -- the report reply that is neither, recorded
                             for the unchanged head as `reported`, and a commit held to the same contract
       drift_reports.py      that contract for a drift resume on an open pull request: the run's report recorded
@@ -2386,9 +2395,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the reviewer has not seen reaching the pull request -- spent by the push that lands and
                             by the hold that sends the candidate to the adjudication, the held form handed to the
                             gate so the count is not lost to a crash in the relabel window; and the one road that
-                            spends nothing -- a publication an `in_review` requirements edit already reset the
-                            budget for, whose delayed landing would otherwise charge that edit twice
+                            spends nothing -- a publication a drift park still owes, whose budget an `in_review`
+                            requirements edit already reset, and whose delayed landing would otherwise charge that
+                            edit twice
       models.py             the frozen records several owners in this stage hand each other -- a record one
-                            route builds and reads alone stays beside that route instead
-      state.py              the pinned-state keys, park reasons, and outcome tokens they share
+                            route builds and reads alone stays beside that route instead -- and the park clear
+                            every awaiting road takes, which drops the unanswered-edit claim with the park it was
+                            written beside
+      state.py              the pinned-state keys, park reasons, and outcome tokens they share, including the
+                            claim that a requirements edit this stage's resume ended without answering is still
+                            outstanding
 ```
