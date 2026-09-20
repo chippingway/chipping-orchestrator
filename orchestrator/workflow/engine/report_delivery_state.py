@@ -190,22 +190,39 @@ def record_delivered_report(
     left outstanding included. Measured against the bare comment alone, a
     record is accepted and the gate's own write is the one refused.
 
+    The stale-approval HAND-BACK is reserved the same way, and for the same
+    reason the push is: a record made on a review stage's drift road is
+    accepted before that hand-back runs, and the hand-back writes a fresh
+    review round, the marker saying the label move is owed, and the record
+    that this publication's budget is already reset. Every one of them lands
+    on this same comment between the record and its binding. Reserved at the
+    widest hand-back there is, so the road that writes fewer of them cannot be
+    the one refused -- and the same world stands under the transaction below,
+    which is bound on the far side of it.
+
     The caller still owns `gh.write_pinned_state`, as every stage-facing writer
     here does, so the record rides whatever else that caller staged.
     """
     recorded = _encoded(delivered)
     if recorded is None or _reading.delivered_from(recorded) != delivered:
         return False
-    for carried in (state, _record_state.with_publication_receipt(state)):
-        staged = {**carried.data, _records.DELIVERED_REPORT: recorded}
-        if not _record_state.fits_the_comment(staged):
+    handed_back = _record_state.with_later_writes(state, hand_back=True)
+    for carried in (
+        state,
+        _record_state.with_later_writes(state, receipt=True),
+        handed_back,
+        _record_state.with_later_writes(handed_back, receipt=True),
+    ):
+        if not _record_state.fits_the_comment(
+            {**carried.data, _records.DELIVERED_REPORT: recorded},
+        ):
             return False
     reserved = _WIDEST_SUBJECT
     if delivered.location is not None:
         reserved = replace(
             _WIDEST_SUBJECT, pr_number=delivered.location.pr_number,
         )
-    exchanged = _pinned_state.PinnedState(state_data=dict(state.data))
+    exchanged = _pinned_state.PinnedState(state_data=dict(handed_back.data))
     clear_delivered_report(exchanged)
     if not _record_state.record_pending_report(
         exchanged, _pending_for(delivered, reserved),

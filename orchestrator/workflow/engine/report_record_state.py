@@ -180,7 +180,7 @@ def record_pending_report(
     recorded = _fields.pending_object(pending)
     if recorded is None or _reading.pending_from(recorded) != pending:
         return False
-    for carried in (state, with_publication_receipt(state)):
+    for carried in (state, with_later_writes(state, receipt=True)):
         staged = {**carried.data, _records.PENDING_REPORT: recorded}
         settled = settled_payload(carried, pending)
         if settled is None or not fits_the_comment(staged) or not fits_the_comment(settled):
@@ -189,32 +189,51 @@ def record_pending_report(
     return True
 
 
-def with_publication_receipt(
+def with_later_writes(
     state: _pinned_state.PinnedState,
+    *,
+    receipt: bool = False,
+    hand_back: bool = False,
 ) -> _pinned_state.PinnedState:
-    """The same comment, carrying the code-publication receipt at its widest.
+    """The same comment, carrying a write that lands on it after this record.
 
     Public because every record written before a commit is pushed is measured
-    against this world as well as against the comment in hand: the transaction
-    here, and the delivered report recorded ahead of the gate that becomes one.
-    That gate WRITES when it pushes -- the commit it put on the remote, the
-    head that push replaced, and the pull request it went onto -- and the write
-    lands on this same comment, between a record accepted before it and
-    whatever that record turns into. Accepted without room for it, the gate's
-    own write is the one refused.
+    against these worlds as well as against the comment in hand: the
+    transaction here, and the delivered report recorded ahead of the gate that
+    becomes one. Two writes stand between such a record and its settlement,
+    and both land on this same comment.
 
-    Written through the gate's own owner rather than spelled again here, so a
-    member added to that receipt moves every reservation taken against it. The
-    reservation REPLACES what is there, which is why both worlds are measured
-    rather than this one alone: a comment can already carry a receipt written
+    The code-publication RECEIPT is the gate's, made when it pushes: the
+    commit it put on the remote, the head that push replaced, and the pull
+    request it went onto. Accepted without room for it, the gate's own write
+    is the one refused.
+
+    The stale-approval HAND-BACK is the review stages', made when a
+    requirements edit sends an approved pull request back: a fresh review
+    round, the marker saying the label move is owed, and the record that the
+    publication this report is about already has its budget. Accepted without
+    room for those, the report's own binding is refused instead -- after the
+    code has gone out, with nothing left to ask the run that wrote it. It is
+    reserved at its widest, the hand-back that owes a publication, since the
+    narrower one writes a strict subset.
+
+    Both are written through the owners that write them for real rather than
+    spelled again here, so a member added to either moves every reservation
+    taken against it. The receipt REPLACES what is there, which is why the
+    world without it is measured too: a comment can already carry one written
     wider than any spelling this build produces.
     """
     reserved = _pinned_state.PinnedState(state_data=dict(state.data))
-    importlib.import_module(
-        _stage_targets._LATE_PUBLICATION_STATE_OWNER,
-    )._record_publication(
-        reserved, _WIDEST_COMMIT, _WIDEST_COMMIT, _WIDEST_IDENTITY,
-    )
+    if receipt:
+        importlib.import_module(
+            _stage_targets._LATE_PUBLICATION_STATE_OWNER,
+        )._record_publication(
+            reserved, _WIDEST_COMMIT, _WIDEST_COMMIT, _WIDEST_IDENTITY,
+        )
+    if hand_back:
+        importlib.import_module(
+            _stage_targets._IN_REVIEW_HANDOFF_OWNER,
+        ).stages_the_handoff(reserved, owed_publication=True)
     return reserved
 
 

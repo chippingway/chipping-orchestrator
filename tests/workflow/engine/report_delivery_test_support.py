@@ -69,7 +69,13 @@ CROWDED_FOR_REDELIVERY = 4350
 # binding that arrives on such a branch takes it.
 CROWDED_FOR_ASCII_BRANCH = 2000
 
-CROWDED_FOR_RESERVED_SUBJECT = 4300
+CROWDED_FOR_RESERVED_SUBJECT = 4400
+
+# The room left where what decides the refusal is the write the stale-approval
+# HAND-BACK makes: the comment holds the delivered record, and the transaction
+# it becomes, and neither once the fresh round, the owed label move, and the
+# reset budget are beside them.
+CROWDED_FOR_HAND_BACK = 4300
 
 # The room left where what decides the refusal is the write the PUSH makes: the
 # comment holds the delivered record and not the code-publication receipt the

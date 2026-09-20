@@ -27,7 +27,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.workflow import drift_reports as world
-from tests.workflow.fixtures import LABEL_IN_REVIEW, LABEL_VALIDATING
+from tests.workflow.fixtures import LABEL_IN_REVIEW, LABEL_VALIDATING, _agent
 
 ISSUE = 1_795
 
@@ -38,6 +38,8 @@ PUSH_BRANCH = "_push_branch"
 REVIEW_ROUND = "review_round"
 
 RUN_AGENT = "run_agent"
+
+DELIVERED = "delivered"
 
 PARK_REASON = "park_reason"
 
@@ -61,6 +63,11 @@ HANDOFF_PENDING = "in_review_handoff_pending"
 # The rounds a nearly spent review budget has left, which an edit to the
 # requirements must not hand the next reviewer.
 SPENT_ROUNDS = 2
+
+# The two things a silent retry finds on the branch a killed resume left.
+_NOTHING_TO_PUSH = "nothing to push"
+
+_A_COMMIT_TO_PUSH = "a commit to push"
 
 # The two roads out of `in_review` that move the label, by the tick they die on.
 _DRIFT_TICK = "the drift tick"
@@ -101,12 +108,31 @@ class InReviewDriftReportTest(unittest.TestCase, world._DriftReportMixin):
                     ([(ISSUE, LABEL_VALIDATING)], 0),
                 )
 
+    def test_a_death_mid_push_keeps_the_delivery_mark(self) -> None:
+        # The report goes onto the comment before the push and the process
+        # dies in the push, so the record is durable. The mark saying how far
+        # this tick read has to be durable beside it: carried only after the
+        # disposition, it dies with the tick, and everything this run was
+        # handed -- the notice it posted, and any PR comment its prompt
+        # quoted -- reads as unread the next time the issue is in review,
+        # buying a `fixing` round for words the developer already answered.
+        self.seeded(ISSUE, PR, LABEL_IN_REVIEW, **READY_TO_PING)
+
+        with self.assertRaises(RuntimeError):
+            self.drift(world.reported(), push_branch=_dies)
+
+        self.assertIsNotNone(self.records()[DELIVERED])
+        self.assertGreaterEqual(
+            self.pinned()[PR_LAST_COMMENT_ID],
+            self.pull_request.issue_comments[-1].id,
+        )
+
     def test_a_failed_push_keeps_report_and_label(self) -> None:
         self.seeded(ISSUE, PR, LABEL_IN_REVIEW)
 
         self.drift(world.reported(), push_branch=False)
 
-        self.assertEqual(self.records()["delivered"].report, world.REPORT_TEXT)
+        self.assertEqual(self.records()[DELIVERED].report, world.REPORT_TEXT)
         self.assertEqual(self.published_reports(), [])
         self.assertEqual(self.github.label_history, [])
 
@@ -159,7 +185,7 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
         self.seeded(ISSUE, PR, LABEL_IN_REVIEW, **READY_TO_PING)
         with self.assertRaises(RuntimeError):
             self.drift(world.reported(), push_branch=_dies)
-        self.assertIsNotNone(self.records()["delivered"])
+        self.assertIsNotNone(self.records()[DELIVERED])
 
         _assert_handed_back(self)
         held = self.drift(REVIEW_REPLY, head_shas=(world.FIXED_HEAD,))
@@ -208,7 +234,7 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
                     (self.github.label_history[-1:], self.pinned()[REVIEW_ROUND]),
                     ([(ISSUE, LABEL_VALIDATING)], 0),
                 )
-                self.assertIsNotNone(self.records()["delivered"])
+                self.assertIsNotNone(self.records()[DELIVERED])
 
     def test_a_handed_back_debt_spends_no_round(self) -> None:
         # The resume committed and reported nothing, so nothing was published
@@ -310,6 +336,38 @@ class InReviewParkedDriftTest(unittest.TestCase, world._DriftReportMixin):
 
         self.assertEqual(len(self.published_reports()), 1)
         self.assertEqual(self.pinned()[REVIEW_ROUND], 0)
+
+    def test_a_recovered_timeout_ends_the_owed_budget(self) -> None:
+        # The resume was killed by its own timeout, so the edit is answered
+        # with nothing and the hand-back gives the requirements a fresh
+        # budget for whatever that park still owes. The silent retry on
+        # `validating` is what answers it -- pushing the commit the kill left
+        # behind, or reading the branch and finding none -- so the record of
+        # that reset comes down with the park. Left standing, the next
+        # unrelated publication this stage owes would spend nothing.
+        for retry, options in (
+            (_NOTHING_TO_PUSH, {
+                "head_shas": (world.PUBLISHED_HEAD,), "committed": False,
+            }),
+            (_A_COMMIT_TO_PUSH, dict(world.STRANDED)),
+        ):
+            with self.subTest(retry=retry):
+                self.seeded(
+                    ISSUE, PR, LABEL_IN_REVIEW,
+                    review_round=SPENT_ROUNDS, **READY_TO_PING,
+                )
+                self.drift(
+                    _agent(session_id=world.DEV_SESSION, timed_out=True),
+                    committed=False,
+                )
+                # Setup again: `InReviewReportDebtTest` is what asserts it.
+                self.drift(REVIEW_REPLY, committed=False)
+
+                self.drift(REVIEW_REPLY, **options)
+
+                self.assertIsNone(
+                    self.pinned()[_report_delivery.OWED_ROUND_RESET],
+                )
 
     def test_a_comment_mid_run_outlives_the_park(self) -> None:
         # A human writes while the agent is out and the resume comes back

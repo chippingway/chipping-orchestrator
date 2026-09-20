@@ -148,11 +148,12 @@ class DeliveredReportRecordTest(unittest.TestCase):
 class DeliveredReportCapacityTest(unittest.TestCase):
     """What the comment has to have room for before a record is accepted.
 
-    Three writes, and the record's own is only the first: the transaction
-    it is bound into after the push, and the code-publication receipt the
-    push itself leaves, both land on this same comment. A record accepted
-    without room for either is one refused when nothing can be asked of
-    the run that wrote the report.
+    Four writes, and the record's own is only the first: the transaction it
+    is bound into after the push, the code-publication receipt the push
+    itself leaves, and the fields a stale-approval hand-back adds on the road
+    a review stage's drift resume takes all land on this same comment. A
+    record accepted without room for any of them is one refused when nothing
+    can be asked of the run that wrote the report.
     """
 
     def test_a_record_past_the_comment_is_refused(self) -> None:
@@ -241,12 +242,41 @@ class DeliveredReportCapacityTest(unittest.TestCase):
 
         self.assertTrue(_record_state.fits_the_comment(staged))
         self.assertFalse(_record_state.fits_the_comment({
-            **_record_state.with_publication_receipt(crowded).data,
+            **_record_state.with_later_writes(crowded, receipt=True).data,
             _records.DELIVERED_REPORT: delivery_support.delivered_object(),
         }))
         self.assertFalse(_delivery_state.record_delivered_report(
             crowded, delivery_support.DELIVERED,
         ))
+    def test_the_hand_back_s_own_write_is_reserved(self) -> None:
+        # A report a review stage's drift resume records is accepted before
+        # the stale-approval hand-back runs, and that hand-back writes a
+        # fresh review round, the marker saying the label move is owed, and
+        # the record that this publication's budget is already reset -- all
+        # onto this same comment, between the record and the binding. This
+        # comment has room for the record and for the transaction it becomes,
+        # and none for them with those fields beside them: accepted here, the
+        # binding is the write refused, with the code out and no run left to
+        # ask.
+        crowded = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_HAND_BACK)
+        staged = {
+            **crowded.data,
+            _records.DELIVERED_REPORT: delivery_support.delivered_object(),
+        }
+
+        self.assertTrue(_record_state.fits_the_comment(staged))
+        self.assertEqual(
+            _delivery_state.binds_delivered_report(
+                PinnedState(state_data=staged),
+                delivery_support.DELIVERED,
+                delivery_support.WIDEST_SUBJECT,
+            ),
+            "",
+        )
+        self.assertFalse(_delivery_state.record_delivered_report(
+            crowded, delivery_support.DELIVERED,
+        ))
+
     def test_the_widest_branch_is_reserved(self) -> None:
         # What the comment charges for a branch is not what the reader counts:
         # the field is bounded in codepoints and the comment in the characters

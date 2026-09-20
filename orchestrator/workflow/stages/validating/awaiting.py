@@ -22,7 +22,11 @@ worth saying: the park mentioned a human, so the clear posts a follow-up
 retiring that mention rather than leaving it as the thread's last word. A
 reviewer timeout or crash with a reply is the third: the failure left no review
 output for the dev to act on, so the comment buys a fresh REVIEWER rather than
-a dev resume.
+a dev resume. A transient retry that resolves also answers the publication a
+requirements edit was owed, where one was: the fresh review budget an
+`in_review` hand-back recorded is about exactly the publication this retry
+lands -- or finds there was none to land -- so the record of it goes down with
+the park rather than outliving it.
 
 `_run_awaiting_dev` is the fall-through the router uses when none of those
 match. It reads HEAD before the resume because that is the only watermark that
@@ -46,7 +50,11 @@ from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
-from orchestrator.workflow.engine import comments as _comments, prompt_notes as _prompt_notes
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    prompt_notes as _prompt_notes,
+    report_delivery as _report_delivery,
+)
 from orchestrator.workflow.stages.implementing import resume as _dev_resume
 from orchestrator.workflow.stages.validating import models as _models, recovery as _recovery, state as _state
 
@@ -142,6 +150,13 @@ def _transient_awaiting_action(
                 context.gh, context.issue, context.state, followup,
             )
         context.clear_park()
+        # The retry answered the publication a hand-back reset the budget
+        # for: it pushed it, or read the branch and found nothing to push.
+        # Either way that budget is spent by the reviewer this clear releases,
+        # and a record left standing would spend nothing for the next
+        # unrelated publication this stage owes.
+        if context.state.get(_report_delivery.OWED_ROUND_RESET):
+            context.state.set(_report_delivery.OWED_ROUND_RESET, None)
         context.gh.write_pinned_state(context.issue, context.state)
     return _state._OUTCOME_RETURN
 

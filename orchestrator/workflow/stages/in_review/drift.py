@@ -32,6 +32,14 @@ confirmed. A report this stage still finds owed on a later tick -- a failed
 push, a held candidate an adjudication published, a process that died in
 between -- sends the issue back there too, ahead of everything else here.
 
+The ratchet over what that read delivered is taken twice: once before the
+disposition, so the first durable write the disposition makes carries it, and
+once after, for the notices the disposition itself posts. A carry taken only
+at the end is one a process dying mid-disposition loses, leaving a report and
+a push durable over feedback still marked unread -- and that comment buys a
+`fixing` round the next time the issue reaches review, for words the developer
+answered in the prompt that quoted them.
+
 The PR conversation is read BEFORE the notice and the ratchet, and that
 ordering is the whole reason `_drift_unread_pr_conv` exists: the resume quotes
 the issue thread in full and marks it read to the tip, so a PR comment nobody
@@ -193,6 +201,17 @@ def _dispose_drift_result(
     nothing it cannot account for, so without them it would stop at the
     first one and re-fire them as fresh feedback next tick.
     """
+    # Carried TWICE, because the disposition below writes durably -- the
+    # report ahead of the size gate, the receipt the push leaves, a park's own
+    # state -- and a process that died past one of those writes with the carry
+    # still to come would leave the pull request holding work whose feedback
+    # is marked unread. The next time this issue reached review, that comment
+    # would buy a `fixing` round for words the developer has already answered.
+    # This pass crosses what the prompt delivered; the one below crosses the
+    # notices the disposition posts, which do not exist yet. Both stop at the
+    # first comment nothing vouches for, so the early one can only ever cross
+    # less.
+    _watermarks._bump_in_review_watermarks(ctx, issue_space_new=unread_pr_conv)
     outcome = _drift_outcomes._post_user_content_change_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
         resume.worktree, resume.dev_result, resume.before_sha,
@@ -254,12 +273,10 @@ def _relabels_for_review(ctx: _models._InReviewContext) -> None:
     that ends the debt, or by the outcome that answers the edit with nothing
     left to settle.
     """
-    if _report_delivery.owes_a_report(ctx.state) or ctx.state.get(
-        _validating_state._OPEN_DRIFT,
-    ):
-        ctx.state.set(_report_delivery.OWED_ROUND_RESET, True)
-    ctx.state.set(_state._HANDOFF_PENDING, True)
-    ctx.state.set("review_round", 0)
+    _state.stages_the_handoff(ctx.state, owed_publication=(
+        _report_delivery.owes_a_report(ctx.state)
+        or bool(ctx.state.get(_validating_state._OPEN_DRIFT))
+    ))
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     ctx.state.set(_state._HANDOFF_PENDING, None)
