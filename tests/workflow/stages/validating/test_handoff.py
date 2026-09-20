@@ -23,6 +23,7 @@ from tests.workflow.fixtures import (
     _agent,
     _open_pr_for,
     _PatchedWorkflowMixin,
+    _reported,
 )
 from tests.workflow.stages.validating import (
     validating_review_test_support as review_support,
@@ -192,7 +193,7 @@ class ValidatingPushedFixesStayOnValidatingTest(
         self._run_validating(
             gh,
             issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="fixed"),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=_reported("fixed")),
             dirty_files=(),
             push_branch=True,
             head_shas=[BEFORE_FIX_SHA, AFTER_FIX_SHA],

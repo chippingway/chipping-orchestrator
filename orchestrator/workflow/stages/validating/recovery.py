@@ -14,6 +14,21 @@ round, and it is the only writer permitted to while the park flags are still
 set: a timeout that had already committed gets its push finished here, and
 that landed commit is a head the reviewer has not seen.
 
+A commit an `agent_timeout` left is also work no report describes, where the
+park it is clearing came off the requirements-drift road: the run that made it
+was killed before it could report. It is published all the same -- nothing here
+can ask a session that is gone -- with the debt for it staged into the write
+the push makes, so the review hold reads it and asks a human before any
+reviewer sees the head this leaves.
+
+A timeout that committed NOTHING is the same question asked of the branch
+rather than of the run: an earlier resume can have committed and been
+interrupted before anything was written, so the retry finds the head exactly
+where it left it while the branch still carries work the pull request has not
+got. Clearing there would take the edit's obligation with the park, so the
+park stands as `stuck` and the human the timeout already asked is who answers
+it.
+
 `push_failed` and `agent_timeout` are the two that actually touch git;
 the reviewer-side reasons clear on sight, because there is no dev work to
 finish, only a reviewer to re-spawn. Every probe fails closed to `"stuck"` --
@@ -60,8 +75,10 @@ from orchestrator.workflow.stages.implementing import (
     late_records as _late_records,
 )
 from orchestrator.workflow.stages.validating import (
+    drift_reports as _drift_reports,
     rounds as _rounds,
     state as _state,
+    stranded as _stranded,
 )
 
 # Stamped on every follow-up so a later tick can recognize one it posted even
@@ -147,8 +164,20 @@ def _recover_timed_out_fix(
         return _state._OUTCOME_STUCK
     current_sha = _verification_probes._head_sha(worktree)
     if not current_sha or current_sha == before_sha:
+        if _clears_over_stranded_work(spec, issue, state, worktree):
+            return _state._OUTCOME_STUCK
         state.set(_state._PRE_DEV_FIX_SHA, None)
         return _state._OUTCOME_CLEARED
+    if state.get(_state._OPEN_DRIFT):
+        # The commit this retry is finishing answers a requirements edit, and
+        # the run that made it was killed before it could report. Refusing to
+        # publish is the disposition's answer, not this one's: nothing here
+        # can ask a session that is gone, and a park whose whole purpose is
+        # to clear without a human would strand the work behind it. So the
+        # debt is staged into the write the push itself makes, and the review
+        # hold behind it asks a human for the report before any reviewer
+        # reads the head this leaves.
+        _drift_reports._owes_the_undescribed(state)
     recovered = _publish_recovered_fix(
         # The commit this recovery read and is publishing AS the timed-out
         # run's. The gate proves the checkout again, and something landing
@@ -165,6 +194,38 @@ def _recover_timed_out_fix(
     if recovered == _state._OUTCOME_PUSHED:
         state.set(_state._PRE_DEV_FIX_SHA, None)
     return recovered
+
+
+def _clears_over_stranded_work(
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    worktree,
+) -> bool:
+    """Whether clearing this drift park would leave unpublished work behind.
+
+    "The run timed out without committing" is all the clear above ever asks,
+    and it is not the whole question. The branch that run stood on can carry a
+    commit an EARLIER one left -- interrupted before anything was written, so
+    nothing on the pinned comment knows it exists -- and on the drift road
+    that commit is work the pull request has not got and no report describes.
+    Cleared over it, the edit's obligation goes with the park and the reviewer
+    runs over a branch the pull request is short of, with no account of that
+    commit anywhere.
+
+    So the park stands instead, which is what `stuck` leaves: the timeout's
+    own notice already asked a human, and the reply it gets resumes the drift
+    road, where the report that reply writes is what publishes the commit.
+
+    Asked only where the park came off that road, since only there is a report
+    owed at all -- and answered only by a checkout git actually proved ahead.
+    The probe fails closed on a dirty tree, a failed fetch, and a remote that
+    moved, and clearing is the right answer for every one of those: none of
+    them is work this issue can publish now.
+    """
+    if not state.get(_state._OPEN_DRIFT):
+        return False
+    return bool(_stranded._stranded_fix_unpushed(spec, worktree, state, issue))
 
 
 def _publish_recovered_fix(
@@ -248,17 +309,20 @@ def _try_recover_validating_transient_park(
 
     Returns one of:
       * ``"stuck"`` -- the underlying condition has not resolved; caller
-        leaves the park flags in place and returns silently.
+        leaves the park flags in place and returns silently. A drift park
+        standing over a commit an earlier resume left unpublished answers
+        here too: this retry produced nothing of its own, but clearing would
+        drop the edit's obligation over work the pull request has not got.
       * ``"held"`` -- the size gate took the candidate this retry was about,
         so nothing was published and the tick is over. The gate has already
         parked the issue or handed it to the adjudication and written its own
         state, so the caller clears nothing, announces nothing, and moves no
         label: a follow-up would say a recovery happened and a relabel would
         move the issue off the state the gate just put it in.
-      * ``"cleared"`` -- the park can be cleared, but nothing new
-        landed on the PR (reviewer-only crash, or a dev-timeout that
-        had not actually produced a commit). Caller clears the flags
-        and stays on `validating` so the reviewer reruns.
+      * ``"cleared"`` -- the park can be cleared, and the branch carries
+        nothing the pull request is short of (reviewer-only crash, or a
+        dev-timeout that produced no commit over a branch in sync). Caller
+        clears the flags and stays on `validating` so the reviewer reruns.
       * ``"pushed"`` -- a dev fix was finished off during recovery
         (a deferred push of `push_failed`, or the trailing push of an
         `agent_timeout` that had committed before being killed).

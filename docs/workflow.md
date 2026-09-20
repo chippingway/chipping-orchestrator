@@ -107,7 +107,10 @@ task below it. `workflow/engine/report_outcomes.py` reads an outcome only out of
 initial implementation delivery is the road that acts on one: `workflow/engine/report_delivery.py` records what the
 run wrote before the size gate and the push, and `workflow/engine/report_binding.py` binds it to the repository, pull
 request, branch and commit the code reaches and publishes it there before the issue may move to
-`workflow:validating`. The additive `developer_report_*` pinned records (`workflow/engine/report_record*`,
+`workflow:validating`. A requirements-drift resume on an open pull request acts on one as well: its report is
+recorded before the size gate under the requirements revision the drift check handed it, bound once the code is
+out (or at once, for a report alone), and the reviewer waits until the pull request carries it. The additive
+`developer_report_*` pinned records (`workflow/engine/report_record*`,
 `report_delivery_state.py` and `report_settlement_state.py`) carry that report and the publication transaction it is
 bound into across a process that dies mid-way; `workflow/engine/report_transaction.py` reconciles an outstanding
 transaction ahead of every stage handler — proving the world it was recorded against, publishing or re-reading the

@@ -23,6 +23,15 @@ The full issue thread is marked consumed before the resume, because the dev
 sees it inside the resume prompt; leaving the watermark behind would let the
 in_review handoff replay those same comments as fresh feedback.
 
+The hash the drift check takes here is also the requirements revision the
+resume is handed, and it travels with the run rather than being read back
+off the comment: the report the session writes is stamped with it, however
+long its publication takes. A commit's report is recorded before the push and
+bound once it lands; a report alone goes onto the unchanged head and spends no
+round, exactly as an `ACK:` does. Either way the reviewer waits for the report
+to be confirmed on the pull request, which is `report_hold`'s; the binding is
+`report_settlement`'s.
+
 What the resume freezes for the helper that finishes it is a record only this
 route builds and only this route reads, so it answers on `drift_models.py`
 beside this owner rather than on the stage's shared `models.py`.
@@ -40,6 +49,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     drift as _engine_drift,
     prompt_context as _prompt_context,
+    report_records as _records,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import resume as _dev_resume
@@ -47,13 +57,19 @@ from orchestrator.workflow.stages.validating import (
     drift_models as _drift_models,
     drift_outcomes as _outcomes,
     models as _models,
+    report_settlement as _report_settlement,
     rounds as _rounds,
     state as _state,
 )
+from orchestrator.workflow.state import WorkflowLabel
 
 
 def _run_validating_drift(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    requirements_revision: str,
 ) -> _drift_models._ValidatingDriftRun:
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if not worktree.exists():
@@ -69,7 +85,9 @@ def _run_validating_drift(
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(
         gh, spec, issue, state, followup, pause_guard=True,
     )
-    return _drift_models._ValidatingDriftRun(worktree, agent_result, before_sha, paused)
+    return _drift_models._ValidatingDriftRun(
+        worktree, agent_result, before_sha, paused, requirements_revision,
+    )
 
 
 def _defer_validating_drift(state: PinnedState) -> bool:
@@ -101,12 +119,19 @@ def _finish_validating_drift(
         run.agent_result,
         run.before_sha,
         spends=owed,
+        handed=_records.HandedRun(
+            WorkflowLabel.VALIDATING, run.requirements_revision,
+        ),
     )
     if run.agent_result.interrupted:
         return
     if outcome == _state._OUTCOME_PUSHED:
         _rounds._bump_review_round(state, owed)
     gh.write_pinned_state(issue, state)
+    if outcome in _state._REPORTING_OUTCOMES:
+        _report_settlement._settles_the_report(
+            gh, spec, issue, state, WorkflowLabel.VALIDATING,
+        )
 
 
 def _resume_dev_on_validating_drift(
@@ -124,8 +149,10 @@ def _resume_dev_on_validating_drift(
     and on a successful pushed fix bump `review_round` while staying on
     `validating` (no relabel emitted) so the reviewer re-evaluates the updated
     body + new diff on the next tick. An ACK reply (no commit) keeps the issue
-    on `validating`. On a failed resume (timeout, dirty, no commit), the
-    standard park flags land via `_post_user_content_change_result`.
+    on `validating`, and so does a report with no commit, which is published
+    onto the unchanged head without spending a round. On a failed resume
+    (timeout, dirty, no commit), the standard park flags land via
+    `_post_user_content_change_result`.
 
     Returns True when a drift was detected and fully handled (caller must
     return). Returns False when there is no drift, or when the issue is parked
@@ -166,7 +193,7 @@ def _resume_dev_on_validating_drift(
     # handoff to in_review must not replay those comments as fresh
     # feedback.
     _engine_drift._mark_drift_comments_consumed(gh, issue, state)
-    run = _run_validating_drift(gh, spec, issue, state)
+    run = _run_validating_drift(gh, spec, issue, state, new_hash)
     state.set("last_agent_action_at", _usage._now_iso())
     if run.paused:
         # Live pause applied during the drift resume: the helper already

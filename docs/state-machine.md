@@ -206,7 +206,10 @@ once to a change: `workflow:decomposing` re-spawns inline, `workflow:ready` / `w
 `workflow:umbrella` route back to `workflow:decomposing`, the dev stages resume the locked dev session, and
 `workflow:documenting` unwinds to `workflow:validating`. A reply to a parked `workflow:implementing` or
 `workflow:validating` issue is not such a change: those stages measure a parked tick by what the park had already
-read, and the frozen reply batch delivers the reply. `_handle_fixing`, `_handle_question`, and
+read, and the frozen reply batch delivers the reply. On `workflow:validating` the resumed session's report is
+recorded before its push under the requirements revision the drift check handed it, a report with no commit is
+published onto the unchanged head, and the reviewer is held until the report is confirmed.
+`_handle_fixing`, `_handle_question`, and
 `_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and
 `/orchestrator authorize-oversized <commit>`), the
@@ -311,7 +314,8 @@ sending the unchanged head straight back. Full flow:
 Spawns a **fresh** reviewer every round (so a `REVIEW_AGENT` flip takes effect on the next tick) with a read-only
 prompt that must end in `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`. An approval runs the local verify gate,
 then `SQUASH_ON_APPROVAL`, then hands off to `workflow:documenting`; `CHANGES_REQUESTED` flips to `workflow:fixing`
-**before** the dev spawn. `MAX_REVIEW_ROUNDS` parks with the `/orchestrator add-review-rounds N` escape hatch.
+**before** the dev spawn. `MAX_REVIEW_ROUNDS` parks with the `/orchestrator add-review-rounds N` escape hatch. No
+reviewer spawns while a developer report this issue recorded is still owed to the pull request.
 
 A squash this issue began and did not finish is answered ahead of all of that, behind only the terminals and ahead of
 every route that could point an agent at the branch: a branch mid-rewrite is not one a reviewer or a body-edit resume

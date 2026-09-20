@@ -32,6 +32,11 @@ given, never the one that happens to be current when publication finally
 succeeds: stamping a delayed report with a later hash would claim it answered an
 edit it never saw.
 
+`HandedRun` beside them is no record at all: it is what a caller tells the
+recording about the run -- the road it came down and, where the caller took a
+snapshot, the requirements revision it was handed -- and only the delivered
+report built from it reaches the comment.
+
 Every record is additive. An issue that carries none of these keys reads back as
 no delivered report, no transaction, no current report, and no handoff, which is
 exactly what every issue predating them says without a migration having reached
@@ -206,3 +211,21 @@ class ReportHandoff:
     pr_number: int
     report_revision: int
     source_sha: str
+
+
+@dataclass(frozen=True)
+class HandedRun:
+    """The road a run came down, and the requirements revision it was handed.
+
+    A caller that snapshots what it gave the run names that revision here, and
+    the record is stamped with the snapshot rather than with whatever the
+    pinned baseline says by the time the report is recorded. A resume the drift
+    check launched was handed the content that check hashed; nothing written to
+    the baseline after the spawn is anything that session saw, so reading it
+    back later could stamp an older report with a newer hash. Empty reads the
+    pinned baseline, which is what the check ahead of every other spawn leaves
+    for the run behind it.
+    """
+
+    route: WorkflowLabel
+    requirements_revision: str = ""

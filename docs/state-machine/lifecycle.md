@@ -370,6 +370,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
               discriminator is `pending_fix_at`
      workflow:validating --(awaiting-human resume / drift / transient-
        recovery push)──► ++review_round, label stays workflow:validating
+     workflow:validating --(drift report with no commit)──► report posted
+       on the unchanged head, review_round unchanged, label stays
+       workflow:validating
+     a developer report still owed ─► no reviewer spawned; bound and
+       settled where the receipt and checkout prove it, else parked
+       report_undeliverable once no retry can settle it
      workflow:validating --(APPROVED, verify ok, squash ok)──►
        label=workflow:documenting (final-docs) ──► in_review
      MAX_REVIEW_ROUNDS exhausted ─► park HITL

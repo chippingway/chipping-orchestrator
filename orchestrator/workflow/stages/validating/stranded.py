@@ -22,6 +22,12 @@ about one commit: the branch is ahead of THAT head and behind nothing. Handed
 on, the size gate is pinned to it, and a pull request somebody moved between
 this probe and that push refuses instead of being adopted as the lease and
 force-overwritten.
+
+That head is why the dev-fix disposition takes this reading for a run that
+COMMITTED as well, where the ahead/behind answer decides nothing: the commit
+in hand is publishable either way, but the pull request stands below whatever
+an earlier tick stranded under it, and the lease has to name the head that
+publication actually carries rather than the one the agent started on.
 """
 from __future__ import annotations
 

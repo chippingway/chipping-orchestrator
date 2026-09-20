@@ -167,13 +167,49 @@ Result routing in `_post_user_content_change_result`:
 - a clean pushed fix hands straight back to `workflow:validating` from every stage that runs the drift resume; from
   `workflow:implementing` the drift path publishes through the shared committed-work seam, so the size gate measures
   the resumed commit before `_on_commits` opens/pushes the PR;
+- on `workflow:validating`, where the caller names what its resume was `handed`, a commit this run made is held to
+  the developer report contract (`validating/drift_reports.py`): the report is recorded as
+  `developer_report_delivery` BEFORE the size gate reads the candidate, under that stage's route and the
+  requirements revision the drift check hashed and handed the resume — never the baseline as it stands when
+  publication succeeds. Once the push lands the caller writes its own bookkeeping and only then binds the report to
+  the publication the code-publication receipt names, settling through the
+  [reconciliation](#the-developer-report-transaction-every-dispatch) on the same tick
+  (`validating/report_settlement.py`). The pull request, its description, and the issue are all read again by number
+  first: the description says whether a report VERIFIED on that very body would cost the pull request its closing
+  reference and attribution, and the reconciliation proves the requirements over the fresh issue, since the one the
+  tick holds was fetched before the resumed run and a title or body edited during it exists only on the new object.
+  A run that completed and committed with no usable report parks under `report_undeliverable` with nothing pushed,
+  under a notice naming what this road withheld: the pull request stays open on the commit it already carried, which
+  is what the same park says nothing was opened of on the implementing seam.
+  A run that did NOT complete is parked the same way and publishes the same nothing. The engine exempts an
+  incomplete run from the report contract — a nonzero exit, a provider refusal and a launch nothing invoked are
+  failures other roads answer, and on the roads that exemption serves nothing is published either way — but this
+  road publishes, so a commit pushed for such a run would reach the reviewer with no account of it anywhere and no
+  session left to ask. The park says so in its own words rather than the engine's, which speaks for a developer
+  that finished and declined to report;
 - a no-commit reply whose clean HEAD is strictly ahead of the remote PR branch (a fix a prior parked / interrupted run
   committed but never pushed) is published through the push tail and counted as a pushed fix
-  (`validating/stranded._stranded_fix_unpushed`), ahead of the ack check;
+  (`validating/stranded._stranded_fix_unpushed`), ahead of the ack check — EXCEPT on the requirements-drift road,
+  where such a commit is work no report on the pull request describes: there it stays unpublished and the
+  undescribed-work flag goes down for it, so the reply keeps its own road as an ack or a question while the review
+  hold behind it asks a human for the report. Which run left the commit decides nothing; a reply that IS a report
+  publishes it, since a report written over the branch as it stands describes it too;
+- on that same stage a no-commit reply ending on a report outcome is `"reported"`: the report is recorded and,
+  behind the caller's bookkeeping, bound to the head the pull request already carries, needing no commit, and routed
+  as an ack is. The tree is proved clean first, as every publication's is: a report over loose work describes
+  something the pull request does not carry and could never settle, so the run parks on the tree with nothing
+  recorded, and the reply resumes the session to finish and report again — the drift prompt
+  asks for a report whenever the report has to change to answer the edit, so parking it as a question would stall a
+  developer who finished;
 - a no-commit reply is otherwise treated as an ack ONLY when it carries the explicit `ACK: <reason>` marker the resume
   prompt instructs the dev to emit when existing work already satisfies the edit and nothing its report says has to
   change;
 - any other no-commit response falls back to `_on_question` and parks awaiting human.
+
+Whichever of those ends the tick, the reviewer on `workflow:validating` is held until a report recorded there is
+confirmed on the pull request — the report hold in [`_handle_validating`](#_handle_validating-label-workflowvalidating)
+step 3 — and an edit or comment landing while the agent is out leaves the report owed rather than stamped with it,
+for the next drift resume to answer with a report of its own.
 
 Per-stage specifics:
 
@@ -579,8 +615,12 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
   sits in a record nobody is reading.
 - **What a stage does first**: the publication that records a transaction also tries to complete it, on the tick it
   pushed, over the world it has just proved for itself — the initial implementation delivery is the road that does
-  (`_handle_implementing` below). So this reconciliation finishes the ones that did NOT complete there: a post GitHub
-  refused or never confirmed, a process that died in the window, a settlement whose write was lost.
+  (`_handle_implementing` below). A requirements-drift resume on an open pull request binds its report on the tick
+  its push lands, or at once for a report alone, and completes it by calling this very reconciliation there rather
+  than posting on a proof of its own (the [user-content drift](#user-content-drift-detection) routing, and
+  `_handle_validating`'s report hold for a delivery a later push carried). So this reconciliation finishes the ones
+  that did NOT complete there: a post GitHub refused or never confirmed, a process that died in the window, a
+  settlement whose write was lost.
 - **Where in the order**: behind the pause (the dispatcher's hard-skip screen, one level up in `_process_issue`),
   the restart and cancellation guards, the agent-run-limit hold above, the live-adjudication refusal, the
   outstanding-publication reconciliation (`late_reconcile._reconciles_published_work`), and **both** readings of
@@ -2281,6 +2321,17 @@ the tip is what their push replaces, and a head somebody landed between the prob
 rather than being adopted as the lease and force-overwritten by work proved against the head it used to be on. A tip
 nothing could read is no head either, and refuses there rather than publishing against one.
 
+**A dev fix PROVES that head rather than assuming it.** The in-sync reading holds only while nothing an earlier tick
+left is still sitting on the branch. A resume that parked with a commit unpublished, and one a shutdown killed before
+anything was recorded, each leave the checkout one commit above the pull request; a retry that commits again leaves it
+two above, and the head that retry began at is the stranded commit, which the pull request has never carried. So the
+shared fix disposition takes the stranded probe's reading for a run that COMMITTED as well as for one that did not, and
+hands the gate the remote tip that reading was compared against. Read off the head the run began at instead, the entry
+names a publication the pull request cannot be matched to and parks `late_measurement_failed` — and every retry behind
+it parks the same way, so the accumulated code and the report describing it never leave the checkout. Where the probe
+refuses — a dirty tree, a failed fetch, a remote that moved — a run that committed falls back to the head it began at,
+which is the in-sync reading and the one the gate then refuses on if the pull request has moved at all.
+
 **What the gate hands back is spent on the push.** Not merely its permission: the commit it measured, and the head the
 entry froze. The push is named against the first, so a checkout another tick, an operator, or a stray descendant moved
 between the reading and the push publishes the measured commit rather than whatever it became. It is leased against
@@ -2838,12 +2889,30 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      got to move (and drops the record behind it), or drops it unspent where the pull request has since moved off
      the commit it names.
   2. Awaiting-human path: resume on the dev's locked spec; on a successful pushed fix, bump `review_round` and stay on
-     `workflow:validating`. A transient park (`_VALIDATING_TRANSIENT_PARK_REASONS`) with NO new comment goes to
+     `workflow:validating`. A park standing over an unanswered requirements edit is the one claim that changes what the
+     resume's answer MEANS, since a reply to a park is no drift and this is the road that delivers it. Two parks carry
+     it: one this stage took over a report it owes, whose notice asked for a report in so many words, and one a drift
+     resume ended on without answering the edit at all — a question, a timeout, a tree nobody could publish — which
+     `requirements_drift_open` is what records, since nothing else on the comment says which road a park came off. The
+     claim is read BEFORE the run, because the resume clears the park it was written beside. Either way the reply is
+     read the way the drift resume's is — a report with no commit publishes onto the head the
+     pull request carries instead of parking as a question, a commit is held to the same contract before the gate sees
+     it, and the report is stamped with the revision that batch delivered, which its own settlement records as the
+     baseline — and the publication it lands spends the next review round, like any other fix reaching the pull
+     request. A transient park (`_VALIDATING_TRANSIENT_PARK_REASONS`) with NO new comment goes to
      `_try_recover_validating_transient_park` instead, which retries silently and, on `cleared` / `pushed`, posts the
-     **Recovery follow-up** described below before clearing the park. Its two git-touching retries — the deferred push
+     **Recovery follow-up** described below before clearing the park. `cleared` asks the BRANCH as well as the run
+     where the park came off the requirements-drift road: a resume can commit and be interrupted before anything is
+     written, so the retry behind it finds the head exactly where that resume left it while the pull request is
+     still short of the commit. Clearing there would drop the edit's obligation over work no report describes, so
+     the park stands as `stuck` and the human the timeout notice already mentioned is who answers it.
+     Its two git-touching retries — the deferred push
      and the commit a timeout killed the disposition before it saw — publish through the same
      [size gate](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr) the shared dev-fix publication
-     passes, which is why it has a fourth answer: `held`, meaning the gate took the candidate and the tick is over.
+     passes. Where the park came off that road the commit a timeout left is work no report describes — the run was
+     killed before it could report — so the debt for it is staged into the write the push makes, and the report hold
+     below asks a human before any reviewer reads the head it leaves. That is also why the retry has a fourth
+     answer: `held`, meaning the gate took the candidate and the tick is over.
      The caller then posts no follow-up, clears no park, and moves no label — the gate has already parked on a reading
      nobody could take, or handed the issue to `workflow:decomposing`, and written its own state, so a follow-up would
      announce a recovery that did not happen and a relabel would move the issue off the state the gate just set.
@@ -2864,14 +2933,44 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `resolving_conflict` retries on the plain `_CONTINUE_RETRY_PROMPT` — its agent finishes a rebase and authors no
      subject, so no subject contract rides with it; see the drift-detection section for the bare-continue hash
      exclusion.)
-  3. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
+  3. **Report hold.** A developer report this issue recorded and has not seen confirmed on the pull request — a
+     `developer_report_delivery` no publication has been bound to, or a `developer_report_pending` the
+     reconciliation has not settled — holds the reviewer (`report_hold._report_holds_the_review`). It is asked behind
+     the drift resume, which is what supersedes a report written against old requirements, and ahead of the round
+     cap and the spawn. A delivery is bound first wherever the code-publication receipt names this pull request and
+     the checkout, resolved as the reviewer resolves it, stands on the commit that receipt names — which is what a
+     recovered failed push and a settled adjudication leave — and settled through the
+     [reconciliation](#the-developer-report-transaction-every-dispatch) on the same tick, so the reviewer can run
+     behind it. What no retry settles parks once under `report_undeliverable`: a record written against a
+     requirements revision other than the pinned baseline (the drift check has just refreshed it, so the mismatch is
+     an edit no resume answered, such as an `ACK:` to a later edit), a receipt naming no publication of this pull
+     request, a checkout on a commit the pull request never received, a checkout that has picked up loose work since
+     or moved off the commit a bound transaction is about — the reading the reconciliation's own evidence takes,
+     which stands DOWN on a mismatch so the routes behind it keep running, and on this stage the only route behind
+     it is the reviewer the hold is stopping — a report the THREAD has moved out of reach — our comment under this
+     receipt no longer rendering as the report,
+     or a verified location gone, changed, or written by an author this deployment does not trust
+     (`report_evidence.refuses_for_good`, the reading the implementing handoff takes) — and a debt no record
+     describes at all, a run that committed and wrote no report whose park a reply answered without writing one
+     either — read as a record of THIS work rather than of any: a delivery or transaction an earlier run left is an
+     account of the branch before the commits a later run made, so the undescribed-work flag those commits leave
+     outranks it and the report that retires it is one written over the branch as it stands. The loose checkout, the
+     checkout a bound transaction can no longer be proved against, and the report the thread moved are each things
+     the reconciliation deliberately stands down on rather than holding, so nothing else would ever say so and the
+     reviewer would be suppressed for the life of the issue in silence. The binding itself is
+     `report_settlement`'s, over the pull request, its description, and the issue read again. A reply resumes the
+     session through the drift route, whose report supersedes the undelivered one. Anything else still owed — a
+     reading nobody could take, or a pull request somebody moved under the report — holds silently, since the next
+     tick is as likely to settle it. A park the awaiting-human branch cleared into this round is
+     written when the hold stops it, so its reply is not answered twice.
+  4. If `review_round >= MAX_REVIEW_ROUNDS` (default 3), park (`review_cap`). The park comment surfaces the
      `/orchestrator add-review-rounds N` escape hatch.
-  4. Otherwise persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer is spawned fresh
+  5. Otherwise persist `config.REVIEW_AGENT_SPEC` to `review_agent` (traceability only — the reviewer is spawned fresh
      each round with no resume), then run the reviewer with the read-only prompt (must end with `VERDICT: APPROVED` or
      `VERDICT: CHANGES_REQUESTED`). A mid-run `paused` / `backlog` re-check (`_paused_during_agent_run`) right after the
      reviewer returns short-circuits BEFORE the usage fold, session record, verdict parse, verify gate, squash, or
      relabel, so the next tick re-spawns a fresh reviewer from durable state.
-  5. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
+  6. Parse the last `VERDICT:` marker (`_parse_review_verdict`):
      - **approved** → in order: (1) run the local verify gate (`_run_verify_commands(wt, config.VERIFY_COMMANDS,
        config.VERIFY_TIMEOUT)`); a non-ok result parks via `_park_verify_failure` with a typed `park_reason`
        (`verify_failed` / `verify_timeout` / `verify_dirty` / `verify_head_changed`) and the approval / squash /
@@ -2946,7 +3045,7 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        the post-spawn state (no resume-budget charge, no watermark, no park), so the pre-spawn `workflow:fixing` flip
        stands and the next tick re-runs the cycle; any commit the killed run left is republished later via the
        stranded-fix tail, not this run.
-  5. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
+  7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /
      `_handle_dev_fix_result`), so no comment posts, no push, no `review_round` bump, no relabel, and no pinned-state
@@ -2956,7 +3055,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      of every later rescan.
 - **Output**: label moved to `workflow:documenting` (approval after verify + squash) OR `workflow:fixing`
   (CHANGES_REQUESTED) OR `workflow:decomposing` (the size gate held a fix or a transient-park recovery push) OR no
-  label change with `review_round` bumped (awaiting-human resume, drift, transient-park recovery push) OR a HITL park.
+  label change with `review_round` bumped (awaiting-human resume, drift, transient-park recovery push) OR no label
+  change and no reviewer (a developer report still owed) OR a HITL park.
 
 ## `_handle_in_review` (label `in_review`)
 - **Trigger**: each tick while label is `in_review`. Set by `_handle_documenting` on the final-docs hop. Also runs on

@@ -36,6 +36,13 @@ committed-but-unpublished fix from ping-ponging between parks -- because the
 stand down on and on the no-feedback bounce that is the last tick left to
 publish such a commit.
 
+A body-edit resume also owes the pull request its developer report.
+`drift_reports` records it before the size gate under the requirements
+revision the resume was handed, `report_settlement` binds it to the
+publication the code reached and settles it, and `report_hold` holds the
+reviewer, on every tick, until the pull request carries it -- which is why
+`handler` asks that hold last, ahead of the spawn.
+
 `models` and `state` carry the records and the wire keys the rest share.
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would
