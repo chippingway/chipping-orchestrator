@@ -449,8 +449,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             moved no head -- a debt owed, a run that finished on a report outcome, and a branch
                             that carries something -- so the reply answering such a park publishes rather than
                             parking as a question. The implementing publication seam is the caller, between its
-                            tree reading and the size gate, and so is the requirements-drift disposition the review
-                            stages share (`stages/validating/drift_reports.py`), ahead of the same gate
+                            tree reading and the size gate, and so is the `workflow:validating` requirements-drift
+                            disposition (`stages/validating/drift_reports.py`), ahead of the same gate
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
@@ -2349,8 +2349,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the requirements revision the drift check hands the resume its report is stamped with;
                             on a parked tick the edit is measured by what the park had already read
       drift_models.py       the frozen record that route's resume hands the helper that finishes it
-      drift_outcomes.py     the claim that the edit is still unanswered, written beside every park a resume ends
-                            on and dropped by every outcome that answers it; the `ACK:`
+      drift_outcomes.py     the claim that the edit is still unanswered, written -- for a caller that named what
+                            its resume was `handed`, which is the caller that reads it back -- beside every park a
+                            resume ends on and dropped by every outcome that answers it; the `ACK:`
                             reply that must not park, over the shared fix disposition, and -- where the
                             caller names what its resume was `handed` -- the report reply that is neither, recorded
                             for the unchanged head as `reported`, and a commit held to the same contract

@@ -231,7 +231,12 @@ Per-stage specifics:
   this tick against the updated body.
 - For **`workflow:validating`** drift, the handler defers to the awaiting-human branch when `park_reason` is
   reviewer-side (`reviewer_timeout` / `reviewer_failed`): a "retry" reply after a reviewer failure must re-spawn the
-  reviewer, not the dev. The new baseline is still persisted so the next tick doesn't loop.
+  reviewer, not the dev. The new baseline is still persisted so the next tick doesn't loop. This is also the only
+  stage that names what its resume was `handed`, so it is the only one the report contract above runs for: a resume
+  ending PARKED records `requirements_drift_open` beside that park, which is what makes the reply clearing it the
+  rest of this resume rather than an ordinary fix, and any outcome that answers the edit drops the claim again. The
+  report a `"pushed"` or `"reported"` outcome recorded is bound and settled AFTER the round bump and the pinned
+  write, so no tick ever finds a settled report beside bookkeeping a crash could still lose.
 
 The hash is re-persisted on every reaction so a single edit triggers exactly one re-route, not a loop.
 
