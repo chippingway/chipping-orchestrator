@@ -10,8 +10,9 @@ folds the parsed verdict together with the run, and its `feedback` falls back
 to the agent's last message so a reviewer that put its reasoning above the
 VERDICT line still reaches the dev. `_DevFixRun` carries `before_sha` -- the
 pre-agent HEAD is the only thing that tells a commit this run produced from
-one already on the branch -- and an optional `after_sha` for the caller that
-has already read it.
+one already on the branch -- an optional `after_sha` for the caller that
+has already read it, and, for a requirements-drift resume, what that resume
+was handed, which its report is stamped with.
 
 `_AwaitingValidation` is the awaiting-human context: it snapshots the park
 reason and the one frozen reply batch every route through that park reads --
@@ -90,36 +91,55 @@ class _DevFixRun:
     # and the resumed route finds nothing left to publish. Handed in, it rides
     # the gate's own durable write, ahead of the label it moves.
     spends: Any = None
-    # The remote head a STRANDED publication was proved ahead of, where this
-    # run committed nothing and what is being published is a commit an earlier
-    # tick left on the branch. It is the head that push replaces, and the one
-    # the gate is pinned to -- read from the ref the ahead/behind proof was
-    # taken against rather than from the pull request afterwards, which is the
+    # The remote head this publication was proved ahead of, where the route
+    # could take that proof. It is the head the push replaces, and the one the
+    # gate is pinned to -- read from the ref the ahead/behind proof was taken
+    # against rather than from the pull request afterwards, which is the
     # reading a head somebody moved in between would win.
-    stranded_head: str = ""
+    #
+    # It is what the run began at only where the branch was in sync with its
+    # pull request when the run started. A commit an earlier tick left on the
+    # branch unpublished breaks that, whether this run committed on top of it
+    # or committed nothing at all: the pull request is standing BELOW the head
+    # in hand either way, and a lease named from that head would describe a
+    # commit the pull request has never carried -- so every tick over such a
+    # branch parks unmeasured and the accumulated code never goes out.
+    published_head: str = ""
+    # The route and requirements revision a requirements-drift resume was
+    # handed, where the run is one. Named, the disposition holds the run to the
+    # report contract and publishes what it reported; the revision is the
+    # snapshot the drift check took before the spawn, because the report is
+    # about the requirements that session saw rather than whatever the issue
+    # says by the time the report reaches the pull request. Every other fix
+    # route names none and publishes code alone.
+    handed: Any = None
 
     @property
     def entered_head(self) -> str:
-        """The publication head this run's own commit was made on top of.
+        """The publication head this run's candidate is being pushed over.
 
         Named to the size gate so a pull request somebody pushed to WHILE the
         agent was out refuses the push instead of being overwritten by work
-        built on the head it used to be on. A fix round starts with the branch
-        in sync with its pull request -- the reviewer just read that head --
-        so the head this run began at is the head the publication was standing
-        on, and the gate compares the two rather than adopting whichever one
-        it happens to read afterwards.
+        built on the head it used to be on.
 
-        Where this run committed nothing and what is being published is a
-        commit an earlier tick stranded on the branch, the head is the remote
-        tip that publication was proved ahead of: the branch this push
-        replaces is that one, and naming it is what makes a pull request
-        somebody moved between the proof and the push refuse rather than be
-        adopted as the lease.
+        The PROVED remote tip answers wherever the route took one, because
+        that is the head the push replaces however the candidate came to be:
+        a commit this run made, a commit an earlier tick stranded with this
+        run committing nothing, and a commit this run made on top of one an
+        earlier tick stranded are the same publication from the branch's side.
+        Naming it is also what makes a pull request somebody moved between the
+        proof and the push refuse rather than be adopted as the lease.
+
+        The head this run BEGAN at answers only where no proof could be taken
+        and the run committed -- a fetch that failed, a remote that moved, a
+        divergence nothing could read. A fix round ordinarily starts with the
+        branch in sync with its pull request, so that head is the publication
+        the reviewer just read; where it is not, the gate compares the two and
+        refuses, which is the same answer the unreadable proof deserves.
         """
         if not self.after_sha or self.after_sha == self.before_sha:
-            return self.stranded_head
-        return self.before_sha
+            return self.published_head
+        return self.published_head or self.before_sha
 
 
 @dataclass(frozen=True)
@@ -159,8 +179,20 @@ class _AwaitingValidation:
         return self.batch.comments
 
     def clear_park(self) -> None:
+        """End the park this context was built on, and what it stood over.
+
+        A requirements edit the park interrupted is answered by the road that
+        clears it, so the drift claim goes with the park rather than outliving
+        it: left standing past a recovery that published the commit itself, it
+        would read the next unrelated park's reply as the edit's continuation.
+        The road that MEANS to continue reads the claim before its run, and
+        the disposition behind it writes it again where the edit is still
+        unanswered.
+        """
         self.state.set("awaiting_human", False)
         self.state.set(_state._PARK_REASON, None)
+        if self.state.get(_state._OPEN_DRIFT):
+            self.state.set(_state._OPEN_DRIFT, None)
 
     def consume_comments(self) -> None:
         """Record the frozen batch as consumed, forward only.
@@ -183,12 +215,13 @@ def _dev_fix_run(context_args: tuple, fields: dict) -> tuple[_pinned_state.Pinne
         raise TypeError("expected state, worktree, result, and before_sha")
     state, worktree, agent_result, before_sha = context_args
     unknown = set(fields) - {
-        "after_sha", "stage", "spends", "stranded_head",
+        "after_sha", "stage", "spends", "published_head", "handed",
     }
     if unknown:
         raise TypeError(f"unexpected fix-result option(s): {sorted(unknown)!r}")
     return state, _DevFixRun(
         worktree, agent_result, before_sha,
         fields.get("after_sha"), fields.get("stage"),
-        fields.get("spends"), fields.get("stranded_head") or "",
+        fields.get("spends"), fields.get("published_head") or "",
+        fields.get("handed"),
     )

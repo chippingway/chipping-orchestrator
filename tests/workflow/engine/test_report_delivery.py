@@ -44,6 +44,30 @@ from tests.workflow.git_owners import seam_patch
 # A notice offered to a park that is still standing, which nobody may be sent.
 _SECOND_NOTICE = "The report this issue owes still cannot be delivered."
 
+# What a park may tell a human whose pull request is open, and what it may not.
+_NEVER_OPENED = "no pull request was opened"
+
+_STILL_STANDS = "the pull request still stands on the commit it already carried"
+
+# The roads that record a report, by whether the work already has a pull
+# request when this owner parks.
+_ROADS = (
+    (WorkflowLabel.IMPLEMENTING, False),
+    (_records.HandedRun(WorkflowLabel.VALIDATING, support.REQUIREMENTS), True),
+    (WorkflowLabel.IN_REVIEW, True),
+)
+
+# The two parks this owner takes: a run that committed and reported nothing,
+# and a report no record could hold -- here, one past what a comment carries,
+# over a comment naming no requirements for a subject to be proved against.
+_PARKS = (
+    ("a run that reported nothing", "implemented"),
+    (
+        "a report no record holds",
+        delivery_support.ready(delivery_support.UNPUBLISHABLE_REPORTS[0][1]),
+    ),
+)
+
 
 class DeliveredReportRecordTest(unittest.TestCase):
     def test_both_modes_round_trip(self) -> None:
@@ -222,6 +246,7 @@ class DeliveredReportCapacityTest(unittest.TestCase):
         self.assertFalse(_delivery_state.record_delivered_report(
             crowded, delivery_support.DELIVERED,
         ))
+
     def test_the_widest_branch_is_reserved(self) -> None:
         # What the comment charges for a branch is not what the reader counts:
         # the field is bounded in codepoints and the comment in the characters
@@ -441,6 +466,42 @@ class ReportedRunTest(unittest.TestCase):
         )
 
 
+class ParkNoticeTest(unittest.TestCase):
+    """What a park this owner takes tells the human who has to answer it.
+
+    The notice is the whole of what a human is told, and the two roads that
+    reach these parks are in different places: one has published nothing yet,
+    and the other is answering an edit on a pull request that is open.
+    """
+
+    def test_each_park_names_what_it_withheld(self) -> None:
+        # The implementing seam is the first publication of all, so there is
+        # no pull request yet; a resume under review has one that stands where
+        # it stood, and telling that human none was opened would deny the pull
+        # request they are reading. Both parks, since both notices say it.
+        for described, message in _PARKS:
+            for route, open_pr in _ROADS:
+                with self.subTest(park=described, road=str(route)):
+                    self._assert_notice(message, route, open_pr)
+
+    def _assert_notice(self, message: str, route, open_pr: bool) -> None:
+        """One park, taken on one road, says what that road withheld."""
+        seeded = delivery_support.seeded_issue()
+
+        self.assertTrue(_delivery.recording_stops_the_tick(
+            *seeded, PinnedState(), _agent(last_message=message), route,
+        ))
+
+        notice = next(
+            posted.body for posted in seeded[-1].comments
+            if "developer run finished" in (posted.body or "")
+        )
+        self.assertEqual(
+            (_NEVER_OPENED in notice, _STILL_STANDS in notice),
+            (not open_pr, open_pr),
+        )
+
+
 class DeliveredRevisionTest(unittest.TestCase):
     """What the record a finished run leaves SAYS, once the run is gone.
 
@@ -490,6 +551,26 @@ class DeliveredRevisionTest(unittest.TestCase):
         self.assertEqual(
             (recorded.report_revision, recorded.receipt),
             (2, f"issue-{delivery_support.ISSUE_NUMBER}-report-2"),
+        )
+
+    def test_a_handed_revision_outranks_the_baseline(self) -> None:
+        # A caller that snapshotted what it handed the run is believed over
+        # the baseline on the comment, which may have moved on since the
+        # spawn; the route travels with the snapshot unchanged.
+        state = PinnedState()
+        state.set(delivery_support.BASELINE, support.REQUIREMENTS)
+        handed = "b" * len(support.REQUIREMENTS)
+
+        _delivery.recording_stops_the_tick(
+            *delivery_support.seeded_issue(), state,
+            _agent(last_message=delivery_support.ready("the resume's report")),
+            _records.HandedRun(WorkflowLabel.VALIDATING, handed),
+        )
+
+        recorded = state.get(_records.DELIVERED_REPORT)
+        self.assertEqual(
+            (recorded["requirements"], recorded["route"]),
+            (handed, WorkflowLabel.VALIDATING),
         )
 
     def test_the_delivery_is_durable(self) -> None:

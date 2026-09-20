@@ -62,9 +62,10 @@ reading the earlier one's comment as its own publication, edited beyond
 recognition.
 
 The implementing stage's publication seam is what calls in, between proving a
-clean tree and the size gate; the binding that exchanges a delivery for the
-transaction it becomes, once the push has reached a pull request, is
-`report_binding`'s.
+clean tree and the size gate, and so does the requirements-drift disposition on
+an open pull request, which names the revision its resume was handed; the
+binding that exchanges a delivery for the transaction it becomes, once the push
+has reached a pull request, is `report_binding`'s.
 """
 from __future__ import annotations
 
@@ -110,16 +111,46 @@ OWED_REPORT = "developer_report_owed"
 # developer that can write the report again.
 UNDELIVERABLE_REPORT = "report_undeliverable"
 
+# Work a COMPLETED run committed that no record of this issue's describes.
+# Kept apart from the debt above, which any road that cannot deliver a report
+# writes: a record of an EARLIER run is still a record, so the debt alone
+# cannot tell an issue whose report is merely undelivered from one whose newest
+# commits nobody has described at all. Only a fresh report retires it, since
+# only a report written over the branch as it stands describes them -- and
+# while it stands, the reply a park earns publishes nothing and the review is
+# held for the report the work is missing.
+UNREPORTED_WORK = "developer_report_unreported_work"
+
 # How a transaction minted here is named. The revision is what makes it
 # unique per issue, and the spelling is one the report header carries verbatim.
 _RECEIPT = "issue-{issue}-report-{revision}"
 
+# What "nothing was published" leaves standing, on each road that records a
+# report. The implementing seam is the first publication of all, so there is no
+# pull request yet and saying so is the whole of it. A requirements-drift
+# resume under review is the other way round: the work it was asked about is
+# already on an open pull request, and all a park here withholds is whatever
+# that run has just added -- so the initial notice would tell a human the pull
+# request they are reading does not exist.
+_NOTHING_OPENED = (
+    "the commit is still in the worktree, the branch is untouched, and no "
+    "pull request was opened"
+)
+
+_NOTHING_ADDED = (
+    "whatever this run committed is still in the worktree, the branch is "
+    "untouched, and the pull request still stands on the commit it already "
+    "carried"
+)
+
+# The roads that record a report for work an open pull request already carries.
+_UNDER_REVIEW = frozenset((WorkflowLabel.VALIDATING, WorkflowLabel.IN_REVIEW))
+
 _UNRECORDABLE_PARK = (
     "{mentions} this issue's developer run finished with a completion report "
     "this orchestrator cannot record on its pinned comment -- most likely one "
-    "far past what a single comment holds -- so nothing was published: the "
-    "commit is still in the worktree, the branch is untouched, and no pull "
-    "request was opened. The report is recorded before any code goes out, "
+    "far past what a single comment holds -- so nothing was published: "
+    "{withheld}. The report is recorded before any code goes out, "
     "because that record is the only thing a later tick could publish it "
     "from: a report that cannot be written is one this workflow has no way to "
     "put on a pull request, and publishing the code anyway would hand review "
@@ -148,9 +179,8 @@ _UNREPORTED_PARK = (
     "at all, one that reached for the contract and missed, or one naming a "
     "report this orchestrator cannot hold against its own repository, whether "
     "because it is somebody else's or because the reading that would have "
-    "proved it could not be taken. Nothing was published: the commit is still "
-    "in the worktree, the branch is untouched, and no pull request was "
-    "opened. Handing this work to review would send a reviewer an "
+    "proved it could not be taken. Nothing was published: {withheld}. "
+    "Handing this work to review would send a reviewer an "
     "implementation nobody described, with no record of what was done and no "
     "session left to ask. Reply and the orchestrator resumes the session; the "
     "report it writes then is the one that gets published, and it needs no "
@@ -193,7 +223,7 @@ def recording_stops_the_tick(
     issue: Issue,
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
-    route: WorkflowLabel,
+    route: WorkflowLabel | _records.HandedRun,
 ) -> bool:
     """Record what a finished run wrote, or hold the tick over what it wrote.
 
@@ -222,18 +252,34 @@ def recording_stops_the_tick(
     A record that IS stored retires the park this owner may have taken, since
     what that park asked for was exactly a report it could record -- and left
     standing it would hold the publication it was about to make possible.
+
+    Either notice names what THIS road withheld. The implementing seam has no
+    pull request yet, while a resume under review has one that stands exactly
+    where it stood -- and a human reading the initial wording under their own
+    open pull request would be told it was never opened.
+
+    Both of them also record that this run's WORK is undescribed. A record an
+    earlier run left is no account of commits made since, so a road that read
+    the debt alone would publish them under a report written before they
+    existed; only a report written over the branch as it stands retires it,
+    which is the report the reply to either notice brings.
     """
-    delivered = _delivered_report(gh, issue, state, agent_result, route)
+    handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
+    withheld = _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED
+    delivered = _delivered_report(gh, issue, state, agent_result, handed)
     if delivered is None:
-        return _unreported_run_holds(gh, issue, state, agent_result)
+        return _unreported_run_holds(gh, issue, state, agent_result, withheld)
     if not _delivery_state.record_delivered_report(state, delivered):
         log.error(
             "issue=#%d wrote a developer report this build cannot record; "
             "publishing nothing and holding for a human", issue.number,
         )
+        state.set(UNREPORTED_WORK, True)
         parks_an_undeliverable_report(
             gh, issue, state,
-            _UNRECORDABLE_PARK.format(mentions=config.HITL_MENTIONS),
+            _UNRECORDABLE_PARK.format(
+                mentions=config.HITL_MENTIONS, withheld=withheld,
+            ),
         )
         return True
     log.info(
@@ -242,8 +288,9 @@ def recording_stops_the_tick(
     )
     if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
         state.set(_PARK_REASON, None)
-    if state.get(OWED_REPORT):
-        state.set(OWED_REPORT, None)
+    for owing in (OWED_REPORT, UNREPORTED_WORK):
+        if state.get(owing):
+            state.set(owing, None)
     gh.write_pinned_state(issue, state)
     return False
 
@@ -253,6 +300,7 @@ def _unreported_run_holds(
     issue: Issue,
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
+    withheld: str,
 ) -> bool:
     """Hold a completed run that handed over no report, or let the tick carry on.
 
@@ -266,8 +314,15 @@ def _unreported_run_holds(
     session is over.
 
     Held, nothing is published at all and a reply resumes the developer, which
-    can write the report the work is missing. The park itself is what
-    remembers the debt, since there is no report to record.
+    can write the report the work is missing. The park is what remembers the
+    debt, since there is no report to record, and `UNREPORTED_WORK` beside it
+    is what remembers that the commits this run made are the undescribed ones:
+    a report an earlier run left describes the branch before them, so a road
+    reading the debt alone would publish them under it.
+
+    `withheld` is what the caller's road actually held back, since the notice
+    says so and the two roads hold back different things: a pull request that
+    was never opened, and one that stands where it stood.
 
     A run that did NOT complete is left alone. A launch nothing invoked, a
     shutdown kill, a timeout, a provider refusal and a nonzero exit are
@@ -284,9 +339,12 @@ def _unreported_run_holds(
         "report this workflow can publish; publishing nothing and holding "
         "for a human", issue.number,
     )
+    state.set(UNREPORTED_WORK, True)
     parks_an_undeliverable_report(
         gh, issue, state,
-        _UNREPORTED_PARK.format(mentions=config.HITL_MENTIONS),
+        _UNREPORTED_PARK.format(
+            mentions=config.HITL_MENTIONS, withheld=withheld,
+        ),
     )
     return True
 
@@ -390,7 +448,7 @@ def _delivered_report(
     issue: Issue,
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
-    route: WorkflowLabel,
+    route: WorkflowLabel | _records.HandedRun,
 ) -> _records.DeliveredReport | None:
     """The record one run's report outcome earns, or None where it earns none.
 
@@ -400,11 +458,12 @@ def _delivered_report(
     anybody wrote, and recording one would publish a transcript under a header
     saying it is this issue's completion report.
 
-    The requirements revision is read off the pinned baseline rather than
-    computed here, because what is wanted is the revision the RUN was handed:
-    the drift check ahead of the spawn is what put it there, and a human
-    editing the issue while the agent worked leaves the current content one
-    revision further on than anything this session ever saw.
+    The requirements revision is the one the RUN was handed, never one
+    computed here: a human editing the issue while the agent worked leaves the
+    current content one revision further on than anything this session ever
+    saw. A caller that snapshotted it names it on the `HandedRun` it passes;
+    otherwise it is read off the pinned baseline the drift check ahead of the
+    spawn put there.
 
     The revision moves past every report this issue has already recorded: the
     settled one, any transaction still outstanding, and any delivery still
@@ -434,11 +493,14 @@ def _delivered_report(
         (report.report_revision for report in recorded if report is not None),
         default=0,
     )
-    requirements = state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)
+    handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
+    requirements = handed.requirements_revision or state.get(
+        _prompt_delivery.PINNED_USER_CONTENT_HASH,
+    )
     return _records.DeliveredReport(
         receipt=_RECEIPT.format(issue=issue.number, revision=revision),
         report_revision=revision,
-        route=route,
+        route=handed.route,
         requirements_revision=requirements if isinstance(requirements, str) else "",
         **carried,
     )

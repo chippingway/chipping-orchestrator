@@ -30,8 +30,11 @@ report whose requirements moved is left owed for the drift resume. A transaction
 that does not settle stays owed, which is what the caller reads before handing
 the work on; the reconciliation ahead of the next handler finishes it.
 
-The implementing stage's publication is the caller, once its push has reached
-a pull request.
+The implementing stage's publication is the caller of both steps, once its push
+has reached a pull request. The requirements-drift disposition on an open pull
+request binds alone and leaves the publishing to the reconciliation, whose
+evidence proves the checkout, the remote and the receipt again -- the binding
+there can follow a push some earlier tick made, not only its own.
 """
 from __future__ import annotations
 
@@ -117,11 +120,11 @@ def binds_and_publishes(
     at all on an issue that delivered no report.
     """
     if _delivery_state.carries_delivered_report(state):
-        _binds_the_delivery(gh, issue, state, published)
+        binds_the_delivery(gh, issue, state, published)
     _publishes_what_is_owed(gh, issue, state, published)
 
 
-def _binds_the_delivery(
+def binds_the_delivery(
     gh: _client.GitHubClient,
     issue: Issue,
     state: _pinned_state.PinnedState,
@@ -132,6 +135,9 @@ def _binds_the_delivery(
     Written before anything is posted. Nothing is dropped on a refusal: a
     comment too full is reported and left for the next tick, and every other
     refusal parks once with the record intact, for a human to answer.
+
+    Public for the caller that publishes through the reconciliation instead of
+    through the post below: which commit it binds to is its to prove first.
     """
     delivered = _delivery_state.read_delivered_report(state)
     if delivered is None:

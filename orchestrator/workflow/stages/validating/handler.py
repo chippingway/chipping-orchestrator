@@ -37,6 +37,13 @@ The awaiting-human branch then either finishes the tick or clears the park
 into a fresh reviewer round, which is why it answers in words rather than a
 bool: `"return"` means handled, and `"spawn_reviewer"` means fall through to
 the round-cap check and the spawn below.
+
+A developer report this issue recorded and has not seen confirmed on the pull
+request holds the reviewer last of all. Behind the drift check, because a
+resume answering an edit is what supersedes a report written against the old
+requirements; ahead of the spawn, because a reviewer handed work whose report
+nothing on the pull request carries is the review the report exists to
+prevent.
 """
 from __future__ import annotations
 
@@ -51,6 +58,7 @@ from orchestrator.workflow.stages.validating import (
     collapse as _collapse,
     drift as _drift,
     models as _models,
+    report_hold as _report_hold,
     reviewer as _reviewer,
     state as _state,
 )
@@ -79,6 +87,38 @@ def _finalize_validating_terminal(
     if _terminals._pr_terminal_stops_the_tick(gh, spec, issue, state):
         return True
     return _terminals._finalize_if_issue_closed(gh, spec, issue, state)
+
+
+def _ends_before_review(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    parked: _models._AwaitingValidation | None,
+) -> bool:
+    """The last two answers a tick can take before the reviewer; True where one did.
+
+    Awaiting-human path: human replied after a park (or a transient condition
+    self-resolved), read off the context the caller built with its one frozen
+    reply batch. The helper resumes the dev on that batch, recovers transient
+    parks silently, or clears a reviewer-side / review-cap park into a
+    reviewer re-run. "return" -> the tick is fully handled; "spawn_reviewer"
+    -> fall through to the report hold, the round-cap check and the spawn.
+
+    A report still owed then holds the reviewer until it is confirmed on the
+    pull request. A park the branch above cleared into this round is staged
+    and not yet written -- the reviewer's own write carries it otherwise -- so
+    a held tick writes it, or the next one answers the same reply again.
+    """
+    if parked is not None and _awaiting_resume._handle_validating_awaiting_human(
+        parked,
+    ) == _state._OUTCOME_RETURN:
+        return True
+    if not _report_hold._report_holds_the_review(gh, spec, issue, state):
+        return False
+    if parked is not None:
+        gh.write_pinned_state(issue, state)
+    return True
 
 
 def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
@@ -112,16 +152,8 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     if _drift._resume_dev_on_validating_drift(gh, spec, issue, state, parked):
         return
 
-    # Awaiting-human path: human replied after a park (or a transient
-    # condition self-resolved). The helper resumes the dev on their feedback,
-    # recovers transient parks silently, or clears a reviewer-side / review-cap
-    # park into a reviewer re-run. "return" -> the tick is fully handled;
-    # "spawn_reviewer" -> fall through to the round-cap check and reviewer
-    # spawn below.
-    if parked is not None:
-        outcome = _awaiting_resume._handle_validating_awaiting_human(parked)
-        if outcome == _state._OUTCOME_RETURN:
-            return
+    if _ends_before_review(gh, spec, issue, state, parked):
+        return
 
     reviewer_run = _reviewer._run_reviewer_round(gh, spec, issue, state, pr_number)
     if reviewer_run is None:

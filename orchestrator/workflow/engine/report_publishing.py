@@ -54,6 +54,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     report_consumed_values as _consumed,
+    report_delivery as _delivery,
     report_evidence as _evidence,
     report_record_state as _record_state,
     report_records as _records,
@@ -61,6 +62,10 @@ from orchestrator.workflow.engine import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+_PARK_REASON = "park_reason"
+
+_AWAITING_HUMAN = "awaiting_human"
 
 
 def finishes(
@@ -294,6 +299,45 @@ def _refuses_the_reading(
     return False
 
 
+def _retires_the_debt(state: PinnedState) -> None:
+    """Drop what a settled report is still recorded as owing, park and all.
+
+    The debt first, since every reader behind it -- the review hold, the
+    resume that reads a reply as the report it asked for -- asks the flag
+    rather than the record, and left standing it outlives the transaction
+    that explains it.
+
+    The PARK only where it is this owner's. A report nothing could deliver is
+    parked under one reason, and a human answering it repairs the condition
+    rather than replying -- an edited comment restored, a checkout cleaned --
+    so the settlement that follows is the only thing that will ever say the
+    wait is over. Any other reason belongs to whoever took it, and a human
+    waiting on a question is still waiting.
+
+    Each field is written only where it says something, because a null this
+    comment did not already carry is bytes the record reserved nothing for:
+    the ceiling is measured before a transaction is accepted, and a
+    settlement that grows the comment is one the measurement did not model.
+
+    NOTHING is retired while this issue records work nobody has described. A
+    report recorded over the branch as it stands retires that flag as it is
+    recorded, so a flag still standing here says the transaction just settled
+    was written before those commits existed -- it is a true account of an
+    earlier head, and the head the branch is on now is still owed one of its
+    own. Retired anyway, the debt and the park asking for that report would
+    both come off together, and the next reply would publish those commits
+    under a report that never saw them.
+    """
+    if state.get(_delivery.UNREPORTED_WORK):
+        return
+    if state.get(_delivery.OWED_REPORT):
+        state.set(_delivery.OWED_REPORT, None)
+    if state.get(_PARK_REASON) != _delivery.UNDELIVERABLE_REPORT:
+        return
+    state.set(_PARK_REASON, None)
+    state.set(_AWAITING_HUMAN, False)
+
+
 def settles(
     gh: GitHubClient,
     issue: Issue,
@@ -333,6 +377,10 @@ def settles(
     an edit can land inside the post or the re-read. Refused, nothing is
     written and the transaction stays owed, which withholds the handoff for the
     drift resume to answer; a re-read nobody could take holds the tick.
+
+    The DEBT the record left goes with it, and the park it was announced
+    under: this is the moment the pull request carries the report, so anything
+    still saying one is owed is saying it about a report that is delivered.
     """
     edited = _evidence.fresh_requirements_verdict(gh, issue, state, pending)
     if edited is not None:
@@ -362,6 +410,7 @@ def settles(
     _consumed.advance_consumed(settled, pending.watermarks)
     _consumed.close_bookkeeping(settled, pending.spends)
     _record_state.clear_pending_report(settled)
+    _retires_the_debt(settled)
     state.data = settled.data
     gh.write_pinned_state(issue, state)
     log.info(

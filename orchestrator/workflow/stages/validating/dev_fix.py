@@ -10,12 +10,14 @@ look. Only the disposition order differs, and `_dispose_dev_fix_result` fixes
 it -- an interrupted run first, so a shutdown-killed agent parks nothing and
 the next tick simply retries it, then the timeout park, then the question.
 
-`stranded.py` beside this owns the non-obvious gate the no-commit reading
-falls through to, because the fixing handler's no-feedback bounce and its ACK
-fast path ask the same question off no dev run at all. What it refuses is what
-the reading here inherits: a dirty tree, a failed fetch, or a remote that moved
-prove nothing, because pushing over a head nobody reconciled is worse than one
-more park.
+`stranded.py` beside this owns the proof of where the branch stands against
+its remote, which every reading here takes: it is what lets a no-commit run
+publish work an earlier tick left, and it is the head the push replaces
+whichever run made the commit. The fixing handler's no-feedback bounce and its
+ACK fast path ask the same question off no dev run at all. What it refuses is
+what the reading here inherits: a dirty tree, a failed fetch, or a remote that
+moved prove nothing, because pushing over a head nobody reconciled is worse
+than one more park.
 
 `rounds.py` beside this owns the counter every landed fix pays into. It sits there
 rather than beside any one caller because all three routes owe it for the
@@ -83,13 +85,19 @@ def _publishable_dev_fix(
     instead of dropped, the two are one decision and a checkout standing
     anywhere else refuses.
 
-    A STRANDED fix carries a head of its own instead. This run committed
-    nothing, so the head it began at is not what the push would replace: what
-    it replaces is the remote tip the stranded proof was taken against, and
-    that is the head the gate is pinned to. Without it the gate reads the pull
-    request afterwards and adopts whatever it finds, so a head somebody landed
-    in between is force-overwritten by work proved against the head it used to
-    be on.
+    The remote tip is proved for EVERY candidate rather than only for the one
+    a run committed nothing towards, because it is the head the push replaces
+    in both shapes and a run that committed is no evidence about where the
+    pull request stands. A tick that commits over work an earlier one
+    stranded begins at that stranded commit, which the pull request has never
+    carried: pinned to it, the gate reads a publication it cannot name and
+    parks unmeasured, so the accumulated code and the report describing it
+    stay in the checkout however many times the resume is retried.
+
+    What the proof refuses -- a dirty tree, a fetch that failed, a remote that
+    moved -- leaves a run that committed pinned to the head it began at, which
+    is the ordinary in-sync reading and the one the gate then refuses on if
+    the pull request has moved at all.
 
     None is every no-publish reading: a checkout that could not name its head
     at all, and one whose head is exactly what the run started on with nothing
@@ -100,14 +108,12 @@ def _publishable_dev_fix(
         after_sha = _verification_probes._head_sha(run.worktree)
     if not after_sha:
         return None
-    if after_sha != run.before_sha:
-        return _replace(run, after_sha=after_sha)
-    stranded = _stranded._stranded_fix_unpushed(
+    published = _stranded._stranded_fix_unpushed(
         spec, run.worktree, state, issue,
     )
-    if not stranded:
+    if after_sha == run.before_sha and not published:
         return None
-    return _replace(run, after_sha=after_sha, stranded_head=stranded)
+    return _replace(run, after_sha=after_sha, published_head=published)
 
 
 def _publish_dev_fix(
@@ -161,11 +167,11 @@ def _publish_dev_fix(
         _late_records._gate(gh, spec, issue, state, run.worktree), branch,
         _late_gate_models._Entered(
             stage=run.stage,
-            # The head the pull request was standing on before this run made
-            # its commit. Left for the gate to read afterwards, a pull request
-            # somebody pushed to while the agent was out becomes the lease and
-            # the force-push overwrites them with work measured against the
-            # head it used to be on.
+            # The head the pull request is standing on under this candidate.
+            # Left for the gate to read afterwards, a pull request somebody
+            # pushed to while the agent was out becomes the lease and the
+            # force-push overwrites them with work measured against the head
+            # it used to be on.
             head=run.entered_head,
             spends=run.spends or _late_gate_models._SPENDS_NOTHING,
             # The head this route read and decided to publish on. The gate
