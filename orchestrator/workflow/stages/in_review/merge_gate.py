@@ -15,11 +15,14 @@ review for, and never over a standing CHANGES_REQUESTED veto. `ready_ping_sha`
 keys the de-duplication on the head that was pinged, so a new commit re-pings
 and a repeated tick on the same head stays silent.
 
-The ping deliberately does not ratchet the watermark, unlike every park here.
-The ratchet reads `latest_comment_id`, which can already include a human
-comment that landed between the feedback scan above and this point; moving the
-watermark past it would make the next tick skip feedback nobody read. The ping
-itself is filtered by the id ledger instead, which needs no watermark to move.
+Both writes this stage makes to a thread are bounded by the same fact: the
+feedback scan that decided this tick ran several GitHub round-trips ago, and a
+human may have written since. So the unmergeable park is a BOUNDED one -- it
+records the thread read only as far as the ledger can vouch for, never at the
+id of the notice it just posted, which would sit above their reply and take it
+with it. And the ping, which is no park at all, ratchets nothing: it is
+filtered by the id ledger on the next read, so no mark has to move for it, and
+a mark that did move would be moving over exactly that unread reply.
 """
 from __future__ import annotations
 
@@ -71,12 +74,20 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
     if mergeable is None:
         return  # GitHub still computing; try next tick
     if not mergeable:
+        # Bounded, because this refusal is not decided between two adjacent
+        # steps: the feedback scan that let the tick get here ran several
+        # GitHub round-trips ago, and a reply written since is numbered below
+        # the notice this park posts. Stamped at that notice id, the reply
+        # would be under BOTH cursors the next scan reads -- the delivery
+        # cursor this park set and the issue-side watermark carried over it --
+        # and no later poll could go back for it.
         _guards._park_awaiting_human(
             ctx.gh, ctx.issue, ctx.state,
             f"{config.HITL_MENTIONS} PR #{pr_number} is not mergeable "
             "(branch protection, conflicts, or out-of-date base); "
             "manual merge needed.",
             reason="unmergeable",
+            bounded=True,
         )
         ctx.state.set("park_reason", "unmergeable")
         _watermarks._bump_in_review_watermarks(ctx)
@@ -99,15 +110,14 @@ def _handle_mergeable_gate(ctx: _models._InReviewContext) -> None:
     # `awaiting_human` -- the handler must still react to PR comments / external
     # merge / a later unmergeable transition.
     #
-    # Deliberately NOT calling `_bump_in_review_watermarks` here: that helper
-    # reads `gh.latest_comment_id(issue)`, which could include a human
-    # issue/PR-conversation comment that landed between the earlier comment scan
-    # and this point. Bumping the watermark past an unobserved human comment
-    # would silently swallow it -- the next tick's `comments_after` would skip
-    # it and the dev would never see the feedback. The ping is recorded in
-    # `orchestrator_comment_ids` by `_post_issue_comment`, so the next tick's
-    # id-set filter excludes it without needing the watermark to move; a
-    # concurrent human comment naturally surfaces below the unchanged watermark.
+    # Deliberately NOT calling `_bump_in_review_watermarks` here. The ping is
+    # not a park: it leaves `awaiting_human` false and owes the thread no
+    # "everything below here is read" claim. It IS an issue comment, and it is
+    # recorded in `orchestrator_comment_ids` by `_post_issue_comment`, so the
+    # next tick's id-set filter drops it without any watermark having to move.
+    # Moving one would only risk crossing a human comment that landed between
+    # the earlier feedback scan and this point -- the next tick's
+    # `comments_after` would skip it and the dev would never see the feedback.
     if ctx.state.get("ready_ping_sha") != head_sha:
         _comments._post_issue_comment(
             ctx.gh, ctx.issue, ctx.state,

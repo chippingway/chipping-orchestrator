@@ -454,9 +454,9 @@ class InReviewFeedbackRoutingTest(
             ),
             extra_state={PR_LAST_COMMENT_ID: FEEDBACK_WATERMARK},
         )
-        # Watermark just below the comment so it surfaces as fresh feedback.
-        # An unset watermark would trip the legacy in_review migration and
-        # mask this comment as already-consumed.
+        # Watermark just below the comment so it surfaces as fresh feedback,
+        # and seeded explicitly so this case is about the debounce window
+        # rather than about what the legacy migration would seed instead.
         with patch.object(config, DEBOUNCE_SETTING, REVIEW_DEBOUNCE_SECONDS):
             feedback_patches = self._run_in_review(
                 feedback_github,

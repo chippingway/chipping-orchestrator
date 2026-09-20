@@ -20,10 +20,17 @@ approval it already earned was against the old requirements. `merge_gate` is
 the last answer: a mergeable, approved, unvetoed head earns one HITL ping per
 head SHA, and everything else waits.
 
-`watermarks` carries the one-way ratchet those routes share plus the legacy
-seed a manually-relabeled issue needs, and `models` and `state` carry the
-per-tick handles and the wire keys. Callers import the owner they need, so
-this initializer binds nothing: the dispatcher resolves one handler per issue,
-and an eager binding here would charge every importer of one stage for the
-worktree, GitHub, and dev-resume machinery only the drift route reaches.
+`surfaces` is underneath all of that: it is where the one id space GitHub
+numbers the issue thread and the PR conversation in is read as the two
+surfaces it actually is, each against the cursors that have read it.
+`watermarks` is the pair of writers over the same field -- the carry a park
+owes its own notice, and the legacy seed a manually-relabeled issue needs --
+and neither jumps to a tip, because both walk forward from where the mark is
+and stop at the first comment they cannot vouch for. `models` and `state`
+carry the per-tick handles and the wire keys.
+
+Callers import the owner they need, so this initializer binds nothing: the
+dispatcher resolves one handler per issue, and an eager binding here would
+charge every importer of one stage for the worktree, GitHub, and dev-resume
+machinery only the drift route reaches.
 """

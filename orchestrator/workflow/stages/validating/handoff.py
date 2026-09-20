@@ -103,8 +103,12 @@ def _seed_in_review_pr_watermarks(
     posted, the squash notice) as fresh PR feedback once the debounce expires.
     Concurrent human feedback posted during the prior stage is preserved:
     `_latest_pr_comment_ids` stops the seed walk at the first unread
-    non-orchestrator comment, and `_ratchet_watermark` never regresses a
-    watermark a prior in_review tick already advanced.
+    non-orchestrator comment on either surface, and `_ratchet_watermark` never
+    regresses a watermark a prior in_review tick already advanced. Stopping
+    that early on an unread PR comment is deliberately allowed to leave the
+    value below a reply the dev already answered: in_review reads the issue
+    thread against `last_action_comment_id` too, so the reply stays consumed
+    without this seed having to cross the PR comment to say so.
 
     Inline review comments and review summaries live in namespaces the
     orchestrator never posts on, so the inline surface answers None and there

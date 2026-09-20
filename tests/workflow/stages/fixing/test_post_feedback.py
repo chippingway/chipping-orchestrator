@@ -146,17 +146,19 @@ class FixingPostFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         self.assertEqual(gh.posted_comments, [])
         self.assertFalse(gh.pinned_data(ISSUE).get(AWAITING_HUMAN))
 
-    def test_missing_pr_comment_id_uses_last_action(
+    def test_delivered_thread_replies_are_not_refed(
         self,
     ) -> None:
         # `_handle_in_review` can route to `fixing` with
         # `pr_last_comment_id` still unset (e.g. an issue whose state
         # pre-dates the watermark migration, or a manual relabel
-        # path). Without the fallback, fixing would scan from
-        # `None` and re-feed every historical issue / PR-conversation
-        # comment to the dev as fresh feedback. The fallback mirrors
-        # the in_review handler so an existing `last_action_comment_id`
-        # (set by prior parks / resumes) acts as the scan floor.
+        # path). The issue thread is then bounded by its own delivery
+        # cursor alone: everything at or below `last_action_comment_id`
+        # has been in a developer prompt already, so the rescan drops it
+        # rather than re-feeding the whole history as fresh feedback.
+        # That cursor is NOT a floor for the pull request -- see
+        # `test_issue_only_consumption` for the PR comment numbered below
+        # it that has to surface.
         long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
         historical = FakeComment(
             id=HISTORICAL_COMMENT_ID,
@@ -201,11 +203,11 @@ class FixingPostFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         self._mocks[RUN_AGENT].assert_called_once()
         self._agent_call = self._mocks[RUN_AGENT].call_args
         self._prompt = self._agent_call.args[1]
-        # The triggering comment (id=TRIGGER_ID) IS quoted -- it's past
-        # the last_action_comment_id fallback floor.
+        # The triggering comment (id=TRIGGER_ID) IS quoted -- it is above
+        # the delivery cursor, so no prompt has carried it yet.
         self.assertIn("please rename foo", self._prompt)
-        # The historical comment (id=500) is NOT quoted -- it sits
-        # below the fallback floor (1000) and must not be re-fed.
+        # The historical comment (id=500) is NOT quoted -- it sits below
+        # the delivery cursor (1000), which means a prompt already did.
         self.assertNotIn("some old discussion from implementing", self._prompt)
 
     # --- orchestrator comments are filtered from the rescan -------------

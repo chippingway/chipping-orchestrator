@@ -422,14 +422,12 @@ class HandoffConsumedThroughIssueThreadOnlyTest(unittest.TestCase, _PatchedWorkf
 
         # Routed to fixing -- the unread PR-conv text is bookmarked for
         # the fixing handler. No HITL ping fires over unread feedback.
-        # `pending_fix_issue_max_id` covers BOTH the issue-thread and
-        # PR-conversation surfaces (they share the IssueComment id space);
-        # 915 was the unread PR-conv comment, 920 was the issue-thread
-        # human reply that consumed_through skipped at handoff but
-        # in_review re-scans regardless, so the max across the bucket is
-        # 920. The point of the test is that 915 has to be visible to
-        # the fixing handler -- it must sit at or below the bookmark and
-        # past the watermark.
+        # `pending_fix_issue_max_id` covers BOTH surfaces (they share the
+        # IssueComment id space), and the batch is the PR-conv comment at
+        # 915 alone: the issue-thread reply at 920 is at the delivery
+        # cursor `consumed_through` records, so in_review drops it on the
+        # surface that cursor answers for rather than bookmarking a reply
+        # the developer already read.
         self._assert_unread_route(gh, mocks)
 
     def _assert_unread_route(self, github, mocks) -> None:
@@ -440,7 +438,9 @@ class HandoffConsumedThroughIssueThreadOnlyTest(unittest.TestCase, _PatchedWorkf
             github.label_history,
         )
         state = github.pinned_data(ISSUE_THREAD_ISSUE)
-        self.assertGreaterEqual(
+        # The PR comment alone: the consumed issue-thread reply above it is
+        # answered by the cursor that records it and never re-bookmarked.
+        self.assertEqual(
             state.get("pending_fix_issue_max_id"),
             UNREAD_PR_COMMENT_ID,
         )

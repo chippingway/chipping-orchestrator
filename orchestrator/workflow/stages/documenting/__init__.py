@@ -22,8 +22,8 @@ run left behind -- timeout, dirty tree, new commit, or a bare
 a PR notice, and the stamped `docs_verdict`, entered on the commit `subject`
 hands it once that commit's subject names the pull request. `handoff` is separate from both
 because it protects a stage this one does not run: the `pr_last_comment_id`
-ratchet is what stops in_review from replaying a human reply the docs pass
-already consumed as fresh PR feedback.
+ratchet is what carries in_review's watermark past the span a human reply the
+docs pass already consumed sits in.
 
 `parks` collects the four ways the tick stops for a human, over the records
 the owners hand each other (`models`) and the pinned-state keys they share

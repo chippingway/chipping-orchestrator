@@ -13,6 +13,12 @@ missing one happens before this record exists.
 run: the worktree the resume actually ran in (the resolve may have recreated
 it), whether an operator paused mid-run, and `before_sha`, which is the only
 thing that tells a pushed fix from a no-commit acknowledgement.
+
+`_AnsweredIssueSpace` is the three answers the watermark walk asks of every
+comment above the mark, bundled because they are one reading of one pinned
+state: which posts this orchestrator can prove are its own, how far the issue
+thread alone has been delivered, and which ids this very tick quoted. Read
+apart, a walk could advance on one and owe on another.
 """
 from __future__ import annotations
 
@@ -40,6 +46,20 @@ class _InReviewContext:
     state: PinnedState
     pr: Any
     pr_number: Any
+
+
+@dataclass(frozen=True)
+class _AnsweredIssueSpace:
+    """What a watermark walk may advance through without owing anybody.
+
+    `ours` is the orchestrator id ledger, `consumed` the issue thread's own
+    delivery cursor (`last_action_comment_id`, which says nothing about the
+    pull request's conversation), and `delivered` the ids this tick quoted
+    into a prompt of its own.
+    """
+    ours: set
+    consumed: int | None
+    delivered: set
 
 
 @dataclass(frozen=True)

@@ -1843,7 +1843,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
       agent, build the prompt (issue body + recent comments + `DOCS: NO_CHANGE` marker contract), then run.
   12. Branch on result. Every success exit routes to `in_review` via `_advance_after_docs_push` /
       `_advance_after_docs_no_change`, which ratchets `pr_last_comment_id` past any issue-thread reply the resume
-      consumed so in_review does not bounce over already-addressed feedback. Both end the same way and the order is
+      consumed — the reply is dropped by in_review's own delivery-cursor read either way, so what the ratchet buys is
+      a watermark that does not leave the next stage re-reading that span. Both end the same way and the order is
       the crash contract: **stamp, announce, persist, relabel** — one durable write, and the relabel behind it. The
       notice comes before the write because posting one RECORDS it: the comment id lands in
       `orchestrator_comment_ids`, which is what has the watermark walk seed past it and the in_review feedback scan
@@ -2918,7 +2919,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        (4) On success,
        if `squashed_count > 1` post `:package: squashed N commits to 1` — a count of 0 or 1 replaced no history and
        posts nothing — seed the in_review watermarks (inside the
-       `gh.get_pr()` try so a snapshot failure leaves them untouched), then end the collapse record and persist —
+       `gh.get_pr()` try so a snapshot failure leaves them untouched; the walk advances through the leading run of
+       the orchestrator's own comments plus the issue-thread ids `last_action_comment_id` already records as
+       delivered, and stops at the first unseen human comment on EITHER surface, so a PR-conversation comment
+       numbered below a consumed reply holds the seed back rather than being swallowed by it — the scan that
+       follows drops the consumed reply on its own), then end the collapse record and persist —
        leaving `late_collapse_handoff_sha` in its place — and only then relabel to `workflow:documenting`, dropping
        that record in a write of its own behind the label. A relabel that does not land is not raised past the
        handoff: everything it owed is durable, and step 1 moves the label on the next tick instead of a second
@@ -2958,7 +2963,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
   closed-`in_review` issues for external-merge finalization.
 - **Input**: pinned `pr_number`, `branch`, `dev_agent` / `dev_session_id`, and three watermarks (`pr_last_comment_id`,
   `pr_last_review_comment_id`, `pr_last_review_summary_id`) — one per id namespace GitHub uses for PR feedback. Mixing
-  any two namespaces under one watermark would silently drop or replay one side.
+  any two namespaces under one watermark would silently drop or replay one side. `last_action_comment_id` is read
+  beside them but is not a fourth watermark: it is the issue thread's own delivery cursor (see
+  [`labels-and-state.md`](labels-and-state.md), **In-review watermarks**), so the thread is scanned past
+  `pr_last_comment_id` with everything at or below that cursor dropped, and the PR conversation is scanned past
+  `pr_last_comment_id` alone. A comment on the pull request numbered below a reply an implementing or validating
+  resume already answered is unread, not delivered.
 - **Internal flow**:
   1. If `pr_number` is missing → park awaiting human.
   2. Read the PR via `gh.get_pr` and delegate the terminal arcs to the shared `_drain_review_pr_terminals` helper (also
@@ -2972,13 +2982,25 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        salvage the still-open PR.
      - `open` with an open issue → fall through.
   3. **Fresh PR feedback (including any human CI-fix request) → route to `workflow:fixing`.** Read four sources
-     independently, one per id namespace: issue thread, PR conversation (shares IssueComment id space), inline review
-     comments, PR review summaries (filtered to non-empty `CHANGES_REQUESTED` / `COMMENTED`). If any source is newer
+     independently: issue thread, PR conversation (shares the IssueComment id space but not its delivery record —
+     each is read against its own cursors and merged only afterwards), inline review comments, PR review summaries
+     (filtered to non-empty `CHANGES_REQUESTED` / `COMMENTED`). If any source is newer
      than its watermark, record `pending_fix_at` + per-namespace `pending_fix_*_max_id` bookmarks (and the full
      `pending_fix_*_ids` batch lists) and flip to `workflow:fixing`. The handler does NOT honor
      `IN_REVIEW_DEBOUNCE_SECONDS` here or spawn the dev — `fixing` owns debouncing, the dev resume, and the DIRECT
      bounce back to `workflow:validating`. Watermarks are NOT advanced on this route so `fixing` can re-discover the
      triggering comments.
+
+     A first-tick migration runs ahead of the scan for an issue that reached the stage before the handoff seeded
+     watermarks, and it seeds each missing cursor only as far as it can go without crossing input nobody has read.
+     `pr_last_comment_id` gets validating's own approval-handoff walk (`_latest_pr_comment_ids`), so the two writers
+     of that field cannot disagree: past the leading run of the orchestrator's own comments and the issue-thread ids
+     `last_action_comment_id` records as delivered, stopping at the first human comment on EITHER surface that
+     nothing vouches for, and 0 where there is no pickup anchor to walk from. `pr_last_review_comment_id` and
+     `pr_last_review_summary_id` are seeded at 0 outright: the orchestrator posts on neither surface, so there is no
+     leading run of ours to walk and nothing a seed could advance past that is not somebody's review — a legacy PR
+     carrying review feedback no developer was ever shown routes it to `workflow:fixing` rather than losing it. 0 is
+     persisted rather than left unset so the surface reads as already seeded.
   4. **User-content drift → relabel back to `workflow:validating`.** Reached when no fresh PR-side ID surfaced a
      comment but `_detect_user_content_change` still reports a hash change (a title/body edit, or an edit to an
      existing issue-thread comment whose id is already below the watermark). Capture unread PR-conversation comments
@@ -2992,18 +3014,29 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      short-circuits the same way, right after the interrupted check.
   5. **Manual-merge HITL path** (only reached with no fresh PR feedback AND no drift):
      - `pr_is_mergeable` is `None` → try next tick.
-     - `False` → park with `unmergeable`; HITL ping mentioning every `HITL_HANDLE`, bump watermarks past the park
-       comment.
+     - `False` → park with `unmergeable`; HITL ping mentioning every `HITL_HANDLE`, then carry the issue-side
+       watermark over the park comment. The park is a **bounded** one (`bounded=True`): the feedback scan that let
+       the tick reach here ran several GitHub round-trips ago, so a reply written since is numbered below this
+       notice, and stamping `last_action_comment_id` at the notice id would put that reply under both cursors the
+       next scan reads.
      - `True` → check `gh.pr_has_changes_requested(pr, head_sha=head_sha)` (a standing human CHANGES_REQUESTED on the
        current head vetoes the ping). The ping requires either `docs_checked_sha == pr.head.sha` with `docs_verdict` set
        OR `gh.pr_is_approved(pr, head_sha=pr.head.sha)` (a human/bot APPROVED review on the current head). When the
        gate passes, post a one-shot `:bell:` ping de-duplicated by `ready_ping_sha`. The ping is NOT a
        park: `awaiting_human` stays false so subsequent ticks still react to new comments / an external merge.
-       Unlike park branches, the ready ping does NOT call `_bump_in_review_watermarks` (the bump reads
-       `gh.latest_comment_id(issue)`, which could
-       include a concurrent human comment).
-  6. Every park inside this handler bumps the watermarks past the orchestrator's own park comment, so the next tick does
-     not see it as fresh PR feedback.
+       Unlike park branches, the ready ping does NOT call `_bump_in_review_watermarks`. It posts an issue comment
+       like a park does, but it is not a park and owes the thread no "everything below here is read" claim: the ping
+       is recorded in `orchestrator_comment_ids`, so the next tick's id-set filter drops it with no mark having to
+       move — and a mark that moved could only cross a human comment that landed since the scan above.
+  6. Every park inside this handler carries `pr_last_comment_id` over the orchestrator's own park comment, so the next
+     tick does not see it as fresh PR feedback. The carry is a walk, never a jump to the newest comment: it starts at
+     the mark already persisted and advances only through comments it can vouch for — ours by the id ledger or the
+     hidden marker, quoted into this tick's own prompt, already recorded on `last_action_comment_id` (issue thread
+     only), or a bare `/orchestrator add-agent-runs` — and stops at the first it cannot. Both IssueComment surfaces
+     share one id space, so a human PR comment written while the tick was deciding is numbered BELOW the notice
+     posted after it; a mark carried to the newest comment would take that PR comment with it and no later poll could
+     go back for it. A thread the walk cannot re-read leaves the mark where it was rather than raising, since the
+     notice is already posted and the park still has to be recorded.
 - **Output**: label moved to `done` / `rejected` (terminal), OR `workflow:fixing` (fresh PR feedback), OR
   `workflow:validating` (drift; pushed fix OR ACK no-commit; both reset `review_round=0`), OR a HITL park
   (unmergeable, missing pr_number, drift-resume failure), OR a HITL ping (no relabel), OR a no-op tick.
@@ -3106,7 +3139,12 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      own `gh.get_pr` exceptions and hands `pr=None` to the helper, which is a no-op.
   2. Closed issue with no resolvable PR → no-op.
   3. Open issue with no `pr_number` (manual relabel) → park (`missing_pr_number`).
-  4. Rescan unread feedback from the three watermarks across all four surfaces. Orchestrator comments are filtered by
+  4. Rescan unread feedback from the three watermarks across all four surfaces, reading the two IssueComment-space
+     surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread past
+     `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past
+     `pr_last_comment_id` alone. That is what a manual relabel straight into `workflow:fixing` depends on: no
+     handoff seeded a PR-side watermark, so reading the pull request past the issue-thread cursor would hide every PR
+     comment numbered below the last reply a developer answered. Orchestrator comments are filtered by
      recorded id AND the hidden `<!--orchestrator-comment-->` body marker.
   5. If `awaiting_human`, first handle the **`/orchestrator continue` operator command** (`_handle_continue_command`).
      It is matched as an EXACT LINE (`^\s*/orchestrator continue\s*$`), so a comment carrying the command line AND real

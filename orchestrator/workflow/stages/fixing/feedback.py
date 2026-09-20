@@ -4,7 +4,12 @@
 
 The rescan reads the in_review watermarks, never the `pending_fix_*`
 bookmarks: the bookmarks are the replay source a `/orchestrator continue`
-needs, and consuming them here would spend them on the ordinary tick.
+needs, and consuming them here would spend them on the ordinary tick. It
+reads them through the in_review owner rather than off pinned state directly,
+because the issue thread and the PR conversation share an id space without
+sharing a delivery record -- the thread answers to the issue-only cursor an
+implementing or validating resume settled as well, and the pull request
+answers to neither.
 
 The quiet window sits between the scan and the advance because it is the same
 batch it measures: a human mid-thought posts three comments in a minute, and
@@ -15,12 +20,11 @@ because that is a deliberate operator signal rather than chatter.
 
 The advance is deliberately the narrower half of that pair. Each surface moves
 only to the max id actually fed to the dev on that surface, ratcheted against
-what is already there -- the broader `_bump_in_review_watermarks` also pulls in
-`gh.latest_comment_id(issue)`, which can leap past a human comment that landed
-after the scan and was never quoted in the prompt. Swallowing it would drop
-real feedback on the pushed path (the next in_review tick misses it) and on the
-park path (the next fixing tick's stay-parked gate drops it), which is why the
-advance runs on BOTH outcomes rather than only on success.
+what is already there, because a human comment that landed after the scan was
+never quoted in the prompt. Swallowing it would drop real feedback on the
+pushed path (the next in_review tick misses it) and on the park path (the next
+fixing tick's stay-parked gate drops it), which is why the advance runs on
+BOTH outcomes rather than only on success.
 
 Orchestrator comments are stripped by recorded id AND by the hidden body
 marker, because the id ledger is capped and evicts on long-lived issues while
@@ -44,23 +48,25 @@ from orchestrator.workflow.engine import (
     run_grant_request as _run_grant_request,
 )
 from orchestrator.workflow.stages.fixing import models as _models
-from orchestrator.workflow.stages.in_review import watermarks as _in_review_watermarks
+from orchestrator.workflow.stages.in_review import (
+    surfaces as _in_review_surfaces,
+    watermarks as _in_review_watermarks,
+)
 
 
 def _new_issue_space_feedback(gh: GitHubClient, issue: Issue, pr, state) -> list:
-    """Unread issue-thread + PR-conversation comments past the in_review
-    watermark, sorted by id, with orchestrator comments and untrusted authors
-    dropped.
+    """Unread issue-thread + PR-conversation comments, sorted by id, with
+    orchestrator comments and untrusted authors dropped.
 
-    The two surfaces share the IssueComment id namespace, so one watermark
-    covers both. Mirror `_handle_in_review`'s fallback: if no PR-side
-    watermark exists yet (an in_review tick that routed to `fixing` before
-    ever seeding `pr_last_comment_id` -- e.g. a manual relabel into
-    `in_review` without going through validating, or a legacy issue that
-    pre-dates the watermark migration), fall back to `last_action_comment_id`.
-    Without this, `comments_after` / `pr_conversation_comments_after` would be
-    called with `after_id=None` and re-feed every historical comment into the
-    dev's `_build_pr_comment_followup` prompt as fresh feedback.
+    The two surfaces share the IssueComment id namespace but not their
+    delivery record, so each is read against its own cursors by the in_review
+    owner that holds them (`_unread_issue_thread` / `_unread_pr_conversation`)
+    and only then merged. That is what an issue reaching this stage by a
+    manual relabel depends on: `pr_last_comment_id` may be unset, and reading
+    the pull request past `last_action_comment_id` instead would hide every PR
+    comment numbered below the last issue reply a developer answered, while
+    reading the thread past nothing would re-feed that answered reply into the
+    `_build_pr_comment_followup` prompt.
 
     Orchestrator comments are filtered by id AND the hidden body marker -- the
     id cap evicts old ids on long-lived issues, after which an id-only filter
@@ -68,14 +74,11 @@ def _new_issue_space_feedback(gh: GitHubClient, issue: Issue, pr, state) -> list
     dropped last (see `filter_trusted`) so an outsider's comment never resumes
     the dev or extends the debounce window; an empty allowlist trusts everyone.
     """
-    issue_wm = state.get("pr_last_comment_id")
-    if issue_wm is None:
-        issue_wm = state.get("last_action_comment_id")
     orchestrator_ids = _comments._orchestrator_ids(state)
     unread = [
         comment
-        for comment in list(gh.comments_after(issue, issue_wm))
-        + list(gh.pr_conversation_comments_after(pr, issue_wm))
+        for comment in _in_review_surfaces._unread_issue_thread(gh, issue, state)
+        + _in_review_surfaces._unread_pr_conversation(gh, pr, state)
         if comment.id not in orchestrator_ids
         and _comments._ORCH_COMMENT_MARKER not in (comment.body or "")
         and not _run_grant_request._is_bare_command(comment)
@@ -169,14 +172,12 @@ def _advance_consumed_watermarks(
     Called once on every dev-result outcome (BOTH the pushed-fix path
     AND the park/failure path) before the pushed/non-pushed split, so
     a concurrent human comment that landed between `feedback` and
-    this call survives to the next tick on either branch. The broader
-    `_bump_in_review_watermarks` is deliberately NOT used here: it
-    also pulls in `gh.latest_comment_id(issue)`, which could leap the
-    watermark past a concurrent issue-thread comment the dev never saw
-    in its prompt -- silently swallowing real feedback on the pushed
-    path (the next in_review tick would miss it) and on the
-    park/failure path (the next fixing tick's
-    `awaiting_human and not new_feedback` gate would drop it).
+    this call survives to the next tick on either branch. Consumed ids
+    and nothing else, because a comment the dev never saw in its
+    prompt would otherwise be silently swallowed on the pushed path
+    (the next in_review tick would miss it) and on the park/failure
+    path (the next fixing tick's `awaiting_human and not new_feedback`
+    gate would drop it).
     """
     cur_issue_wm = state.get("pr_last_comment_id")
     if feedback.issue_space:

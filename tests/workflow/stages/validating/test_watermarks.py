@@ -40,6 +40,10 @@ PICKUP_COMMENT_ID = 900
 PR_OPEN_COMMENT_ID = 901
 HUMAN_FEEDBACK_ID = 950
 PRE_PICKUP_COMMENT_ID = 850
+# A comment on the pull request itself, numbered below the pickup: a PR a plan
+# handoff reused or a human opened carries conversation the spawn never quoted.
+PRE_PICKUP_PR_COMMENT_ID = 860
+PRE_PICKUP_PR_BODY = "this reuses the schema we rejected last quarter"
 REVIEW_DEBOUNCE_SECONDS = 600
 LABEL_VALIDATING = "workflow:validating"
 LABEL_IN_REVIEW = "in_review"
@@ -191,7 +195,7 @@ class ValidatingHandoffPreservesHumanFeedbackTest(
 
 
 class _PrePickupHandoffFixtureMixin(_PatchedWorkflowMixin):
-    def _setup(self):
+    def _setup(self, *, pr_conversation=()):
         gh = FakeGitHubClient()
         long_ago = datetime.now(UTC) - timedelta(hours=1)
         issue = make_issue(
@@ -225,6 +229,7 @@ class _PrePickupHandoffFixtureMixin(_PatchedWorkflowMixin):
             head=FakePRRef(sha=REVIEWED_SHA),
             mergeable=True,
             check_state=CHECKS_SUCCESS,
+            issue_comments=list(pr_conversation),
         )
         gh.add_pr(pr)
         gh.seed_state(
@@ -312,6 +317,53 @@ class PrePickupChatterHandoffTest(
         # fires because the watermark fix kept the pre-pickup chatter
         # out of `new_comments`.
         self._assert_ready_path(gh, mocks)
+
+
+class PrePickupPrCommentHandoffTest(
+    unittest.TestCase,
+    _PrePickupHandoffFixtureMixin,
+):
+    """Being older than the pickup is no evidence on the pull request.
+
+    The spawn quotes the issue thread, so pre-pickup chatter THERE is chatter
+    the developer read. The pull request may be one a plan handoff reused or a
+    human opened, and a comment on it numbered below the pickup was in no
+    prompt at all -- so the approval handoff's seed has to stop before it
+    rather than walk past it as old.
+    """
+
+    def test_seed_stops_under_a_pre_pickup_pr_comment(self) -> None:
+        gh, issue, pr = self._setup(pr_conversation=[
+            FakeComment(
+                id=PRE_PICKUP_PR_COMMENT_ID,
+                body=PRE_PICKUP_PR_BODY,
+                user=FakeUser(HUMAN_LOGIN),
+                created_at=datetime.now(UTC) - timedelta(hours=1),
+            ),
+        ])
+
+        self._run_validating(
+            gh,
+            issue,
+            run_agent=_agent(last_message=REVIEW_APPROVED_MESSAGE),
+            head_shas=(REVIEWED_SHA,),
+        )
+
+        self.assertLess(
+            gh.pinned_data(PRE_PICKUP_ISSUE).get(PR_LAST_COMMENT_ID),
+            PRE_PICKUP_PR_COMMENT_ID,
+        )
+
+        # And the next stage therefore still finds it: the PR is not pinged
+        # as ready for merge over a comment nobody answered.
+        mocks = self._run_after_handoff(gh, issue, pr)
+
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertIn((PRE_PICKUP_ISSUE, LABEL_FIXING), gh.label_history)
+        self.assertEqual(
+            gh.pinned_data(PRE_PICKUP_ISSUE).get("pending_fix_issue_max_id"),
+            PRE_PICKUP_PR_COMMENT_ID,
+        )
 
 
 class RunLimitToInReviewTest(unittest.TestCase, _PatchedWorkflowMixin):

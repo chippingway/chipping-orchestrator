@@ -817,7 +817,9 @@ The keys that matter for the state machine fall into a few groups:
   `_park_awaiting_human` for it with `bounded=True` (both timeout parks, both push failures, the measurement failure,
   the unauthorized-exemption hold, the checkout-moved refusals, the undeliverable-report park, the squash and verify
   failures, the reviewer timeout and no-VERDICT parks, and the review cap) — and so do the agent-run-limit notice and
-  the repair of its lost write, because the launch the circuit refuses is very often one of these resumes. Where nothing
+  the repair of its lost write, because the launch the circuit refuses is very often one of these resumes. The
+  `in_review` unmergeable park asks for it too, and it follows no run: what it follows is that tick's own feedback
+  scan and several GitHub round-trips after it, which is the same window by another name. Where nothing
   is unread the bound IS the notice id, so it is never the worse answer.
 
   That field doubles as the record that a mention was
@@ -1413,6 +1415,23 @@ The keys that matter for the state machine fall into a few groups:
   `pr_last_review_comment_id` (inline PR review comments), `pr_last_review_summary_id` (PR review summary bodies). Only
   non-empty `CHANGES_REQUESTED` or `COMMENTED` review IDs ever advance the summary watermark; `APPROVED`, `DISMISSED`,
   `PENDING`, and empty-body reviews are filtered before the bump.
+
+  The shared id space is a numbering, not a shared delivery record, so `in_review` and `fixing` read the two surfaces
+  under it separately (`in_review/surfaces.py`: `_unread_issue_thread`, `_unread_pr_conversation`). The issue thread
+  answers to `pr_last_comment_id` AND to `last_action_comment_id`, because the implementing and validating
+  awaiting-human resumes watch that surface alone and settle the second field for what they quoted; a reply at or
+  below it has been in a developer prompt and may not route the issue back to `workflow:fixing`. The PR conversation
+  answers to `pr_last_comment_id` and to nothing else: nothing that advances the issue-thread cursor has read the pull
+  request, so a PR comment numbered below the last answered reply is unread rather than delivered. Neither field is
+  copied into the other and no maximum is taken across them — that maximum is exactly the value that hides one surface
+  to bound the other. Every writer of these fields stops before unread human input, and none of them reads a tip. The
+  approval handoff's seed walk stops at the first unread non-orchestrator comment on either surface; the legacy
+  migration reuses that same walk and seeds the two review surfaces at 0, since the orchestrator posts on neither and
+  any advance there would cross somebody's review; and the park carry walks forward from the mark already persisted
+  through comments it can vouch for — ours, quoted into this tick's prompt, or recorded on `last_action_comment_id`
+  for the issue thread alone — stopping at the first it cannot. A carry to the newest comment would skip a PR comment
+  written while the tick was deciding, permanently (see [`delivery-stages.md`](delivery-stages.md),
+  `_handle_in_review`).
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one

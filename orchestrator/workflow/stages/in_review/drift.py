@@ -12,11 +12,11 @@ out -- the single docs pass belongs to the final-docs handoff after a fresh
 reviewer approval.
 
 The PR conversation is read BEFORE the notice and the ratchet, and that
-ordering is the whole reason `_drift_unread_pr_conv` exists: the issue thread
-and the PR conversation share one id space, so the issue-side ratchet can leap
-past a PR comment whose id happens to fall inside the range it advances
-through. Capturing those comments up front and quoting them into the resume
-prompt is what keeps a concurrent PR comment from vanishing unanswered.
+ordering is the whole reason `_drift_unread_pr_conv` exists: the resume quotes
+the issue thread in full and marks it read to the tip, so a PR comment nobody
+has answered would sit under the mark that hop leaves behind. Capturing those
+comments up front, quoting them into the same prompt, and handing their ids to
+the ratchet as delivered is what keeps one from vanishing unanswered.
 
 Both refusals sit between the finished run and the disposition rather than
 before the run, because the run itself is what makes them decidable: a
@@ -39,7 +39,12 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import resume as _dev_resume
-from orchestrator.workflow.stages.in_review import feedback as _feedback, models as _models, watermarks as _watermarks
+from orchestrator.workflow.stages.in_review import (
+    feedback as _feedback,
+    models as _models,
+    surfaces as _surfaces,
+    watermarks as _watermarks,
+)
 from orchestrator.workflow.stages.validating import drift_outcomes as _drift_outcomes
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -67,18 +72,20 @@ def _drift_unread_pr_conv(ctx: _models._InReviewContext) -> list:
     """Capture unread PR-conversation comments BEFORE the drift notice and the
     later watermark bump.
 
-    The issue thread and PR conversation share the IssueComment id space, so
-    `_bump_in_review_watermarks` (driven by issue-thread ids only) can leap past
-    a PR-conversation comment whose id falls between the prior
-    `pr_last_comment_id` and the new issue-thread max -- the dev would never see
-    it. Capturing those comments here and quoting them in the followup prompt is
-    what stops a concurrent PR comment from being silently dropped. Orchestrator
-    id / marker filtering mirrors the regular in_review comment scan.
+    The issue thread and PR conversation share the IssueComment id space, and
+    the drift resume marks the thread read to its tip -- so a PR-conversation
+    comment numbered below that tip would be under the issue thread's delivery
+    cursor without any prompt having carried it. Capturing those comments here,
+    quoting them in the followup, and handing the same list to the ratchet as
+    delivered is what stops one from being silently dropped. The read is the
+    surface's own (`_unread_pr_conversation`), so the issue-thread cursor cannot
+    bound it; orchestrator id / marker filtering mirrors the regular in_review
+    comment scan.
     """
-    issue_wm = _feedback._issue_side_watermark(ctx.state)
     orchestrator_ids = _comments._orchestrator_ids(ctx.state)
     return _feedback._drop_orchestrator_comments(
-        ctx.gh.pr_conversation_comments_after(ctx.pr, issue_wm), orchestrator_ids,
+        _surfaces._unread_pr_conversation(ctx.gh, ctx.pr, ctx.state),
+        orchestrator_ids,
     )
 
 
@@ -144,10 +151,10 @@ def _dispose_drift_result(
     against the OLD requirements, so `review_round` must reset before the issue
     can earn a fresh approval. Docs do not run here; the single docs pass is
     deferred to the final-docs handoff after reviewer approval. Passing
-    `unread_pr_conv` to the bump includes PR-conversation ids ABOVE the
-    issue-thread max in the candidate set; without it a PR comment with id
-    higher than every issue-thread id would survive the bump and re-fire as
-    fresh feedback.
+    `unread_pr_conv` to the bump is what lets its walk advance over those
+    ids: they were quoted into this tick's prompt, and the walk crosses
+    nothing it cannot account for, so without them it would stop at the
+    first one and re-fire them as fresh feedback next tick.
     """
     outcome = _drift_outcomes._post_user_content_change_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
