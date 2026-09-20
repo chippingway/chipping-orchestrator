@@ -14,9 +14,11 @@ after a fresh reviewer approval.
 The move to `validating` this edit owes is staged with the refreshed
 requirements hash, before the resume that answers it: the hash is what stops a
 later tick re-detecting the edit, and no write may make one durable without
-the other. A run that exits nonzero records no report and publishes its commit
-anyway, so on that road the marker is the only thing left that knows the
-approval no longer covers the head the pull request now carries.
+the other. Every road out of the disposition writes durably before the relabel
+is reached -- the report ahead of the size gate, the receipt a push leaves, a
+park's own state -- and a process dying past one of those with the move
+unrecorded would leave this label standing on an approval the edit has made
+stale, with nothing left to re-detect and a ready ping one tick away.
 
 A resume that ends PARKED -- a question, a timeout, a tree nobody could
 publish -- answers the edit with nothing, so it leaves the same move owed: the

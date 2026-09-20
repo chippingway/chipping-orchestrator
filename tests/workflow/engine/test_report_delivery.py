@@ -249,32 +249,40 @@ class DeliveredReportCapacityTest(unittest.TestCase):
             crowded, delivery_support.DELIVERED,
         ))
     def test_the_hand_back_s_own_write_is_reserved(self) -> None:
-        # A report a review stage's drift resume records is accepted before
+        # A report the `in_review` drift resume records is accepted before
         # the stale-approval hand-back runs, and that hand-back writes a
         # fresh review round, the marker saying the label move is owed, and
         # the record that this publication's budget is already reset -- all
         # onto this same comment, between the record and the binding. This
         # comment has room for the record and for the transaction it becomes,
-        # and none for them with those fields beside them: accepted here, the
-        # binding is the write refused, with the code out and no run left to
-        # ask.
+        # and none for them with those fields beside them: accepted there,
+        # the binding is the write refused, with the code out and no run left
+        # to ask. It is reserved for the one route that makes that write:
+        # the same comment takes an implementation's report, whose road
+        # never hands an approval back and must not be charged for one.
         crowded = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_HAND_BACK)
+        ordinary = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_HAND_BACK)
         staged = {
             **crowded.data,
-            _records.DELIVERED_REPORT: delivery_support.delivered_object(),
+            _records.DELIVERED_REPORT: delivery_support.delivered_object(
+                delivery_support.HANDED_BACK,
+            ),
         }
 
         self.assertTrue(_record_state.fits_the_comment(staged))
         self.assertEqual(
             _delivery_state.binds_delivered_report(
                 PinnedState(state_data=staged),
-                delivery_support.DELIVERED,
+                delivery_support.HANDED_BACK,
                 delivery_support.WIDEST_SUBJECT,
             ),
             "",
         )
         self.assertFalse(_delivery_state.record_delivered_report(
-            crowded, delivery_support.DELIVERED,
+            crowded, delivery_support.HANDED_BACK,
+        ))
+        self.assertTrue(_delivery_state.record_delivered_report(
+            ordinary, delivery_support.DELIVERED,
         ))
 
     def test_the_widest_branch_is_reserved(self) -> None:

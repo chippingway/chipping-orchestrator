@@ -58,6 +58,7 @@ from orchestrator.workflow.engine import (
     report_records as _records,
 )
 from orchestrator.workflow.late_split import formats as _formats
+from orchestrator.workflow.state import WorkflowLabel
 
 _RECEIPT = "receipt"
 
@@ -191,7 +192,7 @@ def record_delivered_report(
     record is accepted and the gate's own write is the one refused.
 
     The stale-approval HAND-BACK is reserved the same way, and for the same
-    reason the push is: a record made on a review stage's drift road is
+    reason the push is: a record made on the `in_review` drift road is
     accepted before that hand-back runs, and the hand-back writes a fresh
     review round, the marker saying the label move is owed, and the record
     that this publication's budget is already reset. Every one of them lands
@@ -200,13 +201,24 @@ def record_delivered_report(
     the one refused -- and the same world stands under the transaction below,
     which is bound on the far side of it.
 
+    Only for the route that MAKES that hand-back, which is the one the record
+    names. `in_review` is the only stage that relabels an approval a
+    requirements edit made stale, so a report recorded anywhere else is
+    measured against the comment it actually leaves: charged for a write its
+    road never makes, an implementation's report near the ceiling would be
+    refused for room nothing was ever going to take. A route that makes none
+    measures its two worlds twice, which costs a serialization and keeps the
+    reading one shape.
+
     The caller still owns `gh.write_pinned_state`, as every stage-facing writer
     here does, so the record rides whatever else that caller staged.
     """
     recorded = _encoded(delivered)
     if recorded is None or _reading.delivered_from(recorded) != delivered:
         return False
-    handed_back = _record_state.with_later_writes(state, hand_back=True)
+    handed_back = _record_state.with_later_writes(
+        state, hand_back=delivered.route == WorkflowLabel.IN_REVIEW,
+    )
     for carried in (
         state,
         _record_state.with_later_writes(state, receipt=True),

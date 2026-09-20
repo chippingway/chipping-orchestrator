@@ -11,18 +11,28 @@ initial implementation's is, and stamped with the requirements revision the
 drift check handed the resume rather than with whatever the issue says by the
 time publication succeeds.
 
-A run that committed is held to the report contract: committed work with no
-report parks for the reply that resumes the session to write one. A run that
-committed nothing is held to it only where it wrote a report anyway -- the
-drift prompt asks for one whenever the report has to change -- and that report
-goes onto the head the pull request already carries, needing no new commit, once
-the tree is proved to carry nothing that head does not.
-A commit stranded by an earlier run that never completed owes no report, so a
-reply publishing it with an `ACK:` publishes the code alone. One the issue
-already owes a report for is the other way round: an earlier run committed it
-and parked for want of a report, so it stays unpublished until a reply brings
-one, and anything else the reply says is read as a reply with nothing to
-publish.
+What this road publishes is work a report on the pull request describes, or it
+publishes nothing. A run that committed and wrote no report parks for the reply
+that resumes the session to write one -- and that holds whether or not the run
+finished, which is where this road parts from the engine it calls. The engine
+exempts an incomplete run from the contract because the roads it serves publish
+nothing either way; this road publishes, so a nonzero exit, a provider refusal
+and a launch nothing invoked are each parked here as the missing report they
+also are.
+
+A commit an EARLIER run left stranded is the same question asked of a different
+run: it is published by this road or not at all, and only under a report that
+describes it. So a reply that brings none withholds it and records the debt,
+whichever run left it and whatever became of that run, while the reply keeps
+its own road -- an `ACK:` is still an answer to the edit, a question is still a
+question -- and the review hold behind them asks a human for the report the
+work is missing. A reply that IS a report publishes it, since a report written
+over the branch as it stands describes that commit too.
+
+A run that committed nothing and wrote a report is the one publication with no
+code in it -- the drift prompt asks for a report whenever the report has to
+change -- and it goes onto the head the pull request already carries, needing
+no new commit, once the tree is proved to carry nothing that head does not.
 
 Nothing is bound here. What happens to the report once it is recorded -- bound
 to the publication and settled, `report_settlement`'s, asked by the caller once
