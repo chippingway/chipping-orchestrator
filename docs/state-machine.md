@@ -206,10 +206,13 @@ once to a change: `workflow:decomposing` re-spawns inline, `workflow:ready` / `w
 `workflow:umbrella` route back to `workflow:decomposing`, the dev stages resume the locked dev session, and
 `workflow:documenting` unwinds to `workflow:validating`. A reply to a parked `workflow:implementing` or
 `workflow:validating` issue is not such a change: those stages measure a parked tick by what the park had already
-read, and the frozen reply batch delivers the reply. On `workflow:validating` the resumed session's report is
-recorded before its push under the requirements revision the drift check handed it, a report with no commit is
-published onto the unchanged head, and the reviewer is held until the report is confirmed.
-`_handle_fixing`, `_handle_question`, and
+read, and the frozen reply batch delivers the reply. On `workflow:validating` that reply can still be the drift
+road's CONTINUATION rather than an ordinary fix: a park left standing over an edit its own resume never answered, or
+over a report the issue owes, makes the next reply read the way the resume's own answer reads — held to the developer
+report contract before the size gate, with a report and no commit published onto the unchanged head. Either way the
+report is stamped with the requirements revision that session was actually handed — the drift check's own hash for
+the resume it launched, and the revision the frozen batch delivered for the reply continuing it — and no reviewer
+runs until the pull request carries it. `_handle_fixing`, `_handle_question`, and
 `_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and
 `/orchestrator authorize-oversized <commit>`), the
