@@ -1493,8 +1493,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             earns, and the round a fix the size gate sent to adjudication spends here -- no later
                             tick of this stage can, since the head the reviewer rejected is superseded whether that
                             adjudication parks its `single` for a human or an authorized settlement publishes before
-                            handing the issue back. Which write carries the settlement forks on the run's report
-                            outcome: a round that finished on one records its consumed pairs and its route
+                            handing the issue back. Whether a report is owed is read off the RECORD rather than off
+                            the run, so a round whose own reply carried none still binds the one an earlier tick
+                            recorded before it spends a bookmark or relabels. Which write carries the settlement
+                            forks on the run's report outcome: a round that finished on one records its consumed pairs and its route
                             bookkeeping onto the report transaction (`engine/report_delivery.py`) and binds it to
                             the publication afterwards (`engine/report_binding.py`), so the write that completes the
                             publication is the one that closes them and a report still owed holds the relabel;

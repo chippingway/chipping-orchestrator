@@ -3313,7 +3313,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      transaction write the same fields the same way. The `pending_fix_*` bookmarks are NOT touched here: an explicit
      `/orchestrator continue` retry rebuilds its batch from them after these readers have moved past it.
 
-     On the report road none of it is applied on this tick. The landed push binds the transaction to the publication
+     On the report road none of it is applied on this tick. Whether a report is owed is asked of the RECORD rather
+     than of this run, because the two come apart: a round whose own reply carried no report can still find one an
+     earlier tick recorded and a crash left unbound, and its push is the publication that report was waiting for.
+     Read off the run instead, that push would spend the bookmarks, relabel, and leave the report orphaned with
+     nothing left to bind it to. The landed push binds the transaction to the publication
      and posts the report (`report_binding.binds_and_publishes`), and the write that COMPLETES that transaction is the
      one that advances the readers (`advance_consumed`) and closes the bookmarks and the round (`close_bookkeeping`).
      A report still owed after the bind — a post GitHub refused, a lost response, requirements that moved — holds the

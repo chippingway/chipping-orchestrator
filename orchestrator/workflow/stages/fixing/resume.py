@@ -41,6 +41,7 @@ from orchestrator.workflow.engine import (
     conversation_prompts as _conversation_prompts,
     guards as _guards,
     messages as _messages,
+    report_delivery as _report_delivery,
     report_outcomes as _report_outcomes,
     usage as _usage,
 )
@@ -386,8 +387,10 @@ def _disposes(
     """Publish what this run left, and close the round on what was published.
 
     Three roads out. A round whose whole answer is its report publishes that
-    and nothing else. A round that pushed code closes on the report where it
-    wrote one and on the frozen pairs where it did not. And a round that
+    and nothing else. A round that pushed code closes on the report where the
+    ISSUE owes one -- its own, or one an earlier tick recorded and a crash
+    left unbound, since this push is the publication that report was waiting
+    for -- and on the frozen pairs where none is owed. And a round that
     published nothing settles its consumption here, because the record a
     reporting round left is a delivery no road goes back to on its own.
     """
@@ -402,14 +405,22 @@ def _disposes(
         )
         return
 
-    # The gate is handed what it may close on this caller's behalf, and on the
-    # reporting road that is NOTHING: the transaction recorded above is
-    # carrying the same pairs, and a hold that closed them there would drop
-    # the bookmarks a publication still owed is the replay source for.
+    # Whether a report is owed is asked of the RECORD rather than of this
+    # run, because the two come apart: a round whose own reply carried no
+    # report can still find one an earlier tick recorded and a crash left
+    # unbound, and its push is then the very publication that report was
+    # waiting for. Answered off this run instead, that push would spend the
+    # bookmarks, relabel, and leave the report orphaned on the comment with
+    # nothing left to bind it to.
+    #
+    # So the gate is handed NOTHING to close while one stands: the record is
+    # carrying the same pairs, and a receipt write that closed them here would
+    # drop the batch an outstanding publication replays from.
+    owes = _report_delivery.owes_a_report(ctx.state)
     pushed = _dev_fix._handle_dev_fix_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, run.worktree, run.dev_result,
         run.before_sha, after_sha=run.after_sha,
-        spends=_late_gate_models._SPENDS_NOTHING if reporting else owed,
+        spends=_late_gate_models._SPENDS_NOTHING if owes else owed,
     )
 
     if not pushed:
@@ -423,8 +434,10 @@ def _disposes(
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 
-    if reporting:
-        # The report rides the commit the gate recorded pushing.
+    if owes:
+        # The report rides the commit this push landed -- the one this run
+        # wrote, or the one an earlier tick recorded and this push has just
+        # given a publication to.
         _reporting._finishes_a_reported_round(
             ctx, feedback, owed, run.after_sha or "",
         )

@@ -47,6 +47,7 @@ AUTHORIZATION = "authorized: go ahead and vendor the parser"
 
 # The road that parks the run for a human with nothing left to carry what it
 # consumed.
+
 _AT_LENGTH = "the change, at length. "
 
 # Repeated past anything a pinned comment can carry, which is the one report
@@ -57,6 +58,14 @@ _OVERSIZED_REPORT = f"REPORT: READY\n{_OVERSIZED_BODY}\nREPORT: END"
 
 _ABSENT_COMMENT = 999
 _UNCONFIRMABLE = hashlib.sha256(b"a report nobody posted").hexdigest()
+
+
+def _keeps_the_replay_state(pinned_data) -> bool:
+    """Whether the batch and round an owed publication replays from stand."""
+    return (
+        pinned_data.get(PENDING_FIX_ISSUE_MAX_ID) == TRIGGER_ID
+        and pinned_data.get(REVIEW_ROUND) == 1
+    )
 
 
 def _verified(slug: str) -> str:
@@ -94,6 +103,11 @@ SHA_AFTER = support.SHA_AFTER
 SHA_BEFORE = support.SHA_BEFORE
 TRIGGER_ID = support.TRIGGER_ID
 VALIDATING = support.VALIDATING
+
+# A human reply that lands after the crash, which is what turns the stalled
+# issue back into an ordinary fix round.
+LATER_COMMENT_ID = TRIGGER_ID + 1
+LATER_COMMENT = "one more thing: rename the helper"
 
 # The route bookkeeping a fix round freezes onto its record: the bookmarks the
 # consumed batch clears and the reviewer round it lands on. Only the write that
@@ -261,8 +275,7 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
             {reader: pinned_data.get(reader) for reader in SEEDED_READERS},
             SEEDED_READERS,
         )
-        self.assertEqual(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID), TRIGGER_ID)
-        self.assertEqual(pinned_data.get(REVIEW_ROUND), 1)
+        self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
         self.assertFalse(self._went_back_to_review(seeded))
         self.assertFalse(pinned_data.get(AWAITING_HUMAN))
 
@@ -284,12 +297,10 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
             seeded, head=SHA_AFTER, branch_ahead_behind=(1, 0),
         )
 
-        pinned_data = self._pinned(seeded)
         self.assertTrue(_record_state.carries_pending_report(
             self._record(seeded),
         ))
-        self.assertEqual(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID), TRIGGER_ID)
-        self.assertEqual(pinned_data.get(REVIEW_ROUND), 1)
+        self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
         self.assertFalse(self._went_back_to_review(seeded))
 
     def test_the_recovery_settles_it(self) -> None:
@@ -535,8 +546,7 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         self.assertFalse(self._went_back_to_review(seeded))
         # The round the record froze is untouched, and so is the replay source
         # an outstanding publication rebuilds its batch from.
-        self.assertEqual(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID), TRIGGER_ID)
-        self.assertEqual(pinned_data.get(REVIEW_ROUND), 1)
+        self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
 
     def test_a_post_push_crash_publishes_the_report(self) -> None:
         # A tree it can read, a head it can name, and the pull request
@@ -588,6 +598,53 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         self.assertEqual(pinned_data.get(PARK_REASON), _report_delivery.UNDELIVERABLE_REPORT)
         self.assertEqual(len(seeded.github.posted_comments), 1)
 
+    def test_a_later_comment_binds_the_report(self) -> None:
+        # The crash left a commit the push never carried and a report nobody
+        # bound; then a human comments. The round that answers them pushes
+        # that commit, and its own reply carries no report -- so the record on
+        # the comment is the only one there is, and the push it just earned is
+        # the publication it was waiting for. Read off THIS run instead, the
+        # bookmarks would be spent, the issue relabelled, and the report left
+        # orphaned with nothing to bind it to.
+        #
+        # What the binding then finds is the reply itself: a report written
+        # against the issue as it stood before that comment does not answer
+        # the issue as it stands now, so the engine leaves it owed and the
+        # drift road resumes the developer for it. Owed is the point -- it is
+        # a transaction something comes back for, where a delivery nothing
+        # bound is not.
+        seeded = self._seed_round()
+        recovery.recorded_delivery(
+            seeded.github, seeded.issue,
+            recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID),
+            spends=FROZEN_SPENDS,
+        )
+        seeded.issue.comments.append(FakeComment(
+            id=LATER_COMMENT_ID,
+            body=LATER_COMMENT,
+            user=FakeUser(support.ALICE),
+            created_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        ))
+
+        # One head, answered to every probe this tick takes: the recovery's
+        # own reading, the two the resume brackets its run with, and the
+        # publication's.
+        mocks = self._tick(
+            seeded, head_shas=(SHA_AFTER,) * 6,
+            branch_ahead_behind=(1, 0), push_branch=True,
+        )
+
+        mocks[RUN_AGENT].assert_called_once()
+        self.assertTrue(_record_state.carries_pending_report(
+            self._record(seeded),
+        ))
+        self.assertFalse(_delivery_state.carries_delivered_report(
+            self._record(seeded),
+        ))
+        # Nothing was spent and nobody was handed the head while it stands.
+        self.assertFalse(self._went_back_to_review(seeded))
+        self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
+
     def test_an_unposted_report_holds_the_tick(self) -> None:
         # The binding landed and the post did not, so a transaction is owed.
         # Nothing may relabel past it: the bookmarks it replays from are the
@@ -602,13 +659,11 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
 
         self._tick(seeded)
 
-        pinned_data = self._pinned(seeded)
         self.assertTrue(_record_state.carries_pending_report(
             self._record(seeded),
         ))
         self.assertFalse(self._went_back_to_review(seeded))
-        self.assertEqual(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID), TRIGGER_ID)
-        self.assertEqual(pinned_data.get(REVIEW_ROUND), 1)
+        self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
 
 
 

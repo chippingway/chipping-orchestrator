@@ -14,10 +14,36 @@ from __future__ import annotations
 
 from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
 
+# The rule `_build_fresh_respawn_preamble` closes its re-grounding block with,
+# and the join the task below it is added on.
+_RESPAWN_DIVIDER = "----------------------------------------"
+_TASK_JOIN = "\n\n"
+
 
 def pr_feedback_prompt(comments) -> str:
     """The whole prompt this batch earns, built as the resume builds it."""
     return _conversation_prompts._build_pr_comment_followup(list(comments))
+
+
+def replayed_task(prompt: str) -> str:
+    """The task half of a fresh spawn's prompt, and proof that it IS one.
+
+    A replay drops the session that failed, so the developer is handed a
+    re-grounding preamble and, below one divider, the batch to act on. What a
+    case asserts is that batch ENTIRE rather than a suffix of the prompt: a
+    suffix match passes for a task carrying anything at all in front of it,
+    which is exactly what a replay must never deliver.
+
+    The divider is required, and required exactly once, because its absence
+    would leave the whole prompt as "the task" and pass the comparison for a
+    plain resume that never re-grounded anything.
+    """
+    _, divider, task = prompt.partition(_RESPAWN_DIVIDER)
+    if not divider or _RESPAWN_DIVIDER in task:
+        raise AssertionError("expected exactly one re-grounding divider")
+    if not task.startswith(_TASK_JOIN):
+        raise AssertionError("expected the task to follow the divider")
+    return task[len(_TASK_JOIN):]
 
 
 def only_prompt(mocks, run_agent: str = "run_agent") -> str:

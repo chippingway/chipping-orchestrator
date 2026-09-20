@@ -26,7 +26,6 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -41,6 +40,11 @@ from tests.workflow.fixtures import (
     LABEL_VALIDATING,
     _agent,
     _PatchedWorkflowMixin,
+)
+from tests.workflow.stages.fixing.prompt_expectations import (
+    only_prompt,
+    pr_feedback_prompt,
+    replayed_task,
 )
 
 ISSUE = 1844
@@ -181,9 +185,7 @@ class DeliveredFixFeedbackTest(unittest.TestCase, _FixRoundFixtureMixin):
         # them survives this comparison.
         self.assertEqual(
             fixing_prompts,
-            [_conversation_prompts._build_pr_comment_followup([
-                self._authorization(issue),
-            ])],
+            [pr_feedback_prompt([self._authorization(issue)])],
         )
         self.assertTrue(gh.pinned_data(ISSUE).get(AWAITING_HUMAN))
         self.assertGreaterEqual(
@@ -222,16 +224,14 @@ class DeliveredFixFeedbackTest(unittest.TestCase, _FixRoundFixtureMixin):
         )
 
         # One developer, re-grounded on a fresh session and handed the
-        # PRESERVED batch: the task half of that prompt is the batch the
-        # bookmarks rebuilt and nothing else -- never the bare command, and
-        # never a second copy of the reply the readers have moved past.
-        retry_prompts = self._prompts(retry_mocks)
-        self.assertEqual(len(retry_prompts), 1)
-        self.assertTrue(retry_prompts[0].endswith(
-            _conversation_prompts._build_pr_comment_followup([
-                self._authorization(issue),
-            ]),
-        ))
+        # PRESERVED batch -- asserted entire: the re-grounding above the
+        # divider and, below it, the batch the bookmarks rebuilt and nothing
+        # else. Never the bare command, and never a second copy of the reply
+        # the readers have moved past.
+        self.assertEqual(
+            replayed_task(only_prompt(retry_mocks)),
+            pr_feedback_prompt([self._authorization(issue)]),
+        )
 
 
 if __name__ == "__main__":

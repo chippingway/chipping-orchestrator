@@ -87,6 +87,13 @@ and a report this build cannot record at all settles the batch it consumed on
 its way to the park -- left open, the next tick reads that feedback as fresh
 and clears the very park just taken.
 
+Which is why a round asks the RECORD whether a report is owed rather than
+asking its own reply. A round whose reply carried no report can still find one
+an earlier tick recorded, and the push it makes for a human's later comment is
+the publication that report was waiting for -- so it binds before it spends
+anything, where reading its own reply would relabel and leave the report
+orphaned with nothing left to bind it to.
+
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would
 charge every importer of one stage for the worktree, GitHub, and dev-resume

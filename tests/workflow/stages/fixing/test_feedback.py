@@ -526,6 +526,11 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         # fast path is not offered here and the round parks for a human with
         # its replay anchor intact. The batch is still settled: a developer
         # read it, which is all the readers record.
+        #
+        # What this case is about is the SETTLEMENT, so the batch is an
+        # ordinary reply; the same refusal over the reviewer's own automated
+        # request, replayed through the anchor that records it, is
+        # `test_validating_continue.py`'s.
         mocks = self._deliver(
             agent_fields=_run("ACK: nothing to fix"),
             head_shas=(SHA_SAME, SHA_SAME),
@@ -538,7 +543,9 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         )
 
         pinned_data = self._github.pinned_data(ISSUE)
-        mocks[RUN_AGENT].assert_called_once()
+        self.assertEqual(
+            only_prompt(mocks), pr_feedback_prompt([THE_REPLY]),
+        )
         self.assertNotIn((ISSUE, IN_REVIEW), self._github.label_history)
         self.assertTrue(pinned_data.get(AWAITING_HUMAN))
         self.assertEqual(
