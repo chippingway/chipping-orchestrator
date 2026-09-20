@@ -111,16 +111,47 @@ OWED_REPORT = "developer_report_owed"
 # developer that can write the report again.
 UNDELIVERABLE_REPORT = "report_undeliverable"
 
+# The fresh review budget a requirements edit earned on an approved pull
+# request, recorded where the publication that edit produced is still owed.
+# `in_review` resets the round before it hands the issue back, because the
+# approval was earned against requirements that are gone -- and a publication
+# still owed then lands on `validating`, where a fix that reaches the pull
+# request ordinarily spends a round. Spent from the budget that reset just
+# made, the delayed road would hand the next reviewer one round less than the
+# road where the same push landed at once. Retired with the debt it is about,
+# by the settlement that ends it.
+OWED_ROUND_RESET = "developer_report_owed_round_reset"
+
 # How a transaction minted here is named. The revision is what makes it
 # unique per issue, and the spelling is one the report header carries verbatim.
 _RECEIPT = "issue-{issue}-report-{revision}"
 
+# What "nothing was published" leaves standing, on each road that records a
+# report. The implementing seam is the first publication of all, so there is no
+# pull request yet and saying so is the whole of it. A requirements-drift
+# resume under review is the other way round: the work it was asked about is
+# already on an open pull request, and all a park here withholds is whatever
+# that run has just added -- so the initial notice would tell a human the pull
+# request they are reading does not exist.
+_NOTHING_OPENED = (
+    "the commit is still in the worktree, the branch is untouched, and no "
+    "pull request was opened"
+)
+
+_NOTHING_ADDED = (
+    "whatever this run committed is still in the worktree, the branch is "
+    "untouched, and the pull request still stands on the commit it already "
+    "carried"
+)
+
+# The roads that record a report for work an open pull request already carries.
+_UNDER_REVIEW = frozenset((WorkflowLabel.VALIDATING, WorkflowLabel.IN_REVIEW))
+
 _UNRECORDABLE_PARK = (
     "{mentions} this issue's developer run finished with a completion report "
     "this orchestrator cannot record on its pinned comment -- most likely one "
-    "far past what a single comment holds -- so nothing was published: the "
-    "commit is still in the worktree, the branch is untouched, and no pull "
-    "request was opened. The report is recorded before any code goes out, "
+    "far past what a single comment holds -- so nothing was published: "
+    "{withheld}. The report is recorded before any code goes out, "
     "because that record is the only thing a later tick could publish it "
     "from: a report that cannot be written is one this workflow has no way to "
     "put on a pull request, and publishing the code anyway would hand review "
@@ -149,9 +180,8 @@ _UNREPORTED_PARK = (
     "at all, one that reached for the contract and missed, or one naming a "
     "report this orchestrator cannot hold against its own repository, whether "
     "because it is somebody else's or because the reading that would have "
-    "proved it could not be taken. Nothing was published: the commit is still "
-    "in the worktree, the branch is untouched, and no pull request was "
-    "opened. Handing this work to review would send a reviewer an "
+    "proved it could not be taken. Nothing was published: {withheld}. "
+    "Handing this work to review would send a reviewer an "
     "implementation nobody described, with no record of what was done and no "
     "session left to ask. Reply and the orchestrator resumes the session; the "
     "report it writes then is the one that gets published, and it needs no "
@@ -223,10 +253,17 @@ def recording_stops_the_tick(
     A record that IS stored retires the park this owner may have taken, since
     what that park asked for was exactly a report it could record -- and left
     standing it would hold the publication it was about to make possible.
+
+    Either notice names what THIS road withheld. The implementing seam has no
+    pull request yet, while a resume under review has one that stands exactly
+    where it stood -- and a human reading the initial wording under their own
+    open pull request would be told it was never opened.
     """
-    delivered = _delivered_report(gh, issue, state, agent_result, route)
+    handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
+    withheld = _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED
+    delivered = _delivered_report(gh, issue, state, agent_result, handed)
     if delivered is None:
-        return _unreported_run_holds(gh, issue, state, agent_result)
+        return _unreported_run_holds(gh, issue, state, agent_result, withheld)
     if not _delivery_state.record_delivered_report(state, delivered):
         log.error(
             "issue=#%d wrote a developer report this build cannot record; "
@@ -234,7 +271,9 @@ def recording_stops_the_tick(
         )
         parks_an_undeliverable_report(
             gh, issue, state,
-            _UNRECORDABLE_PARK.format(mentions=config.HITL_MENTIONS),
+            _UNRECORDABLE_PARK.format(
+                mentions=config.HITL_MENTIONS, withheld=withheld,
+            ),
         )
         return True
     log.info(
@@ -254,6 +293,7 @@ def _unreported_run_holds(
     issue: Issue,
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
+    withheld: str,
 ) -> bool:
     """Hold a completed run that handed over no report, or let the tick carry on.
 
@@ -269,6 +309,10 @@ def _unreported_run_holds(
     Held, nothing is published at all and a reply resumes the developer, which
     can write the report the work is missing. The park itself is what
     remembers the debt, since there is no report to record.
+
+    `withheld` is what the caller's road actually held back, since the notice
+    says so and the two roads hold back different things: a pull request that
+    was never opened, and one that stands where it stood.
 
     A run that did NOT complete is left alone. A launch nothing invoked, a
     shutdown kill, a timeout, a provider refusal and a nonzero exit are
@@ -287,7 +331,9 @@ def _unreported_run_holds(
     )
     parks_an_undeliverable_report(
         gh, issue, state,
-        _UNREPORTED_PARK.format(mentions=config.HITL_MENTIONS),
+        _UNREPORTED_PARK.format(
+            mentions=config.HITL_MENTIONS, withheld=withheld,
+        ),
     )
     return True
 

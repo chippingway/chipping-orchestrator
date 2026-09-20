@@ -28,7 +28,9 @@ A park this stage took over a report it owes is the one claim that changes what
 the resume's answer MEANS: the notice asked for a report, so the reply is read
 the way a drift resume's is -- a report with no commit publishes onto the head
 the pull request carries instead of parking as a question -- and it is stamped
-with the revision the batch delivered.
+with the revision the batch delivered. What such a publication spends is the
+round `rounds` says it does, which is nothing where the debt came back from
+`in_review` with the budget already reset for it.
 """
 from __future__ import annotations
 
@@ -65,12 +67,14 @@ def _resume_validating_awaiting_dev(context: _models._AwaitingValidation) -> str
     attempt = _awaiting._run_awaiting_dev(context, continue_action)
     if _stops_after_the_run(context, attempt):
         return _state._OUTCOME_RETURN
+    if _report_delivery.owes_a_report(context.state):
+        return _answers_the_report_park(
+            context, attempt, _rounds._spends_for_an_owed_report(context.state),
+        )
     # Frozen before the push: the gate closes it beside its own receipt, and
     # the line below re-applies the same pair rather than re-reading a counter
     # that write may already have moved.
     owed = _rounds._spends_next_round(context.state)
-    if _report_delivery.owes_a_report(context.state):
-        return _answers_the_report_park(context, attempt, owed)
     pushed = _dev_fix._handle_dev_fix_result(
         context.gh,
         context.spec,
@@ -123,6 +127,10 @@ def _answers_the_report_park(
     own settlement records as the baseline -- so the report is stamped with
     the content that produced it rather than with a hash the reply has already
     moved past.
+
+    What the publication costs is `rounds`', and is the one thing this road
+    does not decide for itself: a debt `in_review` handed back has already had
+    its budget reset for the edit that produced it, and spends nothing here.
     """
     outcome = _outcomes._post_user_content_change_result(
         context.gh,

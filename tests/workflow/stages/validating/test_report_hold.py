@@ -11,7 +11,8 @@ commit the pull request never received, one standing over a checkout that
 has picked up loose work, and one the thread has moved out of reach -- a
 comment somebody edited, a verified location removed or written untrusted --
 which no retry settles and a silent hold would suppress every later reviewer
-over.
+over. A park like that is answered by the repair as much as by a reply: the
+settlement that follows one ends the debt, the park, and the hold together.
 """
 
 from __future__ import annotations
@@ -44,6 +45,12 @@ REVIEW_REPLY = "Looked it over."
 ACK_REPLY = "ACK: the pushed commit already covers the second edit."
 
 RETRY_COMMENT_ID = 60_000
+
+CURRENT = "current"
+
+# What a human leaves in place of the report when they edit the comment it
+# landed as, and take back out of it when they put the report back.
+REWRITTEN = "a human's own words"
 
 
 class ReportHoldTest(unittest.TestCase, world._DriftReportMixin):
@@ -154,18 +161,22 @@ class ReportHoldTest(unittest.TestCase, world._DriftReportMixin):
         held[RUN_AGENT].assert_not_called()
         _assert_parked(self)
 
+
+class EditedReportTest(unittest.TestCase, world._DriftReportMixin):
+    """A report the thread moved out of reach, and the two ways back from it.
+
+    The post landed and its response was lost, so the transaction is still
+    owed -- and then a human edited the comment it landed as. No retry settles
+    that: the reconciliation stands down on content a human owns, so held
+    silently the reviewer would be suppressed for the life of the issue with
+    nobody told. It parks instead, for a reply that supersedes the report or a
+    repair that restores it.
+    """
+
     def test_an_edited_report_comment_parks(self) -> None:
-        # The post landed and its response was lost, so the transaction is
-        # still owed -- and then a human edited the comment it landed as. No
-        # retry settles that: the reconciliation stands down on content a
-        # human owns, so held silently the reviewer would be suppressed for
-        # the life of the issue with nobody told. It parks instead, and the
-        # reply resumes the session, whose fresh report settles and reviews.
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        self.github.report_failures.lost.add(PR)
-        self.drift(world.reported())
-        self.github.report_failures.lost.clear()
-        _rewritten_by_hand(self)
+        # The park, and the road back that writes a new report: the reply
+        # resumes the session, and what it writes settles and is reviewed.
+        self._edited_after_a_lost_response()
 
         held = self.drift(REVIEW_REPLY, committed=False)
 
@@ -173,13 +184,42 @@ class ReportHoldTest(unittest.TestCase, world._DriftReportMixin):
         _assert_parked(self)
         _assert_recovered_by_a_fresh_report(self)
 
+    def test_a_repaired_report_releases_the_review(self) -> None:
+        # The same park, answered by the repair rather than by a reply: the
+        # human puts the report back where it was, which is what the notice
+        # asked for. The reconciliation settles the transaction it was
+        # holding, and the debt, the park and the hold end with it rather than
+        # leaving the reviewer stopped behind a flag describing a report the
+        # pull request carries.
+        self._edited_after_a_lost_response()
+        self.drift(REVIEW_REPLY, committed=False)
+        _assert_parked(self)
+
+        _rewritten_by_hand(self, REWRITTEN, world.REPORT_TEXT)
+        self.reconcile()
+
+        self.assertIsNotNone(self.records()[CURRENT])
+        self.assertEqual(
+            (self.pinned().get(AWAITING_HUMAN), self.pinned().get(PARK_REASON)),
+            (False, None),
+        )
+        _assert_reviewed(self, self.drift(REVIEW_REPLY, committed=False))
+
+    def _edited_after_a_lost_response(self) -> None:
+        """A report GitHub took, whose response was lost, a human then edited."""
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.github.report_failures.lost.add(PR)
+        self.drift(world.reported())
+        self.github.report_failures.lost.clear()
+        _rewritten_by_hand(self, world.REPORT_TEXT, REWRITTEN)
+
 
 def _restate(case: ReportHoldTest, **changed) -> None:
     """Change fields on the pinned record, keeping everything else it holds."""
     case.github.seed_state(ISSUE, **{**case.pinned(), **changed})
 
 
-def _assert_parked(case: ReportHoldTest) -> None:
+def _assert_parked(case: world._DriftReportMixin) -> None:
     """The issue is held for a human over the report it cannot deliver."""
     case.assertEqual(
         (case.pinned().get(AWAITING_HUMAN), case.pinned().get(PARK_REASON)),
@@ -187,7 +227,7 @@ def _assert_parked(case: ReportHoldTest) -> None:
     )
 
 
-def _assert_recovered_by_a_fresh_report(case: ReportHoldTest) -> None:
+def _assert_recovered_by_a_fresh_report(case: world._DriftReportMixin) -> None:
     """A reply resumes the session, and its report settles and is reviewed."""
     world.human_reply(case, "please write the report again")
     case.drift(world.reported(world.LATER_REPORT_TEXT), committed=False)
@@ -195,12 +235,16 @@ def _assert_recovered_by_a_fresh_report(case: ReportHoldTest) -> None:
     _assert_reviewed(case, case.drift(REVIEW_REPLY, committed=False))
 
 
-def _rewritten_by_hand(case: ReportHoldTest) -> None:
-    """A human edits the comment the report landed as, marker and all left."""
-    posted = case.published_reports()[0]
-    posted.body = posted.body.replace(world.REPORT_TEXT, "a human's own words")
+def _rewritten_by_hand(case: world._DriftReportMixin, was: str, now: str) -> None:
+    """A human rewrites the comment the report landed as, marker and all left.
+
+    Both ways: the edit that puts the hold's report out of reach, and the
+    repair that puts it back, which is what that park asks a human for.
+    """
+    posted = case.published_reports(was)[0]
+    posted.body = posted.body.replace(was, now)
 
 
-def _assert_reviewed(case: ReportHoldTest, mocks) -> None:
+def _assert_reviewed(case: world._DriftReportMixin, mocks) -> None:
     """The tick spawned the reviewer, and nothing else ran first."""
     case.assertEqual(mocks[RUN_AGENT].call_args[0][0], config.REVIEW_AGENT)

@@ -9,7 +9,9 @@ push that does not land keeps the report recorded, and the issue parked where
 it is for that tick; the next one hands it to `validating` before anything here
 can act on the stale approval, and so does a tick that died mid-way -- on the
 report it owes, or, where the reply recorded none, on the marker the move
-itself left.
+itself left. A publication such a hand-back still owes lands on `validating`
+without spending a round: the fresh budget is what the edit that produced it
+has already bought.
 """
 
 from __future__ import annotations
@@ -187,6 +189,34 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
                     ([(ISSUE, LABEL_VALIDATING)], 0),
                 )
                 self.assertIsNotNone(self.records()["delivered"])
+
+    def test_a_handed_back_debt_spends_no_round(self) -> None:
+        # The resume committed and reported nothing, so nothing was published
+        # and the debt is all that stands. The hand-back gives the edited
+        # requirements a fresh budget, and the reply that finally brings the
+        # report publishes that same commit on `validating` -- the
+        # publication the edit earned the budget for, so it spends none of
+        # it. Counted there, an edit answered a tick late would leave its
+        # reviewer one round short of the edit answered at once.
+        self.seeded(
+            ISSUE, PR, LABEL_IN_REVIEW,
+            review_round=SPENT_ROUNDS, **READY_TO_PING,
+        )
+        self.drift("fixed the criteria")
+
+        self._assert_handed_back()
+        world.human_reply(self)
+        self.drift(world.reported(), **world.STRANDED)
+        self.reconcile()
+
+        self.assertEqual(len(self.published_reports()), 1)
+        self.assertEqual(
+            (self.pull_request.head.sha, self.pinned()[REVIEW_ROUND]),
+            (world.FIXED_HEAD, 0),
+        )
+        # The budget the edit bought is spent by the reviewers that read it,
+        # so the record of it ends with the debt rather than outliving it.
+        self.assertIsNone(self.pinned()[_report_delivery.OWED_ROUND_RESET])
 
     def test_an_ack_whose_relabel_failed_is_remade(self) -> None:
         # An `ACK:` records no report, so a relabel that never lands leaves

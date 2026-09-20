@@ -229,7 +229,18 @@ def _relabels_for_review(ctx: _models._InReviewContext) -> None:
     Lost, it costs one spurious hand-back the next time this issue reaches
     `in_review` -- a re-review rather than a ping on a stale approval -- and
     that tick clears it.
+
+    A publication this issue still OWES when the move is made is recorded as
+    belonging to the budget this reset just gave it. The edit that produced
+    that publication is the same one the reset is for, so the road that
+    finally lands it on `validating` -- where a fix reaching the pull request
+    spends a round -- must not spend from the budget the edit earned: the
+    delayed road would otherwise leave the next reviewer one round short of
+    what the road where the same push landed at once leaves it. It is dropped
+    by the settlement that ends the debt.
     """
+    if _report_delivery.owes_a_report(ctx.state):
+        ctx.state.set(_report_delivery.OWED_ROUND_RESET, True)
     ctx.state.set(_state._HANDOFF_PENDING, True)
     ctx.state.set("review_round", 0)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)

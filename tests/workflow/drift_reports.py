@@ -16,6 +16,7 @@ from __future__ import annotations
 import copy
 from functools import partial
 from pathlib import Path
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.git.worktrees import paths as _worktree_paths
@@ -65,6 +66,15 @@ LATER_COMMENT_ID = 50_000
 REPORT_TEXT = "Answers the edited criteria; the suite passes."
 
 LATER_REPORT_TEXT = "Covers the second edit as well, on the same commit."
+
+# A resume that committed nothing over a checkout carrying the commit an
+# earlier run left unpublished: the head is that commit, one ahead of the pull
+# request, which is the tip a publication from here replaces.
+STRANDED = MappingProxyType({
+    "head_shas": (FIXED_HEAD, FIXED_HEAD),
+    "branch_ahead_behind": (1, 0),
+    "fetched_branch_tip": PUBLISHED_HEAD,
+})
 
 # A checkout path that exists, so the reconciliation's own reading of the
 # worktree is taken rather than deferred as a checkout on another host.

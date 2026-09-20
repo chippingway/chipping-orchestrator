@@ -17,7 +17,6 @@ where that body still closes the issue and names the session.
 from __future__ import annotations
 
 import unittest
-from types import MappingProxyType
 
 from orchestrator import config
 from orchestrator.github import developer_reports as _developer_reports
@@ -53,6 +52,12 @@ REVIEW_REPLY = "Looked it over."
 
 LOOSE_PATH = "scratch.txt"
 
+# What the park a resume under review takes may not tell the human reading its
+# pull request, and what it says about that pull request instead.
+NEVER_OPENED = "no pull request was opened"
+
+STILL_STANDS = "the pull request still stands on the commit it already carried"
+
 # The description the implementation opened the pull request with, and one a
 # human rewrote into a report that neither closes the issue nor names the session.
 NAMED_DESCRIPTION = "\n\n".join((
@@ -62,14 +67,6 @@ NAMED_DESCRIPTION = "\n\n".join((
 ))
 
 HUMAN_DESCRIPTION = "### Report\n\nThe edited criteria are met, verified by hand."
-
-# A resume that committed nothing over a checkout carrying the commit an earlier
-# run left unpublished: the head is that commit, one ahead of the pull request.
-STRANDED = MappingProxyType({
-    "head_shas": (world.FIXED_HEAD, world.FIXED_HEAD),
-    "branch_ahead_behind": (1, 0),
-    "fetched_branch_tip": world.PUBLISHED_HEAD,
-})
 
 
 class DriftReportPublicationTest(unittest.TestCase, world._DriftReportMixin):
@@ -118,6 +115,8 @@ class DriftReportPublicationTest(unittest.TestCase, world._DriftReportMixin):
     def test_a_commit_with_no_report_is_held(self) -> None:
         # Work nobody described is not pushed at all: the commit stays in the
         # worktree and the issue parks for the reply that resumes the session.
+        # What the notice says is withheld is this road's: the pull request the
+        # human is reading is open, and only what the run just added is held.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
 
         mocks = self.drift("fixed the criteria")
@@ -128,6 +127,9 @@ class DriftReportPublicationTest(unittest.TestCase, world._DriftReportMixin):
             (True, _report_delivery.UNDELIVERABLE_REPORT),
         )
         self.assertEqual(self.published_reports(), [])
+        notice = _park_notice(self)
+        self.assertIn(STILL_STANDS, notice)
+        self.assertNotIn(NEVER_OPENED, notice)
 
     def test_the_report_is_recorded_before_the_push(self) -> None:
         # A push that fails leaves the report on the pinned comment, stamped
@@ -228,13 +230,18 @@ class DriftReportDebtTest(unittest.TestCase, world._DriftReportMixin):
         self.drift("fixed the criteria")
         world.human_reply(self)
 
-        self.drift(ACK_REPLY, **STRANDED)[PUSH_BRANCH].assert_not_called()
+        self.drift(ACK_REPLY, **world.STRANDED)[PUSH_BRANCH].assert_not_called()
 
         self._assert_the_debt_holds_the_review()
         world.human_reply(self)
 
-        self.drift(world.reported(), **STRANDED)[PUSH_BRANCH].assert_called_once()
+        self.drift(world.reported(), **world.STRANDED)[PUSH_BRANCH].assert_called_once()
 
+        # The debt is this stage's own: nothing was published when the resume
+        # parked, so the head the reply finally lands is one no reviewer has
+        # read, and it spends the round every fix that reaches the pull
+        # request spends.
+        self.assertEqual(self.pinned()[REVIEW_ROUND], 1)
         self._assert_reviewed_once_published()
 
     def _assert_the_debt_holds_the_review(self) -> None:
@@ -299,6 +306,14 @@ class DriftReportCheckoutTest(unittest.TestCase, world._DriftReportMixin):
                     body in (posted.body or "")
                     for posted in self.pull_request.issue_comments
                 ))
+
+
+def _park_notice(case) -> str:
+    """What the park this tick took said to the human."""
+    return next(
+        body for _, body in reversed(case.github.posted_comments)
+        if "developer run finished" in body
+    )
 
 
 def _verified(body: str) -> str:
