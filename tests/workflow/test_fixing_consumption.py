@@ -221,10 +221,17 @@ class DeliveredFixFeedbackTest(unittest.TestCase, _FixRoundFixtureMixin):
             self._run_fixing, gh, issue, last_message=DEV_QUESTION,
         )
 
+        # One developer, re-grounded on a fresh session and handed the
+        # PRESERVED batch: the task half of that prompt is the batch the
+        # bookmarks rebuilt and nothing else -- never the bare command, and
+        # never a second copy of the reply the readers have moved past.
         retry_prompts = self._prompts(retry_mocks)
-        self.assertEqual(
-            len([quoted for quoted in retry_prompts if AUTHORIZATION in quoted]), 1,
-        )
+        self.assertEqual(len(retry_prompts), 1)
+        self.assertTrue(retry_prompts[0].endswith(
+            _conversation_prompts._build_pr_comment_followup([
+                self._authorization(issue),
+            ]),
+        ))
 
 
 if __name__ == "__main__":

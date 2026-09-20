@@ -28,6 +28,10 @@ from tests.support.fakes import (
 )
 from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES, _agent, _PatchedWorkflowMixin
 from tests.workflow.stages.fixing import fixing_test_support as support
+from tests.workflow.stages.fixing.prompt_expectations import (
+    only_prompt,
+    pr_feedback_prompt,
+)
 
 ISSUE = 880
 PR_NUMBER = 880
@@ -48,17 +52,19 @@ def _paused_view(number: int) -> object:
     return view
 
 
+# The one comment every case here is a fix round over, so the prompt a case
+# asserts is the prompt this batch earns.
+FEEDBACK = FakeComment(
+    id=TRIGGER_ID,
+    body="rename foo to bar",
+    user=FakeUser("alice"),
+    created_at=datetime.now(UTC) - timedelta(hours=1),
+)
+
+
 def _seed_fixing_pause(gh: FakeGitHubClient) -> object:
-    old = datetime.now(UTC) - timedelta(hours=1)
     issue = make_issue(ISSUE, label="workflow:fixing")
-    issue.comments.append(
-        FakeComment(
-            id=TRIGGER_ID,
-            body="rename foo to bar",
-            user=FakeUser("alice"),
-            created_at=old,
-        )
-    )
+    issue.comments.append(FEEDBACK)
     gh.add_issue(issue)
     gh.add_pr(
         FakePR(
@@ -143,7 +149,9 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
                 push_branch=True,
             )
 
-        mocks["run_agent"].assert_called_once()
+        # One run, handed exactly this batch: the pause refuses what the run
+        # produced, never the delivery that reached it.
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt([FEEDBACK]))
         get_issue_mock.assert_called_with(ISSUE)
         _assert_fixing_pause_preserves_state(
             self,
@@ -190,6 +198,8 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             )
 
         mocks["_push_branch"].assert_called_once()
+        # The batch the pause left unconsumed is the batch this tick delivers.
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt([FEEDBACK]))
         self.assertIn((ISSUE, "workflow:validating"), gh.label_history)
         pinned_data = gh.pinned_data(ISSUE)
         self.assertEqual(pinned_data.get("review_round"), 0)

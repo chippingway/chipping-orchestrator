@@ -128,6 +128,28 @@ def _finished_on_a_report(agent_result: AgentResult) -> bool:
     )
 
 
+def _reached_for_the_contract(agent_result: AgentResult) -> bool:
+    """Whether this run's reply used the report contract and got it wrong.
+
+    The one reading a stage may not treat as an ordinary reply. `NO_MARKER` is
+    a message that never reached for the contract at all -- a question, a
+    disagreement, an `ACK:` -- and every stage already knows what to do with
+    one. `MALFORMED` is the opposite claim: the reply DID reach for it and
+    missed, and the commonest way to miss is to put an `ACK:` beside a report.
+    Read as an ordinary reply, that message answers on its weakest half: the
+    `ACK:` road would return a pull request to review as needing no change
+    while the report the developer meant to deliver is thrown away unread.
+
+    So it is neither. There is no report here to record, and no reply here to
+    act on, which leaves the one road that asks a human -- the same road every
+    reply this workflow cannot read by itself takes.
+    """
+    return (
+        _report_outcome_of_run(agent_result)
+        is _models._ReportRefusal.MALFORMED
+    )
+
+
 def _parse_report_outcome(last_message: str) -> _models._ReportOutcome:
     """The report outcome a completed run's `last_message` closes with.
 

@@ -8,6 +8,10 @@ import unittest
 
 from orchestrator.github.pinned_state import PinnedState
 from tests.workflow.stages.fixing import fixing_test_support as support
+from tests.workflow.stages.fixing.prompt_expectations import (
+    only_prompt,
+    pr_feedback_prompt,
+)
 
 IssueScenario = support.IssueScenario
 
@@ -295,8 +299,9 @@ class FixingContentHashAndConcurrencyTest(
                 head_shas=(SHA_BEFORE, SHA_AFTER),
             )
 
-        self._mocks[RUN_AGENT].assert_called_once()
-        # The concurrent comment IS quoted in the next dev resume.
-        self._agent_call = self._mocks[RUN_AGENT].call_args
-        self._prompt = self._agent_call.args[1]
-        self.assertIn("actually also rename helper", self._prompt)
+        # The next resume is handed the concurrent comment and NOTHING else:
+        # the batch the first tick consumed is answered, so a prompt carrying
+        # it again is the replay this settlement exists to prevent.
+        self.assertEqual(
+            only_prompt(self._mocks), pr_feedback_prompt([concurrent]),
+        )

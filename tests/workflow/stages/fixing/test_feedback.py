@@ -11,6 +11,10 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import report_consumed_values as _consumed_values
 from orchestrator.workflow.stages.fixing import feedback as _feedback, models as _models
 from tests.workflow.stages.fixing import fixing_test_support as support
+from tests.workflow.stages.fixing.prompt_expectations import (
+    only_prompt,
+    pr_feedback_prompt,
+)
 
 IssueScenario = support.IssueScenario
 
@@ -351,6 +355,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
 
 AUTHORIZATION = "authorized: go ahead and vendor the parser"
 
+
 # The key each case puts its issue-thread half of the batch under.
 ON_THE_THREAD = "issue_comments"
 
@@ -384,6 +389,11 @@ def _run(message: str = "", **agent_fields) -> dict:
 def _pinned() -> PinnedState:
     """A pinned comment carrying the four readers where the seed puts them."""
     return PinnedState(state_data=dict(SEEDED_READERS))
+
+
+# The one reply the thread cases are a fix round over, so the prompt each
+# asserts is the prompt this batch earns.
+THE_REPLY = _reply(TRIGGER_ID, AUTHORIZATION)
 
 
 def _readers_after(**moved) -> dict:
@@ -455,13 +465,17 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
     def test_a_reply_settles_both_readers(self) -> None:
         for case, agent_fields, head_shas in DELIVERED_OUTCOMES:
             with self.subTest(outcome=case):
-                github = self._deliver(
+                mocks = self._deliver(
                     agent_fields=agent_fields,
                     head_shas=head_shas,
-                    placed={ON_THE_THREAD: [_reply(TRIGGER_ID, AUTHORIZATION)]},
+                    placed={ON_THE_THREAD: [THE_REPLY]},
                 )
 
-                settled = self._readers(github)
+                # One developer, handed exactly this batch and nothing else.
+                self.assertEqual(
+                    only_prompt(mocks), pr_feedback_prompt([THE_REPLY]),
+                )
+                settled = self._readers()
                 # The thread reader covers the reply, so a route change out of
                 # `fixing` finds it answered; a park's own notice may carry the
                 # mark further, over posts of ours and nothing else.
@@ -475,13 +489,14 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         # and no other.
         for case, placed, expected in PULL_REQUEST_BATCHES:
             with self.subTest(surface=case):
-                github = self._deliver(
+                mocks = self._deliver(
                     agent_fields=_run(PUSHED_MESSAGE),
                     head_shas=(SHA_BEFORE, SHA_AFTER),
                     placed=placed,
                 )
 
-                self.assertEqual(self._readers(github), expected)
+                mocks[RUN_AGENT].assert_called_once()
+                self.assertEqual(self._readers(), expected)
 
     def test_a_withheld_run_settles_nothing(self) -> None:
         # Neither of these delivered anything: one never reached a process at
@@ -489,15 +504,21 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         # where it was for the next tick to re-discover the same batch.
         for case, agent_fields in WITHHELD_OUTCOMES:
             with self.subTest(outcome=case):
-                github = self._deliver(
+                mocks = self._deliver(
                     agent_fields=agent_fields,
                     head_shas=(SHA_BEFORE, SHA_AFTER),
-                    placed={ON_THE_THREAD: [_reply(TRIGGER_ID, AUTHORIZATION)]},
+                    placed={ON_THE_THREAD: [THE_REPLY]},
                 )
 
-                self.assertEqual(self._readers(github), SEEDED_READERS)
-                self.assertEqual(github.label_history, [])
-                self.assertEqual(github.posted_comments, [])
+                # The batch WAS handed to a launch -- one prompt, this batch
+                # -- and none of it is recorded: what the guards refuse is the
+                # RESULT, not the delivery attempt.
+                self.assertEqual(
+                    only_prompt(mocks), pr_feedback_prompt([THE_REPLY]),
+                )
+                self.assertEqual(self._readers(), SEEDED_READERS)
+                self.assertEqual(self._github.label_history, [])
+                self.assertEqual(self._github.posted_comments, [])
 
     def test_an_ack_settles_without_answering(self) -> None:
         # The validating route reached `fixing` on a reviewer's
@@ -505,10 +526,10 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         # fast path is not offered here and the round parks for a human with
         # its replay anchor intact. The batch is still settled: a developer
         # read it, which is all the readers record.
-        github = self._deliver(
+        mocks = self._deliver(
             agent_fields=_run("ACK: nothing to fix"),
             head_shas=(SHA_SAME, SHA_SAME),
-            placed={ON_THE_THREAD: [_reply(TRIGGER_ID, AUTHORIZATION)]},
+            placed={ON_THE_THREAD: [THE_REPLY]},
             extra_state={
                 PENDING_FIX_AT: None,
                 PENDING_FIX_ISSUE_MAX_ID: None,
@@ -516,14 +537,15 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
             },
         )
 
-        pinned_data = github.pinned_data(ISSUE)
-        self.assertNotIn((ISSUE, IN_REVIEW), github.label_history)
+        pinned_data = self._github.pinned_data(ISSUE)
+        mocks[RUN_AGENT].assert_called_once()
+        self.assertNotIn((ISSUE, IN_REVIEW), self._github.label_history)
         self.assertTrue(pinned_data.get(AWAITING_HUMAN))
         self.assertEqual(
             pinned_data.get(PENDING_FIX_REVIEWER_COMMENT_ID), REVIEWER_FEEDBACK_ID,
         )
         self.assertGreaterEqual(
-            self._readers(github)[LAST_ACTION_COMMENT_ID], TRIGGER_ID,
+            self._readers()[LAST_ACTION_COMMENT_ID], TRIGGER_ID,
         )
 
     def test_a_transaction_would_carry_the_same_pairs(self) -> None:
@@ -569,22 +591,22 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         """One fixing tick over a batch on whichever surfaces `placed` names."""
         pr = self._open_pr(**placed.get("pr_fields", {}))
         pr.issue_comments.extend(placed.get("pr_issue_comments", ()))
-        github, issue = self._seed(
+        scenario = IssueScenario(*self._seed(
             pr=pr,
             issue_comments=placed.get(ON_THE_THREAD, ()),
             extra_state={**SEEDED_READERS, **(extra_state or {})},
-        )
+        ))
+        self._github = scenario.github
 
         with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
-            self._run_fixing(
-                github,
-                issue,
+            return self._run_fixing(
+                scenario.github,
+                scenario.issue,
                 run_agent=_agent(**agent_fields),
                 head_shas=head_shas,
             )
-        return github
 
-    def _readers(self, github) -> dict:
+    def _readers(self) -> dict:
         """Where each of the four consumption readers stands after the tick."""
-        pinned_data = github.pinned_data(ISSUE)
+        pinned_data = self._github.pinned_data(ISSUE)
         return {field: pinned_data.get(field) for field in SEEDED_READERS}

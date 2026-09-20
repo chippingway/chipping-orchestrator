@@ -48,8 +48,16 @@ settled by the write that completes it, whichever tick makes that: the one
 that binds and posts here, or the reconciliation ahead of a later handler.
 Until then the bookmarks stand, the readers stand, and the label stays put, so
 no reviewer is sent to a head whose report nothing on the pull request carries.
-Every other outcome -- the `ACK:`, the question, the timeout -- writes no
-report and closes its own bookkeeping directly, ahead of the disposition.
+A round whose whole answer IS the report publishes it against the head its pull
+request already stands on -- the prompt asks for exactly that, an item wanting
+report content only answered with no commit for it -- and a push that did not
+land settles its consumption on the spot instead, since nothing bound the
+record and nothing goes back for a delivery. Every other outcome -- the
+ordinary `ACK:`, the question, the timeout -- writes no report and closes its
+own bookkeeping directly, ahead of the disposition. A reply that reached for
+the contract and missed is none of these: it is kept off the ACK road and
+parks for a human, because reading an `ACK:` written beside a report would
+return the pull request to review while dropping the report unread.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

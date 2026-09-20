@@ -3225,7 +3225,10 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      `workflow:decomposing` by then, and relabeling over it would publish the very question the gate just opened.
      This exit is the validating route's LAST chance at that commit: the
      reviewer feedback that started the round is orchestrator-authored, so the step-3 rescan filters it out and no
-     later tick re-runs the dev on it.
+     later tick re-runs the dev on it. A successful stranded push also **binds** a developer report the issue still
+     has recorded and unbound (`reporting._holds_an_unpublished_report`): this bounce is the one tick that
+     republishes that commit, so a delivery a failed push left would otherwise never become a transaction anything
+     could finish. A report still owed after the bind holds the relabel for the reconciliation to settle.
   7. **Quiet window**: compute the newest `created_at` (or `submitted_at` for review summaries); if younger than
      `IN_REVIEW_DEBOUNCE_SECONDS`, return.
   8. **Resume**: build a `_build_pr_comment_followup` prompt over ALL unread surfaces, resume the locked dev via
@@ -3240,7 +3243,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      publication this tick cannot guarantee, so its consumed pairs and this route's bookkeeping are recorded ONTO the
      report transaction (`report_delivery.recording_stops_the_tick`, watermarks + spends) before the size gate and the
      push, and the size gate is handed nothing to close; a report this build cannot record parks there with the commit
-     still in the worktree. Every other outcome — the `ACK:`, the question, the timeout, the dirty tree — writes no
+     still in the worktree. A reply that reached for the contract and MISSED — an unclosed block, text after the
+     outcome, most often an `ACK:` line beside a report — is neither: it is kept off the ACK fast path
+     (`reporting._misread_the_contract`) and falls through to the park that asks a human, because reading it on its
+     `ACK:` half would return the pull request to review while dropping the report unread. Every other outcome — the
+     ordinary `ACK:`, the question, the timeout, the dirty tree — writes no
      report and is **settled** directly (`_settle_consumed_feedback`) right there, ahead of every disposition below,
      because the size gate's own durable write and a park's both land inside that disposition and a settlement taken
      afterwards would be lost to a crash in the window a hold's relabel opens. Then the disposition: a
@@ -3276,6 +3283,15 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      readers stay where they were, the `pending_fix_*` replay source stands, and
      [the developer-report transaction](#the-developer-report-transaction-every-dispatch) ahead of a later handler
      finishes the publication and settles both groups from the record.
+
+     Two report roads do NOT wait for a push. A **report-only** round (`reporting._is_report_only`: no timeout, a
+     HEAD that did not move, nothing stranded, a clean tree) is what the prompt asks for where an item wants report
+     content only — it binds against the head the pull request already stands on, publishes, and hands the issue back
+     to `workflow:validating` without an artificial commit. And a push that did NOT land settles the consumption
+     right there (`reporting._settles_unless_a_transaction_will`): nothing bound the report, so the record is a
+     delivery the reconciliation never reads, and leaving the consumption on it would hand the same feedback to a
+     second developer on the next tick. The rule both share: the transaction keeps the pairs only while a PENDING
+     transaction exists to apply them.
   10. **On a pushed fix**: clear `pending_fix_*`, adjust `review_round` per the route discriminator (in_review route
       resets to 0 — the previous approval was for the prior head; validating route bumps by 1 — same review cycle),
       flip DIRECTLY back to `workflow:validating`. Docs do not run on this exit.

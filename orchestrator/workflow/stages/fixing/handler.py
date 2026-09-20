@@ -44,6 +44,7 @@ from orchestrator.workflow.stages.fixing import (
     feedback as _feedback,
     models as _models,
     parked as _parked,
+    reporting as _reporting,
     resume as _resume,
     state as _state,
 )
@@ -215,7 +216,7 @@ def _publish_stranded_fix(
 
 
 def _bounce_without_feedback(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state, pr,
 ) -> None:
     """Drop the route bookkeeping and hand the issue back to `validating`.
 
@@ -243,6 +244,18 @@ def _bounce_without_feedback(
         gh.write_pinned_state(issue, state)
         return
     if stranded.pushed:
+        if _reporting._holds_an_unpublished_report(
+            _models._FixingContext(gh, spec, issue, state, pr),
+        ):
+            # The commit this bounce carried to the pull request is the one a
+            # report an earlier round recorded describes, and that report is
+            # not on the pull request yet. Binding it here is the only road
+            # left: nothing else republishes this commit, so a delivery left
+            # unbound would never become a transaction anything could finish.
+            # Held, the label stays put for the reconciliation ahead of a
+            # later handler to settle from the record.
+            gh.write_pinned_state(issue, state)
+            return
         _late_gate_models._spend(state, owed)
     else:
         # Nothing was published, so no round was landed -- but the bookmarks
@@ -289,7 +302,7 @@ def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
     # `validating` so the reviewer re-evaluates against the current head
     # instead of leaving the issue stuck in `fixing` with no work.
     if not feedback.all_items:
-        _bounce_without_feedback(gh, spec, issue, state)
+        _bounce_without_feedback(gh, spec, issue, state, pr)
         return
 
     if _feedback._fixing_debounce_open(feedback, replay_batch):

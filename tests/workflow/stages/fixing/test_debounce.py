@@ -8,6 +8,10 @@ import unittest
 
 from orchestrator.workflow.stages.fixing import feedback as _feedback, models as _models
 from tests.workflow.stages.fixing import fixing_test_support as support
+from tests.workflow.stages.fixing.prompt_expectations import (
+    only_prompt,
+    pr_feedback_prompt,
+)
 
 IssueScenario = support.IssueScenario
 
@@ -316,8 +320,9 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
             )
 
         # The resume DID run (so this exercises the post-resume guard, not a
-        # pre-resume bail) but produced no commit and was killed.
-        mocks[RUN_AGENT].assert_called_once()
+        # pre-resume bail) but produced no commit and was killed. One run,
+        # handed exactly this batch -- what the guard refuses is the RESULT.
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt((comment,)))
         mocks[PUSH_BRANCH].assert_not_called()
         # Nothing but the spawn's own charge persisted this tick: the rest of
         # the seeded state stands untouched.
@@ -368,7 +373,7 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
                 head_shas=(SHA_BEFORE, SHA_AFTER),  # HEAD advanced
             )
 
-        mocks[RUN_AGENT].assert_called_once()
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt((comment,)))
         # The interrupted commit is NOT pushed and nothing is consumed.
         mocks[PUSH_BRANCH].assert_not_called()
         self.assertEqual(

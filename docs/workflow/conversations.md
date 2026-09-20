@@ -243,10 +243,10 @@ reads one out of the run the disposition is publishing and records it before the
 `report_binding.py` binds it to the pull request the code reaches and publishes it there
 ([`_handle_implementing`](../state-machine/delivery-stages.md#_handle_implementing-label-workflowimplementing)).
 There a no-commit reply ending on a report outcome publishes the commits already on the branch where the issue still
-owes a report it could not deliver, and is read as any other no-commit reply everywhere else. Every other developer
-road is still routed by its commits, its `ACK:` line, and the question parks the [delivery stages][delivery-stages]
-describe, and a no-commit reply that ends on a report outcome is read there the way its stage reads any other
-no-commit reply without `ACK:`.
+owes a report it could not deliver, and is read as any other no-commit reply everywhere else. The **PR-feedback fix
+round** acts on an outcome too (below). Every other developer road is still routed by its commits, its `ACK:` line,
+and the question parks the [delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report
+outcome is read there the way its stage reads any other no-commit reply without `ACK:`.
 The awaiting-human resumes settle the input they delivered straight into pinned state: the report transaction a
 run may record carries no consumed watermarks to freeze it onto. The settlement records delivery and nothing more, so
 the question the run came back with is still the disposition's to answer.
@@ -258,12 +258,26 @@ killed, and one an operator paused mid-run record nothing. Each surface of that 
 so the issue-thread half moves `last_action_comment_id` and the pull-request halves do not.
 
 Where that round differs from the awaiting-human resumes is that it CAN end on a report outcome — its prompt teaches
-the contract like every other developer prompt — and then the settlement is not the ordinary pinned one. The consumed
-pairs and the reviewer round the route spends are recorded onto the report transaction before the size gate, and the
-write that completes the publication applies them; until it does, the bookmarks, the readers and the label all stand
-where the round found them. Delivery is still not completion: an `ACK:` may settle a round whose comments named no
-actionable change, and it does not answer the automated `CHANGES_REQUESTED` review that asked for a concrete one —
-that route has no ACK fast path and parks for a human with its `pending_fix_*` replay anchor intact.
+the contract like every other developer prompt, and asks by name for an item wanting report content only to be
+answered in the report with no commit for it. Such a round is recorded, published and settled rather than parked:
+
+- The consumed pairs and the reviewer round the route spends are recorded onto the report transaction before the size
+  gate, and the write that COMPLETES the publication applies them. Until it does, the bookmarks, the readers and the
+  label all stand where the round found them.
+- A **report-only** round — a clean tree, a HEAD that did not move, nothing stranded — publishes its report against
+  the head its pull request already stands on and hands the issue back to `workflow:validating`. Read as an ordinary
+  no-commit reply it would park as a question with the report unpublished behind a human's answer.
+- A round whose **push did not land** publishes nothing, so nothing bound its report: that record is a delivery no
+  road goes back to on its own, and the consumption is settled on the spot instead, since leaving it would hand the
+  same feedback to a second developer next tick. The delivery stays on the comment, and the no-feedback bounce — the
+  one tick that republishes that commit — binds and publishes it.
+- A reply that **reached for the contract and missed** (the commonest miss being an `ACK:` line beside a report) is
+  neither a report to record nor a reply to act on. It takes the park that asks a human rather than the `ACK:` road,
+  which would return the pull request to review as needing no change while dropping the report unread.
+
+Delivery is still not completion: an `ACK:` may settle a round whose comments named no actionable change, and it does
+not answer the automated `CHANGES_REQUESTED` review that asked for a concrete one — that route has no ACK fast path
+and parks for a human with its `pending_fix_*` replay anchor intact.
 
 Publication is recoverable because the records outlive the process. The additive `developer_report_delivery` /
 `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group
