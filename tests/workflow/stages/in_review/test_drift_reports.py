@@ -26,7 +26,6 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.workflow.engine import report_delivery as _report_delivery
-from orchestrator.workflow.stages.in_review import drift as _drift
 from tests.workflow import drift_reports as world
 from tests.workflow.fixtures import LABEL_IN_REVIEW, LABEL_VALIDATING, _agent
 
@@ -109,25 +108,24 @@ class InReviewDriftReportTest(unittest.TestCase, world._DriftReportMixin):
                     ([(ISSUE, LABEL_VALIDATING)], 0),
                 )
 
-    def test_a_failed_run_still_owes_the_move(self) -> None:
-        # A run that exits nonzero records no report -- a failure is not a
-        # developer declining to report -- but the commit it left is
-        # published all the same, so the head the reviewer approved is gone.
-        # The refreshed hash goes durable with that publication, so no later
-        # tick re-detects the edit: if the move this issue owes is not
-        # durable beside them, the approval stands over a head nobody read
-        # and the ping calls it ready.
+    def test_a_failed_run_publishes_nothing(self) -> None:
+        # A run that exits nonzero writes no report, so the commit it left is
+        # not published: the pull request receives work an account of it
+        # reaches the reviewer with, or it receives nothing. What the tick
+        # leaves durable instead is the debt for that commit and the move
+        # this issue owes -- the refreshed hash is durable too, so nothing
+        # re-detects the edit, and without them the approval would stand over
+        # requirements nobody has reviewed and the ping would call it ready.
         self.seeded(ISSUE, PR, LABEL_IN_REVIEW, **READY_TO_PING)
 
-        with patch.object(
-            _drift, "_relabels_for_review", side_effect=RuntimeError("died"),
-        ), self.assertRaises(RuntimeError):
-            self.drift(_agent(session_id=world.DEV_SESSION, exit_code=1))
+        held = self.drift(_agent(session_id=world.DEV_SESSION, exit_code=1))
 
-        self.assertEqual(self.pull_request.head.sha, world.FIXED_HEAD)
+        held[PUSH_BRANCH].assert_not_called()
         self.assertEqual(set(self.records().values()), {None})
+        self.assertTrue(self.pinned()[_report_delivery.UNREPORTED_WORK])
         self.assertTrue(self.pinned()[HANDOFF_PENDING])
         _assert_handed_back(self)
+        _assert_the_report_publishes_free(self)
 
     def test_a_death_mid_push_keeps_the_delivery_mark(self) -> None:
         # The report goes onto the comment before the push and the process

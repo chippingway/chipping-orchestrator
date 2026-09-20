@@ -23,7 +23,7 @@ from orchestrator import config
 from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow import drift_reports as world
-from tests.workflow.fixtures import LABEL_VALIDATING
+from tests.workflow.fixtures import LABEL_VALIDATING, _agent
 
 ISSUE = 1_794
 
@@ -87,6 +87,25 @@ class ReportHoldTest(unittest.TestCase, world._DriftReportMixin):
             self.records()["current"].subject.source_sha, world.FIXED_HEAD,
         )
         _assert_reviewed(self, reviewed)
+
+    def test_a_recovered_timeout_owes_its_report(self) -> None:
+        # The resume was killed by its own timeout with a commit already
+        # made, so nothing described it. The silent retry finishes that
+        # publication -- it cannot ask a session that is gone, and the park
+        # it clears exists to clear without a human -- and records the debt
+        # for it in the same write. So no reviewer runs over the head it
+        # leaves: the hold parks for the report, and the reply that brings
+        # one settles it before the reviewer is spawned.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.drift(_agent(session_id=world.DEV_SESSION, timed_out=True))
+        self.drift(REVIEW_REPLY, **world.STRANDED)
+        self.assertEqual(self.pull_request.head.sha, world.FIXED_HEAD)
+
+        held = self.drift(REVIEW_REPLY, head_shas=(world.FIXED_HEAD,))
+
+        held[RUN_AGENT].assert_not_called()
+        _assert_parked(self)
+        _assert_recovered_by_a_fresh_report(self)
 
     def test_a_report_on_moved_requirements_parks(self) -> None:
         # The report was written against the first edit and a second landed

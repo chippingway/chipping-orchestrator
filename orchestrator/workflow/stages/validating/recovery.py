@@ -14,6 +14,13 @@ round, and it is the only writer permitted to while the park flags are still
 set: a timeout that had already committed gets its push finished here, and
 that landed commit is a head the reviewer has not seen.
 
+A commit an `agent_timeout` left is also work no report describes, where the
+park it is clearing came off the requirements-drift road: the run that made it
+was killed before it could report. It is published all the same -- nothing here
+can ask a session that is gone -- with the debt for it staged into the write
+the push makes, so the review hold reads it and asks a human before any
+reviewer sees the head this leaves.
+
 `push_failed` and `agent_timeout` are the two that actually touch git;
 the reviewer-side reasons clear on sight, because there is no dev work to
 finish, only a reviewer to re-spawn. Every probe fails closed to `"stuck"` --
@@ -60,6 +67,7 @@ from orchestrator.workflow.stages.implementing import (
     late_records as _late_records,
 )
 from orchestrator.workflow.stages.validating import (
+    drift_reports as _drift_reports,
     rounds as _rounds,
     state as _state,
 )
@@ -149,6 +157,16 @@ def _recover_timed_out_fix(
     if not current_sha or current_sha == before_sha:
         state.set(_state._PRE_DEV_FIX_SHA, None)
         return _state._OUTCOME_CLEARED
+    if state.get(_state._OPEN_DRIFT):
+        # The commit this retry is finishing answers a requirements edit, and
+        # the run that made it was killed before it could report. Refusing to
+        # publish is the disposition's answer, not this one's: nothing here
+        # can ask a session that is gone, and a park whose whole purpose is
+        # to clear without a human would strand the work behind it. So the
+        # debt is staged into the write the push itself makes, and the review
+        # hold behind it asks a human for the report before any reviewer
+        # reads the head this leaves.
+        _drift_reports._owes_the_undescribed(state)
     recovered = _publish_recovered_fix(
         # The commit this recovery read and is publishing AS the timed-out
         # run's. The gate proves the checkout again, and something landing

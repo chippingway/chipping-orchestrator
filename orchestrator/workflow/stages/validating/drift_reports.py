@@ -34,6 +34,7 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
+from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github.client import GitHubClient
@@ -51,10 +52,40 @@ from orchestrator.workflow.stages.validating import models as _models, state as 
 
 _REPORTS = (_outcome_models._ReadyReport, _outcome_models._VerifiedReport)
 
+# Why a run that did not finish leaves its commit where it is. The engine's
+# own notice speaks for a developer that finished and declined to report, and
+# would tell this human their session wrote something it never did.
+_UNFINISHED_PARK = (
+    "{mentions} this issue's developer resume left committed work on the "
+    "branch and did not finish -- a nonzero exit, a provider refusal, or a "
+    "launch nothing invoked -- so no completion report of that work exists. "
+    "Nothing was published: whatever this run committed is still in the "
+    "worktree, the branch is untouched, and the pull request still stands on "
+    "the commit it already carried. Work an edit to this issue earns reaches "
+    "the pull request with the report of it or not at all, because a reviewer "
+    "handed a commit nobody described has no account of what was done and no "
+    "session left to ask. Reply and the orchestrator resumes the session; the "
+    "report it writes then is the one that gets published, and it publishes "
+    "this commit with it."
+)
+
 
 def _reports(agent_result: AgentResult) -> bool:
     """Whether a run closed on one of the two report outcomes."""
     return isinstance(_outcomes._report_outcome_of_run(agent_result), _REPORTS)
+
+
+def _owes_the_undescribed(state: PinnedState) -> None:
+    """Record that this road is holding commits no report describes.
+
+    Both flags, because they answer different readers. The debt is what the
+    review hold and the resume that reads a reply as the report it asked for
+    ask; the undescribed-work flag is what says these particular commits are
+    the ones nothing accounts for, so a record an EARLIER run left cannot be
+    mistaken for their description.
+    """
+    state.set(_report_delivery.UNREPORTED_WORK, True)
+    state.set(_report_delivery.OWED_REPORT, True)
 
 
 def _records_the_run(
@@ -65,29 +96,60 @@ def _records_the_run(
 ) -> bool:
     """Record the report a drift resume wrote, ahead of the gate; True where held.
 
-    A commit this run made is held to the contract, so a run that completed
-    without a usable report parks rather than publishing undescribed work. A
-    commit stranded by an earlier run is not this run's to describe, so it is
-    recorded only where this run reported anyway.
+    True where nothing may be published. A report this run wrote is recorded
+    and the gate reads the candidate behind it; a report this build cannot
+    record parks, as it does on every road.
+
+    A run that wrote NO usable report publishes nothing at all, and that
+    holds whether or not the run finished. The engine leaves an incomplete
+    run alone -- a nonzero exit, a provider refusal, a launch nothing invoked
+    are failures other roads answer, and on the roads it serves nothing is
+    published either way -- but this road publishes, and a commit it pushed
+    for such a run would reach the reviewer with no account of it anywhere
+    and no session left to ask. So the failure is parked as the missing
+    report it also is, and the reply that answers it resumes the session,
+    which writes the report and publishes the work with it.
     """
-    if run.stranded_head and not _reports(run.agent_result):
-        return False
-    return _report_delivery.recording_stops_the_tick(
+    if _report_delivery.recording_stops_the_tick(
         gh, issue, state, run.agent_result, run.handed,
+    ):
+        return True
+    if _reports(run.agent_result):
+        return False
+    _owes_the_undescribed(state)
+    _report_delivery.parks_an_undeliverable_report(
+        gh, issue, state,
+        _UNFINISHED_PARK.format(mentions=config.HITL_MENTIONS),
     )
+    return True
 
 
 def _withholds_the_stranded(state: PinnedState, run: _models._DevFixRun) -> bool:
-    """Whether a stranded commit stays unpublished for want of its report.
+    """Whether a commit an earlier run stranded stays unpublished, and owed.
 
-    Only where the issue owes a report nothing recorded -- an earlier run
-    committed this work and parked with no report of it -- and this reply is
-    not one. Published anyway, the debt would ride under code nobody
-    described, and the review behind it would be handed that code.
+    This road is the only one that publishes such a commit, and it may only
+    publish it under a report that describes it -- so a reply that brings
+    none withholds it, whatever became of the run that left it. Which run
+    that was decides nothing: what the pull request would come to carry is a
+    commit nothing on it describes either way.
+
+    The debt goes down with the refusal rather than a park, because the reply
+    that earned it keeps its own road -- an `ACK:` is still an answer to the
+    edit, a question is still a question -- and it is the review hold behind
+    them that asks a human for the report the work is missing. Withheld with
+    no debt, the commit would sit in the checkout with nothing saying the
+    pull request is short of it.
+
+    A reply that IS a report publishes it, since a report written over the
+    branch as it stands describes that commit as well as anything this run
+    added.
     """
     if run.handed is None or not run.stranded_head:
         return False
-    return _owes_an_unrecorded_report(state) and not _reports(run.agent_result)
+    if _reports(run.agent_result):
+        return False
+    _owes_the_undescribed(state)
+    return True
 
 
 def _owes_an_unrecorded_report(state: PinnedState) -> bool:

@@ -186,6 +186,33 @@ class DriftReportPublicationTest(unittest.TestCase, world._DriftReportMixin):
                 self.assertEqual(bool(self.pinned().get(AWAITING_HUMAN)), parked)
                 self.assertEqual(set(self.records().values()), {None})
 
+    def test_a_failed_run_publishes_nothing(self) -> None:
+        # A run that exits nonzero wrote no report, and the commit it left is
+        # therefore not published: the pull request receives work an account
+        # of it reaches the reviewer with, or it receives nothing. The engine
+        # exempts an unfinished run from the report contract -- on the roads
+        # it serves nothing is published either way -- so this road parks the
+        # failure as the missing report it also is. The reply that answers
+        # that park resumes the session, and the report it writes publishes
+        # the commit with it.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+
+        held = self.drift(_agent(session_id=world.DEV_SESSION, exit_code=1))
+
+        held[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(set(self.records().values()), {None})
+        self.assertEqual(
+            (self.pinned()[AWAITING_HUMAN], self.pinned()[PARK_REASON]),
+            (True, _report_delivery.UNDELIVERABLE_REPORT),
+        )
+        world.human_reply(self)
+
+        answered = self.drift(world.reported(), **world.STRANDED)
+
+        answered[PUSH_BRANCH].assert_called_once()
+        self.reconcile()
+        self.assertEqual(len(self.published_reports()), 1)
+
     def test_runs_that_did_not_finish_record_nothing(self) -> None:
         # An interrupted run is retried next tick with nothing persisted, and
         # a timed-out one parks as a timeout: neither is a report anybody
