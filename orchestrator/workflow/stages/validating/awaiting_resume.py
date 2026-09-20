@@ -30,9 +30,10 @@ resume that ended in a question or a failure without answering the edit at
 all. Either way the reply is read the way a drift resume's is -- a report with
 no commit publishes onto the head the pull request carries instead of parking
 as a question, and a commit is held to the report contract before the gate
-sees it -- and it is stamped with the revision the batch delivered. A
-publication it lands spends the next review round, exactly as any other fix
-reaching the pull request does.
+sees it -- and it is stamped with the revision the batch delivered. What such
+a publication spends is the round `rounds` says it does, which is nothing
+where the park came back from `in_review` with the budget already reset for
+it.
 
 The claim is read BEFORE the run, because the resume clears the park it was
 written beside: read afterwards, the road would lose exactly the parks it is
@@ -76,7 +77,8 @@ def _resume_validating_awaiting_dev(context: _models._AwaitingValidation) -> str
         return _state._OUTCOME_RETURN
     if drifting or _report_delivery.owes_a_report(context.state):
         return _answers_the_drift_park(
-            context, attempt, _rounds._spends_next_round(context.state),
+            context, attempt,
+            _rounds._spends_for_an_owed_publication(context.state),
         )
     # Frozen before the push: the gate closes it beside its own receipt, and
     # the line below re-applies the same pair rather than re-reading a counter
@@ -139,8 +141,9 @@ def _answers_the_drift_park(
     the content that produced it rather than with a hash the reply has already
     moved past.
 
-    A publication this reply lands is a head no reviewer has read, so it
-    spends the next round like any other fix that reaches the pull request.
+    What the publication costs is `rounds`', and is the one thing this road
+    does not decide for itself: a debt `in_review` handed back has already had
+    its budget reset for the edit that produced it, and spends nothing here.
     """
     outcome = _outcomes._post_user_content_change_result(
         context.gh,

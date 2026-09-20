@@ -11,8 +11,9 @@ missing one happens before this record exists.
 
 `_DriftResume` carries what the drift disposition cannot re-derive after the
 run: the worktree the resume actually ran in (the resolve may have recreated
-it), whether an operator paused mid-run, and `before_sha`, which is the only
-thing that tells a pushed fix from a no-commit acknowledgement.
+it), whether an operator paused mid-run, `before_sha`, which is the only
+thing that tells a pushed fix from a no-commit acknowledgement, and the
+requirements revision the resume was handed, which its report is stamped with.
 
 `_AnsweredIssueSpace` is the three answers the watermark walk asks of every
 comment above the mark, bundled because they are one reading of one pinned
@@ -65,10 +66,12 @@ class _AnsweredIssueSpace:
 @dataclass(frozen=True)
 class _DriftResume:
     """Outcome of the drift dev-resume: the (possibly recreated) worktree, the
-    agent result, whether an operator paused mid-run, and the pre-resume HEAD
-    used to tell a pushed fix from a no-commit ack.
+    agent result, whether an operator paused mid-run, the pre-resume HEAD
+    used to tell a pushed fix from a no-commit ack, and the hash the drift
+    check took of the content the resume was handed.
     """
     worktree: Any
     dev_result: Any
     paused: bool
     before_sha: Any
+    requirements_revision: str = ""

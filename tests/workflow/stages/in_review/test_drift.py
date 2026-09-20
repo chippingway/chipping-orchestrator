@@ -10,6 +10,8 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.support.fakes import (
     DEFAULT_PR_HEAD_SHA,
     FakeComment,
@@ -28,6 +30,7 @@ from tests.workflow.fixtures import (
     _issue_branch,
     _PatchedWorkflowMixin,
 )
+from tests.workflow.report_values import _reported
 
 PUSHED_DRIFT_ISSUE = 80
 PUSHED_DRIFT_PR = 800
@@ -105,7 +108,7 @@ class HandleInReviewResumeOnHashChangeTest(
         self._run_in_review(
             gh,
             issue,
-            run_agent=_agent(session_id=DEV_SESSION, last_message="addressed"),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=_reported("addressed")),
             has_new_commits=True,
             dirty_files=(),
             push_branch=True,
@@ -229,14 +232,16 @@ class HandleInReviewResumeOnHashChangeTest(
         self.assertEqual(state.get("user_content_hash"), STALE_HASH)
         self.assertFalse(state.get("awaiting_human"))
 
-    def test_no_commit_drift_publishes_stranded_fix(self) -> None:
-        # A no-commit drift resume that finds a committed-but-unpublished
-        # fix stranded on the branch (e.g. left by a PRIOR interrupted drift
-        # resume that committed before being killed) must PUBLISH it through
-        # the push tail and report "pushed" -- even when the reply carries an
-        # `ACK:` marker. Without the stranded-fix gate the ACK would return
-        # "ack" and the caller would consume/advance the drift while the PR
-        # branch never received the commit. Mirrors `_handle_dev_fix_result`.
+    def test_no_commit_drift_owes_the_stranded_fix(self) -> None:
+        # A no-commit drift resume that finds a committed-but-unpublished fix
+        # stranded on the branch -- left by a PRIOR resume that committed
+        # before being killed -- publishes nothing while the reply it brings
+        # is no report of that commit. The pull request may only receive work
+        # a report on it describes, and an `ACK:` describes none, so the
+        # commit stays in the worktree and the issue records that it owes a
+        # report for work nothing accounts for. The approval is stale either
+        # way, so the move to `validating` is still owed, and the reply that
+        # answers the debt there publishes the commit with its report.
         gh, issue = self.seed_drift(STRANDED_FIX_ISSUE, STRANDED_FIX_PR)
 
         mocks = self._run_in_review(
@@ -253,19 +258,15 @@ class HandleInReviewResumeOnHashChangeTest(
             branch_ahead_behind=(1, 0),
         )
 
-        # The stranded fix is published instead of acked.
-        mocks["_push_branch"].assert_called_once()
-        # "pushed" outcome bounces directly to validating with a fresh round.
+        mocks["_push_branch"].assert_not_called()
+        state = gh.pinned_data(STRANDED_FIX_ISSUE)
+        self.assertTrue(state.get(_report_delivery.UNREPORTED_WORK))
+        self.assertTrue(_report_delivery.owes_a_report(
+            PinnedState(state_data=state),
+        ))
+        # The edit is answered, so the stale approval still hands back.
         self.assertIn((STRANDED_FIX_ISSUE, LABEL_VALIDATING), gh.label_history)
-        self.assertEqual(gh.pinned_data(STRANDED_FIX_ISSUE).get("review_round"), 0)
-        # The misleading "satisfies the edit" FYI is NOT posted (we published
-        # a real commit, not an acknowledgement).
-        self.assertFalse(
-            any(
-                "satisfies the edit" in body
-                for _, body in gh.posted_comments
-            )
-        )
+        self.assertEqual(state.get("review_round"), 0)
 
 
 class FreshFeedbackBothSurfacesTest(
@@ -433,7 +434,7 @@ class InReviewDriftPromptTrustFilterTest(
             mocks = self._run_in_review(
                 gh,
                 issue,
-                run_agent=_agent(session_id=DEV_SESSION, last_message="addressed"),
+                run_agent=_agent(session_id=DEV_SESSION, last_message=_reported("addressed")),
                 has_new_commits=True,
                 dirty_files=(),
                 push_branch=True,

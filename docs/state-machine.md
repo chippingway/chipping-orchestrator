@@ -212,7 +212,10 @@ over a report the issue owes, makes the next reply read the way the resume's own
 report contract before the size gate, with a report and no commit published onto the unchanged head. Either way the
 report is stamped with the requirements revision that session was actually handed — the drift check's own hash for
 the resume it launched, and the revision the frozen batch delivered for the reply continuing it — and no reviewer
-runs until the pull request carries it. `_handle_fixing`, `_handle_question`, and
+runs until the pull request carries it. `in_review` runs the same contract on its own drift resume, recording the
+report under its own route ahead of the size gate and publishing a report with no commit onto the head the pull
+request carries; the issue then goes back to `workflow:validating`, which is where that reviewer waits.
+`_handle_fixing`, `_handle_question`, and
 `_handle_discussion` deliberately skip the check. The eight non-human filters (including the untrusted-author filter
 and the whole-comment operator-command exclusions — `/orchestrator continue`, `/orchestrator add-agent-runs N`, and
 `/orchestrator authorize-oversized <commit>`), the
@@ -390,11 +393,14 @@ descendant, a fix, the docs pass, a conflict resolution, and a heuristic match e
 ### `_handle_in_review` (label `in_review`)
 
 A PR is open and humans drive the merge — the orchestrator never merges from here, so any `merged` state it observes
-was produced externally. The handler scans four feedback surfaces over three id namespaces — the issue thread and the
-PR conversation share one, so each is read against its own cursors before the two merge — and routes to
-`workflow:fixing` without advancing the watermarks, falls back to the drift check, and otherwise posts the one-shot
-`:bell:` HITL ping when the head is mergeable, docs-complete or GitHub-approved, and carries no standing human
-CHANGES_REQUESTED. Full flow: [`state-machine/delivery-stages.md`][in-review].
+was produced externally. Behind the terminals, an issue whose approval a requirements edit made stale — one still
+owing a developer report a drift resume recorded, or carrying the marker a hand-back whose relabel did not land
+leaves — goes straight back to `workflow:validating`, since only that stage binds the report and re-reviews. The
+handler scans four feedback surfaces over three id namespaces — the issue thread and the PR conversation share one,
+so each is read against its own cursors before the two merge — and routes to `workflow:fixing` without advancing the
+watermarks, falls back to the drift check, and otherwise posts the one-shot `:bell:` HITL ping when the head is
+mergeable, docs-complete or GitHub-approved, and carries no standing human CHANGES_REQUESTED. Full flow:
+[`state-machine/delivery-stages.md`][in-review].
 
 ### `_handle_fixing` (label `workflow:fixing`)
 

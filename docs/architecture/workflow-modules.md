@@ -373,9 +373,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             records, and measured in BOTH worlds, since the reservation replaces what is there and a
                             comment can carry a receipt wider than any spelling this build writes. All of it is
                             replayed through the owners that perform those writes rather than allowed for by a
-                            margin, so a field added to any of them moves this refusal with it. That receipt-carrying
-                            world is published beside the round trip, because the delivered record written ahead of
-                            the same push is measured against it too
+                            margin, so a field added to any of them moves this refusal with it. The two later
+                            writes are published as one world builder beside the round trip -- that receipt, and
+                            the stale-approval hand-back `in_review` makes when a requirements edit sends an
+                            approved pull request back -- because the delivered record written ahead of the same
+                            push is measured against both, each for the roads that make it
     report_delivery_state.py the delivered report's round trip and the write that BINDS one: presence asked apart
                             from meaning as the transaction's is, a record refused rather than truncated where
                             this owner's reader would not hand it back or the comment could not carry it, and the
@@ -394,10 +396,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             bounded at 256 can occupy 3072. All of it measured over
                             the comment that binding LEAVES, since the exchange gives back the room a delivery
                             being replaced is holding and costs the `null` its drop writes. The record's OWN write
-                            is measured in two worlds beside that one -- this comment, and this comment carrying the
-                            code-publication receipt -- because what stands between the record and the binding is the
-                            push, and the gate that pushes writes that receipt here. It is a different world from the
-                            exchanged one: the delivery ADDED to everything the issue already carries, a transaction
+                            is measured in four worlds beside that one -- this comment, and this comment carrying
+                            the code-publication receipt, the stale-approval hand-back, or both -- because what
+                            stands between the record and the binding is the push and, on the `in_review` drift
+                            road, the hand-back behind it; both write here. The hand-back is reserved for the
+                            ROUTE the record names, since `in_review` is the only stage that makes one: charged
+                            for a write its own road never makes, an implementation's report near the ceiling
+                            would be refused for room nothing was going to take. They are a different world from
+                            the exchanged one: the delivery ADDED to everything the issue already carries, a transaction
                             an earlier publication left outstanding included. The subject a binding
                             takes is held to the requirements revision the delivery froze, and one restating it
                             differently is refused with nothing staged: bound, the transaction would claim the
@@ -449,8 +455,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             moved no head -- a debt owed, a run that finished on a report outcome, and a branch
                             that carries something -- so the reply answering such a park publishes rather than
                             parking as a question. The implementing publication seam is the caller, between its
-                            tree reading and the size gate, and so is the `workflow:validating` requirements-drift
-                            disposition (`stages/validating/drift_reports.py`), ahead of the same gate
+                            tree reading and the size gate, and so is the requirements-drift disposition both review
+                            stages share (`stages/validating/drift_reports.py`), ahead of the same gate
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
@@ -546,9 +552,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since what the record reserved may since have been spent by the routes a deferred
                             transaction let run -- and the REQUIREMENTS last, over the issue read afresh after the
                             request, since a post is long enough for an edit to land under it. Each settlement
-                            records which road made it, for the re-read below -- and retires the debt the
-                            transaction it ends is still recorded as owing, and the undeliverable-report park
-                            itself where that park is the one this settlement answers. Conditions like it are
+                            records which road made it, for the re-read below -- and retires what the transaction
+                            it ends is still recorded as owing: the debt, the fresh review budget an `in_review`
+                            edit reset for this publication, and the undeliverable-report park itself where that
+                            park is the one this settlement answers. Conditions like it are
                             repaired rather than replied to -- an edited report restored, a checkout cleaned -- so
                             the settlement is the only thing that would ever end the wait, and a debt outliving it
                             would hold the reviewer over a report the pull request carries. Any other park reason
@@ -579,7 +586,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             rewrites one. A transaction the settled pair beside it refuses is left owed, for the
                             reconciliation to park. The implementing publication calls it, through
                             `stages/implementing/report_handoff.py`, once its push has reached a pull request; the
-                            review stage's `stages/validating/report_settlement.py` calls the binding step alone,
+                            review stages' `stages/validating/report_settlement.py` calls the binding step alone,
                             `binds_the_delivery`, and leaves the post to the reconciliation's full evidence
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
@@ -2238,13 +2245,38 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             may lose
     in_review/              `in_review`
       handler.py            the order one tick asks its questions in, and the missing-`pr_number` park asked before
-                            the rest
+                            the rest -- with an approval a requirements edit made stale asked right behind the
+                            terminals
       feedback.py           the four surfaces scanned before the drift check, their author filters (a bare
                             `/orchestrator add-agent-runs` is nobody's review), and the park that stays silent for
                             the base-sync retry loop
       fixing_route.py       the pending-fix bookmarks, the hash refresh, and the `workflow:fixing` relabel
-      drift.py              a body edit on an open PR: the unread PR conversation captured first, the dev resume, and
-                            the `workflow:validating` return
+      drift.py              a body edit on an open PR: the move to `workflow:validating` it owes staged with the
+                            refreshed requirements hash, since every write the disposition makes persists both and
+                            the hash is what stops a later tick re-detecting the edit -- a report recorded or a
+                            debt withheld says the move is owed on the roads that leave one, and the marker says it
+                            for the `ACK:` and the park that leave none, so neither may become durable without the
+                            other; the unread PR conversation
+                            captured first and its delivery
+                            ratcheted BOTH before the disposition -- so the first durable write that disposition
+                            makes carries it, rather than a process dying mid-way leaving a report and a push over
+                            feedback still marked unread -- and after, for the notices the disposition posts; the
+                            dev resume
+                            under the requirements revision the drift check handed it, and the `workflow:validating`
+                            return a pushed fix, an `ACK:`, and a report alone all take -- the fresh round and the
+                            marker saying the move is owed persisted BEFORE that relabel, since a label moved first
+                            and a write then lost hands the reviewer the budget the stale approval was earned
+                            under, while a relabel that does not land leaves both durable for the next tick to
+                            move -- and the report bound only once the relabel is behind it; and the hand-back a
+                            later tick gives an issue whose approval an edit made stale, read off a report it still
+                            owes (a failed push, a held candidate, a tick that died mid-way) or off that marker,
+                            which is the only thing an `ACK:` and a resume that PARKED leave -- a question answers
+                            the edit with nothing, so the move is owed from there too, and made ahead of the
+                            feedback scan that would otherwise route the answer to `workflow:fixing` -- with the
+                            comment a human wrote while the resume was out still unread beneath the carry, so the
+                            move hands on the reply they wrote. A publication still owed when either move
+                            is made is recorded as belonging to the budget that reset gives it, so the road that
+                            lands it on `workflow:validating` spends no round the edit has already paid for
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the one HITL ready-ping an approved, unvetoed head earns per head
                             SHA, which is no park and carries no mark
@@ -2255,7 +2287,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             manually-relabeled issue needs -- both walks forward from where the mark is, over what
                             they can vouch for, and neither reads a tip
       models.py             the per-tick handles and the drift-resume record
-      state.py              the issue-side watermark key they share
+      state.py              the issue-side watermark key they share, the marker saying this issue owes
+                            `workflow:validating` a label move its own relabel did not land, and the one staged
+                            write spelled here rather than at the owner that makes it: every field the hand-back
+                            puts down, asked by the report reservation so a field added moves it too
     question/               `question`
       handler.py            the order one tick asks its questions in, the closed-issue finalize that outranks them,
                             and both worktree teardowns
@@ -2337,21 +2372,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             alone, since whether the branch is ahead decides nothing there
       awaiting.py           the three park-reason claims on the context's one frozen reply batch, and the dev
                             attempt they fall through to, handed that same batch; the explicit `/orchestrator
-                            continue` retry is re-grounded off its conversation less the commands it consumes
+                            continue` retry is re-grounded off its conversation less the commands it consumes.
+                            A transient retry that resolves drops the fresh review budget a hand-back recorded
+                            with the park it clears: that retry IS the publication the budget was reset for --
+                            pushed, or found not to exist -- and a record left standing would spend nothing for
+                            the next unrelated publication this stage owes
       awaiting_resume.py    the order those claims are asked in and the resume none of them wanted, over the context
                             the handler built before its drift check -- and, where the park was one this stage took
                             over a report it owes, the drift reading of that resume's answer, stamped with the
                             revision the batch delivered, since a reply to a park is no drift and this is the road
-                            it arrives on; a park over an edit its own resume never answered reads the same
+                            it arrives on -- a park over an edit its own resume never answered reads the same
                             way, off a claim taken BEFORE the run, since the resume clears the park it was written
-                            beside
+                            beside -- and spending the round `rounds.py` says it does, which is none where the
+                            park came back from `in_review` with the budget already reset for it
       drift.py              a body edit mid-review, the three parks that defer, the consumed-thread watermark, and
                             the requirements revision the drift check hands the resume its report is stamped with;
                             on a parked tick the edit is measured by what the park had already read
       drift_models.py       the frozen record that route's resume hands the helper that finishes it
       drift_outcomes.py     the claim that the edit is still unanswered, written -- for a caller that named what
                             its resume was `handed`, which is the caller that reads it back -- beside every park a
-                            resume ends on and dropped by every outcome that answers it; the `ACK:`
+                            resume ends on and dropped by every outcome that answers it, with the fresh review
+                            budget a hand-back recorded, but only once the publication that budget was reset for
+                            has happened, so an `ACK:` leaving a commit withheld for its report keeps it; the `ACK:`
                             reply that must not park, over the shared fix disposition, and -- where the
                             caller names what its resume was `handed` -- the report reply that is neither, recorded
                             for the unchanged head as `reported`, and a commit held to the same contract
@@ -2377,7 +2419,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the pull request, its description, and the issue all read again by number: the binding
                             is told whether that description still closes the issue and names the session, and the
                             dispatch reconciliation settles it over the FRESH issue, since the one in hand predates
-                            the resumed run and an edit made during it exists only on the new object. Asked by the
+                            the resumed run and an edit made during it exists only on the new object. Asked by both
                             drift callers behind their own bookkeeping and by the hold, so a delivery a later push
                             carried (a recovered failed push, a settled adjudication) is bound on the first tick
                             that proves it; a refusal no retry changes parks once under `report_undeliverable`
@@ -2399,12 +2441,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             committed NOTHING reads the branch as well as the run, since an earlier resume can
                             have committed and been interrupted before anything was written, and a clear there
                             would drop the edit's obligation over work the pull request has not got --
-                            the debt the push that lands pays, the held outcome that owes the caller no follow-up and
+                            the debt the push that lands pays, the round `rounds.py` says that push spends, which
+                            is none where the park was delaying a publication an `in_review` hand-back had already
+                            reset the budget for, the held outcome that owes the caller no follow-up and
                             no relabel, and the one sentence a park that healed itself owes the thread
       rounds.py             the `review_round` a fix pays for on the one event `MAX_REVIEW_ROUNDS` counts -- a head
                             the reviewer has not seen reaching the pull request -- spent by the push that lands and
                             by the hold that sends the candidate to the adjudication, the held form handed to the
-                            gate so the count is not lost to a crash in the relabel window
+                            gate so the count is not lost to a crash in the relabel window; and the one publication
+                            that spends nothing -- one a drift park still owes, whose budget an `in_review`
+                            requirements edit already reset, and whose delayed landing would otherwise charge that
+                            edit twice, asked by the resume that answers such a park and by the silent retry that
+                            finishes its push
       models.py             the frozen records several owners in this stage hand each other -- a record one
                             route builds and reads alone stays beside that route instead -- and the park clear
                             every awaiting road takes, which drops the unanswered-edit claim with the park it was

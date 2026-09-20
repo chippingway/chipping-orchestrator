@@ -54,6 +54,13 @@ _LATE_RECEIPT_DAMAGE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_receipt_damage"
 # through rather than re-derived so what counts as a plan is decided once.
 _IMPLEMENTING_HANDLER_OWNER = f"{_IMPLEMENTING_PACKAGE}.handler"
 _IN_REVIEW_PACKAGE = "orchestrator.workflow.stages.in_review"
+
+# The owner that stages the fields a stale-approval hand-back writes before it
+# moves the label. Named here and resolved when called for the same reason as
+# the receipt owners above: a report recorded on that road is measured against
+# the comment those fields leave, and asking the stage directly would make the
+# engine's own import pull the handlers that import it back.
+_IN_REVIEW_HANDOFF_OWNER = f"{_IN_REVIEW_PACKAGE}.state"
 _QUESTION_PACKAGE = "orchestrator.workflow.stages.question"
 _VALIDATING_PACKAGE = "orchestrator.workflow.stages.validating"
 

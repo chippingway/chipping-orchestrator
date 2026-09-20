@@ -62,10 +62,10 @@ reading the earlier one's comment as its own publication, edited beyond
 recognition.
 
 The implementing stage's publication seam is what calls in, between proving a
-clean tree and the size gate, and so does the requirements-drift disposition on
-an open pull request, which names the revision its resume was handed; the
-binding that exchanges a delivery for the transaction it becomes, once the push
-has reached a pull request, is `report_binding`'s.
+clean tree and the size gate, and so does the requirements-drift disposition an
+open pull request's review stages share, which names the revision its resume
+was handed; the binding that exchanges a delivery for the transaction it
+becomes, once the push has reached a pull request, is `report_binding`'s.
 """
 from __future__ import annotations
 
@@ -120,6 +120,17 @@ UNDELIVERABLE_REPORT = "report_undeliverable"
 # while it stands, the reply a park earns publishes nothing and the review is
 # held for the report the work is missing.
 UNREPORTED_WORK = "developer_report_unreported_work"
+
+# The fresh review budget a requirements edit earned on an approved pull
+# request, recorded where the publication that edit produced is still owed.
+# `in_review` resets the round before it hands the issue back, because the
+# approval was earned against requirements that are gone -- and a publication
+# still owed then lands on `validating`, where a fix that reaches the pull
+# request ordinarily spends a round. Spent from the budget that reset just
+# made, the delayed road would hand the next reviewer one round less than the
+# road where the same push landed at once. Retired with the debt it is about,
+# by the settlement that ends it.
+OWED_ROUND_RESET = "developer_report_owed_round_reset"
 
 # How a transaction minted here is named. The revision is what makes it
 # unique per issue, and the spelling is one the report header carries verbatim.
