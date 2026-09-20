@@ -278,7 +278,7 @@ class ReportedRunTest(unittest.TestCase):
 
                 self.assertTrue(_delivery.recording_stops_the_tick(
                     *seeded, state, _agent(last_message=message),
-                    WorkflowLabel.IMPLEMENTING,
+                    delivery_support.IMPLEMENTING_ROUTE,
                 ))
 
                 self.assertFalse(
@@ -297,7 +297,7 @@ class ReportedRunTest(unittest.TestCase):
         state = PinnedState(state_data={delivery_support.BASELINE: support.REQUIREMENTS})
         _delivery.recording_stops_the_tick(
             *seeded, state, _agent(last_message="implemented"),
-            WorkflowLabel.IMPLEMENTING,
+            delivery_support.IMPLEMENTING_ROUTE,
         )
         state.set(delivery_support.PARK_REASON, "agent_timeout")
         self.assertEqual(
@@ -308,7 +308,7 @@ class ReportedRunTest(unittest.TestCase):
         self.assertFalse(_delivery.recording_stops_the_tick(
             *seeded, state,
             _agent(last_message=delivery_support.ready("The report.")),
-            WorkflowLabel.IMPLEMENTING,
+            delivery_support.IMPLEMENTING_ROUTE,
         ))
 
         self.assertIsNone(state.get(_delivery.OWED_REPORT))
@@ -365,7 +365,7 @@ class ReportedRunTest(unittest.TestCase):
                 self.assertFalse(_delivery.recording_stops_the_tick(
                     *seeded, state,
                     _agent(**{"last_message": delivery_support.ready(delivery_support.DELIVERED.report), **run}),
-                    WorkflowLabel.IMPLEMENTING,
+                    delivery_support.IMPLEMENTING_ROUTE,
                 ))
 
                 self.assertFalse(_delivery.owes_a_report(state))
@@ -383,7 +383,7 @@ class ReportedRunTest(unittest.TestCase):
                 f"/pull/{support.PR_NUMBER}#issuecomment-{support.COMMENT_ID}"
                 f" sha256:{support.CONTENT_DIGEST}"
             )),
-            WorkflowLabel.IMPLEMENTING,
+            delivery_support.IMPLEMENTING_ROUTE,
         ))
 
         self.assertEqual(
@@ -408,7 +408,7 @@ class ReportedRunTest(unittest.TestCase):
                 f"done\n\nREPORT: VERIFIED https://github.com/{support.SLUG}"
                 f"/pull/{support.PR_NUMBER} sha256:{support.CONTENT_DIGEST}"
             )),
-            WorkflowLabel.IMPLEMENTING,
+            delivery_support.IMPLEMENTING_ROUTE,
         ))
 
         self.assertFalse(_delivery_state.carries_delivered_report(state))
@@ -431,7 +431,7 @@ class ReportedRunTest(unittest.TestCase):
 
         self.assertTrue(_delivery.recording_stops_the_tick(
             github, issue, state, _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report)),
-            WorkflowLabel.IMPLEMENTING,
+            delivery_support.IMPLEMENTING_ROUTE,
         ))
 
         self.assertFalse(_delivery_state.carries_delivered_report(state))
@@ -462,7 +462,7 @@ class DeliveredRevisionTest(unittest.TestCase):
 
         _delivery.recording_stops_the_tick(
             github, issue, state, _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report)),
-            WorkflowLabel.IMPLEMENTING,
+            delivery_support.IMPLEMENTING_ROUTE,
         )
 
         recorded = _delivery_state.read_delivered_report(state)
@@ -483,7 +483,7 @@ class DeliveredRevisionTest(unittest.TestCase):
         _delivery.recording_stops_the_tick(
             github, issue, state,
             _agent(last_message=delivery_support.ready("the report the park asked for")),
-            WorkflowLabel.IMPLEMENTING,
+            delivery_support.IMPLEMENTING_ROUTE,
         )
 
         recorded = _delivery_state.read_delivered_report(state)
@@ -502,7 +502,7 @@ class DeliveredRevisionTest(unittest.TestCase):
 
         _delivery.recording_stops_the_tick(
             github, issue, state, _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report)),
-            WorkflowLabel.IMPLEMENTING,
+            delivery_support.IMPLEMENTING_ROUTE,
         )
 
         self.assertEqual(

@@ -112,6 +112,22 @@ def _report_outcome_of_run(agent_result: AgentResult) -> _models._ReportOutcome:
     return _parse_report_outcome(agent_result.last_message)
 
 
+def _finished_on_a_report(agent_result: AgentResult) -> bool:
+    """Whether this run finished on one of the two report outcomes.
+
+    What it separates is which road a run's disposition belongs on, for the
+    routes where a reply carrying NO report is an ordinary answer rather than
+    a contract broken. A fix round is exactly that: its `ACK:`, its question,
+    its timeout are each a road the stage already has, and handing every one
+    of them to `report_delivery.recording_stops_the_tick` would park the
+    ordinary ones, since that owner reads a completed run with no report as a
+    violation. Asked first, only the runs that really wrote one reach it.
+    """
+    return not isinstance(
+        _report_outcome_of_run(agent_result), _models._ReportRefusal,
+    )
+
+
 def _parse_report_outcome(last_message: str) -> _models._ReportOutcome:
     """The report outcome a completed run's `last_message` closes with.
 

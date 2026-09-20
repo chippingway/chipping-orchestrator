@@ -1468,14 +1468,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in_review watermarks that are theirs
       bookmarks.py          the `pending_fix_*` ids a replay rebuilds the triggering batch from, and the clear each
                             round earns
+      reporting.py          the road a round that finished on a report outcome takes: the record its consumed pairs
+                            and route bookkeeping ride (`engine/report_delivery.py`), the binding and post that put
+                            it on the pull request (`engine/report_binding.py`), and the answer that holds the
+                            relabel while it is still owed -- what closes the two groups is the write that completes
+                            the transaction, here or in the reconciliation ahead of a later handler
       resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
                             nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
-                            outcome DID deliver, taken once ahead of the disposition so the size gate's own durable
-                            write and a park's both carry it, the ACK fast path, the `workflow:validating` relabel a
-                            pushed fix earns, and the round a fix the size gate sent to adjudication spends here --
-                            no later tick of this stage can, since the head the reviewer rejected is superseded
-                            whether that adjudication parks its `single` for a human or an authorized settlement
-                            publishes before handing the issue back
+                            outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix
+                            earns, and the round a fix the size gate sent to adjudication spends here -- no later
+                            tick of this stage can, since the head the reviewer rejected is superseded whether that
+                            adjudication parks its `single` for a human or an authorized settlement publishes before
+                            handing the issue back. Which write carries the settlement forks on the run's report
+                            outcome: a round that finished on one records its consumed pairs and its route
+                            bookkeeping onto the report transaction (`engine/report_delivery.py`) and binds it to
+                            the publication afterwards (`engine/report_binding.py`), so the write that completes the
+                            publication is the one that closes them and a report still owed holds the relabel;
+                            every other outcome closes its own directly, ahead of the disposition, where the size
+                            gate's own durable write and a park's both carry it
       parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough

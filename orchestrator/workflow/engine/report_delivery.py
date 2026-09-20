@@ -89,7 +89,6 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_settlement_state as _settlement,
 )
-from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -193,7 +192,7 @@ def recording_stops_the_tick(
     issue: Issue,
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
-    route: WorkflowLabel,
+    owes: _records.RouteDebt,
 ) -> bool:
     """Record what a finished run wrote, or hold the tick over what it wrote.
 
@@ -222,8 +221,15 @@ def recording_stops_the_tick(
     A record that IS stored retires the park this owner may have taken, since
     what that park asked for was exactly a report it could record -- and left
     standing it would hold the publication it was about to make possible.
+
+    `owes` is the road this run came off and the bookkeeping that road cannot
+    close itself once a transaction is carrying the work. Both groups ride the
+    record from here so the input this run consumed and the round its route
+    spent are settled by the same write that finishes the publication -- one
+    durable write rather than a caller's own beside it, which a crash in
+    between would lose while the report went out.
     """
-    delivered = _delivered_report(gh, issue, state, agent_result, route)
+    delivered = _delivered_report(gh, issue, state, agent_result, owes)
     if delivered is None:
         return _unreported_run_holds(gh, issue, state, agent_result)
     if not _delivery_state.record_delivered_report(state, delivered):
@@ -390,7 +396,7 @@ def _delivered_report(
     issue: Issue,
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
-    route: WorkflowLabel,
+    owes: _records.RouteDebt,
 ) -> _records.DeliveredReport | None:
     """The record one run's report outcome earns, or None where it earns none.
 
@@ -438,8 +444,10 @@ def _delivered_report(
     return _records.DeliveredReport(
         receipt=_RECEIPT.format(issue=issue.number, revision=revision),
         report_revision=revision,
-        route=route,
+        route=owes.route,
         requirements_revision=requirements if isinstance(requirements, str) else "",
+        watermarks=owes.watermarks,
+        spends=owes.spends,
         **carried,
     )
 

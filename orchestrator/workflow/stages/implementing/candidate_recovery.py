@@ -23,6 +23,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
     report_delivery as _report_delivery,
+    report_records as _report_records,
 )
 from orchestrator.workflow.stages.implementing import (
     checkout_parks as _checkout_parks,
@@ -130,7 +131,8 @@ def _publish_committed_work(
         return
     _unreported_recovery._waives_an_incomplete_run(gh, issue, state, work)
     if _report_delivery.recording_stops_the_tick(
-        gh, issue, state, work.agent_result, _state._REPORT_ROUTE,
+        gh, issue, state, work.agent_result,
+        _report_records.RouteDebt(route=_state._REPORT_ROUTE),
     ):
         return
     if _unreported_recovery._holds_an_unfinished_run(gh, issue, state, work):

@@ -1434,7 +1434,9 @@ The keys that matter for the state machine fall into a few groups:
   only their own in-review watermarks. Every surface advances to the max id actually quoted on it and no further, the
   pairs come from `workflow/engine/prompt_delivery.py` (the producer a recovered report transaction's watermarks are
   also read against), and a run that was never invoked, a shutdown-killed run, and a live-paused run settle nothing at
-  all — delivery is what the field records, and none of those delivered anything.
+  all — delivery is what the field records, and none of those delivered anything. A round that finished on a report
+  outcome settles nothing on the tick either: its pairs are recorded onto the report transaction beside the round it
+  spent, and the write that completes that publication is the one that applies both.
 
   Every writer of these fields stops before unread human input, and none of them reads a tip. The
   approval handoff's seed walk stops at the first unread non-orchestrator comment on either surface; the legacy
@@ -1479,7 +1481,9 @@ The keys that matter for the state machine fall into a few groups:
   every reader has advanced past it (falling back conservatively to the max ids for issues parked before the lists were
   recorded). Settling a delivered batch never touches them: an explicit `/orchestrator continue` retry, a genuine
   question or disagreement park, and a publication the issue still owes all depend on the bookmarks outliving the
-  readers the same round moved. The `validating → fixing` route instead records a single
+  readers the same round moved. The last of those is why a reporting fix round hands the size gate nothing to close:
+  the clear rides its report transaction, so a report GitHub has not accepted yet leaves the replay source
+  standing. The `validating → fixing` route instead records a single
   `pending_fix_reviewer_comment_id` — the id of the PR conversation comment carrying the reviewer's
   CHANGES_REQUESTED feedback — and does NOT set `pending_fix_at` (that key is the route discriminator that drives the
   review-round reset). `_reconstruct_pending_fix_batch` re-fetches that

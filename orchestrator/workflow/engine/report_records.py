@@ -169,6 +169,25 @@ class PendingReport:
 
 
 @dataclass(frozen=True)
+class RouteDebt:
+    """The road one run came off, and the bookkeeping that road owes.
+
+    They travel together because they are one fact about the caller rather
+    than two: the route is what says WHOSE round a transaction closes and
+    whose consumed batch it settles, and a record carrying one without the
+    other could not name the bookkeeping it is applying.
+
+    Both groups are empty for a caller that closes its own, which every
+    publication with no reviewer round and no consumed batch behind it is --
+    the initial implementation seam among them.
+    """
+
+    route: WorkflowLabel
+    watermarks: tuple = ()
+    spends: tuple = ()
+
+
+@dataclass(frozen=True)
 class CurrentReport:
     """The report a pull request carries now, whoever published it.
 

@@ -36,11 +36,20 @@ every park, so nobody else will rebase it.
 `resume` is the run and everything a finished run leaves behind -- the quiet
 window it waits out, the three refusals that count no delivery at all (a launch
 nothing invoked, a shutdown kill, a live pause), the settlement every other
-outcome earns, taken once ahead of the disposition, the ACK fast path, and the
-`validating` relabel a pushed fix earns. What that settlement records is
-delivery and never completion: the developer report a finished fix round may
-write is not published from here, and the routes that will publish one carry
-the same consumed pairs rather than deriving their own.
+outcome earns, the ACK fast path, and the `validating` relabel a pushed fix
+earns.
+
+Which WRITE carries that settlement is the fork `reporting` answers, and it
+turns on whether the run finished on a report. A fix prompt teaches the report contract like every
+other developer prompt, so a round can end on `REPORT: READY` -- and then it
+owes a publication this tick cannot guarantee. Its consumed pairs and its
+route bookkeeping are recorded ON the transaction the report goes out as and
+settled by the write that completes it, whichever tick makes that: the one
+that binds and posts here, or the reconciliation ahead of a later handler.
+Until then the bookmarks stand, the readers stand, and the label stays put, so
+no reviewer is sent to a head whose report nothing on the pull request carries.
+Every other outcome -- the `ACK:`, the question, the timeout -- writes no
+report and closes its own bookkeeping directly, ahead of the disposition.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

@@ -33,9 +33,6 @@ final-docs handoff after reviewer approval.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
-from orchestrator.agents.models import AgentResult
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
@@ -50,6 +47,7 @@ from orchestrator.workflow.stages.fixing import (
     bookmarks as _bookmarks,
     feedback as _feedback,
     models as _models,
+    reporting as _reporting,
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -173,14 +171,22 @@ def _run_fixing_resume(
 
 def _fixing_ack_fast_path(
     ctx: _models._FixingContext,
-    wt: Path,
-    dev_result: AgentResult,
-    after_sha: str | None,
+    run: _models._FixingResumeRun,
+    *,
+    routed: bool,
+    reporting: bool,
 ) -> bool:
     """In_review-route ACK fast path. Returns True (and relabels to
     `in_review`) when the dev's no-commit reply carried an explicit
     `ACK: <reason>` marker vouching that the PR feedback needs no actionable
     change; False to fall through to `_handle_dev_fix_result`.
+
+    Three shapes never reach the marker. The validating CHANGES_REQUESTED
+    route (`routed` false) is excluded because that reviewer asked for a
+    concrete change, so an ACK there is not an answer. A run that finished on
+    a report outcome is excluded because its road is the publication, not a
+    relabel to `in_review`. And a run that timed out or moved HEAD is not a
+    no-commit reply at all.
 
     A vague "continue" / "ok" nudge should not strand a complete, mergeable PR
     in `fixing`, so an ack returns to `in_review` (re-arming the ready-ping)
@@ -198,14 +204,18 @@ def _fixing_ack_fast_path(
     is unreadable (mirrors `_handle_dev_fix_result`'s own gate -- no pushing
     blind off a worktree whose HEAD we could not read).
 
-    The consumed batch is settled by the caller ahead of this call, on the ack
+    The consumed batch is recorded by the caller ahead of this call, on the ack
     and the fall-through alike: the reading that says the feedback needs no
     change is the same reading that says a developer read it.
     """
-    ack_reason = _messages._drift_ack_reason(dev_result.last_message or "")
+    if not routed or reporting or run.dev_result.timed_out:
+        return False
+    if run.after_sha and run.after_sha != run.before_sha:
+        return False
+    ack_reason = _messages._drift_ack_reason(run.dev_result.last_message or "")
     if not ack_reason or (
-        after_sha and _stranded._stranded_fix_unpushed(
-            ctx.spec, wt, ctx.state, ctx.issue,
+        run.after_sha and _stranded._stranded_fix_unpushed(
+            ctx.spec, run.worktree, ctx.state, ctx.issue,
         )
     ):
         return False
@@ -224,6 +234,68 @@ def _fixing_ack_fast_path(
     return True
 
 
+def _records_what_was_consumed(
+    ctx: _models._FixingContext,
+    run: _models._FixingResumeRun,
+    feedback: _models._FixingFeedback,
+    owed,
+    *,
+    reporting: bool,
+) -> bool:
+    """Record what this round consumed, on the road its outcome belongs to.
+
+    True is a tick this call ended -- a report this build cannot record, which
+    parks with the commit still in the worktree and nothing published.
+
+    A run that finished on a report outcome owes a publication this tick
+    cannot guarantee, so its consumed pairs and its route bookkeeping ride the
+    record of that report (`reporting.py`) and are closed by the write that
+    completes the transaction. Every other outcome writes no report, so it
+    closes its own -- directly and before the disposition, since the size
+    gate's own durable write and a park's both land inside that disposition
+    and a settlement taken afterwards would be lost to a crash in the window a
+    hold's relabel opens.
+
+    Only ids this prompt carried move either way. A human comment that landed
+    AFTER `feedback` was built was never quoted in the dev's prompt, and
+    swallowing it would drop real feedback on both outcomes: the next
+    in_review tick would miss it on a pushed fix, and the next fixing tick's
+    `awaiting_human and not new_feedback` gate would drop it on a park. The
+    orchestrator's own park comment needs no bump to avoid replay -- the next
+    tick's rescan filters by both recorded id and body marker.
+    """
+    if not reporting:
+        _feedback._settle_consumed_feedback(ctx.state, feedback)
+        return False
+    return _reporting._recording_stops_the_tick(ctx, run, feedback, owed)
+
+
+def _delivered_nothing(
+    ctx: _models._FixingContext, run: _models._FixingResumeRun,
+) -> bool:
+    """The three finished runs that put this batch in front of nobody.
+
+    A shutdown kill has no trustworthy result and its partial last message is
+    no ACK and no question; a launch the run circuit turned away invoked no
+    process at all; and a live pause is an operator stopping the tick before
+    anything is persisted. Each bails WITHOUT writing pinned state, so the
+    whole tick stays re-decidable: no reader moves, no bookmark is cleared,
+    `awaiting_human` is untouched, and the next tick re-discovers the same
+    comments and re-feeds them to a fresh session.
+
+    The kill MUST cover the new-commit case too. Falling through would consume
+    the feedback while the commit sits unpushed -- `_handle_dev_fix_result`
+    refuses to publish an interrupted run -- and the next tick would see
+    nothing to do and bounce a PR head that is missing the fix. Left on disk,
+    a later clean run republishes it through the stranded-fix tail.
+    """
+    if run.dev_result.interrupted:
+        return True
+    if _guards._ignore_if_never_invoked(ctx.issue, run.dev_result):
+        return True
+    return run.paused
+
+
 def _resume_fixing_and_dispatch_result(
     ctx: _models._FixingContext,
     feedback: _models._FixingFeedback,
@@ -234,9 +306,10 @@ def _resume_fixing_and_dispatch_result(
     route ACK fast path, the pushed-fix bounce back to `validating`, or a park
     via `_handle_dev_fix_result`.
 
-    Runs after the quiet window has elapsed. Owns the resume, the three guards
-    that refuse to count a run as a delivery, the settlement of the batch that
-    WAS delivered, and the route round bookkeeping.
+    Runs after the quiet window has elapsed. Owns the resume, the three
+    refusals that count no delivery at all, the record of the batch that WAS
+    delivered -- direct, or onto the report transaction that will close it --
+    and the route round bookkeeping.
     """
     # Capture the route discriminator BEFORE the bookmark-clear branches below.
     # `pending_fix_at` is untouched between the tick's capture point and here
@@ -248,97 +321,50 @@ def _resume_fixing_and_dispatch_result(
     # (plus any new feedback that came with the command), not the command
     # text -- the whole point of the command is to not lose the review
     # feedback the parked session never addressed.
-    followup = _conversation_prompts._build_pr_comment_followup(
-        feedback.all_items if replay_batch is None else replay_batch
-    )
-    run = _run_fixing_resume(ctx, followup)
+    run = _run_fixing_resume(ctx, _conversation_prompts._build_pr_comment_followup(
+        feedback.all_items if replay_batch is None else replay_batch,
+    ))
 
-    # A shutdown-killed (interrupted) resume is ignored entirely: its partial
-    # last_message is not a real ACK or question, and `_handle_dev_fix_result`
-    # refuses to publish an interrupted run regardless of HEAD. Bail WITHOUT
-    # persisting state -- the ACK fast path, the consumed-watermark advance,
-    # and the write below never run, and the awaiting_human reset / hash
-    # refresh staged earlier this tick are dropped because we skip
-    # `write_pinned_state`. The next tick re-discovers the same comments
-    # (watermarks unmoved, bookmarks intact, awaiting_human unchanged) and
-    # re-feeds them to a fresh dev session. This MUST cover the new-commit
-    # case too: a kill that had advanced HEAD would otherwise fall through to
-    # `_handle_dev_fix_result` (returns False, no push) and the watermark
-    # advance below would consume the feedback while the local commit sits
-    # unpushed -- the next tick would then see no feedback and bounce a PR
-    # head that is missing the fix. Leaving the commit on disk lets a later
-    # clean run republish it via the stranded-fix tail.
-    if run.dev_result.interrupted:
+    # Nothing below may run for a batch no agent read (`_delivered_nothing`),
+    # and none of it persists: the awaiting_human reset and the hash refresh
+    # staged earlier this tick are dropped with the write we skip.
+    if _delivered_nothing(ctx, run):
         return
 
-    # A launch the run circuit turned away invoked no process at all, so
-    # nothing read this batch and there is no result to dispose of. Bail the
-    # same way, WITHOUT writing pinned state: the refusal recorded its own
-    # reason durably, and the next tick re-discovers the same feedback.
-    if _guards._ignore_if_never_invoked(ctx.issue, run.dev_result):
-        return
-
-    # Live pause applied while the agent ran: an operator added `paused` (or
-    # `backlog`) mid-run. Honor the decision `_resume_dev_with_text` already
-    # made (propagated, not re-fetched) and stop before the ACK fast path, the
-    # stranded-fix publish, `_handle_dev_fix_result`, the watermark advance, or
-    # any relabel / pinned-state write. The committed work stays on the branch,
-    # so once the label is removed the normal recovered / stranded-fix path
-    # republishes it.
-    if run.paused:
-        return
+    # What this route owes for the candidate, frozen BEFORE anything is
+    # written: the bookmarks the consumed batch clears and the round the fix
+    # lands on. Read once, so a second reading taken after the write that
+    # already applied it cannot count the same round twice.
+    owed = _spends_fix_round(ctx.state, pending_fix_at_was_set)
 
     # The prompt reached an agent, so the batch it quoted is delivered
     # whatever the run came back with -- a fix, a timeout, an empty message, a
-    # question. Settle it HERE, once, ahead of every disposition below: each
-    # surface advances only to the max id actually fed to the dev on it, and
-    # the issue thread settles the issue-action boundary beside the PR-side
-    # cursor so a later route change does not pay a second developer to
-    # deliver the same reply. Taken after the disposition instead, the
-    # settlement would sit behind the size gate's own durable write and behind
-    # a park's, and a crash in the window a hold's relabel opens would lose it.
-    #
-    # Only ids this prompt carried move. A human comment that landed AFTER
-    # `feedback` was built was never quoted in `_build_pr_comment_followup`,
-    # and swallowing it would drop real feedback on both outcomes: the next
-    # in_review tick would miss it on a pushed fix, and the next fixing tick's
-    # `awaiting_human and not new_feedback` gate would drop it on a park.
-    #
-    # The orchestrator's own park comment posted by `_park_awaiting_human`
-    # (issue id-space, body carries `_ORCH_COMMENT_MARKER` and its id is
-    # recorded in `orchestrator_comment_ids`) does NOT need a watermark bump to
-    # avoid replay: the next tick's rescan filters by both id and body marker,
-    # so the park comment is dropped even when the watermark sits below it.
-    _feedback._settle_consumed_feedback(ctx.state, feedback)
-
-    # ACK fast path (in_review route only): the dev made no commit but
-    # explicitly signaled via the `ACK: <reason>` marker that the PR feedback
-    # carries no actionable change. The validating CHANGES_REQUESTED route
-    # (`pending_fix_at` unset) is excluded -- the reviewer DID request a
-    # concrete change, so an ACK there falls through to `_handle_dev_fix_result`,
-    # which parks for the human unless its stranded-fix check publishes a
-    # committed-but-unpushed fix instead (`validating/stranded.py`'s probe).
-    if (
-        pending_fix_at_was_set
-        and not run.dev_result.timed_out
-        and (not run.after_sha or run.after_sha == run.before_sha)
-        and _fixing_ack_fast_path(
-            ctx, run.worktree, run.dev_result, run.after_sha,
-        )
+    # question. Which WRITE records that is the fork below, and a report this
+    # build cannot record ends the tick where the commit is still unpublished.
+    reporting = _reporting._reports(run)
+    if _records_what_was_consumed(
+        ctx, run, feedback, owed, reporting=reporting,
     ):
         return
 
-    # What this route owes for the candidate, computed BEFORE the push and
-    # handed to the gate: a hold closes it in the write that carries the
-    # measurement, ahead of the relabel it makes, and a landed push closes it
-    # in the write that carries the receipt. Either way the same frozen pairs
-    # are what the tail below re-applies, so the two cannot disagree -- and
-    # re-applying a value already written is a no-op rather than a second
-    # count, which recomputing the round from the pinned comment would be.
-    owed = _spends_fix_round(ctx.state, pending_fix_at_was_set)
+    # ACK fast path: the dev made no commit but explicitly signaled via the
+    # `ACK: <reason>` marker that the PR feedback carries no actionable
+    # change. A reply that falls short of it goes to `_handle_dev_fix_result`,
+    # which parks for the human unless its stranded-fix check publishes a
+    # committed-but-unpushed fix instead (`validating/stranded.py`'s probe).
+    if _fixing_ack_fast_path(
+        ctx, run, routed=pending_fix_at_was_set, reporting=reporting,
+    ):
+        return
+
+    # The gate is handed what it may close on this caller's behalf, and on the
+    # reporting road that is NOTHING: the transaction recorded above is
+    # carrying the same pairs, and a hold that closed them there would drop
+    # the bookmarks a publication still owed is the replay source for.
     pushed = _dev_fix._handle_dev_fix_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, run.worktree, run.dev_result,
-        run.before_sha, after_sha=run.after_sha, spends=owed,
+        run.before_sha, after_sha=run.after_sha,
+        spends=_late_gate_models._SPENDS_NOTHING if reporting else owed,
     )
 
     if not pushed:
@@ -347,14 +373,24 @@ def _resume_fixing_and_dispatch_result(
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 
+    if reporting and _reporting._holds_an_unpublished_report(ctx, run):
+        # The code is out and the report it is about is not. The transaction
+        # still carries the consumed batch and this route's bookkeeping, so
+        # neither is applied here and the label stays put: the reconciliation
+        # ahead of a later handler finishes the publication and settles both.
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        return
+
     # The bookmarks this route consumed and the round it lands on, in the
     # values frozen before the push. The gate has already written them beside
     # the receipt, so this is what covers the one push it could not: a commit
-    # nothing could name never reaches that write. We flip DIRECTLY to
-    # `validating` so the reviewer re-evaluates the new head next tick. Docs do
-    # not run on this exit -- the single docs pass is deferred to the final-docs
-    # handoff after reviewer approval, so running the docs stage against an
-    # unapproved diff here would just push a no-op and waste a tick.
+    # nothing could name never reaches that write, and a settled report closed
+    # them in the write that finished its publication. Re-applying a value
+    # already written is a no-op rather than a second count. We flip DIRECTLY
+    # to `validating` so the reviewer re-evaluates the new head next tick. Docs
+    # do not run on this exit -- the single docs pass is deferred to the
+    # final-docs handoff after reviewer approval, so running the docs stage
+    # against an unapproved diff here would just push a no-op and waste a tick.
     _late_gate_models._spend(ctx.state, owed)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)

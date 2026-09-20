@@ -31,6 +31,11 @@ ISSUE_NUMBER = 7
 
 RECEIPT = "issue-7-report-1"
 
+# The road the implementing seam records a report off, and what that road owes
+# a transaction: nothing, since the initial publication has no reviewer round
+# behind it and no consumed batch to settle.
+IMPLEMENTING_ROUTE = _records.RouteDebt(route=WorkflowLabel.IMPLEMENTING)
+
 BASELINE = "user_content_hash"
 
 PARK_REASON = "park_reason"

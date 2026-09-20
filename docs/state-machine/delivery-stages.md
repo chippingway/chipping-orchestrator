@@ -3235,7 +3235,13 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      nothing is settled, `awaiting_human` is untouched, and the next tick re-discovers the same feedback: an
      `interrupted` resume a shutdown killed, a launch the run circuit never invoked
      (`guards._ignore_if_never_invoked`), and a mid-run `paused` / `backlog`. Past them the prompt reached an agent, so
-     the batch is **settled** (`_settle_consumed_feedback`) right there — once, ahead of every disposition below,
+     the batch is consumed — and which write records that forks on the run's **report outcome**
+     (`report_delivery.carries_a_report_outcome`). A run that finished on `REPORT: READY` / `REPORT: VERIFIED` owes a
+     publication this tick cannot guarantee, so its consumed pairs and this route's bookkeeping are recorded ONTO the
+     report transaction (`report_delivery.recording_stops_the_tick`, watermarks + spends) before the size gate and the
+     push, and the size gate is handed nothing to close; a report this build cannot record parks there with the commit
+     still in the worktree. Every other outcome — the `ACK:`, the question, the timeout, the dirty tree — writes no
+     report and is **settled** directly (`_settle_consumed_feedback`) right there, ahead of every disposition below,
      because the size gate's own durable write and a park's both land inside that disposition and a settlement taken
      afterwards would be lost to a crash in the window a hold's relabel opens. Then the disposition: a
      no-commit reply first checks for a **stranded fix** (`_stranded_fix_unpushed`): when the worktree is clean and HEAD
@@ -3261,6 +3267,15 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      a durable report transaction's recorded watermarks come from, so ordinary non-report settlement and a recovered
      transaction write the same fields the same way. The `pending_fix_*` bookmarks are NOT touched here: an explicit
      `/orchestrator continue` retry rebuilds its batch from them after these readers have moved past it.
+
+     On the report road none of it is applied on this tick. The landed push binds the transaction to the publication
+     and posts the report (`report_binding.binds_and_publishes`), and the write that COMPLETES that transaction is the
+     one that advances the readers (`advance_consumed`) and closes the bookmarks and the round (`close_bookkeeping`).
+     A report still owed after the bind — a post GitHub refused, a lost response, requirements that moved — holds the
+     relabel too, so the reviewer is never sent to a head whose report nothing on the pull request carries; the
+     readers stay where they were, the `pending_fix_*` replay source stands, and
+     [the developer-report transaction](#the-developer-report-transaction-every-dispatch) ahead of a later handler
+     finishes the publication and settles both groups from the record.
   10. **On a pushed fix**: clear `pending_fix_*`, adjust `review_round` per the route discriminator (in_review route
       resets to 0 — the previous approval was for the prior head; validating route bumps by 1 — same review cycle),
       flip DIRECTLY back to `workflow:validating`. Docs do not run on this exit.
