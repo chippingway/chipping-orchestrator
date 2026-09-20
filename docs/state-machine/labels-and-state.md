@@ -1510,8 +1510,9 @@ The keys that matter for the state machine fall into a few groups:
   spurious hand-back the next time the issue reaches `in_review` — a re-review rather than that ping — and that tick
   clears it. An issue without the key owes no move, which is every issue that predates it. It goes down in one
   staged write with the fresh round and the budget record beside it, spelled on the stage owner that holds the key
-  rather than at the hand-back that makes it — a developer report recorded on the drift road is accepted only where
-  the comment has room for that whole write, so a field added to it moves that refusal too.
+  rather than at the hand-back that makes it — a developer report recorded on THIS stage's drift road is accepted
+  only where the comment has room for that whole write, so a field added to it moves that refusal too. A report
+  recorded on any other route is not charged for it, since no other stage hands an approval back.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one

@@ -375,9 +375,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             replayed through the owners that perform those writes rather than allowed for by a
                             margin, so a field added to any of them moves this refusal with it. The two later
                             writes are published as one world builder beside the round trip -- that receipt, and
-                            the stale-approval hand-back a review stage makes when a requirements edit sends an
+                            the stale-approval hand-back `in_review` makes when a requirements edit sends an
                             approved pull request back -- because the delivered record written ahead of the same
-                            push is measured against both
+                            push is measured against both, each for the roads that make it
     report_delivery_state.py the delivered report's round trip and the write that BINDS one: presence asked apart
                             from meaning as the transaction's is, a record refused rather than truncated where
                             this owner's reader would not hand it back or the comment could not carry it, and the
@@ -398,9 +398,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             being replaced is holding and costs the `null` its drop writes. The record's OWN write
                             is measured in four worlds beside that one -- this comment, and this comment carrying
                             the code-publication receipt, the stale-approval hand-back, or both -- because what
-                            stands between the record and the binding is the push and, on a review stage's drift
-                            road, the hand-back behind it; both write here. They are a different world from the
-                            exchanged one: the delivery ADDED to everything the issue already carries, a transaction
+                            stands between the record and the binding is the push and, on the `in_review` drift
+                            road, the hand-back behind it; both write here. The hand-back is reserved for the
+                            ROUTE the record names, since `in_review` is the only stage that makes one: charged
+                            for a write its own road never makes, an implementation's report near the ceiling
+                            would be refused for room nothing was going to take. They are a different world from
+                            the exchanged one: the delivery ADDED to everything the issue already carries, a transaction
                             an earlier publication left outstanding included. The subject a binding
                             takes is held to the requirements revision the delivery froze, and one restating it
                             differently is refused with nothing staged: bound, the transaction would claim the
