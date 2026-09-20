@@ -302,11 +302,10 @@ def _resume_fixing_and_dispatch_result(
 
     # Advance the three in_review watermarks ONLY to the max id actually fed to
     # the dev on each surface (ratcheted against the current watermark).
-    # Deliberately tighter than `_bump_in_review_watermarks`, which also pulls
-    # in `gh.latest_comment_id(issue)`: a human issue-thread comment that
-    # landed AFTER `feedback` was built but BEFORE this write was never quoted
-    # in the dev's `_build_pr_comment_followup` prompt, so silently moving the
-    # watermark past it would swallow real feedback.
+    # A human issue-thread comment that landed AFTER `feedback` was built but
+    # BEFORE this write was never quoted in the dev's
+    # `_build_pr_comment_followup` prompt, so moving the watermark past it
+    # would swallow real feedback.
     #
     # This applies to BOTH paths:
     #

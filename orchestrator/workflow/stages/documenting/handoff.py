@@ -14,13 +14,12 @@ unchanged head straight back.
 
 Both docs outcomes -- a pushed commit and a confirmed no-change -- leave the
 approval, squash, and PR watermarks validating wrote untouched and advance to
-`in_review`. What they cannot leave untouched is `pr_last_comment_id`. The
+`in_review`. What they carry forward is `pr_last_comment_id`. The
 awaiting-human resume advances `last_action_comment_id` past the human reply it
-fed into the docs prompt, but in_review scans `comments_after(issue,
-pr_last_comment_id)` and only falls back to `last_action_comment_id` when that
-field is None. A `pr_last_comment_id` validating seeded BEFORE the reply would
-therefore replay it as fresh PR feedback and bounce the issue to `fixing` over
-work the dev already did.
+fed into the docs prompt, and in_review reads the issue thread against that
+cursor as well, so the reply is answered whatever this handoff writes; what a
+`pr_last_comment_id` validating seeded BEFORE it leaves behind is a watermark
+the next stage re-reads the whole span under on every tick.
 
 The ratchet reuses validating's own seed-walk so a PR-conversation comment
 sitting between the old watermark and the consumed-through threshold is not
@@ -62,12 +61,11 @@ def _ratchet_in_review_watermark_for_final_docs(
     `last_action_comment_id` past the human reply it fed into the
     `_build_documentation_prompt` resume. The final-docs handoff then
     relabels to `in_review`, which scans `comments_after(issue,
-    pr_last_comment_id)` and falls back to `last_action_comment_id`
-    only when `pr_last_comment_id is None`. Without this ratchet a
-    `pr_last_comment_id` validating seeded BEFORE the human's reply
-    keeps the older value, the consumed reply replays as fresh PR
-    feedback, and in_review bounces the issue to `fixing` over work
-    the dev has already addressed.
+    pr_last_comment_id)` and drops what that delivery cursor already
+    covers -- so the consumed reply is answered either way, and what
+    this ratchet does is stop a `pr_last_comment_id` validating seeded
+    BEFORE the reply from leaving the next stage re-reading the whole
+    span beneath it on every tick.
 
     Reuse `_latest_pr_comment_ids` (the same seed-walk validating uses
     at its approval handoff) so a PR-conversation comment with id

@@ -28,6 +28,7 @@ _OWNERS = (
     "merge_gate",
     "models",
     "state",
+    "surfaces",
     "watermarks",
 )
 

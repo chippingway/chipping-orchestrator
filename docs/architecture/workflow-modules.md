@@ -1454,8 +1454,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             missing-`pr_number` park, and the commit the no-feedback bounce publishes -- measured by
                             the same size gate the shared dev-fix publication passes, so a held candidate stops the
                             bounce rather than being relabelled over -- before it hands the PR back to the reviewer
-      feedback.py           the rescan past the three in_review watermarks (a bare `/orchestrator add-agent-runs` is no
-                            feedback there, as in in_review), the quiet window a fresh batch settles
+      feedback.py           the rescan past the three in_review watermarks -- read through that stage's own
+                            per-surface owner, so the issue thread answers to the issue-only delivery cursor too and
+                            the pull request never does (a bare `/orchestrator add-agent-runs` is no
+                            feedback there, as in in_review) -- the quiet window a fresh batch settles
                             through before a resume spends the session on a fragment of it, and the narrower ratchet
                             a consumed batch advances those watermarks by
       bookmarks.py          the `pending_fix_*` ids a replay rebuilds the triggering batch from, and the clear each
@@ -2220,9 +2222,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       fixing_route.py       the pending-fix bookmarks, the hash refresh, and the `workflow:fixing` relabel
       drift.py              a body edit on an open PR: the unread PR conversation captured first, the dev resume, and
                             the `workflow:validating` return
-      merge_gate.py         the unmergeable park and the one HITL ready-ping an approved, unvetoed head earns per head
-                            SHA
-      watermarks.py         the one-way issue-side ratchet and the legacy seed a manually-relabeled issue needs
+      merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
+                            round-trips ago -- and the one HITL ready-ping an approved, unvetoed head earns per head
+                            SHA, which is no park and carries no mark
+      surfaces.py           the two reads the shared IssueComment id space is taken as -- the issue thread against
+                            the delivery cursor an issue-only resume settled as well, the PR conversation against
+                            neither -- and the raw merged read tagged by surface that the watermark walks consume
+      watermarks.py         how far a park's own notice may carry the issue-side mark, and the legacy seed a
+                            manually-relabeled issue needs -- both walks forward from where the mark is, over what
+                            they can vouch for, and neither reads a tip
       models.py             the per-tick handles and the drift-resume record
       state.py              the issue-side watermark key they share
     question/               `question`

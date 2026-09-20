@@ -21,8 +21,19 @@ Self-authorship is decided by recorded id OR by the hidden body marker,
 because either alone is wrong in a way that loses feedback: the id set is
 bounded and evicts, and a login check would drop a human reviewer who shares
 the PAT's account. The pickup comment is the boundary the walk starts from --
-everything older is chatter the dev agent already saw at spawn -- and its
-absence is answered by refusing to advance at all.
+everything older ON THE ISSUE THREAD is chatter the dev agent already saw at
+spawn -- and its absence is answered by refusing to advance at all. The pull
+request is outside that boundary: one a plan handoff reused or a human opened
+carries conversation numbered below the pickup that no spawn ever quoted, so
+being old is no evidence there that anybody read it.
+
+Stopping is allowed to strand the value low, and that is the half this owner
+does not have to solve. The walk stops at the first unseen human comment on
+EITHER surface, so an unread PR-conversation comment numbered below a reply
+the dev already answered holds the seed underneath both -- and in_review then
+reads the issue thread against `last_action_comment_id` as well
+(`in_review/surfaces.py`), which is what drops the answered reply without a
+watermark having to hide the PR comment to do it.
 
 `_ratchet_watermark` closes the loop with the value already persisted: an
 earlier in_review tick may have advanced past feedback the dev has since
@@ -72,6 +83,16 @@ class _WatermarkWalker:
 
     def consume(self, comment, is_issue_thread: bool) -> bool:
         is_self = _is_orchestrator_comment(comment, self.orchestrator_ids)
+        # Both exemptions below are the issue thread's alone. The spawn quotes
+        # that thread, and `_resume_developer_on_human_reply` reads only it, so
+        # a comment on the pull request is vouched for by neither -- the PR may
+        # be one a plan handoff reused or a human opened, carrying conversation
+        # numbered below the pickup that no prompt has ever included.
+        pre_pickup = (
+            is_issue_thread
+            and not self.seen_self
+            and comment.id < self.pickup_comment_id
+        )
         already_consumed = (
             is_issue_thread
             and self.consumed_through is not None
@@ -81,7 +102,7 @@ class _WatermarkWalker:
             self.watermark = comment.id
             self.seen_self = True
         elif (
-            (not self.seen_self and comment.id < self.pickup_comment_id)
+            pre_pickup
             or already_consumed
             or _run_grant_request._is_bare_command(comment)
         ):
@@ -103,27 +124,36 @@ def _seed_watermark_past_self(
     Walk comments oldest-to-newest across both surfaces (issue thread and
     PR conversation share the IssueComment id space, so a single watermark
     covers both). The pickup comment is the boundary: everything before
-    `pickup_comment_id` is pre-pickup chatter the dev agent already saw at
-    spawn, so it can be advanced past. From the pickup forward, advance
+    `pickup_comment_id` ON THE ISSUE THREAD is pre-pickup chatter the dev
+    agent already saw at spawn, so it can be advanced past -- a
+    PR-CONVERSATION comment that old is not, since the pull request may be one
+    a plan handoff reused or a human opened and no spawn quotes it. From the
+    pickup forward, advance
     through the contiguous run of orchestrator-authored comments AND
     through any ISSUE-THREAD comment with id <= `consumed_through` (already
     fed to the dev agent via a prior `_resume_developer_on_human_reply`
     call during implementing/validating), stopping at the first
     not-yet-consumed non-orchestrator comment. This preserves human
-    feedback posted during validating that the dev has not yet seen while
-    NOT replaying feedback the dev has already consumed. A bare
+    feedback posted during validating that the dev has not yet seen. The
+    replay of what the dev HAS consumed is answered twice over: here, by
+    walking past it, and again by the in_review and fixing scans, which drop
+    issue-thread comments at or below `last_action_comment_id` whatever this
+    walk settled on -- so a walk stopped low by an unread PR comment costs
+    nothing. A bare
     `/orchestrator add-agent-runs` is walked past on either surface: it is a
     control, never feedback, and a grant can leave one unread.
 
-    `consumed_through` is intentionally NOT applied to PR-conversation
-    comments. `last_action_comment_id` only records issue-thread ids fed
-    via `_resume_developer_on_human_reply` (validating/implementing watch
-    the issue thread only); a PR-conversation comment whose id happens to
-    be <= a later-consumed issue-thread reply has NOT been seen by the dev
-    and must surface on the next in_review tick. Folding both surfaces
-    under one `c.id <= consumed_through` check would let the in_review
-    HITL ready-ping advertise the PR as ready for human merge over unread
-    PR-conversation feedback.
+    Neither the pickup boundary nor `consumed_through` is applied to
+    PR-conversation comments, for one reason: nothing that sets either has
+    read that surface. The spawn quotes the issue thread, and
+    `last_action_comment_id` only records issue-thread ids fed via
+    `_resume_developer_on_human_reply` (validating/implementing watch the
+    issue thread only). So a PR-conversation comment numbered below the
+    pickup, or below a later-consumed issue-thread reply, has NOT been seen
+    by the dev and must surface on the next in_review tick. Folding either
+    check across both surfaces would let the in_review HITL ready-ping
+    advertise the PR as ready for human merge over unread PR-conversation
+    feedback.
 
     Identification of orchestrator-authored content is by exact comment id
     (recorded when the orchestrator posted the comment) OR by the hidden

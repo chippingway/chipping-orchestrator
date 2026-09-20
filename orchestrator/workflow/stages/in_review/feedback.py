@@ -3,8 +3,10 @@
 """The four surfaces a human can answer a finished PR on, read as one batch.
 
 Issue thread, PR conversation, inline review, and review summary all count as
-PR feedback here, and the first two share the IssueComment id namespace, so
-they merge into a single stream under a single watermark. What has to be
+PR feedback here. The first two share the IssueComment id namespace, so they
+merge into a single stream -- but each is read against its own cursors before
+the merge (`surfaces._unread_issue_thread` and `_unread_pr_conversation`),
+because sharing a numbering is not sharing a delivery record. What has to be
 stripped from that stream is everything the orchestrator itself said: by
 recorded id AND by the hidden body marker, because the id ledger is capped and
 evicts while the marker stays on the comment forever. Missing one is how the
@@ -35,7 +37,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.in_review import (
     fixing_route as _fixing_route,
     models as _models,
-    state as _state,
+    surfaces as _surfaces,
     watermarks as _watermarks,
 )
 
@@ -60,39 +62,26 @@ def _drop_orchestrator_comments(comments, orchestrator_ids) -> list:
     ]
 
 
-def _issue_side_watermark(state: PinnedState) -> int | None:
-    """Resolve the issue / PR-conversation scan watermark.
-
-    `or` would discard a legacy default of `pr_last_comment_id == 0` and fall
-    back to `last_action_comment_id` (the id of a prior park comment), which
-    sits ABOVE any human "do not merge yet" comment posted earlier during
-    implementing / validating; that human comment would then never surface as
-    fresh PR feedback. Treat 0 as a valid "scan from the beginning" watermark.
-    """
-    issue_wm = state.get(_state._PR_LAST_COMMENT_ID)
-    if issue_wm is None:
-        issue_wm = state.get("last_action_comment_id")
-    return issue_wm
-
-
 def _fresh_issue_space(ctx: _models._InReviewContext, orchestrator_ids) -> list:
     """Merge fresh issue-thread and PR-conversation feedback -- one shared
     IssueComment id namespace -- into a single stream: drop orchestrator
     comments, drop untrusted authors, sort ascending by id. Filtering untrusted
     authors here keeps an outsider's issue / PR comment from bookmarking a
     pending fix or steering the `in_review` -> `fixing` route.
+
+    Each surface is read against its OWN cursors first
+    (`_unread_issue_thread` / `_unread_pr_conversation`) and merged only
+    afterwards, so the shared id space decides the order of the stream and
+    nothing else. Merging the reads instead -- one watermark asked of both --
+    is what lets an issue reply a developer already answered come back as
+    feedback, or a PR comment numbered below it never arrive.
     """
-    issue_wm = _issue_side_watermark(ctx.state)
-    new_issue_side = _drop_orchestrator_comments(
-        ctx.gh.comments_after(ctx.issue, issue_wm), orchestrator_ids,
+    unread = _drop_orchestrator_comments(
+        _surfaces._unread_issue_thread(ctx.gh, ctx.issue, ctx.state)
+        + _surfaces._unread_pr_conversation(ctx.gh, ctx.pr, ctx.state),
+        orchestrator_ids,
     )
-    new_pr_conv = _drop_orchestrator_comments(
-        ctx.gh.pr_conversation_comments_after(ctx.pr, issue_wm), orchestrator_ids,
-    )
-    return filter_trusted(sorted(
-        list(new_issue_side) + list(new_pr_conv),
-        key=lambda comment: comment.id,
-    ))
+    return filter_trusted(sorted(unread, key=lambda comment: comment.id))
 
 
 def _scan_fresh_pr_feedback(ctx: _models._InReviewContext):
