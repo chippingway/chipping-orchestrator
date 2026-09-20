@@ -91,6 +91,20 @@ def handed_revision(issue) -> str:
     return _content_hash._compute_user_content_hash(issue, set())
 
 
+def edits(case, body: str) -> str:
+    """Rewrite the issue body as GitHub answers the next read with it.
+
+    A NEW issue object registered in the client's place, since that is what a
+    human editing the issue leaves: the tick that fetched the old one still
+    holds it, and everything read afterwards reads this.
+    """
+    edited = copy.copy(case.issue)
+    edited.body = body
+    case.github.add_issue(edited)
+    case.issue = edited
+    return body
+
+
 def human_reply(case, body: str = "please write the report") -> None:
     """Put one trusted human reply above everything the thread already holds."""
     thread = [comment.id for comment in case.issue.comments]
@@ -126,10 +140,7 @@ class _MidRunChange:
         return _agent(session_id=DEV_SESSION, last_message=self._reply)
 
     def _edits(self) -> None:
-        edited = copy.copy(self._case.issue)
-        edited.body = LATER_BODY
-        self._case.github.add_issue(edited)
-        self._case.issue = edited
+        edits(self._case, LATER_BODY)
 
 
 class _LandingPush:
@@ -197,7 +208,11 @@ class _DriftReportMixin(_PatchedWorkflowMixin):
             "fetched_branch_tip": after,
             **run_options,
         }
-        stage = self._run_in_review if _in_review(self.issue) else self._run_validating
+        stage = (
+            self._run_in_review
+            if any(seen.name == WorkflowLabel.IN_REVIEW for seen in self.issue.labels)
+            else self._run_validating
+        )
         with patch.object(
             _worktree_paths, "_worktree_path", return_value=_EXISTING_WORKTREE,
         ):
@@ -243,8 +258,3 @@ class _DriftReportMixin(_PatchedWorkflowMixin):
     def pinned(self) -> dict:
         """What the issue's pinned comment holds now."""
         return self.github.pinned_data(self.issue.number)
-
-
-def _in_review(issue) -> bool:
-    """Whether the issue's label routes a tick to the in_review handler."""
-    return any(label.name == WorkflowLabel.IN_REVIEW for label in issue.labels)

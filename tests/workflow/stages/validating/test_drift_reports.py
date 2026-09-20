@@ -19,8 +19,10 @@ its park is the rest of that resume and owes the same report.
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 
 from orchestrator import config
+from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.github import developer_reports as _developer_reports
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import report_delivery as _report_delivery
@@ -53,6 +55,19 @@ QUESTION_REPLY = "Should the new criterion replace the old one or sit beside it?
 REVIEW_REPLY = "Looked it over."
 
 LOOSE_PATH = "scratch.txt"
+
+# The commit a later resume makes without reporting it: the head the report an
+# earlier run recorded was written before, and was never about.
+SECOND_HEAD = "b" * len(world.FIXED_HEAD)
+
+# A resume that committed nothing over a checkout carrying both of them, two
+# commits ahead of the head the pull request stands on.
+TWO_STRANDED = MappingProxyType({
+    "head_shas": (SECOND_HEAD,),
+    "candidate_commit": FrozenCommit(sha=SECOND_HEAD),
+    "branch_ahead_behind": (2, 0),
+    "fetched_branch_tip": world.PUBLISHED_HEAD,
+})
 
 # What the park a resume under review takes may not tell the human reading its
 # pull request, and what it says about that pull request instead.
@@ -250,6 +265,29 @@ class DriftReportDebtTest(unittest.TestCase, world._DriftReportMixin):
             (world.FIXED_HEAD, 1),
         )
 
+    def test_a_stale_report_covers_no_later_commit(self) -> None:
+        # A report was recorded and its push failed, so it is still unbound
+        # when a second edit is answered with a commit and NO report. The
+        # requirements then move back to what the first report answered, and
+        # the reply after that is an `ACK:`. Nothing is published: bound to a
+        # commit it was written before, the first report would settle as the
+        # account of work it never saw, and the reviewer would read it as the
+        # report of the whole branch. The reply that brings a report written
+        # over the branch as it stands is what publishes, and what goes onto
+        # the pull request is that report rather than the stale one.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.drift(world.reported(), push_branch=False)
+        world.edits(self, world.LATER_BODY)
+        self.drift("no report for this one", head_shas=(world.FIXED_HEAD, SECOND_HEAD))
+        world.edits(self, world.EDITED_BODY)
+
+        held = self.drift(ACK_REPLY, **TWO_STRANDED)
+
+        held[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(self.published_reports(), [])
+        self.assertIsNone(self.records()[CURRENT])
+        self._assert_the_later_report_publishes()
+
     def test_a_missing_report_is_owed_until_written(self) -> None:
         # A resume committed and wrote no report, so its commit stayed in the
         # worktree. A reply that only says `ACK:` does not pay that debt: the
@@ -273,6 +311,17 @@ class DriftReportDebtTest(unittest.TestCase, world._DriftReportMixin):
         # request spends.
         self.assertEqual(self.pinned()[REVIEW_ROUND], 1)
         self._assert_reviewed_once_published()
+
+    def _assert_the_later_report_publishes(self) -> None:
+        """The reply that describes the branch as it stands is what settles."""
+        world.human_reply(self)
+        self.drift(world.reported(world.LATER_REPORT_TEXT), **TWO_STRANDED)
+        self.reconcile()
+        self.assertEqual(len(self.published_reports(world.LATER_REPORT_TEXT)), 1)
+        self.assertEqual(self.published_reports(), [])
+        self.assertEqual(
+            self.records()[CURRENT].subject.source_sha, SECOND_HEAD,
+        )
 
     def _assert_the_debt_holds_the_review(self) -> None:
         """The debt outlives the `ACK:`, and parks the next review for a reply."""

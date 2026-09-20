@@ -111,6 +111,16 @@ OWED_REPORT = "developer_report_owed"
 # developer that can write the report again.
 UNDELIVERABLE_REPORT = "report_undeliverable"
 
+# Work a COMPLETED run committed that no record of this issue's describes.
+# Kept apart from the debt above, which any road that cannot deliver a report
+# writes: a record of an EARLIER run is still a record, so the debt alone
+# cannot tell an issue whose report is merely undelivered from one whose newest
+# commits nobody has described at all. Only a fresh report retires it, since
+# only a report written over the branch as it stands describes them -- and
+# while it stands, the reply a park earns publishes nothing and the review is
+# held for the report the work is missing.
+UNREPORTED_WORK = "developer_report_unreported_work"
+
 # The fresh review budget a requirements edit earned on an approved pull
 # request, recorded where the publication that edit produced is still owed.
 # `in_review` resets the round before it hands the issue back, because the
@@ -258,6 +268,12 @@ def recording_stops_the_tick(
     pull request yet, while a resume under review has one that stands exactly
     where it stood -- and a human reading the initial wording under their own
     open pull request would be told it was never opened.
+
+    Both of them also record that this run's WORK is undescribed. A record an
+    earlier run left is no account of commits made since, so a road that read
+    the debt alone would publish them under a report written before they
+    existed; only a report written over the branch as it stands retires it,
+    which is the report the reply to either notice brings.
     """
     handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
     withheld = _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED
@@ -269,6 +285,7 @@ def recording_stops_the_tick(
             "issue=#%d wrote a developer report this build cannot record; "
             "publishing nothing and holding for a human", issue.number,
         )
+        state.set(UNREPORTED_WORK, True)
         parks_an_undeliverable_report(
             gh, issue, state,
             _UNRECORDABLE_PARK.format(
@@ -282,8 +299,9 @@ def recording_stops_the_tick(
     )
     if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
         state.set(_PARK_REASON, None)
-    if state.get(OWED_REPORT):
-        state.set(OWED_REPORT, None)
+    for owing in (OWED_REPORT, UNREPORTED_WORK):
+        if state.get(owing):
+            state.set(owing, None)
     gh.write_pinned_state(issue, state)
     return False
 
@@ -307,8 +325,11 @@ def _unreported_run_holds(
     session is over.
 
     Held, nothing is published at all and a reply resumes the developer, which
-    can write the report the work is missing. The park itself is what
-    remembers the debt, since there is no report to record.
+    can write the report the work is missing. The park is what remembers the
+    debt, since there is no report to record, and `UNREPORTED_WORK` beside it
+    is what remembers that the commits this run made are the undescribed ones:
+    a report an earlier run left describes the branch before them, so a road
+    reading the debt alone would publish them under it.
 
     `withheld` is what the caller's road actually held back, since the notice
     says so and the two roads hold back different things: a pull request that
@@ -329,6 +350,7 @@ def _unreported_run_holds(
         "report this workflow can publish; publishing nothing and holding "
         "for a human", issue.number,
     )
+    state.set(UNREPORTED_WORK, True)
     parks_an_undeliverable_report(
         gh, issue, state,
         _UNREPORTED_PARK.format(

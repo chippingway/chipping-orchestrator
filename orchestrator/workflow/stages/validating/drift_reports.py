@@ -91,14 +91,25 @@ def _withholds_the_stranded(state: PinnedState, run: _models._DevFixRun) -> bool
 
 
 def _owes_an_unrecorded_report(state: PinnedState) -> bool:
-    """Whether the issue owes a report that no delivery or transaction holds.
+    """Whether the issue owes a report no record of this issue's describes.
 
-    The debt an undeliverable-report park leaves where a run committed and
-    reported nothing: a flag, or the park's own reason, and no record to
-    publish from. Records are asked as CLAIMS, so one nobody can read is
-    still a record -- parked by the owner that reads it -- and not this.
+    Work a COMPLETED run committed and nobody described is the first reading,
+    and it is the only one that survives a record left by an EARLIER run: that
+    record is an account of the branch before those commits, so publishing
+    them under it would settle a report of work it never saw and send the
+    reviewer the whole branch under it. It is retired by a report written over
+    the branch as it stands, which is what the reply to its park brings.
+
+    The debt an undeliverable-report park leaves with nothing recorded at all
+    is the other: a flag, or the park's own reason, and no record to publish
+    from. Records are asked as CLAIMS, so one nobody can read is still a
+    record -- parked by the owner that reads it -- and not this.
     """
-    return _report_delivery.owes_a_report(state) and not (
+    if not _report_delivery.owes_a_report(state):
+        return False
+    if state.get(_report_delivery.UNREPORTED_WORK):
+        return True
+    return not (
         _delivery_state.carries_delivered_report(state)
         or _record_state.carries_pending_report(state)
     )
