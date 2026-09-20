@@ -640,7 +640,10 @@ error.
 The orchestrator is permanently manual-merge-only: humans click Merge. `_handle_in_review` routes fresh PR feedback to
 `workflow:fixing`, pings the HITL handles once per head SHA when the PR is mergeable and the current head completed
 the reviewer-approved final-docs handoff (or carries a real GitHub APPROVED review), and parks awaiting human
-attention for an unmergeable PR.
+attention for an unmergeable PR. Ahead of all three it asks whether a requirements edit has already retired the
+approval this label stands on — an edit's resume still owing the pull request its developer report, or the marker a
+hand-back left when its own relabel did not land — and sends such an issue back to `workflow:validating` for a fresh
+review, so no ready ping goes out on an approval the edit ended.
 
 - `IN_REVIEW_DEBOUNCE_SECONDS` — default `600`. quiet window the `fixing` stage honours before resuming the dev on PR
   feedback. Newer comments arriving while already labeled `workflow:fixing` reset the window. `_handle_in_review`
