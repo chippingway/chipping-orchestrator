@@ -43,9 +43,14 @@ on a report outcome records these same pairs onto its report transaction
 instead, and the write that completes that publication applies them; this
 owner still derives them, so the two roads write the same fields the same way.
 
-Orchestrator comments are stripped by recorded id AND by the hidden body
-marker, because the id ledger is capped and evicts on long-lived issues while
-the marker stays on the comment forever. A bare `/orchestrator add-agent-runs`
+Orchestrator comments are stripped from the two IssueComment surfaces by
+recorded id AND by the hidden body marker, because the id ledger is capped and
+evicts on long-lived issues while the marker stays on the comment forever. The
+two review surfaces are asked the delivery owner's own question instead, and
+that one has no marker rule: this orchestrator posts no review and no inline
+comment, so a body quoting the marker there is a reviewer quoting it -- and
+the scan and the settlement have to answer it the same way or the item is
+prompted and then recorded for nobody. A bare `/orchestrator add-agent-runs`
 is stripped beside them, as in_review strips it: a control, not feedback. The
 trusted-author filter sits above every surface, so an outsider on a public PR
 can neither resume the dev nor extend the quiet window; an empty allowlist
@@ -77,6 +82,12 @@ from orchestrator.workflow.stages.in_review import (
 # item the developer read and hand it back as fresh feedback next tick.
 _UNBOUNDED_EXCERPT = None
 
+# What the delivery owner answers for an item nobody here wrote and nothing
+# here refuses: admitted, under no reason of ours. Anything else is an item
+# that owner would decline to advance a reader for, so it may not reach a
+# prompt either.
+_ADMITTED = (True, None)
+
 
 def _unclaimed(comments, state) -> list:
     """The items of one IssueComment surface a developer may be handed.
@@ -100,29 +111,28 @@ def _unclaimed(comments, state) -> list:
     return filter_trusted(sorted(unread, key=lambda comment: comment.id))
 
 
-def _new_review_comment_feedback(gh: GitHubClient, pr, state) -> list:
-    """Unread inline review comments past `pr_last_review_comment_id`, sorted
-    by id and trust-filtered.
+def _reviewed(read) -> list:
+    """One review surface's unread items a developer prompt may quote.
 
-    Inline review comments live in their own id space the orchestrator never
-    posts on, so no orchestrator filter is needed -- only the trust gate.
+    Asked of the DELIVERY owner's own classifier rather than of the trust
+    gate beside it, because what this returns is what that same owner is
+    later asked to settle. Any reading this scan admits and that classifier
+    refuses is fed to a developer and then recorded nowhere: a refused entry
+    is neither delivered nor blocking, so the surface's watermark does not
+    move and the next tick hands the identical comment to a second developer,
+    every tick, forever. One predicate is the only way two owners cannot come
+    to disagree about a batch they both read.
+
+    `_ADMITTED` is the whole of the test: refused, and admitted under a
+    reason of OURS, are both answers a settlement declines to advance for.
+    No retained ids are handed over on either surface, because the
+    orchestrator posts no review and no inline comment -- the same empty set
+    the settlement derives for them.
     """
-    review_wm = state.get("pr_last_review_comment_id")
-    return filter_trusted(sorted(
-        gh.pr_inline_comments_after(pr, review_wm),
-        key=lambda comment: comment.id,
-    ))
-
-
-def _new_review_summary_feedback(gh: GitHubClient, pr, state) -> list:
-    """Unread review summaries past `pr_last_review_summary_id`, sorted by id
-    and trust-filtered (same rationale as `_new_review_comment_feedback`).
-    """
-    review_summary_wm = state.get("pr_last_review_summary_id")
-    return filter_trusted(sorted(
-        gh.pr_reviews_after(pr, review_summary_wm),
-        key=lambda review: review.id,
-    ))
+    return [
+        found for found in sorted(read, key=lambda seen: seen.id)
+        if _delivery.classify_review_trust(found) == _ADMITTED
+    ]
 
 
 def _rescan_fixing_feedback(
@@ -136,6 +146,12 @@ def _rescan_fixing_feedback(
     owes a different reader for each of them. The prompt order the record
     derives is issue-space (issue thread + PR conversation, in id order), then
     inline review comments, then review summaries.
+
+    The two review surfaces are read through the delivery owner's own
+    classifier (`_reviewed`), which is the classifier the settlement applies:
+    a reading the scan admitted and the settlement refused would be quoted to
+    a developer and recorded for nobody, and its watermark would hand it back
+    on the next tick.
 
     The two IssueComment surfaces are read through the in_review owner that
     holds their cursors, and the pair of cursors is not the same on both. The
@@ -156,8 +172,12 @@ def _rescan_fixing_feedback(
         pr_conversation=_unclaimed(
             _in_review_surfaces._unread_pr_conversation(gh, pr, state), state,
         ),
-        review_comments=_new_review_comment_feedback(gh, pr, state),
-        review_summaries=_new_review_summary_feedback(gh, pr, state),
+        review_comments=_reviewed(gh.pr_inline_comments_after(
+            pr, state.get("pr_last_review_comment_id"),
+        )),
+        review_summaries=_reviewed(gh.pr_reviews_after(
+            pr, state.get("pr_last_review_summary_id"),
+        )),
     )
 
 
@@ -206,6 +226,11 @@ def _consumed_delivery(
     issue-space reading answers to. Without it a batch carrying issue-thread
     replies and no PR comment would leave `pr_last_comment_id` behind, and the
     next tick would read those replies back as unread PR feedback.
+
+    The recorded ids are the IssueComment ledger's, and they reach the two
+    review surfaces as the empty set that owner derives for them -- which is
+    what the scan hands its own classifier, so both sides read every review
+    item under the same rule.
 
     The requirements revision is deliberately not recorded here: the resume
     refreshes `user_content_hash` itself over the issue as it was read, and a

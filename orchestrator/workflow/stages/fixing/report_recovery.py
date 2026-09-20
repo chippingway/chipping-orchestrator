@@ -42,6 +42,14 @@ weaker. A settled report and a publication receipt both outlive the
 transaction that made them, so a pull request standing on the commit one names
 is no evidence that this round just closed; taken for it, a manual relabel
 would be bounced back to the reviewer with its feedback unread.
+
+That mark is CONSUMED here rather than merely read. The reconciliation that
+raises it runs ahead of every handler on every non-terminal label, and a
+fixing round can leave `fixing` with its transaction outstanding -- so the
+settlement may land while the issue is elsewhere, where nothing reads this.
+A mark found over a route anchor a newer round wrote, or beside a report this
+issue still owes, is one such leftover: it is retired and the tick carries on,
+because the round it spoke for is not the round in hand.
 """
 from __future__ import annotations
 
@@ -58,6 +66,11 @@ from orchestrator.workflow.stages.fixing import (
     reporting as _reporting,
     state as _state,
 )
+
+# The validating route's own record of the round it opened. It and
+# `pending_fix_at` are what a settlement CLEARS, so either one standing over a
+# raised mark says a newer round opened after that settlement.
+_REVIEWER_ANCHOR = "pending_fix_reviewer_comment_id"
 
 # What a report no road on this host can publish is held under.
 _UNPUBLISHABLE_PARK = (
@@ -203,16 +216,51 @@ def _finishes_a_settled_round(ctx: _models._FixingContext) -> bool:
     a manual relabel onto `workflow:fixing` -- or any route that reaches this
     stage without leaving its own anchor -- would be taken for a round that
     just settled and bounced straight back to the reviewer with the fresh
-    feedback it was moved here to answer never scanned. The mark says THIS
-    transaction, it is written by the settlement that closed it, and the
-    relabel below clears it, so it can neither misfire on an older round nor
-    stand once this one is handed back.
+    feedback it was moved here to answer never scanned.
+
+    The mark is CONSUMED rather than merely read, because the settlement that
+    raises it does not have to happen under this label. A reconciliation runs
+    ahead of every handler on every non-terminal label, and a fixing round can
+    leave `fixing` with its transaction still outstanding -- a silent
+    validating-route recovery does exactly that -- so the write that settles
+    it may land while the issue is somewhere else entirely, and no handler
+    there reads this mark. Left standing, it would be waiting for whichever
+    fixing round came next, which is a round it says nothing about.
+
+    So a mark that cannot be about the round in hand is retired here and the
+    tick carries on. Two readings say it cannot: a route anchor
+    (`pending_fix_at`, or the validating route's reviewer comment), which a
+    settlement CLEARS and only a newer round writes again; and a report this
+    issue still owes, which is a publication ahead of the round rather than
+    behind it. Neither can stand over the settlement this mark belongs to.
     """
     if not ctx.state.get(_state._SETTLED_ROUND):
+        return False
+    if _outlived_its_round(ctx.state):
+        ctx.state.set(_state._SETTLED_ROUND, None)
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return False
     _reporting._hands_the_round_back(ctx)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     return True
+
+
+def _outlived_its_round(state) -> bool:
+    """Whether a raised mark can no longer be about the round in hand.
+
+    A settlement clears both route anchors and drops the transaction, so the
+    tick that finds the mark over either of them is looking at a round that
+    opened AFTER the settlement raised it, and the tick that finds it beside
+    an owed report is looking at a publication that has not happened yet.
+    Both are marks a settlement under another label left behind, and handing
+    the issue back on one would relabel past feedback nobody read.
+    """
+    if _report_delivery.owes_a_report(state):
+        return True
+    return any(
+        state.get(recorded) is not None
+        for recorded in (_state._PENDING_FIX_AT, _REVIEWER_ANCHOR)
+    )
 
 
 def _published_checkout(ctx: _models._FixingContext) -> str:

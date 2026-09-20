@@ -40,6 +40,14 @@ _PUBLISHED_REPORT = 4242
 # whole of what says a round closed while its label never moved.
 SETTLED_ROUND = "fixing_round_settled"
 
+# What the in_review route writes when it opens a fix round: the route
+# discriminator and the bookmarks naming the batch that started it.
+_PENDING_FIX_AT = "pending_fix_at"
+_PENDING_FIX_ISSUE_MAX_ID = "pending_fix_issue_max_id"
+_PENDING_FIX_ISSUE_IDS = "pending_fix_issue_ids"
+_OPENED_AT = "2026-05-24T00:00:00+00:00"
+_FIXING = "workflow:fixing"
+
 # A location shaped the way the contract spells one, naming a comment no pull
 # request carries, and a digest nothing can be read back at. What a case built
 # on them is about is the ROAD a verified outcome takes, so the publication
@@ -90,6 +98,24 @@ def records_a_settled_report(seeded, *, head: str, clears=()) -> None:
     for cleared in clears:
         state.set(cleared, None)
     seeded.github.write_pinned_state(seeded.issue, state)
+
+
+def opens_a_later_round(seeded, *, bookmarked: int) -> None:
+    """Open a NEW fixing round over a reply of its own, as a route would.
+
+    What the in_review route writes when it hands a pull request to `fixing`:
+    the discriminator that says whose round this is, and the bookmark naming
+    the batch a retry would replay. A case needs it to be a round rather than
+    a relabel, because what says a raised mark belongs to an OLDER settlement
+    is exactly that a newer round has written an anchor the settlement had
+    cleared.
+    """
+    state = seeded.github.read_pinned_state(seeded.issue)
+    state.set(_PENDING_FIX_AT, _OPENED_AT)
+    state.set(_PENDING_FIX_ISSUE_MAX_ID, bookmarked)
+    state.set(_PENDING_FIX_ISSUE_IDS, [bookmarked])
+    seeded.github.write_pinned_state(seeded.issue, state)
+    seeded.github.apply_foreign_label(seeded.issue, _FIXING)
 
 
 @contextlib.contextmanager

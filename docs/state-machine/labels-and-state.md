@@ -1433,13 +1433,14 @@ The keys that matter for the state machine fall into a few groups:
   fix round already answered. The PR-conversation, inline-review, and review-summary halves of that same batch move
   only their own in-review watermarks. Every surface advances to the max id actually quoted on it and no further, the
   pairs come from `workflow/engine/prompt_delivery.py` (the producer a recovered report transaction's watermarks are
-  also read against), and a run that was never invoked, a shutdown-killed run, and a live-paused run settle nothing at
-  all — delivery is what the field records, and none of those delivered anything. A round that finished on a report
-  outcome settles nothing on the tick either: its pairs are recorded onto the report transaction beside the round it
-  spent, and the write that completes that publication is the one that applies both. The exception is a report
-  road that ENDS
-  in a park -- one this build could not record, one no checkout can prove -- where the park's own durable write
-  carries the consumed half, since no publication is coming to carry it. A push that did not land is not that
+  also read against, and the owner whose classifier the `fixing` scan asks of the two review surfaces, so no item is
+  prompted that the settlement would then refuse to record), and a run that was never invoked, a shutdown-killed run,
+  and a live-paused run settle nothing at all — delivery is what the field records, and none of those delivered
+  anything. A round that finished on a report outcome settles nothing on the tick either: its pairs are recorded
+  onto the report transaction beside the round it spent, and the write that completes that publication is the one
+  that applies both. The exception is a report road that ENDS in a park -- one this build could not record, one no
+  checkout can prove -- where the park's own durable write carries the consumed half, since no publication is
+  coming to carry it. A push that did not land is not that
   exception: the record keeps both groups until the no-feedback bounce republishes that commit and binds the report
   to it.
 
@@ -1449,6 +1450,12 @@ The keys that matter for the state machine fall into a few groups:
   than retired and `implementing_published_sha` is persistent. The fixing stage reads it before it scans anything,
   hands the issue back to `workflow:validating`, and retires the mark in the same write; no other stage reads or
   writes it, and an issue that has never settled a fixing report does not carry it at all.
+
+  It is consumed rather than merely read. The reconciliation that raises it runs ahead of every handler on every
+  non-terminal label, and a fixing round can leave `workflow:fixing` with its transaction outstanding, so the
+  settling write can land where nothing reads the mark. A fixing tick that finds it over a route anchor a newer
+  round wrote — `pending_fix_at` or `pending_fix_reviewer_comment_id`, both of which a settlement clears — or
+  beside a report the issue still owes, retires it and carries on with the round in hand.
 
   Every writer of these fields stops before unread human input, and none of them reads a tip. The
   approval handoff's seed walk stops at the first unread non-orchestrator comment on either surface; the legacy

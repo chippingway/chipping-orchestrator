@@ -3165,6 +3165,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      `workflow:fixing` would bounce straight back to the reviewer with its fresh feedback never scanned. The relabel
      retires the mark in the same write, so it can never finish a later round.
 
+     The mark is CONSUMED rather than merely read, because the settlement that raises it need not happen under this
+     label. [The report reconciliation](#the-developer-report-transaction-every-dispatch) runs ahead of every handler
+     on every non-terminal label, and a fixing round can leave `workflow:fixing` with its transaction still
+     outstanding — the silent validating-route recovery in step 5 does exactly that — so the settling write can land
+     while the issue is somewhere no handler reads this mark. A tick that finds it over a route anchor a NEWER round
+     wrote (`pending_fix_at`, or the validating route's reviewer comment, both of which a settlement clears), or
+     beside a report the issue still owes, retires it and carries on: the round it spoke for is not the round in hand.
+
      A binding that TAKES the delivery **ends the tick** too. Settled, the round the record froze is closed and the
      issue is handed back to `workflow:validating` — the recovered route is finished exactly as the live road would
      have finished it, for the same reason. Bound but unposted, nothing is relabelled: the transaction is
@@ -3190,6 +3198,15 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      recorded id AND the hidden `<!--orchestrator-comment-->` body marker. The batch (`_FixingFeedback`) keeps each
      surface as its own list and derives the merged issue-space and prompt orders from them, because the settlement in
      step 8 owes a different reader for each surface.
+
+     The two REVIEW surfaces are read through the delivery owner's own classifier
+     (`prompt_delivery.classify_review_trust`) rather than through the trust gate beside it, because that classifier
+     is what the settlement applies: an item the scan admitted and the settlement refused is quoted to a developer
+     and recorded for nobody — a refused entry is neither delivered nor blocking, so the surface's watermark does not
+     move and the next tick hands the identical comment to a second developer. That classifier carries no
+     forged-marker rule, and its absence is deliberate: the orchestrator posts no review and no inline comment, so a
+     body quoting `<!--orchestrator-comment-->` there is a reviewer quoting it and nothing else. On the two
+     IssueComment surfaces, where the orchestrator does post and the id ledger evicts, the marker rule stands.
   5. If `awaiting_human`, first handle the **`/orchestrator continue` operator command** (`_handle_continue_command`).
      It is matched as an EXACT LINE (`^\s*/orchestrator continue\s*$`), so a comment carrying the command line AND real
      guidance still counts as the command; the command is handled on BOTH routes so a session-limit / session-failure

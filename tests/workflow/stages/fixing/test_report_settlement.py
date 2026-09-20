@@ -71,6 +71,7 @@ PR_HEAD_SHA = support.PR_HEAD_SHA
 PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
 PR_LAST_REVIEW_COMMENT_ID = support.PR_LAST_REVIEW_COMMENT_ID
 PR_LAST_REVIEW_SUMMARY_ID = support.PR_LAST_REVIEW_SUMMARY_ID
+FIXING = support.FIXING
 PUSH_BRANCH = support.PUSH_BRANCH
 REVIEW_ROUND = support.REVIEW_ROUND
 RUN_AGENT = support.RUN_AGENT
@@ -301,7 +302,7 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
             seeded.github, pr_number=support.PR_NUMBER, head=SHA_AFTER,
         ):
             _report_transaction._reconciles_pending_report(
-                seeded.github, _TEST_SPEC, seeded.issue, VALIDATING, state,
+                seeded.github, _TEST_SPEC, seeded.issue, FIXING, state,
             )
 
         pinned_data = self._pinned(seeded)
@@ -309,6 +310,43 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         self.assertEqual(pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID)
         self.assertIsNone(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID))
         self.assertEqual(pinned_data.get(REVIEW_ROUND), 0)
+
+    def test_a_mark_left_elsewhere_finishes_no_round(self) -> None:
+        # A fixing round can leave `workflow:fixing` with its transaction
+        # still outstanding -- a silent validating-route recovery does exactly
+        # that -- and the reconciliation ahead of EVERY handler settles it
+        # wherever the issue has got to. The mark that settlement raises is
+        # then standing on a comment no fixing tick is reading, waiting for
+        # whichever round comes next. Read as that round's own, it hands the
+        # issue straight back to the reviewer and the feedback the round was
+        # opened over is never scanned.
+        seeded = self._seed_round()
+        self._round(seeded.github, seeded.issue, publishes=False)
+        seeded.github.apply_foreign_label(seeded.issue, VALIDATING)
+        with recovery.republishing_world(
+            seeded.github, pr_number=support.PR_NUMBER, head=SHA_AFTER,
+        ):
+            _report_transaction._reconciles_pending_report(
+                seeded.github, _TEST_SPEC, seeded.issue, VALIDATING,
+                self._record(seeded),
+            )
+        self.assertTrue(self._pinned(seeded).get(recovery.SETTLED_ROUND))
+
+        # A LATER round opens over a reply of its own, the way the in_review
+        # route opens one: its own bookmarks, and the label back on `fixing`.
+        crash.later_comment(seeded.issue, LATER_COMMENT_ID, LATER_COMMENT)
+        recovery.opens_a_later_round(seeded, bookmarked=LATER_COMMENT_ID)
+
+        mocks = self._round(
+            seeded.github, seeded.issue,
+            message="which of the two parsers did you mean?",
+            head_shas=(SHA_AFTER, SHA_AFTER),
+        )
+
+        # The developer answers the reply this round is about, and the mark
+        # the older settlement left is retired rather than spent on it.
+        self.assertIn(LATER_COMMENT, only_prompt(mocks))
+        self.assertFalse(self._pinned(seeded).get(recovery.SETTLED_ROUND))
 
     def test_a_historical_report_answers_nothing(self) -> None:
         # A settled report is REPLACED rather than retired, and the
@@ -729,7 +767,7 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
             seeded.github, pr_number=support.PR_NUMBER, head=SHA_AFTER,
         ):
             _report_transaction._reconciles_pending_report(
-                seeded.github, _TEST_SPEC, seeded.issue, VALIDATING,
+                seeded.github, _TEST_SPEC, seeded.issue, FIXING,
                 self._record(seeded),
             )
             mocks = self._tick(seeded, head=SHA_AFTER)

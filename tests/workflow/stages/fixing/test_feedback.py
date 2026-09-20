@@ -73,7 +73,10 @@ REPLIER = FakeUser(ALICE)
 
 ADD_RUNS = "/orchestrator add-agent-runs 3"
 TIGHTEN = "tighten the retry message"
-# Long enough ago that no quiet window is still waiting on either comment.
+# Long enough ago that no quiet window is still waiting on any of these, on
+# whichever surface a case puts them. One value for every surface, because a
+# fixture that dated them apart would let the debounce decide a case about
+# something else.
 LONG_SETTLED = datetime.fromtimestamp(0, tz=timezone.utc)
 
 
@@ -358,6 +361,8 @@ AUTHORIZATION = "authorized: go ahead and vendor the parser"
 
 # The key each case puts its issue-thread half of the batch under.
 ON_THE_THREAD = "issue_comments"
+# Where a case puts the fields the fixture builds its pull request from.
+PR_FIELDS = "pr_fields"
 
 # Where each reader stands before a round, so "moved" and "left alone" are both
 # concrete numbers rather than the absence of a key.
@@ -369,15 +374,10 @@ SEEDED_READERS = MappingProxyType({
 })
 
 
-def _settled():
-    """A timestamp old enough that no quiet window is still waiting on it."""
-    return support.now_utc() - timedelta(hours=1)
-
-
 def _reply(comment_id: int, body: str):
     """One settled comment, on whichever surface a case puts it."""
     return FakeComment(
-        id=comment_id, body=body, user=REPLIER, created_at=_settled(),
+        id=comment_id, body=body, user=REPLIER, created_at=LONG_SETTLED,
     )
 
 
@@ -420,8 +420,39 @@ WITHHELD_OUTCOMES = (
     ("shutdown killed", _run("partial", interrupted=True)),
 )
 
+# A reviewer quoting the hidden marker this orchestrator stamps its own posts
+# with. It posts no review and no inline comment, so on those two surfaces
+# there is no post of ours the quote could be taken for -- and a scan that
+# admitted it while the settlement refused it would quote it to a developer,
+# record it for nobody, and hand it to the next developer every tick after.
+QUOTED_MARKER = "the hidden <!--orchestrator-comment--> marker hides this"
+
+
+def _review_batch(body: str, *, summary: bool = False) -> dict:
+    """One unread item on a review surface, as the pull request serves it.
+
+    The two are built by one owner because the cases below pair them: every
+    reading either surface gets, the other gets too, and a fixture that spelt
+    them apart would let a case cover one and quietly skip the other.
+    """
+    if not summary:
+        return {
+            PR_FIELDS: {"review_comments": [_reply(INLINE_FEEDBACK_ID, body)]},
+        }
+    return {PR_FIELDS: {"reviews": [FakePRReview(
+        id=REVIEW_SUMMARY_FEEDBACK_ID,
+        body=body,
+        state=CHANGES_REQUESTED,
+        user=REPLIER,
+        submitted_at=LONG_SETTLED,
+    )]}}
+
+
 # One batch per pull-request surface, and where the four readers stand after a
 # round that consumed it: the surface's own reader moves and no other does.
+# The last pair is the same two review surfaces carrying a reviewer's quote of
+# our hidden marker, which the scan and the settlement have to read alike --
+# admitted by one and refused by the other, the reader below never moves.
 PULL_REQUEST_BATCHES = (
     (
         "pr conversation",
@@ -432,20 +463,22 @@ PULL_REQUEST_BATCHES = (
     ),
     (
         "inline review",
-        {"pr_fields": {"review_comments": [
-            _reply(INLINE_FEEDBACK_ID, "this branch is unreachable"),
-        ]}},
+        _review_batch("this branch is unreachable"),
         _readers_after(**{PR_LAST_REVIEW_COMMENT_ID: INLINE_FEEDBACK_ID}),
     ),
     (
         "review summary",
-        {"pr_fields": {"reviews": [FakePRReview(
-            id=REVIEW_SUMMARY_FEEDBACK_ID,
-            body="please tighten the error message",
-            state=CHANGES_REQUESTED,
-            user=FakeUser(CAROL),
-            submitted_at=_settled(),
-        )]}},
+        _review_batch("please tighten the error message", summary=True),
+        _readers_after(**{PR_LAST_REVIEW_SUMMARY_ID: REVIEW_SUMMARY_FEEDBACK_ID}),
+    ),
+    (
+        "inline review quoting our marker",
+        _review_batch(QUOTED_MARKER),
+        _readers_after(**{PR_LAST_REVIEW_COMMENT_ID: INLINE_FEEDBACK_ID}),
+    ),
+    (
+        "review summary quoting our marker",
+        _review_batch(QUOTED_MARKER, summary=True),
         _readers_after(**{PR_LAST_REVIEW_SUMMARY_ID: REVIEW_SUMMARY_FEEDBACK_ID}),
     ),
 )
@@ -487,6 +520,13 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         # request, so a round whose whole batch came off one of its three
         # surfaces may not touch it -- and each surface moves its own reader
         # and no other.
+        #
+        # The last two cases are the same two review surfaces carrying a
+        # reviewer's quote of our hidden marker. The scan and the settlement
+        # are one predicate or they are a loop: admitted by the scan and
+        # refused by the settlement, the comment reaches the developer below
+        # and its reader stays where it was, so the next tick rediscovers it
+        # and pays a second developer to read the identical comment.
         for case, placed, expected in PULL_REQUEST_BATCHES:
             with self.subTest(surface=case):
                 mocks = self._deliver(
@@ -576,7 +616,7 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
                 body="please tighten the error message",
                 state=CHANGES_REQUESTED,
                 user=FakeUser(CAROL),
-                submitted_at=_settled(),
+                submitted_at=LONG_SETTLED,
             )],
         )
         pairs = _feedback._consumed_delivery(
@@ -596,7 +636,7 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
 
     def _deliver(self, *, agent_fields, head_shas, placed, extra_state=None):
         """One fixing tick over a batch on whichever surfaces `placed` names."""
-        pr = self._open_pr(**placed.get("pr_fields", {}))
+        pr = self._open_pr(**placed.get(PR_FIELDS, {}))
         pr.issue_comments.extend(placed.get("pr_issue_comments", ()))
         scenario = IssueScenario(*self._seed(
             pr=pr,

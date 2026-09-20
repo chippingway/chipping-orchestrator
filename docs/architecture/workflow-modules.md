@@ -1461,7 +1461,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             through before a resume spends the session on a fragment of it, and the settlement a
                             consumed batch earns: one reader per surface, derived through `engine/prompt_delivery.py`
                             so the pairs are the ones a durable report transaction's recorded watermarks carry
-                            verbatim. The issue thread settles the issue-action boundary
+                            verbatim -- and whose classifier the two REVIEW surfaces are scanned through, since an
+                            item the scan admits and the settlement refuses reaches a developer and moves no reader,
+                            so the next tick hands the identical comment to a second one. The issue thread settles
+                            the issue-action boundary
                             `last_action_comment_id` beside the PR-side cursor -- a reply this round quoted has been
                             in a developer prompt, and left behind it routes back to a second developer the moment a
                             human moves the label -- while the pull request's three surfaces settle only the
@@ -1492,7 +1495,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             settled and relabelling nothing where it is still owed; a worktree that is GONE and a
                             tree this host PROVED dirty each park once, since the republishing bounce declines the
                             second exactly as this owner does, while every other refusal leaves a checkout that
-                            bounce still republishes from
+                            bounce still republishes from, and the mark a settlement raises consumed rather than
+                            merely read -- that settlement can land under any non-terminal label, so a mark found
+                            over a newer round's route anchor or beside a report still owed is retired instead
       resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
                             nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
                             outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix
