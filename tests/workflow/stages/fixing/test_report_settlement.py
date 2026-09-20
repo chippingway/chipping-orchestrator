@@ -247,11 +247,11 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
 
     def test_an_owed_report_holds_the_round(self) -> None:
         # The post never landed, so the transaction still owes the pull
-        # request its report. What it is carrying is the ROUTE bookkeeping --
-        # the replay source is intact and the reviewer has not been sent a
-        # head whose report nothing carries -- while the consumption is
-        # already closed: a developer read that batch, and the record names
-        # exactly the pairs that were applied for the recovery to replay.
+        # request its report -- and it is carrying BOTH groups until it does.
+        # The replay source is intact, the reviewer has not been sent a head
+        # whose report nothing carries, and the readers have not moved: a
+        # batch recorded as answered for a report no reviewer has is exactly
+        # what keeping the two together prevents.
         seeded = self._seed_round()
 
         self._round(seeded.github, seeded.issue, publishes=False)
@@ -267,7 +267,9 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
                 self._record(seeded), True,
             ).fields),
         )
-        self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+        self.assertEqual(
+            pinned_data.get(PR_LAST_COMMENT_ID), INITIAL_PR_COMMENT_WATERMARK,
+        )
         self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
         self.assertFalse(self._went_back_to_review(seeded))
         self.assertFalse(pinned_data.get(AWAITING_HUMAN))
@@ -360,22 +362,21 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
         )
         self.assertNotIn((ISSUE, IN_REVIEW), seeded.github.label_history)
 
-    def test_a_failed_push_settles_here(self) -> None:
-        # Nothing was published, so nothing bound the record: it is a
-        # delivery, and the reconciliation reads pending transactions only.
-        # Left holding the consumption it would hand the same feedback to a
-        # second developer on the very next tick, so this road closes it here
-        # and leaves the report on the comment for the bounce to bind.
+    def test_a_failed_push_keeps_the_record(self) -> None:
+        # Nothing was published, so the report is still ahead of this issue
+        # rather than behind it: the record keeps both groups, the readers do
+        # not move, and the bounce that republishes this commit is what binds
+        # the report and lets the settlement close them.
         seeded = self._seed_round()
 
         self._round(seeded.github, seeded.issue, push_branch=False)
 
         pinned_data = self._pinned(seeded)
-        self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
-        # The park that ends this round carries its own notice over the mark,
-        # so the thread reader lands at or past the reply it consumed.
-        self.assertGreaterEqual(
-            pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID,
+        self.assertEqual(
+            pinned_data.get(PR_LAST_COMMENT_ID), INITIAL_PR_COMMENT_WATERMARK,
+        )
+        self.assertEqual(
+            pinned_data.get(LAST_ACTION_COMMENT_ID), HISTORICAL_COMMENT_ID,
         )
         self.assertTrue(
             _delivery_state.carries_delivered_report(
@@ -570,12 +571,14 @@ class FixingReportRefusalTest(unittest.TestCase, _ReportRoundMixin):
 class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
     """A report a crash left recorded and unbound, on the tick that follows."""
 
-    def test_a_pre_push_crash_spawns_no_developer(self) -> None:
-        # The record says what its run consumed, so the scan below it must not
-        # read that same feedback as unread -- a second developer would answer
-        # it again and its report would replace the first one's. The commit
-        # that crash left is not on the pull request, so nothing is bound and
-        # nothing is handed back to the reviewer.
+    def test_a_pre_push_crash_keeps_the_report(self) -> None:
+        # The commit that crash left is not on the pull request, so there is
+        # nothing to bind and nothing to prove -- and the readers stay exactly
+        # where they were, because what moves them is the write that completes
+        # a publication. The record keeps both groups for that write, and the
+        # round the rescan below runs binds it rather than relabelling past
+        # it. (The cost of holding the readers back is that this window
+        # re-delivers the batch once; the report is not lost by it.)
         seeded = self._seed_round()
         # An older round's receipt, naming the very commit the pull request
         # is standing on. Read as proof that THIS report's run pushed, it
@@ -585,17 +588,17 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
             landed=PR_HEAD_SHA, spends=FROZEN_SPENDS,
         )
 
-        mocks = self._tick(seeded, head=SHA_AFTER)
+        self._tick(seeded, head=SHA_AFTER)
 
-        mocks[RUN_AGENT].assert_not_called()
         pinned_data = self._pinned(seeded)
-        self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
-        self.assertEqual(pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID)
+        self.assertTrue(_delivery_state.carries_delivered_report(
+            self._record(seeded),
+        ))
         self.assertEqual(self._reports_posted(seeded), 0)
         self.assertFalse(self._went_back_to_review(seeded))
         # The round the record froze is untouched, and so is the replay source
         # an outstanding publication rebuilds its batch from.
-        self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
+        self.assertTrue(_keeps_the_replay_state(pinned_data))
 
     def test_a_post_push_crash_publishes_the_report(self) -> None:
         # A tree it can read, a head it can name, and the pull request
@@ -686,6 +689,36 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # Nothing was spent and nobody was handed the head while it stands.
         self.assertFalse(self._went_back_to_review(seeded))
         self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
+
+    def test_a_settled_round_finishes_first(self) -> None:
+        # The reconciliation ahead of every handler completes the transaction
+        # and lets the tick carry on, and the write it made closed this
+        # route's bookkeeping. Carrying on, the rescan would read the comment
+        # that landed since under a route the settlement has just closed --
+        # an in_review batch answered as a validating one, where an ordinary
+        # `ACK:` is refused instead of returning the pull request to review.
+        # So the round is finished first and the tick ends.
+        seeded = self._seed_round()
+        self._round(seeded.github, seeded.issue, publishes=False)
+        crash.later_pr_comment(
+            seeded.github.get_pr(support.PR_NUMBER),
+            LATER_COMMENT_ID, LATER_COMMENT,
+        )
+
+        with recovery.republishing_world(
+            seeded.github, pr_number=support.PR_NUMBER, head=SHA_AFTER,
+        ):
+            _report_transaction._reconciles_pending_report(
+                seeded.github, _TEST_SPEC, seeded.issue, VALIDATING,
+                self._record(seeded),
+            )
+            mocks = self._tick(seeded, head=SHA_AFTER)
+
+        # No developer answered the later comment on the tick that settled the
+        # report, and the issue is back with the reviewer under the round the
+        # settlement closed.
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertTrue(self._went_back_to_review(seeded))
 
     def test_a_dirty_checkout_parks_for_a_human(self) -> None:
         # A tree this host PROVED dirty is the other refusal nothing takes

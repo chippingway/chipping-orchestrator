@@ -85,14 +85,18 @@ Everything an owed report touches is held to one rule: what an outstanding
 publication replays from may not be spent before it lands. The bounce hands
 the size gate nothing to close while one stands, the roads that publish
 nothing settle their own consumption rather than leaving a record to carry it,
-and the consumption is applied into the state ahead of every durable write, so
-whichever one comes next carries it -- a record, a park, a receipt. Written in
-a step of its own afterwards, a crash in any of those windows leaves the
-feedback unread, and the next tick reads it as fresh and clears the very park
-just taken.
+and nothing a report carries is spent before it lands -- not the bookmarks,
+not the round, not the readers. The one exception is a road that ENDS in a
+park: a report this build cannot record, and a recovery no checkout can
+prove, each write what their run consumed into that park's own durable write,
+since no publication is coming to carry it and the next tick would otherwise
+read that feedback as fresh and clear the very park just taken.
 
-Which is why every road asks the RECORD whether a report is owed rather than
-asking this run's own reply. The `ACK:` road is the sharpest case -- read off
+Holding the readers back has a bounded cost: the window between a recorded
+report and its publication can re-deliver a batch once. The report is not lost
+by it, because every road asks the RECORD whether one is owed rather than
+asking this run's own reply, and binds what it finds before it spends or
+relabels. The `ACK:` road is the sharpest case -- read off
 the run it would return a pull request to review as needing nothing while the
 report the issue owes is still on the pinned comment. A round whose reply carried no report can still find one
 an earlier tick recorded, and the push it makes for a human's later comment is

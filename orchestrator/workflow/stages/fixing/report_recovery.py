@@ -9,10 +9,12 @@ input the run consumed rides the same record, and until something applies it
 the scan behind this owner reads that feedback as unread -- pays a second
 developer to answer it, and replaces the first report with the second.
 
-So the watermarks are applied here, first, off the record itself rather than
-re-derived: what a dead tick consumed is what its record says it consumed. The
-round is NOT spent with them, because what closes a round is a publication and
-a delivery is a report whose code may never have gone out.
+So what a dead tick consumed is read off its record rather than re-derived --
+and applied only where this road ENDS. A publication still ahead is one the
+settlement that completes it moves the readers for; a park is the other
+answer, and there the batch that reached an agent is written down as read in
+the park's own write. The round is never spent with it either way, because
+what closes a round is a publication.
 
 Whether the code DID go out is re-proved rather than remembered. The receipt
 this stage writes on a landed push is persistent, so on a tick that pushed
@@ -42,9 +44,18 @@ from orchestrator.workflow.engine import (
     report_consumed_values as _consumed,
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
+    report_settlement_state as _settlement,
 )
-from orchestrator.workflow.stages.fixing import models as _models, reporting as _reporting
+from orchestrator.workflow.stages.fixing import (
+    models as _models,
+    reporting as _reporting,
+    state as _state,
+)
 from orchestrator.workflow.state import WorkflowLabel
+
+# The validating route's own record of the round it opened, which the
+# settlement clears along with the in_review route's bookmarks.
+_REVIEWER_ANCHOR = "pending_fix_reviewer_comment_id"
 
 # What a report no road on this host can publish is held under.
 _UNPUBLISHABLE_PARK = (
@@ -82,10 +93,9 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     delivered = _delivery_state.read_delivered_report(ctx.state)
     if delivered is None:
         return False
-    _consumed.advance_consumed(ctx.state, delivered.watermarks)
     published = _published_checkout(ctx)
     if not published:
-        _holds_a_report_nothing_can_publish(ctx)
+        _holds_a_report_nothing_can_publish(ctx, delivered)
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return False
     still_owed = _reporting._holds_an_unpublished_report(ctx, published)
@@ -98,7 +108,9 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     return True
 
 
-def _holds_a_report_nothing_can_publish(ctx: _models._FixingContext) -> None:
+def _holds_a_report_nothing_can_publish(
+    ctx: _models._FixingContext, delivered,
+) -> None:
     """Announce a report no road on this host is going to get out, once.
 
     Two refusals here are DEFINITE, and a definite refusal is one no later
@@ -122,9 +134,16 @@ def _holds_a_report_nothing_can_publish(ctx: _models._FixingContext) -> None:
     The park is not this call's to own past the notice: a reply clears it
     through the ordinary parked dispatch, which resumes the developer, and
     the report that session writes supersedes the one nothing could deliver.
+
+    What the dead run CONSUMED is recorded with it, off the record's own
+    pairs, and only here. Everywhere else the publication is still ahead and
+    the settlement that completes it is what moves a reader; a park is where
+    this road ends instead, so the batch that reached an agent is written down
+    as read rather than handed to whatever answers the reply.
     """
     if not _refuses_for_good(ctx):
         return
+    _consumed.advance_consumed(ctx.state, delivered.watermarks)
     _report_delivery.parks_an_undeliverable_report(
         ctx.gh, ctx.issue, ctx.state,
         _UNPUBLISHABLE_PARK.format(mentions=_config.HITL_MENTIONS),
@@ -138,6 +157,70 @@ def _refuses_for_good(ctx: _models._FixingContext) -> bool:
         return True
     tree = _worktree_status._worktree_status(worktree)
     return tree.readable and not tree.is_clean
+
+
+def _answers_a_report_first(ctx: _models._FixingContext) -> bool:
+    """Everything this issue's report obligation owes, before anything scans.
+
+    Two questions in the order they can be asked. A round whose report has
+    SETTLED is finished and handed back, because the write that settled it
+    closed this route's bookkeeping and a scan running past that reads
+    whatever landed since under a route that no longer exists. A report still
+    owed and never BOUND is answered next, off the record the dead tick left.
+
+    True is a tick this call ended.
+    """
+    return (
+        _finishes_a_settled_round(ctx)
+        or _recovers_an_unbound_delivery(ctx)
+    )
+
+
+def _finishes_a_settled_round(ctx: _models._FixingContext) -> bool:
+    """Hand back a round whose report settled while nobody was looking.
+
+    The reconciliation ahead of every handler completes a transaction and
+    lets the tick carry on, which is right for the stages behind it and wrong
+    for this one: the write that settled it applied the route bookkeeping the
+    record froze -- `pending_fix_at` and the fix bookmarks among them -- so
+    the round is over and the issue is still sitting on `workflow:fixing`.
+    Carrying on, the rescan below reads whatever landed since under a route
+    the settlement has just closed, and answers an in_review batch as a
+    validating one: an ordinary `ACK:` is refused or parked instead of
+    returning the pull request to review.
+
+    So the round is FINISHED first and the tick ends. Whatever arrived since
+    is read on the next poll, by the stage the label now names, on the route
+    that batch really belongs to.
+
+    What says the round is over is the settled report itself: it names this
+    pull request and the very commit the pull request is standing on, so the
+    work it describes is published and nothing is owed for it. A round still
+    running says otherwise on the same comment -- `pending_fix_at` for the
+    in_review route, the reviewer anchor for the validating one -- and either
+    leaves this alone.
+    """
+    settled = _settlement.read_current_report(ctx.state)
+    unfinished = (
+        _report_delivery.owes_a_report(ctx.state)
+        or settled is None
+        or any(
+            ctx.state.get(recorded) is not None
+            for recorded in (_state._PENDING_FIX_AT, _REVIEWER_ANCHOR)
+        )
+    )
+    if unfinished or not _about_this_publication(ctx, settled.subject):
+        return False
+    ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
+    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+    return True
+
+
+def _about_this_publication(ctx: _models._FixingContext, subject) -> bool:
+    """Whether a settled report names the head this pull request carries."""
+    if subject.pr_number != getattr(ctx.pr, "number", 0):
+        return False
+    return subject.source_sha == getattr(ctx.pr.head, "sha", "")
 
 
 def _published_checkout(ctx: _models._FixingContext) -> str:

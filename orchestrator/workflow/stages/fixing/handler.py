@@ -319,7 +319,7 @@ def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
     # binding whose post did not land leaves a transaction the reconciliation
     # ahead of the next handler owns, which the no-feedback bounce below would
     # otherwise relabel straight past.
-    if _report_recovery._recovers_an_unbound_delivery(
+    if _report_recovery._answers_a_report_first(
         _models._FixingContext(gh, spec, issue, state, pr),
     ):
         return

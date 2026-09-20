@@ -1436,7 +1436,10 @@ The keys that matter for the state machine fall into a few groups:
   also read against), and a run that was never invoked, a shutdown-killed run, and a live-paused run settle nothing at
   all — delivery is what the field records, and none of those delivered anything. A round that finished on a report
   outcome settles nothing on the tick either: its pairs are recorded onto the report transaction beside the round it
-  spent, and the write that completes that publication is the one that applies both.
+  spent, and the write that completes that publication is the one that applies both. The exception is a report
+  road that ENDS
+  in a park -- one this build could not record, one no checkout can prove -- where the park's own durable write
+  carries the consumed half, since no publication is coming to carry it.
 
   Every writer of these fields stops before unread human input, and none of them reads a tip. The
   approval handoff's seed walk stops at the first unread non-orchestrator comment on either surface; the legacy

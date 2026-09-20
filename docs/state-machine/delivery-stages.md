@@ -3154,11 +3154,15 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      beside it), a head it can name, and that head being what the pull request carries. Then the branch IS published
      and the report describes it, whichever run wrote the record.
 
-     A binding that TAKES the delivery **ends the tick**. Settled, the round the record froze is closed and the issue
-     is handed back to `workflow:validating` — the recovered route is finished exactly as the live road would have
-     finished it, so the rescan below never reads the issue under a route the settlement has just cleared (an
-     in_review batch answered as a validating one parks an ordinary `ACK:` instead of returning the pull request to
-     review). Bound but unposted, nothing is relabelled: the transaction is
+     A round whose report has already SETTLED — the reconciliation ahead of this handler completes a transaction and
+     lets the tick carry on — is finished here FIRST (`report_recovery._finishes_a_settled_round`): that write closed
+     this route's bookkeeping, so a scan running past it reads whatever landed since under a route that no longer
+     exists and answers an in_review batch as a validating one, refusing an ordinary `ACK:`. The issue goes back to
+     `workflow:validating` and the tick ends.
+
+     A binding that TAKES the delivery **ends the tick** too. Settled, the round the record froze is closed and the
+     issue is handed back to `workflow:validating` — the recovered route is finished exactly as the live road would
+     have finished it, for the same reason. Bound but unposted, nothing is relabelled: the transaction is
      [the reconciliation's](#the-developer-report-transaction-every-dispatch) to finish, and the `pending_fix_*`
      bookmarks it replays from outlive this tick. A binding that refuses WITHOUT consuming the delivery — a comment
      too full — leaves the tick to carry on, since stopping would hold the roads that answer a human. A pre-push
@@ -3166,7 +3170,7 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      report once it lands.
 
      A worktree that is GONE is the one refusal no later tick answers differently, and it **parks once**
-     (`report_recovery._holds_a_checkoutless_report`). There is nothing to republish and nothing to prove — the
+     (`report_recovery._holds_a_report_nothing_can_publish`). There is nothing to republish and nothing to prove — the
      commit the report describes is either on the pull request already or went with the checkout, and no reading on
      this host can say which — so the issue waits for a human rather than every tick finding no feedback, no
      checkout and an owed report and quietly doing nothing with any of them. The park is an ordinary one: a reply

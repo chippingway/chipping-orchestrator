@@ -81,7 +81,7 @@ from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
     guards as _guards,
-    prompt_delivery as _prompt_delivery,
+    report_consumed_values as _consumed,
     report_delivery_state as _delivery_state,
     report_outcome_models as _outcome_models,
     report_outcomes as _outcomes,
@@ -89,6 +89,7 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.prompt_delivery import PINNED_USER_CONTENT_HASH
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -228,6 +229,12 @@ def recording_stops_the_tick(
     spent are settled by the same write that finishes the publication -- one
     durable write rather than a caller's own beside it, which a crash in
     between would lose while the report went out.
+
+    The one road that does not wait for that write is the record this build
+    CANNOT store. There is no transaction to settle then, only the park below,
+    so the consumed half is applied into that park's own write -- the batch
+    did reach an agent, and a park is where this road ends rather than a step
+    on the way to a publication.
     """
     delivered = _delivered_report(gh, issue, state, agent_result, owes)
     if delivered is None:
@@ -237,6 +244,13 @@ def recording_stops_the_tick(
             "issue=#%d wrote a developer report this build cannot record; "
             "publishing nothing and holding for a human", issue.number,
         )
+        # No record was made, so nothing is left to carry what the run
+        # consumed -- and the park below is the end of this road. Applied
+        # here, it rides that park's own durable write; left for a caller's
+        # write afterwards, a crash in between leaves the feedback unread and
+        # the next tick clears the very park just taken and spawns a second
+        # developer over the same prompt.
+        _consumed.advance_consumed(state, owes.watermarks)
         parks_an_undeliverable_report(
             gh, issue, state,
             _UNRECORDABLE_PARK.format(mentions=config.HITL_MENTIONS),
@@ -440,7 +454,7 @@ def _delivered_report(
         (report.report_revision for report in recorded if report is not None),
         default=0,
     )
-    requirements = state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)
+    requirements = state.get(PINNED_USER_CONTENT_HASH)
     return _records.DeliveredReport(
         receipt=_RECEIPT.format(issue=issue.number, revision=revision),
         report_revision=revision,

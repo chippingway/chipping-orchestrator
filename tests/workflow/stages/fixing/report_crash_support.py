@@ -126,6 +126,21 @@ def recorded_delivery(
     seeded.github.write_pinned_state(seeded.issue, state)
 
 
+def later_pr_comment(pull_request, comment_id: int, body: str) -> None:
+    """A reply on the pull request's own conversation, after the snapshot.
+
+    Feedback the fixing scan reads and the requirements baseline does not:
+    that hash covers the issue thread alone, so a comment here is unread
+    input a publication can still settle around.
+    """
+    pull_request.issue_comments.append(_FakeComment(
+        id=comment_id,
+        body=body,
+        user=_FakeUser(_HUMAN),
+        created_at=_now() - _timedelta(hours=1),
+    ))
+
+
 def later_comment(issue, comment_id: int, body: str) -> None:
     """Put a human's reply on the thread after the crash that stalled it.
 

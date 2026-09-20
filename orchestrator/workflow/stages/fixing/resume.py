@@ -246,18 +246,18 @@ def _records_what_was_consumed(
     True is a tick this call ended -- a report this build cannot record, which
     parks with the commit still in the worktree and nothing published.
 
-    The consumption is applied FIRST, into the state and not to GitHub, so
-    that whichever durable write happens next carries it: the record's own on
-    a report this build can store, the park's on one it cannot, the size
-    gate's receipt on a landed push, a park's on a failed run. Written
-    afterwards instead, a crash in any of those windows leaves the feedback
-    unread -- and the next tick reads it as fresh, clears the very park just
-    taken, and spawns a second developer over the same prompt.
+    A run that wrote no report closes its own consumption here and now: there
+    is no publication ahead of it, so nothing else is going to.
 
-    The route bookkeeping does NOT go with it. That is what an outstanding
-    publication replays from, so it rides the record of the report and is
-    closed by the write that completes the transaction -- a round spent for a
-    report that never posts is the one thing this split exists to prevent.
+    A run that DID write one closes nothing. Both groups -- what it consumed
+    and what its route owes -- ride the record of that report, and the write
+    that COMPLETES the publication is what applies them. Advanced here
+    instead, a publication that parks or never completes leaves the feedback
+    recorded as answered for a report no reviewer has, which is the one thing
+    keeping these two together prevents. The single road that cannot wait is
+    a report this build could not record at all: there is no transaction then,
+    only the park that ends the road, and `report_delivery` applies the
+    consumed half into that park's own durable write.
 
     Only ids this prompt carried move either way. A human comment that landed
     AFTER `feedback` was built was never quoted in the dev's prompt, and
@@ -271,13 +271,16 @@ def _records_what_was_consumed(
     # name what was consumed rather than what is left to consume: read after,
     # the pairs are empty and the recovery that replays this record has
     # nothing to put the feedback beyond.
-    consumed = _feedback._consumed_delivery(
-        ctx.state, feedback,
-    ).consumed_pairs(ctx.state)
-    _feedback._settle_consumed_feedback(ctx.state, feedback)
     if not reporting:
+        _feedback._settle_consumed_feedback(ctx.state, feedback)
         return False
-    return _reporting._recording_stops_the_tick(ctx, run, consumed, owed)
+    return _reporting._recording_stops_the_tick(
+        ctx, run,
+        _feedback._consumed_delivery(ctx.state, feedback).consumed_pairs(
+            ctx.state,
+        ),
+        owed,
+    )
 
 
 def _delivered_nothing(
