@@ -166,7 +166,7 @@ def _fixing_ack_fast_path(
     run: _models._FixingResumeRun,
     *,
     routed: bool,
-    reporting: bool,
+    owes_a_report: bool,
 ) -> bool:
     """In_review-route ACK fast path. Returns True (and relabels to
     `in_review`) when the dev's no-commit reply carried an explicit
@@ -175,13 +175,17 @@ def _fixing_ack_fast_path(
 
     Three shapes never reach the marker. The validating CHANGES_REQUESTED
     route (`routed` false) is excluded because that reviewer asked for a
-    concrete change, so an ACK there is not an answer. A run that finished on
-    a report outcome is excluded because its road is the publication, not a
-    relabel to `in_review`. And a run that timed out or moved HEAD is not a
-    no-commit reply at all. A reply that reached for the contract and missed
-    never gets this far: its caller holds it for a human first, since an
-    `ACK:` written beside a report is the commonest way to miss and this path
-    would read exactly that half of it.
+    concrete change, so an ACK there is not an answer. An issue that OWES a
+    report is excluded, and the debt is read off the record rather than off
+    this run: a round that reported has the publication ahead of it rather
+    than a relabel, and one that did not can still be standing on a report an
+    earlier tick could not deliver -- returning the pull request to review
+    there would present it as needing nothing while the report it owes is
+    still on the pinned comment and nothing has gone out. And a run that
+    timed out or moved HEAD is not a no-commit reply at all. A reply that
+    reached for the contract and missed never gets this far: its caller holds
+    it for a human first, since an `ACK:` written beside a report is the
+    commonest way to miss and this path would read exactly that half of it.
 
     A vague "continue" / "ok" nudge should not strand a complete, mergeable PR
     in `fixing`, so an ack returns to `in_review` (re-arming the ready-ping)
@@ -203,7 +207,7 @@ def _fixing_ack_fast_path(
     and the fall-through alike: the reading that says the feedback needs no
     change is the same reading that says a developer read it.
     """
-    if not routed or reporting or run.dev_result.timed_out:
+    if not routed or owes_a_report or run.dev_result.timed_out:
         return False
     if run.after_sha and run.after_sha != run.before_sha:
         return False
@@ -242,16 +246,18 @@ def _records_what_was_consumed(
     True is a tick this call ended -- a report this build cannot record, which
     parks with the commit still in the worktree and nothing published.
 
-    A run that finished on a report outcome owes a publication this tick
-    cannot guarantee, so its consumed pairs and its route bookkeeping ride the
-    record of that report (`reporting.py`) and are closed by the write that
-    completes the transaction. Where that record could not be MADE there is no
-    transaction to wait for, only the park it earned, so the pairs are closed
-    here instead. Every other outcome writes no report, so it
-    closes its own -- directly and before the disposition, since the size
-    gate's own durable write and a park's both land inside that disposition
-    and a settlement taken afterwards would be lost to a crash in the window a
-    hold's relabel opens.
+    The consumption is applied FIRST, into the state and not to GitHub, so
+    that whichever durable write happens next carries it: the record's own on
+    a report this build can store, the park's on one it cannot, the size
+    gate's receipt on a landed push, a park's on a failed run. Written
+    afterwards instead, a crash in any of those windows leaves the feedback
+    unread -- and the next tick reads it as fresh, clears the very park just
+    taken, and spawns a second developer over the same prompt.
+
+    The route bookkeeping does NOT go with it. That is what an outstanding
+    publication replays from, so it rides the record of the report and is
+    closed by the write that completes the transaction -- a round spent for a
+    report that never posts is the one thing this split exists to prevent.
 
     Only ids this prompt carried move either way. A human comment that landed
     AFTER `feedback` was built was never quoted in the dev's prompt, and
@@ -261,20 +267,17 @@ def _records_what_was_consumed(
     orchestrator's own park comment needs no bump to avoid replay -- the next
     tick's rescan filters by both recorded id and body marker.
     """
-    if not reporting:
-        _feedback._settle_consumed_feedback(ctx.state, feedback)
-        return False
-    if not _reporting._recording_stops_the_tick(ctx, run, feedback, owed):
-        return False
-    # The record could not be made, so nothing is carrying these pairs: the
-    # park that holds the run for a human is the whole of what this issue now
-    # has. Settled here, and written, because the park itself leaves the flags
-    # in memory for its caller to persist -- left unsettled, the next tick
-    # reads the same feedback as fresh, clears the very park just taken, and
-    # runs a second developer over it with no human having said anything.
+    # Frozen BEFORE the settlement applies them, because the record has to
+    # name what was consumed rather than what is left to consume: read after,
+    # the pairs are empty and the recovery that replays this record has
+    # nothing to put the feedback beyond.
+    consumed = _feedback._consumed_delivery(
+        ctx.state, feedback,
+    ).consumed_pairs(ctx.state)
     _feedback._settle_consumed_feedback(ctx.state, feedback)
-    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
-    return True
+    if not reporting:
+        return False
+    return _reporting._recording_stops_the_tick(ctx, run, consumed, owed)
 
 
 def _delivered_nothing(
@@ -354,6 +357,11 @@ def _resume_fixing_and_dispatch_result(
     ):
         return
 
+    # Read once, past the record this tick may have just written, and asked
+    # of the RECORD rather than of this run: a debt an earlier tick left is
+    # this round's to honour too.
+    owes = _report_delivery.owes_a_report(ctx.state)
+
     # A reply that reached for the report contract and MISSED is held here,
     # ahead of every road below. Neither half of such a message may be acted
     # on: the `ACK:` would return the pull request to review as needing no
@@ -369,11 +377,11 @@ def _resume_fixing_and_dispatch_result(
     # which parks for the human unless its stranded-fix check publishes a
     # committed-but-unpushed fix instead (`validating/stranded.py`'s probe).
     if _fixing_ack_fast_path(
-        ctx, run, routed=pending_fix_at_was_set, reporting=reporting,
+        ctx, run, routed=pending_fix_at_was_set, owes_a_report=owes,
     ):
         return
 
-    _disposes(ctx, run, feedback, owed, reporting=reporting)
+    _disposes(ctx, run, feedback, owed, owes=owes)
 
 
 def _disposes(
@@ -382,7 +390,7 @@ def _disposes(
     feedback: _models._FixingFeedback,
     owed,
     *,
-    reporting: bool,
+    owes: bool,
 ) -> None:
     """Publish what this run left, and close the round on what was published.
 
@@ -399,24 +407,17 @@ def _disposes(
     # -- an item wanting report content only is answered in the report, with
     # no commit for it. The head its pull request already stands on is what
     # the report is about, so that is what it is bound to.
-    if reporting and _reporting._is_report_only(ctx, run):
+    if _report_outcomes._finished_on_a_report(
+        run.dev_result,
+    ) and _reporting._is_report_only(ctx, run):
         _reporting._finishes_a_reported_round(
             ctx, feedback, owed, getattr(ctx.pr.head, "sha", "") or "",
         )
         return
 
-    # Whether a report is owed is asked of the RECORD rather than of this
-    # run, because the two come apart: a round whose own reply carried no
-    # report can still find one an earlier tick recorded and a crash left
-    # unbound, and its push is then the very publication that report was
-    # waiting for. Answered off this run instead, that push would spend the
-    # bookmarks, relabel, and leave the report orphaned on the comment with
-    # nothing left to bind it to.
-    #
-    # So the gate is handed NOTHING to close while one stands: the record is
-    # carrying the same pairs, and a receipt write that closed them here would
-    # drop the batch an outstanding publication replays from.
-    owes = _report_delivery.owes_a_report(ctx.state)
+    # The gate is handed NOTHING to close while a report stands: the record is
+    # carrying this route's bookkeeping, and a receipt write that closed it
+    # here would drop the batch an outstanding publication replays from.
     pushed = _dev_fix._handle_dev_fix_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, run.worktree, run.dev_result,
         run.before_sha, after_sha=run.after_sha,
@@ -424,13 +425,9 @@ def _disposes(
     )
 
     if not pushed:
-        # Nothing was published, so nothing bound the report a reporting round
-        # recorded: that record is a delivery no road goes back to on its own,
-        # and the consumption left on it would be handed to a second developer
-        # next tick. A hold has already spent this route's round durably, from
-        # inside the gate's own write; what is left here is the caller's
-        # ordinary write.
-        _reporting._settles_unless_a_transaction_will(ctx, feedback)
+        # A hold has already spent this route's round durably, from inside the
+        # gate's own write; what is left here is the caller's ordinary write,
+        # which carries the consumption settled ahead of all of it.
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 

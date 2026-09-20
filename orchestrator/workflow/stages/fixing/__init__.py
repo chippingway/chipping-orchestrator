@@ -75,20 +75,26 @@ remembered off a receipt, which is persistent and on a tick that pushed nothing
 names an older round; and a binding that takes the delivery ends the tick,
 finishing the recovered route back to `validating` where the publication
 settled and relabelling nothing where it is still owed. A worktree that is
-gone has nothing left to prove either way, so that one parks once for a human
-rather than leaving every tick to find no feedback, no checkout and an owed
-report and do nothing with any of them.
+gone has nothing left to prove either way, and neither has a tree this host
+proved dirty -- the republishing bounce declines that one exactly as the
+recovery does -- so both park once for a human rather than leaving every tick
+to find no feedback, no publishable checkout and an owed report and do nothing
+with any of them.
 
 Everything an owed report touches is held to one rule: what an outstanding
 publication replays from may not be spent before it lands. The bounce hands
 the size gate nothing to close while one stands, the roads that publish
 nothing settle their own consumption rather than leaving a record to carry it,
-and a report this build cannot record at all settles the batch it consumed on
-its way to the park -- left open, the next tick reads that feedback as fresh
-and clears the very park just taken.
+and the consumption is applied into the state ahead of every durable write, so
+whichever one comes next carries it -- a record, a park, a receipt. Written in
+a step of its own afterwards, a crash in any of those windows leaves the
+feedback unread, and the next tick reads it as fresh and clears the very park
+just taken.
 
-Which is why a round asks the RECORD whether a report is owed rather than
-asking its own reply. A round whose reply carried no report can still find one
+Which is why every road asks the RECORD whether a report is owed rather than
+asking this run's own reply. The `ACK:` road is the sharpest case -- read off
+the run it would return a pull request to review as needing nothing while the
+report the issue owes is still on the pinned comment. A round whose reply carried no report can still find one
 an earlier tick recorded, and the push it makes for a human's later comment is
 the publication that report was waiting for -- so it binds before it spends
 anything, where reading its own reply would relabel and leave the report

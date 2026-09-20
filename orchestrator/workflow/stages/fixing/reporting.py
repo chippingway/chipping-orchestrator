@@ -30,10 +30,9 @@ from orchestrator.workflow.engine import (
     report_binding as _report_binding,
     report_delivery as _report_delivery,
     report_outcomes as _report_outcomes,
-    report_record_state as _record_state,
     report_records as _report_records,
 )
-from orchestrator.workflow.stages.fixing import feedback as _feedback, models as _models
+from orchestrator.workflow.stages.fixing import models as _models
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
 )
@@ -124,7 +123,7 @@ def _is_report_only(
 def _recording_stops_the_tick(
     ctx: _models._FixingContext,
     run: _models._FixingResumeRun,
-    feedback: _models._FixingFeedback,
+    consumed: tuple,
     owed,
 ) -> bool:
     """Record this round's report, carrying what its run consumed and spent.
@@ -132,18 +131,20 @@ def _recording_stops_the_tick(
     True is a tick this call ended: a report this build cannot record, which
     parks with the commit still in the worktree and nothing published.
 
-    The two groups are handed over rather than written beside the record for
-    the reason the record itself is durable -- the publication they belong to
-    is not this tick's to guarantee. Settled by the write that COMPLETES the
-    transaction, they cannot come apart from the report they were earned by.
+    Both groups are handed over rather than derived here. `consumed` is the
+    pairs the caller FROZE before it settled them, so the record names exactly
+    what was applied rather than what is left to apply -- derived after the
+    settlement it would be empty, and the recovery that reads this record back
+    would have nothing to put the feedback beyond. `owed` is the route
+    bookkeeping, which is not applied anywhere yet: the publication it belongs
+    to is not this tick's to guarantee, so the write that COMPLETES the
+    transaction is what closes it.
     """
     return _report_delivery.recording_stops_the_tick(
         ctx.gh, ctx.issue, ctx.state, run.dev_result,
         _report_records.RouteDebt(
             route=WorkflowLabel.FIXING,
-            watermarks=_feedback._consumed_delivery(
-                ctx.state, feedback,
-            ).consumed_pairs(ctx.state),
+            watermarks=consumed,
             spends=owed.fields,
         ),
     )
@@ -191,27 +192,6 @@ def _holds_an_unpublished_report(
     return _report_delivery.owes_a_report(ctx.state)
 
 
-def _settles_unless_a_transaction_will(
-    ctx: _models._FixingContext, feedback: _models._FixingFeedback,
-) -> None:
-    """Close the consumption here, unless a transaction is carrying it.
-
-    A PENDING transaction is the one record that will: it is bound to a
-    publication, the reconciliation ahead of a later handler completes it, and
-    the write that does applies the very pairs this round recorded. Anything
-    short of that -- a delivery nothing bound, a binding a refusal parked, a
-    push that never landed -- is a record no road goes back to on its own, so
-    leaving the consumption on it would hand the same feedback to a second
-    developer on the very next tick.
-
-    Applying it here as well is safe where the transaction does take it later:
-    the watermarks ratchet forward and the bookkeeping is a frozen value, so
-    a settlement replayed is a no-op rather than a second count.
-    """
-    if not _record_state.carries_pending_report(ctx.state):
-        _feedback._settle_consumed_feedback(ctx.state, feedback)
-
-
 def _finishes_a_reported_round(
     ctx: _models._FixingContext,
     feedback: _models._FixingFeedback,
@@ -227,7 +207,6 @@ def _finishes_a_reported_round(
     transaction, here or in the reconciliation ahead of a later handler.
     """
     if _holds_an_unpublished_report(ctx, candidate):
-        _settles_unless_a_transaction_will(ctx, feedback)
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
     _late_gate_models._spend(ctx.state, owed)

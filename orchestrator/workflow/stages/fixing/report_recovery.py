@@ -46,17 +46,19 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.fixing import models as _models, reporting as _reporting
 from orchestrator.workflow.state import WorkflowLabel
 
-# What a report with no checkout left to prove it is held under.
-_CHECKOUTLESS_PARK = (
+# What a report no road on this host can publish is held under.
+_UNPUBLISHABLE_PARK = (
     "{mentions} this issue records a developer report its pull request never "
-    "received, and the worktree that report was written in is no longer on "
-    "this host. Nothing was discarded -- the report is still on the pinned "
-    "comment -- but with no checkout there is nothing left to prove the code "
-    "it describes actually reached the pull request, and publishing it on a "
-    "guess would hand a reviewer a description of work that may not be there. "
-    "Reply and the orchestrator resumes the developer; the report that "
-    "session writes is the one that gets published, and it needs no new "
-    "commit to deliver it."
+    "received, and the worktree it was written in cannot say whether the code "
+    "it describes got there: the checkout is either no longer on this host or "
+    "carrying uncommitted changes, and neither the recovery nor the "
+    "republishing bounce will publish a report over a checkout in that state. "
+    "Nothing was discarded -- the report is still on the pinned comment -- and "
+    "nothing was published, because doing it on a guess would hand a reviewer "
+    "a description of work that may not be there. Clean up or restore the "
+    "checkout if you want that commit published, then reply: the orchestrator "
+    "resumes the developer, and the report that session writes is the one that "
+    "gets published. It needs no new commit to deliver it."
 )
 
 
@@ -83,7 +85,7 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     _consumed.advance_consumed(ctx.state, delivered.watermarks)
     published = _published_checkout(ctx)
     if not published:
-        _holds_a_checkoutless_report(ctx)
+        _holds_a_report_nothing_can_publish(ctx)
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return False
     still_owed = _reporting._holds_an_unpublished_report(ctx, published)
@@ -96,31 +98,46 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     return True
 
 
-def _holds_a_checkoutless_report(ctx: _models._FixingContext) -> None:
-    """Announce a report no checkout on this host can ever publish.
+def _holds_a_report_nothing_can_publish(ctx: _models._FixingContext) -> None:
+    """Announce a report no road on this host is going to get out, once.
 
-    A worktree that is GONE is the one refusal here that no later tick
-    answers differently. Every other reading that declines -- a head ahead of
-    the pull request, a tree this poll could not read -- describes a checkout
-    the bounce below still republishes from, and the report goes out with it.
-    With no checkout at all there is nothing to republish and nothing to
-    prove: the commit the report describes is either already on the pull
-    request or gone with the worktree, and no reading left on this host can
-    say which.
+    Two refusals here are DEFINITE, and a definite refusal is one no later
+    poll answers differently -- so leaving either to the next tick is leaving
+    the issue to find no feedback, no publishable checkout and an owed report
+    every poll, and quietly do nothing at all with any of them.
 
-    So it is said once and the issue waits, rather than being left to a tick
-    that finds no feedback, no checkout and an owed report and quietly does
-    nothing at all with any of them. The park is not this call's to own past
-    the notice: a reply clears it through the ordinary parked dispatch, which
-    resumes the developer, and the report that session writes supersedes the
-    one nothing could deliver.
+    A worktree that is GONE is the first: nothing to republish and nothing to
+    prove, since the commit the report describes is either already on the
+    pull request or went with the checkout and no reading left here can say
+    which. A tree this host PROVED dirty is the second, and it is the one the
+    stranded bounce cannot help with either: that road refuses a dirty
+    checkout exactly as this one does, so the two decline together and
+    nothing moves until somebody cleans it.
+
+    Every other decline is left alone. A status nobody could read is not a
+    dirty tree -- a later poll may read it -- and a head ahead of the pull
+    request is a checkout the bounce still republishes from, with the report
+    going out on the push it makes.
+
+    The park is not this call's to own past the notice: a reply clears it
+    through the ordinary parked dispatch, which resumes the developer, and
+    the report that session writes supersedes the one nothing could deliver.
     """
-    if _worktree_paths._worktree_path(ctx.spec, ctx.issue.number).exists():
+    if not _refuses_for_good(ctx):
         return
     _report_delivery.parks_an_undeliverable_report(
         ctx.gh, ctx.issue, ctx.state,
-        _CHECKOUTLESS_PARK.format(mentions=_config.HITL_MENTIONS),
+        _UNPUBLISHABLE_PARK.format(mentions=_config.HITL_MENTIONS),
     )
+
+
+def _refuses_for_good(ctx: _models._FixingContext) -> bool:
+    """Whether this checkout's refusal is one no later poll takes back."""
+    worktree = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
+    if not worktree.exists():
+        return True
+    tree = _worktree_status._worktree_status(worktree)
+    return tree.readable and not tree.is_clean
 
 
 def _published_checkout(ctx: _models._FixingContext) -> str:

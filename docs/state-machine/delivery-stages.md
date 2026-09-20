@@ -3297,7 +3297,10 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      dev makes no commit but ends its message with the `ACK: <reason>` marker (the prompt instructs it to emit this when
      the comments name no actionable change — a vague "continue" / "ok" — and neither the branch nor its report has to
      change), clear `pending_fix_*`, post the ack as an
-     FYI, and relabel straight to **`in_review`** without parking. Otherwise apply the same `_handle_dev_fix_result`
+     FYI, and relabel straight to **`in_review`** without parking. An issue that OWES a report is excluded from that
+     fast path, and the debt is read off the RECORD rather than off this run: a plain `ACK:` on an issue standing on
+     a report an earlier tick could not deliver would present the pull request as needing nothing while the report it
+     owes is still on the pinned comment and nothing has gone out. Otherwise apply the same `_handle_dev_fix_result`
      disposition as the validating fix-loop. Any other unmarked no-commit reply falls through to `_on_question` and
      parks awaiting human — a no-ACK reply may be a real dev question, and we cannot tell by inspection (a dirty tree,
      failed fetch, or a remote that moved past the local view also falls back to this park rather than pushing blind).

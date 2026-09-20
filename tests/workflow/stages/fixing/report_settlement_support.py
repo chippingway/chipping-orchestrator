@@ -19,22 +19,7 @@ from unittest import mock
 
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.git.verification.status import _WorktreeStatus
-from orchestrator.github.pinned_state import PinnedState as _PinnedState
-from orchestrator.workflow.engine import content_hash as _content_hash
-from orchestrator.workflow.stages.fixing import (
-    feedback as _feedback,
-    models as _models,
-)
-from orchestrator.workflow.stages.implementing import (
-    late_publication_state as _publication_state,
-)
 from tests.workflow.git_owners import seam_patch
-
-# The pinned field a recorded, unbound report stands on.
-_DELIVERED_REPORT = "developer_report_delivery"
-
-# The pinned field naming the pull request a receipt is recorded against.
-_PR_NUMBER = "pr_number"
 
 
 @contextlib.contextmanager
@@ -72,56 +57,6 @@ def _readings(checkout: Path, head: str) -> dict:
             tip=head, readable=True,
         ),
     }
-
-
-def recorded_delivery(
-    github, issue, consumed, *, landed: str = "", spends=(),
-) -> None:
-    """A report an earlier tick recorded and a crash left unbound.
-
-    Spelled the way that tick would have written it: the report, and the input
-    its run consumed riding the same record. `landed` is the code-publication
-    receipt a crash AFTER the push leaves behind, and its absence is the crash
-    before one. `spends` is the route bookkeeping that round froze -- the fix
-    bookmarks it clears and the reviewer round it lands on -- which only the
-    write that completes the publication may apply.
-    """
-    state = github.read_pinned_state(issue)
-    state.set(_DELIVERED_REPORT, {
-        "receipt": f"issue-{issue.number}-report-1",
-        "revision": 1,
-        "requirements": _content_hash._compute_user_content_hash(issue, ()),
-        "mode": "publish",
-        "route": "workflow:fixing",
-        "watermarks": [list(pair) for pair in consumed],
-        "spends": [list(pair) for pair in spends],
-        "report": "the run that answered this feedback reported it.",
-    })
-    if landed:
-        _publication_state._record_publication(
-            state, landed, "", state.get(_PR_NUMBER),
-        )
-    github.write_pinned_state(issue, state)
-
-
-def consumed_pairs(issue, readers, comment_id: int) -> tuple:
-    """What one issue-thread reply comes to, off the owner that derives it.
-
-    Built from the reply itself through the stage's own delivery owner rather
-    than spelled out, so a case is about the pairs a round recorded being the
-    pairs this stage derives -- not about a tuple a fixture chose that both
-    sides happen to match.
-    """
-    seeded = _PinnedState(state_data=dict(readers))
-    batch = _models._FixingFeedback(
-        issue_thread=[
-            seen for seen in issue.comments if seen.id == comment_id
-        ],
-        pr_conversation=[],
-        review_comments=[],
-        review_summaries=[],
-    )
-    return _feedback._consumed_delivery(seeded, batch).consumed_pairs(seeded)
 
 
 @contextlib.contextmanager

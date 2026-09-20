@@ -1484,9 +1484,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             against the checkout rather than remembered off a receipt -- a clean tree, a head it can
                             name, and the pull request standing on it. A binding that TAKES the delivery ends the
                             tick, finishing the recovered route back to `workflow:validating` where the publication
-                            settled and relabelling nothing where it is still owed; a worktree that is GONE has
-                            nothing left to prove either way and parks once, since every other refusal here leaves
-                            a checkout the bounce still republishes from
+                            settled and relabelling nothing where it is still owed; a worktree that is GONE and a
+                            tree this host PROVED dirty each park once, since the republishing bounce declines the
+                            second exactly as this owner does, while every other refusal leaves a checkout that
+                            bounce still republishes from
       resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
                             nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
                             outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix
@@ -1496,7 +1497,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             handing the issue back. Whether a report is owed is read off the RECORD rather than off
                             the run, so a round whose own reply carried none still binds the one an earlier tick
                             recorded before it spends a bookmark or relabels. Which write carries the settlement
-                            forks on the run's report outcome: a round that finished on one records its consumed pairs and its route
+                            forks on the run's report outcome -- and the consumption goes the other way, applied
+                            into the state ahead of every durable write so whichever one comes next carries it: a round that finished on one records its consumed pairs and its route
                             bookkeeping onto the report transaction (`engine/report_delivery.py`) and binds it to
                             the publication afterwards (`engine/report_binding.py`), so the write that completes the
                             publication is the one that closes them and a report still owed holds the relabel;

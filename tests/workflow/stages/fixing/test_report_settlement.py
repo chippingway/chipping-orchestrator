@@ -7,11 +7,12 @@ round can finish on `REPORT: READY` exactly as an initial implementation can --
 and when it does, the round owes a publication this tick cannot guarantee: the
 push can fail, the post can fail, the process can die between them.
 
-So what the round consumed and what its route spent do NOT close here. They are
-recorded ON the transaction the report goes out as, and settled by the write
-that completes it, whichever tick makes it. Settled directly instead, a crash
-in that window leaves the feedback answered and the round spent for a report
-nobody published, and the `pending_fix_*` replay source gone with them.
+So the ROUTE bookkeeping such a round owes does not close here. It is recorded
+on the transaction the report goes out as and settled by the write that
+completes it, whichever tick makes that. The consumption is the other half and
+goes the other way: it is applied into the state before any of it, so whichever
+durable write happens next carries it -- a crash between the two would leave
+the feedback unread and pay a second developer to answer the same prompt.
 
 Every other outcome -- the `ACK:`, the question, the timeout -- writes no
 report and closes its own bookkeeping directly, which `test_feedback.py`
@@ -33,28 +34,90 @@ from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_transaction as _report_transaction,
 )
-from orchestrator.workflow.stages.fixing import (
-    resume as _resume,
-)
+from orchestrator.workflow.stages.fixing import resume as _resume
 from tests.workflow.repo_values import _TEST_SPEC
 from tests.workflow.report_values import _recovered_report
 from tests.workflow.stages.fixing import (
     fixing_test_support as support,
+    report_crash_support as crash,
     report_settlement_support as recovery,
 )
 
+AWAITING_HUMAN = support.AWAITING_HUMAN
+CHECK_SUCCESS = support.CHECK_SUCCESS
+DEBOUNCE_CONFIG = support.DEBOUNCE_CONFIG
+DEBOUNCE_SECONDS = support.DEBOUNCE_SECONDS
+DEV_SESSION = support.DEV_SESSION
+FakeComment = support.FakeComment
+FakeUser = support.FakeUser
+HISTORICAL_COMMENT_ID = support.HISTORICAL_COMMENT_ID
+INITIAL_PR_COMMENT_WATERMARK = support.INITIAL_PR_COMMENT_WATERMARK
+INLINE_FEEDBACK_ID = support.INLINE_FEEDBACK_ID
+IN_REVIEW = support.IN_REVIEW
+ISSUE = support.ISSUE
+IssueScenario = support.IssueScenario
+LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
+PARK_REASON = support.PARK_REASON
+PENDING_FIX_AT = support.PENDING_FIX_AT
+PENDING_FIX_ISSUE_IDS = support.PENDING_FIX_ISSUE_IDS
+PENDING_FIX_ISSUE_MAX_ID = support.PENDING_FIX_ISSUE_MAX_ID
+PR_HEAD_SHA = support.PR_HEAD_SHA
+PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
+PR_LAST_REVIEW_COMMENT_ID = support.PR_LAST_REVIEW_COMMENT_ID
+PR_LAST_REVIEW_SUMMARY_ID = support.PR_LAST_REVIEW_SUMMARY_ID
+PUSH_BRANCH = support.PUSH_BRANCH
+REVIEW_ROUND = support.REVIEW_ROUND
+RUN_AGENT = support.RUN_AGENT
+SHA_AFTER = support.SHA_AFTER
+SHA_BEFORE = support.SHA_BEFORE
+TRIGGER_ID = support.TRIGGER_ID
+VALIDATING = support.VALIDATING
+_FixingFixtureMixin = support._FixingFixtureMixin
+_agent = support._agent
+_reported = support.fixtures._reported
+config = support.config
+datetime = support.datetime
+patch = support.patch
+timedelta = support.timedelta
+timezone = support.timezone
+
 AUTHORIZATION = "authorized: go ahead and vendor the parser"
 
-# The road that parks the run for a human with nothing left to carry what it
-# consumed.
+# Where the four readers stand before the round, so "held" and "settled" are
+# both concrete numbers rather than the absence of a key.
+SEEDED_READERS = MappingProxyType({
+    LAST_ACTION_COMMENT_ID: HISTORICAL_COMMENT_ID,
+    PR_LAST_COMMENT_ID: INITIAL_PR_COMMENT_WATERMARK,
+    PR_LAST_REVIEW_COMMENT_ID: 0,
+    PR_LAST_REVIEW_SUMMARY_ID: 0,
+})
 
+# The route bookkeeping a fix round freezes onto its record: the bookmarks the
+# consumed batch clears and the reviewer round it lands on. Only the write that
+# completes the publication may apply them.
+FROZEN_SPENDS = (
+    (PENDING_FIX_AT, None),
+    (PENDING_FIX_ISSUE_MAX_ID, None),
+    (PENDING_FIX_ISSUE_IDS, None),
+    (REVIEW_ROUND, 0),
+)
+
+# The one report this build refuses to RECORD: past anything a pinned comment
+# can carry, which is the road that parks the run for a human with nothing left
+# to carry what it consumed.
 _AT_LENGTH = "the change, at length. "
-
-# Repeated past anything a pinned comment can carry, which is the one report
-# this build refuses to RECORD.
 _PAST_ANY_COMMENT = _MAX_PINNED_BODY // len(_AT_LENGTH) + 1
 _OVERSIZED_BODY = _AT_LENGTH * _PAST_ANY_COMMENT
 _OVERSIZED_REPORT = f"REPORT: READY\n{_OVERSIZED_BODY}\nREPORT: END"
+
+# A location shaped the way the contract spells one, naming a comment this pull
+# request does not carry: what those cases are about is the ROAD a verified
+# outcome takes, and a location nothing can confirm keeps the publication
+# itself out of the way of that question.
+# A human reply that lands after the crash, which is what turns the stalled
+# issue back into an ordinary fix round.
+LATER_COMMENT_ID = TRIGGER_ID + 1
+LATER_COMMENT = "one more thing: rename the helper"
 
 _ABSENT_COMMENT = 999
 _UNCONFIRMABLE = hashlib.sha256(b"a report nobody posted").hexdigest()
@@ -75,74 +138,6 @@ def _verified(slug: str) -> str:
         f"#issuecomment-{_ABSENT_COMMENT} sha256:{_UNCONFIRMABLE}"
     )
 
-AWAITING_HUMAN = support.AWAITING_HUMAN
-CHECK_SUCCESS = support.CHECK_SUCCESS
-DEBOUNCE_CONFIG = support.DEBOUNCE_CONFIG
-DEBOUNCE_SECONDS = support.DEBOUNCE_SECONDS
-DEV_SESSION = support.DEV_SESSION
-FakeComment = support.FakeComment
-FakeUser = support.FakeUser
-HISTORICAL_COMMENT_ID = support.HISTORICAL_COMMENT_ID
-INITIAL_PR_COMMENT_WATERMARK = support.INITIAL_PR_COMMENT_WATERMARK
-IN_REVIEW = support.IN_REVIEW
-IssueScenario = support.IssueScenario
-ISSUE = support.ISSUE
-LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
-PARK_REASON = support.PARK_REASON
-PENDING_FIX_AT = support.PENDING_FIX_AT
-PENDING_FIX_ISSUE_IDS = support.PENDING_FIX_ISSUE_IDS
-PENDING_FIX_ISSUE_MAX_ID = support.PENDING_FIX_ISSUE_MAX_ID
-PR_HEAD_SHA = support.PR_HEAD_SHA
-PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
-PUSH_BRANCH = support.PUSH_BRANCH
-PR_LAST_REVIEW_COMMENT_ID = support.PR_LAST_REVIEW_COMMENT_ID
-PR_LAST_REVIEW_SUMMARY_ID = support.PR_LAST_REVIEW_SUMMARY_ID
-REVIEW_ROUND = support.REVIEW_ROUND
-RUN_AGENT = support.RUN_AGENT
-SHA_AFTER = support.SHA_AFTER
-SHA_BEFORE = support.SHA_BEFORE
-TRIGGER_ID = support.TRIGGER_ID
-VALIDATING = support.VALIDATING
-
-# A human reply that lands after the crash, which is what turns the stalled
-# issue back into an ordinary fix round.
-LATER_COMMENT_ID = TRIGGER_ID + 1
-LATER_COMMENT = "one more thing: rename the helper"
-
-# The route bookkeeping a fix round freezes onto its record: the bookmarks the
-# consumed batch clears and the reviewer round it lands on. Only the write that
-# completes the publication may apply them.
-FROZEN_SPENDS = (
-    (support.PENDING_FIX_AT, None),
-    (support.PENDING_FIX_ISSUE_MAX_ID, None),
-    (support.PENDING_FIX_ISSUE_IDS, None),
-    (REVIEW_ROUND, 0),
-)
-
-# A location shaped the way the contract spells one, naming a comment this
-# pull request does not carry: what the case is about is the ROAD a verified
-# outcome takes, and a location nothing can confirm keeps the publication
-# itself out of the way of that question.
-# The pinned field a recorded, unbound report stands on.
-_DELIVERED_REPORT = "developer_report_delivery"
-_FixingFixtureMixin = support._FixingFixtureMixin
-_agent = support._agent
-config = support.config
-datetime = support.datetime
-patch = support.patch
-timedelta = support.timedelta
-timezone = support.timezone
-
-_reported = support.fixtures._reported
-
-# Where the four readers stand before the round, so "held" and "settled" are
-# both concrete numbers rather than the absence of a key.
-SEEDED_READERS = MappingProxyType({
-    LAST_ACTION_COMMENT_ID: HISTORICAL_COMMENT_ID,
-    PR_LAST_COMMENT_ID: INITIAL_PR_COMMENT_WATERMARK,
-    PR_LAST_REVIEW_COMMENT_ID: 0,
-    PR_LAST_REVIEW_SUMMARY_ID: 0,
-})
 
 class _ReportRoundMixin(_FixingFixtureMixin):
     """One fix round whose developer finishes on a report outcome."""
@@ -252,10 +247,11 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
 
     def test_an_owed_report_holds_the_round(self) -> None:
         # The post never landed, so the transaction still owes the pull
-        # request its report. Everything the round would have closed is on
-        # that record and nowhere else: the readers have not moved, the
-        # replay source is intact, and the reviewer has not been sent a head
-        # whose report nothing carries.
+        # request its report. What it is carrying is the ROUTE bookkeeping --
+        # the replay source is intact and the reviewer has not been sent a
+        # head whose report nothing carries -- while the consumption is
+        # already closed: a developer read that batch, and the record names
+        # exactly the pairs that were applied for the recovery to replay.
         seeded = self._seed_round()
 
         self._round(seeded.github, seeded.issue, publishes=False)
@@ -264,17 +260,14 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         owed = _record_state.read_pending_report(
             self._record(seeded),
         )
-        self.assertEqual(owed.watermarks, recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID))
+        self.assertEqual(owed.watermarks, crash.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID))
         self.assertEqual(
             dict(owed.spends),
             dict(_resume._spends_fix_round(
                 self._record(seeded), True,
             ).fields),
         )
-        self.assertEqual(
-            {reader: pinned_data.get(reader) for reader in SEEDED_READERS},
-            SEEDED_READERS,
-        )
+        self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
         self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
         self.assertFalse(self._went_back_to_review(seeded))
         self.assertFalse(pinned_data.get(AWAITING_HUMAN))
@@ -287,9 +280,8 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         # them once the report is really there.
         seeded = self._seed_round()
         seeded.github.report_failures.refused.add(support.PR_NUMBER)
-        recovery.recorded_delivery(
-            seeded.github, seeded.issue,
-            recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID),
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID,
             spends=FROZEN_SPENDS,
         )
 
@@ -380,7 +372,11 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
 
         pinned_data = self._pinned(seeded)
         self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
-        self.assertEqual(pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID)
+        # The park that ends this round carries its own notice over the mark,
+        # so the thread reader lands at or past the reply it consumed.
+        self.assertGreaterEqual(
+            pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID,
+        )
         self.assertTrue(
             _delivery_state.carries_delivered_report(
                 self._record(seeded),
@@ -504,6 +500,59 @@ class FixingReportRefusalTest(unittest.TestCase, _ReportRoundMixin):
         mocks = self._tick(seeded)
         mocks[RUN_AGENT].assert_not_called()
 
+    def test_an_ack_cannot_answer_an_owed_report(self) -> None:
+        # The debt an earlier tick left is read off the RECORD, not off this
+        # run. Read off the run, a plain `ACK:` would clear the bookmarks and
+        # return the pull request to review as needing nothing -- while the
+        # report it owes is still on the pinned comment and nothing has gone
+        # out. There is no report here either, so the round parks instead.
+        seeded = self._seed_round()
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID, spends=FROZEN_SPENDS,
+        )
+        crash.later_comment(seeded.issue, LATER_COMMENT_ID, LATER_COMMENT)
+
+        # A real checkout, standing ahead of the pull request: the recovery
+        # declines it without parking (the bounce still republishes such a
+        # commit), so this case is about the ACK road and not about that one.
+        with recovery.on_a_real_checkout(
+            support.worktree_paths, support.WORKTREE_PATH,
+        ):
+            mocks = self._round(
+                seeded.github, seeded.issue,
+                message="ACK: nothing to change here",
+                head_shas=(SHA_AFTER,) * 4,
+            )
+
+        mocks[RUN_AGENT].assert_called_once()
+        self.assertNotIn((ISSUE, IN_REVIEW), seeded.github.label_history)
+        self.assertTrue(self._pinned(seeded).get(AWAITING_HUMAN))
+        self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
+
+    def test_the_park_write_carries_the_settlement(self) -> None:
+        # The park is durable the moment it is written, and what it writes has
+        # to already say the batch was consumed. Applied in a write of its own
+        # afterwards, a crash in between leaves the feedback unread -- and the
+        # next tick clears the very park just taken and spawns a second
+        # developer over the same prompt with no human having said anything.
+        seeded = self._seed_round()
+        written = []
+
+        with crash.recorded_writes(seeded.github, written):
+            self._round(
+                seeded.github, seeded.issue,
+                message=_OVERSIZED_REPORT,
+                head_shas=(SHA_BEFORE, SHA_BEFORE),
+            )
+
+        parked = [
+            state_data for state_data in written
+            if state_data.get(PARK_REASON)
+            == _report_delivery.UNDELIVERABLE_REPORT
+        ]
+        self.assertTrue(parked)
+        self.assertEqual(parked[0].get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+
     def test_a_head_the_pr_lacks_publishes_nothing(self) -> None:
         # The checkout is clean and did not move, and it is still not standing
         # on what the pull request carries: the report would describe work the
@@ -531,8 +580,8 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # An older round's receipt, naming the very commit the pull request
         # is standing on. Read as proof that THIS report's run pushed, it
         # would publish a report about work that never left the checkout.
-        recovery.recorded_delivery(
-            seeded.github, seeded.issue, recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID),
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID,
             landed=PR_HEAD_SHA, spends=FROZEN_SPENDS,
         )
 
@@ -559,8 +608,8 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # The standing receipt names some other commit, as it does on every
         # tick that did not push: what the binding is held to is the commit
         # this call proved, never the one the record happens to remember.
-        recovery.recorded_delivery(
-            seeded.github, seeded.issue, recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID),
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID,
             landed=SHA_AFTER, spends=FROZEN_SPENDS,
         )
 
@@ -579,9 +628,8 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # than every tick finding no feedback, no checkout and an owed report
         # and quietly doing nothing with any of them.
         seeded = self._seed_round()
-        recovery.recorded_delivery(
-            seeded.github, seeded.issue,
-            recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID),
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID,
             spends=FROZEN_SPENDS,
         )
 
@@ -614,17 +662,11 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # a transaction something comes back for, where a delivery nothing
         # bound is not.
         seeded = self._seed_round()
-        recovery.recorded_delivery(
-            seeded.github, seeded.issue,
-            recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID),
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID,
             spends=FROZEN_SPENDS,
         )
-        seeded.issue.comments.append(FakeComment(
-            id=LATER_COMMENT_ID,
-            body=LATER_COMMENT,
-            user=FakeUser(support.ALICE),
-            created_at=datetime.now(timezone.utc) - timedelta(hours=1),
-        ))
+        crash.later_comment(seeded.issue, LATER_COMMENT_ID, LATER_COMMENT)
 
         # One head, answered to every probe this tick takes: the recovery's
         # own reading, the two the resume brackets its run with, and the
@@ -645,6 +687,29 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         self.assertFalse(self._went_back_to_review(seeded))
         self.assertTrue(_keeps_the_replay_state(self._pinned(seeded)))
 
+    def test_a_dirty_checkout_parks_for_a_human(self) -> None:
+        # A tree this host PROVED dirty is the other refusal nothing takes
+        # back: the republishing bounce declines a dirty checkout exactly as
+        # the recovery does, so the two decline together and every poll finds
+        # no feedback, no publishable checkout and an owed report. Said once,
+        # the issue waits for the hand that can clean it.
+        seeded = self._seed_round()
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID,
+            spends=FROZEN_SPENDS,
+        )
+
+        mocks = self._tick(seeded, dirty_files=("stray.py",))
+
+        mocks[RUN_AGENT].assert_not_called()
+        pinned_data = self._pinned(seeded)
+        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
+        self.assertEqual(
+            pinned_data.get(PARK_REASON),
+            _report_delivery.UNDELIVERABLE_REPORT,
+        )
+        self.assertEqual(len(seeded.github.posted_comments), 1)
+
     def test_an_unposted_report_holds_the_tick(self) -> None:
         # The binding landed and the post did not, so a transaction is owed.
         # Nothing may relabel past it: the bookmarks it replays from are the
@@ -652,9 +717,8 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # leaving a reviewer reading a head no report describes.
         seeded = self._seed_round()
         seeded.github.report_failures.refused.add(support.PR_NUMBER)
-        recovery.recorded_delivery(
-            seeded.github, seeded.issue, recovery.consumed_pairs(seeded.issue, SEEDED_READERS, TRIGGER_ID),
-            spends=FROZEN_SPENDS,
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID, spends=FROZEN_SPENDS,
         )
 
         self._tick(seeded)
