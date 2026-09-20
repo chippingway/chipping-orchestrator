@@ -178,7 +178,9 @@ Result routing in `_post_user_content_change_result`:
   first: the description says whether a report VERIFIED on that very body would cost the pull request its closing
   reference and attribution, and the reconciliation proves the requirements over the fresh issue, since the one the
   tick holds was fetched before the resumed run and a title or body edited during it exists only on the new object.
-  A run that completed and committed with no usable report parks under `report_undeliverable` with nothing pushed.
+  A run that completed and committed with no usable report parks under `report_undeliverable` with nothing pushed,
+  under a notice naming what this road withheld: the pull request stays open on the commit it already carried, which
+  is what the same park says nothing was opened of on the implementing seam.
   A run that did not complete records nothing, and its commit is owed no report; nor is a commit an earlier
   unfinished run stranded, unless this run wrote a report anyway — or unless the issue still owes a report for that
   very commit, which an earlier run committed and parked without: then it stays unpublished, and a reply that is not
@@ -2877,7 +2879,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      report, so the reply is read the way the drift resume's is — a report with no commit publishes onto the head the
      pull request carries instead of parking as a question, a commit is held to the same contract before the gate sees
      it, and the report is stamped with the revision that batch delivered, which its own settlement records as the
-     baseline. A transient park (`_VALIDATING_TRANSIENT_PARK_REASONS`) with NO new comment goes to
+     baseline. What that publication SPENDS is the round `rounds.py` says it does: nothing where the debt came back
+     from `in_review`, whose hand-back already reset `review_round` for the very edit this publication answers —
+     counted again, an edit answered a tick late would leave its reviewer one round short of the same edit answered
+     at once — and the ordinary next round for a debt this stage's own roads left, where nothing was published when
+     the resume parked and the head the reply lands is one no reviewer has read. A transient park
+     (`_VALIDATING_TRANSIENT_PARK_REASONS`) with NO new comment goes to
      `_try_recover_validating_transient_park` instead, which retries silently and, on `cleared` / `pushed`, posts the
      **Recovery follow-up** described below before clearing the park. Its two git-touching retries — the deferred push
      and the commit a timeout killed the disposition before it saw — publish through the same [size

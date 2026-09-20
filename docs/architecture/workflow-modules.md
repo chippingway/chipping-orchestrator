@@ -425,7 +425,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             build could not hold against its own is held the same way, whether because it names
                             somebody else's or because the reading that would have proved it could not be taken:
                             that reading completes a repository PyGithub may hold only a URL for, and raised out of
-                            here it would leave a finished run's report neither recorded nor parked. A run that did
+                            here it would leave a finished run's report neither recorded nor parked. Either notice
+                            names what its own road held back: the implementing seam publishes for the first time
+                            and has no pull request yet, while a resume under review has one that stands on the
+                            commit it stood on, so the initial wording there would deny an open pull request its
+                            human is reading. A run that did
                             NOT complete is left
                             alone: a launch nothing invoked (which is every synthesis an implementing recovery
                             makes for a publication no developer ran), a shutdown kill, a timeout, a provider
@@ -539,7 +543,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since what the record reserved may since have been spent by the routes a deferred
                             transaction let run -- and the REQUIREMENTS last, over the issue read afresh after the
                             request, since a post is long enough for an edit to land under it. Each settlement
-                            records which road made it, for the re-read below
+                            records which road made it, for the re-read below -- and retires what the transaction
+                            it ends is still recorded as owing: the debt, the fresh review budget an `in_review`
+                            edit reset for this publication, and the undeliverable-report park itself where that
+                            park is the one this settlement answers. Conditions like it are repaired rather than
+                            replied to -- an edited report restored, a checkout cleaned -- so the settlement is
+                            the only thing that would ever end the wait, and a debt outliving it would hold the
+                            reviewer over a report the pull request carries. Any other park reason belongs to
+                            whoever took it and stands
     report_settled_reading.py a SETTLED report read again where it settled, posting nothing, and held to the
                             road the record says settled it: a VERIFIED location has to hash to the digest still,
                             under a trusted author; a PUBLISHED one has to re-render in its comment as our report,
@@ -2236,7 +2247,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             move -- and the report bound only once the relabel is behind it; and the hand-back a
                             later tick gives an issue whose approval an edit made stale, read off a report it still
                             owes (a failed push, a held candidate, a tick that died mid-way) or off that marker,
-                            which is the only thing an `ACK:` leaves
+                            which is the only thing an `ACK:` leaves. A publication still owed when either move
+                            is made is recorded as belonging to the budget that reset gives it, so the road that
+                            lands it on `workflow:validating` spends no round the edit has already paid for
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the one HITL ready-ping an approved, unvetoed head earns per head
                             SHA, which is no park and carries no mark
@@ -2331,7 +2344,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the handler built before its drift check -- and, where the park was one this stage took
                             over a report it owes, the drift reading of that resume's answer, stamped with the
                             revision the batch delivered, since a reply to a park is no drift and this is the road
-                            it arrives on
+                            it arrives on, and spending the round `rounds.py` says it does, which is none where
+                            the debt came back from `in_review` with the budget already reset for it
       drift.py              a body edit mid-review, the three parks that defer, the consumed-thread watermark, and
                             the requirements revision the drift check hands the resume its report is stamped with;
                             on a parked tick the edit is measured by what the park had already read
@@ -2371,7 +2385,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       rounds.py             the `review_round` a fix pays for on the one event `MAX_REVIEW_ROUNDS` counts -- a head
                             the reviewer has not seen reaching the pull request -- spent by the push that lands and
                             by the hold that sends the candidate to the adjudication, the held form handed to the
-                            gate so the count is not lost to a crash in the relabel window
+                            gate so the count is not lost to a crash in the relabel window; and the one road that
+                            spends nothing -- a publication an `in_review` requirements edit already reset the
+                            budget for, whose delayed landing would otherwise charge that edit twice
       models.py             the frozen records several owners in this stage hand each other -- a record one
                             route builds and reads alone stays beside that route instead
       state.py              the pinned-state keys, park reasons, and outcome tokens they share

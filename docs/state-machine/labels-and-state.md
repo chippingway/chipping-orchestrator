@@ -694,9 +694,20 @@ The keys that matter for the state machine fall into a few groups:
   report though the run it refused to record had written one. The flags are single, so any later park — a resumed run
   that times out, a question — replaces `park_reason`, and without the flag the report that finally comes back would
   read as an ordinary reply on an issue owing nothing. `owes_a_report` reads it beside the two records and the reason,
-  and the write that records a delivered report retires it with the reason. Additive: an issue without it owes nothing
-  on that account, and an older park carrying the reason alone still reads as a debt and is given the flag, with no
-  second notice, the next time a road meets that park still standing.
+  and the write that records a delivered report retires it with the reason — as does the settlement that puts a report
+  on the pull request, which retires the `report_undeliverable` park itself where that is the park it answers: a
+  condition a human REPAIRS rather than replies to (an edited report restored, a checkout cleaned) leaves nothing else
+  to end the wait, and a debt outliving the settlement would hold the reviewer over a report the pull request carries.
+  Additive: an issue without it owes nothing on that account, and an older park carrying the reason alone still reads
+  as a debt and is given the flag, with no second notice, the next time a road meets that park still standing.
+
+  `developer_report_owed_round_reset` is the fresh review budget an `in_review` requirements edit earned, written
+  beside the debt where the publication that edit produced is still owed as the hand-back moves the label. That stage
+  resets `review_round` before it relabels, because the approval was earned against requirements that are gone — and a
+  publication still owed then lands on `workflow:validating`, where a fix reaching the pull request spends a round.
+  The flag is what keeps the delayed road from spending the budget that reset just made, which would leave an edit
+  answered a tick late one round short of the same edit answered at once. Additive, a bare `true` while it stands, and
+  retired by the settlement that ends the debt it is about.
 
   `developer_report_pending` is one publication transaction, written **before the report it carries is published**
   — that ordering is the whole of what makes the publication recoverable. Whether the CODE that report is about is
@@ -867,8 +878,8 @@ The keys that matter for the state machine fall into a few groups:
   description that does not close the issue and name the session — which no owner rewrites, so the notice quotes the
   two lines for a human to put there — and `stages/implementing/report_handoff.py` takes it for a debt no retry can
   pay and a settled report that no longer stands. It is announced once while it stands, retired the moment a report
-  IS recorded, and spent by the publication handoff beside the agent timeout's, since reaching that line means the
-  report the park was about has reached the pull request. The late
+  IS recorded or a settlement carries one onto the pull request, and spent by the publication handoff beside the agent
+  timeout's, since reaching that line means the report the park was about has reached the pull request. The late
   size gate re-sets its own reasons for the same kind of reason: `late_measurement_failed`,
   `late_candidate_moved`, `late_unauthorized_exemption`, `late_evidence_missing`, `late_plan_pr_hold_failed`,
   `late_generation_incomplete`, `late_worktree_missing`, `late_worktree_mutated`, `late_adjudicator_timeout`,
