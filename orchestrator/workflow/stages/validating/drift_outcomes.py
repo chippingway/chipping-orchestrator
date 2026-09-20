@@ -122,17 +122,24 @@ def _records_an_open_drift(state: PinnedState, outcome: str) -> None:
     adjudication's, which publishes that commit itself, so the edit is
     answered by that publication rather than by a reply nobody is waiting for.
 
-    Every other outcome answers the edit, and takes the fresh review budget a
-    hand-back recorded with it: a publication that has happened is not one a
-    later round may still be owed for, and a claim left standing would spend
-    nothing for an edit nobody is answering any more.
+    Every other outcome answers the edit, and the fresh review budget a
+    hand-back recorded goes with it -- but only once the publication that
+    budget was reset for has actually happened, since that publication is the
+    whole of what the record is about. An `ACK:` while a commit is still
+    withheld for the report it owes answers the edit in words and publishes
+    nothing, so the reply that finally publishes would spend a round the edit
+    had already bought back. Left standing past a publication instead, it
+    would spend nothing for an edit nobody is answering any more.
     """
     if outcome == _state._OUTCOME_PARKED and state.get(_AWAITING_HUMAN):
         state.set(_state._OPEN_DRIFT, True)
         return
-    for answered in (_state._OPEN_DRIFT, _report_delivery.OWED_ROUND_RESET):
-        if state.get(answered):
-            state.set(answered, None)
+    answered = [_state._OPEN_DRIFT]
+    if not _drift_reports._owes_an_unrecorded_report(state):
+        answered.append(_report_delivery.OWED_ROUND_RESET)
+    for claim in answered:
+        if state.get(claim):
+            state.set(claim, None)
 
 
 def _publishes_the_fix(

@@ -13,7 +13,9 @@ itself left. A resume that answered the edit with nothing at all -- a question
 -- owes the same move, and the comment a human wrote while it was out is still
 there for the road that answers it. A publication such a hand-back still owes
 lands on `validating` without spending a round: the fresh budget is what the
-edit that produced it has already bought.
+edit that produced it has already bought. That holds however long it takes to
+land -- a push retried after one that failed, and a publication a reply paying
+none of the debt came before.
 """
 
 from __future__ import annotations
@@ -123,12 +125,22 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
         # tick hands the issue on without pinging; `validating` retries the
         # push silently, then binds and settles the recorded report and only
         # then runs the reviewer -- one report, and no second developer run.
-        self.seeded(ISSUE, PR, LABEL_IN_REVIEW, **READY_TO_PING)
+        # The retry lands the publication the edit already bought a fresh
+        # budget for, so it spends none of it: counted there, a push that
+        # failed once would leave its reviewer a round short of the same
+        # push landing first time.
+        self.seeded(
+            ISSUE, PR, LABEL_IN_REVIEW,
+            review_round=SPENT_ROUNDS, **READY_TO_PING,
+        )
         self.drift(world.reported(), push_branch=False)
 
         _assert_handed_back(self)
         self.drift(REVIEW_REPLY, committed=False)
-        self.assertEqual(self.pull_request.head.sha, world.FIXED_HEAD)
+        self.assertEqual(
+            (self.pull_request.head.sha, self.pinned()[REVIEW_ROUND]),
+            (world.FIXED_HEAD, 0),
+        )
 
         reviewed = self.drift(REVIEW_REPLY, committed=False)
 
@@ -226,6 +238,28 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
         # so the record of it ends with the debt rather than outliving it.
         self.assertIsNone(self.pinned()[_report_delivery.OWED_ROUND_RESET])
 
+    def test_an_ack_keeps_the_owed_budget(self) -> None:
+        # The first reply to that debt only says `ACK:`, which pays none of
+        # it: the commit stays withheld for the report it owes, so the
+        # publication the hand-back reset the budget for has still not
+        # happened. Read as the end of the edit, the `ACK:` would drop the
+        # record of that reset, and the reply that finally publishes would
+        # spend a round the edit had already bought back.
+        self.seeded(
+            ISSUE, PR, LABEL_IN_REVIEW,
+            review_round=SPENT_ROUNDS, **READY_TO_PING,
+        )
+        self.drift("fixed the criteria")
+        # The hand-back is setup here; what asserts it is
+        # `test_a_handed_back_debt_spends_no_round`.
+        self.drift(REVIEW_REPLY, committed=False)
+        world.human_reply(self)
+
+        self.drift(ACK_REPLY, **world.STRANDED)[PUSH_BRANCH].assert_not_called()
+
+        self.assertTrue(self.pinned()[_report_delivery.OWED_ROUND_RESET])
+        _assert_the_report_publishes_free(self)
+
     def test_an_ack_whose_relabel_failed_is_remade(self) -> None:
         # An `ACK:` records no report, so a relabel that never lands leaves
         # nothing else on the comment to recognise the debt by -- no drift to
@@ -296,6 +330,19 @@ class InReviewParkedDriftTest(unittest.TestCase, world._DriftReportMixin):
 
         answered[RUN_AGENT].assert_called_once()
         self.assertEqual(len(self.published_reports()), 1)
+
+
+def _assert_the_report_publishes_free(case) -> None:
+    """The debt holds the review, and the report pays for it with no round."""
+    case.drift(REVIEW_REPLY, head_shas=(world.FIXED_HEAD,))
+    world.human_reply(case)
+    case.drift(world.reported(), **world.STRANDED)
+    case.reconcile()
+    case.assertEqual(len(case.published_reports()), 1)
+    case.assertEqual(
+        (case.pull_request.head.sha, case.pinned()[REVIEW_ROUND]),
+        (world.FIXED_HEAD, 0),
+    )
 
 
 def _assert_handed_back(case) -> None:
