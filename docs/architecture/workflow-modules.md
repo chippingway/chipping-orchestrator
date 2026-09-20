@@ -2387,13 +2387,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reply that must not park, over the shared fix disposition, and -- where the
                             caller names what its resume was `handed` -- the report reply that is neither, recorded
                             for the unchanged head as `reported`, and a commit held to the same contract
-      drift_reports.py      that contract for a drift resume on an open pull request: the run's report recorded
-                            ahead of the size gate under the route and requirements revision the drift check handed
-                            it, a commit of this run's with no usable report parked rather than pushed, a report
-                            alone recorded only over a tree proved clean -- parked on the tree otherwise, with
-                            nothing recorded -- a commit an unfinished run stranded owed no report unless this run
-                            wrote one, and a stranded commit the issue already owes a report for withheld until a
-                            reply brings one. What the debt is asked against is a record of THIS work: a delivery
+      drift_reports.py      that contract for a drift resume on an open pull request, which is that nothing this
+                            road publishes may be work no report describes: the run's report recorded ahead of the
+                            size gate under the route and requirements revision the drift check handed it, a
+                            commit of this run's with no usable report parked rather than pushed, a report alone
+                            recorded only over a tree proved clean -- parked on the tree otherwise, with nothing
+                            recorded -- and a commit an earlier run stranded withheld until a reply brings the
+                            report that describes it. Which run wrote nothing decides none of it: the engine
+                            exempts an unfinished run from the contract because the roads it serves publish
+                            nothing either way, while this road publishes, so a nonzero exit, a provider refusal
+                            and a launch nothing invoked are each parked here as the missing report they also are.
+                            What the debt is asked against is a record of THIS work: a delivery
                             or transaction an earlier run left describes the branch before the commits a later run
                             made, so the undescribed-work flag those commits leave is read first and the reply
                             that publishes them is the one that describes them
@@ -2416,7 +2420,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reconciliation stands down on rather than holding, so a silent hold there would
                             suppress every later reviewer with nobody told
       recovery.py           the silent retry of a push race or dev timeout, both through the size gate -- the
-                            timeout's commit is the one road to a published pull request nothing else measures --
+                            timeout's commit is the one road to a published pull request nothing else measures,
+                            and where the park it clears came off the requirements-drift road that commit is work
+                            no report describes, so the debt for it is staged into the write the push makes and
+                            the review hold asks a human before any reviewer reads that head --
                             the debt the push that lands pays, the round `rounds.py` says that push spends, which
                             is none where the park was delaying a publication an `in_review` hand-back had already
                             reset the budget for, the held outcome that owes the caller no follow-up and

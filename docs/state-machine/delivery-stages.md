@@ -181,15 +181,19 @@ Result routing in `_post_user_content_change_result`:
   A run that completed and committed with no usable report parks under `report_undeliverable` with nothing pushed,
   under a notice naming what this road withheld: the pull request stays open on the commit it already carried, which
   is what the same park says nothing was opened of on the implementing seam.
-  A run that did not complete records nothing, and its commit is owed no report; nor is a commit an earlier
-  unfinished run stranded, unless this run wrote a report anyway — or unless the issue still owes a report for that
-  very commit, which an earlier run committed and parked without: then it stays unpublished, and a reply that is not
-  a report is read as an ack or a question with nothing to publish. "Owes a report" there is asked of a record of
-  THAT work: a delivery or transaction an earlier run left describes the branch before those commits, so the
-  undescribed-work flag they leave is what the reading answers to rather than the presence of any record at all;
+  A run that did NOT complete is parked the same way and publishes the same nothing. The engine exempts an
+  incomplete run from the report contract — a nonzero exit, a provider refusal and a launch nothing invoked are
+  failures other roads answer, and on the roads that exemption serves nothing is published either way — but this
+  road publishes, so a commit pushed for such a run would reach the reviewer with no account of it anywhere and no
+  session left to ask. The park says so in its own words rather than the engine's, which speaks for a developer
+  that finished and declined to report;
 - a no-commit reply whose clean HEAD is strictly ahead of the remote PR branch (a fix a prior parked / interrupted run
   committed but never pushed) is published through the push tail and counted as a pushed fix
-  (`validating/stranded._stranded_fix_unpushed`), ahead of the ack check;
+  (`validating/stranded._stranded_fix_unpushed`), ahead of the ack check — EXCEPT on the requirements-drift road,
+  where such a commit is work no report on the pull request describes: there it stays unpublished and the
+  undescribed-work flag goes down for it, so the reply keeps its own road as an ack or a question while the review
+  hold behind it asks a human for the report. Which run left the commit decides nothing; a reply that IS a report
+  publishes it, since a report written over the branch as it stands describes it too;
 - on those same two stages a no-commit reply ending on a report outcome is `"reported"`: the report is recorded and,
   behind the caller's bookkeeping, bound to the head the pull request already carries, needing no commit, and routed
   as an ack is. The tree is proved clean first, as every publication's is: a report over loose work describes

@@ -702,9 +702,11 @@ The keys that matter for the state machine fall into a few groups:
   Additive: an issue without it owes nothing on that account, and an older park carrying the reason alone still reads
   as a debt and is given the flag, with no second notice, the next time a road meets that park still standing.
 
-  `developer_report_unreported_work` is the narrower fact beside it: a COMPLETED run committed work and no record of
-  this issue's describes it. Both roads that hold such a run write it — one whose report this build cannot record,
-  and one that handed over no usable report at all — and only a report recorded afterwards retires it, since only a
+  `developer_report_unreported_work` is the narrower fact beside it: a run committed work and no record of
+  this issue's describes it. Every road that holds such work writes it — one whose report this build cannot record,
+  one that handed over no usable report at all, one whose run never finished, a commit an earlier run stranded that
+  the reply in hand does not describe, and the timeout retry that publishes a commit the run it is finishing was
+  killed before reporting — and only a report recorded afterwards retires it, since only a
   report written over the branch as it stands describes those commits. The debt alone cannot say this, because a
   record an EARLIER run left is still a record: a reply that publishes the newer commits under it would settle a
   report of work it was written before, and the reviewer would read it as the account of the whole branch. So while
