@@ -684,7 +684,8 @@ The keys that matter for the state machine fall into a few groups:
   receipt naming no publication of this pull request, a checkout on a commit the pull request never received, a
   checkout that has picked up loose work, a report the thread has moved out of reach — a comment of ours somebody
   edited, or a verified location gone, changed, or written by an author this deployment does not trust — and a
-  `developer_report_owed` debt no record describes. An `in_review`
+  `developer_report_owed` debt no record of this issue's describes — a run that committed and reported nothing, and
+  one whose commits any record left by an EARLIER run predates. An `in_review`
   issue still owing any of these is handed back to `workflow:validating` before that stage does anything else,
   since the approval it stands on is stale.
   On every one of them the record that exists is left exactly as it stands.
@@ -700,6 +701,15 @@ The keys that matter for the state machine fall into a few groups:
   to end the wait, and a debt outliving the settlement would hold the reviewer over a report the pull request carries.
   Additive: an issue without it owes nothing on that account, and an older park carrying the reason alone still reads
   as a debt and is given the flag, with no second notice, the next time a road meets that park still standing.
+
+  `developer_report_unreported_work` is the narrower fact beside it: a COMPLETED run committed work and no record of
+  this issue's describes it. Both roads that hold such a run write it — one whose report this build cannot record,
+  and one that handed over no usable report at all — and only a report recorded afterwards retires it, since only a
+  report written over the branch as it stands describes those commits. The debt alone cannot say this, because a
+  record an EARLIER run left is still a record: a reply that publishes the newer commits under it would settle a
+  report of work it was written before, and the reviewer would read it as the account of the whole branch. So while
+  this flag stands, a reply that brings no report publishes nothing and the review is held for the one the work is
+  missing. Additive: an issue without it has no undescribed commits on that account.
 
   `developer_report_owed_round_reset` is the fresh review budget an `in_review` requirements edit earned, written
   beside the debt where the publication that edit produced is still owed as the hand-back moves the label. That stage

@@ -184,7 +184,9 @@ Result routing in `_post_user_content_change_result`:
   A run that did not complete records nothing, and its commit is owed no report; nor is a commit an earlier
   unfinished run stranded, unless this run wrote a report anyway — or unless the issue still owes a report for that
   very commit, which an earlier run committed and parked without: then it stays unpublished, and a reply that is not
-  a report is read as an ack or a question with nothing to publish;
+  a report is read as an ack or a question with nothing to publish. "Owes a report" there is asked of a record of
+  THAT work: a delivery or transaction an earlier run left describes the branch before those commits, so the
+  undescribed-work flag they leave is what the reading answers to rather than the presence of any record at all;
 - a no-commit reply whose clean HEAD is strictly ahead of the remote PR branch (a fix a prior parked / interrupted run
   committed but never pushed) is published through the push tail and counted as a pushed fix
   (`validating/stranded._stranded_fix_unpushed`), ahead of the ack check;
@@ -2929,9 +2931,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      or a verified location gone, changed, or written by an author this deployment does not trust
      (`report_evidence.refuses_for_good`, the reading the implementing handoff takes) — and a debt no record
      describes at all, a run that committed and wrote no report whose park a reply answered without writing one
-     either. The loose checkout and the report the thread moved are content a human owns, which the reconciliation
-     deliberately stands down on rather than holding, so nothing else would ever say so and the reviewer would be
-     suppressed for the life of the issue in silence. The binding itself is
+     either — read as a record of THIS work rather than of any: a delivery or transaction an earlier run left is an
+     account of the branch before the commits a later run made, so the undescribed-work flag those commits leave
+     outranks it and the report that retires it is one written over the branch as it stands. The loose checkout and
+     the report the thread moved are content a human owns, which the reconciliation deliberately stands down on
+     rather than holding, so nothing else would ever say so and the reviewer would be suppressed for the life of the
+     issue in silence. The binding itself is
      `report_settlement`'s, over the pull request, its description, and the issue read again. A reply resumes the
      session through the drift route, whose report supersedes the undelivered one. Anything else still owed — a
      reading nobody could take, or a pull request somebody moved under the report — holds silently, since the next

@@ -441,7 +441,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it hands work on: both records asked as a CLAIM so a truncated one counts as a debt, and the
                             park, which writes `developer_report_owed` beside its reason so the debt of a road with
                             no record to leave outlives any later park that replaces that reason -- and onto an
-                            older park still standing with the reason alone, with no second notice. And
+                            older park still standing with the reason alone, with no second notice. Both holding
+                            roads write `UNREPORTED_WORK` as well, which is the narrower fact the debt cannot
+                            carry: these commits are undescribed, whatever record an EARLIER run left, and only a
+                            report recorded over the branch as it stands retires it. And
                             `redelivers_an_owed_report` is what both implementing dispositions ask of a run that
                             moved no head -- a debt owed, a run that finished on a report outcome, and a branch
                             that carries something -- so the reply answering such a park publishes rather than
@@ -2368,7 +2371,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             alone recorded only over a tree proved clean -- parked on the tree otherwise, with
                             nothing recorded -- a commit an unfinished run stranded owed no report unless this run
                             wrote one, and a stranded commit the issue already owes a report for withheld until a
-                            reply brings one
+                            reply brings one. What the debt is asked against is a record of THIS work: a delivery
+                            or transaction an earlier run left describes the branch before the commits a later run
+                            made, so the undescribed-work flag those commits leave is read first and the reply
+                            that publishes them is the one that describes them
       report_settlement.py  a recorded report bound to the publication the code-publication receipt names -- only
                             where the checkout, resolved as the reviewer resolves it, stands on that commit -- over
                             the pull request, its description, and the issue all read again by number: the binding
