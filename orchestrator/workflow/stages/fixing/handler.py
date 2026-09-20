@@ -38,18 +38,24 @@ from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
-from orchestrator.workflow.engine import guards as _guards, terminals as _terminals
+from orchestrator.workflow.engine import (
+    guards as _guards,
+    report_delivery as _report_delivery,
+    terminals as _terminals,
+)
 from orchestrator.workflow.stages.fixing import (
     bookmarks as _bookmarks,
     feedback as _feedback,
     models as _models,
     parked as _parked,
+    report_recovery as _report_recovery,
     reporting as _reporting,
     resume as _resume,
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
+    late_publication_state as _late_publication_state,
     late_push as _late_push,
     late_reconcile as _late_reconcile,
     late_records as _late_records,
@@ -244,8 +250,12 @@ def _bounce_without_feedback(
         gh.write_pinned_state(issue, state)
         return
     if stranded.pushed:
+        # The commit this push just landed, read off the receipt the gate has
+        # written for THIS attempt -- never the standing value, which on a
+        # tick that pushed nothing names an older round.
         if _reporting._holds_an_unpublished_report(
             _models._FixingContext(gh, spec, issue, state, pr),
+            _late_publication_state._published_commit(state),
         ):
             # The commit this bounce carried to the pull request is the one a
             # report an earlier round recorded describes, and that report is
@@ -257,6 +267,14 @@ def _bounce_without_feedback(
             gh.write_pinned_state(issue, state)
             return
         _late_gate_models._spend(state, owed)
+    elif _report_delivery.owes_a_report(state):
+        # Nothing was published and a report is still owed, which is the one
+        # thing this exit may not clear or relabel past: the bookmarks below
+        # are what an outstanding publication replays from, and a reviewer
+        # sent to the head instead would read work nothing on the pull
+        # request describes. The record stands for the tick that publishes it.
+        gh.write_pinned_state(issue, state)
+        return
     else:
         # Nothing was published, so no round was landed -- but the bookmarks
         # this bounce read are consumed either way, and a later
@@ -279,9 +297,18 @@ def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
     # input that run consumed rides the same record, and until it is applied
     # this tick reads the same feedback as unread, pays a second developer to
     # answer it, and replaces the first developer's report with the second's.
-    _reporting._recovers_an_unbound_delivery(
+    #
+    # A binding that TOOK that delivery ends the tick. Settling it writes the
+    # route bookkeeping the record froze -- the `pending_fix_*` bookmarks
+    # among them -- so the rescan below would read this issue under a route it
+    # has just left and answer an in_review batch as a validating one; and a
+    # binding whose post did not land leaves a transaction the reconciliation
+    # ahead of the next handler owns, which the no-feedback bounce below would
+    # otherwise relabel straight past.
+    if _report_recovery._recovers_an_unbound_delivery(
         _models._FixingContext(gh, spec, issue, state, pr),
-    )
+    ):
+        return
 
     feedback = _feedback._rescan_fixing_feedback(gh, issue, pr, state)
 

@@ -28,9 +28,7 @@ from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
     report_binding as _report_binding,
-    report_consumed_values as _consumed,
     report_delivery as _report_delivery,
-    report_delivery_state as _delivery_state,
     report_outcomes as _report_outcomes,
     report_record_state as _record_state,
     report_records as _report_records,
@@ -38,7 +36,6 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.fixing import feedback as _feedback, models as _models
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
-    late_publication_state as _late_publication_state,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -108,10 +105,12 @@ def _is_report_only(
 
     So: the run completed, its checkout named a head, that head is the one the
     run started on, that head is what the pull request is standing on, and the
-    tree is clean. A head that MOVED is a code change and belongs on the
+    tree PROVED clean. A head that MOVED is a code change and belongs on the
     publication road; a head ahead of the pull request is a commit the push
-    tail still owes it; and a dirty tree is work nobody can see the shape of,
-    which is the one thing a report may never be published over.
+    tail still owes it; and a tree is asked through `is_clean` rather than
+    through the file list beside it, since that list answers empty for a
+    status nobody could read -- an unread checkout is work nobody can see the
+    shape of, which is the one thing a report may never be published over.
     """
     if run.dev_result.timed_out or not run.after_sha:
         return False
@@ -119,7 +118,7 @@ def _is_report_only(
         return False
     if run.after_sha != getattr(ctx.pr.head, "sha", ""):
         return False
-    return not _worktree_status._worktree_dirty_files(run.worktree)
+    return _worktree_status._worktree_status(run.worktree).is_clean
 
 
 def _recording_stops_the_tick(
@@ -160,17 +159,25 @@ def _holds_an_unpublished_report(
     transaction the reconciliation ahead of a later handler can finish rather
     than a delivery nothing would go back for.
 
-    The commit the report is about is the one the size gate RECORDED pushing,
-    not the head the caller read: the gate publishes the candidate it
-    measured, and a checkout something moved between the two readings would
-    bind the report to a commit the pull request never received. `candidate`
-    is the caller's own fallback for a road with no receipt to read back -- a
-    report-only round names the head its pull request already stands on, since
-    that is the code the report is about.
+    `candidate` is the commit the CALLER proved, and it is the only subject
+    this binding will take. The receipt this stage writes on a landed push is
+    deliberately not read here: it is persistent, so on any tick that did not
+    push it names an older round's commit -- and a report bound to that one
+    describes work the developer never did, on a pull request that may well be
+    standing on it for reasons of its own. Each caller scopes the proof to its
+    own attempt instead: the push tail names the commit its run left, the
+    bounce reads the receipt its own push has just written, a report-only
+    round names the head its pull request already stands on, and the recovery
+    names a clean checkout it re-proved against that head.
+
+    An empty candidate binds nothing. There is no commit to be about, so the
+    report stays owed for a road that can name one.
 
     True holds the caller's relabel, which is what keeps a reviewer from being
     sent to a head whose report nothing on the pull request carries.
     """
+    if not candidate:
+        return _report_delivery.owes_a_report(ctx.state)
     _report_binding.binds_and_publishes(
         ctx.gh, ctx.issue, ctx.state, _report_binding.ReportPublication(
             pull_request=ctx.pr,
@@ -178,48 +185,10 @@ def _holds_an_unpublished_report(
             branch=_naming._resolve_branch_name(
                 ctx.state, ctx.spec, ctx.issue.number,
             ),
-            commit=(
-                _late_publication_state._published_commit(ctx.state)
-                or candidate
-            ),
+            commit=candidate,
         ),
     )
     return _report_delivery.owes_a_report(ctx.state)
-
-
-def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> None:
-    """Answer a report this issue recorded and never bound, before any spawn.
-
-    The record is written ahead of the size gate and the push precisely so a
-    tick that dies past it comes back to an issue that can still say what its
-    developer reported. What nothing else goes back for is the OTHER half of
-    that write: the input the run consumed rides the record too, and until
-    something applies it the scan below reads the same feedback as unread --
-    pays a second developer to answer it, and replaces the report of the first
-    with the report of the second. So the watermarks are applied here, first,
-    off the record itself rather than re-derived: what a dead tick consumed is
-    what its record says it consumed.
-
-    The round is NOT spent with them. A delivery is a report whose code may
-    never have gone out, and what closes a round is a publication -- so the
-    spends stay on the record for the write that completes the transaction.
-
-    Binding is asked only where the pull request is PROVED to carry the work:
-    the receipt this stage writes on a landed push names a commit, and that
-    commit is what the pull request is standing on. Anything less is a report
-    about code the remote does not have -- the push failed, or the receipt
-    belongs to an older round -- and binding there would claim a publication
-    nobody made. Those wait for the bounce, which is the one tick that
-    republishes such a commit and binds the report once it lands.
-    """
-    delivered = _delivery_state.read_delivered_report(ctx.state)
-    if delivered is None:
-        return
-    _consumed.advance_consumed(ctx.state, delivered.watermarks)
-    landed = _late_publication_state._published_commit(ctx.state)
-    if landed and landed == getattr(ctx.pr.head, "sha", ""):
-        _holds_an_unpublished_report(ctx, landed)
-    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
 
 
 def _settles_unless_a_transaction_will(

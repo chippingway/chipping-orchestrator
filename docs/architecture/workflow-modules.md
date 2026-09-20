@@ -1473,12 +1473,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it on the pull request (`engine/report_binding.py`), the report-only reading -- every
                             half of it positive, since a head nobody could read and a divergence nothing could count
                             both answer the same as a branch in sync -- the park a reply that reached for the
-                            contract and missed earns ahead of every other road, the recovery that answers a report
-                            an earlier tick recorded and never bound before anything rescans, and the answer that
-                            holds the relabel while a report is still owed. What closes the two groups is the write
-                            that completes the transaction, here or in the reconciliation ahead of a later handler;
-                            where nothing was published there is no transaction to wait for, so the consumption is
-                            settled on the spot
+                            contract and missed earns ahead of every other road, and the answer that holds the
+                            relabel while a report is still owed. A binding is held to the commit its CALLER proved
+                            and never to the standing `implementing_published_sha`, which on a tick that pushed
+                            nothing names an older round. What closes the two groups is the write that completes the
+                            transaction, here or in the reconciliation ahead of a later handler; where nothing was
+                            published there is no transaction to wait for, so the consumption is settled on the spot
+      report_recovery.py    a report an earlier tick recorded and never bound, answered before anything rescans: the
+                            watermarks that record carries applied off the record itself, and the binding re-proved
+                            against the checkout rather than remembered off a receipt -- a clean tree, a head it can
+                            name, and the pull request standing on it. A binding that TAKES the delivery ends the
+                            tick, finishing the recovered route back to `workflow:validating` where the publication
+                            settled and relabelling nothing where it is still owed
       resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
                             nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
                             outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix

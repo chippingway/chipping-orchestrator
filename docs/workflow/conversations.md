@@ -277,9 +277,11 @@ answered in the report with no commit for it. Such a round is recorded, publishe
   on the pull request at all.
 - A report an earlier tick recorded and a crash left **unbound** is answered before the next tick scans anything. The
   input that run consumed rides the same record, so the recorded watermarks are applied first; the recorded round is
-  not, since what closes a round is a publication. Where the pull request is proved to carry the work — the
-  code-publication receipt names a commit and that commit is what the pull request is standing on — the delivery is
-  bound and posted with no developer run at all.
+  not, since what closes a round is a publication. Whether the code went out is re-proved against the checkout — a
+  tree provably clean, a head it can name, and the pull request standing on it — rather than remembered off the
+  persistent publication receipt, which on a tick that pushed nothing names an older round. Proved, the delivery is
+  bound and posted with no developer run at all, and the recovered round is finished back to `workflow:validating`;
+  bound but unposted, nothing is relabelled and the reconciliation finishes it.
 
 Delivery is still not completion: an `ACK:` may settle a round whose comments named no actionable change, and it does
 not answer the automated `CHANGES_REQUESTED` review that asked for a concrete one — that route has no ACK fast path

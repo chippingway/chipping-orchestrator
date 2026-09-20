@@ -3140,16 +3140,30 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      own `gh.get_pr` exceptions and hands `pr=None` to the helper, which is a no-op.
   2. Closed issue with no resolvable PR → no-op.
   3. Open issue with no `pr_number` (manual relabel) → park (`missing_pr_number`).
-  3b. **Unbound report recovery** (`reporting._recovers_an_unbound_delivery`), ahead of the rescan and therefore
-     ahead of any spawn. A `developer_report_delivery` is written before the size gate and the push, so a tick that
-     died past it leaves a report recorded and never bound — and the input that run consumed rides the same record.
-     Until it is applied the scan below reads that feedback as unread, pays a second developer to answer it, and
-     replaces the first report with the second. So the recorded watermarks are applied here, off the record rather
-     than re-derived; the recorded spends are NOT, since what closes a round is a publication. The delivery is also
-     **bound** where the pull request is proved to carry the work — the code-publication receipt names a commit and
-     that commit is what the pull request is standing on, which is the post-push/pre-bind crash. A pre-push crash
-     binds nothing: the commit is still local, and the no-feedback bounce below is the tick that republishes it and
-     binds the report once it lands.
+  3b. **Unbound report recovery** (`report_recovery._recovers_an_unbound_delivery`), ahead of the rescan and
+     therefore ahead of any spawn. A `developer_report_delivery` is written before the size gate and the push, so a
+     tick that died past it leaves a report recorded and never bound — and the input that run consumed rides the same
+     record. Until it is applied the scan below reads that feedback as unread, pays a second developer to answer it,
+     and replaces the first report with the second. So the recorded watermarks are applied here, off the record rather
+     than re-derived; the recorded spends are NOT, since what closes a round is a publication.
+
+     Whether the code went out is **re-proved, never remembered**. `implementing_published_sha` is persistent, so on
+     a tick that pushed nothing it names an older round's commit, and a pull request standing on that commit for
+     reasons of its own would let a report about unpublished work go out on the strength of it. What is asked instead
+     is the checkout (`report_recovery._published_checkout`): a tree provably clean (`is_clean`, not the file list
+     beside it), a head it can name, and that head being what the pull request carries. Then the branch IS published
+     and the report describes it, whichever run wrote the record.
+
+     A binding that TAKES the delivery **ends the tick**. Settled, the round the record froze is closed and the issue
+     is handed back to `workflow:validating` — the recovered route is finished exactly as the live road would have
+     finished it, so the rescan below never reads the issue under a route the settlement has just cleared (an
+     in_review batch answered as a validating one parks an ordinary `ACK:` instead of returning the pull request to
+     review). Bound but unposted, nothing is relabelled: the transaction is
+     [the reconciliation's](#the-developer-report-transaction-every-dispatch) to finish, and the `pending_fix_*`
+     bookmarks it replays from outlive this tick. A binding that refuses WITHOUT consuming the delivery — a comment
+     too full — leaves the tick to carry on, since stopping would hold the roads that answer a human. A pre-push
+     crash binds nothing: the commit is still local, and the no-feedback bounce below republishes it and binds the
+     report once it lands.
   4. Rescan unread feedback from the three watermarks across all four surfaces, reading the two IssueComment-space
      surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread past
      `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past
@@ -3236,9 +3250,13 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      This exit is the validating route's LAST chance at that commit: the
      reviewer feedback that started the round is orchestrator-authored, so the step-3 rescan filters it out and no
      later tick re-runs the dev on it. A successful stranded push also **binds** a developer report the issue still
-     has recorded and unbound (`reporting._holds_an_unpublished_report`): this bounce is the one tick that
-     republishes that commit, so a delivery a failed push left would otherwise never become a transaction anything
-     could finish. A report still owed after the bind holds the relabel for the reconciliation to settle.
+     has recorded and unbound (`reporting._holds_an_unpublished_report`, against the commit the receipt THIS push
+     just wrote): this bounce is the one tick that republishes that commit, so a delivery a failed push left would
+     otherwise never become a transaction anything could finish. A report still owed after the bind holds the
+     relabel for the reconciliation to settle. And where nothing was published at all, a report the issue still owes
+     stops the bounce BEFORE it clears `pending_fix_*` or relabels: those bookmarks are what an outstanding
+     publication replays from, and a reviewer sent to the head instead would read work nothing on the pull request
+     describes.
   7. **Quiet window**: compute the newest `created_at` (or `submitted_at` for review summaries); if younger than
      `IN_REVIEW_DEBOUNCE_SECONDS`, return.
   8. **Resume**: build a `_build_pr_comment_followup` prompt over ALL unread surfaces, resume the locked dev via
@@ -3300,10 +3318,13 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      report content only — it binds against the head the pull request already stands on, publishes, and hands the
      issue back to `workflow:validating` without an artificial commit. Every reading that admits it is POSITIVE
      (`reporting._is_report_only`): the run completed, its checkout NAMED a head, that head is the one the run began
-     on, that head is what the pull request is standing on, and the tree is clean. No absence is allowed to stand in
-     for any of them — a HEAD nobody could read comes back empty and the stranded probe answers False both for a
-     branch in sync and for a fetch that failed, a remote that moved, or a divergence nothing could count, so either
-     read as "nothing to publish" would bind a report against whatever head the preflight happened to see. And a push
+     on, that head is what the pull request is standing on, and the tree PROVED clean. No absence is allowed to stand
+     in for any of them — a HEAD nobody could read comes back empty, `_worktree_dirty_files` answers an empty list
+     for a status nobody could read (so the tree is asked through `is_clean`), and the stranded probe answers False
+     both for a branch in sync and for a fetch that failed, a remote that moved, or a divergence nothing could count.
+     Any of those read as "nothing to publish" would bind a report against whatever head the preflight happened to
+     see. The commit a binding is held to is always the one its CALLER proved, never the standing
+     `implementing_published_sha`, which on a tick that pushed nothing names an older round. And a push
      that did NOT land settles the consumption right there
      (`reporting._settles_unless_a_transaction_will`): nothing bound the report, so the record is a
      delivery the reconciliation never reads, and leaving the consumption on it would hand the same feedback to a

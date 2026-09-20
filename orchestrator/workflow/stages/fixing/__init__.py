@@ -66,10 +66,15 @@ is what the pull request is standing on. A head nobody could read and a
 divergence nothing could count both answer empty, and either taken for "in
 sync" would describe work the remote does not have.
 
-And a report the tick that recorded it never bound is answered at the top of
-the next one, ahead of the scan: the input that run consumed rides the same
-record, so leaving it there is what pays a second developer to answer the same
-feedback and replaces the first report with the second.
+And a report the tick that recorded it never bound is answered by
+`report_recovery` at the top of the next one, ahead of the scan: the input that
+run consumed rides the same record, so leaving it there is what pays a second
+developer to answer the same feedback and replaces the first report with the
+second. Whether the code went out is re-proved against the checkout rather than
+remembered off a receipt, which is persistent and on a tick that pushed nothing
+names an older round; and a binding that takes the delivery ends the tick,
+finishing the recovered route back to `validating` where the publication
+settled and relabelling nothing where it is still owed.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

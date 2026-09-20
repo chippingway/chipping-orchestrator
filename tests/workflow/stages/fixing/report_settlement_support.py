@@ -19,7 +19,12 @@ from types import SimpleNamespace
 
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.git.verification.status import _WorktreeStatus
+from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.workflow.engine import content_hash as _content_hash
+from orchestrator.workflow.stages.fixing import (
+    feedback as _feedback,
+    models as _models,
+)
 from orchestrator.workflow.stages.implementing import (
     late_publication_state as _publication_state,
 )
@@ -66,13 +71,17 @@ def _readings(checkout: Path, head: str) -> dict:
     }
 
 
-def recorded_delivery(github, issue, consumed, *, landed: str = "") -> None:
+def recorded_delivery(
+    github, issue, consumed, *, landed: str = "", spends=(),
+) -> None:
     """A report an earlier tick recorded and a crash left unbound.
 
     Spelled the way that tick would have written it: the report, and the input
     its run consumed riding the same record. `landed` is the code-publication
     receipt a crash AFTER the push leaves behind, and its absence is the crash
-    before one.
+    before one. `spends` is the route bookkeeping that round froze -- the fix
+    bookmarks it clears and the reviewer round it lands on -- which only the
+    write that completes the publication may apply.
     """
     state = github.read_pinned_state(issue)
     state.set(_DELIVERED_REPORT, {
@@ -82,7 +91,7 @@ def recorded_delivery(github, issue, consumed, *, landed: str = "") -> None:
         "mode": "publish",
         "route": "workflow:fixing",
         "watermarks": [list(pair) for pair in consumed],
-        "spends": [],
+        "spends": [list(pair) for pair in spends],
         "report": "the run that answered this feedback reported it.",
     })
     if landed:
@@ -95,3 +104,23 @@ def recorded_delivery(github, issue, consumed, *, landed: str = "") -> None:
 def _pull_number(github, issue) -> int:
     """The pull request this issue's pinned record names."""
     return github.read_pinned_state(issue).get("pr_number")
+
+
+def consumed_pairs(issue, readers, comment_id: int) -> tuple:
+    """What one issue-thread reply comes to, off the owner that derives it.
+
+    Built from the reply itself through the stage's own delivery owner rather
+    than spelled out, so a case is about the pairs a round recorded being the
+    pairs this stage derives -- not about a tuple a fixture chose that both
+    sides happen to match.
+    """
+    seeded = _pinned_state.PinnedState(state_data=dict(readers))
+    batch = _models._FixingFeedback(
+        issue_thread=[
+            seen for seen in issue.comments if seen.id == comment_id
+        ],
+        pr_conversation=[],
+        review_comments=[],
+        review_summaries=[],
+    )
+    return _feedback._consumed_delivery(seeded, batch).consumed_pairs(seeded)
