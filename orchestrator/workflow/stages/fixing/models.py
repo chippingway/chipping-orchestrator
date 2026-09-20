@@ -7,10 +7,14 @@ preflight fetched once at the top: re-reading it per owner would let the
 terminal check, the drift comparison against `pr.head.sha`, and the conflict
 notice come from three different fetches of a PR a human may be closing.
 
-`_FixingFeedback` keeps the three surfaces apart as well as concatenated,
-because the two consumers need opposite shapes: the prompt reads `all_items` in
-one order, while the watermark ratchet has to advance each surface only to the
-max id consumed on that surface.
+`_FixingFeedback` keeps all four surfaces apart and derives the two merged
+readings from them, because the consumers need opposite shapes: the prompt
+reads `all_items` in one order, while the settlement has to advance each
+reader only to the max id consumed on the surface that reader owns. The issue
+thread is held apart from the PR conversation for the settlement's sake --
+GitHub numbers the two from one IssueComment id space, but only the thread is
+what `last_action_comment_id` records as delivered, so a batch that had merged
+them could not say which half that field may be advanced over.
 
 `_ParkedFixingDecision` is how a parked tick answers without the caller having
 to re-derive it: `stop` says the tick is fully handled, and `replay_batch`
@@ -38,10 +42,33 @@ from orchestrator.github.pinned_state import PinnedState
 
 @dataclass(frozen=True)
 class _FixingFeedback:
-    issue_space: list
+    """One rescan, held per surface, with the merged readings derived.
+
+    The four lists are what the settlement is taken from, one reader each.
+    `issue_space` and `all_items` are views over them rather than members, so
+    the batch a prompt quotes and the batch a settlement records cannot part
+    company the way two separately-built lists can.
+    """
+
+    issue_thread: list
+    pr_conversation: list
     review_comments: list
     review_summaries: list
-    all_items: list
+
+    @property
+    def issue_space(self) -> list:
+        """Both IssueComment surfaces, in the one id order GitHub gave them."""
+        return sorted(
+            self.issue_thread + self.pr_conversation,
+            key=lambda feedback_item: feedback_item.id,
+        )
+
+    @property
+    def all_items(self) -> list:
+        """Every unread item, in the order the dev prompt quotes them."""
+        return (
+            self.issue_space + self.review_comments + self.review_summaries
+        )
 
 
 @dataclass(frozen=True)

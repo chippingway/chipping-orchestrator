@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 
 from tests.workflow.stages.fixing import fixing_test_support as support
 
@@ -12,6 +13,7 @@ IssueScenario = support.IssueScenario
 
 ALICE = support.ALICE
 AWAITING_HUMAN = support.AWAITING_HUMAN
+BATCH_PR_CONVERSATION_ID = support.BATCH_PR_CONVERSATION_ID
 BOB = support.BOB
 CAROL = support.CAROL
 CHANGES_REQUESTED = support.CHANGES_REQUESTED
@@ -25,10 +27,15 @@ FRESH_COMMENT_DELAY_MINUTES = support.FRESH_COMMENT_DELAY_MINUTES
 FakeComment = support.FakeComment
 FakePRReview = support.FakePRReview
 FakeUser = support.FakeUser
+HISTORICAL_COMMENT_ID = support.HISTORICAL_COMMENT_ID
+INITIAL_PR_COMMENT_WATERMARK = support.INITIAL_PR_COMMENT_WATERMARK
 INLINE_FEEDBACK_ID = support.INLINE_FEEDBACK_ID
+IN_REVIEW = support.IN_REVIEW
 ISSUE = support.ISSUE
+LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
 PENDING_FIX_AT = support.PENDING_FIX_AT
 PENDING_FIX_ISSUE_MAX_ID = support.PENDING_FIX_ISSUE_MAX_ID
+PENDING_FIX_REVIEWER_COMMENT_ID = support.PENDING_FIX_REVIEWER_COMMENT_ID
 PENDING_FIX_REVIEW_MAX_ID = support.PENDING_FIX_REVIEW_MAX_ID
 PENDING_FIX_REVIEW_SUMMARY_MAX_ID = support.PENDING_FIX_REVIEW_SUMMARY_MAX_ID
 PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
@@ -36,11 +43,13 @@ PR_LAST_REVIEW_COMMENT_ID = support.PR_LAST_REVIEW_COMMENT_ID
 PR_LAST_REVIEW_SUMMARY_ID = support.PR_LAST_REVIEW_SUMMARY_ID
 PUSHED_MESSAGE = support.PUSHED_MESSAGE
 PUSH_BRANCH = support.PUSH_BRANCH
+REVIEWER_FEEDBACK_ID = support.REVIEWER_FEEDBACK_ID
 REVIEW_ROUND = support.REVIEW_ROUND
 REVIEW_SUMMARY_FEEDBACK_ID = support.REVIEW_SUMMARY_FEEDBACK_ID
 RUN_AGENT = support.RUN_AGENT
 SHA_AFTER = support.SHA_AFTER
 SHA_BEFORE = support.SHA_BEFORE
+SHA_SAME = support.SHA_SAME
 TRIGGER_ID = support.TRIGGER_ID
 VALIDATING = support.VALIDATING
 _FixingFixtureMixin = support._FixingFixtureMixin
@@ -50,6 +59,10 @@ datetime = support.datetime
 patch = support.patch
 timedelta = support.timedelta
 timezone = support.timezone
+
+# The human whose replies these cases are about, built once: every comment
+# below is one person writing on the thread or the pull request.
+REPLIER = FakeUser(ALICE)
 
 ADD_RUNS = "/orchestrator add-agent-runs 3"
 TIGHTEN = "tighten the retry message"
@@ -68,13 +81,13 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         triggering = FakeComment(
             id=TRIGGER_ID,
             body="please fix the bug",
-            user=FakeUser(ALICE),
+            user=REPLIER,
             created_at=long_ago,
         )
         followup = FakeComment(
             id=FOLLOWUP_ID,
             body="actually rename it too",
-            user=FakeUser(ALICE),
+            user=REPLIER,
             created_at=just_now,
         )
         self._pr = self._open_pr()
@@ -108,7 +121,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         triggering = FakeComment(
             id=TRIGGER_ID,
             body="please fix the docstring",
-            user=FakeUser(ALICE),
+            user=REPLIER,
             created_at=long_ago,
         )
         late_arrival = FakeComment(
@@ -157,7 +170,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
             pr=self._open_pr(),
             issue_comments=[
                 FakeComment(
-                    id=TRIGGER_ID, body=TIGHTEN, user=FakeUser(ALICE), created_at=LONG_SETTLED,
+                    id=TRIGGER_ID, body=TIGHTEN, user=REPLIER, created_at=LONG_SETTLED,
                 ),
                 FakeComment(
                     id=FOLLOWUP_ID, body=ADD_RUNS, user=FakeUser(BOB), created_at=LONG_SETTLED,
@@ -191,7 +204,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         comment = FakeComment(
             id=TRIGGER_ID,
             body=FIX_FEEDBACK,
-            user=FakeUser(ALICE),
+            user=REPLIER,
             created_at=long_ago,
         )
         pr = self._open_pr()
@@ -233,7 +246,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         comment = FakeComment(
             id=TRIGGER_ID,
             body="please fix",
-            user=FakeUser(ALICE),
+            user=REPLIER,
             created_at=long_ago,
         )
         pr = self._open_pr()
@@ -268,7 +281,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         issue_comment = FakeComment(
             id=TRIGGER_ID,
             body="rename foo",
-            user=FakeUser(ALICE),
+            user=REPLIER,
             created_at=long_ago,
         )
         inline_comment = FakeComment(
@@ -331,3 +344,200 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         self.assertIn("rename foo", self._prompt)
         self.assertIn("add a test for this branch", self._prompt)
         self.assertIn("please update the doc string", self._prompt)
+
+
+AUTHORIZATION = "authorized: go ahead and vendor the parser"
+
+# The key each case puts its issue-thread half of the batch under.
+ON_THE_THREAD = "issue_comments"
+
+# Where each reader stands before a round, so "moved" and "left alone" are both
+# concrete numbers rather than the absence of a key.
+SEEDED_READERS = MappingProxyType({
+    LAST_ACTION_COMMENT_ID: HISTORICAL_COMMENT_ID,
+    PR_LAST_COMMENT_ID: INITIAL_PR_COMMENT_WATERMARK,
+    PR_LAST_REVIEW_COMMENT_ID: 0,
+    PR_LAST_REVIEW_SUMMARY_ID: 0,
+})
+
+
+def _settled():
+    """A timestamp old enough that no quiet window is still waiting on it."""
+    return support.now_utc() - timedelta(hours=1)
+
+
+def _reply(comment_id: int, body: str):
+    """One settled comment, on whichever surface a case puts it."""
+    return FakeComment(
+        id=comment_id, body=body, user=REPLIER, created_at=_settled(),
+    )
+
+
+def _run(message: str = "", **agent_fields) -> dict:
+    """The fields one finished developer run comes back carrying."""
+    return {"last_message": message, "session_id": DEV_SESSION, **agent_fields}
+
+
+def _readers_after(**moved) -> dict:
+    """Where the four readers stand once `moved` has been settled."""
+    return {**SEEDED_READERS, **moved}
+
+
+# What a run that put the batch in front of an agent comes back as, and the
+# heads the checkout reads around it. Every one of them delivered the prompt,
+# so every one owes the same consumption record -- "delivered" is what the
+# readers record, never "resolved".
+DELIVERED_OUTCOMES = (
+    ("pushed fix", _run(PUSHED_MESSAGE), (SHA_BEFORE, SHA_AFTER)),
+    ("timeout park", _run(timed_out=True), (SHA_BEFORE,)),
+    ("question park", _run("A or B?"), (SHA_SAME, SHA_SAME)),
+    ("ack", _run("ACK: 'continue' names no defect"), (SHA_SAME, SHA_SAME)),
+)
+
+# What no reader may be advanced for: a launch the run circuit turned away
+# before any process started, and a shutdown kill. Both leave the whole tick
+# re-decidable, so the batch has to come back unread.
+WITHHELD_OUTCOMES = (
+    ("never invoked", _run(invoked=False)),
+    ("shutdown killed", _run("partial", interrupted=True)),
+)
+
+# One batch per pull-request surface, and where the four readers stand after a
+# round that consumed it: the surface's own reader moves and no other does.
+PULL_REQUEST_BATCHES = (
+    (
+        "pr conversation",
+        {"pr_issue_comments": [
+            _reply(BATCH_PR_CONVERSATION_ID, "needs a rollback path"),
+        ]},
+        _readers_after(**{PR_LAST_COMMENT_ID: BATCH_PR_CONVERSATION_ID}),
+    ),
+    (
+        "inline review",
+        {"pr_fields": {"review_comments": [
+            _reply(INLINE_FEEDBACK_ID, "this branch is unreachable"),
+        ]}},
+        _readers_after(**{PR_LAST_REVIEW_COMMENT_ID: INLINE_FEEDBACK_ID}),
+    ),
+    (
+        "review summary",
+        {"pr_fields": {"reviews": [FakePRReview(
+            id=REVIEW_SUMMARY_FEEDBACK_ID,
+            body="please tighten the error message",
+            state=CHANGES_REQUESTED,
+            user=FakeUser(CAROL),
+            submitted_at=_settled(),
+        )]}},
+        _readers_after(**{PR_LAST_REVIEW_SUMMARY_ID: REVIEW_SUMMARY_FEEDBACK_ID}),
+    ),
+)
+
+
+class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
+    """Which reader one consumed fix batch settles, and which runs settle none.
+
+    A fix round quotes every unread surface into one prompt, so what it
+    consumed has to be recorded per surface: the issue thread is the surface
+    `last_action_comment_id` speaks for, and the pull request's three surfaces
+    are what the in-review watermarks speak for. Recording either over the
+    other loses a reader's own question -- one hands an answered reply back to
+    the next route, the other hides PR feedback no prompt ever carried.
+    """
+
+    def test_a_reply_settles_both_readers(self) -> None:
+        for case, agent_fields, head_shas in DELIVERED_OUTCOMES:
+            with self.subTest(outcome=case):
+                github = self._deliver(
+                    agent_fields=agent_fields,
+                    head_shas=head_shas,
+                    placed={ON_THE_THREAD: [_reply(TRIGGER_ID, AUTHORIZATION)]},
+                )
+
+                settled = self._readers(github)
+                # The thread reader covers the reply, so a route change out of
+                # `fixing` finds it answered; a park's own notice may carry the
+                # mark further, over posts of ours and nothing else.
+                self.assertGreaterEqual(settled[LAST_ACTION_COMMENT_ID], TRIGGER_ID)
+                self.assertEqual(settled[PR_LAST_COMMENT_ID], TRIGGER_ID)
+
+    def test_pr_surfaces_leave_the_thread_reader(self) -> None:
+        # Nothing that advances `last_action_comment_id` has read the pull
+        # request, so a round whose whole batch came off one of its three
+        # surfaces may not touch it -- and each surface moves its own reader
+        # and no other.
+        for case, placed, expected in PULL_REQUEST_BATCHES:
+            with self.subTest(surface=case):
+                github = self._deliver(
+                    agent_fields=_run(PUSHED_MESSAGE),
+                    head_shas=(SHA_BEFORE, SHA_AFTER),
+                    placed=placed,
+                )
+
+                self.assertEqual(self._readers(github), expected)
+
+    def test_a_withheld_run_settles_nothing(self) -> None:
+        # Neither of these delivered anything: one never reached a process at
+        # all and the other was killed mid-run, so both leave every reader
+        # where it was for the next tick to re-discover the same batch.
+        for case, agent_fields in WITHHELD_OUTCOMES:
+            with self.subTest(outcome=case):
+                github = self._deliver(
+                    agent_fields=agent_fields,
+                    head_shas=(SHA_BEFORE, SHA_AFTER),
+                    placed={ON_THE_THREAD: [_reply(TRIGGER_ID, AUTHORIZATION)]},
+                )
+
+                self.assertEqual(self._readers(github), SEEDED_READERS)
+                self.assertEqual(github.label_history, [])
+                self.assertEqual(github.posted_comments, [])
+
+    def test_an_ack_settles_without_answering(self) -> None:
+        # The validating route reached `fixing` on a reviewer's
+        # CHANGES_REQUESTED, which asked for a concrete change -- so the ACK
+        # fast path is not offered here and the round parks for a human with
+        # its replay anchor intact. The batch is still settled: a developer
+        # read it, which is all the readers record.
+        github = self._deliver(
+            agent_fields=_run("ACK: nothing to fix"),
+            head_shas=(SHA_SAME, SHA_SAME),
+            placed={ON_THE_THREAD: [_reply(TRIGGER_ID, AUTHORIZATION)]},
+            extra_state={
+                PENDING_FIX_AT: None,
+                PENDING_FIX_ISSUE_MAX_ID: None,
+                PENDING_FIX_REVIEWER_COMMENT_ID: REVIEWER_FEEDBACK_ID,
+            },
+        )
+
+        pinned_data = github.pinned_data(ISSUE)
+        self.assertNotIn((ISSUE, IN_REVIEW), github.label_history)
+        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
+        self.assertEqual(
+            pinned_data.get(PENDING_FIX_REVIEWER_COMMENT_ID), REVIEWER_FEEDBACK_ID,
+        )
+        self.assertGreaterEqual(
+            self._readers(github)[LAST_ACTION_COMMENT_ID], TRIGGER_ID,
+        )
+
+    def _deliver(self, *, agent_fields, head_shas, placed, extra_state=None):
+        """One fixing tick over a batch on whichever surfaces `placed` names."""
+        pr = self._open_pr(**placed.get("pr_fields", {}))
+        pr.issue_comments.extend(placed.get("pr_issue_comments", ()))
+        github, issue = self._seed(
+            pr=pr,
+            issue_comments=placed.get(ON_THE_THREAD, ()),
+            extra_state={**SEEDED_READERS, **(extra_state or {})},
+        )
+
+        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
+            self._run_fixing(
+                github,
+                issue,
+                run_agent=_agent(**agent_fields),
+                head_shas=head_shas,
+            )
+        return github
+
+    def _readers(self, github) -> dict:
+        """Where each of the four consumption readers stands after the tick."""
+        pinned_data = github.pinned_data(ISSUE)
+        return {field: pinned_data.get(field) for field in SEEDED_READERS}

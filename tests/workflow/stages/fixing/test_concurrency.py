@@ -22,6 +22,7 @@ FIX_FEEDBACK = support.FIX_FEEDBACK
 FakeComment = support.FakeComment
 FakeUser = support.FakeUser
 ISSUE = support.ISSUE
+LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
 PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
 PUSHED_MESSAGE = support.PUSHED_MESSAGE
 RUN_AGENT = support.RUN_AGENT
@@ -207,9 +208,15 @@ class FixingContentHashAndConcurrencyTest(
         self.assertIn((ISSUE, VALIDATING), scenario.github.label_history)
         # Watermark advanced past the consumed triggering comment but
         # NOT past the concurrent one -- the next in_review tick must
-        # still see the concurrent comment as fresh feedback.
+        # still see the concurrent comment as fresh feedback. The
+        # issue-action reader the same round settles is bounded by the
+        # same batch, so a stage a relabel hands the issue to reads the
+        # concurrent comment as unanswered too.
         self.assertGreaterEqual(self._pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
         self.assertLess(self._pinned_data.get(PR_LAST_COMMENT_ID), CONCURRENT_COMMENT_ID)
+        self.assertEqual(
+            self._pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID,
+        )
 
     def test_failed_bump_keeps_concurrent_comment(
         self,
@@ -264,9 +271,13 @@ class FixingContentHashAndConcurrencyTest(
         self.assertTrue(self._pinned_data.get(AWAITING_HUMAN))
         # Watermark advanced past the consumed triggering comment but
         # NOT past the concurrent one -- the next fixing tick must
-        # still see the concurrent comment as fresh feedback.
+        # still see the concurrent comment as fresh feedback, and so
+        # must the issue-action reader the same round settles.
         self.assertGreaterEqual(self._pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
         self.assertLess(self._pinned_data.get(PR_LAST_COMMENT_ID), CONCURRENT_COMMENT_ID)
+        self.assertLess(
+            self._pinned_data.get(LAST_ACTION_COMMENT_ID), CONCURRENT_COMMENT_ID,
+        )
 
         # Second tick: rescan picks up the concurrent comment so
         # `awaiting_human and not new_feedback` is False; park flags

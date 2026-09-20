@@ -251,6 +251,15 @@ The awaiting-human resumes settle the input they delivered straight into pinned 
 run may record carries no consumed watermarks to freeze it onto. The settlement records delivery and nothing more, so
 the question the run came back with is still the disposition's to answer.
 
+The PR-feedback fix round settles the same way and for the same reason, through the same producer
+(`workflow/engine/prompt_delivery.py`): a pushed fix, an `ACK:`, a timeout, a dirty-tree park, and a question park all
+delivered the prompt, so all of them record what it carried, while a run the circuit never invoked, one a shutdown
+killed, and one an operator paused mid-run record nothing. Each surface of that batch settles the reader that owns it,
+so the issue-thread half moves `last_action_comment_id` and the pull-request halves do not. Delivery is still not
+completion: an `ACK:` may settle a round whose comments named no actionable change, and it does not answer the
+automated `CHANGES_REQUESTED` review that asked for a concrete one — that route has no ACK fast path and parks for a
+human with its `pending_fix_*` replay anchor intact.
+
 Publication is recoverable because the records outlive the process. The additive `developer_report_delivery` /
 `developer_report_pending` / `developer_report_current` / `developer_report_handoff` group
 ([`../state-machine/labels-and-state.md#pinned-state`](../state-machine/labels-and-state.md#pinned-state)) is what

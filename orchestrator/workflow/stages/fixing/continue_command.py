@@ -108,6 +108,29 @@ def _carried_fresh_feedback(feedback: _models._FixingFeedback) -> list:
     ]
 
 
+def _commands_only(
+    feedback: _models._FixingFeedback,
+) -> _models._FixingFeedback:
+    """The refused commands alone, each still on the surface it was posted on.
+
+    What a refusal consumes is the command it answered and nothing else, so
+    the batch is cut per surface rather than merged: a command typed into the
+    pull request's conversation is not something the issue thread has
+    delivered, and settling it there would record a reply nobody wrote as
+    answered.
+    """
+    return _models._FixingFeedback(
+        issue_thread=_messages._parse_orchestrator_continue(
+            feedback.issue_thread,
+        ),
+        pr_conversation=_messages._parse_orchestrator_continue(
+            feedback.pr_conversation,
+        ),
+        review_comments=[],
+        review_summaries=[],
+    )
+
+
 def _handle_continue_command(
     ctx: _models._FixingContext,
     feedback: _models._FixingFeedback,
@@ -139,9 +162,10 @@ def _handle_continue_command(
         a bare command) on a park it cannot retry: an unsafe park that still
         needs real human guidance, or an eligible park with no reconstructable
         batch (a validating-route park whose reviewer anchor was never recorded
-        or has since been deleted). Consumes the command comment (so the
-        refusal does not re-fire) and posts the reason; the caller writes state
-        and the issue stays parked.
+        or has since been deleted). Settles the command comment as consumed on
+        the surface it was posted on (so the refusal does not re-fire, and a
+        later route reads the answered command as answered) and posts the
+        reason; the caller writes state and the issue stays parked.
       * ``("passthrough", None)`` -- the command arrived alongside genuine
         guidance on a park with no replayable batch. No side effect; the caller
         runs the normal resume so that guidance (not a bare continue) drives
@@ -168,17 +192,12 @@ def _handle_continue_command(
         for comment in feedback.all_items
     ):
         # Content-free continue with nothing else to act on. Consume only the
-        # command comment(s) (`feedback.all_items` is all bare commands here,
-        # so `continue_cmds` covers them) so the refusal is not re-posted every
+        # command comment(s) -- every item here is a bare command, so
+        # `_commands_only` covers them -- so the refusal is not re-posted every
         # tick, then stay parked with a reason.
-        continue_cmds = _messages._parse_orchestrator_continue(feedback.issue_space)
-        command_feedback = _models._FixingFeedback(
-            issue_space=continue_cmds,
-            review_comments=[],
-            review_summaries=[],
-            all_items=continue_cmds,
+        _feedback._settle_consumed_feedback(
+            ctx.state, _commands_only(feedback),
         )
-        _feedback._advance_consumed_watermarks(ctx.state, command_feedback)
         if park_reason in _messages._CONTINUE_PARK_REASONS:
             message = (
                 f"{config.HITL_MENTIONS} `/orchestrator continue`: no "

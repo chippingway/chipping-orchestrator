@@ -7,21 +7,29 @@ the quoted comments either way: leaving the baseline behind would let the next
 handler that checks for a body edit read the comments it just consumed as fresh
 drift and resume a second time on input already handled.
 
-Two refusals sit between the finished run and any disposition, and both bail
-WITHOUT writing pinned state so the whole tick is re-decidable next time. A
-shutdown kill must cover the new-commit case too: falling through would consume
-the feedback while the commit sits unpushed, and the next tick would see
-nothing to do and bounce a PR head that is missing the fix. Leaving it on disk
-is what lets a later clean run republish it through the stranded-fix tail.
+Three refusals sit between the finished run and any disposition, and all bail
+WITHOUT writing pinned state so the whole tick is re-decidable next time: a
+launch nothing invoked, a shutdown kill, and an operator pausing mid-run. None
+of them delivered the batch, so none of them may settle it -- and a shutdown
+kill must cover the new-commit case too: falling through would consume the
+feedback while the commit sits unpushed, and the next tick would see nothing to
+do and bounce a PR head that is missing the fix. Leaving it on disk is what
+lets a later clean run republish it through the stranded-fix tail.
+
+Past those three the prompt reached an agent, whatever it came back with, so
+the batch is SETTLED there -- once, ahead of every disposition below it. The
+readers it settles are the surfaces it was read from (`feedback.py`), and the
+moment is what makes it durable: the size gate's own write and a park's own
+write both land inside the disposition, so a settlement taken afterwards would
+be lost to a crash in exactly the window a hold's relabel opens.
 
 Then the disposition. The ACK fast path is in_review-route only -- the
 validating reviewer asked for a concrete change, so an ACK there is not an
 answer -- and it stands down on a stranded commit, because the ack vouches for
-the feedback and not for what the PR head actually carries. Whatever happens,
-the consumed watermarks advance before the pushed / not-pushed split, and a
-pushed fix drops the bookmarks, updates `review_round` per the route, and flips
-straight to `validating`. Docs do not run on this exit: the single docs pass
-belongs to the final-docs handoff after reviewer approval.
+the feedback and not for what the PR head actually carries. A pushed fix drops
+the bookmarks, updates `review_round` per the route, and flips straight to
+`validating`. Docs do not run on this exit: the single docs pass belongs to the
+final-docs handoff after reviewer approval.
 """
 from __future__ import annotations
 
@@ -34,6 +42,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     content_hash as _content_hash,
     conversation_prompts as _conversation_prompts,
+    guards as _guards,
     messages as _messages,
     usage as _usage,
 )
@@ -165,7 +174,6 @@ def _run_fixing_resume(
 def _fixing_ack_fast_path(
     ctx: _models._FixingContext,
     wt: Path,
-    feedback: _models._FixingFeedback,
     dev_result: AgentResult,
     after_sha: str | None,
 ) -> bool:
@@ -182,13 +190,17 @@ def _fixing_ack_fast_path(
     the *feedback*, not for the publish state, so when the clean HEAD is
     strictly ahead of the remote PR branch (a fix a prior parked run committed
     but never pushed -- e.g. a dirty-park whose stray files were later cleaned
-    up) relabeling to `in_review` here would clear the bookmarks, advance the
-    watermarks, and present a PR head that is still missing the committed fix.
+    up) relabeling to `in_review` here would clear the bookmarks and present a
+    PR head that is still missing the committed fix.
     Falling through lets `_handle_dev_fix_result` publish the stranded HEAD
     through its normal push tail and the pushed-fix exit route the freshened
     head back to the reviewer. The stranded check is skipped when `after_sha`
     is unreadable (mirrors `_handle_dev_fix_result`'s own gate -- no pushing
     blind off a worktree whose HEAD we could not read).
+
+    The consumed batch is settled by the caller ahead of this call, on the ack
+    and the fall-through alike: the reading that says the feedback needs no
+    change is the same reading that says a developer read it.
     """
     ack_reason = _messages._drift_ack_reason(dev_result.last_message or "")
     if not ack_reason or (
@@ -197,7 +209,6 @@ def _fixing_ack_fast_path(
         )
     ):
         return False
-    _feedback._advance_consumed_watermarks(ctx.state, feedback)
     _bookmarks._clear_pending_fix_bookmarks(ctx.state)
     quoted = _messages._as_blockquote(ack_reason)
     _comments._post_issue_comment(
@@ -223,9 +234,9 @@ def _resume_fixing_and_dispatch_result(
     route ACK fast path, the pushed-fix bounce back to `validating`, or a park
     via `_handle_dev_fix_result`.
 
-    Runs after the quiet window has elapsed. Owns the resume, the interrupted /
-    live-paused guards, the consumed-watermark advance, and the route round
-    bookkeeping.
+    Runs after the quiet window has elapsed. Owns the resume, the three guards
+    that refuse to count a run as a delivery, the settlement of the batch that
+    WAS delivered, and the route round bookkeeping.
     """
     # Capture the route discriminator BEFORE the bookmark-clear branches below.
     # `pending_fix_at` is untouched between the tick's capture point and here
@@ -260,6 +271,13 @@ def _resume_fixing_and_dispatch_result(
     if run.dev_result.interrupted:
         return
 
+    # A launch the run circuit turned away invoked no process at all, so
+    # nothing read this batch and there is no result to dispose of. Bail the
+    # same way, WITHOUT writing pinned state: the refusal recorded its own
+    # reason durably, and the next tick re-discovers the same feedback.
+    if _guards._ignore_if_never_invoked(ctx.issue, run.dev_result):
+        return
+
     # Live pause applied while the agent ran: an operator added `paused` (or
     # `backlog`) mid-run. Honor the decision `_resume_dev_with_text` already
     # made (propagated, not re-fetched) and stop before the ACK fast path, the
@@ -269,6 +287,29 @@ def _resume_fixing_and_dispatch_result(
     # republishes it.
     if run.paused:
         return
+
+    # The prompt reached an agent, so the batch it quoted is delivered
+    # whatever the run came back with -- a fix, a timeout, an empty message, a
+    # question. Settle it HERE, once, ahead of every disposition below: each
+    # surface advances only to the max id actually fed to the dev on it, and
+    # the issue thread settles the issue-action boundary beside the PR-side
+    # cursor so a later route change does not pay a second developer to
+    # deliver the same reply. Taken after the disposition instead, the
+    # settlement would sit behind the size gate's own durable write and behind
+    # a park's, and a crash in the window a hold's relabel opens would lose it.
+    #
+    # Only ids this prompt carried move. A human comment that landed AFTER
+    # `feedback` was built was never quoted in `_build_pr_comment_followup`,
+    # and swallowing it would drop real feedback on both outcomes: the next
+    # in_review tick would miss it on a pushed fix, and the next fixing tick's
+    # `awaiting_human and not new_feedback` gate would drop it on a park.
+    #
+    # The orchestrator's own park comment posted by `_park_awaiting_human`
+    # (issue id-space, body carries `_ORCH_COMMENT_MARKER` and its id is
+    # recorded in `orchestrator_comment_ids`) does NOT need a watermark bump to
+    # avoid replay: the next tick's rescan filters by both id and body marker,
+    # so the park comment is dropped even when the watermark sits below it.
+    _feedback._settle_consumed_feedback(ctx.state, feedback)
 
     # ACK fast path (in_review route only): the dev made no commit but
     # explicitly signaled via the `ACK: <reason>` marker that the PR feedback
@@ -282,7 +323,7 @@ def _resume_fixing_and_dispatch_result(
         and not run.dev_result.timed_out
         and (not run.after_sha or run.after_sha == run.before_sha)
         and _fixing_ack_fast_path(
-            ctx, run.worktree, feedback, run.dev_result, run.after_sha,
+            ctx, run.worktree, run.dev_result, run.after_sha,
         )
     ):
         return
@@ -299,32 +340,6 @@ def _resume_fixing_and_dispatch_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, run.worktree, run.dev_result,
         run.before_sha, after_sha=run.after_sha, spends=owed,
     )
-
-    # Advance the three in_review watermarks ONLY to the max id actually fed to
-    # the dev on each surface (ratcheted against the current watermark).
-    # A human issue-thread comment that landed AFTER `feedback` was built but
-    # BEFORE this write was never quoted in the dev's
-    # `_build_pr_comment_followup` prompt, so moving the watermark past it
-    # would swallow real feedback.
-    #
-    # This applies to BOTH paths:
-    #
-    #   * On a pushed fix, the next in_review tick (after `validating`
-    #     completes) must rediscover the concurrent comment as fresh PR
-    #     feedback.
-    #
-    #   * On park/failure (timeout / dirty / push fail / no-commit), the next
-    #     fixing tick must also rediscover it -- otherwise the
-    #     `awaiting_human and not new_feedback` gate fires and the concurrent
-    #     human comment is silently dropped, breaking the "comments arriving
-    #     while already labeled `fixing`" contract on every failure mode.
-    #
-    # The orchestrator's own park comment posted by `_park_awaiting_human`
-    # (issue id-space, body carries `_ORCH_COMMENT_MARKER` and its id is
-    # recorded in `orchestrator_comment_ids`) does NOT need a watermark bump to
-    # avoid replay: the next tick's rescan filters by both id and body marker,
-    # so the park comment is dropped even when the watermark sits below it.
-    _feedback._advance_consumed_watermarks(ctx.state, feedback)
 
     if not pushed:
         # A hold has already spent this route's round durably, from inside the

@@ -4,9 +4,9 @@
 (or `backlog`) WHILE the PR-feedback dev resume is in flight freezes the issue
 before the run's results are published. `_resume_dev_with_text(pause_guard=True)`
 re-fetches the issue after the run returns (`gh.get_issue`) and, on a hit, the
-handler returns before the ACK fast path, `_handle_dev_fix_result`, the
-watermark advance, or any relabel / pinned-state write -- so the feedback stays
-unconsumed and the committed work stays on the branch until the label is
+handler returns before the delivery settlement, the ACK fast path,
+`_handle_dev_fix_result`, or any relabel / pinned-state write -- so the feedback
+stays unconsumed and the committed work stays on the branch until the label is
 removed, when a later tick re-discovers the feedback and republishes."""
 
 from __future__ import annotations
@@ -102,6 +102,9 @@ def _assert_fixing_pause_preserves_state(
         pinned_data.get("pr_last_comment_id"),
         INITIAL_COMMENT_WATERMARK,
     )
+    # The issue-action reader a delivered round also settles is left exactly
+    # as unset as the seed left it: nothing was delivered.
+    test_case.assertIsNone(pinned_data.get("last_action_comment_id"))
     test_case.assertEqual(
         pinned_data.get("pending_fix_at"),
         "2026-05-24T00:00:00+00:00",
