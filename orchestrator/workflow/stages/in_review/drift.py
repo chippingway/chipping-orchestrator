@@ -11,6 +11,14 @@ was earned against requirements that no longer exist. Docs deliberately do not
 run on the way out -- the single docs pass belongs to the final-docs handoff
 after a fresh reviewer approval.
 
+A resume that ends PARKED -- a question, a timeout, a tree nobody could
+publish -- answers the edit with nothing, so it leaves the same move owed: the
+approval is stale either way, and only `validating` reads the reply as the
+rest of that drift resume. The comment a human wrote while that resume was out
+is still unread when it parks, and the watermark carry behind it stops below
+that comment rather than at the thread's tip, so the reply the move hands on
+is the one they wrote.
+
 The session's report is handled as the validating drift handles it -- recorded
 before the push, stamped with the hash the drift check took here -- and bound
 only once the relabel is behind it. The fresh round the stale approval earns,
@@ -196,6 +204,11 @@ def _dispose_drift_result(
     if outcome in _BACK_TO_REVIEW:
         _relabels_for_review(ctx)
     else:
+        # The edit is unanswered and the approval is stale whatever stopped
+        # this resume, so the move to `validating` is owed from here -- and
+        # the marker is the only thing that says so where no report was
+        # recorded either. The next tick makes it, ahead of the ping.
+        ctx.state.set(_state._HANDOFF_PENDING, True)
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     # Bound only once the relabel and its write are behind it, so no tick
     # ever finds a settled report beside a label still claiming the approval
@@ -231,15 +244,19 @@ def _relabels_for_review(ctx: _models._InReviewContext) -> None:
     that tick clears it.
 
     A publication this issue still OWES when the move is made is recorded as
-    belonging to the budget this reset just gave it. The edit that produced
-    that publication is the same one the reset is for, so the road that
-    finally lands it on `validating` -- where a fix reaching the pull request
-    spends a round -- must not spend from the budget the edit earned: the
-    delayed road would otherwise leave the next reviewer one round short of
-    what the road where the same push landed at once leaves it. It is dropped
-    by the settlement that ends the debt.
+    belonging to the budget this reset just gave it -- a report it has not
+    settled, or an edit its resume never answered at all. That publication
+    answers the same edit the reset is for, so the road that finally lands it
+    on `validating` -- where a fix reaching the pull request spends a round --
+    must not spend from the budget the edit earned: the delayed road would
+    otherwise leave the next reviewer one round short of what the road where
+    the same push landed at once leaves it. It is dropped by the settlement
+    that ends the debt, or by the outcome that answers the edit with nothing
+    left to settle.
     """
-    if _report_delivery.owes_a_report(ctx.state):
+    if _report_delivery.owes_a_report(ctx.state) or ctx.state.get(
+        _validating_state._OPEN_DRIFT,
+    ):
         ctx.state.set(_report_delivery.OWED_ROUND_RESET, True)
     ctx.state.set(_state._HANDOFF_PENDING, True)
     ctx.state.set("review_round", 0)
@@ -262,10 +279,14 @@ def _hands_a_stale_approval_back(ctx: _models._InReviewContext) -> bool:
     relabel. Left here the report is never bound, since the hold that binds it
     is `validating`'s.
 
-    A handoff MARKER is the other, and it covers the outcomes that record no
-    report at all: an `ACK:` reply whose relabel did not land leaves no debt,
+    A handoff MARKER is the other, and it covers every outcome that records no
+    report at all. An `ACK:` reply whose relabel did not land leaves no debt,
     no drift to re-detect, and nothing else on the comment to say the label
-    still owes a move.
+    still owes a move. A resume that PARKED leaves the same silence and an
+    edit nobody has answered besides: its reply belongs to `validating`, where
+    the drift road reads it and the report it writes is published, so the
+    marker goes down with the park and the move is made ahead of the feedback
+    scan that would otherwise route that reply to `fixing`.
 
     Either way nothing else this stage does runs first: `validating` recovers
     a failed push, binds and settles what a publication carried, and holds the

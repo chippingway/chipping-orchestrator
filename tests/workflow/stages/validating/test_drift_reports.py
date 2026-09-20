@@ -11,7 +11,9 @@ out is answered by the next resume rather than stamped onto this report. A
 commit left unpublished for want of its report stays so until a reply brings
 one, whatever else the replies say. A report alone is recorded only over a
 clean tree, and one verified on the pull request's description is kept only
-where that body still closes the issue and names the session.
+where that body still closes the issue and names the session. A resume that
+asked rather than answered leaves the edit standing, so the reply that clears
+its park is the rest of that resume and owes the same report.
 """
 
 from __future__ import annotations
@@ -220,6 +222,34 @@ class DriftReportConcurrencyTest(unittest.TestCase, world._DriftReportMixin):
 
 
 class DriftReportDebtTest(unittest.TestCase, world._DriftReportMixin):
+    """What an edit this stage has not answered yet owes, a tick or more later.
+
+    A commit nobody described and a resume that only asked a question both
+    leave the edit outstanding, and the reply that clears either park is the
+    rest of that drift resume rather than an ordinary fix: the report it
+    writes is the one the pull request is owed.
+    """
+
+    def test_a_question_keeps_the_drift_road(self) -> None:
+        # The resume asked rather than answering, so the park it left stands
+        # over an edit nothing has answered. The reply that clears it brings
+        # the commit AND the report, and both go out together -- read as a
+        # plain fix instead, the commit would reach the reviewer with no
+        # report of it anywhere.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+
+        self.drift(QUESTION_REPLY, committed=False)
+        self.assertTrue(self.pinned().get(AWAITING_HUMAN))
+        world.human_reply(self, "replace the old criterion")
+
+        self.drift(world.reported())
+
+        self.assertEqual(len(self.published_reports()), 1)
+        self.assertEqual(
+            (self.pull_request.head.sha, self.pinned()[REVIEW_ROUND]),
+            (world.FIXED_HEAD, 1),
+        )
+
     def test_a_missing_report_is_owed_until_written(self) -> None:
         # A resume committed and wrote no report, so its commit stayed in the
         # worktree. A reply that only says `ACK:` does not pay that debt: the

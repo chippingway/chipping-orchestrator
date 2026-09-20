@@ -24,7 +24,7 @@ the gate already wrote it and the count where a push nothing could name never
 reached that write. Re-reading the counter instead would count one round
 twice.
 
-One road spends nothing at all: the publication a report park still owes, where
+One road spends nothing at all: the publication a drift park still owes, where
 `in_review` already reset the budget for it. That reset IS the round accounting
 of a requirements edit on an approved pull request, and the publication the
 edit produced is what the delayed road is finishing -- so counting it again
@@ -53,8 +53,8 @@ def _spends_next_round(state: PinnedState) -> _late_gate_models._Spends:
     ))
 
 
-def _spends_for_an_owed_report(state: PinnedState) -> _late_gate_models._Spends:
-    """The round a publication this issue still owes a report for lands on.
+def _spends_for_an_owed_publication(state: PinnedState) -> _late_gate_models._Spends:
+    """The round a publication a drift park still owes lands on.
 
     Nothing, where an `in_review` requirements edit already reset the budget
     for exactly this publication: the approval it invalidated is what that

@@ -24,13 +24,20 @@ Everything on this road reads the context's one frozen batch, and the reply is
 recorded as consumed by the run that read it rather than ahead of it, so a live
 pause or an interruption leaves the thread exactly as it found it.
 
-A park this stage took over a report it owes is the one claim that changes what
-the resume's answer MEANS: the notice asked for a report, so the reply is read
-the way a drift resume's is -- a report with no commit publishes onto the head
-the pull request carries instead of parking as a question -- and it is stamped
-with the revision the batch delivered. What such a publication spends is the
-round `rounds` says it does, which is nothing where the debt came back from
-`in_review` with the budget already reset for it.
+A park standing over an unanswered requirements edit is the one claim that
+changes what the resume's answer MEANS: a report this issue owes, or a drift
+resume that ended in a question or a failure without answering the edit at
+all. Either way the reply is read the way a drift resume's is -- a report with
+no commit publishes onto the head the pull request carries instead of parking
+as a question, and a commit is held to the report contract before the gate
+sees it -- and it is stamped with the revision the batch delivered. What such
+a publication spends is the round `rounds` says it does, which is nothing
+where the park came back from `in_review` with the budget already reset for
+it.
+
+The claim is read BEFORE the run, because the resume clears the park it was
+written beside: read afterwards, the road would lose exactly the parks it is
+for.
 """
 from __future__ import annotations
 
@@ -64,12 +71,14 @@ def _resume_validating_awaiting_dev(context: _models._AwaitingValidation) -> str
         )
         context.gh.write_pinned_state(context.issue, context.state)
         return _state._OUTCOME_RETURN
+    drifting = bool(context.state.get(_state._OPEN_DRIFT))
     attempt = _awaiting._run_awaiting_dev(context, continue_action)
     if _stops_after_the_run(context, attempt):
         return _state._OUTCOME_RETURN
-    if _report_delivery.owes_a_report(context.state):
-        return _answers_the_report_park(
-            context, attempt, _rounds._spends_for_an_owed_report(context.state),
+    if drifting or _report_delivery.owes_a_report(context.state):
+        return _answers_the_drift_park(
+            context, attempt,
+            _rounds._spends_for_an_owed_publication(context.state),
         )
     # Frozen before the push: the gate closes it beside its own receipt, and
     # the line below re-applies the same pair rather than re-reading a counter
@@ -109,19 +118,23 @@ def _stops_after_the_run(
     return attempt.paused
 
 
-def _answers_the_report_park(
+def _answers_the_drift_park(
     context: _models._AwaitingValidation,
     attempt: _models._AwaitingDevAttempt,
     owed,
 ) -> str:
-    """Read a resume answering a park this stage took over a report it owes.
+    """Read a resume answering a park over an edit nothing has answered yet.
 
-    The park asked for a report, so the reply is read the way the drift
-    resume's is rather than as a plain fix: a report with no commit is the
-    answer it asked for and publishes onto the head the pull request already
-    carries, while a commit is held to the same contract before the gate sees
-    it. `ACK:` and a question keep their own roads, and the debt they leave
-    parks the review again.
+    Two parks reach it. One this stage took over a report it owes, which
+    asked for a report in so many words. And one a drift resume ended on
+    without answering the edit -- a question, a timeout, a tree nobody could
+    publish -- where what is owed is the whole outcome, report included.
+
+    Either way the reply is read the way the drift resume's is rather than as
+    a plain fix: a report with no commit is an answer and publishes onto the
+    head the pull request already carries, while a commit is held to the
+    report contract before the gate sees it. `ACK:` and a question keep their
+    own roads, and the park they leave holds the review again.
 
     The revision the run was handed is the one this batch delivers, which its
     own settlement records as the baseline -- so the report is stamped with

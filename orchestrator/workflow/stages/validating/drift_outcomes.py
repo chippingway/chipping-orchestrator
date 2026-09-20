@@ -26,6 +26,13 @@ Everything else defers to the shared fix disposition -- the timeout park, the
 stranded-commit gate, the push -- so the two routes cannot disagree about what
 a publishable run is. This owner only decides which of them a silent reply is
 handed to.
+
+A resume that ends PARKED has not answered the edit at all, and the reply that
+clears that park is the rest of this road rather than an ordinary fix: the
+report the edit is owed is the one that reply writes. So the claim goes down
+beside the park, for the resume on the other side of it to read, and comes off
+the moment an outcome answers the edit -- with the fresh review budget a
+hand-back recorded for a publication that has now happened.
 """
 from __future__ import annotations
 
@@ -34,7 +41,12 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, guards as _guards, messages as _messages
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    guards as _guards,
+    messages as _messages,
+    report_delivery as _report_delivery,
+)
 from orchestrator.workflow.stages.implementing import parks as _dev_parks
 from orchestrator.workflow.stages.validating import (
     dev_fix as _dev_fix,
@@ -42,6 +54,8 @@ from orchestrator.workflow.stages.validating import (
     models as _models,
     state as _state,
 )
+
+_AWAITING_HUMAN = "awaiting_human"
 
 
 def _post_drift_ack(
@@ -63,8 +77,27 @@ def _dispose_user_content_change_result(
     state: PinnedState,
     run: _models._DevFixRun,
 ) -> str:
+    """Read what a drift resume left, and record whether the edit is answered.
+
+    An interrupted run is the one outcome that records nothing either way:
+    nothing it staged is written, so the next tick re-detects the same edit
+    and resumes again rather than continuing a park nobody took.
+    """
     if run.agent_result.interrupted:
         return _state._OUTCOME_PARKED
+    outcome = _reads_the_finished_resume(gh, spec, issue, state, run)
+    _records_an_open_drift(state, outcome)
+    return outcome
+
+
+def _reads_the_finished_resume(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    run: _models._DevFixRun,
+) -> str:
+    """Which road a finished drift resume's result belongs to."""
     if run.agent_result.timed_out:
         _dev_fix._park_dev_fix_timeout(gh, issue, state, run.before_sha)
         return _state._OUTCOME_PARKED
@@ -72,6 +105,34 @@ def _dispose_user_content_change_result(
     if publishable is None or _drift_reports._withholds_the_stranded(state, publishable):
         return _dispose_silent_reply(gh, issue, state, run)
     return _publishes_the_fix(gh, spec, issue, state, publishable)
+
+
+def _records_an_open_drift(state: PinnedState, outcome: str) -> None:
+    """Record whether the edit that earned this resume is still unanswered.
+
+    A park is what leaves it unanswered -- a question, a timeout, a tree
+    nobody could publish, a push that did not land -- and the reply that
+    clears that park is this road's to read: the report the edit is owed is
+    the one that reply writes, and read as an ordinary fix instead the commit
+    would go out with no report at all and the reviewer behind it would run
+    over work nothing describes.
+
+    Only where a park actually STANDS, because a reply is what the claim is
+    for. A candidate the size gate held parks nobody: the issue is the
+    adjudication's, which publishes that commit itself, so the edit is
+    answered by that publication rather than by a reply nobody is waiting for.
+
+    Every other outcome answers the edit, and takes the fresh review budget a
+    hand-back recorded with it: a publication that has happened is not one a
+    later round may still be owed for, and a claim left standing would spend
+    nothing for an edit nobody is answering any more.
+    """
+    if outcome == _state._OUTCOME_PARKED and state.get(_AWAITING_HUMAN):
+        state.set(_state._OPEN_DRIFT, True)
+        return
+    for answered in (_state._OPEN_DRIFT, _report_delivery.OWED_ROUND_RESET):
+        if state.get(answered):
+            state.set(answered, None)
 
 
 def _publishes_the_fix(

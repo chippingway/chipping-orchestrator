@@ -18,6 +18,17 @@ The outcome tokens are the same shape one level up -- a helper returns
 owner switches on it -- so the strings are declared once rather than spelled
 twice.
 
+`_OPEN_DRIFT` is the one key here that outlives its own tick on purpose. A
+requirements edit resumes the developer, and that resume can end without
+answering it: a question, a timeout, a tree nobody could publish. The reply
+that clears such a park is a continuation of the drift road rather than an
+ordinary fix -- its report is the one the edit is owed -- so the road it
+belongs to has to survive the park, and nothing else on the comment says which
+road a park came off. Both review stages write it through the shared drift
+disposition and `in_review` reads it for the budget a hand-back owes; it lives
+exactly as long as the park it was written with, since the park clearing is
+what answers it. Additive: an issue without it has no edit outstanding.
+
 `_VERIFY_STATUS_TO_REASON` and `_VALIDATING_TRANSIENT_PARK_REASONS` are the
 two groupings that decide behavior on their own: the first turns a verify
 status into the durable tag a park is filed under, and the second is the set
@@ -74,6 +85,11 @@ _OUTCOME_REPORTED = "reported"
 # The drift outcomes that can leave a recorded report for the caller to bind,
 # once its own bookkeeping -- and on `in_review` its relabel -- is written.
 _REPORTING_OUTCOMES = frozenset((_OUTCOME_PUSHED, _OUTCOME_REPORTED))
+
+# Whether a requirements edit resumed the developer and that resume has not
+# answered it yet. Written beside the park the resume ended on and read by the
+# reply that clears it, which is then the drift resume's continuation.
+_OPEN_DRIFT = "requirements_drift_open"
 
 _OUTCOME_STUCK = "stuck"
 

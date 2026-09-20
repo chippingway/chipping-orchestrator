@@ -9,9 +9,11 @@ push that does not land keeps the report recorded, and the issue parked where
 it is for that tick; the next one hands it to `validating` before anything here
 can act on the stale approval, and so does a tick that died mid-way -- on the
 report it owes, or, where the reply recorded none, on the marker the move
-itself left. A publication such a hand-back still owes lands on `validating`
-without spending a round: the fresh budget is what the edit that produced it
-has already bought.
+itself left. A resume that answered the edit with nothing at all -- a question
+-- owes the same move, and the comment a human wrote while it was out is still
+there for the road that answers it. A publication such a hand-back still owes
+lands on `validating` without spending a round: the fresh budget is what the
+edit that produced it has already bought.
 """
 
 from __future__ import annotations
@@ -45,6 +47,12 @@ READY_PING = "is ready for review/merge"
 # The reply that records no report at all, and the marker that is then the
 # only thing saying this issue owes `validating` a label move.
 ACK_REPLY = "ACK: the pushed commit already covers the edit."
+
+# What a resume that answers the edit with nothing says, and the pinned key
+# saying how far this stage has read the issue thread.
+QUESTION_REPLY = "Should the new criterion replace the old one or sit beside it?"
+
+PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
 HANDOFF_PENDING = "in_review_handoff_pending"
 
@@ -118,7 +126,7 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
         self.seeded(ISSUE, PR, LABEL_IN_REVIEW, **READY_TO_PING)
         self.drift(world.reported(), push_branch=False)
 
-        self._assert_handed_back()
+        _assert_handed_back(self)
         self.drift(REVIEW_REPLY, committed=False)
         self.assertEqual(self.pull_request.head.sha, world.FIXED_HEAD)
 
@@ -141,7 +149,7 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
             self.drift(world.reported(), push_branch=_dies)
         self.assertIsNotNone(self.records()["delivered"])
 
-        self._assert_handed_back()
+        _assert_handed_back(self)
         held = self.drift(REVIEW_REPLY, head_shas=(world.FIXED_HEAD,))
 
         held[RUN_AGENT].assert_not_called()
@@ -160,7 +168,7 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
             self.drift(world.reported())
         self.assertEqual(self.pull_request.head.sha, world.FIXED_HEAD)
 
-        self._assert_handed_back()
+        _assert_handed_back(self)
         reviewed = self.drift(REVIEW_REPLY, committed=False)
 
         self.assertEqual(len(self.published_reports()), 1)
@@ -204,7 +212,7 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
         )
         self.drift("fixed the criteria")
 
-        self._assert_handed_back()
+        _assert_handed_back(self)
         world.human_reply(self)
         self.drift(world.reported(), **world.STRANDED)
         self.reconcile()
@@ -233,20 +241,74 @@ class InReviewReportDebtTest(unittest.TestCase, world._DriftReportMixin):
 
         self.assertTrue(self.pinned()[HANDOFF_PENDING])
         self.assertEqual(set(self.records().values()), {None})
-        self._assert_handed_back()
+        _assert_handed_back(self)
         self.assertIsNone(self.pinned()[HANDOFF_PENDING])
 
-    def _assert_handed_back(self) -> None:
-        """One `in_review` tick: back to `validating`, no ping, nothing run."""
-        mocks = self.drift(REVIEW_REPLY, committed=False)
-        mocks[RUN_AGENT].assert_not_called()
-        self.assertFalse(any(
-            READY_PING in body for _, body in self.github.posted_comments
-        ))
-        self.assertEqual(
-            (self.github.label_history[-1:], self.pinned()[REVIEW_ROUND]),
-            ([(ISSUE, LABEL_VALIDATING)], 0),
+
+class InReviewParkedDriftTest(unittest.TestCase, world._DriftReportMixin):
+    """A drift resume that answered the edit with nothing, and the tick after.
+
+    A question parks with no report recorded, so nothing the pinned comment
+    carries would otherwise say this label owes a move -- and the approval it
+    stands on was earned against requirements that are gone. The marker the
+    park leaves is what sends the issue back before the feedback scan, the
+    drift check, or the ready ping can act on it, and `validating` reads the
+    answer as the rest of that resume.
+    """
+
+    def test_a_question_hands_the_approval_back(self) -> None:
+        # The resume asked rather than answered, so the edit stands and the
+        # approval is stale with nothing recorded to say so. The next tick
+        # hands the issue on instead of pinging a mergeable head as ready,
+        # and the answer is read on `validating` as the rest of the drift
+        # resume: its report is published, on the budget the edit bought.
+        self.seeded(
+            ISSUE, PR, LABEL_IN_REVIEW,
+            review_round=SPENT_ROUNDS, **READY_TO_PING,
         )
+
+        self.drift(QUESTION_REPLY, committed=False)
+
+        self.assertEqual(self.github.label_history, [])
+        _assert_handed_back(self)
+        world.human_reply(self, "replace the old criterion")
+        self.drift(world.reported(), committed=False)
+
+        self.assertEqual(len(self.published_reports()), 1)
+        self.assertEqual(self.pinned()[REVIEW_ROUND], 0)
+
+    def test_a_comment_mid_run_outlives_the_park(self) -> None:
+        # A human writes while the agent is out and the resume comes back
+        # with a question. The park notice lands above that comment, so a
+        # mark taken from the thread's tip would skip it for good. The
+        # ratchet stops at what this tick actually read instead, and the
+        # comment is still there for the resume that answers the park --
+        # which is where the report the edit is owed finally comes from.
+        self.seeded(ISSUE, PR, LABEL_IN_REVIEW, **READY_TO_PING)
+
+        self.drift(self.mid_run("comment", QUESTION_REPLY), committed=False)
+
+        self.assertLess(
+            self.pinned()[PR_LAST_COMMENT_ID], world.LATER_COMMENT_ID,
+        )
+        _assert_handed_back(self)
+        answered = self.drift(world.reported(), committed=False)
+
+        answered[RUN_AGENT].assert_called_once()
+        self.assertEqual(len(self.published_reports()), 1)
+
+
+def _assert_handed_back(case) -> None:
+    """One `in_review` tick: back to `validating`, no ping, nothing run."""
+    mocks = case.drift(REVIEW_REPLY, committed=False)
+    mocks[RUN_AGENT].assert_not_called()
+    case.assertFalse(any(
+        READY_PING in body for _, body in case.github.posted_comments
+    ))
+    case.assertEqual(
+        (case.github.label_history[-1:], case.pinned()[REVIEW_ROUND]),
+        ([(ISSUE, LABEL_VALIDATING)], 0),
+    )
 
 
 class _RelabelsThenDies:

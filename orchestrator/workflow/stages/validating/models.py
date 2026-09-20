@@ -168,8 +168,20 @@ class _AwaitingValidation:
         return self.batch.comments
 
     def clear_park(self) -> None:
+        """End the park this context was built on, and what it stood over.
+
+        A requirements edit the park interrupted is answered by the road that
+        clears it, so the drift claim goes with the park rather than outliving
+        it: left standing past a recovery that published the commit itself, it
+        would read the next unrelated park's reply as the edit's continuation.
+        The road that MEANS to continue reads the claim before its run, and
+        the disposition behind it writes it again where the edit is still
+        unanswered.
+        """
         self.state.set("awaiting_human", False)
         self.state.set(_state._PARK_REASON, None)
+        if self.state.get(_state._OPEN_DRIFT):
+            self.state.set(_state._OPEN_DRIFT, None)
 
     def consume_comments(self) -> None:
         """Record the frozen batch as consumed, forward only.
