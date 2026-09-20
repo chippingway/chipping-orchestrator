@@ -26,6 +26,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -141,6 +142,12 @@ class _FixRoundFixtureMixin(_PatchedWorkflowMixin):
             max(seen.id for seen in issue.comments) + 1, body,
         ))
 
+    def _authorization(self, issue):
+        """The reply the round is about, as the handler reads it off GitHub."""
+        return next(
+            seen for seen in issue.comments if seen.id == AUTHORIZATION_ID
+        )
+
     def _prompts(self, mocks) -> list[str]:
         """Every prompt string handed to an agent across one stage run."""
         return [call.args[1] for call in mocks[RUN_AGENT].call_args_list]
@@ -166,10 +173,17 @@ class DeliveredFixFeedbackTest(unittest.TestCase, _FixRoundFixtureMixin):
             self._tick(self._run_fixing, gh, issue, last_message=DEV_QUESTION),
         )
 
-        # The round quoted the reply once and parked on the developer's
-        # question, which is the shape #1790 was moved to `validating` in.
+        # One developer, handed the whole PR-feedback prompt built over the
+        # authorization and nothing else. Asserted entire rather than searched,
+        # because what the crossing is about is the BATCH the prompt carried:
+        # a park notice of ours, a second copy of the reply, or a comment the
+        # scan should have left behind all read as a substring hit and none of
+        # them survives this comparison.
         self.assertEqual(
-            len([quoted for quoted in fixing_prompts if AUTHORIZATION in quoted]), 1,
+            fixing_prompts,
+            [_conversation_prompts._build_pr_comment_followup([
+                self._authorization(issue),
+            ])],
         )
         self.assertTrue(gh.pinned_data(ISSUE).get(AWAITING_HUMAN))
         self.assertGreaterEqual(
@@ -183,7 +197,9 @@ class DeliveredFixFeedbackTest(unittest.TestCase, _FixRoundFixtureMixin):
 
         # Nothing is spawned at all: the reply is answered, so neither the
         # drift road nor the awaiting-human resume has anything to deliver,
-        # and the park keeps waiting on the human it asked.
+        # and the park keeps waiting on the human it asked. Left unsettled,
+        # this tick hands that same prompt to a second developer.
+        self.assertEqual(self._prompts(validating_mocks), [])
         validating_mocks[RUN_AGENT].assert_not_called()
         self.assertTrue(gh.pinned_data(ISSUE).get(AWAITING_HUMAN))
 

@@ -1458,15 +1458,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             per-surface owner, so the issue thread answers to the issue-only delivery cursor too and
                             the pull request never does (a bare `/orchestrator add-agent-runs` is no
                             feedback there, as in in_review) -- the quiet window a fresh batch settles
-                            through before a resume spends the session on a fragment of it, and the narrower ratchet
-                            a consumed batch advances those watermarks by
+                            through before a resume spends the session on a fragment of it, and the settlement a
+                            consumed batch earns: one reader per surface, derived through `engine/prompt_delivery.py`
+                            so the pairs are the ones a durable report transaction's recorded watermarks carry
+                            verbatim. The issue thread settles the issue-action boundary
+                            `last_action_comment_id` beside the PR-side cursor -- a reply this round quoted has been
+                            in a developer prompt, and left behind it routes back to a second developer the moment a
+                            human moves the label -- while the pull request's three surfaces settle only the
+                            in_review watermarks that are theirs
       bookmarks.py          the `pending_fix_*` ids a replay rebuilds the triggering batch from, and the clear each
                             round earns
-      resume.py             the dev run, the ACK fast path, the `workflow:validating` relabel a pushed fix earns, and
-                            the round a fix the size gate sent to adjudication spends here -- no later tick of this
-                            stage can, since the head the reviewer rejected is superseded whether that adjudication
-                            parks its `single` for a human or an authorized settlement publishes before handing the
-                            issue back
+      resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
+                            nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
+                            outcome DID deliver, taken once ahead of the disposition so the size gate's own durable
+                            write and a park's both carry it, the ACK fast path, the `workflow:validating` relabel a
+                            pushed fix earns, and the round a fix the size gate sent to adjudication spends here --
+                            no later tick of this stage can, since the head the reviewer rejected is superseded
+                            whether that adjudication parks its `single` for a human or an authorized settlement
+                            publishes before handing the issue back
       parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough

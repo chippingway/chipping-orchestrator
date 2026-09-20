@@ -7,6 +7,9 @@ from __future__ import annotations
 import unittest
 from types import MappingProxyType
 
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import report_consumed_values as _consumed_values
+from orchestrator.workflow.stages.fixing import feedback as _feedback, models as _models
 from tests.workflow.stages.fixing import fixing_test_support as support
 
 IssueScenario = support.IssueScenario
@@ -378,6 +381,11 @@ def _run(message: str = "", **agent_fields) -> dict:
     return {"last_message": message, "session_id": DEV_SESSION, **agent_fields}
 
 
+def _pinned() -> PinnedState:
+    """A pinned comment carrying the four readers where the seed puts them."""
+    return PinnedState(state_data=dict(SEEDED_READERS))
+
+
 def _readers_after(**moved) -> dict:
     """Where the four readers stand once `moved` has been settled."""
     return {**SEEDED_READERS, **moved}
@@ -517,6 +525,45 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         self.assertGreaterEqual(
             self._readers(github)[LAST_ACTION_COMMENT_ID], TRIGGER_ID,
         )
+
+    def test_a_transaction_would_carry_the_same_pairs(self) -> None:
+        # "Settle through a durable report transaction where one is present,
+        # and directly otherwise" is only one rule if the two roads write the
+        # same thing. The pairs this stage derives are therefore held to the
+        # vocabulary a RECOVERED transaction is read back under, and then
+        # applied by that owner's own ratchet -- a field outside the table, or
+        # a value it will not take, refuses the whole recorded group and holds
+        # a transaction whose feedback is already answered.
+        batch = _models._FixingFeedback(
+            issue_thread=[_reply(TRIGGER_ID, AUTHORIZATION)],
+            pr_conversation=[
+                _reply(BATCH_PR_CONVERSATION_ID, "needs a rollback path"),
+            ],
+            review_comments=[
+                _reply(INLINE_FEEDBACK_ID, "this branch is unreachable"),
+            ],
+            review_summaries=[FakePRReview(
+                id=REVIEW_SUMMARY_FEEDBACK_ID,
+                body="please tighten the error message",
+                state=CHANGES_REQUESTED,
+                user=FakeUser(CAROL),
+                submitted_at=_settled(),
+            )],
+        )
+        pairs = _feedback._consumed_delivery(
+            _pinned(), batch,
+        ).consumed_pairs(_pinned())
+
+        self.assertEqual(
+            _consumed_values.recorded_pairs(
+                [list(pair) for pair in pairs], _consumed_values.consumable,
+            ),
+            pairs,
+        )
+        directly, through_a_transaction = _pinned(), _pinned()
+        _feedback._settle_consumed_feedback(directly, batch)
+        _consumed_values.advance_consumed(through_a_transaction, pairs)
+        self.assertEqual(through_a_transaction.data, directly.data)
 
     def _deliver(self, *, agent_fields, head_shas, placed, extra_state=None):
         """One fixing tick over a batch on whichever surfaces `placed` names."""
