@@ -303,7 +303,9 @@ IN_REVIEW = ChargedRoad(
     number=IN_REVIEW_ISSUE,
     label=_support.LABEL_IN_REVIEW,
     drive=_drive_in_review,
-    agent_result=_support._agent(session_id=DEV_SESSION, last_message="addressed"),
+    agent_result=_support._agent(
+        session_id=DEV_SESSION, last_message=_support._reported("addressed"),
+    ),
 )
 
 CONFLICT = ChargedRoad(

@@ -418,8 +418,15 @@ than a second source of truth: where the two disagree, the handler pages are aut
        four comment surfaces                pending_fix_at + bookmarks,
                                             clear stale park; no debounce
                                             wait, no dev spawn here)
-     user-content drift (pushed or ACK) ─► workflow:validating
-                                            (review_round=0; no docs hop)
+     a stale approval: a report owed    ─► workflow:validating
+       (failed drift push, held             (review_round=0 and the handoff
+       candidate, a tick that died), or     marker written before the
+       the handoff marker an ACK left       relabel; asked first, ahead of
+       when its relabel did not land        feedback and the ping)
+     user-content drift (pushed, ACK,    ─► workflow:validating
+       or a report with no commit)          (review_round=0; no docs hop;
+                                            the report is settled there
+                                            before any reviewer runs)
      mergeable + final-docs-complete or ─► HITL ping (no relabel,
        GitHub-approved current head        awaiting_human stays false)
        + no human CHANGES_REQUESTED

@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The open pull request a requirements-drift resume reports onto.
 
-Either review stage resumes the developer when the issue is edited under an
-open pull request, so a case names the stage by the label it seeds and the
-world is the same one under both. That world is the one production leaves: a
-pull request on the issue's branch
+Both review stages resume the developer when the issue is edited under an open
+pull request, and both publish what that session reports. The world every case
+runs in is the one production leaves: a pull request on the issue's branch
 whose last publication the code-publication receipt names, a checkout standing
 on its head, and a push that moves the pull request to the commit it sends --
 so the reconciliation that settles the report reads the same evidence it would

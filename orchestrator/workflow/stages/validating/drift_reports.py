@@ -34,10 +34,11 @@ code in it -- the drift prompt asks for a report whenever the report has to
 change -- and it goes onto the head the pull request already carries, needing
 no new commit, once the tree is proved to carry nothing that head does not.
 
-Nothing is bound here. What happens to the report once it is recorded is
-somebody else's: `report_settlement` binds it to the publication and settles
-it, asked by the caller once its own bookkeeping is written, and `report_hold`
-holds the reviewer in front of it until it is confirmed on the pull request.
+Nothing is bound here. What happens to the report once it is recorded -- bound
+to the publication and settled, `report_settlement`'s, asked by the caller once
+its own bookkeeping is written, or held in front of the reviewer until it is,
+`report_hold`'s -- follows the relabel on `in_review`, so no settled report ever
+stands beside a label still claiming the approval it made stale.
 """
 from __future__ import annotations
 

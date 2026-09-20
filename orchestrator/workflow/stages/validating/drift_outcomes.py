@@ -31,9 +31,10 @@ A resume that ends PARKED has not answered the edit at all, and the reply that
 clears that park is the rest of this road rather than an ordinary fix: the
 report the edit is owed is the one that reply writes. So the claim goes down
 beside the park, for the resume on the other side of it to read, and comes off
-the moment an outcome answers the edit. It is written for a caller that named
-what its resume was handed, since only such a caller holds the reply to the
-report contract on the far side of the park.
+the moment an outcome answers the edit -- with the fresh review budget a
+hand-back recorded for a publication that has now happened. It is written for a
+caller that named what its resume was handed, since only such a caller holds
+the reply to the report contract on the far side of the park.
 """
 from __future__ import annotations
 
@@ -46,6 +47,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
     messages as _messages,
+    report_delivery as _report_delivery,
 )
 from orchestrator.workflow.stages.implementing import parks as _dev_parks
 from orchestrator.workflow.stages.validating import (
@@ -128,16 +130,24 @@ def _records_an_open_drift(state: PinnedState, outcome: str) -> None:
     adjudication's, which publishes that commit itself, so the edit is
     answered by that publication rather than by a reply nobody is waiting for.
 
-    Every other outcome answers the edit, so the claim comes off: the reply
-    that lands next is an ordinary one, and a claim left standing would make
-    the road read it as the continuation of an edit nobody is answering any
-    more.
+    Every other outcome answers the edit, and the fresh review budget a
+    hand-back recorded goes with it -- but only once the publication that
+    budget was reset for has actually happened, since that publication is the
+    whole of what the record is about. An `ACK:` while a commit is still
+    withheld for the report it owes answers the edit in words and publishes
+    nothing, so the reply that finally publishes would spend a round the edit
+    had already bought back. Left standing past a publication instead, it
+    would spend nothing for an edit nobody is answering any more.
     """
     if outcome == _state._OUTCOME_PARKED and state.get(_AWAITING_HUMAN):
         state.set(_state._OPEN_DRIFT, True)
         return
-    if state.get(_state._OPEN_DRIFT):
-        state.set(_state._OPEN_DRIFT, None)
+    answered = [_state._OPEN_DRIFT]
+    if not _drift_reports._owes_an_unrecorded_report(state):
+        answered.append(_report_delivery.OWED_ROUND_RESET)
+    for claim in answered:
+        if state.get(claim):
+            state.set(claim, None)
 
 
 def _publishes_the_fix(

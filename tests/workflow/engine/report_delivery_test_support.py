@@ -71,6 +71,13 @@ CROWDED_FOR_ASCII_BRANCH = 2000
 
 CROWDED_FOR_RESERVED_SUBJECT = 4300
 
+# The room left where the ROUTE decides the refusal: the write the
+# stale-approval hand-back makes -- the fresh round, the owed label move, and
+# the reset budget -- is reserved for the one stage that makes it, so a report
+# recorded there is refused this room while an implementation's is accepted in
+# it.
+CROWDED_FOR_HAND_BACK = 4300
+
 # The room left where what decides the refusal is the write the PUSH makes: the
 # comment holds the delivered record and not the code-publication receipt the
 # gate puts beside it.
@@ -144,6 +151,9 @@ REDELIVERED = replace(
     receipt=f"issue-{ISSUE_NUMBER}-report-2",
     report_revision=2,
 )
+
+# The same report recorded on the one road a stale-approval hand-back follows.
+HANDED_BACK = replace(DELIVERED, route=WorkflowLabel.IN_REVIEW)
 
 # How long the outstanding transaction's own report is: large enough that what
 # the comment can still hold is decided by the records ALREADY on it rather

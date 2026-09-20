@@ -632,8 +632,8 @@ The keys that matter for the state machine fall into a few groups:
   [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch). The
   initial implementation delivery produces them
   ([`_handle_implementing`](delivery-stages.md#_handle_implementing-label-workflowimplementing)), and so does a
-  requirements-drift resume on an open pull request, recorded under the `workflow:validating` route it ran on
-  ([user-content drift](delivery-stages.md#user-content-drift-detection)).
+  requirements-drift resume on an open pull request, recorded under the `workflow:validating` or `in_review` route
+  it ran on ([user-content drift](delivery-stages.md#user-content-drift-detection)).
 
   `developer_report_delivery` is what one completed run wrote, recorded **before** the size gate reads its candidate
   and before the push sends it — which is the last moment the report is certainly recoverable, since the session
@@ -663,10 +663,12 @@ The keys that matter for the state machine fall into a few groups:
   measured is the comment the BINDING leaves rather than the one in hand:
   that write exchanges the two records, so a delivery already standing there is room the transaction gets to spend,
   and a comment that has never carried one still ends up holding the `null` the drop writes. The record's own write
-  is measured twice beside that reservation — against this comment, and against this comment carrying the
-  code-publication receipt — because the push stands between the record and the binding, and the gate that pushes
-  writes that receipt here. That is a third world again: the delivery added to everything the issue already carries,
-  a transaction an earlier publication left outstanding included. The binding also holds
+  is measured in four worlds beside that reservation — this comment, and this comment carrying the
+  code-publication receipt, the stale-approval hand-back, or both — because what stands between the record and the
+  binding is the push and, on the `in_review` drift road, the hand-back behind it, and both write here. The
+  hand-back is charged only to the route the record names, since `in_review` is the only stage that makes one.
+  Those are worlds the reservation above never measures: the delivery added to everything the issue already
+  carries, a transaction an earlier publication left outstanding included. The binding also holds
   the subject to the requirements revision the delivery froze; a subject restating it differently is refused with
   nothing staged, since a transaction bound to another revision would claim the report answers content the run
   never saw, and it is held to the record the comment CARRIES: a report the delivery field has none for, one
@@ -686,7 +688,9 @@ The keys that matter for the state machine fall into a few groups:
   has moved out of reach — a comment of ours somebody
   edited, or a verified location gone, changed, or written by an author this deployment does not trust — and a
   `developer_report_owed` debt no record of this issue's describes — a run that committed and reported nothing, and
-  one whose commits any record left by an EARLIER run predates.
+  one whose commits any record left by an EARLIER run predates. An `in_review`
+  issue still owing any of these is handed back to `workflow:validating` before that stage does anything else,
+  since the approval it stands on is stale.
   On every one of them the record that exists is left exactly as it stands.
 
   `developer_report_owed` is the debt those parks leave, a bare `true` written beside the reason by every road that
@@ -712,9 +716,26 @@ The keys that matter for the state machine fall into a few groups:
   this flag stands, a reply that brings no report publishes nothing and the review is held for the one the work is
   missing — and it answers that on its own, ahead of the debt it is normally written beside, so the answer cannot
   turn on which key an owner cleared first. A settlement retires nothing at all while it stands, for the same
-  reason: an earlier transaction can settle long after those commits were made, and taking the debt and the park
-  asking for their report off with it would hand the next reply exactly the publication this flag exists to stop.
-  Additive: an issue without it has no undescribed commits on that account.
+  reason: an earlier transaction can settle long after those commits were made, and taking the debt, the park
+  asking for their report, and the budget their publication is owed off with it would hand the next reply exactly
+  the publication this flag exists to stop. Additive: an issue without it has no undescribed commits on that
+  account.
+
+  `developer_report_owed_round_reset` is the fresh review budget an `in_review` requirements edit earned, written
+  beside the debt where the publication that edit produced is still owed as the hand-back moves the label. That stage
+  resets `review_round` before it relabels, because the approval was earned against requirements that are gone — and a
+  publication still owed then lands on `workflow:validating`, where a fix reaching the pull request spends a round.
+  The flag is what keeps the delayed road from spending the budget that reset just made, which would leave an edit
+  answered a tick late one round short of the same edit answered at once. A resume that answered the edit with
+  nothing at all earns it too, since what the hand-back is for is the publication that reply will bring. Every road
+  that lands that publication reads it: the resume answering the park, and the silent retry that finishes a push the
+  park was delaying. Additive, a bare `true` while it stands, and retired by whatever ends the publication it is
+  about. The settlement that ends the debt is one. The drift outcome that answers the edit is another, but only
+  once that publication has actually happened: an `ACK:` leaving a commit withheld for the report it owes publishes
+  nothing, and dropping the record there would charge the reply that finally publishes a round the edit had already
+  bought back. A transient retry that clears its park is the third, and it drops the record with the park: that
+  retry either pushed the publication or read the branch and found none, so nothing is left for the budget to pay
+  for and the next unrelated publication this stage owes would otherwise spend nothing.
 
   `developer_report_pending` is one publication transaction, written **before the report it carries is published**
   — that ordering is the whole of what makes the publication recoverable. Whether the CODE that report is about is
@@ -1469,10 +1490,35 @@ The keys that matter for the state machine fall into a few groups:
   than an ordinary fix: the report the edit is owed is the one that reply writes, and read as a plain fix the commit
   would reach the reviewer with no report of it anywhere. Nothing else on the comment says which road a park came
   off, so the claim goes down beside the park through the shared drift disposition and comes off with it — cleared
-  by the road that clears the park, and by any outcome that answers the edit. It is read
+  by the road that clears the park, and by any outcome that answers the edit, together with the
+  `developer_report_owed_round_reset` a hand-back recorded, where the publication that record is about has by then
+  happened. It is read
   before the resume that continues the road, since that resume clears the park it was written beside. The
   disposition writes it only for a caller that named what its resume was handed, which is the caller that reads it
-  back. An issue without the key has no edit outstanding.
+  back — both review stages do, and `in_review` reads it for the budget its hand-back owes. An issue without the key
+  has no edit outstanding.
+- **The label move `in_review` owes.** `in_review_handoff_pending`, additive and `true` only while one is outstanding.
+  A requirements edit leaves the approval that carried the issue to `in_review` stale, so the round resets to 0 and
+  the label moves to `workflow:validating` — two operations a process can die between, and the marker goes down with
+  the reset and comes off in a write of its own behind the move. On the drift road it is staged earlier still,
+  beside the refreshed `user_content_hash` and ahead of the resume: every write the disposition behind it makes
+  persists the whole comment, that hash included, and once the hash is durable no later tick re-detects the edit —
+  so something has to say the move is owed by then. A report a run recorded, or the debt of work it withheld, says
+  it on the roads that leave one; an `ACK:` and a park with no report at all leave none. Staged together, no write
+  can make the hash durable without the marker.
+  A relabel that did not land is then found by the
+  hand-back at the top of the next `in_review` tick and remade, which is what an `ACK:` outcome needs: it records no
+  report, so without the marker nothing on the comment would say the move is owed, the drift is already consumed, and
+  the ready ping is one tick away on an approval that is over. A drift resume that PARKED writes it for the same
+  reason: it answered the edit with nothing, so the move is owed from a tick that recorded no report either — and
+  without it the answer a human writes is read by the feedback scan and routed to `workflow:fixing`, where no report
+  is owed and the stale approval survives. A marker whose clearing write is lost costs one
+  spurious hand-back the next time the issue reaches `in_review` — a re-review rather than that ping — and that tick
+  clears it. An issue without the key owes no move, which is every issue that predates it. It goes down in one
+  staged write with the fresh round and the budget record beside it, spelled on the stage owner that holds the key
+  rather than at the hand-back that makes it — a developer report recorded on THIS stage's drift road is accepted
+  only where the comment has room for that whole write, so a field added to it moves that refusal too. A report
+  recorded on any other route is not charged for it, since no other stage hands an approval back.
 - **Final-docs handoff.** `docs_checked_sha` + `docs_verdict` (`updated` / `no_change`) set by `_handle_documenting`'s
   success exits, and the verdict an earlier pass left is dropped as the next one begins — every entry shape re-anchors
   `docs_checked_sha` to the head it is about, so a stale verdict beside it would say a pass has finished for a head one

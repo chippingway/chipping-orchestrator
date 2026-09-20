@@ -303,9 +303,11 @@ def _retires_the_debt(state: PinnedState) -> None:
     """Drop what a settled report is still recorded as owing, park and all.
 
     The debt first, since every reader behind it -- the review hold, the
-    resume that reads a reply as the report it asked for -- asks the flag
-    rather than the record, and left standing it outlives the transaction
-    that explains it.
+    stale-approval hand-back, the resume that reads a reply as the report it
+    asked for -- asks the flag rather than the record, and left standing it
+    outlives the transaction that explains it. The fresh review budget an
+    `in_review` edit reset goes with it, for the same reason: it describes a
+    publication this write has just ended.
 
     The PARK only where it is this owner's. A report nothing could deliver is
     parked under one reason, and a human answering it repairs the condition
@@ -324,14 +326,15 @@ def _retires_the_debt(state: PinnedState) -> None:
     recorded, so a flag still standing here says the transaction just settled
     was written before those commits existed -- it is a true account of an
     earlier head, and the head the branch is on now is still owed one of its
-    own. Retired anyway, the debt and the park asking for that report would
-    both come off together, and the next reply would publish those commits
-    under a report that never saw them.
+    own. Retired anyway, the debt, the park asking for that report, and the
+    budget its publication is owed would all come off together, and the next
+    reply would publish those commits under a report that never saw them.
     """
     if state.get(_delivery.UNREPORTED_WORK):
         return
-    if state.get(_delivery.OWED_REPORT):
-        state.set(_delivery.OWED_REPORT, None)
+    for owing in (_delivery.OWED_REPORT, _delivery.OWED_ROUND_RESET):
+        if state.get(owing):
+            state.set(owing, None)
     if state.get(_PARK_REASON) != _delivery.UNDELIVERABLE_REPORT:
         return
     state.set(_PARK_REASON, None)

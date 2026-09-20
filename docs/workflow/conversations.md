@@ -245,7 +245,7 @@ reads one out of the run the disposition is publishing and records it before the
 There a no-commit reply ending on a report outcome publishes the commits already on the branch where the issue still
 owes a report it could not deliver, and is read as any other no-commit reply everywhere else.
 
-The **requirements-drift resume on an open pull request** acts on one too, on `workflow:validating`
+The **requirements-drift resume on an open pull request** acts on one too, on `workflow:validating` and `in_review`
 ([user-content drift](../state-machine/delivery-stages.md#user-content-drift-detection)). A commit the resume made
 has its report recorded before the size gate, under the requirements revision the drift check handed the resume, and
 bound and settled once the push lands and the stage's own bookkeeping is written; one with no usable report parks

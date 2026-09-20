@@ -14,6 +14,12 @@ bounce the issue to `validating` for a comment that should have recorded
 `pending_fix_*` bookmarks and flipped to `fixing`, which is the documented
 contract for issue-thread feedback on an open PR.
 
+An approval a requirements edit made stale is asked before either, right
+behind the terminals: a report a drift resume still owes, or the marker one
+of its outcomes left when its relabel did not land. The approval this label
+stands on was earned against requirements that no longer exist, so feedback,
+drift and the ready ping all wait for `validating` to re-review.
+
 The missing-`pr_number` park is the one question asked before the context
 exists: without a pinned PR there is nothing to fetch, and the stage refuses
 to infer one -- the issue got here by a manual relabel, so a human relabels it
@@ -77,10 +83,13 @@ def _handle_in_review(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Is
     route from this stage).
 
     User-content drift (a human edited the issue title/body while the PR
-    was open) takes the dev-resume path here; both a pushed fix and a
-    no-commit ACK bounce DIRECTLY back to `validating` (with
-    `review_round` reset) so the reviewer re-evaluates against the
-    updated body. Docs do not run on the drift exit: the single docs
+    was open) takes the dev-resume path here; a pushed fix, a no-commit
+    ACK, and a report with no commit all bounce DIRECTLY back to
+    `validating` (with `review_round` reset) so the reviewer re-evaluates
+    against the updated body. An approval such an edit already made stale
+    -- a report that resume still owes, or the marker an outcome left when
+    its relabel did not land -- hands the issue back before any of the
+    routes below run. Docs do not run on the drift exit: the single docs
     pass is deferred to the final-docs handoff after reviewer approval.
     """
     state = gh.read_pinned_state(issue)
@@ -113,6 +122,12 @@ def _handle_in_review(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Is
     if _terminals._drain_review_pr_terminals(
         gh, spec, issue, state, ctx.pr, stage="in_review",
     ):
+        return
+
+    # An approval a requirements edit made stale outranks everything below --
+    # a report a drift resume still owes, or a label move one of its outcomes
+    # did not land. Only `validating` binds that report and re-reviews.
+    if _drift._hands_a_stale_approval_back(ctx):
         return
 
     if _feedback._consume_fresh_feedback(ctx):

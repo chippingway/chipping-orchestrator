@@ -272,11 +272,18 @@ def _publish_recovered_fix(
     counter the tick which settled it has already moved. The gate is silent on
     exactly that reading, so leaving the count to it is what ties the round to
     the push that earned it rather than to the poll that noticed.
+
+    WHICH round is `rounds`', not this owner's. A publication an `in_review`
+    requirements edit already reset the budget for spends none of it: the park
+    this retry is clearing is what delayed that same publication, so counting
+    it here would leave an edit whose push landed a tick late one round short
+    of the edit whose push landed at once. Every other park leaves a commit no
+    reviewer has read, which is the event the count is for.
     """
     branch = _naming._resolve_branch_name(
         gate.state, gate.spec, gate.issue.number,
     )
-    owed = _rounds._spends_next_round(gate.state)
+    owed = _rounds._spends_for_an_owed_publication(gate.state)
     published = _late_push._publishes(
         gate, branch,
         _late_gate_models._Entered(
