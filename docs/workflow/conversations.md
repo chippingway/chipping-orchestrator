@@ -272,8 +272,14 @@ answered in the report with no commit for it. Such a round is recorded, publishe
   same feedback to a second developer next tick. The delivery stays on the comment, and the no-feedback bounce — the
   one tick that republishes that commit — binds and publishes it.
 - A reply that **reached for the contract and missed** (the commonest miss being an `ACK:` line beside a report) is
-  neither a report to record nor a reply to act on. It takes the park that asks a human rather than the `ACK:` road,
-  which would return the pull request to review as needing no change while dropping the report unread.
+  neither a report to record nor a reply to act on, and it is held for a human ahead of every other road — including
+  the publication one, since a commit beside such a message would otherwise be pushed and relabelled with no report
+  on the pull request at all.
+- A report an earlier tick recorded and a crash left **unbound** is answered before the next tick scans anything. The
+  input that run consumed rides the same record, so the recorded watermarks are applied first; the recorded round is
+  not, since what closes a round is a publication. Where the pull request is proved to carry the work — the
+  code-publication receipt names a commit and that commit is what the pull request is standing on — the delivery is
+  bound and posted with no developer run at all.
 
 Delivery is still not completion: an `ACK:` may settle a round whose comments named no actionable change, and it does
 not answer the automated `CHANGES_REQUESTED` review that asked for a concrete one — that route has no ACK fast path

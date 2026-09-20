@@ -3140,6 +3140,16 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      own `gh.get_pr` exceptions and hands `pr=None` to the helper, which is a no-op.
   2. Closed issue with no resolvable PR → no-op.
   3. Open issue with no `pr_number` (manual relabel) → park (`missing_pr_number`).
+  3b. **Unbound report recovery** (`reporting._recovers_an_unbound_delivery`), ahead of the rescan and therefore
+     ahead of any spawn. A `developer_report_delivery` is written before the size gate and the push, so a tick that
+     died past it leaves a report recorded and never bound — and the input that run consumed rides the same record.
+     Until it is applied the scan below reads that feedback as unread, pays a second developer to answer it, and
+     replaces the first report with the second. So the recorded watermarks are applied here, off the record rather
+     than re-derived; the recorded spends are NOT, since what closes a round is a publication. The delivery is also
+     **bound** where the pull request is proved to carry the work — the code-publication receipt names a commit and
+     that commit is what the pull request is standing on, which is the post-push/pre-bind crash. A pre-push crash
+     binds nothing: the commit is still local, and the no-feedback bounce below is the tick that republishes it and
+     binds the report once it lands.
   4. Rescan unread feedback from the three watermarks across all four surfaces, reading the two IssueComment-space
      surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread past
      `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past
@@ -3239,14 +3249,16 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      `interrupted` resume a shutdown killed, a launch the run circuit never invoked
      (`guards._ignore_if_never_invoked`), and a mid-run `paused` / `backlog`. Past them the prompt reached an agent, so
      the batch is consumed — and which write records that forks on the run's **report outcome**
-     (`report_delivery.carries_a_report_outcome`). A run that finished on `REPORT: READY` / `REPORT: VERIFIED` owes a
+     (`report_outcomes._finished_on_a_report`). A run that finished on `REPORT: READY` / `REPORT: VERIFIED` owes a
      publication this tick cannot guarantee, so its consumed pairs and this route's bookkeeping are recorded ONTO the
      report transaction (`report_delivery.recording_stops_the_tick`, watermarks + spends) before the size gate and the
      push, and the size gate is handed nothing to close; a report this build cannot record parks there with the commit
      still in the worktree. A reply that reached for the contract and MISSED — an unclosed block, text after the
-     outcome, most often an `ACK:` line beside a report — is neither: it is kept off the ACK fast path
-     (`reporting._misread_the_contract`) and falls through to the park that asks a human, because reading it on its
-     `ACK:` half would return the pull request to review while dropping the report unread. Every other outcome — the
+     outcome, most often an `ACK:` line beside a report — is neither, and it is **held for a human ahead of every
+     road below** (`reporting._stops_on_a_misread_contract`): read on its `ACK:` half it returns the pull request to
+     review as needing no change, and a commit beside it would otherwise be pushed and relabelled with no report on
+     the pull request at all. Nothing is published, the commit stays in the worktree, and a reply resumes the
+     session. Every other outcome — the
      ordinary `ACK:`, the question, the timeout, the dirty tree — writes no
      report and is **settled** directly (`_settle_consumed_feedback`) right there, ahead of every disposition below,
      because the size gate's own durable write and a park's both land inside that disposition and a settlement taken
@@ -3284,11 +3296,16 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      [the developer-report transaction](#the-developer-report-transaction-every-dispatch) ahead of a later handler
      finishes the publication and settles both groups from the record.
 
-     Two report roads do NOT wait for a push. A **report-only** round (`reporting._is_report_only`: no timeout, a
-     HEAD that did not move, nothing stranded, a clean tree) is what the prompt asks for where an item wants report
-     content only — it binds against the head the pull request already stands on, publishes, and hands the issue back
-     to `workflow:validating` without an artificial commit. And a push that did NOT land settles the consumption
-     right there (`reporting._settles_unless_a_transaction_will`): nothing bound the report, so the record is a
+     Two report roads do NOT wait for a push. A **report-only** round is what the prompt asks for where an item wants
+     report content only — it binds against the head the pull request already stands on, publishes, and hands the
+     issue back to `workflow:validating` without an artificial commit. Every reading that admits it is POSITIVE
+     (`reporting._is_report_only`): the run completed, its checkout NAMED a head, that head is the one the run began
+     on, that head is what the pull request is standing on, and the tree is clean. No absence is allowed to stand in
+     for any of them — a HEAD nobody could read comes back empty and the stranded probe answers False both for a
+     branch in sync and for a fetch that failed, a remote that moved, or a divergence nothing could count, so either
+     read as "nothing to publish" would bind a report against whatever head the preflight happened to see. And a push
+     that did NOT land settles the consumption right there
+     (`reporting._settles_unless_a_transaction_will`): nothing bound the report, so the record is a
      delivery the reconciliation never reads, and leaving the consumption on it would hand the same feedback to a
      second developer on the next tick. The rule both share: the transaction keeps the pairs only while a PENDING
      transaction exists to apply them.

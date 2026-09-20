@@ -55,9 +55,21 @@ land settles its consumption on the spot instead, since nothing bound the
 record and nothing goes back for a delivery. Every other outcome -- the
 ordinary `ACK:`, the question, the timeout -- writes no report and closes its
 own bookkeeping directly, ahead of the disposition. A reply that reached for
-the contract and missed is none of these: it is kept off the ACK road and
-parks for a human, because reading an `ACK:` written beside a report would
-return the pull request to review while dropping the report unread.
+the contract and missed is none of these: it is held for a human ahead of
+every road, because its two halves say opposite things -- an `ACK:` returns
+the pull request to review as needing no change, and a commit beside it would
+be pushed and relabelled with no report on the pull request at all.
+
+What publishes a report-only round is a set of POSITIVE readings, never an
+absence: the checkout named a head, that head is where the run began, and it
+is what the pull request is standing on. A head nobody could read and a
+divergence nothing could count both answer empty, and either taken for "in
+sync" would describe work the remote does not have.
+
+And a report the tick that recorded it never bound is answered at the top of
+the next one, ahead of the scan: the input that run consumed rides the same
+record, so leaving it there is what pays a second developer to answer the same
+feedback and replaces the first report with the second.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

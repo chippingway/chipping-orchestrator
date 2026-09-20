@@ -23,11 +23,14 @@ this owner is asked first.
 """
 from __future__ import annotations
 
+from orchestrator import config as _config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
     report_binding as _report_binding,
+    report_consumed_values as _consumed,
     report_delivery as _report_delivery,
+    report_delivery_state as _delivery_state,
     report_outcomes as _report_outcomes,
     report_record_state as _record_state,
     report_records as _report_records,
@@ -37,26 +40,50 @@ from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     late_publication_state as _late_publication_state,
 )
-from orchestrator.workflow.stages.validating import stranded as _stranded
 from orchestrator.workflow.state import WorkflowLabel
 
+# What a reply that reached for the report contract and missed is held under.
+# The run is over, so nothing here clears on its own: what it asks for is a
+# session resumed to say the same thing in the shape the contract names.
+_MISREAD_PARK = (
+    "{mentions} this issue's developer run answered the pull request feedback "
+    "with a message that reaches for the completion-report contract and does "
+    "not keep it -- most often an `ACK:` line written beside a report, which "
+    "the two readings contradict each other on. Nothing was published: any "
+    "commit the run made is still in the worktree, the branch is untouched, "
+    "and no report went onto the pull request. Read either half alone this "
+    "would be wrong in a way nothing later could undo -- the `ACK:` returns "
+    "the pull request to review as needing no change, and the report claims "
+    "work nobody published. Reply and the orchestrator resumes the session; "
+    "the answer it gives then is the one that counts."
+)
 
-def _reports(run: _models._FixingResumeRun) -> bool:
-    """Whether this run finished on one of the two report outcomes."""
-    return _report_outcomes._finished_on_a_report(run.dev_result)
 
+def _stops_on_a_misread_contract(
+    ctx: _models._FixingContext, run: _models._FixingResumeRun,
+) -> bool:
+    """Hold a reply that reached for the report contract and missed.
 
-def _misread_the_contract(run: _models._FixingResumeRun) -> bool:
-    """Whether this run reached for the report contract and missed.
+    True is a tick this call ended. The commonest miss is an `ACK:` line
+    written beside a report, and the two halves of such a message say
+    opposite things: read on the `ACK:` the pull request goes back to review
+    as needing no change, and read on the report it claims work this
+    orchestrator would then publish undescribed. A run that ALSO committed is
+    the sharpest version -- left to the publication tail it pushes the commit
+    and relabels with no report on the pull request at all.
 
-    Kept apart from every ordinary no-report reply because it may not take an
-    ordinary no-report road. The commonest miss is an `ACK:` line beside a
-    report, and the ACK fast path reading that would return the pull request
-    to review as needing no change while throwing away the report the
-    developer meant to deliver. There is nothing here to record and nothing
-    here to act on, so it falls through to the park that asks a human.
+    So neither half is acted on. There is no report here to record, no reply
+    here to route, and the run that wrote it has ended, which leaves the one
+    road every message this workflow cannot read by itself takes: announce it
+    once, hold the work where it is, and let the reply resume the session.
     """
-    return _report_outcomes._reached_for_the_contract(run.dev_result)
+    if not _report_outcomes._reached_for_the_contract(run.dev_result):
+        return False
+    _report_delivery.parks_an_undeliverable_report(
+        ctx.gh, ctx.issue, ctx.state,
+        _MISREAD_PARK.format(mentions=_config.HITL_MENTIONS),
+    )
+    return True
 
 
 def _is_report_only(
@@ -70,21 +97,27 @@ def _is_report_only(
     the report the round was asked for would sit unpublished on the pinned
     comment behind a human's reply.
 
-    Everything that could make it something else is refused first. A run that
-    timed out wrote nothing anybody finished. A head that MOVED is a code
-    change and belongs on the publication road. A commit an earlier run
-    stranded is code this branch still owes the pull request, so the push
-    tail has to carry it before any report describes the head. And a dirty
-    tree is work nobody can see the shape of, which is the one thing a report
-    may never be published over.
+    Every reading here is POSITIVE, which is the whole of what makes this road
+    safe. What it has to establish is that the code this report describes is
+    the code the pull request already carries, and no absence proves that: a
+    HEAD nobody could read comes back empty, and the stranded probe answers
+    False both for a branch in sync and for a fetch that failed, a remote that
+    moved, or a divergence nothing could count. Read as "nothing to publish",
+    either would bind a report against the head the preflight happened to see
+    and hand a reviewer a description of work that is not there.
+
+    So: the run completed, its checkout named a head, that head is the one the
+    run started on, that head is what the pull request is standing on, and the
+    tree is clean. A head that MOVED is a code change and belongs on the
+    publication road; a head ahead of the pull request is a commit the push
+    tail still owes it; and a dirty tree is work nobody can see the shape of,
+    which is the one thing a report may never be published over.
     """
-    if run.dev_result.timed_out:
+    if run.dev_result.timed_out or not run.after_sha:
         return False
-    if run.after_sha and run.after_sha != run.before_sha:
+    if run.after_sha != run.before_sha:
         return False
-    if _stranded._stranded_fix_unpushed(
-        ctx.spec, run.worktree, ctx.state, ctx.issue,
-    ):
+    if run.after_sha != getattr(ctx.pr.head, "sha", ""):
         return False
     return not _worktree_status._worktree_dirty_files(run.worktree)
 
@@ -152,6 +185,41 @@ def _holds_an_unpublished_report(
         ),
     )
     return _report_delivery.owes_a_report(ctx.state)
+
+
+def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> None:
+    """Answer a report this issue recorded and never bound, before any spawn.
+
+    The record is written ahead of the size gate and the push precisely so a
+    tick that dies past it comes back to an issue that can still say what its
+    developer reported. What nothing else goes back for is the OTHER half of
+    that write: the input the run consumed rides the record too, and until
+    something applies it the scan below reads the same feedback as unread --
+    pays a second developer to answer it, and replaces the report of the first
+    with the report of the second. So the watermarks are applied here, first,
+    off the record itself rather than re-derived: what a dead tick consumed is
+    what its record says it consumed.
+
+    The round is NOT spent with them. A delivery is a report whose code may
+    never have gone out, and what closes a round is a publication -- so the
+    spends stay on the record for the write that completes the transaction.
+
+    Binding is asked only where the pull request is PROVED to carry the work:
+    the receipt this stage writes on a landed push names a commit, and that
+    commit is what the pull request is standing on. Anything less is a report
+    about code the remote does not have -- the push failed, or the receipt
+    belongs to an older round -- and binding there would claim a publication
+    nobody made. Those wait for the bounce, which is the one tick that
+    republishes such a commit and binds the report once it lands.
+    """
+    delivered = _delivery_state.read_delivered_report(ctx.state)
+    if delivered is None:
+        return
+    _consumed.advance_consumed(ctx.state, delivered.watermarks)
+    landed = _late_publication_state._published_commit(ctx.state)
+    if landed and landed == getattr(ctx.pr.head, "sha", ""):
+        _holds_an_unpublished_report(ctx, landed)
+    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
 
 
 def _settles_unless_a_transaction_will(

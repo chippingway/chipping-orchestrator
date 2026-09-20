@@ -1470,13 +1470,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             round earns
       reporting.py          the road a round that finished on a report outcome takes: the record its consumed pairs
                             and route bookkeeping ride (`engine/report_delivery.py`), the binding and post that put
-                            it on the pull request (`engine/report_binding.py`), the report-only reading that
-                            publishes against the head the pull request already stands on, the reply that reached for
-                            the contract and missed -- kept off the `ACK:` road, which would return a pull request to
-                            review while dropping the report unread -- and the answer that holds the relabel while a
-                            report is still owed. What closes the two groups is the write that completes the
-                            transaction, here or in the reconciliation ahead of a later handler; where nothing was
-                            published there is no transaction to wait for, so the consumption is settled on the spot
+                            it on the pull request (`engine/report_binding.py`), the report-only reading -- every
+                            half of it positive, since a head nobody could read and a divergence nothing could count
+                            both answer the same as a branch in sync -- the park a reply that reached for the
+                            contract and missed earns ahead of every other road, the recovery that answers a report
+                            an earlier tick recorded and never bound before anything rescans, and the answer that
+                            holds the relabel while a report is still owed. What closes the two groups is the write
+                            that completes the transaction, here or in the reconciliation ahead of a later handler;
+                            where nothing was published there is no transaction to wait for, so the consumption is
+                            settled on the spot
       resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
                             nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
                             outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix

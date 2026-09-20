@@ -50,6 +50,9 @@ AUTHORIZATION = "authorized: go ahead and vendor the parser"
 # pull request does not carry: what the case is about is the ROAD a verified
 # outcome takes, and a location nothing can confirm keeps the publication
 # itself out of the way of that question.
+# The pinned field a recorded, unbound report stands on.
+_DELIVERED_REPORT = "developer_report_delivery"
+
 _ABSENT_COMMENT = 999
 _UNCONFIRMABLE = hashlib.sha256(b"a report nobody posted").hexdigest()
 
@@ -76,10 +79,13 @@ ISSUE = support.ISSUE
 LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
 PENDING_FIX_AT = support.PENDING_FIX_AT
 PENDING_FIX_ISSUE_MAX_ID = support.PENDING_FIX_ISSUE_MAX_ID
+PR_HEAD_SHA = support.PR_HEAD_SHA
 PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
+PUSH_BRANCH = support.PUSH_BRANCH
 PR_LAST_REVIEW_COMMENT_ID = support.PR_LAST_REVIEW_COMMENT_ID
 PR_LAST_REVIEW_SUMMARY_ID = support.PR_LAST_REVIEW_SUMMARY_ID
 REVIEW_ROUND = support.REVIEW_ROUND
+RUN_AGENT = support.RUN_AGENT
 SHA_AFTER = support.SHA_AFTER
 SHA_BEFORE = support.SHA_BEFORE
 TRIGGER_ID = support.TRIGGER_ID
@@ -148,6 +154,28 @@ class _ReportRoundMixin(_FixingFixtureMixin):
                 **run_options,
             )
 
+    def _tick(self, seeded):
+        """One fixing tick with a developer standing by, unspawned if sound."""
+        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
+            return self._run_fixing(
+                seeded.github,
+                seeded.issue,
+                run_agent=_agent(session_id=DEV_SESSION),
+                head_shas=(SHA_BEFORE, SHA_BEFORE),
+            )
+
+    def _pinned(self, seeded) -> dict:
+        """What this issue's pinned comment says after the tick."""
+        return seeded.github.pinned_data(ISSUE)
+
+    def _reports_posted(self, seeded) -> int:
+        """How many reports reached the pull request."""
+        return len(seeded.github.posted_pr_comments)
+
+    def _went_back_to_review(self, seeded) -> bool:
+        """Whether the reviewer was handed the head back."""
+        return (ISSUE, VALIDATING) in seeded.github.label_history
+
     def _consumed(self, issue) -> tuple:
         """What this round's batch comes to, off the owner that derives it.
 
@@ -179,14 +207,14 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
 
         self._round(seeded.github, seeded.issue)
 
-        pinned_data = seeded.github.pinned_data(ISSUE)
-        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
+        pinned_data = self._pinned(seeded)
+        self.assertEqual(self._reports_posted(seeded), 1)
         self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
         self.assertEqual(pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID)
         self.assertIsNone(pinned_data.get(PENDING_FIX_AT))
         self.assertIsNone(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID))
         self.assertEqual(pinned_data.get(REVIEW_ROUND), 0)
-        self.assertIn((ISSUE, VALIDATING), seeded.github.label_history)
+        self.assertTrue(self._went_back_to_review(seeded))
 
     def test_an_owed_report_holds_the_round(self) -> None:
         # The post never landed, so the transaction still owes the pull
@@ -198,7 +226,7 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
 
         self._round(seeded.github, seeded.issue, publishes=False)
 
-        pinned_data = seeded.github.pinned_data(ISSUE)
+        pinned_data = self._pinned(seeded)
         owed = _record_state.read_pending_report(
             seeded.github.read_pinned_state(seeded.issue),
         )
@@ -215,7 +243,7 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         )
         self.assertEqual(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID), TRIGGER_ID)
         self.assertEqual(pinned_data.get(REVIEW_ROUND), 1)
-        self.assertNotIn((ISSUE, VALIDATING), seeded.github.label_history)
+        self.assertFalse(self._went_back_to_review(seeded))
         self.assertFalse(pinned_data.get(AWAITING_HUMAN))
 
     def test_the_recovery_settles_it(self) -> None:
@@ -233,7 +261,7 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
                 seeded.github, _TEST_SPEC, seeded.issue, VALIDATING, state,
             )
 
-        pinned_data = seeded.github.pinned_data(ISSUE)
+        pinned_data = self._pinned(seeded)
         self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
         self.assertEqual(pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID)
         self.assertIsNone(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID))
@@ -252,13 +280,13 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
 
         self._round(seeded.github, seeded.issue, head_shas=(SHA_BEFORE, SHA_BEFORE))
 
-        pinned_data = seeded.github.pinned_data(ISSUE)
-        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
+        pinned_data = self._pinned(seeded)
+        self.assertEqual(self._reports_posted(seeded), 1)
         self.assertFalse(pinned_data.get(AWAITING_HUMAN))
         self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
         self.assertEqual(pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID)
         self.assertIsNone(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID))
-        self.assertIn((ISSUE, VALIDATING), seeded.github.label_history)
+        self.assertTrue(self._went_back_to_review(seeded))
 
     def test_a_verified_report_reports(self) -> None:
         # The second outcome is an assertion about a report already on the
@@ -293,7 +321,7 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
 
         self._round(seeded.github, seeded.issue, push_branch=False)
 
-        pinned_data = seeded.github.pinned_data(ISSUE)
+        pinned_data = self._pinned(seeded)
         self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
         self.assertEqual(pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID)
         self.assertTrue(
@@ -302,7 +330,7 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
             ),
         )
         self.assertTrue(pinned_data.get(AWAITING_HUMAN))
-        self.assertNotIn((ISSUE, VALIDATING), seeded.github.label_history)
+        self.assertFalse(self._went_back_to_review(seeded))
 
     def test_the_bounce_binds_a_stranded_report(self) -> None:
         # The bounce is the one tick that republishes the commit a failed
@@ -331,8 +359,8 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
                 branch_ahead_behind=(1, 0),
             )
 
-        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
-        self.assertIn((ISSUE, VALIDATING), seeded.github.label_history)
+        self.assertEqual(self._reports_posted(seeded), 1)
+        self.assertTrue(self._went_back_to_review(seeded))
 
     def test_a_report_beside_an_ack(self) -> None:
         # The reply reached for the report contract and missed -- an `ACK:`
@@ -348,10 +376,92 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
             head_shas=(SHA_BEFORE, SHA_BEFORE),
         )
 
-        pinned_data = seeded.github.pinned_data(ISSUE)
+        pinned_data = self._pinned(seeded)
         self.assertNotIn((ISSUE, IN_REVIEW), seeded.github.label_history)
         self.assertTrue(pinned_data.get(AWAITING_HUMAN))
-        self.assertEqual(len(seeded.github.posted_pr_comments), 0)
+        self.assertEqual(self._reports_posted(seeded), 0)
+
+class FixingReportRefusalTest(unittest.TestCase, _ReportRoundMixin):
+    """The readings a report may not be published over."""
+
+    def test_a_misread_contract_publishes_nothing(self) -> None:
+        # The sharpest version of the miss: a report AND an `ACK:`, from a run
+        # that also committed. Left to the publication tail it pushes the
+        # commit and relabels with no report on the pull request at all.
+        seeded = self._seed_round()
+
+        mocks = self._round(
+            seeded.github, seeded.issue,
+            message=f"{_reported('fixed')}\n\nACK: nothing to change",
+        )
+
+        mocks[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(self._reports_posted(seeded), 0)
+        self.assertFalse(self._went_back_to_review(seeded))
+        self.assertTrue(self._pinned(seeded).get(AWAITING_HUMAN))
+
+    def test_an_unreadable_head_publishes_nothing(self) -> None:
+        # A HEAD nobody could read comes back empty, and read as "nothing to
+        # publish" it would bind the report against whatever head the
+        # preflight happened to see.
+        seeded = self._seed_round()
+
+        self._round(
+            seeded.github, seeded.issue, head_shas=(SHA_BEFORE, ""),
+        )
+
+        self.assertEqual(self._reports_posted(seeded), 0)
+        self.assertFalse(self._went_back_to_review(seeded))
+
+    def test_a_head_the_pr_lacks_publishes_nothing(self) -> None:
+        # The checkout is clean and did not move, and it is still not standing
+        # on what the pull request carries: the report would describe work the
+        # remote does not have.
+        seeded = self._seed_round()
+
+        self._round(
+            seeded.github, seeded.issue, head_shas=(SHA_AFTER, SHA_AFTER),
+        )
+
+        self.assertEqual(self._reports_posted(seeded), 0)
+        self.assertFalse(self._went_back_to_review(seeded))
+
+
+class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
+    """A report a crash left recorded and unbound, on the tick that follows."""
+
+    def test_a_pre_bind_crash_spawns_no_developer(self) -> None:
+        # The record says what its run consumed, so the scan below it must not
+        # read that same feedback as unread -- a second developer would answer
+        # it again and its report would replace the first one's.
+        seeded = self._seed_round()
+        recovery.recorded_delivery(
+            seeded.github, seeded.issue, self._consumed(seeded.issue),
+        )
+
+        mocks = self._tick(seeded)
+
+        mocks[RUN_AGENT].assert_not_called()
+        pinned_data = self._pinned(seeded)
+        self.assertEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+        self.assertEqual(pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID)
+
+    def test_a_post_push_crash_publishes_the_report(self) -> None:
+        # The receipt names the commit the pull request is standing on, which
+        # is the proof that push landed -- so the report it is about can be
+        # bound and posted with no developer run at all.
+        seeded = self._seed_round()
+        recovery.recorded_delivery(
+            seeded.github, seeded.issue, self._consumed(seeded.issue),
+            landed=PR_HEAD_SHA,
+        )
+
+        mocks = self._tick(seeded)
+
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertEqual(self._reports_posted(seeded), 1)
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -41,6 +41,7 @@ from orchestrator.workflow.engine import (
     conversation_prompts as _conversation_prompts,
     guards as _guards,
     messages as _messages,
+    report_outcomes as _report_outcomes,
     usage as _usage,
 )
 from orchestrator.workflow.stages.fixing import (
@@ -171,16 +172,15 @@ def _fixing_ack_fast_path(
     `ACK: <reason>` marker vouching that the PR feedback needs no actionable
     change; False to fall through to `_handle_dev_fix_result`.
 
-    Four shapes never reach the marker. The validating CHANGES_REQUESTED
+    Three shapes never reach the marker. The validating CHANGES_REQUESTED
     route (`routed` false) is excluded because that reviewer asked for a
     concrete change, so an ACK there is not an answer. A run that finished on
     a report outcome is excluded because its road is the publication, not a
-    relabel to `in_review`. A run that reached for the report contract and
-    MISSED is excluded too, and that one matters most here: the commonest
-    miss is an `ACK:` line beside a report, which this path would otherwise
-    read on its weakest half -- returning the pull request to review as
-    needing no change while the report the developer wrote is dropped unread.
-    And a run that timed out or moved HEAD is not a no-commit reply at all.
+    relabel to `in_review`. And a run that timed out or moved HEAD is not a
+    no-commit reply at all. A reply that reached for the contract and missed
+    never gets this far: its caller holds it for a human first, since an
+    `ACK:` written beside a report is the commonest way to miss and this path
+    would read exactly that half of it.
 
     A vague "continue" / "ok" nudge should not strand a complete, mergeable PR
     in `fixing`, so an ack returns to `in_review` (re-arming the ready-ping)
@@ -202,9 +202,7 @@ def _fixing_ack_fast_path(
     and the fall-through alike: the reading that says the feedback needs no
     change is the same reading that says a developer read it.
     """
-    if not routed or reporting or _reporting._misread_the_contract(run):
-        return False
-    if run.dev_result.timed_out:
+    if not routed or reporting or run.dev_result.timed_out:
         return False
     if run.after_sha and run.after_sha != run.before_sha:
         return False
@@ -337,10 +335,19 @@ def _resume_fixing_and_dispatch_result(
     # whatever the run came back with -- a fix, a timeout, an empty message, a
     # question. Which WRITE records that is the fork below, and a report this
     # build cannot record ends the tick where the commit is still unpublished.
-    reporting = _reporting._reports(run)
+    reporting = _report_outcomes._finished_on_a_report(run.dev_result)
     if _records_what_was_consumed(
         ctx, run, feedback, owed, reporting=reporting,
     ):
+        return
+
+    # A reply that reached for the report contract and MISSED is held here,
+    # ahead of every road below. Neither half of such a message may be acted
+    # on: the `ACK:` would return the pull request to review as needing no
+    # change, and a commit beside it would be pushed and relabelled with no
+    # report on the pull request at all.
+    if _reporting._stops_on_a_misread_contract(ctx, run):
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 
     # ACK fast path: the dev made no commit but explicitly signaled via the

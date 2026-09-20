@@ -274,6 +274,15 @@ def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
     if pr is None:
         return
 
+    # A report an earlier tick recorded and never bound is answered BEFORE
+    # the scan below, because the scan is what the damage runs through: the
+    # input that run consumed rides the same record, and until it is applied
+    # this tick reads the same feedback as unread, pays a second developer to
+    # answer it, and replaces the first developer's report with the second's.
+    _reporting._recovers_an_unbound_delivery(
+        _models._FixingContext(gh, spec, issue, state, pr),
+    )
+
     feedback = _feedback._rescan_fixing_feedback(gh, issue, pr, state)
 
     # `replay_batch` is set only by an accepted `/orchestrator continue`

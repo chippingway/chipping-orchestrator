@@ -19,7 +19,14 @@ from types import SimpleNamespace
 
 from orchestrator.git.publication.probes import _BranchDivergence
 from orchestrator.git.verification.status import _WorktreeStatus
+from orchestrator.workflow.engine import content_hash as _content_hash
+from orchestrator.workflow.stages.implementing import (
+    late_publication_state as _publication_state,
+)
 from tests.workflow.git_owners import seam_patch
+
+# The pinned field a recorded, unbound report stands on.
+_DELIVERED_REPORT = "developer_report_delivery"
 
 
 @contextlib.contextmanager
@@ -57,3 +64,34 @@ def _readings(checkout: Path, head: str) -> dict:
             tip=head, readable=True,
         ),
     }
+
+
+def recorded_delivery(github, issue, consumed, *, landed: str = "") -> None:
+    """A report an earlier tick recorded and a crash left unbound.
+
+    Spelled the way that tick would have written it: the report, and the input
+    its run consumed riding the same record. `landed` is the code-publication
+    receipt a crash AFTER the push leaves behind, and its absence is the crash
+    before one.
+    """
+    state = github.read_pinned_state(issue)
+    state.set(_DELIVERED_REPORT, {
+        "receipt": f"issue-{issue.number}-report-1",
+        "revision": 1,
+        "requirements": _content_hash._compute_user_content_hash(issue, ()),
+        "mode": "publish",
+        "route": "workflow:fixing",
+        "watermarks": [list(pair) for pair in consumed],
+        "spends": [],
+        "report": "the run that answered this feedback reported it.",
+    })
+    if landed:
+        _publication_state._record_publication(
+            state, landed, "", _pull_number(github, issue),
+        )
+    github.write_pinned_state(issue, state)
+
+
+def _pull_number(github, issue) -> int:
+    """The pull request this issue's pinned record names."""
+    return github.read_pinned_state(issue).get("pr_number")
