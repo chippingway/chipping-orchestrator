@@ -1488,7 +1488,12 @@ The keys that matter for the state machine fall into a few groups:
 - **The label move `in_review` owes.** `in_review_handoff_pending`, additive and `true` only while one is outstanding.
   A requirements edit leaves the approval that carried the issue to `in_review` stale, so the round resets to 0 and
   the label moves to `workflow:validating` — two operations a process can die between, and the marker goes down with
-  the reset and comes off in a write of its own behind the move. A relabel that did not land is then found by the
+  the reset and comes off in a write of its own behind the move. On the drift road it is staged earlier still,
+  beside the refreshed `user_content_hash` and ahead of the resume: that hash is what stops a later tick
+  re-detecting the edit, and the disposition behind it can publish a commit before anything has said a move is
+  owed — a run that exits nonzero records no report, so on that road there is no debt to recognise the move by
+  either. Staged together, no write can make the hash durable without the marker.
+  A relabel that did not land is then found by the
   hand-back at the top of the next `in_review` tick and remade, which is what an `ACK:` outcome needs: it records no
   report, so without the marker nothing on the comment would say the move is owed, the drift is already consumed, and
   the ready ping is one tick away on an approval that is over. A drift resume that PARKED writes it for the same

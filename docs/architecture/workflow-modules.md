@@ -2244,7 +2244,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `/orchestrator add-agent-runs` is nobody's review), and the park that stays silent for
                             the base-sync retry loop
       fixing_route.py       the pending-fix bookmarks, the hash refresh, and the `workflow:fixing` relabel
-      drift.py              a body edit on an open PR: the unread PR conversation captured first and its delivery
+      drift.py              a body edit on an open PR: the move to `workflow:validating` it owes staged with the
+                            refreshed requirements hash, since the hash is what stops a later tick re-detecting the
+                            edit and a run that exits nonzero publishes its commit while recording no report at
+                            all -- so neither may become durable without the other; the unread PR conversation
+                            captured first and its delivery
                             ratcheted BOTH before the disposition -- so the first durable write that disposition
                             makes carries it, rather than a process dying mid-way leaving a report and a push over
                             feedback still marked unread -- and after, for the notices the disposition posts; the

@@ -3110,7 +3110,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      comment but `_detect_user_content_change` still reports a hash change (a title/body edit, or an edit to an
      existing issue-thread comment whose id is already below the watermark). Capture unread PR-conversation comments
      past `pr_last_comment_id` BEFORE posting the notice — they are quoted into the prompt below, and the same list is
-     what tells the watermark carry those ids were delivered rather than leaving it stopped under the lowest. Resume
+     what tells the watermark carry those ids were delivered rather than leaving it stopped under the lowest. Stage
+     `in_review_handoff_pending` with the refreshed `user_content_hash`, before the resume: the hash is what stops a
+     later tick re-detecting this edit, and the disposition below can publish a commit before anything says the
+     label owes a move — a nonzero-exit run records no report, so that road leaves no debt to recognise it by
+     either. Staged together, a death past the first durable write leaves an issue that knows it owes the move, and
+     a death before it leaves one that simply re-detects the edit. Resume
      the locked dev session with `_build_user_content_change_prompt` (quoting issue body + recent comments + the
      captured PR-conversation comments). The carry over that list is taken TWICE, once before the disposition and
      once after: the disposition writes durably — the report ahead of the size gate, the receipt the push leaves, a
