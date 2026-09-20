@@ -2896,7 +2896,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      the resume parked and the head the reply lands is one no reviewer has read. A transient park
      (`_VALIDATING_TRANSIENT_PARK_REASONS`) with NO new comment goes to
      `_try_recover_validating_transient_park` instead, which retries silently and, on `cleared` / `pushed`, posts the
-     **Recovery follow-up** described below before clearing the park. Its two git-touching retries — the deferred push
+     **Recovery follow-up** described below before clearing the park. `cleared` asks the BRANCH as well as the run
+     where the park came off the requirements-drift road: a resume can commit and be interrupted before anything is
+     written, so the retry behind it finds the head exactly where that resume left it while the pull request is
+     still short of the commit. Clearing there would drop the edit's obligation over work no report describes, so
+     the park stands as `stuck` and the human the timeout notice already mentioned is who answers it.
+     Its two git-touching retries — the deferred push
      and the commit a timeout killed the disposition before it saw — publish through the same [size
      gate](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr) the shared dev-fix publication passes,
      and spend the same round `rounds.py` decides for a resume answering such a park: none where the park was

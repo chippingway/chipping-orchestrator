@@ -2426,7 +2426,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             timeout's commit is the one road to a published pull request nothing else measures,
                             and where the park it clears came off the requirements-drift road that commit is work
                             no report describes, so the debt for it is staged into the write the push makes and
-                            the review hold asks a human before any reviewer reads that head --
+                            the review hold asks a human before any reviewer reads that head; a timeout that
+                            committed NOTHING reads the branch as well as the run, since an earlier resume can
+                            have committed and been interrupted before anything was written, and a clear there
+                            would drop the edit's obligation over work the pull request has not got --
                             the debt the push that lands pays, the round `rounds.py` says that push spends, which
                             is none where the park was delaying a publication an `in_review` hand-back had already
                             reset the budget for, the held outcome that owes the caller no follow-up and
