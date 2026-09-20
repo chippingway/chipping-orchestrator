@@ -78,6 +78,19 @@ TWO_STRANDED = MappingProxyType({
     "fetched_branch_tip": world.PUBLISHED_HEAD,
 })
 
+# The tick a silent retry takes over a checkout whose branch still carries a
+# commit an interrupted resume left: one head read, and a branch git proves
+# strictly ahead of the head the pull request stands on.
+STRANDED_RETRY = MappingProxyType({
+    "head_shas": (world.FIXED_HEAD,),
+    "branch_ahead_behind": (1, 0),
+    "fetched_branch_tip": world.PUBLISHED_HEAD,
+})
+
+AGENT_TIMEOUT = "agent_timeout"
+
+OPEN_DRIFT = "requirements_drift_open"
+
 # What the park a resume under review takes may not tell the human reading its
 # pull request, and what it says about that pull request instead.
 NEVER_OPENED = "no pull request was opened"
@@ -462,3 +475,39 @@ def _verified(body: str) -> str:
         f"done\n\nREPORT: VERIFIED https://github.com/{TEST_REPO_SLUG}/pull/{PR} "
         f"sha256:{_developer_reports.content_digest(body)}"
     )
+
+
+class DriftReportRecoveryTest(unittest.TestCase, world._DriftReportMixin):
+    """The silent retry that clears a drift park, over a branch it must read.
+
+    A resume can commit and be interrupted before anything at all is written,
+    so the pinned comment knows nothing of what it left. The retry behind it
+    reads the head exactly where that resume put it, and "this run committed
+    nothing" -- the whole of what the clear used to ask -- is true while the
+    branch still carries work the pull request has not got.
+    """
+
+    def test_a_clear_reads_the_branch_it_leaves(self) -> None:
+        # The first resume commits and the shutdown sweep kills it, so
+        # nothing is recorded. The retry starts on that commit and times out
+        # without one of its own. Cleared there, the edit's obligation goes
+        # with the park and the reviewer runs over a branch the pull request
+        # is short of, with no account of that commit anywhere; held, the
+        # park the timeout already told a human about stands for the reply
+        # that can report the work and publish it.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.drift(_agent(session_id=world.DEV_SESSION, interrupted=True))
+        self.drift(
+            _agent(session_id=world.DEV_SESSION, timed_out=True),
+            head_shas=(world.FIXED_HEAD, world.FIXED_HEAD),
+        )
+
+        self.drift(REVIEW_REPLY, **STRANDED_RETRY)
+
+        self.assertEqual(
+            (self.pinned()[AWAITING_HUMAN], self.pinned()[PARK_REASON]),
+            (True, AGENT_TIMEOUT),
+        )
+        self.assertTrue(self.pinned()[OPEN_DRIFT])
+        self.assertEqual(self.pull_request.head.sha, world.PUBLISHED_HEAD)
+        self.drift(REVIEW_REPLY, **STRANDED_RETRY)[RUN_AGENT].assert_not_called()

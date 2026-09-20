@@ -43,6 +43,18 @@ DELIVERED = "delivered"
 
 PARK_REASON = "park_reason"
 
+AWAITING_HUMAN = "awaiting_human"
+
+AGENT_TIMEOUT = "agent_timeout"
+
+# The tick a silent retry takes on `validating` over a checkout whose branch
+# still carries a commit an interrupted resume left.
+STRANDED_RETRY = MappingProxyType({
+    "head_shas": (world.FIXED_HEAD,),
+    "branch_ahead_behind": (1, 0),
+    "fetched_branch_tip": world.PUBLISHED_HEAD,
+})
+
 # What a reviewer that ran says: no verdict, so it parks and nothing else runs.
 REVIEW_REPLY = "Looked it over."
 
@@ -387,6 +399,32 @@ class InReviewParkedDriftTest(unittest.TestCase, world._DriftReportMixin):
                 self.assertIsNone(
                     self.pinned()[_report_delivery.OWED_ROUND_RESET],
                 )
+
+    def test_a_retry_keeps_an_interrupted_commit_owed(self) -> None:
+        # The same road from here: a resume commits and the shutdown sweep
+        # kills it before anything is written, the retry times out without a
+        # commit of its own, and the approval this label stands on is handed
+        # back. The silent retry that meets that park on `validating` reads
+        # the branch as well as the run -- cleared over the commit the first
+        # resume left, the obligation would go with the park and a reviewer
+        # would read a branch the pull request is short of.
+        self.seeded(ISSUE, PR, LABEL_IN_REVIEW, **READY_TO_PING)
+        self.drift(_agent(session_id=world.DEV_SESSION, interrupted=True))
+        self.drift(
+            _agent(session_id=world.DEV_SESSION, timed_out=True),
+            head_shas=(world.FIXED_HEAD, world.FIXED_HEAD),
+        )
+        # The hand-back; `test_a_question_hands_the_approval_back` asserts it.
+        self.drift(REVIEW_REPLY, committed=False)
+
+        self.drift(REVIEW_REPLY, **STRANDED_RETRY)
+
+        self.assertEqual(
+            (self.pinned()[AWAITING_HUMAN], self.pinned()[PARK_REASON]),
+            (True, AGENT_TIMEOUT),
+        )
+        self.assertEqual(self.pull_request.head.sha, world.PUBLISHED_HEAD)
+        self.drift(REVIEW_REPLY, **STRANDED_RETRY)[RUN_AGENT].assert_not_called()
 
     def test_a_comment_mid_run_outlives_the_park(self) -> None:
         # A human writes while the agent is out and the resume comes back
