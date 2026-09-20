@@ -11,6 +11,13 @@ was earned against requirements that no longer exist. Docs deliberately do not
 run on the way out -- the single docs pass belongs to the final-docs handoff
 after a fresh reviewer approval.
 
+The move to `validating` this edit owes is staged with the refreshed
+requirements hash, before the resume that answers it: the hash is what stops a
+later tick re-detecting the edit, and no write may make one durable without
+the other. A run that exits nonzero records no report and publishes its commit
+anyway, so on that road the marker is the only thing left that knows the
+approval no longer covers the head the pull request now carries.
+
 A resume that ends PARKED -- a question, a timeout, a tree nobody could
 publish -- answers the edit with nothing, so it leaves the same move owed: the
 approval is stale either way, and only `validating` reads the reply as the
@@ -224,10 +231,9 @@ def _dispose_drift_result(
         _relabels_for_review(ctx)
     else:
         # The edit is unanswered and the approval is stale whatever stopped
-        # this resume, so the move to `validating` is owed from here -- and
-        # the marker is the only thing that says so where no report was
-        # recorded either. The next tick makes it, ahead of the ping.
-        ctx.state.set(_state._HANDOFF_PENDING, True)
+        # this resume, so the move to `validating` is owed from here. The
+        # marker saying so went down with the hash; this is the write that
+        # makes it durable where nothing the disposition did already has.
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     # Bound only once the relabel and its write are behind it, so no tick
     # ever finds a settled report beside a label still claiming the approval
@@ -336,6 +342,15 @@ def _handle_user_content_drift(ctx: _models._InReviewContext) -> bool:
     if new_hash is None:
         return False
     ctx.state.set("user_content_hash", new_hash)
+    # Staged beside the hash, because the two may never become durable apart.
+    # The hash is what stops a later tick re-detecting this edit, and the
+    # disposition below can publish a commit before anything has said the
+    # label owes a move -- a run that exits nonzero records no report, so on
+    # that road there is no debt to recognise the move by either. Written
+    # together, a process dying anywhere past the first durable write leaves
+    # an issue that knows it owes `validating` a move; dying before it leaves
+    # an issue that simply re-detects the edit.
+    ctx.state.set(_state._HANDOFF_PENDING, True)
     unread_pr_conv = _drift_unread_pr_conv(ctx)
     resume = _resume_dev_for_drift(ctx, unread_pr_conv, new_hash)
     # Interrupted (shutdown sweep) or live-paused (operator added `paused` /

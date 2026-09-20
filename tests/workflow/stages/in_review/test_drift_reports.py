@@ -26,6 +26,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.workflow.engine import report_delivery as _report_delivery
+from orchestrator.workflow.stages.in_review import drift as _drift
 from tests.workflow import drift_reports as world
 from tests.workflow.fixtures import LABEL_IN_REVIEW, LABEL_VALIDATING, _agent
 
@@ -107,6 +108,26 @@ class InReviewDriftReportTest(unittest.TestCase, world._DriftReportMixin):
                     (self.github.label_history, self.pinned()[REVIEW_ROUND]),
                     ([(ISSUE, LABEL_VALIDATING)], 0),
                 )
+
+    def test_a_failed_run_still_owes_the_move(self) -> None:
+        # A run that exits nonzero records no report -- a failure is not a
+        # developer declining to report -- but the commit it left is
+        # published all the same, so the head the reviewer approved is gone.
+        # The refreshed hash goes durable with that publication, so no later
+        # tick re-detects the edit: if the move this issue owes is not
+        # durable beside them, the approval stands over a head nobody read
+        # and the ping calls it ready.
+        self.seeded(ISSUE, PR, LABEL_IN_REVIEW, **READY_TO_PING)
+
+        with patch.object(
+            _drift, "_relabels_for_review", side_effect=RuntimeError("died"),
+        ), self.assertRaises(RuntimeError):
+            self.drift(_agent(session_id=world.DEV_SESSION, exit_code=1))
+
+        self.assertEqual(self.pull_request.head.sha, world.FIXED_HEAD)
+        self.assertEqual(set(self.records().values()), {None})
+        self.assertTrue(self.pinned()[HANDOFF_PENDING])
+        _assert_handed_back(self)
 
     def test_a_death_mid_push_keeps_the_delivery_mark(self) -> None:
         # The report goes onto the comment before the push and the process
@@ -383,7 +404,8 @@ class InReviewParkedDriftTest(unittest.TestCase, world._DriftReportMixin):
         self.assertLess(
             self.pinned()[PR_LAST_COMMENT_ID], world.LATER_COMMENT_ID,
         )
-        _assert_handed_back(self)
+        # Setup: `test_a_question_hands_the_approval_back` asserts the move.
+        self.drift(REVIEW_REPLY, committed=False)
         answered = self.drift(world.reported(), committed=False)
 
         answered[RUN_AGENT].assert_called_once()
