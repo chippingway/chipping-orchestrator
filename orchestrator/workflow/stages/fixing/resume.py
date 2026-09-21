@@ -195,7 +195,17 @@ def _fixing_ack_fast_path(
     Three shapes never reach the marker. The validating CHANGES_REQUESTED route
     (`routed` false) is excluded because that reviewer asked for a concrete
     change, so an ACK there is not an answer. A run that timed out or moved
-    HEAD is not a no-commit reply at all.
+    HEAD is not a no-commit reply at all -- and neither is one whose HEAD this
+    tick could not READ. An `ACK:` asserts that nothing changed and nothing
+    needed to, which is a claim about the branch, and an unread head is no
+    evidence about the branch at all: a probe that failed answers the same
+    empty string for a checkout that committed and one that did not. Taken on
+    it, the round clears the bookmarks, advances the readers and hands the pull
+    request back as needing nothing, while any commit that run made sits in the
+    worktree with no report owed for it and no road left that asks for one.
+    Declined, the disposition behind this refuses to publish off a head it
+    could not read either, and parks for a human -- which is the right answer
+    for a tick that cannot say what its own developer did.
 
     An issue that OWES a report is excluded too, and the debt is read HERE off
     the record rather than handed in by a caller reading this run: a round that
@@ -220,9 +230,8 @@ def _fixing_ack_fast_path(
     PR head that is still missing the committed fix.
     Falling through lets the disposition publish the stranded HEAD through its
     normal push tail and the pushed-fix exit route the freshened head back to
-    the reviewer. The stranded check is skipped when `after_sha` is unreadable
-    (mirrors the disposition's own gate -- no pushing blind off a worktree
-    whose HEAD we could not read).
+    the reviewer. That probe is reached only on a head that READ, since an
+    unread one has already declined above.
 
     The consumed batch is recorded by the caller ahead of this call, on the ack
     and the fall-through alike: the reading that says the feedback needs no
@@ -232,13 +241,11 @@ def _fixing_ack_fast_path(
         return False
     if _report_delivery.owes_a_report(ctx.state):
         return False
-    if run.after_sha and run.after_sha != run.before_sha:
+    if not run.after_sha or run.after_sha != run.before_sha:
         return False
     ack_reason = _messages._drift_ack_reason(run.dev_result.last_message or "")
-    if not ack_reason or (
-        run.after_sha and _stranded._stranded_fix_unpushed(
-            ctx.spec, run.worktree, ctx.state, ctx.issue,
-        )
+    if not ack_reason or _stranded._stranded_fix_unpushed(
+        ctx.spec, run.worktree, ctx.state, ctx.issue,
     ):
         return False
     _bookmarks._clear_pending_fix_bookmarks(ctx.state)

@@ -1587,7 +1587,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report contract, well or badly: one that reported is a handover to a fresh reviewer
                             rather than a reason to re-arm a ready ping, and one that reached for the markers and
                             missed (a report block with an `ACK:` beside it) is a broken contract rather than an
-                            acknowledgement to act on -- the report contract the resume is held to through
+                            acknowledgement to act on -- and on a post-run HEAD that did not READ, since the marker
+                            claims the branch changed nothing and an unread head is the same empty answer a
+                            checkout that committed gives -- the report contract the resume is held to through
                             `reporting.py` beside it, the `workflow:validating` relabel a pushed fix or a published
                             report earns, the round a fix spends where no report is owed for it while a round that
                             reported leaves its own to the write that settles it,

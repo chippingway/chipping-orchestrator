@@ -3534,12 +3534,17 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      is strictly ahead of the fetched remote PR branch (a fix committed by an earlier parked run whose publish was
      blocked — e.g. a dirty-park whose stray files were cleaned up afterwards), the handler publishes it through the
      normal push tail and treats the run as a pushed fix — this outranks the ACK fast path on both routes, so an acked
-     stranded fix is published rather than relabeled. **ACK fast path** (in_review route only, no stranded fix, and no
-     report outcome): if the
+     stranded fix is published rather than relabeled. **ACK fast path** (in_review route only, no stranded fix, no
+     report owed, and a post-run HEAD that READ): if the
      dev makes no commit but ends its message with the `ACK: <reason>` marker (the prompt instructs it to emit this when
      the comments name no actionable change — a vague "continue" / "ok" — and neither the branch nor its report has to
      change), clear `pending_fix_*`, post the ack as an
-     FYI, and relabel straight to **`in_review`** without parking. A run that ended on a report outcome is excluded
+     FYI, and relabel straight to **`in_review`** without parking. A HEAD this tick could not read declines it: the
+     marker asserts that nothing changed and nothing needed to, which is a claim about the branch, and the probe
+     answers the same empty string for a checkout that committed and one that did not — taken on it, the round would
+     clear the bookmarks and hand the pull request back as needing nothing while a commit that run made sat in the
+     worktree with no report owed for it. The disposition behind it refuses to publish off an unread head either,
+     so the round parks for a human. A run that ended on a report outcome is excluded
      from that fast path on BOTH routes: a report is a handover the next reviewer has to read, so it takes the
      fresh-review road below rather than re-arming a ready ping on the approval it supersedes. So is a run that
      REACHED for the report contract and missed — a report block with an `ACK:` line beside it, text after the

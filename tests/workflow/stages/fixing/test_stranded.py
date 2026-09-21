@@ -44,6 +44,10 @@ PR_NUMBER = support.PR_NUMBER
 # A pull request somebody else pushed to while the resume was out.
 MOVED_PR_HEAD = "cafef00d" * 5
 
+# What the post-run head probe answers when it could not read the checkout at
+# all, which is the same answer it gives for a branch that never moved.
+UNREAD_HEAD = ""
+
 
 class _StrandedResumeMixin(_StrandedFixingFixtureMixin):
     """The one tick every case here is, with a single fact moved.
@@ -175,6 +179,17 @@ class StrandedFixRecoveryTest(unittest.TestCase, _StrandedResumeMixin):
         self.assertEqual(pinned_data.get(PARK_REASON), PARK_PUSH_FAILED)
         self.assertNotIn((ISSUE, VALIDATING), gh.label_history)
 
+class AckFastPathTest(unittest.TestCase, _StrandedResumeMixin):
+    """What an `ACK:` may be taken on, and what it may not.
+
+    The marker vouches for the FEEDBACK -- it says the comments name no
+    actionable change -- and the fast path acts on it by handing the pull
+    request back as needing nothing. So everything it also implies has to be
+    true of the branch: that nothing was committed, and that the pull request
+    already carries what the checkout does. A reading that cannot establish
+    either is no ground for the claim.
+    """
+
     def test_ack_stranded_fix_publishes(self) -> None:
         # in_review route (`pending_fix_at` set): the dev ACKs a no-commit
         # resume, but the clean worktree HEAD is strictly ahead of the
@@ -207,6 +222,35 @@ class StrandedFixRecoveryTest(unittest.TestCase, _StrandedResumeMixin):
         self.assertIsNone(self._pinned_data.get(PENDING_FIX_AT))
         # Watermark advanced past the consumed feedback.
         self.assertGreaterEqual(self._pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+
+    def test_an_unread_head_declines_the_ack(self) -> None:
+        # The probe that reads HEAD after the run failed, and an `ACK:` is a
+        # claim about the BRANCH: it says nothing changed and nothing needed
+        # to. An unread head is no evidence about the branch either way -- the
+        # probe answers the same empty string for a checkout that committed
+        # and one that did not -- so taking the ack on it would clear the
+        # bookmarks, advance the readers and hand the pull request back as
+        # needing nothing, with any commit that run made left in the worktree
+        # and no report owed for it. The round parks for a human instead.
+        scenario = self._acked_scenario()
+
+        mocks = self._resumed(
+            scenario.github,
+            scenario.issue,
+            message=(
+                "The branch already satisfies the comment.\n\n"
+                "ACK: nothing to fix; the change is already on HEAD"
+            ),
+            head_shas=(SHA_BEFORE, UNREAD_HEAD),
+        )
+
+        self._pushes(mocks).assert_not_called()
+        self.assertEqual(scenario.github.label_history, [])
+        pinned = scenario.github.pinned_data(ISSUE)
+        self.assertTrue(pinned[AWAITING_HUMAN])
+        # The bookmarks a replay rebuilds its batch from are untouched, since
+        # only the ack's own exit drops them.
+        self.assertIsNotNone(pinned[PENDING_FIX_AT])
 
     def test_behind_remote_ack_keeps_in_review(self) -> None:
         # The remote PR branch moved past the local view (behind > 0):
