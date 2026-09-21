@@ -3557,11 +3557,13 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        publication or handoff counts no second round; a report still owed when the issue reaches `workflow:validating`
        holds the reviewer there until it is confirmed. Docs do not run on this exit.
 - **Output**: terminal `done` / `rejected`, OR label flipped to `workflow:validating` (pushed fix, a report delivered
-  with no commit, OR no-new-feedback
+  with no commit, the hand-back of a report a crashed round recorded and never handed on (step 4), OR no-new-feedback
   bounce), OR label flipped to `workflow:resolving_conflict` (stuck validating-route transient park while the worktree
   is out of sync with the PR — behind base or an unpushed local rebase), OR label flipped to `workflow:decomposing`
-  (the size gate held a fix, a stranded-fix bounce, or a transient-park recovery push), OR label flipped to
-  `in_review` (in_review route, ACK fast path on this tick only), OR a HITL park, OR a no-op (quiet-window wait,
+  (the size gate held a fix, a stranded-fix bounce, a transient-park recovery push, or a candidate that recovery
+  published), OR label flipped to
+  `in_review` (in_review route, ACK fast path on this tick only), OR a HITL park (`report_undeliverable` where that
+  recovery cannot prove the pull request carries the work its report is about), OR a no-op (quiet-window wait,
   missing-PR park already set).
 
 ## `_handle_resolving_conflict` (label `workflow:resolving_conflict`)

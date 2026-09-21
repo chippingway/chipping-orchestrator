@@ -407,7 +407,8 @@ mergeable, docs-complete or GitHub-approved, and carries no standing human CHANG
 The dev fix loop, entered from `in_review` on unread feedback or from `workflow:validating` on a
 `CHANGES_REQUESTED` verdict — `pending_fix_at` is the route discriminator that decides whether a pushed fix resets
 `review_round` or bumps it. It owns the `IN_REVIEW_DEBOUNCE_SECONDS` quiet window, the `/orchestrator continue` batch
-replay, the stranded-fix publish, the in_review-route ACK fast path, and the worktree-drift dead-lock breaker that
+replay, the stranded-fix publish, the in_review-route ACK fast path, the recovery that finishes a round whose
+report is recorded and whose process died before it was handed on, and the worktree-drift dead-lock breaker that
 hands a stuck validating-route park to `workflow:resolving_conflict`. It also settles what each round delivered, per
 surface and against the reader that owns it, which is why this stage writes `last_action_comment_id` for its
 issue-thread half as well as the in_review watermarks for the pull request's three — a round that finished on a

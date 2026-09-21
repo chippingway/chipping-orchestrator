@@ -705,10 +705,12 @@ The keys that matter for the state machine fall into a few groups:
   nothing staged, since a transaction bound to another revision would claim the report answers content the run
   never saw, and it is held to the record the comment CARRIES: a report the delivery field has none for, one
   nothing can read, and one a later report has already replaced are each refused, since the write drops whatever is
-  there and binding on any of them would replace a finished run's report with a value the comment never held. Three
+  there and binding on any of them would replace a finished run's report with a value the comment never held. Five
   roads on the recording side park the issue under `report_undeliverable`: a report this workflow cannot write down
-  at all, a completed run that handed over no usable report to write, and a recovery that republishes committed
-  work no recorded report describes. A binding REFUSES rather than parks — it
+  at all, a completed run that handed over no usable report to write, a recovery that republishes committed
+  work no recorded report describes, a round reporting with NO commit over a head nothing could prove the pull
+  request to be standing on, and the fixing recovery that finds a report a crashed round recorded and cannot prove
+  the pull request carries the work it is about. A binding REFUSES rather than parks — it
   stages nothing and says which refusal it was — and `report_binding.py` is what answers the refusal: a comment too
   full for the transaction is retried silently on the next call, since the routes a report still owed lets run are
   what give that room back, while a record no comment would ever hold, a delivery nothing can read, and a
