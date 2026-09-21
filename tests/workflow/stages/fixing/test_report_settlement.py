@@ -161,6 +161,19 @@ _MOVED_REMOTE = MappingProxyType({
 # The handoff member naming the workflow label a settlement landed under.
 _SETTLED_UNDER = "under"
 
+# What the label read afresh says while the developer is out, and whether the
+# round may still move it. `workflow:fixing` is the ordinary round nobody
+# touched. Every other answer is a human who moved the issue mid-run, and the
+# relabel is theirs to keep -- including the move onto the very label this road
+# was heading for, which needs no second application by the orchestrator. That
+# destination is exactly why it cannot be the only case tested: a road that
+# relabels regardless passes it.
+_MID_RUN_MOVES = MappingProxyType({
+    "nowhere -- the round ends where it began": (FIXING, True),
+    "onto the head this round was handing back": (VALIDATING, False),
+    "somewhere this round may not follow it": (IN_REVIEW_LABEL, False),
+})
+
 # The delivery member naming the route that recorded it.
 _ROUTE = "route"
 
@@ -718,28 +731,44 @@ class FixingStaleSettlementTest(unittest.TestCase, _ReportRoundMixin):
 
         self.assertIn(LATER_COMMENT, only_prompt(mocks))
 
-    def test_a_relabel_mid_run_settles_under_it(self) -> None:
+    def test_a_relabel_mid_run_holds_the_hand_back(self) -> None:
         # The copy the tick holds was fetched before the developer ran, so a
         # human who relabelled while it was out is invisible there. Stamped
         # off it, the settlement claims `workflow:fixing` was standing behind
         # it -- and a later manual return to that label would then spend the
         # mark it raised and bounce back to the reviewer with fresh feedback
         # never scanned. Read afresh, the settlement says where it happened.
-        seeded = self._seed_round()
-        moved_on = support.make_issue(
-            ISSUE, label=VALIDATING, comments=seeded.issue.comments,
-        )
+        #
+        # And what it says is what the LIVE road has to act on too, not just
+        # the recovery that reads the same comment after a crash. Relabelled
+        # anyway, this tick takes the issue straight off the label that human
+        # chose -- in the very write that recorded their move -- while a tick
+        # that died a line earlier would leave it alone, so one settlement
+        # would mean two different things depending on where the process died.
+        for move, (label, hands_back) in _MID_RUN_MOVES.items():
+            with self.subTest(the_human_moved_it=move):
+                seeded = self._seed_round()
 
-        with patch.object(
-            seeded.github, "get_issue", return_value=moved_on,
-        ):
-            self._round(seeded.github, seeded.issue)
+                with patch.object(
+                    seeded.github, "get_issue",
+                    return_value=support.make_issue(
+                        ISSUE, label=label, comments=seeded.issue.comments,
+                    ),
+                ):
+                    self._round(seeded.github, seeded.issue)
 
-        self.assertEqual(self._reports_posted(seeded), 1)
-        self.assertEqual(
-            self._pinned(seeded)[_records.REPORT_HANDOFF].get(_SETTLED_UNDER),
-            VALIDATING,
-        )
+                # The report goes out either way, and the mark comes down:
+                # this round is over whichever label it ends on.
+                pinned_data = self._pinned(seeded)
+                self.assertEqual(self._reports_posted(seeded), 1)
+                self.assertFalse(pinned_data.get(recovery.SETTLED_ROUND))
+                self.assertEqual(
+                    pinned_data[_records.REPORT_HANDOFF].get(_SETTLED_UNDER),
+                    label,
+                )
+                self.assertEqual(
+                    self._went_back_to_review(seeded), hands_back,
+                )
 
     def test_a_historical_report_answers_nothing(self) -> None:
         # A settled report is REPLACED rather than retired, and the publication

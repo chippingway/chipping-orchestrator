@@ -1529,6 +1529,13 @@ The keys that matter for the state machine fall into a few groups:
   correlated against a handoff that says nothing about it, and an anchorless manual relabel would be bounced back to
   the reviewer with its feedback unread.
 
+  It is PLACED before any road spends it (`fixing/round_marks.py`), and the relabel itself is what goes through
+  that reading -- so the live publication and the recovery behind a crash answer one comment the same way. The
+  settling label is read afresh, which means a human who moved the issue while the developer was out is recorded by
+  the very write that would otherwise take it off their label; withheld, the relabel stays theirs and the mark still
+  comes down, since the round is over whichever label it ends on. A comment carrying no raised mark is asked
+  nothing: the no-feedback bounce relabels on its own reasons, report or no report.
+
   It is consumed rather than merely read, and correlated before it is acted on. The reconciliation that raises it
   runs ahead of every handler on every non-terminal label, and a fixing round can leave `workflow:fixing` with its
   transaction outstanding, so the settling write can land where nothing reads the mark. What says so is the `under`

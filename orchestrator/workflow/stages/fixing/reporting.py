@@ -40,7 +40,11 @@ from orchestrator.workflow.engine import (
     report_outcomes as _report_outcomes,
     report_records as _report_records,
 )
-from orchestrator.workflow.stages.fixing import models as _models, state as _state
+from orchestrator.workflow.stages.fixing import (
+    models as _models,
+    round_marks as _round_marks,
+    state as _state,
+)
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
 )
@@ -307,10 +311,23 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
     comes through anyway on the roads that never saw a report: a mark that is
     not up is nothing to clear, and a road that has to remember whether to
     clear one is a road that comes to forget.
+
+    So the mark is PLACED here rather than at any one of them, and the relabel
+    is what a mark that cannot be placed withholds. A settlement stamps the
+    label it read afresh, which is the label a human who moved the issue while
+    the developer ran has put it on -- and this owner is reached on the very
+    tick that recorded that move. Relabelled anyway, the live road takes the
+    issue straight off the label that human chose while the recovery behind it,
+    reading the identical comment, would leave it alone: the same settlement
+    then means one thing when the tick survives to relabel and another when it
+    dies first. The mark comes down either way, because it is this round's and
+    this round is over; what a refusal withholds is only the move.
     """
+    places = _round_marks._places_the_round_in_hand(ctx.state)
     ctx.state.set(_state._SETTLED_ROUND, None)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
-    ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
+    if places:
+        ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
 
 
 def _holds_an_unpublished_report(
@@ -401,6 +418,12 @@ def _finishes_a_reported_round(
     reading an implementation nothing on the pull request describes. The round
     is not closed either -- what closes it is the write that completes the
     transaction, here or in the reconciliation ahead of a later handler.
+
+    A publication that DID settle closes the round through the same hand-back
+    the recovery takes, so the mark it raised is placed before the label moves.
+    This is the road where that matters most: a developer runs for minutes, and
+    a human who moves the issue in that window is recorded by the settlement
+    this call just made.
     """
     if _holds_an_unpublished_report(ctx, candidate):
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)

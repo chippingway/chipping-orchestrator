@@ -3348,10 +3348,16 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      exists and answers an in_review batch as a validating one, refusing an ordinary `ACK:`. The issue goes back to
      `workflow:validating` and the tick ends. What says the round settled is the `fixing_round_settled` mark that
      settlement raised through its own recorded spends, and nothing weaker: `developer_report_current` is REPLACED
-     rather than retired and `implementing_published_sha` is persistent, so a pull request standing on the commit
-     either names says only that some round once published it — read as proof, a manual relabel onto
-     `workflow:fixing` would bounce straight back to the reviewer with its fresh feedback never scanned. The relabel
-     retires the mark in the same write, so it can never finish a later round.
+     rather than retired and `implementing_published_sha` is persistent, so a pull request standing on the commit either
+     names says only that some round once published it — read as proof, a manual relabel onto `workflow:fixing` would
+     bounce straight back to the reviewer with its fresh feedback never scanned. The relabel retires the mark in the
+     same write, so it can never finish a later round — and the relabel itself is taken only where
+     `fixing/round_marks._places_the_round_in_hand` still places that mark. Every road that reaches a relabel with one
+     raised goes through that reading, the LIVE publication included: the settling label is read afresh, so a human who
+     moved the issue while the developer ran is recorded by the same write that would otherwise take the issue off their
+     label, and a tick that died a line earlier would have left it alone. The mark comes down either way — the round is
+     over whichever label it ends on — and only the move is withheld. A road carrying no raised mark is asked nothing,
+     which is what keeps the no-feedback bounce relabelling on its own reasons.
 
      The mark is CONSUMED rather than merely read, and CORRELATED before it is acted on, because the settlement that
      raises it need not happen under this label. [The report

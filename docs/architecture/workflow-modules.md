@@ -1536,7 +1536,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report is still ahead of the issue and the bounce that republishes that commit is what binds
                             it. Also the mark that settlement raises (`fixing_round_settled`), which is the whole of
                             what tells the next tick a round closed while the label never moved, and the relabel that
-                            retires it
+                            retires it -- taken only where `round_marks.py` still places that mark, so a human who moved
+                            the issue while the developer ran keeps their label and the live road and the recovery
+                            answer one comment the same way
       report_recovery.py    a report an earlier tick recorded and never bound, answered before anything rescans: what
                             that dead run consumed read off the record itself rather than re-derived, and the binding
                             re-proved against the checkout rather than remembered off a receipt -- a clean tree, a head
@@ -1554,9 +1556,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             dirty each park once, writing what the dead run consumed into that park's own write, since
                             the republishing bounce declines the second exactly as this owner does, while every other
                             refusal leaves a checkout that bounce still republishes from. The mark a settlement raises
-                            is consumed rather than merely read -- that settlement can land under any non-terminal
-                            label, so a mark found over a newer round's route anchor, beside a report still owed, or
-                            under a label the settlement's own handoff says was not this stage's is retired instead
+                            is consumed rather than merely read, and placed by `round_marks.py` before it is spent --
+                            that settlement can land under any non-terminal label, so a mark found over a newer round's
+                            route anchor, beside a report still owed, or under a label the settlement's own handoff says
+                            was not this stage's is retired instead
+      round_marks.py        whether a raised `fixing_round_settled` can still place the round in hand: the settling
+                            label off the handoff beside it, the route anchor a newer round would have written, and a
+                            report still owed. Its own owner because `report_recovery.py` imports `reporting.py` and
+                            both ask it -- the relabel goes through it and so does the tick that finds a round settled
+                            elsewhere -- and a second copy of this question drifts into a relabel taken past feedback
+                            nobody read. A comment carrying NO mark is asked nothing: the no-feedback bounce relabels on
+                            its own reasons, report or no report
       resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
                             nothing invoked, a shutdown kill, a live pause -- the record of the batch every other
                             outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix

@@ -319,16 +319,19 @@ round is recorded, published and settled rather than parked:
   but unposted, nothing is relabelled and the reconciliation finishes it. A worktree that is gone, and a tree this host
   proved dirty, leave nothing to prove either way — those park once for a human, and the park is the one place a report
   road records what it consumed, because a park is where the road ends rather than a step on the way to a publication.
-- A round whose report has **settled** is finished before anything else is scanned. The write that settled it closed
-  the route's bookkeeping, so a scan running past it reads whatever landed since under a route that no longer
-  exists — an in_review batch answered as a validating one, where an ordinary `ACK:` is refused. The issue goes back
-  to `workflow:validating` and the tick ends; the later feedback is read on the next poll by the stage the label now
-  names. What says it settled is the `fixing_round_settled` mark that settlement raised, and nothing weaker: the
-  settled report and the publication receipt beside it both outlive the transaction that made them, so a manual
-  relabel read off either would be bounced back to the reviewer with fresh feedback nobody scanned. The mark is
-  consumed, not merely read, and correlated before it is spent: a settlement can land while the issue is under
-  another label, where nothing reads it, so the handoff records which label it landed under and a mark from anywhere
-  but `workflow:fixing` is retired. A newer round's route anchor and a report still owed retire it too.
+- A round whose report has **settled** is finished before anything else is scanned. The write that settled it closed the
+  route's bookkeeping, so a scan running past it reads whatever landed since under a route that no longer exists — an
+  in_review batch answered as a validating one, where an ordinary `ACK:` is refused. The issue goes back to
+  `workflow:validating` and the tick ends; the later feedback is read on the next poll by the stage the label now names.
+  The relabel a settlement buys is taken only where that mark can still be PLACED, and the live publication goes through
+  the same reading: the settling label is read afresh, so a human who moves the issue while the developer is out keeps
+  the label they chose rather than having it taken off them by the very tick that recorded their move. What says it
+  settled is the `fixing_round_settled` mark that settlement raised, and nothing weaker: the settled report and the
+  publication receipt beside it both outlive the transaction that made them, so a manual relabel read off either would
+  be bounced back to the reviewer with fresh feedback nobody scanned. The mark is consumed, not merely read, and
+  correlated before it is spent: a settlement can land while the issue is under another label, where nothing reads it,
+  so the handoff records which label it landed under and a mark from anywhere but `workflow:fixing` is retired. A newer
+  round's route anchor and a report still owed retire it too.
 - A round whose publication is still OWED is not one a developer has anything left to do for. Its readers are held
   back until that publication lands, so the batch its report was written over reads as unread for as long as the
   push or the post keeps failing — and resumed on, every poll pays another developer to write another report over

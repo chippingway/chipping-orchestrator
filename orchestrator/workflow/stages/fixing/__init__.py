@@ -49,11 +49,14 @@ cannot guarantee. `reporting` is that road: the consumed pairs and the route
 bookkeeping ride the RECORD of the report rather than the comment, and the write
 that completes the publication is what applies them, so feedback recorded as
 answered for a report no reviewer has is a state this stage never reaches. It
-also owns the mark that settlement raises, since the one thing such a write
-cannot do is move a label. `report_recovery` is the other end of the same
-contract, ahead of every scan: a report a crash left unbound, re-proved against
-the checkout rather than remembered off a receipt, and a round whose report
-settled somewhere this stage was not looking.
+also owns the relabel that mark buys, since the one thing such a write cannot do
+is move a label. `report_recovery` is the other end of the same contract, ahead
+of every scan: a report a crash left unbound, re-proved against the checkout
+rather than remembered off a receipt, and a round whose report settled somewhere
+this stage was not looking. `round_marks` is the reading those two share and
+neither may copy -- whether a raised mark can still place the round in hand --
+since the second imports the first and a second copy of that question drifts
+into a relabel taken past feedback nobody read.
 
 While a report is owed, nothing an outstanding publication carries may be spent
 before it lands -- not the bookmarks, not the round, not the readers -- so the

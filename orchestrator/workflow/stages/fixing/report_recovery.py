@@ -49,16 +49,15 @@ record this stage never wrote can be the one that settles here -- closing ITS
 route's bookkeeping, raising no mark of this stage's, and bouncing a reviewer's
 own change request back unread if the relabel were taken from it.
 
-That mark is CONSUMED here rather than merely read, and it is correlated before
-it is acted on. The reconciliation that raises it runs ahead of every handler on
-every non-terminal label, and a fixing round can leave `fixing` with its
-transaction outstanding -- so the settlement may land while the issue is
-elsewhere, where nothing reads this. The handoff that settlement wrote beside it
-records which label it landed under, and a mark from anywhere but
-`workflow:fixing` is retired rather than spent: that is the road an anchorless
-manual move back here takes, and no other state on the comment tells it from a
-round that has just settled. A mark found over a route anchor a newer round
-wrote, or beside a report this issue still owes, is retired for the same reason.
+That mark is CONSUMED here rather than merely read, and it is PLACED before it
+is acted on -- by `round_marks`, which the relabel itself goes through, so the
+live road and this one answer the identical comment the same way. The
+reconciliation that raises it runs ahead of every handler on every non-terminal
+label, and a fixing round can leave `fixing` with its transaction outstanding,
+so the settlement may land while the issue is elsewhere, where nothing reads
+this. A mark this owner cannot place is retired rather than spent, and retiring
+it is still this road's to do: it is the mark of a round that is over either
+way, and only the relabel is withheld.
 """
 from __future__ import annotations
 
@@ -69,19 +68,13 @@ from orchestrator.workflow.engine import (
     report_consumed_values as _consumed,
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
-    report_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.fixing import (
     models as _models,
     reporting as _reporting,
+    round_marks as _round_marks,
     state as _state,
 )
-from orchestrator.workflow.state import WorkflowLabel
-
-# The validating route's own record of the round it opened. It and
-# `pending_fix_at` are what a settlement CLEARS, so either one standing over a
-# raised mark says a newer round opened after that settlement.
-_REVIEWER_ANCHOR = "pending_fix_reviewer_comment_id"
 
 # What a delivered record nobody can read is held under. Durable, because the
 # condition does not clear on its own: what it asks for is the pinned comment
@@ -180,45 +173,12 @@ def _finishes_a_settled_round(ctx: _models._FixingContext) -> bool:
     """
     if not ctx.state.get(_state._SETTLED_ROUND):
         return False
-    if _outlived_its_round(ctx.state):
+    if not _round_marks._places_the_round_in_hand(ctx.state):
         ctx.state.set(_state._SETTLED_ROUND, None)
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return False
     _reporting._hands_the_round_back(ctx)
     return True
-
-
-def _outlived_its_round(state) -> bool:
-    """Whether a raised mark can no longer be about the round in hand.
-
-    The settling LABEL answers it outright. A settlement records which label
-    the issue was carrying as it landed, and one that landed anywhere but
-    `workflow:fixing` is a round this stage was not behind: nothing here read
-    the mark then, and it has been waiting ever since for whichever round came
-    next. That is the one shape no other state can catch, because an anchorless
-    manual move back to `workflow:fixing` leaves the comment looking exactly
-    like a round that just settled.
-
-    A handoff this build cannot read answers the same way, and deliberately: a
-    mark nothing can correlate is one nothing should act on. What it costs is a
-    hand-back left for the route that can prove it; what acting on it would
-    cost is a relabel past feedback nobody has read.
-
-    The two readings beside it are kept because they are free and independent.
-    A settlement clears both route anchors and drops the transaction, so the
-    tick that finds the mark over either anchor is looking at a round that
-    opened AFTER the settlement raised it, and the tick that finds it beside an
-    owed report is looking at a publication that has not happened yet.
-    """
-    if _report_delivery.owes_a_report(state):
-        return True
-    handoff = _settlement.read_handoff(state)
-    if handoff is None or handoff.settled_under is not WorkflowLabel.FIXING:
-        return True
-    return any(
-        state.get(recorded) is not None
-        for recorded in (_state._PENDING_FIX_AT, _REVIEWER_ANCHOR)
-    )
 
 
 def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
