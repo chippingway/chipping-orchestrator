@@ -377,6 +377,13 @@ than a second source of truth: where the two disagree, the handler pages are aut
          ──► committed with no usable report (an unfinished run included):
               nothing pushed, review_round unchanged, park
               report_undeliverable on workflow:fixing
+         ──► REPORTED over a checkout this host proves it cannot publish from
+              (gone, or carrying uncommitted changes), whether the round
+              committed or not: nothing pushed, review_round unchanged, park
+              report_undeliverable on workflow:fixing with the record RELEASED
+              and the pairs that round consumed applied in the park's own
+              write — one notice for one condition, since the recovery behind
+              it would otherwise find the same refusal and post a second
          ──► crash anywhere past the report's own write: label still
               workflow:fixing, park already cleared, the triggering reply
               unread, and — where the round committed — the commit its report

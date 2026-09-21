@@ -60,6 +60,20 @@ ABSENT_WORKTREE = fixing.Path("/tmp/orchestrator-absent-checkout")
 REVIEW_ROUND = fixing.REVIEW_ROUND
 PENDING_FIX_AT = fixing.PENDING_FIX_AT
 
+# Clean where the gate freezes the tree, carrying work by the proof past it.
+# Two clean readings lead, because a round that REPORTED proves its own
+# checkout before the disposition does: a tree it finds carrying work is one
+# no later poll takes back, so that round ends on the terminal park its report
+# owns rather than reaching the publication at all.
+_CLEAN_TREE = support._WorktreeStatus(readable=True, paths=())
+
+_DIRTIED_AROUND_THE_PUSH = (
+    _CLEAN_TREE,
+    _CLEAN_TREE,
+    support._WorktreeStatus(readable=True, paths=("stray.py",)),
+)
+
+
 class _CrashesOnceTheReceiptIsWritten:
     """A pinned write that dies on the first write past the landed receipt.
 
@@ -344,10 +358,7 @@ class SettledPublicationRaceTest(unittest.TestCase, _SizeGateFixtureMixin):
 
         mocks = self._run_fix_round(
             scenario,
-            tree_states=(
-                support._WorktreeStatus(readable=True, paths=()),
-                support._WorktreeStatus(readable=True, paths=("stray.py",)),
-            ),
+            tree_states=_DIRTIED_AROUND_THE_PUSH,
         )
 
         self._assert_settled_publication(mocks)
@@ -435,18 +446,11 @@ class CheckoutRaceTest(unittest.TestCase, _SizeGateFixtureMixin):
         scenario = self._seed_fix_round()
 
         mocks = self._run_fix_round(
-            scenario, tree_states=self._dirtied_around_the_push(),
+            scenario, tree_states=_DIRTIED_AROUND_THE_PUSH,
         )
 
         self._assert_pushed_once(mocks)
         self._assert_publication_stands(scenario, support.PARK_CANDIDATE_MOVED)
-
-    def _dirtied_around_the_push(self) -> tuple:
-        """Clean where the gate freezes it, carrying work by the proof past it."""
-        return (
-            support._WorktreeStatus(readable=True, paths=()),
-            support._WorktreeStatus(readable=True, paths=("stray.py",)),
-        )
 
     def _assert_publication_stands(self, scenario, reason: str) -> None:
         """The push kept its receipt; only the handoff stopped."""

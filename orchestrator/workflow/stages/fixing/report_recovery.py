@@ -69,6 +69,7 @@ way, and only the relabel is withheld.
 from __future__ import annotations
 
 import logging
+from pathlib import Path as _Path
 
 from orchestrator import config as _config
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
@@ -295,7 +296,9 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     return True
 
 
-def _releases_an_unpublishable_report(ctx: _models._FixingContext) -> bool:
+def _releases_an_unpublishable_report(
+    ctx: _models._FixingContext, worktree: _Path | None = None,
+) -> bool:
     """Announce a report no road on this host is going to get out, once.
 
     True is a tick this call ended. Shared by the two roads that reach the
@@ -348,9 +351,16 @@ def _releases_an_unpublishable_report(ctx: _models._FixingContext) -> bool:
     A record this build cannot READ is left alone here, because there is
     nothing to read those pairs from and the road that parks a damaged record
     owns it instead.
+
+    `worktree` is the checkout a caller has just RUN in, and naming it is what
+    tells the two callers' worlds apart. This owner's own recovery holds no
+    run at all, so it asks the canonical path and counts a checkout this host
+    does not hold among the refusals. A round whose developer worked in one a
+    moment ago knows it is there, so the only question left for it is whether
+    the tree that developer left is PROVED to be carrying something.
     """
     delivered = _delivery_state.read_delivered_report(ctx.state)
-    if delivered is None or not _refuses_for_good(ctx):
+    if delivered is None or not _refuses_for_good(ctx, worktree):
         return False
     _consumed.advance_consumed(ctx.state, delivered.watermarks)
     _delivery_state.clear_delivered_report(ctx.state)
@@ -361,11 +371,21 @@ def _releases_an_unpublishable_report(ctx: _models._FixingContext) -> bool:
     return True
 
 
-def _refuses_for_good(ctx: _models._FixingContext) -> bool:
-    """Whether this checkout's refusal is one no later poll takes back."""
-    worktree = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
-    if not worktree.exists():
-        return True
+def _refuses_for_good(
+    ctx: _models._FixingContext, worktree: _Path | None = None,
+) -> bool:
+    """Whether this checkout's refusal is one no later poll takes back.
+
+    A checkout nobody named is the canonical one, asked of a host that may no
+    longer hold it at all. One a caller names is a checkout its own run just
+    worked in, so the absence is not a reading to take: what is left is the
+    tree, and only a tree this host PROVED is carrying something refuses for
+    good -- a status that established nothing is a later poll's to answer.
+    """
+    if worktree is None:
+        worktree = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
+        if not worktree.exists():
+            return True
     tree = _worktree_status._worktree_status(worktree)
     return tree.readable and not tree.is_clean
 

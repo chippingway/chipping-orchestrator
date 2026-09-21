@@ -1617,8 +1617,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             are about this tick and not about the round, so nothing is published and nothing is
                             parked. What is decisive instead is a head that moved, a pull request standing
                             somewhere else, and a tree PROVED to be carrying something -- and the last of those
-                            ends on the report's own terminal park rather than the question road, since a human
-                            asked about a round that reported is being asked about nothing. The record that carries this round's consumed readers, its route
+                            ends on the report's own terminal park (`report_recovery.py`) rather than the roads
+                            below, whichever way that round answered: a checkout no later poll takes back is one
+                            nothing here is going to publish from, and the park those roads would take keeps the
+                            record for the recovery to release a tick later under a second notice. The record that carries this round's consumed readers, its route
                             bookkeeping and the settlement MARK for the write that completes the publication; the
                             binding taken only on a commit the CALLER proved, never on the persistent publication
                             receipt, and held to a pull request READ AGAIN: the head it is standing on has to BE
@@ -1632,8 +1634,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retires the mark in a write of its own BEFORE the relabel -- a tick dying between them
                             has to leave a round nothing can mistake for one that just settled
       report_recovery.py    the report obligation answered AHEAD of every scan, since the scan is what the damage
-                            runs through, plus the terminal park a checkout refusal earns, which the live
-                            report-only round takes through this owner rather than copying. What it proves is the
+                            runs through, plus the terminal park a checkout refusal earns, which the live reported
+                            round takes through this owner rather than copying -- asked of the checkout its own
+                            run worked in, where the absence is no reading to take and only a tree PROVED to be
+                            carrying something refuses for good. What it proves is the
                             CHECKOUT alone -- a tree provably clean and a head it could name -- because the only
                             pull request it holds is the one the preflight fetched; where that head stands
                             against the pull request is the binding's to ask, over a reading of its own: a round whose report SETTLED while nobody was looking is handed back on

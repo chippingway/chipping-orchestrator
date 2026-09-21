@@ -3556,8 +3556,12 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      nothing — because each is about the tick rather than the round: nothing is published, nothing is parked, and
      the recovery in step 4 publishes on the first poll that can read them. A tree PROVED to be carrying something
      is decisive and ends the round on the report's own terminal park instead, one notice under
-     `report_undeliverable` with the record released, rather than on the question road, which would ask a human
-     about a round that reported and leave that park standing over the tick that finally publishes.
+     `report_undeliverable` with the record released and the pairs that round consumed applied in that park's own
+     write. That holds whether the round committed or not: a checkout no later poll takes back is one nothing on
+     this host is going to publish that report from, and left to the roads below it the round takes a checkout park
+     of their own, keeps the record, and the recovery on the very next tick finds the identical refusal, releases
+     the report and posts a SECOND notice for one condition. The reply either asks for resumes a developer, whose
+     fresh report describes the branch as it then stands — commit included.
 
      While a report is owed, nothing that publication carries may be spent before it lands — not the readers, not
      the `pending_fix_*` bookmarks, not `review_round`, and not the relabel — so the size gate is handed nothing to

@@ -131,16 +131,6 @@ _UNDELIVERABLE = _report_delivery.UNDELIVERABLE_REPORT
 # ON it to cost nothing: the reference GitHub honours there and nowhere else,
 # and the line naming the session that wrote the branch, which every later
 # reuse of that pull request reads back.
-def _reply(comment_id: int, body: str):
-    """One human comment on the issue thread, settled past the debounce."""
-    return live.FakeComment(
-        id=comment_id,
-        body=body,
-        user=live.FakeUser(live.ALICE),
-        created_at=live.now_utc() - live.timedelta(hours=1),
-    )
-
-
 # How many pull request reads a tick has taken by the time each decision is
 # made: the preflight is the first, and the report-only proof the second, so a
 # case about the binding preferring its own reading replaces everything up to
@@ -148,6 +138,10 @@ def _reply(comment_id: int, body: str):
 _THE_PREFLIGHT = 1
 
 _THE_PROOF = 2
+
+# A branch carrying one commit the remote has not got, which is what a crash
+# BEFORE the push leaves: the bounce is the one road left that sends it.
+_AHEAD_OF_REMOTE = (1, 0)
 
 # Where a report verified on the pull request's own body says it is.
 _PULL_REQUEST_URL = "https://github.com/{slug}/pull/{pr}"
@@ -192,7 +186,12 @@ class LiveReportRoundMixin(live._FixingFixtureMixin):
         """
         seeded = live.IssueScenario(*self._seed(
             pr=self._open_pr(body=description),
-            issue_comments=[_reply(live.TRIGGER_ID, _THE_FEEDBACK)],
+            issue_comments=[live.FakeComment(
+                id=live.TRIGGER_ID,
+                body=_THE_FEEDBACK,
+                user=live.FakeUser(live.ALICE),
+                created_at=live.now_utc() - live.timedelta(hours=1),
+            )],
             extra_state={**_SEEDED_READERS, **extra},
         ))
         if crashed:
@@ -308,38 +307,6 @@ class LiveReportRoundTest(unittest.TestCase, LiveReportRoundMixin):
 
         spawned_nobody(mocks)
 
-    def test_a_post_push_crash_publishes_and_closes(self) -> None:
-        # The crash landed past the push, so the commit the report describes
-        # is on the pull request: the recovery re-proves that against the
-        # checkout, publishes, and closes the round the record froze.
-        seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
-        self.published(seeded).head.sha = live.SHA_AFTER
-
-        self.tick(seeded, head=live.SHA_AFTER)
-
-        pinned = self.pinned(seeded)
-        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
-        self.assertEqual(
-            self.reader(seeded), live.TRIGGER_ID,
-        )
-        self.assertEqual(pinned[live.REVIEW_ROUND], 0)
-        self.assertTrue(self.handed_back(seeded))
-
-    def test_a_pre_push_crash_republishes_first(self) -> None:
-        # The crash landed before the push, so the branch is carrying a commit
-        # the pull request has not got. The recovery will not publish a report
-        # over a head it cannot prove, so the round waits for the bounce that
-        # republishes the commit -- and nothing is spent meanwhile.
-        seeded = self.seed(crashed=True)
-
-        mocks = self.tick(seeded, head=live.SHA_AFTER)
-
-        spawned_nobody(mocks)
-        pinned = self.pinned(seeded)
-        self.assertEqual(seeded.github.posted_pr_comments, [])
-        self.assertEqual(pinned[live.REVIEW_ROUND], 1)
-        self.assertFalse(self.handed_back(seeded))
-
     def test_a_later_reply_runs_an_ordinary_round(self) -> None:
         # A comment ABOVE the pairs the record froze is feedback nobody has
         # answered. The recovery ends the tick that publishes the outstanding
@@ -389,6 +356,71 @@ class LiveReportRoundTest(unittest.TestCase, LiveReportRoundMixin):
             (live.LAST_ACTION_COMMENT_ID, _LATER_ID),
             crash.frozen_record(self.pinned(seeded)).watermarks,
         )
+
+
+class LiveCrashWindowTest(unittest.TestCase, LiveReportRoundMixin):
+    """The two windows a round's own ordering leaves, on either side of the push.
+
+    The report is durable before the size gate and the relabel comes after it,
+    so a tick can die with the report recorded and the commit still in the
+    checkout, or with both out and nothing on the comment saying so. What the
+    next tick owes differs: past the push the recovery re-proves the checkout
+    and publishes, and before it the commit has to reach the pull request
+    first -- through the bounce, which is the one road left that sends it.
+    """
+
+    def test_a_post_push_crash_publishes_and_closes(self) -> None:
+        # The crash landed past the push, so the commit the report describes
+        # is on the pull request: the recovery re-proves that against the
+        # checkout, publishes, and closes the round the record froze.
+        seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
+        self.published(seeded).head.sha = live.SHA_AFTER
+
+        self.tick(seeded, head=live.SHA_AFTER)
+
+        pinned = self.pinned(seeded)
+        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
+        self.assertEqual(
+            self.reader(seeded), live.TRIGGER_ID,
+        )
+        self.assertEqual(pinned[live.REVIEW_ROUND], 0)
+        self.assertTrue(self.handed_back(seeded))
+
+    def test_a_pre_push_crash_republishes_first(self) -> None:
+        # The crash landed before the push, so the branch is carrying a commit
+        # the pull request has not got, and the bounce is the one road left
+        # that republishes it. The report goes out BOUND to the push that
+        # bounce makes -- off the receipt that push has just written, never
+        # the standing value -- and only then does the round the record froze
+        # close and the reviewer get the head.
+        seeded = self.seed(crashed=True)
+
+        mocks = self.tick(
+            seeded, head=live.SHA_AFTER, branch_ahead_behind=_AHEAD_OF_REMOTE,
+        )
+
+        spawned_nobody(mocks)
+        mocks[live.PUSH_BRANCH].assert_called_once()
+        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
+        self.assertIsNone(self.recorded(seeded))
+        self.assertEqual(self.reader(seeded), live.TRIGGER_ID)
+        self.assertTrue(self.handed_back(seeded))
+
+    def test_a_pre_push_crash_nothing_can_send_waits(self) -> None:
+        # The other half of the same window: the branch and the remote agree,
+        # so there is no commit for the bounce to republish and no head the
+        # recovery can prove the report against. Nothing is published and
+        # nothing is spent -- the round waits for a tick that can send it.
+        seeded = self.seed(crashed=True)
+
+        mocks = self.tick(seeded, head=live.SHA_AFTER)
+
+        pinned = self.pinned(seeded)
+        spawned_nobody(mocks)
+        self.assertEqual(seeded.github.posted_pr_comments, [])
+        self.assertIsNotNone(self.recorded(seeded))
+        self.assertEqual(pinned[live.REVIEW_ROUND], 1)
+        self.assertFalse(self.handed_back(seeded))
 
 
 class LiveFreshPullRequestTest(unittest.TestCase, LiveReportRoundMixin):

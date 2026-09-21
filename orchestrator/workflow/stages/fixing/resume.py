@@ -483,18 +483,22 @@ def _disposes(
         _reporting._finishes_a_reported_round(ctx, owed, run.after_sha or "")
         return
 
-    # A round that answered in the report ALONE and was refused by its own
-    # checkout ends here instead, under the terminal park that report owns
-    # (`report_recovery`), because the two refusals behind that answer -- a
-    # worktree gone, a tree proved dirty -- are the same ones the recovery
-    # declines on and no later poll takes either back. Left to the road below,
-    # the human would be asked about a question nobody asked and the report
-    # would be released a tick later under a second notice. A round that
-    # COMMITTED is not this: its work is still in the checkout, so the dirty
-    # tree names the loose files that stopped it and the record stands for the
-    # publication that describes it.
-    if run.reported and run.after_sha == run.before_sha and (
-        _report_recovery._releases_an_unpublishable_report(ctx)
+    # A round that REPORTED and whose own checkout refuses for good ends here
+    # instead, under the terminal park that report owns (`report_recovery`).
+    # The two refusals behind that answer -- a worktree gone, a tree proved
+    # dirty -- are the same ones the recovery declines on, and no later poll
+    # takes either back: whether the round committed or not, nothing on this
+    # host is going to publish that report until a human acts.
+    #
+    # Left to the road below it takes a checkout park of the road's own and
+    # keeps the record, and the tick after it is the recovery -- which finds
+    # the identical refusal, releases the report and posts a SECOND notice for
+    # one condition, with the pairs that round consumed unapplied in between.
+    # A terminal road owes them in its own durable write, so the park that
+    # ends this one applies them and the reply it asks for resumes a developer
+    # over what has actually gone unanswered.
+    if run.reported and _report_recovery._releases_an_unpublishable_report(
+        ctx, run.worktree,
     ):
         return
 

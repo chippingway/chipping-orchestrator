@@ -82,10 +82,15 @@ WRITE_PINNED_STATE = "write_pinned_state"
 CANDIDATE_UNREADABLE = MeasurementFailure.CANDIDATE_UNREADABLE
 
 # A tree clean when the push is decided and dirty on the far side of it,
-# and one still dirty when the tick after the crash reads it.
+# and one still dirty when the tick after the crash reads it. Two clean
+# readings lead, because a round that REPORTED proves its own checkout before
+# the disposition does -- a tree it finds carrying work is one no later poll
+# takes back, so that round ends on the terminal park its report owns rather
+# than handing the publication a candidate nothing is going to publish.
 STRAY_FILE = "stray.py"
 _DIRTY = support._WorktreeStatus(readable=True, paths=(STRAY_FILE,))
-_DIRTIED = (support._WorktreeStatus(readable=True, paths=()), _DIRTY)
+_CLEAN = support._WorktreeStatus(readable=True, paths=())
+_DIRTIED = (_CLEAN, _CLEAN, _DIRTY)
 _STILL_DIRTY = (_DIRTY,)
 RUN_AGENT = "run_agent"
 # The two keywords a gated push names its commit and pins its ref by.

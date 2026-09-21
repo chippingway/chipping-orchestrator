@@ -59,10 +59,10 @@ def _published_head_in_sync(
 ) -> str:
     """The head this branch and its remote provably AGREE on, or "" for none.
 
-    The affirmative half of the probe below, for the roads that publish
-    without pushing: a report of the work a pull request already carries, and
-    the recovery that hands one on. Those need the opposite of a stranded
-    commit -- proof that the checkout is
+    The affirmative half of the probe below, for the road that publishes
+    without pushing: a report of the work a pull request already carries, on
+    the `CHANGES_REQUESTED` round this stage spawns itself. That needs the
+    opposite of a stranded commit -- proof that the checkout is
     standing exactly where the remote branch is -- and "nothing was proved
     stranded" is not that proof. The probe below answers "" for a tree nobody
     could read, a fetch that failed, a divergence git refused, and a remote

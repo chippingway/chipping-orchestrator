@@ -7,7 +7,10 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import report_delivery_state as _delivery_state
+from orchestrator.workflow.engine import (
+    report_delivery as _report_delivery,
+    report_delivery_state as _delivery_state,
+)
 from tests.workflow.stages.fixing import fixing_test_support as support
 
 IssueScenario = support.IssueScenario
@@ -140,9 +143,15 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
             ).watermarks,
         )
 
-    def test_dirty_tree_parks_in_fixing(self) -> None:
-        # Dev committed but left the tree dirty -> park (refuses to
-        # push an incomplete branch). Label stays at `fixing`.
+    def test_a_dirty_tree_ends_a_reported_round(self) -> None:
+        # The dev committed, reported, and left the tree carrying work. That
+        # is a refusal no later poll takes back -- nothing on this host is
+        # going to publish that report until a human acts -- so the round ends
+        # on the terminal park its REPORT owns rather than on a checkout park
+        # of the disposition's, which would keep the record and leave the
+        # recovery behind it to release the report and post a SECOND notice
+        # for one condition. One notice, and the pairs the round consumed
+        # applied in that park's own durable write.
         long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
         comment = FakeComment(
             id=TRIGGER_ID,
@@ -167,20 +176,56 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
 
         pinned_data = scenario.github.pinned_data(ISSUE)
         self.assertTrue(pinned_data.get(AWAITING_HUMAN))
-        # `_on_dirty_worktree` clears `park_reason` (terminal, needs
-        # human reply); the audit event still records the reason.
-        self.assertIsNone(pinned_data.get(PARK_REASON))
+        self.assertEqual(
+            pinned_data.get(PARK_REASON), _report_delivery.UNDELIVERABLE_REPORT,
+        )
+        self.assertEqual(len(scenario.github.posted_comments), 1)
         self.assertNotIn((ISSUE, VALIDATING), scenario.github.label_history)
         self.assertNotIn((ISSUE, DOCUMENTING), scenario.github.label_history)
-        # And the batch it consumed rides the report's record, for the write
-        # that finally publishes it.
-        self.assertLess(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
-        self.assertIn(
-            (PR_LAST_COMMENT_ID, TRIGGER_ID),
+        # The record is RELEASED and what that round consumed is on the
+        # comment: this road ENDS here, so the reply it asks for resumes a
+        # developer over what has actually gone unanswered rather than over
+        # the batch the released report already answered.
+        self.assertIsNone(
             _delivery_state.read_delivered_report(
                 PinnedState(state_data=pinned_data),
-            ).watermarks,
+            ),
         )
+        self.assertGreaterEqual(
+            pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID,
+        )
+        self.assertTrue(_report_delivery.owes_a_report(
+            PinnedState(state_data=pinned_data),
+        ))
+
+    def test_the_tick_after_that_park_spawns_nobody(self) -> None:
+        # And the poll behind it, which is what "one notice" really means:
+        # nothing new has landed, the record is gone and the batch is read, so
+        # the park stands, no second notice goes up, and no developer is paid
+        # to answer feedback the released report already answered.
+        scenario = IssueScenario(*self._seed(
+            pr=self._open_pr(),
+            issue_comments=[FakeComment(
+                id=TRIGGER_ID,
+                body="please rename helper",
+                user=FakeUser(ALICE),
+                created_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            )],
+        ))
+        run = {
+            "run_agent": _agent(
+                session_id=DEV_SESSION, last_message=PUSHED_FIX_MESSAGE,
+            ),
+            "head_shas": (SHA_BEFORE, SHA_AFTER),
+            "dirty_files": ["orchestrator/foo.py"],
+        }
+
+        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
+            self._run_fixing(scenario.github, scenario.issue, **run)
+            mocks = self._run_fixing(scenario.github, scenario.issue, **run)
+
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertEqual(len(scenario.github.posted_comments), 1)
 
     def test_no_commit_question_parks_in_fixing(self) -> None:
         # Dev returned a clarifying question with no new commit. The
