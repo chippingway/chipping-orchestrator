@@ -103,14 +103,23 @@ SEEDED_READERS = MappingProxyType({
 })
 
 # The route bookkeeping a fix round freezes onto its record: the bookmarks the
-# consumed batch clears and the reviewer round it lands on. Only the write that
-# completes the publication may apply them.
+# consumed batch clears, the reviewer round it lands on, and the mark that says
+# a fixing round is what settled -- the one thing a settlement can leave for the
+# relabel it cannot make itself. Only the write that completes the publication
+# may apply them, and the fixing route records all of them together.
 FROZEN_SPENDS = (
     (PENDING_FIX_AT, None),
     (PENDING_FIX_ISSUE_MAX_ID, None),
     (PENDING_FIX_ISSUE_IDS, None),
     (REVIEW_ROUND, 0),
+    (recovery.SETTLED_ROUND, True),
 )
+
+# What the same record looks like written by a route that is NOT this stage's:
+# an implementing candidate or the validating drift resume records a delivery
+# under the very same key, closing bookkeeping of its own and raising no mark
+# this stage could hand a round back on.
+_FOREIGN_SPENDS = ()
 
 # The one report this build refuses to RECORD: past anything a pinned comment
 # can carry, which is the road that parks the run for a human with nothing left
@@ -151,6 +160,9 @@ _MOVED_REMOTE = MappingProxyType({
 
 # The handoff member naming the workflow label a settlement landed under.
 _SETTLED_UNDER = "under"
+
+# The delivery member naming the route that recorded it.
+_ROUTE = "route"
 
 # A delivered record shaped like nothing this build writes: the key is there,
 # so the issue CLAIMS a report, and no reader can say what it is about.
@@ -410,7 +422,60 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
 
 
 class FixingStaleSettlementTest(unittest.TestCase, _ReportRoundMixin):
-    """A mark that cannot be about the round in hand finishes nothing."""
+    """A settlement this stage cannot place finishes no round of its own."""
+
+    def test_a_foreign_delivery_finishes_no_round(self) -> None:
+        # A delivery is claimed by ONE key whoever wrote it, and this stage is
+        # not the only writer: an implementing candidate and the validating
+        # drift resume each record one. Either can still be owed when a
+        # reviewer's change request moves the issue here -- and settling it
+        # closes that route's bookkeeping and raises no mark of this stage's.
+        # Handed back on the settling itself, the recovery would publish the
+        # report and bounce the change request to the reviewer with the
+        # feedback that earned it never scanned.
+        seeded = self._seed_round()
+        crash.later_pr_comment(
+            seeded.github.get_pr(support.PR_NUMBER),
+            LATER_COMMENT_ID, LATER_COMMENT,
+        )
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID,
+            landed=PR_HEAD_SHA, spends=_FOREIGN_SPENDS,
+        )
+        state = self._record(seeded)
+        state.set(_records.DELIVERED_REPORT, {
+            **state.get(_records.DELIVERED_REPORT), _ROUTE: VALIDATING,
+        })
+        seeded.github.write_pinned_state(seeded.issue, state)
+
+        spawned_nobody(self._tick(seeded))
+
+        # The report still goes out -- the pull request is owed it whoever
+        # wrote it -- and nothing this stage owns moves with it.
+        self.assertEqual(self._reports_posted(seeded), 1)
+        self.assertFalse(self._went_back_to_review(seeded))
+        self.assertFalse(self._pinned(seeded).get(recovery.SETTLED_ROUND))
+        # So the change request that moved the issue here is still there to be
+        # answered, on the poll after.
+        self.assertIn(LATER_COMMENT, only_prompt(self._tick(seeded)))
+
+    def test_a_relabel_mid_recovery_finishes_no_round(self) -> None:
+        # The settling write stamps the label it reads AFRESH, precisely so a
+        # human who moves the issue while the tick runs cannot be claimed to
+        # have been standing behind it. The recovery has to read that stamp
+        # too: handed back on its own settling, it would drag the issue out of
+        # the label a human just chose and back to `workflow:validating`, with
+        # whatever that move was for never read.
+        seeded = self._seed_round(crashed=True, landed=PR_HEAD_SHA)
+        seeded.github.apply_foreign_label(seeded.issue, IN_REVIEW_LABEL)
+
+        spawned_nobody(self._tick(seeded))
+
+        self.assertEqual(self._reports_posted(seeded), 1)
+        self.assertFalse(self._went_back_to_review(seeded))
+        # The mark the settlement raised is retired rather than spent, so no
+        # later round inherits it either.
+        self.assertFalse(self._pinned(seeded).get(recovery.SETTLED_ROUND))
 
     def test_a_mark_left_elsewhere_finishes_no_round(self) -> None:
         # A fixing round can leave `workflow:fixing` with its transaction still

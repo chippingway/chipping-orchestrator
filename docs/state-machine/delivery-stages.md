@@ -3358,13 +3358,21 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      reader reached before one of these parks could be taken.)
 
      A binding that TAKES the delivery **ends the tick** too. Settled, the round the record froze is closed and the
-     issue is handed back to `workflow:validating` — the recovered route is finished exactly as the live road would
-     have finished it, for the same reason. Bound but unposted, nothing is relabelled: the transaction is
-     [the reconciliation's](#the-developer-report-transaction-every-dispatch) to finish, and the `pending_fix_*`
-     bookmarks it replays from outlive this tick. A binding that refuses WITHOUT consuming the delivery — a comment
-     too full — leaves the tick to carry on, since stopping would hold the roads that answer a human. A pre-push
-     crash binds nothing: the commit is still local, and the no-feedback bounce below republishes it and binds the
-     report once it lands.
+     issue is handed back to `workflow:validating` — the recovered route is finished exactly as the live road would have
+     finished it, for the same reason. That hand-back is asked for through the SAME correlation a mark found already
+     raised is (`report_recovery._finishes_a_settled_round`, above), never taken from the settling itself, because two
+     things the settling cannot rule out would otherwise move a round this stage never opened. A
+     `developer_report_delivery` is claimed by one key whoever wrote it, and this stage is not its only writer —
+     `implementing/candidate_recovery.py` and the validating drift resume each record one, and either can still be owed
+     when a reviewer's change request moves the issue here; settling such a record closes ITS route's bookkeeping and
+     raises no `fixing_round_settled` at all. And the settling write stamps the label it read AFRESH, so a human who
+     relabelled while the developer ran — or a label read that failed — leaves a settlement this stage cannot place.
+     Both end the tick with the report published and the label untouched, and the next poll reads the issue under the
+     label it really carries. Bound but unposted, nothing is relabelled: the transaction is [the
+     reconciliation's](#the-developer-report-transaction-every-dispatch) to finish, and the `pending_fix_*` bookmarks it
+     replays from outlive this tick. A binding that refuses WITHOUT consuming the delivery — a comment too full — leaves
+     the tick to carry on, since stopping would hold the roads that answer a human. A pre-push crash binds nothing: the
+     commit is still local, and the no-feedback bounce below republishes it and binds the report once it lands.
 
      Two refusals are DEFINITE and **park once** (`report_recovery._holds_a_report_nothing_can_publish`), writing
      what the dead run consumed into that park's own durable write. A worktree that is GONE leaves nothing to

@@ -35,13 +35,19 @@ relabels nothing: the transaction is the reconciliation's to finish ahead of the
 next handler, and the bookmarks an outstanding publication replays from have to
 outlive this tick.
 
-The round a settlement finished ELSEWHERE -- the reconciliation ahead of this
-handler, or a tick that died between that write and its own relabel -- is handed
-back on the strength of the mark that settlement raised, and on nothing weaker.
-A settled report and a publication receipt both outlive the transaction that
-made them, so a pull request standing on the commit one names is no evidence
-that this round just closed; taken for it, a manual relabel would be bounced
-back to the reviewer with its feedback unread.
+Every round handed back here is handed back on the strength of the mark that
+settlement raised, and on nothing weaker -- the one a settlement finished
+ELSEWHERE (the reconciliation ahead of this handler, or a tick that died between
+that write and its own relabel) and equally the one settled by the binding just
+above. A settled report and a publication receipt both outlive the transaction
+that made them, so a pull request standing on the commit one names is no
+evidence that this round just closed; taken for it, a manual relabel would be
+bounced back to the reviewer with its feedback unread. Nor is the settling
+itself evidence: a delivery is claimed by one key whoever wrote it, and an
+implementing candidate and the validating drift route each write one too, so a
+record this stage never wrote can be the one that settles here -- closing ITS
+route's bookkeeping, raising no mark of this stage's, and bouncing a reviewer's
+own change request back unread if the relabel were taken from it.
 
 That mark is CONSUMED here rather than merely read, and it is correlated before
 it is acted on. The reconciliation that raises it runs ahead of every handler on
@@ -127,7 +133,17 @@ def _answers_a_report_first(ctx: _models._FixingContext) -> bool:
 
 
 def _finishes_a_settled_round(ctx: _models._FixingContext) -> bool:
-    """Hand back a round whose report settled while nobody was looking.
+    """Hand back the round a raised mark says just settled, if it is one.
+
+    Asked twice a tick and by two callers, because the answer is the same
+    question either way: ahead of everything, for the settlement some other
+    write landed, and again behind the binding above, for the one it landed
+    itself. A settlement is not licence to relabel -- the mark it raised is,
+    and only where this owner can still place it.
+
+    False is every round this stage may not end here, and the mark is RETIRED
+    on the way out wherever one is standing that can no longer be about the
+    round in hand.
 
     The reconciliation ahead of every handler completes a transaction and lets
     the tick carry on, which is right for the stages behind it and wrong for
@@ -216,6 +232,22 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     relabelled: the transaction is the reconciliation's to finish, and the
     bookmarks it replays from have to outlive this tick.
 
+    The hand-back a settlement earns is asked for through the same correlation
+    a settlement found already raised is, and never taken from the settling
+    itself. Two readings make that difference real. A delivery is claimed by
+    one key whoever wrote it, and this stage is not the only writer: an
+    implementing candidate and the validating drift route each record one, and
+    either can still be owed when a reviewer's change request moves the issue
+    here. Settling such a record closes ITS route's bookkeeping and raises no
+    fixing mark at all, so a hand-back taken on the settling would bounce the
+    reviewer's own request back to `workflow:validating` with the feedback
+    that earned it never scanned and this route's bookmarks still standing.
+    And the settling write stamps the label it read AFRESH, so a human who
+    relabelled while the developer ran -- or a label read that failed -- leaves
+    a settlement this stage cannot place. Routed through the correlation, both
+    end the tick with the report published and the label untouched, and the
+    next poll reads the issue under the label it really carries.
+
     False is every other issue and also the delivery a binding refused without
     consuming -- a comment too full, a subject its reader will not take.
     Nothing is discarded there, the tick carries on, and a later one asks
@@ -252,7 +284,7 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     if still_owed:
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     else:
-        _reporting._hands_the_round_back(ctx)
+        _finishes_a_settled_round(ctx)
     return True
 
 

@@ -303,13 +303,18 @@ round is recorded, published and settled rather than parked:
   since that is what their reply has to fix and the report it earns retires both.
 - A report an earlier tick recorded and a crash left **unbound** is answered before the next tick scans anything.
   Neither group is applied there: the publication is still ahead, and the write that completes it is what moves a
-  reader. Whether the code went out is re-proved against the checkout — a tree provably clean, a head it can name,
-  and the pull request standing on it — rather than remembered off the persistent publication receipt, which on a
-  tick that pushed nothing names an older round. Proved, the delivery is bound and posted with no developer run at
-  all, and the recovered round is finished back to `workflow:validating`; bound but unposted, nothing is relabelled
-  and the reconciliation finishes it. A worktree that is gone, and a tree this host proved dirty, leave nothing to
-  prove either way — those park once for a human, and the park is the one place a report road records what it
-  consumed, because a park is where the road ends rather than a step on the way to a publication.
+  reader. Whether the code went out is re-proved against the checkout — a tree provably clean, a head it can name, and
+  the pull request standing on it — rather than remembered off the persistent publication receipt, which on a tick that
+  pushed nothing names an older round. Proved, the delivery is bound and posted with no developer run at all, and the
+  recovered round is finished back to `workflow:validating` — but only where the `fixing_round_settled` mark the
+  settlement raised still correlates, exactly as a mark found already raised has to. Settling is not itself licence to
+  relabel: a delivery is claimed by one key whoever wrote it, and the implementing candidate and the validating drift
+  resume each record one, so the record that settles here may be a route's this stage never ran, closing bookkeeping of
+  its own and raising no mark; and the settling write stamps the label it read afresh, so a human who relabelled
+  meanwhile leaves a settlement this stage cannot place. Either way the report goes out and the label stays put. Bound
+  but unposted, nothing is relabelled and the reconciliation finishes it. A worktree that is gone, and a tree this host
+  proved dirty, leave nothing to prove either way — those park once for a human, and the park is the one place a report
+  road records what it consumed, because a park is where the road ends rather than a step on the way to a publication.
 - A round whose report has **settled** is finished before anything else is scanned. The write that settled it closed
   the route's bookkeeping, so a scan running past it reads whatever landed since under a route that no longer
   exists — an in_review batch answered as a validating one, where an ordinary `ACK:` is refused. The issue goes back

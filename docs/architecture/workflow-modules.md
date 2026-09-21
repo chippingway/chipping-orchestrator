@@ -1545,16 +1545,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the settlement completing it applies both for, and the scan behind this is held off the
                             batch by those same recorded pairs meanwhile. A binding that TAKES the delivery ends the
                             tick, finishing the recovered route back to `workflow:validating` where the publication
-                            settled and relabelling nothing where it is still owed; a record the issue CLAIMS and
-                            nothing can read parks once ahead of all of it, since read as an absence it would fall
-                            through to the scan whose watermarks it was holding back; a worktree that is GONE and a tree
-                            this host PROVED dirty each park once, writing what the dead run consumed into that park's
-                            own write, since the republishing bounce declines the second exactly as this owner does,
-                            while every other refusal leaves a checkout that bounce still republishes from. The mark a
-                            settlement raises is consumed rather than merely read -- that settlement can land under any
-                            non-terminal label, so a mark found over a newer round's route anchor, beside a report still
-                            owed, or under a label the settlement's own handoff says was not this stage's is retired
-                            instead
+                            settled -- through the same correlation a mark found already raised goes through, never on
+                            the settling itself, since the key a delivery is claimed by is one the implementing and
+                            validating routes write too and the settling write stamps the label it reads afresh -- and
+                            relabelling nothing where it is still owed; a record the issue CLAIMS and nothing can read
+                            parks once ahead of all of it, since read as an absence it would fall through to the scan
+                            whose watermarks it was holding back; a worktree that is GONE and a tree this host PROVED
+                            dirty each park once, writing what the dead run consumed into that park's own write, since
+                            the republishing bounce declines the second exactly as this owner does, while every other
+                            refusal leaves a checkout that bounce still republishes from. The mark a settlement raises
+                            is consumed rather than merely read -- that settlement can land under any non-terminal
+                            label, so a mark found over a newer round's route anchor, beside a report still owed, or
+                            under a label the settlement's own handoff says was not this stage's is retired instead
       resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
                             nothing invoked, a shutdown kill, a live pause -- the record of the batch every other
                             outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix

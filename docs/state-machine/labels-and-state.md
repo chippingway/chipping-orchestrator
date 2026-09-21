@@ -1517,7 +1517,10 @@ The keys that matter for the state machine fall into a few groups:
   `workflow:fixing` — and nothing else on the comment says so, since `developer_report_current` is replaced rather
   than retired and `implementing_published_sha` is persistent. The fixing stage reads it before it scans anything,
   hands the issue back to `workflow:validating`, and retires the mark in the same write; no other stage reads or
-  writes it, and an issue that has never settled a fixing report does not carry it at all.
+  writes it, and an issue that has never settled a fixing report does not carry it at all. The unbound-report recovery
+  reads it through the same question after its OWN settlement rather than relabelling on the settling: the key a
+  delivery is claimed by is one the implementing and validating routes write too, and a record of theirs settles here
+  raising no mark, so a hand-back taken on the settling alone would bounce a reviewer's change request back unread.
 
   It is consumed rather than merely read, and correlated before it is acted on. The reconciliation that raises it
   runs ahead of every handler on every non-terminal label, and a fixing round can leave `workflow:fixing` with its
