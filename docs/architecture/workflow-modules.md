@@ -1621,7 +1621,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             asked about a round that reported is being asked about nothing. The record that carries this round's consumed readers, its route
                             bookkeeping and the settlement MARK for the write that completes the publication; the
                             binding taken only on a commit the CALLER proved, never on the persistent publication
-                            receipt; the park a report no road left can move earns, once; and the hand-back, which
+                            receipt, and told over a pull request READ AGAIN whether its DESCRIPTION still closes
+                            this issue and names the session -- the one report this workflow cannot both keep and
+                            manage is a `REPORT: VERIFIED` naming that very body, and the binding refuses it only
+                            if a caller says so, since the reading it assumes otherwise is that the description is
+                            safe; the park a report no road left can move earns, once; and the hand-back, which
                             retires the mark in a write of its own BEFORE the relabel -- a tick dying between them
                             has to leave a round nothing can mistake for one that just settled
       report_recovery.py    the report obligation answered AHEAD of every scan, since the scan is what the damage

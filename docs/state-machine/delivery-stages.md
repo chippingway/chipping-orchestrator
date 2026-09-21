@@ -3594,6 +3594,15 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        persistent publication receipt — and posted, in the engine's own two steps, so a post GitHub refuses leaves a
        transaction a later tick can finish rather than a delivery nothing goes back for.
 
+       The pull request is READ AGAIN for that binding, and the DESCRIPTION is what the fresh copy is for: a
+       `REPORT: VERIFIED` naming that body is the one report this workflow cannot both keep and manage, since GitHub
+       honours the closing reference there and nowhere else and the line naming the session is read back by every
+       later reuse. So the binding is told whether the description still carries both, and it refuses and parks
+       under `report_undeliverable` with the delivery intact where it does not — a human is asked to put those two
+       lines back, and the report is still on the pinned comment to bind once they have. Taken off the copy the
+       preflight fetched, an edit made while the developer ran would be invisible and the report would settle over a
+       pull request that no longer closes its issue; a read this tick cannot take holds everything instead.
+
        A report still OWED after that holds everything: `pending_fix_*` stays, `review_round` stays, the readers stay,
        and the label stays on `workflow:fixing`. The code may be out and the report of it is not, so a reviewer sent
        to that head would read an implementation nothing on the pull request describes — and the bookmarks are what

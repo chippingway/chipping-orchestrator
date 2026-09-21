@@ -42,6 +42,7 @@ from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
     report_binding as _report_binding,
     report_delivery as _report_delivery,
+    report_locations as _report_locations,
     report_outcomes as _report_outcomes,
     report_records as _report_records,
 )
@@ -51,6 +52,7 @@ from orchestrator.workflow.stages.fixing import (
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
+    dev_pr as _dev_pr,
     late_gate_models as _late_gate_models,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -432,19 +434,54 @@ def _holds_an_unpublished_report(
     never saw. Held instead, the code may still go out and the review waits for
     a report written over the branch as it stands.
 
+    The DESCRIPTION is read afresh and handed over with it, because one report
+    this workflow cannot both keep and manage is a `REPORT: VERIFIED` naming
+    that very body: binding it there spends the description GitHub honours the
+    closing reference in, and the line saying which session wrote the branch,
+    on a report a comment could have carried. The binding refuses that one and
+    parks with the delivery intact -- but only if it is TOLD, and the reading
+    defaults to "the description is safe", so a caller that stays silent
+    settles the report and hands the reviewer a pull request that no longer
+    closes its issue.
+
+    Read again rather than taken off the copy the preflight fetched, for the
+    reason the head is: that copy was fetched before the developer ran, and a
+    human editing the description in those minutes is invisible in it. The
+    object the report is POSTED onto is the fresh one too, so what the binding
+    refuses and what it writes to are one reading.
+
+    A read this tick could not take holds everything where it stands. The
+    report is valid and the record is intact; what is missing is an answer,
+    and a later tick asks again. Bound on the default instead, a description
+    nobody read would be spent exactly as an unread head would be.
+
     True holds the caller's relabel, which is what keeps a reviewer from being
     sent to a head whose report nothing on the pull request carries.
     """
     if not candidate or ctx.state.get(_report_delivery.UNREPORTED_WORK):
         return _report_delivery.owes_a_report(ctx.state)
+    try:
+        published = ctx.gh.get_pr(ctx.pr.number)
+    except Exception:
+        log.exception(
+            "issue=#%d could not re-read PR #%s to say whether its description "
+            "is still what this implementation needs; holding the report it "
+            "owes for a tick that can",
+            ctx.issue.number, getattr(ctx.pr, "number", None),
+        )
+        return _report_delivery.owes_a_report(ctx.state)
     _report_binding.binds_and_publishes(
         ctx.gh, ctx.issue, ctx.state, _report_binding.ReportPublication(
-            pull_request=ctx.pr,
+            pull_request=published,
             repo_slug=ctx.spec.slug,
             branch=_naming._resolve_branch_name(
                 ctx.state, ctx.spec, ctx.issue.number,
             ),
             commit=candidate,
+            describes_the_issue=_report_locations.describes_the_issue(
+                published, ctx.issue.number,
+                _dev_pr._dev_pr_attribution(ctx.state), ctx.gh.repo_slug,
+            ),
         ),
     )
     return _report_delivery.owes_a_report(ctx.state)
