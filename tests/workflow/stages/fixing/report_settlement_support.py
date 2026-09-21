@@ -129,6 +129,10 @@ AWAITING_HUMAN = "awaiting_human"
 
 PARK_REASON = "park_reason"
 
+# The park a fix round's own push files when it fails, spelled as the comment
+# carries it: the one park a later publication is itself the answer to.
+PARK_PUSH_FAILED = "push_failed"
+
 PR_NUMBER_FIELD = "pr_number"
 
 BRANCH_FIELD = "branch"
@@ -272,15 +276,23 @@ class RelabelRecorder:
 
     The ORDER is the contract a hand-back rests on: the mark has to be down
     and durable before the label moves, so a tick that dies between the two
-    leaves a round nothing can mistake for one that has just settled.
+    leaves a round nothing can mistake for one that has just settled. The park
+    that publication answered is the other half of the same write, and for the
+    same reason -- an issue handed to a reviewer still `awaiting_human` earns
+    a recovery poll nobody needs -- so it is recorded at the same moment.
     """
 
     def __init__(self, case: FixingReportCase) -> None:
         self.case = case
         self.relabel = case.gh.set_workflow_label
         self.durable: list = []
+        self.parked: list = []
 
     def __call__(self, issue, label) -> None:
-        """Take the relabel, noting the mark the comment still carries."""
-        self.durable.append(self.case.pinned().get(SETTLED_ROUND))
+        """Take the relabel, noting what the comment still carries."""
+        pinned = self.case.pinned()
+        self.durable.append(pinned.get(SETTLED_ROUND))
+        self.parked.append(
+            (pinned.get(AWAITING_HUMAN), pinned.get(PARK_REASON)),
+        )
         self.relabel(issue, label)

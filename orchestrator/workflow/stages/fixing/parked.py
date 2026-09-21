@@ -173,7 +173,11 @@ def _dispatch_validating_recovery(
     if followup is not None:
         _comments._post_issue_comment(ctx.gh, ctx.issue, ctx.state, followup)
 
-    # The park's own condition has cleared, so the flags come down either way.
+    # The park's own condition has cleared, so the flags come down either way
+    # -- in memory here, because this tick's own write is what carries them.
+    # The window past the receipt that push already wrote is the hand-back's
+    # to close: it retires the same park off the record, so a tick dying
+    # before the publication cannot be relabelled over one.
     ctx.state.set(_state._AWAITING_HUMAN, False)
     ctx.state.set(_state._PARK_REASON, None)
     if owes:
@@ -247,6 +251,12 @@ def _settles_the_recovered_report(
     the same correlation a mark found already raised goes through: a delivery
     is claimed by one key whoever wrote it, so the record that settles here
     may belong to a route this stage never ran.
+
+    That hand-back retires the same park off the record it settles from, which
+    is what makes the caller's in-memory clear enough: the push landed durably
+    a step ahead of the publication, so a tick dying between the two leaves the
+    park standing -- and the road that publishes next brings it down rather
+    than relabelling over it.
     """
     published = (
         _late_publication_state._published_commit(ctx.state)

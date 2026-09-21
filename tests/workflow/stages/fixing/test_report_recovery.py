@@ -436,6 +436,29 @@ class LiveCrashWindowTest(unittest.TestCase, LiveReportRoundMixin):
         self.assertEqual(pinned[live.REVIEW_ROUND], 0)
         self.assertTrue(self.handed_back(seeded))
 
+    def test_a_healed_park_never_reaches_the_reviewer(self) -> None:
+        # The narrowest window of the three, and the one with a park in it.
+        # The silent `push_failed` retry lands the push -- receipt and all,
+        # durably -- and only then clears the flags and publishes, so a tick
+        # dying in between comes back to a comment that still says a human is
+        # owed an answer. The recovery below binds that record, publishes it
+        # and hands the round back: relabelled over the park, the issue would
+        # reach `workflow:validating` still `awaiting_human`, for a recovery
+        # poll nobody needs and one nothing ends once the checkout is gone.
+        seeded = self.seed(crashed=True, landed=live.SHA_AFTER, **{
+            live.AWAITING_HUMAN: True,
+            live.PARK_REASON: live.PARK_PUSH_FAILED,
+        })
+        self.published(seeded).head.sha = live.SHA_AFTER
+
+        self.tick(seeded, head=live.SHA_AFTER)
+
+        pinned = self.pinned(seeded)
+        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
+        self.assertFalse(pinned[live.AWAITING_HUMAN])
+        self.assertIsNone(pinned[live.PARK_REASON])
+        self.assertTrue(self.handed_back(seeded))
+
     def test_a_pre_push_crash_republishes_first(self) -> None:
         # The crash landed before the push, so the branch is carrying a commit
         # the pull request has not got, and the bounce is the one road left

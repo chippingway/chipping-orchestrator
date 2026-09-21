@@ -3457,7 +3457,10 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        **Recovery follow-up** note above), clear park, clear `pending_fix_*`, flip back to `workflow:validating`
        (the helper bumps `review_round` on `pushed`). While a report is OWED none of that is spent or cleared and
        the relabel is the settlement's: the report is bound against the commit THIS retry landed, read off the
-       receipt that push has just written, and the round is handed back only on the mark the settlement raises. This
+       receipt that push has just written, and the round is handed back only on the mark the settlement raises. The
+       park comes down in that hand-back's own write as much as in this tick's, because the push is durable a step
+       ahead of the publication it carries: a tick dying between them leaves the park on the comment, for step 4's
+       recovery to retire as it publishes rather than relabel over. This
        closes the loop for `_handle_validating`'s CHANGES_REQUESTED route. On `stuck`, fall through to the
        worktree-drift check below. On `held` — the size gate
        took the candidate the retry was about — the tick stops outright: no follow-up, no clear, no drift reroute, and
@@ -3637,7 +3640,15 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        against the handoff the settlement recorded (`fixing/round_marks.py`) and retiring it in a durable write of
        its own BEFORE the relabel: a tick dying between the two has to leave a round nothing can mistake for one that
        has just settled, and a mark this stage may not act on — settled under another label, over a newer round's
-       anchor, beside a report still owed — comes down unspent with the relabel withheld. Only then does the issue
+       anchor, beside a report still owed — comes down unspent with the relabel withheld. The transient park that
+       publication ANSWERED comes down in that same write, for the same kind of reason: a `push_failed` park is
+       filed by the very push a recorded report rides, and the retry that finally lands it writes its receipt
+       durably a step ahead of the publication it carries — so a tick dying between the two is reached over a park
+       still standing, and an issue relabelled on top of one arrives at `workflow:validating` still
+       `awaiting_human`, for a recovery poll nobody needs and one nothing ends once the checkout it retries against
+       is gone. Only the reasons in `_VALIDATING_TRANSIENT_PARK_REASONS` come down, since membership there is the
+       claim that a condition resolves with nobody commenting; a question park is waiting on a person and a round
+       ending is no reply to them. Only then does the issue
        flip to `workflow:validating`, where the reviewer reads the report and the requirements being handed on. Docs
        do not run on this exit.
 - **Output**: terminal `done` / `rejected`, OR label flipped to `workflow:validating` (pushed fix, a report delivered

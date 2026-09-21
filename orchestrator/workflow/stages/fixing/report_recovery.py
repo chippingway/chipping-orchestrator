@@ -42,6 +42,13 @@ relabels nothing: the transaction is the reconciliation's to finish ahead of the
 next handler, and the bookmarks an outstanding publication replays from have to
 outlive this tick.
 
+A park the publication ANSWERS comes down in that same hand-back. The retry that
+lands a `push_failed` park's push writes its receipt durably a step ahead of the
+publication it carries, so this road is reached over a comment still saying a
+human is owed one -- and an issue relabelled on top of that park reaches
+`workflow:validating` still `awaiting_human`, for a recovery poll nobody needs
+and one nothing ends once the checkout it retries against is gone.
+
 Every round handed back here is handed back on the strength of the mark that
 settlement raised, and on nothing weaker -- the one a settlement finished
 ELSEWHERE (the reconciliation ahead of this handler, or a tick that died between

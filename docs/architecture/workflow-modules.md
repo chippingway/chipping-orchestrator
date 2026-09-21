@@ -1644,7 +1644,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             if a caller says so, since the reading it assumes otherwise is that the description is
                             safe; the park a report no road left can move earns, once; and the hand-back, which
                             retires the mark in a write of its own BEFORE the relabel -- a tick dying between them
-                            has to leave a round nothing can mistake for one that just settled
+                            has to leave a round nothing can mistake for one that just settled -- and brings down
+                            with it the transient park that publication ANSWERED: the retry that lands a
+                            `push_failed` push writes its receipt a step ahead of the publication it carries, so an
+                            issue relabelled over that park reaches `workflow:validating` still `awaiting_human`
       report_recovery.py    the report obligation answered AHEAD of every scan, since the scan is what the damage
                             runs through, plus the terminal park a checkout refusal earns, which the live reported
                             round takes through this owner rather than copying -- asked of the checkout its own

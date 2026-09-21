@@ -23,6 +23,11 @@ and the head a pull request happens to carry -- both of which outlive every
 transaction. It is cleared by the relabel that closes the round, and placed
 against the comment through `round_marks` before that relabel is taken.
 
+The park a failed push filed comes down in that same write, and for the same
+reason the mark does: the retry that finally lands that push is durable before
+the publication it carries is, so a relabel taken over the park hands a
+reviewer an issue that still says it is waiting on a human.
+
 Every other outcome a fix round reaches -- the `ACK:`, the question, the
 timeout, the dirty tree -- writes no report at all, and those close their own
 bookkeeping directly in `resume`. Telling the two apart is the whole of what
@@ -57,6 +62,7 @@ from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     state as _dev_state,
 )
+from orchestrator.workflow.stages.validating import state as _validating_state
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -72,6 +78,15 @@ _PR_OPEN = "open"
 # moved -- the settled report and the publication receipt are persistent, so a
 # head a pull request is standing on proves nothing about this transaction.
 _SETTLES_THE_ROUND = ((_state._SETTLED_ROUND, True),)
+
+# The parks a landed publication is itself the answer to, which is what
+# membership in this set claims: a condition that resolves with nobody
+# commenting. `push_failed` is the sharp one -- it is filed by the very push a
+# recorded report rides, so the settlement proving that push landed is what
+# retires it.
+_PARKS_A_PUBLICATION_ANSWERS = (
+    _validating_state._VALIDATING_TRANSIENT_PARK_REASONS
+)
 
 # What a reply that reached for the report contract and missed is held under.
 # The run is over, so nothing here clears on its own: what it asks for is a
@@ -393,6 +408,23 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
     else they owe into the state before calling; nothing they add afterwards
     would be durable in the window this ordering protects.
 
+    The park a landed publication ANSWERS is staged here rather than by any of
+    them, because the road that files one is never the road that settles it. A
+    `push_failed` park is filed by the very push a recorded report rides, and
+    the silent retry that finally lands that push writes its receipt durably
+    BEFORE it publishes -- so a tick dying in between comes back to a comment
+    still saying a human is owed an answer, beside a record the recovery ahead
+    of the next handler binds, publishes and hands straight back. Relabelled
+    over that park, the issue reaches `workflow:validating` still
+    `awaiting_human`: a recovery poll nobody needed, and one nothing can end at
+    all once the checkout it would retry against is gone. Only the parks a
+    later tick may retry SILENTLY come down, since membership in that set is
+    exactly the claim that a condition resolves with nobody commenting -- a
+    question park, a base-sync retry park and this stage's own report parks are
+    each waiting on a person, and a round ending is no reply to them. They come
+    down with the mark and for the mark's reason: the round is over either way,
+    and what a refused relabel withholds is only the move.
+
     Every road that can reach a relabel with the mark RAISED comes through
     here, and those are exactly the roads a settlement lands on: this round's
     own publication, the recovery's binding, the no-feedback bounce that
@@ -415,6 +447,9 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
     this round is over; what a refusal withholds is only the move.
     """
     places = _round_marks._places_the_round_in_hand(ctx.state)
+    if ctx.state.get(_state._PARK_REASON) in _PARKS_A_PUBLICATION_ANSWERS:
+        ctx.state.set(_state._AWAITING_HUMAN, False)
+        ctx.state.set(_state._PARK_REASON, None)
     ctx.state.set(_state._SETTLED_ROUND, None)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     if places:

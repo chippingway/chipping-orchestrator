@@ -410,6 +410,51 @@ class StaleCorrelationTest(unittest.TestCase, support.FixingReportCase):
         )
 
 
+class SettledParkTest(unittest.TestCase, support.FixingReportCase):
+    """The park a settled round's publication answered, and the one it does not.
+
+    The window is the whole subject: a `push_failed` park is filed by the very
+    push a recorded report rides, and the retry that lands that push writes its
+    receipt durably a step ahead of the publication it carries -- so the
+    hand-back is reached over a park that is still standing.
+    """
+
+    def setUp(self) -> None:
+        support.FixingReportCase.setUp(self)
+        self.records_a_settlement(under=WorkflowLabel.FIXING)
+        self.state.set(support.AWAITING_HUMAN, True)
+
+    def test_the_park_the_push_answered_falls_with_it(self) -> None:
+        # Relabelled on top of that park, the issue arrives at
+        # `workflow:validating` still `awaiting_human`: a recovery poll nobody
+        # needs, and one nothing ends once the checkout it retries against is
+        # gone.
+        self.state.set(support.PARK_REASON, support.PARK_PUSH_FAILED)
+        recorder = support.RelabelRecorder(self)
+
+        with patch.object(self.gh, "set_workflow_label", recorder):
+            _reporting._hands_the_round_back(self.ctx())
+
+        # Durable BEFORE the move, like the mark beside it: a tick dying in
+        # that window leaves nothing for a later road to relabel over.
+        self.assertEqual(recorder.parked, [(False, None)])
+        self.assertEqual(
+            self.gh.workflow_label(self.issue), WorkflowLabel.VALIDATING,
+        )
+
+    def test_a_park_waiting_on_a_human_is_left_alone(self) -> None:
+        # Only the parks a later tick may retry silently are ones a landed
+        # publication answers. A question park is waiting on a person, and a
+        # round ending is no reply to them.
+        self.state.set(support.PARK_REASON, _ASKED_A_QUESTION)
+
+        _reporting._hands_the_round_back(self.ctx())
+
+        pinned = self.pinned()
+        self.assertTrue(pinned.get(support.AWAITING_HUMAN))
+        self.assertEqual(pinned.get(support.PARK_REASON), _ASKED_A_QUESTION)
+
+
 class UnpublishedReportTest(unittest.TestCase, support.FixingReportCase):
     """What binds a recorded report, and what is left when nothing can."""
 
