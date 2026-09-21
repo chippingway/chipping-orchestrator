@@ -3603,10 +3603,16 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        persistent publication receipt — and posted, in the engine's own two steps, so a post GitHub refuses leaves a
        transaction a later tick can finish rather than a delivery nothing goes back for.
 
-       The pull request is READ AGAIN for that binding, and two things are asked of that one reading. The head it
-       is standing on has to BE the commit — whoever proved this commit proved it earlier in the tick, against a
-       pull request read earlier still, so a push landing in between takes the pull request off it and the report
-       would be posted, settled and handed off naming a commit no reviewer is reading. A moved head DEFERS, exactly
+       The pull request is READ AGAIN for that binding, and three things are asked of that one reading. It has to
+       still be OPEN: a thread somebody merged or closed while the developer ran keeps the head it had, so every
+       other comparison passes on a publication that is over, and the report would go onto a thread nobody reads
+       with the issue handed to a reviewer who has nothing left to review. That is the reading the
+       [reconciliation](#the-developer-report-transaction-every-dispatch) retires a transaction on, and this road
+       refuses it for the same reason — the PR-state terminals the preflight drains (step 1) are what finish such an
+       issue on the next tick. The head it is standing on has to BE the commit — whoever proved this commit proved
+       it earlier in the tick, against a pull request read earlier still, so a push landing in between takes the
+       pull request off it and the report would be posted, settled and handed off naming a commit no reviewer is
+       reading. A moved head DEFERS, exactly
        as it does for the [reconciliation](#the-developer-report-transaction-every-dispatch) on every later tick,
        and the road that republishes or re-proves takes it from there.
 

@@ -484,7 +484,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it hands work on: both records asked as a CLAIM so a truncated one counts as a debt, and the
                             park, which writes `developer_report_owed` beside its reason so the debt of a road with
                             no record to leave outlives any later park that replaces that reason -- and onto an
-                            older park still standing with the reason alone, with no second notice. Both holding
+                            older park still standing with the reason alone, with no second notice. A park already
+                            saying everything the notice would still WRITES: what a caller staged into the same
+                            state -- the consumed pairs, and a record the road behind them released -- is what
+                            that write is for, and skipping it would tell the caller the tick ended while the
+                            comment still carried both. Both holding
                             roads write `UNREPORTED_WORK` as well, which is the narrower fact the debt cannot
                             carry: these commits are undescribed, whatever record an EARLIER run left, and only a
                             report recorded over the branch as it stands retires it. `OWED_ROUND_RESET` is the
@@ -1628,8 +1632,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report is a session that spoke coherently, and a reset left to the publication is one a
                             round with no commit in it never reaches; the
                             binding taken only on a commit the CALLER proved, never on the persistent publication
-                            receipt, and held to a pull request READ AGAIN: the head it is standing on has to BE
-                            that commit, since whoever proved it proved it earlier in the tick and a push landing
+                            receipt, and held to a pull request READ AGAIN: that pull request has to still be OPEN,
+                            since a thread somebody merged or closed mid-run keeps the head it had and every other
+                            comparison passes on a publication that is over -- the reading the reconciliation
+                            retires a transaction on, refused here for the same reason -- and the head it is
+                            standing on has to BE that commit, since whoever proved it proved it earlier in the tick and a push landing
                             in between moves the head off it -- a moved head DEFERS, as it does for the
                             reconciliation on every later tick. That same reading says whether the DESCRIPTION
                             still closes this issue and names the session -- the one report this workflow cannot both keep and

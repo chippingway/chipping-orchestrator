@@ -39,6 +39,7 @@ import logging
 from orchestrator import config as _config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
+from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.workflow.engine import (
     report_binding as _report_binding,
     report_delivery as _report_delivery,
@@ -59,6 +60,11 @@ from orchestrator.workflow.stages.implementing import (
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The one pull request state a report may be published onto. A merged or
+# closed thread keeps the head it had, so nothing else this road compares
+# would notice that the publication it is about is over.
+_PR_OPEN = "open"
 
 # The mark this route's settlement raises, recorded beside the bookkeeping it
 # closes so the one write that completes a publication carries both. It is the
@@ -464,6 +470,15 @@ def _holds_an_unpublished_report(
     object the report is POSTED onto is the fresh one too, so what the binding
     refuses and what it writes to are one reading.
 
+    The first thing that reading is asked is whether the pull request is still
+    OPEN, ahead of everything that could disagree. A thread somebody merged or
+    closed while the developer ran keeps the head it had, so every comparison
+    below passes on a publication that is over -- and the report goes onto a
+    thread nobody reads, with the issue handed to a reviewer who has nothing
+    left to review. It is the reading the reconciliation retires a transaction
+    on, and this road refuses it for the same reason; the terminal arcs the
+    preflight drains ahead of the next tick are what finish such an issue.
+
     That same reading is what `candidate` is held to, and it is the LAST
     moment anything can be: whoever proved this commit proved it earlier in
     the tick, against a pull request read earlier still, and a push landing in
@@ -506,12 +521,13 @@ def _holds_an_unpublished_report(
             owed=_report_delivery.owes_a_report(ctx.state), unread=True,
         )
     standing = getattr(getattr(published, "head", None), "sha", "")
-    if standing != candidate:
+    if standing != candidate or _pr_reads.pr_state(published) != _PR_OPEN:
         log.warning(
-            "issue=#%d proved its developer report on commit %s and PR #%s is "
-            "standing on %s; holding the report rather than publishing it "
-            "against a head it does not describe",
-            ctx.issue.number, candidate, getattr(ctx.pr, "number", None),
+            "issue=#%d proved its developer report on commit %s and PR #%d is "
+            "%s, standing on %s; holding the report rather than publishing it "
+            "onto a publication it is not about",
+            ctx.issue.number, candidate, ctx.pr.number,
+            _pr_reads.pr_state(published),
             standing or "a head nothing could read",
         )
         return _models._ReportHold(

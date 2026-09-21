@@ -743,7 +743,9 @@ The keys that matter for the state machine fall into a few groups:
   condition a human REPAIRS rather than replies to (an edited report restored, a checkout cleaned) leaves nothing else
   to end the wait, and a debt outliving the settlement would hold the reviewer over a report the pull request carries.
   Additive: an issue without it owes nothing on that account, and an older park carrying the reason alone still reads
-  as a debt and is given the flag, with no second notice, the next time a road meets that park still standing.
+  as a debt and is given the flag, with no second notice, the next time a road meets that park still standing — which
+  is a notice withheld rather than a write: whatever the road staged beside the flag, a record it released among it,
+  rides that write, and skipping it would leave the caller told the tick ended over a comment that never changed.
 
   `developer_report_unreported_work` is the narrower fact beside it: a run committed work and no record of
   this issue's describes it. Every road that holds such work writes it — one whose report this build cannot record,

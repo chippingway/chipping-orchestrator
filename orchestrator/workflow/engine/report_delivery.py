@@ -407,11 +407,16 @@ def parks_an_undeliverable_report(
     its own notice; what they share is the flag, the reason, the debt, and the
     silence.
 
-    A park still standing gets no second notice, but it does get the debt: one
-    taken before `OWED_REPORT` existed carries the reason alone, and the park
-    that replaces that reason next would take the debt with it. One already
-    carrying the debt writes nothing at all, since there is nothing left for
-    this write to say that the comment does not already.
+    A park still standing gets no second notice, but everything else this owner
+    owes happens anyway, the WRITE included. What a caller staged is the reason
+    it has to: the consumed pairs below are one such thing, and so is anything
+    the road behind them released into the same state -- a recorded report a
+    checkout can no longer publish, say. Skipped on the strength of the park
+    already saying what the notice would, that write takes the release with it:
+    the caller is told the tick ended, the comment still carries the record,
+    and the very next tick publishes the report this road existed to withhold.
+    The debt is set here either way, since a park taken before `OWED_REPORT`
+    existed carries the reason alone.
 
     It is BOUNDED, like every park that ends an agent run: the run whose
     report failed took minutes, a human may have written in them, and the
@@ -439,8 +444,6 @@ def parks_an_undeliverable_report(
             "issue=#%d still owes a developer report this workflow cannot "
             "deliver; holding the tick without a second notice", issue.number,
         )
-        if state.get(OWED_REPORT):
-            return
     else:
         _guards._park_awaiting_human(
             gh, issue, state, notice, reason=UNDELIVERABLE_REPORT, bounded=True,

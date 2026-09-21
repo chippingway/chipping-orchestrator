@@ -82,11 +82,21 @@ _HEAD_SHAS = "head_shas"
 # The two checkout readings no later poll takes back, and how a case puts this
 # host into each: a worktree that is GONE (no real checkout at all) and a tree
 # this host PROVED dirty.
+_A_DIRTY_CHECKOUT = "is carrying uncommitted changes"
+
 _DEFINITE_REFUSALS = MappingProxyType({
     "is no longer on this host": None,
-    "is carrying uncommitted changes": {
-        _TREE_STATES: (crash.a_tree(paths=("stray.py",)),),
-    },
+    _A_DIRTY_CHECKOUT: {_TREE_STATES: (crash.a_tree(paths=("stray.py",)),)},
+})
+
+# A comment already carrying this road's own park, which is what a misread
+# reply leaves behind while an earlier tick's report is still recorded: the
+# notice has been posted and the debt is down, so the only thing a second
+# visit owes is the write.
+_ALREADY_PARKED = MappingProxyType({
+    live.AWAITING_HUMAN: True,
+    live.PARK_REASON: _report_delivery.UNDELIVERABLE_REPORT,
+    _report_delivery.OWED_REPORT: True,
 })
 
 # The two readings a report-only round holds on rather than parking under,
@@ -149,6 +159,19 @@ _A_SILENT_STREAK = crash.SILENT_PARKS_BEFORE_FRESH_SESSION - 1
 # A branch carrying one commit the remote has not got, which is what a crash
 # BEFORE the push leaves: the bounce is the one road left that sends it.
 _AHEAD_OF_REMOTE = (1, 0)
+
+# The two ways a pull request is OVER, as GitHub spells each, and the reading
+# that says it was open when this tick began. The ending is put on the pull
+# request ITSELF and the earlier reads are served a copy without it, because
+# that is the window: the preflight and the report-only proof happen before
+# the developer runs, and the thread can end while it does -- keeping the head
+# it had, so nothing else a case seeds moves.
+_ENDED_PULL_REQUESTS = MappingProxyType({
+    "merged": ("merged", True),
+    "closed": ("state", "closed"),
+})
+
+_STILL_OPEN = MappingProxyType({"merged": False, "state": "open"})
 
 # Where a report verified on the pull request's own body says it is.
 _PULL_REQUEST_URL = "https://github.com/{slug}/pull/{pr}"
@@ -537,6 +560,26 @@ class LiveFreshPullRequestTest(unittest.TestCase, LiveReportRoundMixin):
                 self.assertEqual(pinned[live.REVIEW_ROUND], 1)
                 self.assertFalse(self.handed_back(seeded))
 
+    def test_a_pull_request_that_ended_holds(self) -> None:
+        # A thread somebody merged or closed while the developer ran keeps the
+        # head it had, so every other comparison passes on a publication that
+        # is OVER. Published anyway, the report goes onto a thread nobody
+        # reads and the issue is handed to a reviewer with nothing left to
+        # review -- and the terminal arcs the preflight drains would have
+        # finished it on the very next tick. So the round holds: nothing
+        # posted, the record intact, and the label where it was.
+        for ending, (field, over) in _ENDED_PULL_REQUESTS.items():
+            with self.subTest(ending=ending):
+                seeded = self.seed()
+                setattr(self.published(seeded), field, over)
+
+                with self.serves_until(seeded, _THE_PROOF, **_STILL_OPEN):
+                    self.tick(seeded, message=_REPORTED)
+
+                self.assertEqual(seeded.github.posted_pr_comments, [])
+                self.assertIsNotNone(self.recorded(seeded))
+                self.assertFalse(self.handed_back(seeded))
+
     def test_a_head_that_moved_between_reads_holds(self) -> None:
         # A push landing between the proof and the binding takes the pull
         # request off the commit this report is about. Bound anyway, the
@@ -640,6 +683,46 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
             self.reader(seeded), live.TRIGGER_ID,
         )
         self.assertEqual(seeded.github.posted_pr_comments, [])
+
+    def test_a_standing_park_persists_the_release(self) -> None:
+        # The park this road takes may already BE standing -- a misread reply
+        # earns the same reason while an earlier tick's report is still
+        # recorded -- and a second notice for it would say nothing new. What
+        # the release owes is the WRITE, not the notice: the record it clears
+        # and the readers it advances are staged into the same state, so a
+        # tick that skipped the write would tell its caller the report was
+        # released while the comment still carried it.
+        for road, options in _DEFINITE_REFUSALS.items():
+            with self.subTest(road=road):
+                seeded = self.seed(
+                    crashed=True, landed=live.SHA_AFTER, **_ALREADY_PARKED,
+                )
+                announced = len(seeded.github.posted_comments)
+
+                self._parks(seeded, options)
+
+                self.assertIsNone(self.recorded(seeded))
+                self.assertGreaterEqual(self.reader(seeded), live.TRIGGER_ID)
+                self.assertEqual(
+                    len(seeded.github.posted_comments), announced,
+                )
+
+    def test_a_released_report_is_gone_for_good(self) -> None:
+        # What that write is FOR: the human the notice asks cleans the
+        # checkout without replying, and the poll behind them finds a tree and
+        # a pull request that agree. Left on the comment, the record would be
+        # bound and published there -- which is the one thing the notice
+        # exists to put in front of them rather than have happen by itself.
+        seeded = self.seed(
+            crashed=True, landed=live.SHA_AFTER, **_ALREADY_PARKED,
+        )
+        self._parks(seeded, _DEFINITE_REFUSALS[_A_DIRTY_CHECKOUT])
+        self.published(seeded).head.sha = live.SHA_AFTER
+
+        self.tick(seeded, head=live.SHA_AFTER)
+
+        self.assertEqual(seeded.github.posted_pr_comments, [])
+        self.assertFalse(self.handed_back(seeded))
 
     def _parks(self, seeded, options):
         """One tick over a checkout this host will never publish from."""
