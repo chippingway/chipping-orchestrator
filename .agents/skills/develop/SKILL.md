@@ -125,7 +125,9 @@ label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions
   that is there instead of growing one omnibus module, and put a stage's shared fixtures in
   its own support module rather than in a sibling stage's.
 - Each tests package carries its package-level guards (clean-process import, import-cycle / layering direction,
-  and public surface) in its own `test_imports.py`.
+  and public surface) in its own `test_imports.py`. A test-economy pass never trims them: one fresh process per
+  owner and per environment is the floor, since importing several owners in one interpreter hides a cycle behind
+  an already populated `sys.modules`.
 - Helpers that belong to no single stage get their own focused module under `tests/workflow/`, and
   `tests/workflow/fixtures.py` re-exports the ones a test spanning several of those leaves needs.
   Nothing lands at the `tests/` root: a helper shared across domains goes under `tests/support/`, and
@@ -133,8 +135,27 @@ label parsing on `workflow/label_reading.py`, the graph on `workflow/transitions
 - Prefer extending the in-memory fakes in `tests/support/github/` (reached through the
   `tests/support/fakes.py` bridge) over mocking PyGithub directly. New behavior should land with tests in
   the matching stage file.
+- Assert what a change does, not which helper ran. Drive a stage handler through the in-memory GitHub client —
+  or through a whole `tick()` — and read back the workflow label, `pinned_data`, posted comments, the PR, and
+  what the next tick does; drive a dashboard section against the recording page doubles beside it in
+  `tests/observability/dashboard/` and read back the panel order, the filters and timezone the page was drawn
+  with, and the data on screen. A test that patches a helper in the package under test and asserts `call_args`,
+  object identity, or the order two same-package helpers ran in breaks on every refactor and says nothing about
+  behavior.
+- Keep a seam patch where a collaborator is deliberately stubbed and its effect cannot otherwise be observed —
+  a network or database read, an agent run, a renderer reaching for an optional dependency — and patch it on
+  the defining owner, as above.
+- Call counts and ordering stay where the count or the order is itself the contract: a forbidden push, a
+  duplicate child or PR, repeated charging, an extra API read or pinned-state write, timeout cleanup,
+  write-before-publish ordering. `tests/github/test_issue_polling.py` asserting no per-issue detail GET is the
+  model. Literal label, pinned-state key, comment marker, watermark, and event payload checks stay for the same
+  reason — they are the compatibility contract, not implementation detail.
 - Before finalizing tests, do a redundancy pass:
   - List each added/modified test and the distinct behavior it protects.
+  - Run one scenario once and assert its outcomes together. Where several methods share a `setUp` and differ
+    only in which outcome they inspect, fold them into one test that keeps every assertion and its diagnostic
+    message. Keep distinct scenarios apart: different failure inputs, crash windows, security boundaries, and
+    side effects each earn their own run.
   - Merge tests that differ only by input shape or branch case into `pytest.mark.parametrize` cases
     or a small named loop, unless separate setup materially improves clarity.
   - Prefer one focused helper/unit test that covers sibling branches over multiple tests with repeated setup.
