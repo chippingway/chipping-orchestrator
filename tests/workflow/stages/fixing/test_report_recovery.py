@@ -87,6 +87,27 @@ _DEFINITE_REFUSALS = MappingProxyType({
 })
 
 
+# The two readings a report-only round holds on rather than parking under,
+# and the one it ends on. A tree carrying something is PROVED, which no later
+# poll takes back; a status that established nothing and a head the checkout
+# would not name are about the tick alone.
+_UNREAD_TREE = "a tree status nobody could take"
+
+_TRANSIENT_READS = MappingProxyType({
+    _UNREAD_TREE: {"tree_states": (crash.a_tree(readable=False),)},
+    "a head the checkout would not name": {
+        "head_shas": (live.PR_HEAD_SHA, ""),
+    },
+})
+
+_DIRTY_CHECKOUT = MappingProxyType(
+    {"tree_states": (crash.a_tree(paths=("stray.py",)),)},
+)
+
+# What every road that cannot move a report parks under.
+_UNDELIVERABLE = _report_delivery.UNDELIVERABLE_REPORT
+
+
 def _reply(comment_id: int, body: str):
     """One human comment on the issue thread, settled past the debounce."""
     return live.FakeComment(
@@ -301,7 +322,14 @@ class LiveReportRoundTest(unittest.TestCase, LiveReportRoundMixin):
 
 
 class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
-    """The checkouts a recorded report can never be published over."""
+    """The checkouts a recorded report can never be published over.
+
+    Both sides of the fork, because the roads meet here: a record a crash left
+    behind, and a round that reported on THIS tick and whose own checkout
+    refused the reading it needed. What the two owe is the same, so a refusal
+    no later poll takes back ends either road under one notice and a reading
+    nobody could take holds either where it stands.
+    """
 
     def test_a_checkout_nothing_can_prove_parks_once(self) -> None:
         # A worktree that is GONE and a tree this host proved DIRTY are the
@@ -345,6 +373,74 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
         self.assertFalse(posted_comment_contains(
             seeded.github, _UNPUBLISHABLE_PHRASE,
         ))
+
+    def test_a_transient_read_holds_a_reporting_round(self) -> None:
+        # A head the checkout would not name and a status that established
+        # nothing are readings about the TICK, not about the round: the report
+        # is valid and the branch is wherever it was. So the round is held --
+        # nothing published, and no park at all. Parked instead, a human is
+        # asked about a question this developer never posed, and the park
+        # outlives the tick that finally publishes.
+        for read, options in _TRANSIENT_READS.items():
+            with self.subTest(read=read):
+                seeded = self.seed()
+
+                self.tick(seeded, message=_REPORTED, **options)
+
+                pinned = self.pinned(seeded)
+                self.assertFalse(pinned[live.AWAITING_HUMAN])
+                self.assertIsNone(pinned.get(live.PARK_REASON))
+                self.assertEqual(seeded.github.posted_comments, [])
+                self.assertIsNotNone(pinned[_DELIVERED_REPORT])
+                self.assertFalse(self.handed_back(seeded))
+
+    def test_the_tick_that_can_read_publishes_it(self) -> None:
+        # The other half of that hold, over the polls it is really made of:
+        # the reading heals, the recovery ahead of the scan publishes the
+        # record the held tick left, and the reviewer is handed the head with
+        # no human ever having been waited for.
+        seeded = self.seed()
+        self.tick(seeded, message=_REPORTED, **_TRANSIENT_READS[_UNREAD_TREE])
+
+        mocks = self.tick(seeded)
+
+        pinned = self.pinned(seeded)
+        spawned_nobody(mocks)
+        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
+        self.assertEqual(seeded.github.posted_comments, [])
+        self.assertFalse(pinned[live.AWAITING_HUMAN])
+        self.assertEqual(
+            pinned[live.LAST_ACTION_COMMENT_ID], live.TRIGGER_ID,
+        )
+        self.assertTrue(self.handed_back(seeded))
+
+    def test_a_dirty_round_takes_the_report_park(self) -> None:
+        # A tree this host PROVED dirty is decisive, so the round ends on the
+        # terminal park its REPORT owns rather than on the question road: one
+        # notice, the reason a settlement can read, the record released, and
+        # the batch it consumed written down in that park's own write. The
+        # poll behind it adds no second notice, because nothing has changed
+        # that a human has not been asked about.
+        seeded = self.seed()
+
+        self.tick(seeded, message=_REPORTED, **_DIRTY_CHECKOUT)
+        mocks = self.tick(seeded, message=_REPORTED, **_DIRTY_CHECKOUT)
+
+        pinned = self.pinned(seeded)
+        spawned_nobody(mocks)
+        self.assertEqual(len(seeded.github.posted_comments), 1)
+        self.assertTrue(posted_comment_contains(
+            seeded.github, _UNPUBLISHABLE_PHRASE,
+        ))
+        self.assertEqual(pinned[live.PARK_REASON], _UNDELIVERABLE)
+        self.assertIsNone(pinned[_DELIVERED_REPORT])
+        self.assertTrue(_report_delivery.owes_a_report(
+            PinnedState(state_data=pinned),
+        ))
+        self.assertGreaterEqual(
+            pinned[live.LAST_ACTION_COMMENT_ID], live.TRIGGER_ID,
+        )
+        self.assertEqual(seeded.github.posted_pr_comments, [])
 
     def _parks(self, seeded, options):
         """One tick over a checkout this host will never publish from."""

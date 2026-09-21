@@ -1606,20 +1606,27 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             replay settles the batch it REPLAYED joined with the fresh rescan, each item against the
                             reader of the surface it was posted on
       reporting.py          the settlement-driven form of that road, which every reported fixing round takes: the
-                            disposition helpers such a round is read by. Which reply this is -- a report, an ordinary answer, or one that reached
+                            disposition helpers such a round is read by. Which reply this is -- a report, an ordinary
+                            answer, or one that reached
                             for the contract and missed, an `ACK:` beside a report, which is held for a human rather
                             than acted on by either half; whether a round that committed nothing may publish onto
                             the head its pull request already carries, on the affirmative proof that the head read,
-                            never moved, is the one the pull request is STANDING on, and left a tree proved clean --
-                            a GitHub read nobody could take holds rather than parking, being about this tick and not
-                            about the round; the record that carries this round's consumed readers, its route
+                            never moved, is the one the pull request is STANDING on, and left a tree proved clean.
+                            Three readings there HOLD rather than answering: a pull request this poll could not
+                            fetch, a head the checkout would not name, and a tree status that established nothing
+                            are about this tick and not about the round, so nothing is published and nothing is
+                            parked. What is decisive instead is a head that moved, a pull request standing
+                            somewhere else, and a tree PROVED to be carrying something -- and the last of those
+                            ends on the report's own terminal park rather than the question road, since a human
+                            asked about a round that reported is being asked about nothing. The record that carries this round's consumed readers, its route
                             bookkeeping and the settlement MARK for the write that completes the publication; the
                             binding taken only on a commit the CALLER proved, never on the persistent publication
                             receipt; the park a report no road left can move earns, once; and the hand-back, which
                             retires the mark in a write of its own BEFORE the relabel -- a tick dying between them
                             has to leave a round nothing can mistake for one that just settled
       report_recovery.py    the report obligation answered AHEAD of every scan, since the scan is what the damage
-                            runs through: a round whose report SETTLED while nobody was looking is handed back on
+                            runs through, plus the terminal park a checkout refusal earns, which the live
+                            report-only round takes through this owner rather than copying: a round whose report SETTLED while nobody was looking is handed back on
                             the mark that settlement raised, and a delivery a crash left unbound is applied off its
                             own record and bound where it may be. Whether the code went out is RE-PROVED against
                             the checkout rather than remembered off the persistent receipt -- a tree provably

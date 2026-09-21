@@ -270,7 +270,9 @@ unspent and the round to be finished again — by the recovery ahead of the next
 checkout against the head the pull request carries rather than trusting a receipt, publishes the report over it, and
 hands the round back on the mark that settlement raises. A checkout that is gone, or one this host proves dirty,
 gets one notice instead and releases the recorded report, so restoring it is not on its own enough to send a report
-to review; the debt stays and the reply still brings one. A commit an earlier round
+to review; the debt stays and the reply still brings one. The round that reports on the tick itself takes that same
+notice when its own checkout refuses that way, and HOLDS — publishing nothing and parking nothing — where the
+refusal is a reading nobody could take rather than a checkout proved unpublishable. A commit an earlier round
 left unpublished still passes the gate on its way there, since its own report was that round's to record. The ordinary
 non-actionable `ACK:` and a question keep their own roads, and on the human-feedback route the `ACK:` still returns
 the pull request to `in_review` — but only a reply that never used the report contract at all is that: one that

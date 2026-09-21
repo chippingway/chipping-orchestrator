@@ -247,24 +247,37 @@ def _is_report_only(
     onto a pull request that has since moved past it -- with the issue handed
     back to the reviewer over a head nothing describes.
 
-    A read nobody could take answers NONE rather than False, because it is the
-    one refusal here that is about this tick rather than about the round. Every
-    other one is decisive: a head that did not read, a pull request standing
-    somewhere else, a tree nobody could prove clean -- each is a condition the
-    recovery ahead of the next handler re-proves and declines in exactly the
-    same way, so the no-commit road that parks for a human is the right one. A
-    GitHub call that failed is none of that. The report is valid, the branch is
-    where the report says it is, and the only thing missing is an answer this
-    poll could not get -- so the caller holds everything where it stands and
-    the recovery publishes it on a tick that can read the pull request. Parked
-    instead, the report goes out from under a park whose reason no settlement
-    owns, and the issue is handed to review still waiting on a human nobody
-    ever needed.
+    A reading nobody could TAKE answers NONE rather than False, and that is
+    three readings rather than one: a pull request this poll could not fetch, a
+    HEAD the checkout would not name, and a tree status that established
+    nothing. None of them is about the round. The report is valid and the
+    branch is wherever it was; what is missing is an answer, and a later poll
+    asks for it again -- so the caller holds everything where it stands,
+    nothing published and nothing parked, and the recovery ahead of a later
+    handler publishes it on the first tick that can read them. Sent down the
+    no-commit road instead, a valid report earns a park saying its developer
+    asked a question, the human answering it is answering nothing, and the
+    tick that finally publishes hands the issue to review under a park no
+    settlement owns and no reviewer runs behind.
+
+    False is what is left, and every one of those IS about the round: a head
+    that moved, which is a code change and belongs on the publication road; a
+    pull request standing somewhere else; and a tree this host PROVED is
+    carrying something loose. The caller routes the last of those through the
+    terminal park the report itself owns rather than the question road, since
+    no later poll takes a proved-dirty checkout back either.
     """
-    if run.dev_result.timed_out or not run.after_sha:
+    if run.dev_result.timed_out or (
+        run.after_sha and run.after_sha != run.before_sha
+    ):
         return False
-    if run.after_sha != run.before_sha:
-        return False
+    if not run.after_sha:
+        log.info(
+            "issue=#%d could not read the checkout's head to say whether its "
+            "report describes the published one; holding it for a tick that "
+            "can", ctx.issue.number,
+        )
+        return None
     try:
         published = ctx.gh.get_pr(ctx.pr.number)
     except Exception:
@@ -276,7 +289,8 @@ def _is_report_only(
         return None
     if run.after_sha != getattr(getattr(published, "head", None), "sha", ""):
         return False
-    return _worktree_status._worktree_status(run.worktree).is_clean
+    tree = _worktree_status._worktree_status(run.worktree)
+    return tree.is_clean if tree.readable else None
 
 
 def _recording_stops_the_tick(

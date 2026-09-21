@@ -3545,9 +3545,17 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      excluded whatever it says. Otherwise apply this stage's own report-aware disposition (`fixing/reporting.py`): a
      commit is published under the report of it, a report with no commit is bound and PUBLISHED onto the head the
      pull request is proved to be standing on, and a run that committed with no usable report parks under
-     `report_undeliverable` with nothing pushed. While a report is owed, nothing that publication carries may be
-     spent before it lands — not the readers, not the `pending_fix_*` bookmarks, not `review_round`, and not the
-     relabel — so the size gate is handed nothing to close, the write that completes the transaction applies them,
+     `report_undeliverable` with nothing pushed. Three readings behind that proof HOLD instead of answering — a pull
+     request this poll could not fetch, a head the checkout would not name, and a tree status that established
+     nothing — because each is about the tick rather than the round: nothing is published, nothing is parked, and
+     the recovery in step 4 publishes on the first poll that can read them. A tree PROVED to be carrying something
+     is decisive and ends the round on the report's own terminal park instead, one notice under
+     `report_undeliverable` with the record released, rather than on the question road, which would ask a human
+     about a round that reported and leave that park standing over the tick that finally publishes.
+
+     While a report is owed, nothing that publication carries may be spent before it lands — not the readers, not
+     the `pending_fix_*` bookmarks, not `review_round`, and not the relabel — so the size gate is handed nothing to
+     close, the write that completes the transaction applies them,
      and the `fixing_round_settled` mark it raises is what the relabel is then taken on. Any other unmarked
      no-commit reply falls through to
      `_on_question` and

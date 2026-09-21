@@ -246,8 +246,8 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
         return True
     published = _published_checkout(ctx)
     if not published:
-        _holds_a_report_nothing_can_publish(ctx, delivered)
-        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        if not _releases_an_unpublishable_report(ctx):
+            ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return False
     still_owed = _reporting._holds_an_unpublished_report(ctx, published)
     if _delivery_state.carries_delivered_report(ctx.state):
@@ -260,10 +260,15 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     return True
 
 
-def _holds_a_report_nothing_can_publish(
-    ctx: _models._FixingContext, delivered,
-) -> None:
+def _releases_an_unpublishable_report(ctx: _models._FixingContext) -> bool:
     """Announce a report no road on this host is going to get out, once.
+
+    True is a tick this call ended. Shared by the two roads that reach the
+    question from opposite sides -- this owner's own recovery, over a record a
+    dead tick left, and a live report-only round whose checkout refuses the
+    reading it needed -- because the refusal and everything it owes are one
+    rule: a second copy would be a second notice, and the release below is the
+    half a copy comes to forget.
 
     Two refusals here are DEFINITE, and a definite refusal is one no later poll
     answers differently -- so leaving either to the next tick is leaving the
@@ -304,15 +309,21 @@ def _holds_a_report_nothing_can_publish(
     and the settlement that completes it is what moves a reader; a park is
     where this road ends instead, so the batch that reached an agent is
     written down as read rather than handed to whatever answers the reply.
+
+    A record this build cannot READ is left alone here, because there is
+    nothing to read those pairs from and the road that parks a damaged record
+    owns it instead.
     """
-    if not _refuses_for_good(ctx):
-        return
+    delivered = _delivery_state.read_delivered_report(ctx.state)
+    if delivered is None or not _refuses_for_good(ctx):
+        return False
     _consumed.advance_consumed(ctx.state, delivered.watermarks)
     _delivery_state.clear_delivered_report(ctx.state)
     _report_delivery.parks_an_undeliverable_report(
         ctx.gh, ctx.issue, ctx.state,
         _UNPUBLISHABLE_PARK.format(mentions=_config.HITL_MENTIONS),
     )
+    return True
 
 
 def _refuses_for_good(ctx: _models._FixingContext) -> bool:
