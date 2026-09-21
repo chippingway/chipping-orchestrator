@@ -1643,7 +1643,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             there belongs to a round opened after the mark went up. The label is what catches an
                             anchorless manual relabel back onto `workflow:fixing`, which the rest of the comment
                             cannot tell from a round that has just closed
-      parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in.
+      parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in --
+                            and the batch each hands the resume, which is never the bare `/orchestrator continue`
+                            itself: the replay drops it and so does the passthrough, since the prompt renders what
+                            it is given as feedback to implement and the settlement covers the command either way.
                             What counts as a REPLY is the reading the readers cannot give while a publication is
                             outstanding, so a rescan carrying nothing above the record's own frozen pairs clears no
                             park. The silent recovery the validating route earns is opened to an in_review

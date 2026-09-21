@@ -76,16 +76,19 @@ _FROZEN_SPENDS = (
     (support.SETTLED_ROUND, True),
 )
 
+# The two run options a case seeds a checkout reading through.
+_TREE_STATES = "tree_states"
+_HEAD_SHAS = "head_shas"
+
 # The two checkout readings no later poll takes back, and how a case puts this
 # host into each: a worktree that is GONE (no real checkout at all) and a tree
 # this host PROVED dirty.
 _DEFINITE_REFUSALS = MappingProxyType({
     "is no longer on this host": None,
     "is carrying uncommitted changes": {
-        "tree_states": (crash.a_tree(paths=("stray.py",)),),
+        _TREE_STATES: (crash.a_tree(paths=("stray.py",)),),
     },
 })
-
 
 # The two readings a report-only round holds on rather than parking under,
 # and the one it ends on. A tree carrying something is PROVED, which no later
@@ -93,15 +96,23 @@ _DEFINITE_REFUSALS = MappingProxyType({
 # would not name are about the tick alone.
 _UNREAD_TREE = "a tree status nobody could take"
 
+_UNREAD_HEAD = "a head the checkout would not name"
+
 _TRANSIENT_READS = MappingProxyType({
-    _UNREAD_TREE: {"tree_states": (crash.a_tree(readable=False),)},
-    "a head the checkout would not name": {
-        "head_shas": (live.PR_HEAD_SHA, ""),
-    },
+    _UNREAD_TREE: {_TREE_STATES: (crash.a_tree(readable=False),)},
+    _UNREAD_HEAD: {_HEAD_SHAS: (live.PR_HEAD_SHA, "")},
+})
+
+# The same two readings asked of the RECOVERY, which has no run in front of
+# it: every probe it takes is the first one, so the head answers unreadable
+# from the start rather than after a round moved off a readable one.
+_UNREAD_CHECKOUTS = MappingProxyType({
+    _UNREAD_TREE: {_TREE_STATES: (crash.a_tree(readable=False),)},
+    _UNREAD_HEAD: {_HEAD_SHAS: ("",)},
 })
 
 _DIRTY_CHECKOUT = MappingProxyType(
-    {"tree_states": (crash.a_tree(paths=("stray.py",)),)},
+    {_TREE_STATES: (crash.a_tree(paths=("stray.py",)),)},
 )
 
 # What every road that cannot move a report parks under.
@@ -310,15 +321,32 @@ class LiveReportRoundTest(unittest.TestCase, LiveReportRoundMixin):
         # the park it clears is one only a human clears, so refusing the
         # command over a publication nothing can complete would leave no way
         # out at all.
+        #
+        # What the developer is handed is that batch and NOT the command line
+        # beside it. The prompt renders whatever it is given as feedback to
+        # implement, and an owed report is what puts the two in one rescan:
+        # the readers are held until the publication lands, so the batch the
+        # report answers still reads as unread and the command stops being the
+        # only fresh thing on the thread. Asserted whole, because a bare line
+        # quoted back to a developer is a substring nothing else would catch.
         seeded = self.seed(
             crashed=True,
             **{live.AWAITING_HUMAN: True, live.PARK_REASON: _ASKED_A_QUESTION},
         )
+        answered = seeded.issue.comments[-1]
         crash.later_comment(seeded.issue, _LATER_ID, live.CONTINUE_COMMAND)
 
         mocks = self.tick(seeded, head=live.SHA_AFTER, message=_REPORTED)
 
-        mocks[live.RUN_AGENT].assert_called_once()
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt([answered]))
+        # And the command is still settled by the round that dropped it: this
+        # one reported, so what it consumed rides its report's record, and the
+        # boundary frozen there is past the command. Left out of that, the
+        # retry re-fires on every poll.
+        self.assertIn(
+            (live.LAST_ACTION_COMMENT_ID, _LATER_ID),
+            crash.frozen_record(self.pinned(seeded)).watermarks,
+        )
 
 
 class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
@@ -357,22 +385,51 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
                     pinned[live.LAST_ACTION_COMMENT_ID], live.TRIGGER_ID,
                 )
 
-    def test_an_unreadable_tree_releases_nothing(self) -> None:
-        # A status nobody could take is not a dirty tree: a later poll may
-        # read it, so the record is HELD rather than released and the notice
-        # that asks a human to decide about a checkout is not posted. What the
-        # tick still does is announce the wait, which is the last road's job.
-        seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
+    def test_an_unread_checkout_holds_the_record(self) -> None:
+        # A status nobody could take and a head that would not resolve are not
+        # a refusal at all: a later poll may read either, so the record is HELD
+        # rather than released and the tick says NOTHING. Let past instead, the
+        # scan behind it finds a batch the record's own pairs cover, and the
+        # bounce announces a report no road can move -- a claim about a branch
+        # this tick could not read a thing about, filed as a park only a human
+        # clears.
+        for read, options in _UNREAD_CHECKOUTS.items():
+            with self.subTest(read=read):
+                seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
 
+                mocks = self.tick(seeded, **options)
+
+                pinned = self.pinned(seeded)
+                spawned_nobody(mocks)
+                self.assertIsNotNone(pinned[_DELIVERED_REPORT])
+                self.assertFalse(pinned.get(live.AWAITING_HUMAN))
+                self.assertIsNone(pinned.get(live.PARK_REASON))
+                self.assertEqual(seeded.github.posted_comments, [])
+                self.assertEqual(seeded.github.posted_pr_comments, [])
+
+    def test_the_readable_tick_recovers_what_it_held(self) -> None:
+        # The other half of that hold, over the polls it is really made of:
+        # the reading heals and the very next tick publishes the record the
+        # held one kept, closes the round it froze, and hands the reviewer the
+        # head -- with no human ever having been waited for.
+        seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
+        seeded.github.get_pr(live.PR_NUMBER).head.sha = live.SHA_AFTER
         self.tick(
-            seeded, head=live.SHA_AFTER,
-            tree_states=(crash.a_tree(readable=False),),
+            seeded, head=live.SHA_AFTER, **_UNREAD_CHECKOUTS[_UNREAD_TREE],
         )
 
-        self.assertIsNotNone(self.pinned(seeded)[_DELIVERED_REPORT])
-        self.assertFalse(posted_comment_contains(
-            seeded.github, _UNPUBLISHABLE_PHRASE,
-        ))
+        mocks = self.tick(seeded, head=live.SHA_AFTER)
+
+        pinned = self.pinned(seeded)
+        spawned_nobody(mocks)
+        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
+        self.assertEqual(seeded.github.posted_comments, [])
+        self.assertFalse(pinned.get(live.AWAITING_HUMAN))
+        self.assertIsNone(pinned[_DELIVERED_REPORT])
+        self.assertEqual(
+            pinned[live.LAST_ACTION_COMMENT_ID], live.TRIGGER_ID,
+        )
+        self.assertTrue(self.handed_back(seeded))
 
     def test_a_transient_read_holds_a_reporting_round(self) -> None:
         # A head the checkout would not name and a status that established

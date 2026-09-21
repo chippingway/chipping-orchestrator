@@ -139,7 +139,7 @@ class ReceiptCarriedRoundTest(unittest.TestCase, _FrozenPairMixin):
         self.assertEqual(pinned[KEY_REVIEW_ROUND], ROUND_BEFORE)
         self.assertIsNotNone(pinned[KEY_PENDING_FIX_AT])
         self.assertIn(
-            (KEY_REVIEW_ROUND, ROUND_SPENT), crash.frozen_spends(pinned),
+            (KEY_REVIEW_ROUND, ROUND_SPENT), crash.frozen_record(pinned).spends,
         )
 
     def test_the_tick_after_that_crash_counts_nothing(self) -> None:
@@ -376,7 +376,7 @@ class ApprovedRetryEndToEndTest(unittest.TestCase, _FrozenPairMixin):
         self.assertEqual(pinned[KEY_RECEIPT_SHA], MEASURED_CANDIDATE_SHA)
         self.assertFalse(pinned[AWAITING_HUMAN])
         self.assertIn(
-            (KEY_REVIEW_ROUND, ROUND_SPENT), crash.frozen_spends(pinned),
+            (KEY_REVIEW_ROUND, ROUND_SPENT), crash.frozen_record(pinned).spends,
         )
 
     _recovers = ReceiptCarriedRoundTest._recovers

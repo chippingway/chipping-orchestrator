@@ -160,14 +160,14 @@ def a_tree(*, readable: bool = True, paths=()):
     return _WorktreeStatus(readable=readable, paths=tuple(paths))
 
 
-def frozen_spends(pinned_data) -> tuple:
-    """The route bookkeeping an unbound record is still holding.
+def frozen_record(pinned_data):
+    """The unbound report record this comment is still holding, or None.
 
     Read off the record rather than off the comment, because that is the whole
-    difference a reported round makes: the pair exists and has not been
-    applied, and only the write that publishes the report may apply it.
+    difference a reported round makes: the readers it consumed and the round
+    its route spends both exist and neither has been applied, and only the
+    write that publishes the report may apply either.
     """
-    recorded = _delivery_state.read_delivered_report(
+    return _delivery_state.read_delivered_report(
         _PinnedState(state_data=dict(pinned_data)),
     )
-    return () if recorded is None else recorded.spends

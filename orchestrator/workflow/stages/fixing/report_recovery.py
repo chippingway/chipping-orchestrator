@@ -68,6 +68,8 @@ way, and only the relabel is withheld.
 """
 from __future__ import annotations
 
+import logging
+
 from orchestrator import config as _config
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
@@ -82,6 +84,8 @@ from orchestrator.workflow.stages.fixing import (
     round_marks as _round_marks,
     state as _state,
 )
+
+log = logging.getLogger("orchestrator.workflow")
 
 # What a delivered record nobody can read is held under. Durable, because the
 # condition does not clear on its own: what it asks for is the pinned comment
@@ -226,6 +230,13 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     again; stopping instead would hold the roads that answer a human in front
     of a condition only a human clears.
 
+    A checkout this tick could not READ is the exception that ends the tick
+    saying nothing at all. It is no evidence about the branch, so it may buy
+    neither a publication nor a notice -- and the road behind this one would
+    make it buy the notice: the record's own pairs cover the batch, so the
+    scan finds nothing to act on and the bounce announces a report no road can
+    move, over a checkout nobody has read.
+
     Presence is asked before meaning, and that order is what keeps a damaged
     record from being read as an issue with nothing outstanding. The debt every
     road behind this reads is CLAIMED by the key alone, so a record a hand edit
@@ -248,7 +259,16 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     if not published:
         if not _releases_an_unpublishable_report(ctx):
             ctx.gh.write_pinned_state(ctx.issue, ctx.state)
-        return False
+        # A reading nobody could take ends the tick where it stands, and
+        # that is the whole of what it is allowed to do: nothing published,
+        # nothing released, nothing said. Let past, the scan behind this
+        # finds no feedback it may act on -- the record's own pairs cover the
+        # batch -- and the bounce announces a report no road can move, which
+        # is a claim about the branch this tick could not read a thing about.
+        # The decisive "" falls through instead: the bounce is the road that
+        # republishes a commit the pull request has not got, and the report
+        # goes out bound to the push it makes.
+        return published is None
     still_owed = _reporting._holds_an_unpublished_report(ctx, published)
     if _delivery_state.carries_delivered_report(ctx.state):
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
@@ -335,22 +355,43 @@ def _refuses_for_good(ctx: _models._FixingContext) -> bool:
     return tree.readable and not tree.is_clean
 
 
-def _published_checkout(ctx: _models._FixingContext) -> str:
-    """The commit a clean checkout and the pull request agree on, or "".
+def _published_checkout(ctx: _models._FixingContext) -> str | None:
+    """The commit a clean checkout and the pull request agree on, "", or None.
 
     Every reading is positive, because what an absence would license here is a
-    report about code the remote does not have. A checkout this host does not
-    hold, a status nobody could read -- `is_clean` is False for that, as the
-    file list beside it is not -- a head that would not resolve, and a head the
-    pull request is not standing on each answer "", which leaves the report
-    owed for the bounce that republishes such a commit.
+    report about code the remote does not have. What the absences are FOR is
+    the difference between the two empty answers.
+
+    "" is a checkout that answered and said no: one this host does not hold, a
+    tree carrying something, and a head the pull request is not standing on.
+    Each is decisive -- the first two for good, the third for as long as the
+    branch and the remote disagree -- and each leaves the report owed for the
+    road that answers it, the terminal park or the bounce that republishes
+    such a commit.
+
+    None is a reading nobody could TAKE: a status that established nothing,
+    and a head that would not resolve. Neither says anything about the branch,
+    so neither may be spent on -- not on a publication, and not on a notice
+    telling a human this issue is stuck. The caller holds everything where it
+    stands and the next poll asks again.
     """
     worktree = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
     if not worktree.exists():
         return ""
-    if not _worktree_status._worktree_status(worktree).is_clean:
+    tree = _worktree_status._worktree_status(worktree)
+    if not tree.readable:
+        log.info(
+            "issue=#%d could not read the checkout holding the report it "
+            "owes; holding it for a tick that can", ctx.issue.number,
+        )
+        return None
+    if not tree.is_clean:
         return ""
     head = _verification_probes._head_sha(worktree)
-    if not head or head != getattr(ctx.pr.head, "sha", ""):
-        return ""
-    return head
+    if not head:
+        log.info(
+            "issue=#%d could not read the head of the checkout holding the "
+            "report it owes; holding it for a tick that can", ctx.issue.number,
+        )
+        return None
+    return head if head == getattr(ctx.pr.head, "sha", "") else ""

@@ -3436,8 +3436,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      or an eligible reason with **no reconstructable batch**, e.g. a validating-route park whose reviewer anchor was
      never recorded or has since been deleted): the command comment is consumed on the surface it was posted on (so
      the refusal does not re-fire, and a later route reads the answered command as answered) and a note is posted, and
-     the issue stays parked; **passthrough** — the command arrived alongside genuine guidance on a park with no
-     replayable batch, so it falls through to the normal resume below and that guidance drives the dev.
+     the issue stays parked; **passthrough** — the command arrived alongside something to act on, on a park with no
+     replayable batch, so the park is cleared and the resume is handed that reading MINUS the bare command itself,
+     exactly as the replay above drops it: the prompt renders whatever it is given as PR feedback to implement, and
+     the operator wrote the line to the orchestrator. Dropping it costs nothing, because what the resume settles is
+     the batch it was handed joined with the whole fresh rescan, so the command is consumed and does not re-fire. An
+     owed report is what makes this road ordinary rather than rare: the readers behind such a report are held until
+     its publication lands, so the batch it answers still reads as unread beside the command, and a reading that
+     counted the two together would call a bare continue "guidance" and quote it back to a developer as work.
 
      Otherwise, when the rescan finds nothing new — or finds nothing ABOVE the pairs an owed report's record froze,
      which while a publication is outstanding is the same thing: the readers are held back until it lands, so the
@@ -3582,14 +3588,27 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
       and what such a retry settles is the batch it REPLAYED joined with the fresh rescan — so the bare
       `/orchestrator continue` the prompt deliberately drops is still recorded as answered, on the surface it was
       posted on.
-  11. **On a pushed fix, or a report delivered with no commit**: clear `pending_fix_*`, adjust `review_round` per the
-       route discriminator (in_review route resets to 0 — the previous approval was for the prior head; validating route
-       bumps by 1 — same review cycle), flip DIRECTLY back to `workflow:validating`, and bind the report to the
-       publication behind that relabel (`validating/report_settlement.py`), so no tick finds a settled report beside a
-       label still claiming the round it closed. The round and the bookmarks are the pair frozen before the push and
-       handed to the size gate, to this exit, and to the write that settles a report no gate ever saw, so a replayed
-       publication or handoff counts no second round; a report still owed when the issue reaches `workflow:validating`
-       holds the reviewer there until it is confirmed. Docs do not run on this exit.
+  11. **On a pushed fix, or a report delivered with no commit**: PUBLISH first, relabel last, and nothing in between
+       until the report is really there (`fixing/reporting.py`). The report is bound to the commit this attempt
+       proved — the one the push landed, or the head a report-only round's pull request is standing on, never the
+       persistent publication receipt — and posted, in the engine's own two steps, so a post GitHub refuses leaves a
+       transaction a later tick can finish rather than a delivery nothing goes back for.
+
+       A report still OWED after that holds everything: `pending_fix_*` stays, `review_round` stays, the readers stay,
+       and the label stays on `workflow:fixing`. The code may be out and the report of it is not, so a reviewer sent
+       to that head would read an implementation nothing on the pull request describes — and the bookmarks are what
+       an outstanding publication replays from. The round and the bookmarks are the pair frozen BEFORE the push, onto
+       that report's own record, so whichever write completes the publication applies them and a replayed settlement
+       counts no second round. The size gate is handed none of them while a report is owed, for the same reason.
+
+       A report that DID land settles in one write, and that write cannot move a label — so it leaves the
+       `fixing_round_settled` mark beside the bookkeeping it closed. The hand-back CONSUMES that mark, correlating it
+       against the handoff the settlement recorded (`fixing/round_marks.py`) and retiring it in a durable write of
+       its own BEFORE the relabel: a tick dying between the two has to leave a round nothing can mistake for one that
+       has just settled, and a mark this stage may not act on — settled under another label, over a newer round's
+       anchor, beside a report still owed — comes down unspent with the relabel withheld. Only then does the issue
+       flip to `workflow:validating`, where the reviewer reads the report and the requirements being handed on. Docs
+       do not run on this exit.
 - **Output**: terminal `done` / `rejected`, OR label flipped to `workflow:validating` (pushed fix, a report delivered
   with no commit, the hand-back of a report a crashed round recorded and never handed on (step 4), OR no-new-feedback
   bounce), OR label flipped to `workflow:resolving_conflict` (stuck validating-route transient park while the worktree

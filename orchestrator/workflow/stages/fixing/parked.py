@@ -70,20 +70,44 @@ def _dispatch_continue_command(
 ) -> _models._ParkedFixingDecision | None:
     """Apply a `/orchestrator continue` command to a parked tick.
 
-    Returns a `_ParkedFixingDecision` when the command was resolved (a refused
-    content-free continue -> `stop=True`; an accepted replay -> `stop=False`
-    with the preserved batch), or ``None`` for the "passthrough" case (the
-    command arrived WITH genuine guidance on a park with no replayable batch),
-    where the caller falls through to the validating-recovery / normal-resume
-    path so that guidance drives the dev.
+    Returns a `_ParkedFixingDecision` for every road a resolved command takes:
+    a refused content-free continue stops the tick, and an accepted replay and
+    a PASSTHROUGH both clear the park and hand the resume the batch it may
+    quote. ``None`` is the command this owner did not resolve at all.
+
+    The passthrough is the command arriving WITH something to act on where no
+    preserved batch could be rebuilt, and what it hands over is that reading
+    minus the command itself. The prompt renders whatever it is given as pull
+    request feedback to implement, so the bare line would be handed to a
+    developer as work -- and the operator wrote it to the orchestrator. It
+    costs nothing to drop: what the resume SETTLES is the batch it was handed
+    joined with the whole fresh rescan, so the command is consumed exactly as
+    the refusal road consumes one and does not re-fire next tick.
+
+    An owed report is what makes that road ordinary rather than rare. The
+    readers behind such a report are held until its publication lands, so the
+    batch it was written over still reads as unread beside the command -- and
+    a reading that counted the two together would call a bare continue
+    "guidance", quote the command back to a developer, and ask it to implement
+    the word.
+
+    The park flags come down with the decision, since the caller's own clear
+    sits on the road this return skips, and the session is left ALONE: the
+    replay above drops a poisoned one because its park was a session failure,
+    while a park that reached here is waiting on an answer rather than on a
+    session that died.
     """
     action, replay_items = _continue_command._handle_continue_command(ctx, feedback)
     if action == "refuse":
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return _HANDLED
-    if action == "replay":
-        return _models._ParkedFixingDecision(stop=False, replay_batch=replay_items)
-    return None
+    if action == "passthrough":
+        replay_items = _continue_command._carried_fresh_feedback(feedback)
+    elif action != "replay":
+        return None
+    ctx.state.set(_state._AWAITING_HUMAN, False)
+    ctx.state.set(_state._PARK_REASON, None)
+    return _models._ParkedFixingDecision(stop=False, replay_batch=replay_items)
 
 
 def _dispatch_validating_recovery(
