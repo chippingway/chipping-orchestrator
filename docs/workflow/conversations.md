@@ -277,12 +277,15 @@ round is recorded, published and settled rather than parked:
 - The consumed pairs and the reviewer round the route spends are recorded onto the report transaction before the size
   gate, and the write that COMPLETES the publication applies them. Until it does, the bookmarks, the readers and the
   label all stand where the round found them.
-- A **report-only** round — a clean tree, a HEAD that did not move, nothing stranded — publishes its report against
-  the head its pull request already stands on and hands the issue back to `workflow:validating`. Read as an ordinary
-  no-commit reply it would park as a question with the report unpublished behind a human's answer. It is the one
-  road that re-reads the pull request before it decides: every other publication names a commit its own push just
-  landed under a lease, while this one's whole evidence is a head that never moved — and the copy fetched before
-  the developer ran says that of a pull request somebody else may have pushed to meanwhile.
+- A **report-only** round — a clean tree, a HEAD that did not move, nothing stranded — publishes its report against the
+  head that reading PROVED and hands the issue back to `workflow:validating`. Read as an ordinary no-commit reply it
+  would park as a question with the report unpublished behind a human's answer. It is the one road that re-reads the
+  pull request before it decides: every other publication names a commit its own push just landed under a lease, while
+  this one's whole evidence is a head that never moved — and the copy fetched before the developer ran says that of a
+  pull request somebody else may have pushed to meanwhile. So the binding is to the checkout's head, the one that
+  re-read held the pull request against, and never to that copy: a remote that moved AWAY from the round's head refuses
+  the reading outright, but one that CONVERGED onto it passes while the stale copy still names the commit the pull
+  request has left — and the report would go out about a commit that is no longer there.
 - A round whose **push did not land** publishes nothing, so nothing bound its report — and the readers do not move
   for it either. The record keeps both groups, the delivery stays on the comment, and the no-feedback bounce — the
   one tick that republishes that commit — binds it so the settlement can close them. Holding the readers back costs
@@ -290,9 +293,14 @@ round is recorded, published and settled rather than parked:
   ticks inside that window find nothing to act on and spawn nobody, and what moves the round on is the publication
   landing rather than a second developer over the same prompt.
 - A reply that **reached for the contract and missed** (the commonest miss being an `ACK:` line beside a report) is
-  neither a report to record nor a reply to act on, and it is held for a human ahead of every other road — including
-  the publication one, since a commit beside such a message would otherwise be pushed and relabelled with no report
-  on the pull request at all.
+  neither a report to record nor a reply to act on, and it is held for a human ahead of every other road — including the
+  publication one, since a commit beside such a message would otherwise be pushed and relabelled with no report on the
+  pull request at all. That miss and a commit made over a report an EARLIER tick recorded are asked independently,
+  because one reply can be both: a malformed message is no report, so a run that wrote one and committed has left work
+  over a standing record exactly as a plain question would. Held on the miss alone, that round would park with
+  `developer_report_unreported_work` down and the old delivery still bindable — and the commit, once some later road
+  carries it to the pull request, would get that earlier report published over it. The notice a human reads is the miss,
+  since that is what their reply has to fix and the report it earns retires both.
 - A report an earlier tick recorded and a crash left **unbound** is answered before the next tick scans anything.
   Neither group is applied there: the publication is still ahead, and the write that completes it is what moves a
   reader. Whether the code went out is re-proved against the checkout — a tree provably clean, a head it can name,

@@ -35,6 +35,7 @@ from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
     report_record_state as _record_state,
     report_records as _records,
+    report_settlement_state as _settlement,
     report_transaction as _report_transaction,
 )
 from orchestrator.workflow.stages.fixing import (
@@ -140,6 +141,14 @@ _A_QUESTION = "which of the two parsers did you mean?"
 # a case about a report bound to the wrong one can say which one.
 _LATER_COMMIT = "a" * len(SHA_AFTER)
 
+# Where a remote that moved under a report-only round leaves it: the head the
+# checkout holds against it, and the commit the published report is recorded
+# about -- "" for the reading that refuses and publishes nothing at all.
+_MOVED_REMOTE = MappingProxyType({
+    "away from the head this round holds": (SHA_BEFORE, ""),
+    "onto the head this round holds": (_LATER_COMMIT, _LATER_COMMIT),
+})
+
 # The handoff member naming the workflow label a settlement landed under.
 _SETTLED_UNDER = "under"
 
@@ -223,14 +232,23 @@ class _ReportRoundMixin(_FixingFixtureMixin):
                 **run_options,
             )
 
-    def _tick(self, seeded, *, head: str = PR_HEAD_SHA, **run_options):
+    def _tick(
+        self,
+        seeded,
+        *,
+        head: str = PR_HEAD_SHA,
+        message: str = "",
+        **run_options,
+    ):
         """One fixing tick with a developer standing by, unspawned if sound.
 
         The checkout is real, because what the recovery re-proves is exactly
         that: a tree it can read, a head it can name, and the pull request
         standing on it. `head` is what that checkout answers -- the pull
         request's own commit for a push that landed, and anything else for a
-        commit a crash left unpublished.
+        commit a crash left unpublished. `message` is what the developer says
+        where the tick does reach one, and its absence is the empty answer a
+        run that only committed comes back with.
         """
         run_options.setdefault("head_shas", (head, head))
         with (
@@ -242,7 +260,7 @@ class _ReportRoundMixin(_FixingFixtureMixin):
             return self._run_fixing(
                 seeded.github,
                 seeded.issue,
-                run_agent=_agent(session_id=DEV_SESSION),
+                run_agent=_agent(session_id=DEV_SESSION, last_message=message),
                 **run_options,
             )
 
@@ -571,29 +589,46 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
         self.assertTrue(_report_delivery.owes_a_report(self._record(seeded)))
         self.assertNotIn((ISSUE, IN_REVIEW_LABEL), seeded.github.label_history)
 
-    def test_a_moved_head_publishes_no_report(self) -> None:
+    def test_a_moved_remote_binds_what_was_proved(self) -> None:
         # A report-only round proves the pull request already carries the code
         # its report describes by reading a head that never moved -- and the
         # copy the preflight fetched says that of a pull request anybody may
-        # have pushed to in the minutes the developer was out. Compared
-        # against that copy an untouched checkout still matches, so the report
-        # would go onto a head it does not describe and the reviewer would be
-        # handed it. Read again, the two disagree and nothing is published.
-        seeded = self._seed_round()
-        pushed_over = crash.PushesMidRun(
-            seeded.github.get_pr(support.PR_NUMBER),
-            self._open_pr(head=support.FakePRRef(sha=_LATER_COMMIT)),
-        )
+        # have pushed to in the minutes the developer was out. So the pull
+        # request is read AGAIN, and the answer is held to what that reading
+        # proved rather than to the stale copy, which the two can part company
+        # with in either direction.
+        #
+        # A remote that moved AWAY from the round's head refuses outright:
+        # compared against the stale copy an untouched checkout still matches,
+        # and the report would go onto a head it does not describe. One that
+        # CONVERGED onto the head the checkout holds passes -- and the stale
+        # copy still names the commit the pull request has left, so a report
+        # bound to it would be published and recorded about a commit that is
+        # no longer there, with the reviewer handed a head nothing describes.
+        for direction, (checkout, bound) in _MOVED_REMOTE.items():
+            with self.subTest(the_remote_moved=direction):
+                seeded = self._seed_round()
 
-        with patch.object(seeded.github, "get_pr", pushed_over):
-            mocks = self._round(
-                seeded.github, seeded.issue,
-                head_shas=(SHA_BEFORE, SHA_BEFORE),
-            )
+                with patch.object(seeded.github, "get_pr", crash.PushesMidRun(
+                    seeded.github.get_pr(support.PR_NUMBER),
+                    self._open_pr(head=support.FakePRRef(sha=_LATER_COMMIT)),
+                )):
+                    self._round(
+                        seeded.github, seeded.issue,
+                        head_shas=(checkout, checkout),
+                    )
 
-        mocks[RUN_AGENT].assert_called_once()
-        self.assertEqual(self._reports_posted(seeded), 0)
-        self.assertFalse(self._went_back_to_review(seeded))
+                settled = _settlement.read_current_report(self._record(seeded))
+                self.assertEqual(
+                    self._reports_posted(seeded), int(bool(bound)),
+                )
+                self.assertEqual(
+                    self._went_back_to_review(seeded), bool(bound),
+                )
+                self.assertEqual(
+                    "" if settled is None else settled.subject.source_sha,
+                    bound,
+                )
 
     def test_a_failed_push_spawns_no_second_developer(self) -> None:
         # The readers a settlement would move are held back until the
@@ -818,26 +853,44 @@ class FixingReportRefusalTest(unittest.TestCase, _ReportRoundMixin):
         # contain. Nothing is published, the work is recorded as undescribed
         # so no later road binds over it, and the reply the park earns brings
         # the report that describes the branch as it stands.
-        seeded = self._seed_round(crashed=True)
-        crash.later_pr_comment(
-            seeded.github.get_pr(support.PR_NUMBER),
-            LATER_COMMENT_ID, LATER_COMMENT,
-        )
+        #
+        # A MALFORMED report beside that commit is the same debt, and it is
+        # the one the misread road would answer on its own half: a message
+        # that reaches for the contract and misses is no report, so the commit
+        # still stands over a record that does not describe it. Parked on the
+        # misread alone the flag stays down and the old delivery stays
+        # bindable -- and once some later road carries this commit to the pull
+        # request, that earlier report is published over it and the
+        # undescribed head goes back to review.
+        answers = {
+            "no report at all": "",
+            "a report an `ACK:` contradicts": (
+                f"{_reported('fixed')}\n\nACK: nothing to change"
+            ),
+        }
+        for answer, message in answers.items():
+            with self.subTest(committed_beside=answer):
+                seeded = self._seed_round(crashed=True)
+                crash.later_pr_comment(
+                    seeded.github.get_pr(support.PR_NUMBER),
+                    LATER_COMMENT_ID, LATER_COMMENT,
+                )
 
-        mocks = self._tick(
-            seeded, head_shas=(SHA_AFTER, SHA_AFTER, _LATER_COMMIT),
-        )
+                mocks = self._tick(
+                    seeded,
+                    message=message,
+                    head_shas=(SHA_AFTER, SHA_AFTER, _LATER_COMMIT),
+                )
 
-        pinned_data = self._pinned(seeded)
-        mocks[RUN_AGENT].assert_called_once()
-        mocks[PUSH_BRANCH].assert_not_called()
-        self.assertEqual(self._reports_posted(seeded), 0)
-        self.assertTrue(_delivery_state.carries_delivered_report(
-            self._record(seeded),
-        ))
-        self.assertTrue(pinned_data.get(_UNREPORTED_WORK))
-        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
-        self.assertFalse(self._went_back_to_review(seeded))
+                mocks[RUN_AGENT].assert_called_once()
+                mocks[PUSH_BRANCH].assert_not_called()
+                self.assertEqual(self._reports_posted(seeded), 0)
+                self.assertTrue(_delivery_state.carries_delivered_report(
+                    self._record(seeded),
+                ))
+                self.assertTrue(self._pinned(seeded).get(_UNREPORTED_WORK))
+                self.assertTrue(self._pinned(seeded).get(AWAITING_HUMAN))
+                self.assertFalse(self._went_back_to_review(seeded))
 
     def test_undescribed_work_binds_no_report(self) -> None:
         # A branch carrying commits no record describes is one no road may

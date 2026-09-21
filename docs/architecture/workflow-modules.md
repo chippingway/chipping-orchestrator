@@ -1516,41 +1516,45 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             in_review watermarks that are theirs
       bookmarks.py          the `pending_fix_*` ids a replay rebuilds the triggering batch from -- each surface
                             apart, since the replay is delivered and so is settled -- and the clear each round earns
-      reporting.py          the road a round that finished on a report outcome takes: the record its consumed pairs
-                            and route bookkeeping ride (`engine/report_delivery.py`), the binding and post that put
-                            it on the pull request (`engine/report_binding.py`), the report-only reading -- every
-                            half of it positive, since a head nobody could read and a divergence nothing could count
-                            both answer the same as a branch in sync, and taken over a pull request read AGAIN,
-                            since this is the one road whose evidence is a head that did not move and the copy the
-                            preflight fetched says that of a remote anybody may have pushed to meanwhile -- the two
-                            parks a round earns ahead of every
-                            other road (a reply that reached for the contract and missed, and a commit made over a
-                            report an earlier tick recorded, which no road may bind over afterwards), the
-                            announcement a wait nothing left can end earns, and the answer that holds the relabel
-                            while a report is still owed. A binding is held to the commit its CALLER proved
-                            and never to the standing `implementing_published_sha`, which on a tick that pushed
-                            nothing names an older round. What closes the two groups is the write that completes the
-                            transaction, here or in the reconciliation ahead of a later handler -- a push that did
-                            not land and a post GitHub refused both leave the record carrying them, since the report
-                            is still ahead of the issue and the bounce that republishes that commit is what binds it.
-                            Also the mark that settlement raises (`fixing_round_settled`), which is the whole of what
-                            tells the next tick a round closed while the label never moved, and the relabel that
+      reporting.py          the road a round that finished on a report outcome takes: the record its consumed pairs and
+                            route bookkeeping ride (`engine/report_delivery.py`), the binding and post that put it on
+                            the pull request (`engine/report_binding.py`), the report-only reading -- every half of it
+                            positive, since a head nobody could read and a divergence nothing could count both answer
+                            the same as a branch in sync, and taken over a pull request read AGAIN, since this is the
+                            one road whose evidence is a head that did not move and the copy the preflight fetched says
+                            that of a remote anybody may have pushed to meanwhile, and bound to the head that reading
+                            PROVED rather than to that copy, which a remote converging onto the round's head leaves
+                            naming a commit the pull request has left -- the two parks a round earns ahead of every
+                            other road, asked independently since one reply can be both (a reply that reached for the
+                            contract and missed, and a commit made over a report an earlier tick recorded, which no road
+                            may bind over afterwards), the announcement a wait nothing left can end earns, and the
+                            answer that holds the relabel while a report is still owed. A binding is held to the commit
+                            its CALLER proved and never to the standing `implementing_published_sha`, which on a tick
+                            that pushed nothing names an older round. What closes the two groups is the write that
+                            completes the transaction, here or in the reconciliation ahead of a later handler -- a push
+                            that did not land and a post GitHub refused both leave the record carrying them, since the
+                            report is still ahead of the issue and the bounce that republishes that commit is what binds
+                            it. Also the mark that settlement raises (`fixing_round_settled`), which is the whole of
+                            what tells the next tick a round closed while the label never moved, and the relabel that
                             retires it
-      report_recovery.py    a report an earlier tick recorded and never bound, answered before anything rescans: the
-                            watermarks that record carries applied off the record itself, and the binding re-proved
-                            against the checkout rather than remembered off a receipt -- a clean tree, a head it can
-                            name, and the pull request standing on it. A binding that TAKES the delivery ends the
+      report_recovery.py    a report an earlier tick recorded and never bound, answered before anything rescans: what
+                            that dead run consumed read off the record itself rather than re-derived, and the binding
+                            re-proved against the checkout rather than remembered off a receipt -- a clean tree, a head
+                            it can name, and the pull request standing on it. Neither the consumed pairs nor the round
+                            ride any write this owner makes on a road that CARRIES ON: a publication still ahead is one
+                            the settlement completing it applies both for, and the scan behind this is held off the
+                            batch by those same recorded pairs meanwhile. A binding that TAKES the delivery ends the
                             tick, finishing the recovered route back to `workflow:validating` where the publication
                             settled and relabelling nothing where it is still owed; a record the issue CLAIMS and
                             nothing can read parks once ahead of all of it, since read as an absence it would fall
-                            through to the scan whose watermarks it was holding back; a worktree that is GONE and a
-                            tree this host PROVED dirty each park once, writing what the dead run consumed into that
-                            park's own write, since the republishing bounce declines the second exactly as this owner
-                            does, while every other refusal leaves a checkout that bounce still republishes from.
-                            The mark a settlement raises is consumed rather than merely read -- that settlement can
-                            land under any non-terminal label, so a mark found over a newer round's route anchor,
-                            beside a report still owed, or under a label the settlement's own handoff says was not
-                            this stage's is retired instead
+                            through to the scan whose watermarks it was holding back; a worktree that is GONE and a tree
+                            this host PROVED dirty each park once, writing what the dead run consumed into that park's
+                            own write, since the republishing bounce declines the second exactly as this owner does,
+                            while every other refusal leaves a checkout that bounce still republishes from. The mark a
+                            settlement raises is consumed rather than merely read -- that settlement can land under any
+                            non-terminal label, so a mark found over a newer round's route anchor, beside a report still
+                            owed, or under a label the settlement's own handoff says was not this stage's is retired
+                            instead
       resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
                             nothing invoked, a shutdown kill, a live pause -- the record of the batch every other
                             outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix

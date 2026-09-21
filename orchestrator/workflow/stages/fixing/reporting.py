@@ -145,21 +145,33 @@ def _holds_for_a_human(
     road binding over it, and the reply the park earns resumes the developer:
     the report that session writes describes the branch as it stands and
     supersedes the one that could not.
+
+    The two are asked INDEPENDENTLY and only the notice picks between them,
+    because a reply can be both: a malformed message is no report, so a run
+    that wrote one and committed has left work over a standing record exactly
+    as a plain question would. Answered on the misread alone, that round parks
+    with the flag down and the old delivery still bindable -- and the commit,
+    once some later road carries it to the pull request, gets the earlier
+    round's report published over it. The notice is the misread one there,
+    since the reply is what the human has to fix and the report their reply
+    earns retires both.
     """
-    if _report_outcomes._reached_for_the_contract(run.dev_result):
-        _report_delivery.parks_an_undeliverable_report(
-            ctx.gh, ctx.issue, ctx.state,
-            _MISREAD_PARK.format(mentions=_config.HITL_MENTIONS),
-        )
-        return True
-    if reported or not run.after_sha or run.after_sha == run.before_sha:
+    misread = _report_outcomes._reached_for_the_contract(run.dev_result)
+    undescribed = (
+        not reported
+        and bool(run.after_sha)
+        and run.after_sha != run.before_sha
+        and _report_delivery.owes_a_report(ctx.state)
+    )
+    if not misread and not undescribed:
         return False
-    if not _report_delivery.owes_a_report(ctx.state):
-        return False
-    ctx.state.set(_report_delivery.UNREPORTED_WORK, True)
+    if undescribed:
+        ctx.state.set(_report_delivery.UNREPORTED_WORK, True)
     _report_delivery.parks_an_undeliverable_report(
         ctx.gh, ctx.issue, ctx.state,
-        _UNDESCRIBED_PARK.format(mentions=_config.HITL_MENTIONS),
+        (_MISREAD_PARK if misread else _UNDESCRIBED_PARK).format(
+            mentions=_config.HITL_MENTIONS,
+        ),
     )
     return True
 

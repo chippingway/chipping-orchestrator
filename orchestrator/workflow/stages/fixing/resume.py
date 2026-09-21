@@ -443,21 +443,27 @@ def _disposes(
     here at all: its caller holds it for a human first, because the record it
     would be published against describes the branch before that commit.
     """
-    # A round whose whole answer IS the report never reaches the publication
-    # tail: there is no commit to push, and the prompt asked for exactly that
-    # -- an item wanting report content only is answered in the report, with no
-    # commit for it. The head its pull request already stands on is what the
-    # report is about, so that is what it is bound to.
     # Asked of the RECORD rather than of this run, and past whatever this tick
     # has just written to it: a debt an earlier tick left is this round's to
     # honour too, and a round that has just recorded its own report owes one
     # from this line onwards.
     owes = _report_delivery.owes_a_report(ctx.state)
 
+    # A round whose whole answer IS the report never reaches the publication
+    # tail: there is no commit to push, and the prompt asked for exactly that
+    # -- an item wanting report content only is answered in the report, with no
+    # commit for it.
+    #
+    # What it is bound to is the head the reading PROVED -- the checkout's own,
+    # which that reading held against a pull request it re-read -- never the
+    # copy the preflight fetched. The two can disagree in either direction: a
+    # remote that moved AWAY from the round's head refuses the reading
+    # outright, and one that moved ONTO it passes while the stale copy still
+    # names the commit it moved off. Bound to that copy, the report would be
+    # published and recorded against a commit the pull request has left, and
+    # the reviewer handed a head nothing describes.
     if reported and _reporting._is_report_only(ctx, run):
-        _reporting._finishes_a_reported_round(
-            ctx, owed, getattr(ctx.pr.head, "sha", "") or "",
-        )
+        _reporting._finishes_a_reported_round(ctx, owed, run.after_sha or "")
         return
 
     # The gate is handed NOTHING to close while a report stands: the record is

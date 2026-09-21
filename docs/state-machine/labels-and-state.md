@@ -1505,9 +1505,12 @@ The keys that matter for the state machine fall into a few groups:
 
   `developer_report_unreported_work` bounds the other end of the same road. A delivered record carries no commit of
   its own — what it is ABOUT is the branch as its run left it, and the only thing on the comment that says so is that
-  nothing has been committed over it since. So a fix round that MOVES the head while an earlier tick's report is
-  still owed, and answers with no report of its own, raises that flag and parks: while it stands no road binds a
-  report at all, whatever a checkout proves, and only a report written over the branch as it now stands retires it.
+  nothing has been committed over it since. So a fix round that MOVES the head while an earlier tick's report is still
+  owed, and answers with no report of its own, raises that flag and parks: while it stands no road binds a report at
+  all, whatever a checkout proves, and only a report written over the branch as it now stands retires it. A message
+  that reached for the report contract and MISSED is no report either, so a round that wrote one and committed raises
+  the flag on the same reading — the park it earns names the misread, since that is the half a human has to answer,
+  but the debt the commit left is recorded all the same.
 
   `fixing_round_settled` is the additive mark such a settlement leaves. The write that completes a fixing report
   transaction applies that route's bookkeeping and cannot move a label, so the round ends with the issue still on
