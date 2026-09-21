@@ -336,19 +336,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             run was actually handed -- is spelled apart, because it is the whole of what a
                             completion has to prove again. The other two carry parts of it rather than the group:
                             the delivered record names the one member the RUN settles, the requirements revision,
-                            and nothing a pull request decides, and the handoff keeps the pull request and the
-                            source commit beside its receipt, since what it has to answer is whether THIS
-                            transaction is already done. `HandedRun` beside them is no record at all: what a caller
+                            and nothing a pull request decides, and the handoff keeps the pull request, the source
+                            commit and the workflow LABEL the issue was carrying when the settlement landed beside
+                            its receipt: what it has to answer is whether THIS transaction is already done, and --
+                            for a route whose bookkeeping includes a hand-back its own stage has to make -- whether
+                            that stage was ever standing behind it, which no other record reconstructs afterwards.
+                            `HandedRun` beside them is no record at all: what a caller
                             tells the recording about the run -- the road it came down, the requirements revision it
                             was handed where the caller took a snapshot, and the round, bookmarks and consumed
                             readers its handover owes where nothing behind that caller will carry them: a report
                             that is the whole handover passes no size gate, and the feedback it answers may not read
-                            as answered until it lands. Two members belong to the road a fixing round takes and are
-                            spelled here because every settlement writes them: the MARK such a round's own settlement
-                            raises -- put up by a fixing record's frozen spends, retired by every settlement that
-                            froze none, so the mark and the handoff beside it are always about one transaction -- and
-                            the workflow LABEL the handoff records the issue as carrying when that write landed,
-                            which no other record reconstructs afterwards
+                            as answered until it lands. The MARK a fixing round's own settlement raises rides that
+                            last group and is spelled here because every settlement writes it -- put up by a fixing
+                            record's frozen spends, retired by every settlement that froze none, so the mark and the
+                            handoff beside it are always about one transaction
     report_record_values.py what each recorded field may be, and the widths two of them are bounded by, published
                             because a record written before its publication exists has to reserve the room that
                             publication's subject will take: a receipt spelled the way the published report header
