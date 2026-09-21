@@ -8,6 +8,14 @@ namespaces and provenance, preserving pinned watermark fields
 (`last_action_comment_id`, `pr_last_comment_id`, `pr_last_review_comment_id`,
 `pr_last_review_summary_id`) and requirements revision (`user_content_hash`).
 
+The two IssueComment surfaces and the two review surfaces are classified by
+different rules, because the orchestrator posts on the first pair and on
+neither of the second. A body carrying our hidden marker that the id ledger
+cannot vouch for is forged on a surface we post on and is refused there; on a
+surface we never post on it is a reviewer quoting the marker, and refusing it
+would hide their words from the prompt AND stall the watermark that would have
+recorded them, since a refused entry is neither delivered nor blocking.
+
 Forward updates are conservative: they never copy a live thread tip,
 combine unrelated namespaces, or take an unrestricted maximum across surfaces.
 Untrusted comments and forged orchestrator markers cannot authorize
@@ -488,11 +496,27 @@ class _CandidateClassifier:
         retained_ids: frozenset = _EMPTY_IDS,
         pat_login: str | None = None,
     ) -> tuple[bool, str | None]:
-        body_text = getattr(review, _ATTR_BODY, None) or ""
-        posted_here = getattr(review, _ATTR_ID, None) in retained_ids
-        if _trust.ORCHESTRATOR_COMMENT_MARKER in body_text and not posted_here:
-            return False, REASON_FORGED_MARKER
-        if posted_here:
+        """Whether one inline comment or review summary may enter a prompt.
+
+        The IssueComment classifier's forged-marker rule is deliberately NOT
+        here, and its absence is what keeps these two surfaces readable. That
+        rule exists because the orchestrator POSTS on the issue thread and the
+        pull request's conversation, and the bounded id ledger forgets old
+        posts -- so a body carrying our marker that the ledger cannot vouch
+        for has to be refused, or an evicted post of ours is re-fed as
+        feedback. This orchestrator posts no review and no inline comment at
+        all, so there is no identity of ours for a marker to forge on either:
+        a review body quoting it is a reviewer quoting it, and nothing else.
+
+        Refused here, that reviewer's words are both hidden from the prompt
+        and left unrecorded -- a refused entry is neither delivered nor
+        blocking, so its watermark never moves and the surface hands the
+        identical comment to a developer again on the next tick, forever.
+
+        The id ledger is still honoured where a caller hands one over, so a
+        surface this orchestrator ever does post on stays describable.
+        """
+        if getattr(review, _ATTR_ID, None) in retained_ids:
             return True, REASON_ORCHESTRATOR_COMMENT
         user_obj = getattr(review, _ATTR_USER, None)
         trusted = is_trusted_author(user_obj)

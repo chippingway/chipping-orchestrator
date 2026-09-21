@@ -6,7 +6,9 @@
 never started, was interrupted, timed out, was refused by its provider, or
 exited nonzero before it looks at the message at all, so a partial transcript
 or a provider's error text is never read as finished work.
-`_parse_report_outcome` is the message half alone.
+`_parse_report_outcome` is the message half alone, and `_finished_on_a_report`
+is that same reading asked as a yes/no by a stage whose other replies are
+ordinary answers rather than a contract broken.
 
 The message is read more strictly than the verdict markers beside it. A report
 block encloses free prose, so its marker lines are uppercase and whole-line as
@@ -110,6 +112,23 @@ def _report_outcome_of_run(agent_result: AgentResult) -> _models._ReportOutcome:
     if refusal is not None:
         return refusal
     return _parse_report_outcome(agent_result.last_message)
+
+
+def _finished_on_a_report(agent_result: AgentResult) -> bool:
+    """Whether this run finished on one of the two report outcomes.
+
+    What it separates is which road a run's disposition belongs on, for the
+    routes where a reply carrying NO report is an ordinary answer rather than
+    a contract broken. A fix round is exactly that: its `ACK:`, its question,
+    its timeout are each a road the stage already has, so the stage settles
+    what it delivered on every one of them -- and on a run that really did
+    write a report it settles nothing, because that report is a publication
+    this tick cannot guarantee and the feedback it answers may not be
+    recorded as read until it lands.
+    """
+    return not isinstance(
+        _report_outcome_of_run(agent_result), _models._ReportRefusal,
+    )
 
 
 def _parse_report_outcome(last_message: str) -> _models._ReportOutcome:

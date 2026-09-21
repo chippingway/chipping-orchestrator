@@ -1476,7 +1476,23 @@ The keys that matter for the state machine fall into a few groups:
   answers to `pr_last_comment_id` and to nothing else: nothing that advances the issue-thread cursor has read the pull
   request, so a PR comment numbered below the last answered reply is unread rather than delivered. Neither field is
   copied into the other and no maximum is taken across them — that maximum is exactly the value that hides one surface
-  to bound the other. Every writer of these fields stops before unread human input, and none of them reads a tip. The
+  to bound the other.
+
+  `fixing` also WRITES `last_action_comment_id`, and it writes it for the issue thread alone. A fix round quotes every
+  unread surface into one developer prompt, so the round that consumed an issue-thread reply settles that reply for the
+  reader the reply belongs to as well (`fixing/feedback.py`, `_settle_consumed_feedback`) — left behind, a manual move
+  between `workflow:fixing`, `workflow:validating` and the drift path pays a second developer to deliver the reply the
+  fix round already answered. The PR-conversation, inline-review, and review-summary halves of that same batch move
+  only their own in-review watermarks. Every surface advances to the max id actually quoted on it and no further, the
+  pairs come from `workflow/engine/prompt_delivery.py` (the producer a recovered report transaction's watermarks are
+  also read against, and the owner whose classifier the `fixing` scan asks of the two review surfaces, so no item is
+  prompted that the settlement would then refuse to record), and a run that was never invoked, a shutdown-killed run,
+  and a live-paused run settle nothing at all — delivery is what the field records, and none of those delivered
+  anything. A round that finished on a report outcome settles nothing either: the publication it owes is not this
+  tick's to promise, and feedback recorded as answered for a report no reviewer has is the one reading that fork
+  exists to refuse.
+
+  Every writer of these fields stops before unread human input, and none of them reads a tip. The
   approval handoff's seed walk stops at the first unread non-orchestrator comment on either surface; the legacy
   migration reuses that same walk and seeds the two review surfaces at 0, since the orchestrator posts on neither and
   any advance there would cross somebody's review; and the park carry walks forward from the mark already persisted
@@ -1551,12 +1567,20 @@ The keys that matter for the state machine fall into a few groups:
   `pending_fix_issue_ids` / `pending_fix_review_ids` / `pending_fix_review_summary_ids` batch lists. They are hints, not
   watermarks — the in_review watermarks are deliberately left behind so the `fixing` rescan can re-discover the
   triggering comments, and the id lists let `_reconstruct_pending_fix_batch` rebuild the exact triggering batch after
-  the watermarks advance past it (falling back conservatively to the max ids for issues parked before the lists were
-  recorded). The `validating → fixing` route instead records a single `pending_fix_reviewer_comment_id` — the id of the
+  every reader has advanced past it (falling back conservatively to the max ids for issues parked before the lists were
+  recorded). Settling a delivered batch never touches them: an explicit `/orchestrator continue` retry and a genuine
+  question or disagreement park both depend on the bookmarks outliving the readers the same round moved. The batch an
+  accepted retry rebuilds keeps each surface apart, because the replay is delivered and so is settled: its issue-thread
+  half advances `last_action_comment_id` beside the PR-side cursor and its PR-conversation half advances that PR-side
+  cursor alone — and what the retry settles is that batch JOINED with the fresh rescan, so the bare
+  `/orchestrator continue` the prompt deliberately drops is still recorded as answered.
+
+  The `validating → fixing` route instead records a single `pending_fix_reviewer_comment_id` — the id of the
   PR conversation comment carrying the reviewer's CHANGES_REQUESTED feedback — and does NOT set `pending_fix_at` (that
   key is the route discriminator that drives the review-round reset). `_reconstruct_pending_fix_batch` re-fetches that
-  exact comment by id (outside `filter_trusted`, since it is the orchestrator's own reviewer output the author allowlist
-  would otherwise drop) as the validating-route replay anchor. The rebuilt batch is what the `/orchestrator continue`
+  exact comment by id — onto the PR conversation, the surface it was posted on, and outside `filter_trusted`, since it
+  is the orchestrator's own reviewer output the author allowlist would otherwise drop — as the validating-route replay
+  anchor. The rebuilt batch is what the `/orchestrator continue`
   operator command replays when retrying a session-failure park (see
   [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing)); the anchor is cleared on a
   pushed fix and inside `_clear_pending_fix_bookmarks`.

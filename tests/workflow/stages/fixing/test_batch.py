@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import conversation_prompts as _conversation_prompts
+from orchestrator.workflow.stages.fixing import feedback as _feedback
 from tests.workflow.stages.fixing import fixing_test_support as support
 
 ADVANCED_PR_COMMENT_WATERMARK = support.ADVANCED_PR_COMMENT_WATERMARK
@@ -40,7 +42,11 @@ FakePRRef = support.FakePRRef
 FakePRReview = support.FakePRReview
 FakeUser = support.FakeUser
 ISSUE = support.ISSUE
+LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
 ORCHESTRATOR = support.ORCHESTRATOR
+PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
+PR_LAST_REVIEW_COMMENT_ID = support.PR_LAST_REVIEW_COMMENT_ID
+PR_LAST_REVIEW_SUMMARY_ID = support.PR_LAST_REVIEW_SUMMARY_ID
 PR_HEAD_SHA = support.PR_HEAD_SHA
 PR_NUMBER = support.PR_NUMBER
 UNTRUSTED_ISSUE_ID = support.UNTRUSTED_ISSUE_ID
@@ -134,6 +140,21 @@ class _PendingFixBatchFixtureMixin:
         return gh, issue, pr
 
 
+def _surface_ids(batch) -> dict:
+    """The ids one rebuilt batch carries, held apart by the surface they came
+    off, so a case can say which reader each half of it owes.
+    """
+    return {
+        surface: [found.id for found in getattr(batch, surface)]
+        for surface in (
+            "issue_thread",
+            "pr_conversation",
+            "review_comments",
+            "review_summaries",
+        )
+    }
+
+
 class ReconstructPendingFixBatchTest(
     unittest.TestCase,
     _PendingFixBatchFixtureMixin,
@@ -156,30 +177,79 @@ class ReconstructPendingFixBatchTest(
         )
         self._pinned_state = gh.read_pinned_state(issue)
 
-        self._batch = _reconstruct_pending_fix_batch(
+        self._reconstructed = _reconstruct_pending_fix_batch(
             gh,
             issue,
             pr,
             self._pinned_state,
         )
 
-        # Exact batch: issue-space, then inline, then summaries; each surface
-        # sorted by id.
-        self.assertEqual(
-            [feedback_item.id for feedback_item in self._batch],
-            [*BATCH_ISSUE_IDS, *BATCH_INLINE_IDS, *BATCH_SUMMARY_IDS],
-        )
+        # Each surface carries its own recorded ids and nobody else's. Asked
+        # per surface rather than of the flattened batch, because the issue
+        # thread and the PR conversation are rebuilt from ONE recorded id set
+        # over ONE shared id space: merged, a reconstruction that put each
+        # comment on the other's surface reads identically, and the
+        # settlement below would then move the wrong reader.
+        self.assertEqual(_surface_ids(self._reconstructed), {
+            "issue_thread": [BATCH_ISSUE_ID],
+            "pr_conversation": [BATCH_PR_CONVERSATION_ID],
+            "review_comments": list(BATCH_INLINE_IDS),
+            "review_summaries": list(BATCH_SUMMARY_IDS),
+        })
         # Non-batch noise on every surface is excluded.
+        self._batch = self._reconstructed.all_items
         ids = {feedback_item.id for feedback_item in self._batch}
         self.assertNotIn(BATCH_LATER_ISSUE_ID, ids)
         self.assertNotIn(BATCH_ORCHESTRATOR_NOTE_ID, ids)
         self.assertNotIn(BATCH_INLINE_NOISE_ID, ids)
         self.assertNotIn(BATCH_SUMMARY_NOISE_ID, ids)
+        # Prompt order: issue-space, then inline, then summaries; each surface
+        # sorted by id.
+        self.assertEqual(
+            [feedback_item.id for feedback_item in self._batch],
+            [*BATCH_ISSUE_IDS, *BATCH_INLINE_IDS, *BATCH_SUMMARY_IDS],
+        )
         # The reconstructed batch is directly consumable by the dev-resume
         # prompt builder -- the whole point of rebuilding it.
         self._prompt = _conversation_prompts._build_pr_comment_followup(self._batch)
         for body in ("issue thread ask", "pr conv ask", "inline ask one", "inline ask two", "please address"):
             self.assertIn(body, self._prompt)
+
+    def test_each_surface_settles_its_own_reader(self) -> None:
+        # What the provenance above is FOR: a replay is delivered, so it is
+        # settled, and each half of the rebuilt batch owes the reader that
+        # owns it. The two IssueComment surfaces are what separates a correct
+        # attribution from a merged one -- the issue-action boundary stops at
+        # the thread's own max id, while the PR-side cursor covers the whole
+        # shared space. Swap the two surfaces and the boundary lands on the
+        # PR comment, which is the reply this stage would then hand a second
+        # developer.
+        gh, issue, pr = self._pr_with_feedback()
+        gh.seed_state(
+            ISSUE,
+            pr_last_comment_id=ADVANCED_PR_COMMENT_WATERMARK,
+            pr_last_review_comment_id=ADVANCED_REVIEW_COMMENT_WATERMARK,
+            pr_last_review_summary_id=ADVANCED_REVIEW_SUMMARY_WATERMARK,
+            pending_fix_issue_ids=list(BATCH_ISSUE_IDS),
+            pending_fix_review_ids=list(BATCH_INLINE_IDS),
+            pending_fix_review_summary_ids=list(BATCH_SUMMARY_IDS),
+        )
+        rebuilt = _reconstruct_pending_fix_batch(
+            gh, issue, pr, gh.read_pinned_state(issue),
+        )
+
+        # Settled into a record whose readers all sit below the batch, which
+        # is the state a replay across an unsettled issue-action boundary
+        # reaches this owner in.
+        settled = PinnedState(state_data={})
+        _feedback._settle_consumed_feedback(settled, rebuilt)
+
+        self.assertEqual(settled.data, {
+            LAST_ACTION_COMMENT_ID: BATCH_ISSUE_ID,
+            PR_LAST_COMMENT_ID: BATCH_PR_CONVERSATION_ID,
+            PR_LAST_REVIEW_COMMENT_ID: BATCH_INLINE_SECOND_ID,
+            PR_LAST_REVIEW_SUMMARY_ID: BATCH_SUMMARY_ID,
+        })
 
     def test_legacy_max_id_reconstructs_single_item(self) -> None:
         gh, issue, pr = self._pr_with_feedback()
@@ -198,7 +268,7 @@ class ReconstructPendingFixBatchTest(
         )
         state = gh.read_pinned_state(issue)
 
-        batch = _reconstruct_pending_fix_batch(gh, issue, pr, state)
+        batch = _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items
 
         # Only the single max-id item per surface; a legacy bookmark cannot
         # prove lower ids were in the batch.
@@ -219,7 +289,9 @@ class ReconstructPendingFixBatchTest(
         )
         state = gh.read_pinned_state(issue)
 
-        self.assertEqual(_reconstruct_pending_fix_batch(gh, issue, pr, state), [])
+        self.assertEqual(
+            _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items, [],
+        )
 
     def test_drops_untrusted_recorded_ids(self) -> None:
         # An issue parked before the trust gate shipped can carry an untrusted
@@ -259,7 +331,9 @@ class ReconstructPendingFixBatchTest(
         self._state = gh.read_pinned_state(issue)
 
         with patch.object(config, ALLOWED_AUTHORS_CONFIG, (ALLOWED_AUTHOR,)):
-            batch = _reconstruct_pending_fix_batch(gh, issue, pr, self._state)
+            batch = _reconstruct_pending_fix_batch(
+                gh, issue, pr, self._state,
+            ).all_items
 
         # Only the trusted recorded id survives.
         self.assertEqual(

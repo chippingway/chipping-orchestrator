@@ -86,7 +86,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             preserves distinct namespaces, watermark fields, bounded-excerpt omissions, filtering decisions,
                             and requirements revisions without copying live thread tips or taking unrestricted maximums.
                             A caller that names the pinned state comment has it excluded by id on the issue thread, so a
-                            reply quoting its marker is still a reply; one that does not keeps the marker test.
+                            reply quoting its marker is still a reply; one that does not keeps the marker test. The
+                            forged-marker refusal is the two IssueComment surfaces' alone, because those are the two
+                            this orchestrator posts on and the id ledger evicts old posts from; it writes no review
+                            and no inline comment, so a body quoting the marker there is a reviewer quoting it, and
+                            refusing it would hide their words from the prompt AND stall the watermark that would
+                            have recorded them, since a refused entry is neither delivered nor blocking.
                             `human_replies` is the same classification asked as a list question -- the trust filter,
                             the pinned comment, our own posts by recorded id, and a marker the ledger cannot vouch for
                             -- for the roads that decide who OWNS a batch before anything builds a prompt from it, so a
@@ -1492,15 +1497,31 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             per-surface owner, so the issue thread answers to the issue-only delivery cursor too and
                             the pull request never does (a bare `/orchestrator add-agent-runs` is no
                             feedback there, as in in_review) -- the quiet window a fresh batch settles
-                            through before a resume spends the session on a fragment of it, and the narrower ratchet
-                            a consumed batch advances those watermarks by
-      bookmarks.py          the `pending_fix_*` ids a replay rebuilds the triggering batch from, and the clear each
-                            round earns
-      resume.py             the dev run, the ACK fast path, the `workflow:validating` relabel a pushed fix earns, and
-                            the round a fix the size gate sent to adjudication spends here -- no later tick of this
-                            stage can, since the head the reviewer rejected is superseded whether that adjudication
-                            parks its `single` for a human or an authorized settlement publishes before handing the
-                            issue back
+                            through before a resume spends the session on a fragment of it, and the settlement a
+                            consumed batch earns: one reader per surface, derived through `engine/prompt_delivery.py`
+                            -- whose classifier the two REVIEW surfaces are scanned through, since an item the scan
+                            admits and the settlement refuses reaches a developer and moves no reader, so the next
+                            tick hands the identical comment to a second one (the pinned record is dropped by
+                            identity for the same reason). The issue thread settles the issue-action boundary
+                            `last_action_comment_id` beside the PR-side cursor -- a reply this round quoted has been
+                            in a developer prompt, and left behind it routes back to a second developer the moment a
+                            human moves the label -- while the pull request's three surfaces settle only the
+                            in_review watermarks that are theirs
+      bookmarks.py          the `pending_fix_*` ids a replay rebuilds the triggering batch from -- each surface
+                            apart, since the replay is delivered and so is settled -- and the clear each round earns
+      resume.py             the dev run, the three refusals that will not count one as a delivery -- a launch
+                            nothing invoked, a shutdown kill, a live pause -- the settlement of the batch every other
+                            outcome DID deliver, the ACK fast path, the `workflow:validating` relabel a pushed fix
+                            earns, and the round a fix the size gate sent to adjudication spends here -- no later
+                            tick of this stage can, since the head the reviewer rejected is superseded whether that
+                            adjudication parks its `single` for a human or an authorized settlement publishes before
+                            handing the issue back. The settlement is taken ahead of the disposition, so whichever
+                            durable write comes next -- the size gate's receipt, a park's own -- carries it, and it
+                            is taken for every outcome but one: a run that finished on a report outcome
+                            (`engine/report_outcomes.py`) owes a publication this tick cannot promise, and feedback
+                            recorded as answered for a report no reviewer has is the reading that fork refuses. A
+                            replay settles the batch it REPLAYED joined with the fresh rescan, each item against the
+                            reader of the surface it was posted on
       parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough
