@@ -814,16 +814,18 @@ The keys that matter for the state machine fall into a few groups:
   writer refuses lands none of itself rather than dropping the pending record beside a published report.
 
   Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record,
-  the one member named below excepted.
+  the two members named below excepted.
   Both a pending verification's location and the settled `developer_report_current` location are bound to their own
   subject's pull request, since a location is exact in both halves and still names a place anywhere in the
   repository — a subject naming one pull request beside a location on another would say the report this pull
   request carries is somewhere else. Every optional-looking field is written on *every* record, so its absence is
   damage rather than a default: an empty watermark or bookkeeping array is "nothing owed" while an absent or `null`
   one is a truncation, and a location without its comment field is a truncation while the `null` spelled there is
-  the description. The legacy-safe absences are the whole additive record and one member: `developer_report_current`
-  without `mode`, which is what a settlement written before that member existed carries and reads back with no
-  road, while a `mode` that is present and names none — `null` included — is damage like any other member. Because
+  the description. The legacy-safe absences are the whole additive record and one member of each settled record:
+  `developer_report_current` without `mode`, which is what a settlement written before that member existed carries
+  and reads back with no road, and `developer_report_handoff` without `under`, which is the same settlement read
+  back as one nobody can place. Both are held to the stricter answer rather than guessed at, and in both a value
+  that is present and names none — `null` included — is damage like any other member. Because
   a record's absence is also what an issue with nothing recorded reads as, presence is asked apart from meaning: an
   issue that CLAIMS a record nobody can describe is the one answer a guard may not confuse with an issue that owes
   none.
