@@ -313,7 +313,10 @@ round is recorded, published and settled rather than parked:
   push or the post keeps failing — and resumed on, every poll pays another developer to write another report over
   the identical prompt. The record's own frozen watermarks say which batch that is: a rescan with nothing above them
   holds the round where it is, a parked one stays parked, and what moves it on is the publication landing, an
-  explicit `/orchestrator continue`, or a comment above those pairs.
+  explicit `/orchestrator continue`, or a comment above those pairs. A wait nothing left can end — no unread
+  feedback, nothing on the branch to publish, and a publication that declines for good, which is what a transaction
+  whose requirements moved under it does — is announced once rather than held in silence, because only another
+  report supersedes such a one and only a reply brings it.
 - One rule covers every road an owed report touches: **nothing an outstanding publication carries may be spent
   before it lands** — not the bookmarks, not the round, not the readers. A bounce that publishes a stranded commit
   while a report stands hands the size gate nothing to close. The single exception is a road that ENDS in a park: a

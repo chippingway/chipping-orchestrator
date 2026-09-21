@@ -29,8 +29,10 @@ from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     report_records as _records,
     report_settlement_state as _settlement,
+    report_transaction as _report_transaction,
 )
 from tests.workflow.git_owners import seam_patch
+from tests.workflow.repo_values import _TEST_SPEC
 
 # The comment an older round's report was published as, for the record that
 # outlives the transaction that put it there.
@@ -137,6 +139,23 @@ def opens_a_later_round(seeded, *, bookmarked: int | None = None) -> None:
     seeded.github.apply_foreign_label(seeded.issue, _FIXING)
 
 
+def settles_elsewhere(seeded, *, under: str, head: str) -> None:
+    """Settle this issue's outstanding transaction under another label.
+
+    The reconciliation runs ahead of every handler on every non-terminal label,
+    so a fixing round that left `workflow:fixing` with its publication still
+    owed settles where the issue has got to -- and the mark it raises is then
+    standing on a comment no fixing tick is reading.
+    """
+    seeded.github.apply_foreign_label(seeded.issue, under)
+    pr_number = seeded.github.read_pinned_state(seeded.issue).get("pr_number")
+    with republishing_world(seeded.github, pr_number=pr_number, head=head):
+        _report_transaction._reconciles_pending_report(
+            seeded.github, _TEST_SPEC, seeded.issue, under,
+            seeded.github.read_pinned_state(seeded.issue),
+        )
+
+
 @contextlib.contextmanager
 def republishing_world(github, *, pr_number: int, head: str):
     """The tick after a held publication, over a world that holds.
@@ -151,23 +170,23 @@ def republishing_world(github, *, pr_number: int, head: str):
     published = github.get_pr(pr_number)
     published.head.sha = head
     published.commit_shas = (head,)
+    # Every git reading the report evidence takes, answered from one pair.
     with tempfile.TemporaryDirectory() as checkout, contextlib.ExitStack() as seams:
-        for owner, reading in _readings(Path(checkout), head).items():
-            seams.enter_context(seam_patch(owner, reading))
+        seams.enter_context(seam_patch(
+            "_worktree_path", lambda *_args: Path(checkout),
+        ))
+        seams.enter_context(seam_patch(
+            "_worktree_status", lambda *_args: _WorktreeStatus(readable=True),
+        ))
+        seams.enter_context(seam_patch("_head_sha", lambda *_args: head))
+        seams.enter_context(seam_patch(
+            "_authed_fetch", lambda *_args, **_fields: mock.Mock(returncode=0),
+        ))
+        seams.enter_context(seam_patch(
+            "_branch_divergence",
+            lambda *_args: _BranchDivergence(tip=head, readable=True),
+        ))
         yield
-
-
-def _readings(checkout: Path, head: str) -> dict:
-    """Every git reading the report evidence takes, answered from one pair."""
-    return {
-        "_worktree_path": lambda *_args: checkout,
-        "_worktree_status": lambda *_args: _WorktreeStatus(readable=True),
-        "_head_sha": lambda *_args: head,
-        "_authed_fetch": lambda *_args, **_fields: mock.Mock(returncode=0),
-        "_branch_divergence": lambda *_args: _BranchDivergence(
-            tip=head, readable=True,
-        ),
-    }
 
 
 @contextlib.contextmanager

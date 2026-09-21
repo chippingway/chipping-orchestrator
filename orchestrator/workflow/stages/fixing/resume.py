@@ -184,7 +184,6 @@ def _fixing_ack_fast_path(
     run: _models._FixingResumeRun,
     *,
     routed: bool,
-    owes_a_report: bool,
 ) -> bool:
     """In_review-route ACK fast path. Returns True (and relabels to
     `in_review`) when the dev's no-commit reply carried an explicit
@@ -194,7 +193,8 @@ def _fixing_ack_fast_path(
     Three shapes never reach the marker. The validating CHANGES_REQUESTED route
     (`routed` false) is excluded because that reviewer asked for a concrete
     change, so an ACK there is not an answer. An issue that OWES a report is
-    excluded, and the debt is read off the record rather than off this run: a
+    excluded, and the debt is read HERE off the record rather than handed in by
+    a caller reading this run: a
     round that reported has the publication ahead of it rather than a relabel,
     and one that did not can still be standing on a report an earlier tick
     could not deliver -- returning the pull request to review there would
@@ -225,7 +225,7 @@ def _fixing_ack_fast_path(
     and the fall-through alike: the reading that says the feedback needs no
     change is the same reading that says a developer read it.
     """
-    if not routed or owes_a_report or run.dev_result.timed_out:
+    if not routed or _report_delivery.owes_a_report(ctx.state) or run.dev_result.timed_out:
         return False
     if run.after_sha and run.after_sha != run.before_sha:
         return False
@@ -391,23 +391,19 @@ def _resume_fixing_and_dispatch_result(
     # new_feedback` gate would drop it). The orchestrator's own park comment
     # needs no bump to avoid replay -- the next tick's rescan filters by both
     # recorded id and body marker.
-    if _records_what_was_consumed(
-        ctx, run, delivered, owed,
-        reporting=_report_outcomes._finished_on_a_report(run.dev_result),
-    ):
+    reported = _report_outcomes._finished_on_a_report(run.dev_result)
+    if _records_what_was_consumed(ctx, run, delivered, owed, reporting=reported):
         return
 
-    # Read once, past the record this tick may have just written, and asked of
-    # the RECORD rather than of this run: a debt an earlier tick left is this
-    # round's to honour too.
-    owes = _report_delivery.owes_a_report(ctx.state)
-
-    # A reply that reached for the report contract and MISSED is held here,
-    # ahead of every road below. Neither half of such a message may be acted
-    # on: the `ACK:` would return the pull request to review as needing no
-    # change, and a commit beside it would be pushed and relabelled with no
-    # report on the pull request at all.
-    if _reporting._stops_on_a_misread_contract(ctx, run):
+    # The two replies this round may act on no half of, held ahead of every
+    # road below. A message that reached for the report contract and MISSED is
+    # one: the `ACK:` half would return the pull request to review as needing
+    # no change, and a commit beside it would be pushed and relabelled with no
+    # report on the pull request at all. A round that COMMITTED over a report
+    # an earlier tick recorded is the other: that report describes the branch
+    # before this commit, so every road that publishes afterwards would bind
+    # it to work it never saw.
+    if _reporting._holds_for_a_human(ctx, run, reported=reported):
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 
@@ -417,12 +413,10 @@ def _resume_fixing_and_dispatch_result(
     # through to `_handle_dev_fix_result`, which parks for the human unless its
     # stranded-fix check publishes a committed-but-unpushed fix instead
     # (`validating/stranded.py`'s probe).
-    if _fixing_ack_fast_path(
-        ctx, run, routed=pending_fix_at_was_set, owes_a_report=owes,
-    ):
+    if _fixing_ack_fast_path(ctx, run, routed=pending_fix_at_was_set):
         return
 
-    _disposes(ctx, run, owed, owes=owes)
+    _disposes(ctx, run, owed, reported=reported)
 
 
 def _disposes(
@@ -430,7 +424,7 @@ def _disposes(
     run: _models._FixingResumeRun,
     owed,
     *,
-    owes: bool,
+    reported: bool,
 ) -> None:
     """Publish what this run left, and close the round on what was published.
 
@@ -444,15 +438,23 @@ def _disposes(
     its record for the write that completes the publication. The bounce that
     republishes that commit is what binds it; settled here instead, the
     feedback would read as answered for a report no reviewer has.
+
+    A round that committed over a report an EARLIER tick recorded never gets
+    here at all: its caller holds it for a human first, because the record it
+    would be published against describes the branch before that commit.
     """
     # A round whose whole answer IS the report never reaches the publication
     # tail: there is no commit to push, and the prompt asked for exactly that
     # -- an item wanting report content only is answered in the report, with no
     # commit for it. The head its pull request already stands on is what the
     # report is about, so that is what it is bound to.
-    if _report_outcomes._finished_on_a_report(
-        run.dev_result,
-    ) and _reporting._is_report_only(ctx, run):
+    # Asked of the RECORD rather than of this run, and past whatever this tick
+    # has just written to it: a debt an earlier tick left is this round's to
+    # honour too, and a round that has just recorded its own report owes one
+    # from this line onwards.
+    owes = _report_delivery.owes_a_report(ctx.state)
+
+    if reported and _reporting._is_report_only(ctx, run):
         _reporting._finishes_a_reported_round(
             ctx, owed, getattr(ctx.pr.head, "sha", "") or "",
         )

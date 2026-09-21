@@ -1500,6 +1500,12 @@ The keys that matter for the state machine fall into a few groups:
   to carry it. A push that did not land is not that exception: the record keeps both groups until the no-feedback
   bounce republishes that commit and binds the report to it.
 
+  `developer_report_unreported_work` bounds the other end of the same road. A delivered record carries no commit of
+  its own — what it is ABOUT is the branch as its run left it, and the only thing on the comment that says so is that
+  nothing has been committed over it since. So a fix round that MOVES the head while an earlier tick's report is
+  still owed, and answers with no report of its own, raises that flag and parks: while it stands no road binds a
+  report at all, whatever a checkout proves, and only a report written over the branch as it now stands retires it.
+
   `fixing_round_settled` is the additive mark such a settlement leaves. The write that completes a fixing report
   transaction applies that route's bookkeeping and cannot move a label, so the round ends with the issue still on
   `workflow:fixing` — and nothing else on the comment says so, since `developer_report_current` is replaced rather

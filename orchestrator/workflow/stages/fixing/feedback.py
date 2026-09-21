@@ -291,12 +291,25 @@ def _read_by_an_owed_report(
     into the park's own write, so their readers HAVE moved and this batch is
     genuinely fresh. An empty group says the same thing: a run that consumed
     nothing answers no prompt.
+
+    A record this issue CLAIMS and nothing can read is the opposite answer, and
+    it is the one place here that fails closed. Read as an absence it would say
+    this batch is unread while the pairs that would have proved otherwise are
+    exactly what nobody can decode -- so the scan behind it pays a second
+    developer to answer feedback the first one already answered. The roads that
+    park such a record run ahead of this, so what this covers is the reader
+    reached before one of them could.
     """
     recorded = (
         _delivery_state.read_delivered_report(state)
         or _record_state.read_pending_report(state)
     )
-    if recorded is None or not recorded.watermarks:
+    if recorded is None:
+        return (
+            _delivery_state.carries_delivered_report(state)
+            or _record_state.carries_pending_report(state)
+        )
+    if not recorded.watermarks:
         return False
     answered = PinnedState(
         comment_id=state.comment_id, state_data=dict(state.data),

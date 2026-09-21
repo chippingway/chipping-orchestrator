@@ -305,7 +305,10 @@ def _bounce_without_feedback(
         # thing this exit may not clear or relabel past: the bookmarks below
         # are what an outstanding publication replays from, and a reviewer
         # sent to the head instead would read work nothing on the pull
-        # request describes. The record stands for the tick that publishes it.
+        # request describes. The record stands for the tick that publishes it
+        # -- and since this exit is the last road of the tick, a wait nothing
+        # left can end is announced here rather than held in silence.
+        _reporting._holds_a_stalled_report(ctx)
         gh.write_pinned_state(issue, state)
         return
     else:
@@ -315,7 +318,6 @@ def _bounce_without_feedback(
         # rounds with them.
         _bookmarks._clear_pending_fix_bookmarks(state)
     _reporting._hands_the_round_back(ctx)
-    gh.write_pinned_state(issue, state)
 
 
 def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:

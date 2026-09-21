@@ -1494,8 +1494,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`report_recovery.py`), and the commit the no-feedback bounce publishes -- measured by
                             the same size gate the shared dev-fix publication passes, so a held candidate stops the
                             bounce rather than being relabelled over -- before it hands the PR back to the reviewer.
-                            That bounce binds the report its push is the publication for, and holds the clear and the
-                            relabel while one is still owed
+                            That bounce binds the report its push is the publication for, holds the clear and the
+                            relabel while one is still owed, and, being the last road of the tick, announces a wait
+                            nothing left can end rather than holding it in silence
       feedback.py           the rescan past the three in_review watermarks -- read through that stage's own
                             per-surface owner, so the issue thread answers to the issue-only delivery cursor too and
                             the pull request never does (a bare `/orchestrator add-agent-runs` is no
@@ -1519,9 +1520,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and route bookkeeping ride (`engine/report_delivery.py`), the binding and post that put
                             it on the pull request (`engine/report_binding.py`), the report-only reading -- every
                             half of it positive, since a head nobody could read and a divergence nothing could count
-                            both answer the same as a branch in sync -- the park a reply that reached for the
-                            contract and missed earns ahead of every other road, and the answer that holds the
-                            relabel while a report is still owed. A binding is held to the commit its CALLER proved
+                            both answer the same as a branch in sync -- the two parks a round earns ahead of every
+                            other road (a reply that reached for the contract and missed, and a commit made over a
+                            report an earlier tick recorded, which no road may bind over afterwards), the
+                            announcement a wait nothing left can end earns, and the answer that holds the relabel
+                            while a report is still owed. A binding is held to the commit its CALLER proved
                             and never to the standing `implementing_published_sha`, which on a tick that pushed
                             nothing names an older round. What closes the two groups is the write that completes the
                             transaction, here or in the reconciliation ahead of a later handler -- a push that did
@@ -1535,7 +1538,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             against the checkout rather than remembered off a receipt -- a clean tree, a head it can
                             name, and the pull request standing on it. A binding that TAKES the delivery ends the
                             tick, finishing the recovered route back to `workflow:validating` where the publication
-                            settled and relabelling nothing where it is still owed; a worktree that is GONE and a
+                            settled and relabelling nothing where it is still owed; a record the issue CLAIMS and
+                            nothing can read parks once ahead of all of it, since read as an absence it would fall
+                            through to the scan whose watermarks it was holding back; a worktree that is GONE and a
                             tree this host PROVED dirty each park once, writing what the dead run consumed into that
                             park's own write, since the republishing bounce declines the second exactly as this owner
                             does, while every other refusal leaves a checkout that bounce still republishes from.

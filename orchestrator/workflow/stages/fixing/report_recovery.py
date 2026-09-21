@@ -77,6 +77,22 @@ from orchestrator.workflow.state import WorkflowLabel
 # raised mark says a newer round opened after that settlement.
 _REVIEWER_ANCHOR = "pending_fix_reviewer_comment_id"
 
+# What a delivered record nobody can read is held under. Durable, because the
+# condition does not clear on its own: what it asks for is the pinned comment
+# repaired, or the field cleared to abandon the report.
+_UNREADABLE_PARK = (
+    "{mentions} this issue records a developer report it still owes its pull "
+    "request, and the record cannot be read: a field is missing, or is not the "
+    "shape this orchestrator writes. Nothing was published and nothing was "
+    "discarded -- the branch, the pull request, and every other record are "
+    "exactly as they were. The workflow is held here rather than carried on, "
+    "because the input that run consumed rides the same record: read past it, "
+    "this issue pays a second developer to answer feedback the first one "
+    "already answered and replaces the first report with the second. Repair "
+    "the pinned comment -- or clear the `developer_report_delivery` field to "
+    "abandon the report -- and the next tick resumes on its own."
+)
+
 # What a report no road on this host can publish is held under.
 _UNPUBLISHABLE_PARK = (
     "{mentions} this issue records a developer report its pull request never "
@@ -153,7 +169,6 @@ def _finishes_a_settled_round(ctx: _models._FixingContext) -> bool:
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return False
     _reporting._hands_the_round_back(ctx)
-    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     return True
 
 
@@ -206,10 +221,25 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     Nothing is discarded there, the tick carries on, and a later one asks
     again; stopping instead would hold the roads that answer a human in front
     of a condition only a human clears.
+
+    Presence is asked before meaning, and that order is what keeps a damaged
+    record from being read as an issue with nothing outstanding. The debt every
+    road behind this reads is CLAIMED by the key alone, so a record a hand edit
+    truncated is a debt nothing here could describe -- and read as an absence
+    it would fall straight through to the scan, whose watermarks that same
+    record was holding back, and pay a second developer to answer the feedback
+    the first one already answered. Parked once instead, with the record
+    untouched for whoever repairs or abandons it.
     """
+    if not _delivery_state.carries_delivered_report(ctx.state):
+        return False
     delivered = _delivery_state.read_delivered_report(ctx.state)
     if delivered is None:
-        return False
+        _report_delivery.parks_an_undeliverable_report(
+            ctx.gh, ctx.issue, ctx.state,
+            _UNREADABLE_PARK.format(mentions=_config.HITL_MENTIONS),
+        )
+        return True
     published = _published_checkout(ctx)
     if not published:
         _holds_a_report_nothing_can_publish(ctx, delivered)
@@ -219,9 +249,10 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     if _delivery_state.carries_delivered_report(ctx.state):
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return False
-    if not still_owed:
+    if still_owed:
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+    else:
         _reporting._hands_the_round_back(ctx)
-    ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     return True
 
 

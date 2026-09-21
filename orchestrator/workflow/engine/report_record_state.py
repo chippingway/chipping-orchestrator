@@ -60,6 +60,7 @@ from orchestrator.workflow.engine import (
     stage_targets as _stage_targets,
 )
 from orchestrator.workflow.late_split import formats as _formats
+from orchestrator.workflow.state import WorkflowLabel
 
 # The two values a settlement will hold that this transaction cannot yet name:
 # the digest the published text will hash to, and the comment id GitHub will
@@ -77,6 +78,15 @@ _WIDEST_IDENTITY = _record_values.MAX_RECORDED_NUMBER
 # may be pushed while it waits, so both are sized here at what the field can
 # hold rather than at what this transaction expects.
 _WIDEST_COMMIT = "f" * max(_formats.COMMIT_LENGTHS)
+
+# The widest label a settlement can record itself under. WHICH label that is
+# depends on where the issue has got to by the time the write lands, which is a
+# question no record can answer for itself -- so the reservation takes the
+# longest spelling the vocabulary has, and the member that actually lands can
+# only be narrower. Left out of the reservation entirely, a transaction
+# accepted at the ceiling settles past it: the report is posted and the write
+# that has to record it fails, identically, for the rest of the issue's life.
+_WIDEST_LABEL = max(WorkflowLabel, key=lambda label: len(str(label)))
 
 
 def carries_pending_report(state: _pinned_state.PinnedState) -> bool:
@@ -271,9 +281,10 @@ def settled_payload(
     description of it: a field added there has to move this measurement, and
     one this owner copied could not.
 
-    Widest at the two values a settlement does not know yet -- the digest the
-    published text will hash to and the comment id the post will answer with --
-    so the size measured is an upper bound on the one that actually lands.
+    Widest at the three values a settlement does not know yet -- the digest the
+    published text will hash to, the comment id the post will answer with, and
+    the workflow label the issue will be carrying when the write lands -- so the
+    size measured is an upper bound on the one that actually lands.
 
     The comment-id LEDGER grows on the same road and is reserved here for the
     same reason, which is the one piece of the settling write that does not
@@ -319,6 +330,7 @@ def settled_payload(
         pr_number=pending.subject.pr_number,
         report_revision=pending.report_revision,
         source_sha=pending.subject.source_sha,
+        settled_under=_WIDEST_LABEL,
     ))
     if not recorded or not handed:
         return None

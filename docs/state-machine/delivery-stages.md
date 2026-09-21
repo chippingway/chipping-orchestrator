@@ -693,7 +693,8 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     would be a false "exact" location for every later reread; for a verification, nothing is posted and the named
     location is re-read, requiring both a trusted author and content that still hashes to the revision verified.
     Either way one `developer_report_current`, one `developer_report_handoff` — carrying the workflow label the
-    issue was on as the write landed, which nothing reconstructs afterwards — the consumed watermarks, and the
+    issue was on as the write landed, which nothing reconstructs afterwards and which the acceptance measurement
+    reserves at the longest label spelling there is — the consumed watermarks, and the
     route's round / bookmark fields land in a single write with the drop of the pending record. That write is
     composed whole before any of it is installed, so a settled record its own writer refuses lands none of itself
     rather than dropping the pending record beside a report nothing says the pull request carries. Reaching that
@@ -3341,6 +3342,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      handoff this build cannot read is held the same way, and so are the two readings beside it: a route anchor a
      NEWER round wrote, and a report the issue still owes.
 
+     PRESENCE is asked before meaning, and it is what keeps a damaged record off the scan. The debt every road
+     behind this guard reads is CLAIMED by the key alone, so a `developer_report_delivery` a hand edit truncated is a
+     debt nothing here could describe — and read as an absence it would fall straight through to the rescan, whose
+     watermarks that same record was holding back, and pay a second developer to answer the feedback the first one
+     already answered. Asked for its presence first, the issue **parks once** with the record untouched for whoever
+     repairs or abandons it. (`fixing/feedback._read_by_an_owed_report` fails closed on the same claim, for the
+     reader reached before one of these parks could be taken.)
+
      A binding that TAKES the delivery **ends the tick** too. Settled, the round the record froze is closed and the
      issue is handed back to `workflow:validating` — the recovered route is finished exactly as the live road would
      have finished it, for the same reason. Bound but unposted, nothing is relabelled: the transaction is
@@ -3480,7 +3489,12 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      stops the bounce BEFORE it clears `pending_fix_*` or relabels: those bookmarks are what an outstanding
      publication replays from, and a reviewer sent to the head instead would read work nothing on the pull request
      describes. While one stands the size gate is handed nothing to close either, since the record is already
-     carrying this route's bookkeeping.
+     carrying this route's bookkeeping. This exit is the LAST road of the tick, so a wait nothing left can end is
+     **announced once** there (`reporting._holds_a_stalled_report`) rather than held in silence: nothing unread,
+     nothing stranded to publish, and a publication that declines — most often a transaction whose requirements moved
+     when a human commented after the report was written, which the engine leaves owed for a drift resume this stage
+     does not have. What supersedes such a report is another report, and what brings one is the reply that park asks
+     for. A park anybody else has taken is left exactly as it is.
   7. **Quiet window**: compute the newest `created_at` (or `submitted_at` for review summaries); if younger than
      `IN_REVIEW_DEBOUNCE_SECONDS`, return.
   8. **Resume**: build a `_build_pr_comment_followup` prompt over ALL unread surfaces, resume the locked dev via
@@ -3501,7 +3515,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      every road below** (`reporting._stops_on_a_misread_contract`): read on its `ACK:` half it returns the pull
      request to review as needing no change, and a commit beside it would otherwise be pushed and relabelled with no
      report on the pull request at all. Nothing is published, the commit stays in the worktree, and a reply resumes
-     the session. Every other outcome — the ordinary `ACK:`, the question, the timeout, the dirty tree — writes no
+     the session. A round that COMMITTED over a report an EARLIER tick recorded is held on the same road, and for a
+     reason of its own: a delivered record carries no commit, so what it is about is the branch as its own run left
+     it, and the only thing that says so is that nothing has been committed over it since. Published against the new
+     head it would describe work the commit does not contain, so nothing goes out, `developer_report_unreported_work`
+     is raised — which stops every later road binding over it — and the reply the park earns brings the report that
+     describes the branch as it stands. A round that wrote its own report is not that: it replaces the record at a
+     fresh revision, so report and commit are one run's and bind together. Every other outcome — the ordinary `ACK:`,
+     the question, the timeout, the dirty tree — writes no
      report and is **settled** directly (`_settle_consumed_feedback`) right there, ahead of every disposition below,
      because the size gate's own durable write and a park's both land inside that disposition and a settlement taken
      afterwards would be lost to a crash in the window a hold's relabel opens. Then the disposition: a

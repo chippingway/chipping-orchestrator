@@ -34,6 +34,7 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
     report_record_state as _record_state,
+    report_records as _records,
     report_transaction as _report_transaction,
 )
 from orchestrator.workflow.stages.fixing import (
@@ -129,31 +130,51 @@ LATER_COMMENT = "one more thing: rename the helper"
 # What a round parks under when the push it made did not land.
 _PUSH_FAILED = support.PARK_PUSH_FAILED
 
+# The pinned flag that says this branch carries commits no record describes.
+_UNREPORTED_WORK = _report_delivery.UNREPORTED_WORK
 
-def _settles_elsewhere(seeded, *, under: str) -> None:
-    """Settle this issue's outstanding transaction under another label.
+# What a round answering a reply it cannot act on comes back with.
+_A_QUESTION = "which of the two parsers did you mean?"
 
-    The reconciliation runs ahead of every handler on every non-terminal label,
-    so a fixing round that left `workflow:fixing` with its publication still
-    owed settles where the issue has got to -- and the mark it raises is then
-    standing on a comment no fixing tick is reading.
+# A commit a LATER round makes, distinct from both heads the fixtures use, so
+# a case about a report bound to the wrong one can say which one.
+_LATER_COMMIT = "a" * len(SHA_AFTER)
+
+# A delivered record shaped like nothing this build writes: the key is there,
+# so the issue CLAIMS a report, and no reader can say what it is about.
+_DAMAGED_DELIVERY = MappingProxyType({"receipt": "issue-880-report-1"})
+
+
+def _parked_for_a_human(case, seeded, mocks) -> None:
+    """The one announcement a report road that ENDS earns, and no developer.
+
+    Every such road takes the same park, so the reading is one owner's: the
+    issue waits, the reason says the report could not be delivered, and the
+    notice is posted exactly once however many polls the wait lasts.
     """
-    seeded.github.apply_foreign_label(seeded.issue, under)
-    with recovery.republishing_world(
-        seeded.github, pr_number=support.PR_NUMBER, head=SHA_AFTER,
-    ):
-        _report_transaction._reconciles_pending_report(
-            seeded.github, _TEST_SPEC, seeded.issue, under,
-            seeded.github.read_pinned_state(seeded.issue),
-        )
+    spawned_nobody(mocks)
+    pinned_data = case._pinned(seeded)
+    case.assertTrue(pinned_data.get(AWAITING_HUMAN))
+    case.assertEqual(
+        pinned_data.get(PARK_REASON), _report_delivery.UNDELIVERABLE_REPORT,
+    )
+    case.assertEqual(len(seeded.github.posted_comments), 1)
 
 
 class _ReportRoundMixin(_FixingFixtureMixin):
     """One fix round whose developer finishes on a report outcome."""
 
-    def _seed_round(self):
-        """A `fixing` issue on the in_review route, one reply unread."""
-        return IssueScenario(*self._seed(
+    def _seed_round(self, *, crashed: bool = False, landed: str = ""):
+        """A `fixing` issue on the in_review route, one reply unread.
+
+        `crashed` seeds the record a tick that died past the recording left
+        behind: the report, the pairs its run consumed, and the route
+        bookkeeping it froze -- which only the write that completes the
+        publication may apply. `landed` is the code-publication receipt a
+        crash AFTER the push leaves beside it, and its absence is the crash
+        before one.
+        """
+        seeded = IssueScenario(*self._seed(
             pr=self._open_pr(),
             issue_comments=[FakeComment(
                 id=TRIGGER_ID,
@@ -163,6 +184,12 @@ class _ReportRoundMixin(_FixingFixtureMixin):
             )],
             extra_state=dict(SEEDED_READERS),
         ))
+        if crashed:
+            crash.recorded_delivery(
+                seeded, SEEDED_READERS, TRIGGER_ID,
+                landed=landed, spends=FROZEN_SPENDS,
+            )
+        return seeded
 
     def _round(
         self,
@@ -273,9 +300,10 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         )
         self.assertEqual(
             dict(owed.spends),
-            dict(_reporting._closes_the_round(_resume._spends_fix_round(
-                self._record(seeded), True,
-            ))),
+            dict(
+                _resume._spends_fix_round(self._record(seeded), True).fields
+                + _reporting._SETTLES_THE_ROUND,
+            ),
         )
         self.assertEqual(
             pinned_data.get(PR_LAST_COMMENT_ID), INITIAL_PR_COMMENT_WATERMARK,
@@ -292,11 +320,8 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         # bookmarks are NOT cleared: an outstanding publication replays from
         # them, and the write that completes the transaction is what closes
         # them once the report is really there.
-        seeded = self._seed_round()
+        seeded = self._seed_round(crashed=True)
         seeded.github.report_failures.refused.add(support.PR_NUMBER)
-        crash.recorded_delivery(
-            seeded, SEEDED_READERS, TRIGGER_ID, spends=FROZEN_SPENDS,
-        )
 
         self._tick(seeded, head=SHA_AFTER, branch_ahead_behind=(1, 0))
 
@@ -377,7 +402,7 @@ class FixingStaleSettlementTest(unittest.TestCase, _ReportRoundMixin):
         # opened over is never scanned.
         seeded = self._seed_round()
         self._round(seeded.github, seeded.issue, publishes=False)
-        _settles_elsewhere(seeded, under=VALIDATING)
+        recovery.settles_elsewhere(seeded, under=VALIDATING, head=SHA_AFTER)
         self.assertTrue(self._pinned(seeded).get(recovery.SETTLED_ROUND))
 
         # A LATER round opens over a reply of its own, the way the in_review
@@ -387,7 +412,7 @@ class FixingStaleSettlementTest(unittest.TestCase, _ReportRoundMixin):
 
         mocks = self._round(
             seeded.github, seeded.issue,
-            message="which of the two parsers did you mean?",
+            message=_A_QUESTION,
             head_shas=(SHA_AFTER, SHA_AFTER),
         )
 
@@ -406,18 +431,52 @@ class FixingStaleSettlementTest(unittest.TestCase, _ReportRoundMixin):
         # itself under, and this one was not `fixing`.
         seeded = self._seed_round()
         self._round(seeded.github, seeded.issue, publishes=False)
-        _settles_elsewhere(seeded, under=VALIDATING)
+        recovery.settles_elsewhere(seeded, under=VALIDATING, head=SHA_AFTER)
         crash.later_comment(seeded.issue, LATER_COMMENT_ID, LATER_COMMENT)
         recovery.opens_a_later_round(seeded)
 
         mocks = self._round(
             seeded.github, seeded.issue,
-            message="which of the two parsers did you mean?",
+            message=_A_QUESTION,
             head_shas=(SHA_AFTER, SHA_AFTER),
         )
 
         self.assertIn(LATER_COMMENT, only_prompt(mocks))
         self.assertFalse(self._pinned(seeded).get(recovery.SETTLED_ROUND))
+
+    def test_a_failed_relabel_retires_the_mark(self) -> None:
+        # The mark is durable and the relabel is not atomic with it, so the
+        # order decides which window a crash lands in. Retired first, a tick
+        # that dies before the label moves leaves the mark down and the issue
+        # on `workflow:fixing`, which the bounce behind it answers on the next
+        # poll. Relabelled first, the same death leaves a raised mark that
+        # NOTHING later tells from a round that has just settled: this manual
+        # return carries no route anchor, owes no report, and reads back a
+        # handoff settled under `workflow:fixing` -- so the mark would be spent
+        # on it and the reply it was moved here to answer never scanned.
+        seeded = self._seed_round()
+        refused = patch.object(
+            seeded.github, "set_workflow_label",
+            side_effect=RuntimeError("the relabel never landed"),
+        )
+
+        with refused, self.assertRaises(RuntimeError):
+            self._round(seeded.github, seeded.issue)
+
+        # The settlement landed, and the mark came down in its own write.
+        self.assertEqual(self._reports_posted(seeded), 1)
+        self.assertFalse(self._pinned(seeded).get(recovery.SETTLED_ROUND))
+
+        crash.later_comment(seeded.issue, LATER_COMMENT_ID, LATER_COMMENT)
+        recovery.opens_a_later_round(seeded)
+
+        mocks = self._round(
+            seeded.github, seeded.issue,
+            message=_A_QUESTION,
+            head_shas=(SHA_AFTER, SHA_AFTER),
+        )
+
+        self.assertIn(LATER_COMMENT, only_prompt(mocks))
 
     def test_a_historical_report_answers_nothing(self) -> None:
         # A settled report is REPLACED rather than retired, and the publication
@@ -435,7 +494,7 @@ class FixingStaleSettlementTest(unittest.TestCase, _ReportRoundMixin):
 
         mocks = self._round(
             seeded.github, seeded.issue,
-            message="which of the two parsers did you mean?",
+            message=_A_QUESTION,
             head_shas=(PR_HEAD_SHA, PR_HEAD_SHA),
         )
 
@@ -676,10 +735,7 @@ class FixingReportRefusalTest(unittest.TestCase, _ReportRoundMixin):
         # return the pull request to review as needing nothing -- while the
         # report it owes is still on the pinned comment and nothing has gone
         # out. There is no report here either, so the round parks instead.
-        seeded = self._seed_round()
-        crash.recorded_delivery(
-            seeded, SEEDED_READERS, TRIGGER_ID, spends=FROZEN_SPENDS,
-        )
+        seeded = self._seed_round(crashed=True)
         crash.later_comment(seeded.issue, LATER_COMMENT_ID, LATER_COMMENT)
 
         # A real checkout, standing ahead of the pull request: the recovery
@@ -702,6 +758,89 @@ class FixingReportRefusalTest(unittest.TestCase, _ReportRoundMixin):
         ))
 
 
+
+    def test_a_new_commit_publishes_no_older_report(self) -> None:
+        # Later feedback on the pull request lets a round run while a report
+        # an earlier tick recorded is still owed, and that round commits. The
+        # record carries no commit of its own -- what it is ABOUT is the
+        # branch as its own run left it -- so publishing it against this new
+        # head would hand a reviewer a description of work the commit does not
+        # contain. Nothing is published, the work is recorded as undescribed
+        # so no later road binds over it, and the reply the park earns brings
+        # the report that describes the branch as it stands.
+        seeded = self._seed_round(crashed=True)
+        crash.later_pr_comment(
+            seeded.github.get_pr(support.PR_NUMBER),
+            LATER_COMMENT_ID, LATER_COMMENT,
+        )
+
+        mocks = self._tick(
+            seeded, head_shas=(SHA_AFTER, SHA_AFTER, _LATER_COMMIT),
+        )
+
+        pinned_data = self._pinned(seeded)
+        mocks[RUN_AGENT].assert_called_once()
+        mocks[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(self._reports_posted(seeded), 0)
+        self.assertTrue(_delivery_state.carries_delivered_report(
+            self._record(seeded),
+        ))
+        self.assertTrue(pinned_data.get(_UNREPORTED_WORK))
+        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
+        self.assertFalse(self._went_back_to_review(seeded))
+
+    def test_undescribed_work_binds_no_report(self) -> None:
+        # A branch carrying commits no record describes is one no road may
+        # bind a report over, whatever the checkout proves. Here the checkout
+        # is clean and the pull request stands on the very head it names, so
+        # every reading the recovery takes says "publish" -- and the report it
+        # would publish was written before those commits existed. Only a fresh
+        # report, which is what the park asks for, retires the flag.
+        seeded = self._seed_round(crashed=True)
+        state = self._record(seeded)
+        state.set(_UNREPORTED_WORK, True)
+        seeded.github.write_pinned_state(seeded.issue, state)
+
+        mocks = self._tick(seeded)
+
+        spawned_nobody(mocks)
+        self.assertEqual(self._reports_posted(seeded), 0)
+        self.assertTrue(_delivery_state.carries_delivered_report(
+            self._record(seeded),
+        ))
+        self.assertFalse(self._went_back_to_review(seeded))
+
+    def test_a_damaged_record_spawns_nobody(self) -> None:
+        # The debt every road behind the recovery reads is CLAIMED by the key
+        # alone, so a record a hand edit truncated is a debt nothing can
+        # describe. Read as an absence it would fall straight through to the
+        # scan -- whose watermarks that same record was holding back -- and
+        # pay a second developer to answer the feedback the first one already
+        # answered, replacing the first report with the second. Asked for its
+        # presence first, the issue is held for a human with the record
+        # exactly as it stands.
+        seeded = self._seed_round()
+        state = self._record(seeded)
+        state.set(_records.DELIVERED_REPORT, dict(_DAMAGED_DELIVERY))
+        seeded.github.write_pinned_state(seeded.issue, state)
+
+        mocks = self._tick(seeded)
+
+        _parked_for_a_human(self, seeded, mocks)
+        # Answered by the road that runs BEFORE the scan, which is what the
+        # notice says: a later road reading the same claim fails closed too,
+        # and a case that could not tell them apart would pass over a
+        # recovery that had stopped asking.
+        self.assertTrue(support.posted_comment_contains(
+            seeded.github, "the record cannot be read",
+        ))
+        # Nothing was discarded: the record stands for whoever repairs it.
+        self.assertEqual(
+            self._pinned(seeded).get(_records.DELIVERED_REPORT),
+            dict(_DAMAGED_DELIVERY),
+        )
+
+
 class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
     """A report a crash left recorded and unbound, on the tick that follows."""
 
@@ -713,14 +852,11 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # round the rescan below runs binds it rather than relabelling past it.
         # (The cost of holding the readers back is that this window
         # re-delivers the batch once; the report is not lost by it.)
-        seeded = self._seed_round()
-        # An older round's receipt, naming the very commit the pull request is
-        # standing on. Read as proof that THIS report's run pushed, it would
-        # publish a report about work that never left the checkout.
-        crash.recorded_delivery(
-            seeded, SEEDED_READERS, TRIGGER_ID,
-            landed=PR_HEAD_SHA, spends=FROZEN_SPENDS,
-        )
+        # `landed` is an older round's receipt, naming the very commit the
+        # pull request is standing on. Read as proof that THIS report's run
+        # pushed, it would publish a report about work that never left the
+        # checkout.
+        seeded = self._seed_round(crashed=True, landed=PR_HEAD_SHA)
 
         self._tick(seeded, head=SHA_AFTER)
 
@@ -743,14 +879,10 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # record froze is settled with it, and the recovered route is FINISHED
         # -- handed back to the reviewer rather than left on `fixing` under a
         # route the settlement has just cleared.
-        seeded = self._seed_round()
         # The standing receipt names some other commit, as it does on every
         # tick that did not push: what the binding is held to is the commit
         # this call proved, never the one the record happens to remember.
-        crash.recorded_delivery(
-            seeded, SEEDED_READERS, TRIGGER_ID,
-            landed=SHA_AFTER, spends=FROZEN_SPENDS,
-        )
+        seeded = self._seed_round(crashed=True, landed=SHA_AFTER)
 
         mocks = self._tick(seeded)
 
@@ -766,10 +898,7 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # this host can say which. Said once, the issue waits -- rather than
         # every tick finding no feedback, no checkout and an owed report and
         # quietly doing nothing with any of them.
-        seeded = self._seed_round()
-        crash.recorded_delivery(
-            seeded, SEEDED_READERS, TRIGGER_ID, spends=FROZEN_SPENDS,
-        )
+        seeded = self._seed_round(crashed=True)
 
         # No `on_a_real_checkout`: the default probe names a path no host
         # holds, which is the reading this case is about.
@@ -780,7 +909,7 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
                 head_shas=(SHA_BEFORE, SHA_BEFORE),
             )
 
-        self._parked_unpublishable(seeded, mocks)
+        _parked_for_a_human(self, seeded, mocks)
 
     def test_a_dirty_checkout_parks_for_a_human(self) -> None:
         # A tree this host PROVED dirty is the other refusal nothing takes
@@ -788,13 +917,10 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # the recovery does, so the two decline together and every poll finds
         # no feedback, no publishable checkout and an owed report. Said once,
         # the issue waits for the hand that can clean it.
-        seeded = self._seed_round()
-        crash.recorded_delivery(
-            seeded, SEEDED_READERS, TRIGGER_ID, spends=FROZEN_SPENDS,
-        )
+        seeded = self._seed_round(crashed=True)
 
-        self._parked_unpublishable(
-            seeded, self._tick(seeded, dirty_files=("stray.py",)),
+        _parked_for_a_human(
+            self, seeded, self._tick(seeded, dirty_files=("stray.py",)),
         )
 
     def test_a_later_comment_binds_the_report(self) -> None:
@@ -812,10 +938,7 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # road resumes the developer for it. Owed is the point -- it is a
         # transaction something comes back for, where a delivery nothing bound
         # is not.
-        seeded = self._seed_round()
-        crash.recorded_delivery(
-            seeded, SEEDED_READERS, TRIGGER_ID, spends=FROZEN_SPENDS,
-        )
+        seeded = self._seed_round(crashed=True)
         crash.later_comment(seeded.issue, LATER_COMMENT_ID, LATER_COMMENT)
 
         # One head, answered to every probe this tick takes: the recovery's own
@@ -827,28 +950,33 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         )
 
         mocks[RUN_AGENT].assert_called_once()
-        self.assertTrue(_record_state.carries_pending_report(
-            self._record(seeded),
-        ))
+        owed = _record_state.read_pending_report(self._record(seeded))
         self.assertFalse(_delivery_state.carries_delivered_report(
             self._record(seeded),
         ))
+        # Bound to the commit the report is ABOUT -- the one the round found
+        # on the branch and republished -- and not to whatever the pull
+        # request happens to carry next.
+        self.assertEqual(owed.subject.source_sha, SHA_AFTER)
         # Nothing was spent and nobody was handed the head while it stands.
         self.assertFalse(self._went_back_to_review(seeded))
         self.assertTrue(recovery.keeps_the_replay_state(
             self._pinned(seeded), bookmarked=TRIGGER_ID,
         ))
 
+        # And the wait it leaves is announced rather than held in silence:
+        # the requirements that report answers moved with that reply, so the
+        # publication stands down for good and only a fresh report supersedes
+        # it. Nothing is left for a developer to do until a human says so.
+        _parked_for_a_human(self, seeded, self._tick(seeded, head=SHA_AFTER))
+
     def test_an_unposted_report_holds_the_tick(self) -> None:
         # The binding landed and the post did not, so a transaction is owed.
         # Nothing may relabel past it: the bookmarks it replays from are the
         # ones the bounce would otherwise clear on its way to `validating`,
         # leaving a reviewer reading a head no report describes.
-        seeded = self._seed_round()
+        seeded = self._seed_round(crashed=True)
         seeded.github.report_failures.refused.add(support.PR_NUMBER)
-        crash.recorded_delivery(
-            seeded, SEEDED_READERS, TRIGGER_ID, spends=FROZEN_SPENDS,
-        )
 
         self._tick(seeded)
 
@@ -859,17 +987,6 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         self.assertTrue(recovery.keeps_the_replay_state(
             self._pinned(seeded), bookmarked=TRIGGER_ID,
         ))
-
-    def _parked_unpublishable(self, seeded, mocks) -> None:
-        """The one announcement a definite refusal earns, and no developer."""
-        spawned_nobody(mocks)
-        pinned_data = self._pinned(seeded)
-        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
-        self.assertEqual(
-            pinned_data.get(PARK_REASON),
-            _report_delivery.UNDELIVERABLE_REPORT,
-        )
-        self.assertEqual(len(seeded.github.posted_comments), 1)
 
 
 if __name__ == "__main__":
