@@ -708,9 +708,15 @@ The keys that matter for the state machine fall into a few groups:
   there and binding on any of them would replace a finished run's report with a value the comment never held. Five
   roads on the recording side park the issue under `report_undeliverable`: a report this workflow cannot write down
   at all, a completed run that handed over no usable report to write, a recovery that republishes committed
-  work no recorded report describes, a round reporting with NO commit over a head nothing could prove the pull
-  request to be standing on, and the fixing recovery that finds a report a crashed round recorded and cannot prove
-  the pull request carries the work it is about. A binding REFUSES rather than parks — it
+  work no recorded report describes, and a round reporting with NO commit whose own checkout refuses the reading it
+  needed. The fixing recovery is a sixth, and the one that does NOT leave its record where it found it: a checkout
+  this host proves it cannot publish from — gone, or carrying uncommitted changes — parks with the frozen pairs
+  that record held applied and the record itself RELEASED, since left there, restoring or cleaning the checkout
+  would publish the report and send the issue to review, which is the decision the notice exists to put in front of
+  a human. The debt outlives that release, so the review stays held and the reply still brings a report. A reading
+  nobody could TAKE is not one of the six at all — an unreadable tree, a head that would not resolve, a pull
+  request this poll could not fetch — and buys nothing: nothing published, nothing released, no notice, and the
+  poll behind it asks again. A binding REFUSES rather than parks — it
   stages nothing and says which refusal it was — and `report_binding.py` is what answers the refusal: a comment too
   full for the transaction is retried silently on the next call, since the routes a report still owed lets run are
   what give that room back, while a record no comment would ever hold, a delivery nothing can read, and a

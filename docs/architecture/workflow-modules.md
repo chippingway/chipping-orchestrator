@@ -2535,8 +2535,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             behind nothing, answering with the head it was compared against so the push that
                             follows is pinned to it. A run that committed takes it for that head alone, since
                             whether the branch is ahead decides nothing there. The AFFIRMATIVE reading beside it
-                            is for the roads that publish WITHOUT pushing -- a report of the work the pull request
-                            already carries, and the recovery that hands such a report on -- and what it asks is
+                            is for the one road that publishes WITHOUT pushing through this stage -- a report of
+                            the work the pull request already carries, on the `CHANGES_REQUESTED` round this stage
+                            spawns itself (`fix_report_evidence.py`) -- and what it asks is
                             EQUALITY rather than ahead-ness: a clean tree, a fetch that returned, a divergence git
                             counted as zero BOTH ways, a tip that reads, and a local HEAD that reads and IS that
                             tip, answered as that head so the caller holds the rest of its evidence to one commit.

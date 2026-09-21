@@ -11,12 +11,15 @@ stand down on it, and the no-feedback bounce that is the validating route's
 last tick to publish it.
 
 `_published_head_in_sync` beside it is the same reading asked for the opposite
-answer, by the roads that publish without pushing: a report of the work the pull
-request already carries needs the branch PROVED to be standing where that pull
-request is, and "nothing was proved stranded" is not that -- every refusal below
-is also a branch that may be carrying a commit nobody published. Two callers ask
-it, the round that reports without committing and the fixing recovery that hands
-such a report on, and they ask it of the same checkout for the same reason.
+answer, by the road that publishes without pushing: a report of the work the
+pull request already carries needs the branch PROVED to be standing where that
+pull request is, and "nothing was proved stranded" is not that -- every refusal
+below is also a branch that may be carrying a commit nobody published. One
+caller asks it, `fix_report_evidence` for the `CHANGES_REQUESTED` round this
+stage spawns itself; the `fixing` stage answers the same question over its own
+checkout and a pull request it reads AFRESH, since the receipt this reading
+leans on is persistent and names an older round's commit on any tick that
+pushed nothing.
 
 It is one probe rather than three because the refusals are the whole contract.
 A dirty tree, a fetch that failed, a divergence nothing could read, and a

@@ -3631,9 +3631,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
   is out of sync with the PR — behind base or an unpushed local rebase), OR label flipped to `workflow:decomposing`
   (the size gate held a fix, a stranded-fix bounce, a transient-park recovery push, or a candidate that recovery
   published), OR label flipped to
-  `in_review` (in_review route, ACK fast path on this tick only), OR a HITL park (`report_undeliverable` where that
-  recovery cannot prove the pull request carries the work its report is about), OR a no-op (quiet-window wait,
-  missing-PR park already set).
+  `in_review` (in_review route, ACK fast path on this tick only), OR a HITL park (`report_undeliverable` where the
+  checkout holding an owed report is one this host PROVES it cannot publish from — gone, or carrying uncommitted
+  changes — which releases that record as it parks), OR a no-op (quiet-window wait, missing-PR park already set,
+  or any reading nobody could take: an unreadable tree, a head that would not resolve, a pull request this poll
+  could not fetch, each of which holds the record and says nothing).
 
 ## `_handle_resolving_conflict` (label `workflow:resolving_conflict`)
 - **Trigger**: each tick while label is `workflow:resolving_conflict` (set by an operator relabel, by

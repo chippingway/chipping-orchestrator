@@ -17,6 +17,7 @@ refusal and holds everything where it stands.
 """
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import unittest
 from itertools import chain, repeat
@@ -24,12 +25,7 @@ from types import MappingProxyType
 
 from orchestrator.github import developer_reports as _dev_reports
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import (
-    report_delivery as _report_delivery,
-    report_records as _records,
-    report_settlement_state as _settlement,
-)
-from orchestrator.workflow.state import WorkflowLabel
+from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.workflow.stages.fixing import (
     fixing_test_support as live,
     report_crash_support as crash,
@@ -112,6 +108,15 @@ _TRANSIENT_READS = MappingProxyType({
 _UNREAD_CHECKOUTS = MappingProxyType({
     _UNREAD_TREE: {_TREE_STATES: (crash.a_tree(readable=False),)},
     _UNREAD_HEAD: {_HEAD_SHAS: ("",)},
+})
+
+# Every reading the recovery can fail to TAKE, on both sides of the binding:
+# the checkout it proves the branch on, and the pull request read that says
+# where that branch is published. Each entry is whether the fetch refuses and
+# what the checkout answers.
+_UNREAD_WORLDS = MappingProxyType({
+    **{read: (False, options) for read, options in _UNREAD_CHECKOUTS.items()},
+    "a pull request this poll could not fetch": (True, {}),
 })
 
 _DIRTY_CHECKOUT = MappingProxyType(
@@ -226,6 +231,10 @@ class LiveReportRoundMixin(live._FixingFixtureMixin):
         """
         return self.pinned(seeded).get(_DELIVERED_REPORT)
 
+    def published(self, seeded):
+        """The pull request this issue's report is about, as GitHub holds it."""
+        return seeded.github.get_pr(live.PR_NUMBER)
+
     def reader(self, seeded) -> int:
         """Where the issue-action boundary stands, which several cases ask.
 
@@ -240,7 +249,7 @@ class LiveReportRoundMixin(live._FixingFixtureMixin):
 
     def handed_back(self, seeded) -> bool:
         """Whether the reviewer was given the head back."""
-        return (live.ISSUE, WorkflowLabel.VALIDATING) in (
+        return (live.ISSUE, live.fixtures.LABEL_VALIDATING) in (
             seeded.github.label_history
         )
 
@@ -304,7 +313,7 @@ class LiveReportRoundTest(unittest.TestCase, LiveReportRoundMixin):
         # is on the pull request: the recovery re-proves that against the
         # checkout, publishes, and closes the round the record froze.
         seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
-        seeded.github.get_pr(live.PR_NUMBER).head.sha = live.SHA_AFTER
+        self.published(seeded).head.sha = live.SHA_AFTER
 
         self.tick(seeded, head=live.SHA_AFTER)
 
@@ -338,7 +347,7 @@ class LiveReportRoundTest(unittest.TestCase, LiveReportRoundMixin):
         # the prompt it earns carries the reply and nothing the report already
         # covers.
         seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
-        published = seeded.github.get_pr(live.PR_NUMBER)
+        published = self.published(seeded)
         published.head.sha = live.SHA_AFTER
         crash.later_pr_comment(published, _LATER_ID, _LATER_FEEDBACK)
         reply = published.issue_comments[-1]
@@ -424,7 +433,7 @@ class LiveFreshPullRequestTest(unittest.TestCase, LiveReportRoundMixin):
         request as it really stands, so a case is about the road preferring
         that one.
         """
-        published = seeded.github.get_pr(live.PR_NUMBER)
+        published = self.published(seeded)
         earlier = dataclasses.replace(published, **replaced)
         return live.patch.object(seeded.github, "get_pr", side_effect=chain(
             repeat(earlier, reads), repeat(published),
@@ -478,7 +487,7 @@ class LiveFreshPullRequestTest(unittest.TestCase, LiveReportRoundMixin):
         # disagree. So the round holds: nothing posted, the record intact, no
         # reader moved, no round spent and the label where it was.
         seeded = self.seed()
-        seeded.github.get_pr(live.PR_NUMBER).head.sha = live.SHA_AFTER
+        self.published(seeded).head.sha = live.SHA_AFTER
 
         with self.serves_until(
             seeded, _THE_PROOF, head=live.FakePRRef(sha=live.PR_HEAD_SHA),
@@ -545,51 +554,105 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
                     self.reader(seeded), live.TRIGGER_ID,
                 )
 
-    def test_an_unread_checkout_holds_the_record(self) -> None:
-        # A status nobody could take and a head that would not resolve are not
-        # a refusal at all: a later poll may read either, so the record is HELD
-        # rather than released and the tick says NOTHING. Let past instead, the
-        # scan behind it finds a batch the record's own pairs cover, and the
-        # bounce announces a report no road can move -- a claim about a branch
-        # this tick could not read a thing about, filed as a park only a human
-        # clears.
-        for read, options in _UNREAD_CHECKOUTS.items():
-            with self.subTest(read=read):
-                seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
+    def test_a_dirty_round_takes_the_report_park(self) -> None:
+        # A tree this host PROVED dirty is decisive, so the round ends on the
+        # terminal park its REPORT owns rather than on the question road: one
+        # notice, the reason a settlement can read, the record released, and
+        # the batch it consumed written down in that park's own write. The
+        # poll behind it adds no second notice, because nothing has changed
+        # that a human has not been asked about.
+        seeded = self.seed()
 
-                mocks = self.tick(seeded, **options)
-
-                pinned = self.pinned(seeded)
-                spawned_nobody(mocks)
-                self.assertIsNotNone(self.recorded(seeded))
-                self.assertFalse(pinned.get(live.AWAITING_HUMAN))
-                self.assertIsNone(pinned.get(live.PARK_REASON))
-                self.assertEqual(seeded.github.posted_comments, [])
-                self.assertEqual(seeded.github.posted_pr_comments, [])
-
-    def test_the_readable_tick_recovers_what_it_held(self) -> None:
-        # The other half of that hold, over the polls it is really made of:
-        # the reading heals and the very next tick publishes the record the
-        # held one kept, closes the round it froze, and hands the reviewer the
-        # head -- with no human ever having been waited for.
-        seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
-        seeded.github.get_pr(live.PR_NUMBER).head.sha = live.SHA_AFTER
-        self.tick(
-            seeded, head=live.SHA_AFTER, **_UNREAD_CHECKOUTS[_UNREAD_TREE],
-        )
-
-        mocks = self.tick(seeded, head=live.SHA_AFTER)
+        self.tick(seeded, message=_REPORTED, **_DIRTY_CHECKOUT)
+        mocks = self.tick(seeded, message=_REPORTED, **_DIRTY_CHECKOUT)
 
         pinned = self.pinned(seeded)
         spawned_nobody(mocks)
-        self.assertEqual(len(seeded.github.posted_pr_comments), 1)
-        self.assertEqual(seeded.github.posted_comments, [])
-        self.assertFalse(pinned.get(live.AWAITING_HUMAN))
+        self.assertEqual(len(seeded.github.posted_comments), 1)
+        self.assertTrue(posted_comment_contains(
+            seeded.github, _UNPUBLISHABLE_PHRASE,
+        ))
+        self.assertEqual(pinned[live.PARK_REASON], _UNDELIVERABLE)
         self.assertIsNone(self.recorded(seeded))
-        self.assertEqual(
+        self.assertTrue(_report_delivery.owes_a_report(
+            PinnedState(state_data=pinned),
+        ))
+        self.assertGreaterEqual(
             self.reader(seeded), live.TRIGGER_ID,
         )
-        self.assertTrue(self.handed_back(seeded))
+        self.assertEqual(seeded.github.posted_pr_comments, [])
+
+    def _parks(self, seeded, options):
+        """One tick over a checkout this host will never publish from."""
+        if options is None:
+            standing = live.SHA_AFTER
+            return self._run_fixing(
+                seeded.github, seeded.issue,
+                run_agent=live._agent(),
+                head_shas=(standing, standing),
+            )
+        return self.tick(seeded, head=live.SHA_AFTER, **options)
+
+
+class LiveUnreadWorldTest(unittest.TestCase, LiveReportRoundMixin):
+    """A reading nobody could TAKE, on either road and on either side of it.
+
+    The checkout a report is proved against and the pull request it is bound
+    onto are both requests that can simply fail to answer, and an answer that
+    never came is evidence about nothing: not about the branch, not about the
+    description, and not about the head. So it may buy nothing -- no
+    publication, and no notice telling a human this issue is stuck -- and the
+    tick ends where it stands for the poll behind it to ask again.
+
+    Both roads are here because the rule is one rule: the round that reports
+    on this very tick, and the recovery answering a record a dead tick left.
+    """
+
+    def test_an_unread_world_holds_the_record(self) -> None:
+        # A status nobody could take, a head that would not resolve, and a
+        # pull request this poll could not fetch are not refusals at all: a
+        # later poll may answer any of them, so the record is HELD rather than
+        # released and the tick says NOTHING. Let past instead, the scan finds
+        # a batch the record's own pairs cover, and the bounce announces a
+        # report no road can move -- the loudest thing this stage can do,
+        # filed as a park only a human clears, on the strength of a reading
+        # that never happened.
+        for read, (refuses, options) in _UNREAD_WORLDS.items():
+            with self.subTest(read=read):
+                seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
+                self.published(seeded).head.sha = live.SHA_AFTER
+
+                with self._fetching(seeded, refuses):
+                    spawned_nobody(
+                        self.tick(seeded, head=live.SHA_AFTER, **options),
+                    )
+
+                self.assertIsNotNone(self.recorded(seeded))
+                self.assertFalse(self.pinned(seeded).get(live.AWAITING_HUMAN))
+                self.assertIsNone(self.pinned(seeded).get(live.PARK_REASON))
+                self.assertEqual(seeded.github.posted_comments, [])
+                self.assertEqual(seeded.github.posted_pr_comments, [])
+
+    def test_the_tick_that_can_read_recovers_it(self) -> None:
+        # The other half of every one of those holds, over the polls it is
+        # really made of: the reading heals and the very next tick publishes
+        # the record the held one kept, closes the round it froze, and hands
+        # the reviewer the head -- with no human ever having been waited for.
+        for read, (refuses, options) in _UNREAD_WORLDS.items():
+            with self.subTest(read=read):
+                seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
+                self.published(seeded).head.sha = live.SHA_AFTER
+                with self._fetching(seeded, refuses):
+                    self.tick(seeded, head=live.SHA_AFTER, **options)
+
+                mocks = self.tick(seeded, head=live.SHA_AFTER)
+
+                spawned_nobody(mocks)
+                self.assertEqual(len(seeded.github.posted_pr_comments), 1)
+                self.assertEqual(seeded.github.posted_comments, [])
+                self.assertIsNone(self.recorded(seeded))
+                self.assertEqual(self.reader(seeded), live.TRIGGER_ID)
+                self.assertTrue(self.handed_back(seeded))
 
     def test_a_transient_read_holds_a_reporting_round(self) -> None:
         # A head the checkout would not name and a status that established
@@ -631,44 +694,21 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
         )
         self.assertTrue(self.handed_back(seeded))
 
-    def test_a_dirty_round_takes_the_report_park(self) -> None:
-        # A tree this host PROVED dirty is decisive, so the round ends on the
-        # terminal park its REPORT owns rather than on the question road: one
-        # notice, the reason a settlement can read, the record released, and
-        # the batch it consumed written down in that park's own write. The
-        # poll behind it adds no second notice, because nothing has changed
-        # that a human has not been asked about.
-        seeded = self.seed()
+    def _fetching(self, seeded, refuses: bool):
+        """Fail the pull request read the BINDING takes, or leave them all be.
 
-        self.tick(seeded, message=_REPORTED, **_DIRTY_CHECKOUT)
-        mocks = self.tick(seeded, message=_REPORTED, **_DIRTY_CHECKOUT)
-
-        pinned = self.pinned(seeded)
-        spawned_nobody(mocks)
-        self.assertEqual(len(seeded.github.posted_comments), 1)
-        self.assertTrue(posted_comment_contains(
-            seeded.github, _UNPUBLISHABLE_PHRASE,
+        The preflight comes first and has to answer, or the tick never reaches
+        the question: it is the read that says where the pull request is
+        standing and what its description carries that fails here. A case
+        about the checkout rather than the fetch leaves every read alone.
+        """
+        if not refuses:
+            return contextlib.nullcontext()
+        published = self.published(seeded)
+        return live.patch.object(seeded.github, "get_pr", side_effect=chain(
+            repeat(published, _THE_PREFLIGHT),
+            repeat(RuntimeError("the pull request did not answer")),
         ))
-        self.assertEqual(pinned[live.PARK_REASON], _UNDELIVERABLE)
-        self.assertIsNone(self.recorded(seeded))
-        self.assertTrue(_report_delivery.owes_a_report(
-            PinnedState(state_data=pinned),
-        ))
-        self.assertGreaterEqual(
-            self.reader(seeded), live.TRIGGER_ID,
-        )
-        self.assertEqual(seeded.github.posted_pr_comments, [])
-
-    def _parks(self, seeded, options):
-        """One tick over a checkout this host will never publish from."""
-        if options is None:
-            standing = live.SHA_AFTER
-            return self._run_fixing(
-                seeded.github, seeded.issue,
-                run_agent=live._agent(),
-                head_shas=(standing, standing),
-            )
-        return self.tick(seeded, head=live.SHA_AFTER, **options)
 
 
 class LiveStaleCorrelationTest(unittest.TestCase, LiveReportRoundMixin):
@@ -682,7 +722,7 @@ class LiveStaleCorrelationTest(unittest.TestCase, LiveReportRoundMixin):
         # with the feedback that earned it unread.
         seeded = self.seed(crashed=True, landed=live.SHA_AFTER)
         self._records_a_foreign_delivery(seeded)
-        seeded.github.get_pr(live.PR_NUMBER).head.sha = live.SHA_AFTER
+        self.published(seeded).head.sha = live.SHA_AFTER
 
         self.tick(seeded, head=live.SHA_AFTER)
 
@@ -696,7 +736,9 @@ class LiveStaleCorrelationTest(unittest.TestCase, LiveReportRoundMixin):
         seeded = self.seed(**{
             support.SETTLED_ROUND: True, live.PENDING_FIX_AT: None,
         })
-        self._records_a_handoff(seeded, under=WorkflowLabel.VALIDATING)
+        support.records_a_handoff(
+            seeded.github, seeded.issue, under=live.fixtures.LABEL_VALIDATING,
+        )
 
         self.tick(seeded, head=live.PR_HEAD_SHA, message=_REPORTED)
 
@@ -714,21 +756,9 @@ class LiveStaleCorrelationTest(unittest.TestCase, LiveReportRoundMixin):
         """
         state = seeded.github.read_pinned_state(seeded.issue)
         delivered = dict(state.get(_DELIVERED_REPORT))
-        delivered["route"] = str(WorkflowLabel.VALIDATING)
+        delivered["route"] = live.fixtures.LABEL_VALIDATING
         delivered["spends"] = []
         state.set(_DELIVERED_REPORT, delivered)
-        seeded.github.write_pinned_state(seeded.issue, state)
-
-    def _records_a_handoff(self, seeded, *, under: WorkflowLabel) -> None:
-        """Leave the handoff a settlement under `under` records beside a mark."""
-        state = seeded.github.read_pinned_state(seeded.issue)
-        _settlement.record_handoff(state, _records.ReportHandoff(
-            receipt=f"issue-{live.ISSUE}-report-1",
-            pr_number=live.PR_NUMBER,
-            report_revision=1,
-            source_sha=live.PR_HEAD_SHA,
-            settled_under=under,
-        ))
         seeded.github.write_pinned_state(seeded.issue, state)
 
 

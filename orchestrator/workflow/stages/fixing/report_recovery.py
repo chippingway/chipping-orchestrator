@@ -144,11 +144,16 @@ def _answers_a_report_first(ctx: _models._FixingContext) -> bool:
 def _finishes_a_settled_round(ctx: _models._FixingContext) -> bool:
     """Hand back the round a raised mark says just settled, if it is one.
 
-    Asked twice a tick and by two callers, because the answer is the same
-    question either way: ahead of everything, for the settlement some other
-    write landed, and again behind the binding above, for the one it landed
-    itself. A settlement is not licence to relabel -- the mark it raised is,
-    and only where this owner can still place it.
+    Asked by every road that can reach a relabel with a settlement behind it,
+    because the answer is the same question each time. Ahead of everything,
+    for the settlement some other write landed. Behind the binding above, for
+    the one it landed itself. And from the parked dispatch
+    (`parked._settles_the_recovered_report`), whose silent `push_failed` retry
+    IS the publication a held report was waiting for -- that road clears the
+    park, leaves the round and the bookmarks to the settlement, and comes here
+    for the relabel rather than taking one of its own. A settlement is not
+    licence to relabel -- the mark it raised is, and only where this owner can
+    still place it.
 
     False is every round this stage may not end here, and the mark is RETIRED
     on the way out wherever one is standing that can no longer be about the
@@ -225,17 +230,19 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
     next poll reads the issue under the label it really carries.
 
     False is every other issue and also the delivery a binding refused without
-    consuming -- a comment too full, a subject its reader will not take.
-    Nothing is discarded there, the tick carries on, and a later one asks
-    again; stopping instead would hold the roads that answer a human in front
-    of a condition only a human clears.
+    consuming -- a pull request standing somewhere else, a comment too full, a
+    subject its reader will not take. Nothing is discarded there, the tick
+    carries on, and a later one asks again; stopping instead would hold the
+    roads that answer those in front of a condition only a human clears.
 
-    A checkout this tick could not READ is the exception that ends the tick
-    saying nothing at all. It is no evidence about the branch, so it may buy
-    neither a publication nor a notice -- and the road behind this one would
-    make it buy the notice: the record's own pairs cover the batch, so the
-    scan finds nothing to act on and the bounce announces a report no road can
-    move, over a checkout nobody has read.
+    A reading nobody could TAKE is the exception that ends the tick saying
+    nothing at all, and it is the same exception on either side of the
+    binding: a checkout this host could not read, and a pull request this poll
+    could not fetch. Neither is evidence about anything, so neither may buy a
+    publication or a notice -- and the road behind this one would make it buy
+    the notice: the record's own pairs cover the batch, so the scan finds
+    nothing to act on and the bounce announces a report no road can move, over
+    a world nobody has read.
 
     Presence is asked before meaning, and that order is what keeps a damaged
     record from being read as an issue with nothing outstanding. The debt every
@@ -269,11 +276,19 @@ def _recovers_an_unbound_delivery(ctx: _models._FixingContext) -> bool:
         # republishes a commit the pull request has not got, and the report
         # goes out bound to the push it makes.
         return published is None
-    still_owed = _reporting._holds_an_unpublished_report(ctx, published)
+    hold = _reporting._holds_an_unpublished_report(ctx, published)
     if _delivery_state.carries_delivered_report(ctx.state):
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
-        return False
-    if still_owed:
+        # A pull request this poll could not FETCH ends the tick here, for the
+        # reason a checkout nobody could read does: it says nothing about the
+        # branch, the description or the head, so it may buy nothing -- and
+        # the road behind this would make it buy a notice. The scan finds
+        # nothing to act on, since the record's own pairs cover the batch, and
+        # the bounce announces a report no road can move over a pull request
+        # nobody read. Every other refusal was a reading this attempt TOOK,
+        # and the tick carries on to whatever answers it.
+        return hold.unread
+    if hold.owed:
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     else:
         _finishes_a_settled_round(ctx)

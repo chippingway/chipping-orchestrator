@@ -403,8 +403,8 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
 
 def _holds_an_unpublished_report(
     ctx: _models._FixingContext, candidate: str = "",
-) -> bool:
-    """Put this round's report on the pull request; True where it is still owed.
+) -> _models._ReportHold:
+    """Put this round's report on the pull request; say where it is still owed.
 
     Bound to the publication first and posted second, in the engine's own two
     steps: the binding is one local write, so a post GitHub refuses leaves a
@@ -464,23 +464,33 @@ def _holds_an_unpublished_report(
     A read this tick could not take holds everything where it stands. The
     report is valid and the record is intact; what is missing is an answer,
     and a later tick asks again. Bound on the default instead, a description
-    nobody read would be spent exactly as an unread head would be.
+    nobody read would be spent exactly as an unread head would be. It is the
+    one refusal here the answer names for itself (`unread`), because the road
+    behind a caller matters only for that one: every other refusal is a
+    reading this call TOOK, and the tick carries on to whatever answers it,
+    while a request that failed may buy nothing at all -- least of all a
+    notice telling a human the issue is stuck.
 
-    True holds the caller's relabel, which is what keeps a reviewer from being
-    sent to a head whose report nothing on the pull request carries.
+    `owed` holds the caller's relabel, which is what keeps a reviewer from
+    being sent to a head whose report nothing on the pull request carries.
     """
     if not candidate or ctx.state.get(_report_delivery.UNREPORTED_WORK):
-        return _report_delivery.owes_a_report(ctx.state)
+        return _models._ReportHold(
+            owed=_report_delivery.owes_a_report(ctx.state),
+        )
     try:
         published = ctx.gh.get_pr(ctx.pr.number)
     except Exception:
         log.exception(
-            "issue=#%d could not re-read PR #%s to say whether its description "
-            "is still what this implementation needs; holding the report it "
-            "owes for a tick that can",
+            "issue=#%d could not re-read PR #%s to say whether it is standing "
+            "where this report describes and whether its description is still "
+            "what this implementation needs; holding the report it owes for a "
+            "tick that can",
             ctx.issue.number, getattr(ctx.pr, "number", None),
         )
-        return _report_delivery.owes_a_report(ctx.state)
+        return _models._ReportHold(
+            owed=_report_delivery.owes_a_report(ctx.state), unread=True,
+        )
     standing = getattr(getattr(published, "head", None), "sha", "")
     if standing != candidate:
         log.warning(
@@ -490,7 +500,9 @@ def _holds_an_unpublished_report(
             ctx.issue.number, candidate, getattr(ctx.pr, "number", None),
             standing or "a head nothing could read",
         )
-        return _report_delivery.owes_a_report(ctx.state)
+        return _models._ReportHold(
+            owed=_report_delivery.owes_a_report(ctx.state),
+        )
     _report_binding.binds_and_publishes(
         ctx.gh, ctx.issue, ctx.state, _report_binding.ReportPublication(
             pull_request=published,
@@ -505,7 +517,9 @@ def _holds_an_unpublished_report(
             ),
         ),
     )
-    return _report_delivery.owes_a_report(ctx.state)
+    return _models._ReportHold(
+        owed=_report_delivery.owes_a_report(ctx.state),
+    )
 
 
 def _holds_a_stalled_report(ctx: _models._FixingContext) -> None:
@@ -559,7 +573,7 @@ def _finishes_a_reported_round(
     a human who moves the issue in that window is recorded by the settlement
     this call just made.
     """
-    if _holds_an_unpublished_report(ctx, candidate):
+    if _holds_an_unpublished_report(ctx, candidate).owed:
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
     _late_gate_models._spend(ctx.state, owed)

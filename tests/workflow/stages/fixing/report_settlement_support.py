@@ -249,6 +249,24 @@ class FixingReportCase:
         self.state.set(SETTLED_ROUND, True)
 
 
+def records_a_handoff(github, issue, *, under: WorkflowLabel) -> None:
+    """Leave the handoff a settlement under `under` records beside its mark.
+
+    Written through the engine's own writer, for the reason the case class
+    below writes one: a correlation case has to be asked about a record this
+    build really produces.
+    """
+    state = github.read_pinned_state(issue)
+    _settlement.record_handoff(state, _records.ReportHandoff(
+        receipt=f"issue-{issue.number}-report-1",
+        pr_number=state.get(PR_NUMBER_FIELD),
+        report_revision=1,
+        source_sha=github.get_pr(state.get(PR_NUMBER_FIELD)).head.sha,
+        settled_under=under,
+    ))
+    github.write_pinned_state(issue, state)
+
+
 class RelabelRecorder:
     """The relabel seam, recording what the comment carried when it fired.
 

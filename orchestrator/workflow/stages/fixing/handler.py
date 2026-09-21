@@ -296,7 +296,7 @@ def _bounce_without_feedback(
         # applied here on top of it.
         if _reporting._holds_an_unpublished_report(
             ctx, _late_publication_state._published_commit(state),
-        ):
+        ).owed:
             gh.write_pinned_state(issue, state)
             return
     elif stranded.pushed:

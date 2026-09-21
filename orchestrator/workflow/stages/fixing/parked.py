@@ -253,7 +253,7 @@ def _settles_the_recovered_report(
         if recovery == _validating_state._OUTCOME_PUSHED
         else ""
     )
-    if _reporting._holds_an_unpublished_report(ctx, published):
+    if _reporting._holds_an_unpublished_report(ctx, published).owed:
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return _HANDLED
     _report_recovery._finishes_a_settled_round(ctx)

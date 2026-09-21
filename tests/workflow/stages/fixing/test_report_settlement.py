@@ -179,7 +179,9 @@ class AtomicSettlementTest(unittest.TestCase, support.FixingReportCase):
 
     def test_one_write_settles_all_it_owed(self) -> None:
         self.assertFalse(
-            _reporting._holds_an_unpublished_report(self.ctx(), support.HEAD_SHA),
+            _reporting._holds_an_unpublished_report(
+                self.ctx(), support.HEAD_SHA,
+            ).owed,
         )
 
         settled = self.pinned()
@@ -225,7 +227,7 @@ class AtomicSettlementTest(unittest.TestCase, support.FixingReportCase):
         ):
             self.assertFalse(_reporting._holds_an_unpublished_report(
                 self.ctx(), support.HEAD_SHA,
-            ))
+            ).owed)
 
         self.assertIsNone(_settlement.read_handoff(self.state).settled_under)
         self.assertIsNone(_record_state.read_pending_report(self.state))
@@ -434,7 +436,7 @@ class UnpublishedReportTest(unittest.TestCase, support.FixingReportCase):
 
                 self.assertTrue(_reporting._holds_an_unpublished_report(
                     self.ctx(), candidate,
-                ))
+                ).owed)
 
                 self.assertIsNotNone(
                     _delivery_state.read_delivered_report(self.state),
