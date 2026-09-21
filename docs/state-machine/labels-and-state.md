@@ -1522,6 +1522,13 @@ The keys that matter for the state machine fall into a few groups:
   delivery is claimed by is one the implementing and validating routes write too, and a record of theirs settles here
   raising no mark, so a hand-back taken on the settling alone would bounce a reviewer's change request back unread.
 
+  Every settlement REPLACES it -- raised by a fixing record's own frozen spends, retired by every settlement that
+  froze none -- because it and the handoff beside it have to be one fact. There is a single handoff and each
+  settlement overwrites it, so a report of any route's settling while the issue sits on `workflow:fixing` records
+  `under: workflow:fixing`; left standing next to it, a mark an OLDER settlement raised somewhere else would be
+  correlated against a handoff that says nothing about it, and an anchorless manual relabel would be bounced back to
+  the reviewer with its feedback unread.
+
   It is consumed rather than merely read, and correlated before it is acted on. The reconciliation that raises it
   runs ahead of every handler on every non-terminal label, and a fixing round can leave `workflow:fixing` with its
   transaction outstanding, so the settling write can land where nothing reads the mark. What says so is the `under`

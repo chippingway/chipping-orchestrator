@@ -164,6 +164,23 @@ _SETTLED_UNDER = "under"
 # The delivery member naming the route that recorded it.
 _ROUTE = "route"
 
+# What the in_review route writes and the validating route does not, which is
+# how a park tells whose round it is holding.
+_ROUTE_ANCHORS = (PENDING_FIX_AT, support.PENDING_FIX_REVIEWER_COMMENT_ID)
+
+# The reviewer round a validating-routed park leaves standing, and the one the
+# record it froze applies. The retry's own push counts NEITHER: the counter
+# stands where the park left it for as long as the publication is outstanding,
+# and only the settlement moves it.
+_ROUND_WHILE_PARKED = 1
+_ROUND_THE_RECORD_FROZE = 2
+
+# Whether the post the retry makes lands, and where that leaves the round.
+_RETRY_POSTS = MappingProxyType({
+    "landed": (True, _ROUND_THE_RECORD_FROZE),
+    "refused": (False, _ROUND_WHILE_PARKED),
+})
+
 # A delivered record shaped like nothing this build writes: the key is there,
 # so the issue CLAIMS a report, and no reader can say what it is about.
 _DAMAGED_DELIVERY = MappingProxyType({"receipt": "issue-880-report-1"})
@@ -188,7 +205,9 @@ def _parked_for_a_human(case, seeded, mocks) -> None:
 class _ReportRoundMixin(_FixingFixtureMixin):
     """One fix round whose developer finishes on a report outcome."""
 
-    def _seed_round(self, *, crashed: bool = False, landed: str = ""):
+    def _seed_round(
+        self, *, crashed: bool = False, landed: str = "", routed: bool = True,
+    ):
         """A `fixing` issue on the in_review route, one reply unread.
 
         `crashed` seeds the record a tick that died past the recording left
@@ -197,6 +216,11 @@ class _ReportRoundMixin(_FixingFixtureMixin):
         publication may apply. `landed` is the code-publication receipt a
         crash AFTER the push leaves beside it, and its absence is the crash
         before one.
+
+        `routed` is the in_review route, which writes the two anchors a park
+        reads to tell whose round it is holding. False is the validating
+        route, which reaches `workflow:fixing` carrying neither -- and whose
+        parks the silent recovery answers without a human.
         """
         seeded = IssueScenario(*self._seed(
             pr=self._open_pr(),
@@ -208,6 +232,11 @@ class _ReportRoundMixin(_FixingFixtureMixin):
             )],
             extra_state=dict(SEEDED_READERS),
         ))
+        if not routed:
+            state = self._record(seeded)
+            for anchor in _ROUTE_ANCHORS:
+                state.set(anchor, None)
+            seeded.github.write_pinned_state(seeded.issue, state)
         if crashed:
             crash.recorded_delivery(
                 seeded, SEEDED_READERS, TRIGGER_ID,
@@ -250,6 +279,7 @@ class _ReportRoundMixin(_FixingFixtureMixin):
         *,
         head: str = PR_HEAD_SHA,
         message: str = "",
+        publishes: bool = True,
         **run_options,
     ):
         """One fixing tick with a developer standing by, unspawned if sound.
@@ -260,8 +290,11 @@ class _ReportRoundMixin(_FixingFixtureMixin):
         request's own commit for a push that landed, and anything else for a
         commit a crash left unpublished. `message` is what the developer says
         where the tick does reach one, and its absence is the empty answer a
-        run that only committed comes back with.
+        run that only committed comes back with. `publishes` is GitHub taking
+        the report comment, named the way the double beside it names one.
         """
+        if not publishes:
+            seeded.github.report_failures.refused.add(support.PR_NUMBER)
         run_options.setdefault("head_shas", (head, head))
         with (
             recovery.on_a_real_checkout(
@@ -387,6 +420,78 @@ class FixingReportSettlementTest(unittest.TestCase, _ReportRoundMixin):
         self.assertIsNone(pinned_data.get(PENDING_FIX_ISSUE_MAX_ID))
         self.assertEqual(pinned_data.get(REVIEW_ROUND), 0)
 
+    def test_a_parked_push_publishes_on_its_retry(self) -> None:
+        # The push this round's report was written for did not land, so the
+        # tick parked `push_failed`. The batch that report answers reads as
+        # unread for exactly as long as the publication is missing, which is
+        # what makes this a park nothing else here can clear -- so left to the
+        # stay-parked default no later push is ever attempted, the report sits
+        # recorded for good, and the only ways out are a human comment or an
+        # `/orchestrator continue`, each of which pays a second developer to
+        # answer a batch the first one already answered.
+        #
+        # The round the retry lands on is the one the RECORD froze: this route
+        # RESETS the reviewer budget rather than counting a round, and the
+        # generic retry behind the park counts one. Counted there, a deferred
+        # push would hand the next reviewer one round less than the identical
+        # push that landed at once.
+        seeded = self._seed_round()
+
+        with recovery.on_a_real_checkout(
+            support.worktree_paths, support.WORKTREE_PATH,
+        ):
+            self._round(
+                seeded.github, seeded.issue, push_branch=False,
+                head_shas=(SHA_BEFORE, SHA_AFTER, SHA_AFTER),
+            )
+            self.assertEqual(
+                self._pinned(seeded).get(PARK_REASON), _PUSH_FAILED,
+            )
+
+            mocks = self._round(
+                seeded.github, seeded.issue, head_shas=(SHA_AFTER,) * 4,
+            )
+
+        mocks[RUN_AGENT].assert_not_called()
+        mocks[PUSH_BRANCH].assert_called_once()
+        pinned_data = self._pinned(seeded)
+        self.assertEqual(self._reports_posted(seeded), 1)
+        self.assertTrue(self._went_back_to_review(seeded))
+        self.assertFalse(pinned_data.get(AWAITING_HUMAN))
+        self.assertEqual(pinned_data.get(REVIEW_ROUND), 0)
+        self.assertIsNone(pinned_data.get(PENDING_FIX_AT))
+
+    def test_a_parked_retry_settles_first(self) -> None:
+        # The validating route reaches the same park through the silent
+        # recovery, which retries the push and then, of its own accord, counts
+        # a reviewer round, drops every `pending_fix_*` bookmark and relabels.
+        # Taken while a report is owed, that hands the reviewer the head with
+        # the report still sitting on the pinned comment, the round already
+        # spent for a publication that never happened, and the bookmarks an
+        # outstanding publication replays from gone. The push is the retry's;
+        # every one of those is the settlement's, off the record's own frozen
+        # pairs.
+        for post, (lands, counted) in _RETRY_POSTS.items():
+            with self.subTest(the_report_post=post):
+                seeded = self._seed_round(routed=False)
+
+                with recovery.on_a_real_checkout(
+                    support.worktree_paths, support.WORKTREE_PATH,
+                ):
+                    self._round(
+                        seeded.github, seeded.issue, push_branch=False,
+                        head_shas=(SHA_BEFORE, SHA_AFTER, SHA_AFTER),
+                    )
+                    self._round(
+                        seeded.github, seeded.issue, publishes=lands,
+                        head_shas=(SHA_AFTER,) * 4,
+                    )
+
+                pinned_data = self._pinned(seeded)
+                self.assertEqual(self._reports_posted(seeded), int(lands))
+                self.assertEqual(self._went_back_to_review(seeded), lands)
+                self.assertEqual(pinned_data.get(REVIEW_ROUND), counted)
+
     def test_a_settled_round_finishes_first(self) -> None:
         # The reconciliation ahead of every handler completes the transaction
         # and lets the tick carry on, and the write it made closed this route's
@@ -477,58 +582,107 @@ class FixingStaleSettlementTest(unittest.TestCase, _ReportRoundMixin):
         # later round inherits it either.
         self.assertFalse(self._pinned(seeded).get(recovery.SETTLED_ROUND))
 
-    def test_a_mark_left_elsewhere_finishes_no_round(self) -> None:
-        # A fixing round can leave `workflow:fixing` with its transaction still
-        # outstanding -- a silent validating-route recovery does exactly that
-        # -- and the reconciliation ahead of EVERY handler settles it wherever
-        # the issue has got to. The mark that settlement raises is then
-        # standing on a comment no fixing tick is reading, waiting for
+    def test_a_stale_mark_finishes_no_round(self) -> None:
+        # A fixing round can leave `workflow:fixing` with its transaction
+        # still outstanding -- a silent validating-route recovery does exactly
+        # that -- and the reconciliation ahead of EVERY handler settles it
+        # wherever the issue has got to. The mark that settlement raises is
+        # then standing on a comment no fixing tick is reading, waiting for
         # whichever round comes next. Read as that round's own, it hands the
         # issue straight back to the reviewer and the feedback the round was
         # opened over is never scanned.
-        seeded = self._seed_round()
-        self._round(seeded.github, seeded.issue, publishes=False)
-        recovery.settles_elsewhere(seeded, under=VALIDATING, head=SHA_AFTER)
-        self.assertTrue(self._pinned(seeded).get(recovery.SETTLED_ROUND))
+        #
+        # Two ways a later round arrives, and the readings that catch them
+        # differ. The in_review route writes an anchor of its own, which the
+        # settlement had already cleared -- so an anchor standing over a
+        # raised mark says a newer round opened after it. A human relabel
+        # writes none at all, and that is the shape no other state on the
+        # comment tells from a round whose report has just settled: the
+        # settlement cleared both anchors and dropped the transaction itself.
+        # Only the label that settlement recorded ITSELF under still says
+        # where it happened.
+        arrivals = {
+            "a route anchor a newer round wrote": LATER_COMMENT_ID,
+            "a manual relabel that writes none": None,
+        }
+        for arrival, bookmarked in arrivals.items():
+            with self.subTest(the_later_round_carries=arrival):
+                seeded = self._seed_round()
+                self._round(seeded.github, seeded.issue, publishes=False)
+                recovery.settles_elsewhere(
+                    seeded, under=VALIDATING, head=SHA_AFTER,
+                )
+                self.assertTrue(
+                    self._pinned(seeded).get(recovery.SETTLED_ROUND),
+                )
 
-        # A LATER round opens over a reply of its own, the way the in_review
-        # route opens one: its own bookmarks, and the label back on `fixing`.
-        crash.later_comment(seeded.issue, LATER_COMMENT_ID, LATER_COMMENT)
-        recovery.opens_a_later_round(seeded, bookmarked=LATER_COMMENT_ID)
+                crash.later_comment(
+                    seeded.issue, LATER_COMMENT_ID, LATER_COMMENT,
+                )
+                recovery.opens_a_later_round(seeded, bookmarked=bookmarked)
+                mocks = self._round(
+                    seeded.github, seeded.issue,
+                    message=_A_QUESTION,
+                    head_shas=(SHA_AFTER, SHA_AFTER),
+                )
 
-        mocks = self._round(
-            seeded.github, seeded.issue,
-            message=_A_QUESTION,
-            head_shas=(SHA_AFTER, SHA_AFTER),
+                # The developer answers the reply this round is about, and the
+                # mark the older settlement left is retired, not spent on it.
+                self.assertIn(LATER_COMMENT, only_prompt(mocks))
+                self.assertFalse(
+                    self._pinned(seeded).get(recovery.SETTLED_ROUND),
+                )
+
+    def test_a_later_settlement_retires_a_stale_mark(self) -> None:
+        # The handoff is SINGLE and every settlement replaces it, so it can
+        # never say which settlement raised the mark beside it. A report of
+        # any route's settling while this issue sits on `workflow:fixing`
+        # writes `under: workflow:fixing` -- and a mark an older settlement
+        # raised somewhere else is then correlated against a handoff that has
+        # nothing to do with it. Read that way, the anchorless entry below is
+        # bounced to the reviewer with its feedback unread.
+        #
+        # Here the intervening settlement is a FOREIGN route's transaction,
+        # bound by an earlier tick and left outstanding by a post GitHub
+        # refused: the reconciliation ahead of this handler finishes it, so
+        # the debt that would have retired the stale mark is already gone by
+        # the time anything reads it. So the settlement retires the mark
+        # ITSELF, in the write that replaces the handoff.
+        #
+        # The route anchors are the other two readings, and this entry carries
+        # neither: a foreign settlement clears no bookkeeping of this stage's,
+        # so a round seeded on the in_review route would still be caught by
+        # the anchor it wrote. What is left is the handoff alone.
+        seeded = self._seed_round(routed=False)
+        crash.recorded_delivery(
+            seeded, SEEDED_READERS, TRIGGER_ID,
+            landed=PR_HEAD_SHA, spends=_FOREIGN_SPENDS,
+        )
+        # Bound by this tick and left outstanding by the refused post, then
+        # finished by the reconciliation over a mark already standing.
+        self._tick(seeded, publishes=False)
+        recovery.settles_elsewhere(
+            seeded, under=FIXING, head=PR_HEAD_SHA, over_a_raised_mark=True,
         )
 
-        # The developer answers the reply this round is about, and the mark the
-        # older settlement left is retired rather than spent on it.
-        self.assertIn(LATER_COMMENT, only_prompt(mocks))
-        self.assertFalse(self._pinned(seeded).get(recovery.SETTLED_ROUND))
-
-    def test_an_anchorless_move_finishes_no_round(self) -> None:
-        # The same leftover mark, on the one road no anchor catches: a human
-        # moves the issue back to `workflow:fixing` by hand, so nothing writes
-        # a route anchor and nothing owes a report. Every reading on the
-        # comment then looks exactly like a round whose report has just settled
-        # -- the settlement cleared the anchors and dropped the transaction
-        # itself. What tells them apart is the label that settlement recorded
-        # itself under, and this one was not `fixing`.
-        seeded = self._seed_round()
-        self._round(seeded.github, seeded.issue, publishes=False)
-        recovery.settles_elsewhere(seeded, under=VALIDATING, head=SHA_AFTER)
+        # The manual relabel that writes no anchor of its own, over the reply
+        # it was moved here to answer.
         crash.later_comment(seeded.issue, LATER_COMMENT_ID, LATER_COMMENT)
         recovery.opens_a_later_round(seeded)
-
         mocks = self._round(
             seeded.github, seeded.issue,
             message=_A_QUESTION,
             head_shas=(SHA_AFTER, SHA_AFTER),
         )
 
-        self.assertIn(LATER_COMMENT, only_prompt(mocks))
-        self.assertFalse(self._pinned(seeded).get(recovery.SETTLED_ROUND))
+        self.assertEqual(
+            (
+                LATER_COMMENT in only_prompt(mocks),
+                self._went_back_to_review(seeded),
+                bool(self._pinned(seeded).get(recovery.SETTLED_ROUND)),
+            ),
+            (True, False, False),
+        )
 
     def test_a_failed_relabel_retires_the_mark(self) -> None:
         # The mark is durable and the relabel is not atomic with it, so the

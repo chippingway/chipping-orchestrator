@@ -139,15 +139,26 @@ def opens_a_later_round(seeded, *, bookmarked: int | None = None) -> None:
     seeded.github.apply_foreign_label(seeded.issue, _FIXING)
 
 
-def settles_elsewhere(seeded, *, under: str, head: str) -> None:
-    """Settle this issue's outstanding transaction under another label.
+def settles_elsewhere(
+    seeded, *, under: str, head: str, over_a_raised_mark: bool = False,
+) -> None:
+    """Settle this issue's outstanding transaction under a named label.
 
     The reconciliation runs ahead of every handler on every non-terminal label,
     so a fixing round that left `workflow:fixing` with its publication still
     owed settles where the issue has got to -- and the mark it raises is then
     standing on a comment no fixing tick is reading.
+
+    `over_a_raised_mark` is that leftover already standing when this
+    settlement lands: the handoff is single and every settlement replaces it,
+    so a transaction finishing under `workflow:fixing` writes a handoff saying
+    so beside a mark raised by some older settlement somewhere else.
     """
     seeded.github.apply_foreign_label(seeded.issue, under)
+    if over_a_raised_mark:
+        state = seeded.github.read_pinned_state(seeded.issue)
+        state.set(SETTLED_ROUND, True)
+        seeded.github.write_pinned_state(seeded.issue, state)
     pr_number = seeded.github.read_pinned_state(seeded.issue).get("pr_number")
     with republishing_world(seeded.github, pr_number=pr_number, head=head):
         _report_transaction._reconciles_pending_report(

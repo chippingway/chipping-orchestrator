@@ -346,6 +346,17 @@ def _settles_what_was_owed(
     a later commit rather than a reason to answer this one twice.
     """
     _consumed.advance_consumed(state, pending.watermarks)
+    # The settled-round mark is REPLACED by this write, never merely left:
+    # retired first and re-raised below wherever this record's own spends carry
+    # it. It says that the transaction the handoff beside it describes was a
+    # fixing round's, and the two have to be one fact -- a mark an EARLIER
+    # settlement raised somewhere this stage was not behind would otherwise
+    # survive, and a later settlement of any route's would hand it a handoff
+    # recorded under `workflow:fixing` to be correlated against. Read that way,
+    # a manual relabel back onto `fixing` is bounced straight to the reviewer
+    # with the feedback it was moved there to answer never scanned.
+    if state.get(_records.SETTLED_ROUND) is not None:
+        state.set(_records.SETTLED_ROUND, None)
     _consumed.close_bookkeeping(state, pending.spends)
     _record_state.clear_pending_report(state)
     if state.get(_delivery.UNREPORTED_WORK):

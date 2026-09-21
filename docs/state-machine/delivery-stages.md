@@ -2917,23 +2917,39 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      the resume parked and the head the reply lands is one no reviewer has read.
      A transient park (`_VALIDATING_TRANSIENT_PARK_REASONS`) with NO new comment goes to
      `_try_recover_validating_transient_park` instead, which retries silently and, on `cleared` / `pushed`, posts the
-     **Recovery follow-up** described below before clearing the park. `cleared` asks the BRANCH as well as the run
+     **Recovery follow-up** described below before clearing the park. Which parks reach it at all is
+     `fixing/parked._recovers_without_a_human`: the validating route always, and the in_review route only for a
+     `push_failed` park with a report still OWED. That one exception is a publication that has not happened rather than
+     a question for a human, and it is the one shape where neither reason for keeping the in_review route out holds —
+     the readers are frozen on the report's record and so is the round, so the retry advances no watermark and is handed
+     no round to count. Left out of it, the park is one nothing can clear: the batch that report answers reads as unread
+     for as long as the publication is missing, so the stay-parked default holds the issue there forever, no later push
+     is ever attempted, and the only ways out are a human comment or an `/orchestrator continue` — each of which pays a
+     second developer to answer a batch the first one already answered. `cleared` asks the BRANCH as well as the run
      where the park came off the requirements-drift road: a resume can commit and be interrupted before anything is
-     written, so the retry behind it finds the head exactly where that resume left it while the pull request is
-     still short of the commit. Clearing there would drop the edit's obligation over work no report describes, so
-     the park stands as `stuck` and the human the timeout notice already mentioned is who answers it.
-     Its two git-touching retries — the deferred push
-     and the commit a timeout killed the disposition before it saw — publish through the same
-     [size gate](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr) the shared dev-fix publication
-     passes. Where the park came off that road the commit a timeout left is work no report describes — the run was
-     killed before it could report — so the debt for it is staged into the write the push makes, and the report hold
-     below asks a human before any reviewer reads the head it leaves. Such a push spends the round `rounds.py`
-     decides for it, which is none where the park was delaying a publication an `in_review` hand-back had already
-     reset the budget for, since the retry lands that very publication. A retry that resolves also drops that budget
-     record with the park it clears — the publication it was for has happened, or the branch turned out to carry
-     none, so a record left standing would spend nothing for the next unrelated publication this stage owes. That is
-     also why the retry has a fourth
-     answer: `held`, meaning the gate took the candidate and the tick is over.
+     written, so the retry behind it finds the head exactly where that resume left it while the pull request is still
+     short of the commit. Clearing there would drop the edit's obligation over work no report describes, so the park
+     stands as `stuck` and the human the timeout notice already mentioned is who answers it.
+     Its two git-touching retries — the deferred push and the commit a timeout killed the disposition before it saw —
+     publish through the same [size gate](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr) the
+     shared dev-fix publication passes. Where the park came off that road the commit a timeout left is work no report
+     describes — the run was killed before it could report — so the debt for it is staged into the write the push makes,
+     and the report hold below asks a human before any reviewer reads the head it leaves. Such a push spends the round
+     `rounds.py` decides for it, which is none where the park was delaying a publication an `in_review` hand-back had
+     already reset the budget for, since the retry lands that very publication — and none, equally, where an owed
+     report's own RECORD carries route bookkeeping, since the write that completes that publication is what applies it
+     and a round counted here would be counted twice. The record is asked rather than the debt, because the two part
+     company: the requirements-drift resume records a report carrying no bookkeeping at all, and where its push failed
+     this retry is the only road left to count its round. A retry that resolves while a report is owed clears the park
+     and NOTHING else (`fixing/parked._settles_the_recovered_report`): it publishes the report against the commit its
+     own push landed — read off the receipt that push has just written, never the persistent one, which on any other
+     outcome names an older round's commit — and leaves the settlement to apply the bookkeeping and to authorize the
+     relabel, through the same correlation every hand-back here goes through. A post GitHub refuses leaves the
+     transaction outstanding for the reconciliation, with the round standing exactly where the park found it. A retry
+     that resolves with no report owed also drops that budget record with the park it clears — the publication it was
+     for has happened, or the branch turned out to carry none, so a record left standing would spend nothing for the
+     next unrelated publication this stage owes. That is also why the retry has a fourth answer: `held`, meaning the
+     gate took the candidate and the tick is over.
      The caller then posts no follow-up, clears no park, and moves no label — the gate has already parked on a reading
      nobody could take, or handed the issue to `workflow:decomposing`, and written its own state, so a follow-up would
      announce a recovery that did not happen and a relabel would move the issue off the state the gate just set.

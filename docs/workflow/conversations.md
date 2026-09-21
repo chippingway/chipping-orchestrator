@@ -286,12 +286,16 @@ round is recorded, published and settled rather than parked:
   re-read held the pull request against, and never to that copy: a remote that moved AWAY from the round's head refuses
   the reading outright, but one that CONVERGED onto it passes while the stale copy still names the commit the pull
   request has left — and the report would go out about a commit that is no longer there.
-- A round whose **push did not land** publishes nothing, so nothing bound its report — and the readers do not move
-  for it either. The record keeps both groups, the delivery stays on the comment, and the no-feedback bounce — the
-  one tick that republishes that commit — binds it so the settlement can close them. Holding the readers back costs
-  no re-delivery: the record's own frozen watermarks say the batch is one an owed report already answered, so the
-  ticks inside that window find nothing to act on and spawn nobody, and what moves the round on is the publication
-  landing rather than a second developer over the same prompt.
+- A round whose **push did not land** publishes nothing, so nothing bound its report — and the readers do not move for
+  it either. The record keeps both groups, the delivery stays on the comment, and the no-feedback bounce — the one tick
+  that republishes that commit — binds it so the settlement can close them. Holding the readers back costs no
+  re-delivery: the record's own frozen watermarks say the batch is one an owed report already answered, so the ticks
+  inside that window find nothing to act on and spawn nobody, and what moves the round on is the publication landing
+  rather than a second developer over the same prompt. Where that push also PARKED the issue, the retry the park earns
+  is admitted on either route while the report is owed — a failed push is a publication that has not happened rather
+  than a question, and holding it for a human would hold it forever, since the batch it answers reads as unread for
+  exactly as long as the report is missing. That retry pushes and nothing more: the round and the bookmarks are the
+  record's, and the settlement is what applies them and what authorizes the relabel.
 - A reply that **reached for the contract and missed** (the commonest miss being an `ACK:` line beside a report) is
   neither a report to record nor a reply to act on, and it is held for a human ahead of every other road — including the
   publication one, since a commit beside such a message would otherwise be pushed and relabelled with no report on the

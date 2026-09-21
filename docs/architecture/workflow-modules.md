@@ -1574,11 +1574,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             disposition, so whichever durable write comes next -- the size gate's receipt, a park's
                             own -- carries it. A replay settles the batch it REPLAYED joined with the fresh rescan,
                             each item against the reader of the surface it was posted on
-      parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in --
-                            and what counts as the fresh reply three of them turn on, which is not what the readers
-                            say while a report is owed: the batch that report was written over reads as unread until
-                            its publication lands, and a park cleared over it resumes a developer on a prompt nobody
-                            rewrote
+      parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in -- and
+                            what counts as the fresh reply three of them turn on, which is not what the readers say
+                            while a report is owed: the batch that report was written over reads as unread until its
+                            publication lands, and a park cleared over it resumes a developer on a prompt nobody rewrote
+                            -- and which parks the silent recovery may answer, which an owed report widens: a failed
+                            push is a publication that has not happened rather than a question, so it recovers on the
+                            in_review route too, where neither reason for keeping that route out holds (the readers and
+                            the round are both frozen on the record). What the retry then owes is only the push: it
+                            counts no round, drops no bookmark and moves no label, publishes against the commit its OWN
+                            push landed, and leaves the relabel to the settlement, correlated as every hand-back here is
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough
       drift.py              the `workflow:resolving_conflict` reroute a stuck validating-route park earns when its

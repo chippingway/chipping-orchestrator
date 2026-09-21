@@ -65,6 +65,13 @@ CURRENT_REPORT = "developer_report_current"
 # no-op rather than a second report on the same commit.
 REPORT_HANDOFF = "developer_report_handoff"
 
+# Whether the transaction that handoff describes was a FIXING round's, which is
+# the one thing its settlement cannot do for itself: move a label. It is spelled
+# here rather than on the stage that reads it because every settlement writes it
+# -- raised by a fixing record's own frozen spends, and retired by every other,
+# so the mark and the handoff beside it are always about one transaction.
+SETTLED_ROUND = "fixing_round_settled"
+
 
 class ReportMode(StrEnum):
     """Which of the two things a transaction has left to do.
