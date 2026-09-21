@@ -304,7 +304,13 @@ carries one report from the run that wrote it across a process that dies mid-way
 since a transaction recovered from a text nobody kept would have to ask an agent to write it again, and a second run is
 not the same report. The publication that records one also tries to complete it on the tick it pushes; where that
 did not happen, [the developer-report transaction][report-transaction] finishes a `developer_report_pending`
-transaction ahead of every handler. Both publish through the developer-report comment owners
+transaction ahead of every handler. Whichever of the two makes it, the settlement is one write: the report the pull
+request now carries, the receipt saying THIS transaction finished, the readers the run consumed, the round and
+bookmarks its route closes, and the debt the record left. The receipt also records the workflow label the issue was
+carrying as that write landed — read off an issue fetched again rather than off the copy the run began under, since
+the reconciliation can settle a transaction on a label its own route's stage is not watching, and a route whose
+bookkeeping includes a hand-back that stage has to make has no other way to tell whether the stage was ever there.
+Both publish through the developer-report comment owners
 (`github/developer_reports.py`, `github/pull_request_reports.py`, and `workflow/engine/comments.py`'s
 `_publish_developer_report`). The reconciliation never reads an agent's message: what it acts on is the record a stage
 wrote, and on an issue carrying none it costs one pinned read that has already happened. No reconciliation acts on a

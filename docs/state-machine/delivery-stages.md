@@ -695,8 +695,15 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     would be the pull request's description — a different place holding somebody else's text — and recording that
     would be a false "exact" location for every later reread; for a verification, nothing is posted and the named
     location is re-read, requiring both a trusted author and content that still hashes to the revision verified.
-    Either way one `developer_report_current`, one `developer_report_handoff`, the consumed watermarks, and the
-    route's round / bookmark fields land in a single write with the drop of the pending record. That write is
+    Either way one `developer_report_current`, one `developer_report_handoff`, the consumed watermarks, the
+    route's round / bookmark fields, and the debt the record left land in a single write with the drop of the
+    pending record. The handoff also names the workflow LABEL the issue was carrying as that write landed, read off
+    the issue this road re-reads for the requirements rather than off the copy in hand — a human who relabelled
+    while the developer ran is invisible there — and fail-closed, since the labels are a lazy read and a settlement
+    raising out of that line would leave the report published with the transaction still outstanding. The
+    `fixing_round_settled` mark is REPLACED by the same write, never merely left: retired first and put back up only
+    where this record's own frozen spends carry it, so a mark an earlier settlement raised elsewhere cannot outlive
+    the handoff it was about. That write is
     composed whole before any of it is installed, so a settled record its own writer refuses lands none of itself
     rather than dropping the pending record beside a report nothing says the pull request carries. Reaching that
     refusal is a record this build did not write, so it is logged at ERROR and the tick is held with the

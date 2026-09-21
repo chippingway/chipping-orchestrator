@@ -60,6 +60,15 @@ an `ACK:` line beside it -- is not an acknowledgement either, and the ACK fast
 path refuses it: read as one it would hand the pull request back to `in_review`
 over work whose report nothing carries.
 
+`reporting` is the settlement-driven form of the same road, and no dispatched
+tick runs through it: the consumed pairs and the route bookkeeping ride the
+RECORD of the report rather than a caller's own write, the write that completes
+the publication applies them, and a mark rides with them for the one thing that
+write cannot do -- move a label. `round_marks` is the reading that mark is
+placed by before any relabel is taken on it, kept apart from the owner that
+takes the relabel so that every road reaching one asks the same question rather
+than a copy of it.
+
 What a round owes its pull request in words rather than code is
 `validating/fix_reports`', which both this stage's resume and the
 `CHANGES_REQUESTED` run that precedes it dispose through: the report is

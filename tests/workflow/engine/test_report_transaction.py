@@ -70,6 +70,11 @@ class SettledTransactionTest(unittest.TestCase, support.ReportTransactionCase):
                 pr_number=support.PR_NUMBER,
                 report_revision=1,
                 source_sha=support.SOURCE_SHA,
+                # The label this issue was carrying when the settlement
+                # landed: nothing reconstructs it afterwards, and a route
+                # whose bookkeeping includes a hand-back its own stage has to
+                # make needs to know whether that stage was ever there.
+                settled_under=support.WorkflowLabel.VALIDATING,
             ),
         )
         current = _settlement.read_current_report(self.state)

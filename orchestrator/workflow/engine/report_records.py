@@ -65,6 +65,13 @@ CURRENT_REPORT = "developer_report_current"
 # no-op rather than a second report on the same commit.
 REPORT_HANDOFF = "developer_report_handoff"
 
+# Whether the transaction that handoff describes was a FIXING round's, which is
+# the one thing its settlement cannot do for itself: move a label. It is spelled
+# here rather than on the stage that reads it because every settlement writes it
+# -- raised by a fixing record's own frozen spends, and retired by every other,
+# so the mark and the handoff beside it are always about one transaction.
+SETTLED_ROUND = "fixing_round_settled"
+
 
 class ReportMode(StrEnum):
     """Which of the two things a transaction has left to do.
@@ -209,12 +216,22 @@ class ReportHandoff:
     already done, and the receipt is the whole of that question. The commit and
     the revision travel beside it so an operator reading the comment can say
     which handoff it is without correlating it against a record that is gone.
+
+    `settled_under` is the workflow label the issue was carrying when the
+    settlement landed, and it is the one thing about a completion that no other
+    record can reconstruct afterwards. The reconciliation runs ahead of every
+    handler on every non-terminal label, so a transaction can settle somewhere
+    its own route's stage is not looking -- and a route whose bookkeeping
+    includes a hand-back that stage has to make needs to know whether the stage
+    was ever there. None is a settlement written before the member existed,
+    which every reader holds to the stricter reading.
     """
 
     receipt: str
     pr_number: int
     report_revision: int
     source_sha: str
+    settled_under: WorkflowLabel | None = None
 
 
 @dataclass(frozen=True)
@@ -231,9 +248,10 @@ class HandedRun:
     for the run behind it.
 
     `spends` is the route bookkeeping the handover this report completes owes
-    -- the reviewer round it lands on, the bookmarks it closes -- frozen by the
-    caller as `((field, value), ...)` and carried onto the transaction, so the
-    write that finally settles the report is one that closes them too. It is
+    -- the reviewer round it lands on, the bookmarks it closes, and any MARK
+    that write is to leave for a tick which can do what it cannot -- frozen by
+    the caller as `((field, value), ...)` and carried onto the transaction, so
+    the write that finally settles the report is one that closes them too. It is
     what a road with no size gate behind it needs: a report delivered with no
     code in it passes no gate, so the caller's own write is the only other
     thing that could carry the round, and a crash in the window between the two

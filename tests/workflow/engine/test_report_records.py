@@ -42,6 +42,10 @@ _LATER_RECEIPT = "issue-7-report-2"
 # The member of the settled record saying which road settled the report.
 _MODE = "mode"
 
+# The member of the handoff saying which workflow label the settlement landed
+# under, which the reservation has to allow room for at its widest.
+_SETTLED_UNDER = "under"
+
 # A receipt the published report header could not carry verbatim, so no retry
 # could ever find its own comment by it.
 _UNCARRIABLE_RECEIPT = "issue 7 report 2"
@@ -50,25 +54,44 @@ _UNCARRIABLE_RECEIPT = "issue 7 report 2"
 _BEYOND_RECORDED = _record_values.MAX_RECORDED_NUMBER + 1
 
 
+# The widest either commit member of a publication receipt is recorded at.
+_WIDEST_COMMIT = "f" * max(_formats.COMMIT_LENGTHS)
+
+# One settled handoff as the reservation models it, for the room its own label
+# member costs. That member has no counterpart on the pending record, so it is
+# room the SETTLING write needs and the record's own write does not.
+_WIDEST_HANDOFF = _records.ReportHandoff(
+    receipt=support.RECEIPT,
+    pr_number=support.PR_NUMBER,
+    report_revision=1,
+    source_sha=support.SOURCE_SHA,
+    settled_under=_record_state._WIDEST_LABEL,
+)
+
+
 def _reserved() -> int:
     """What a record reserves on the comment for the writes that follow it.
 
-    The comment-id entry publishing the report leaves, and the receipt the
-    publication gate writes when it pushes the commit. Both are read off the
-    owners the measurement itself replays rather than spelled here, because
-    what a crowding case has to allow for IS that measurement: a number of its
-    own would pass while the reservation drifted away from it.
+    The comment-id entry publishing the report leaves, the receipt the
+    publication gate writes when it pushes the commit, and the workflow label
+    the settlement records itself under. All three are read off the owners the
+    measurement itself replays rather than spelled here, because what a
+    crowding case has to allow for IS that measurement: a number of its own
+    would pass while the reservation drifted away from it.
     """
     entered = PinnedState()
     _comments._reserve_comment_slot(entered, _record_values.MAX_RECORDED_NUMBER)
     _publication_state._record_publication(
         entered, _WIDEST_COMMIT, _WIDEST_COMMIT, _record_values.MAX_RECORDED_NUMBER,
     )
-    return len(pinned_state_body(entered.data)) - len(pinned_state_body({}))
+    labelled, bare = PinnedState(), PinnedState()
+    _settlement.record_handoff(labelled, _WIDEST_HANDOFF)
+    _settlement.record_handoff(bare, replace(_WIDEST_HANDOFF, settled_under=None))
+    return (
+        len(pinned_state_body(entered.data)) - len(pinned_state_body({}))
+        + len(pinned_state_body(labelled.data)) - len(pinned_state_body(bare.data))
+    )
 
-
-# The widest either commit member of a publication receipt is recorded at.
-_WIDEST_COMMIT = "f" * max(_formats.COMMIT_LENGTHS)
 
 _RESERVED = _reserved()
 
@@ -248,8 +271,16 @@ class RoundTripTest(unittest.TestCase):
 
     def test_the_reserved_settlement_names_its_road(self) -> None:
         # The room a record reserves is measured through the write that
-        # settles it, and that write records the road: counted without it, a
-        # record accepted at the ceiling settles past it.
+        # settles it, and that write records the road AND the workflow label
+        # it landed under: either one counted short leaves a record accepted at
+        # the ceiling settling past it, with the report already posted and the
+        # write that has to record it failing for the rest of the issue's life.
+        #
+        # The label is reserved at the widest spelling the vocabulary has,
+        # because which label a settlement lands under depends on where the
+        # issue has got to by then -- a question no record can answer for
+        # itself, and one the real write answers with something no wider.
+        widest = max(len(str(label)) for label in WorkflowLabel)
         for pending in (support.PUBLISHED, support.VERIFIED):
             with self.subTest(mode=pending.mode):
                 reserved = _record_state.settled_payload(PinnedState(), pending)
@@ -257,6 +288,10 @@ class RoundTripTest(unittest.TestCase):
                 self.assertEqual(
                     reserved[_records.CURRENT_REPORT].get(_MODE),
                     str(pending.mode),
+                )
+                self.assertEqual(
+                    len(reserved[_records.REPORT_HANDOFF].get(_SETTLED_UNDER)),
+                    widest,
                 )
 
 
