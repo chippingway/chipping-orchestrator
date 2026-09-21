@@ -1822,7 +1822,10 @@ The keys that matter for the state machine fall into a few groups:
   and decomposing, with `retry_cap_stage`, `retry_cap_continued`, and the sentence the park owes the thread beside
   them once it runs out — `retry_cap_notice`, or `late_park_notice` where a late adjudication is what ran out, since
   that park is taken by the late owner and rides its write; see [The retry budget](#the-retry-budget)),
-  `silent_park_count` (dev-session silent-park counter), `dev_resume_count` (per-dev-session resume budget; once it
+  `silent_park_count` (dev-session silent-park counter, dropped by every road holding evidence the session spoke
+  coherently — an `ACK:`, a push, and a run that handed over a usable report, which drops it with the RECORD of that
+  report rather than with the publication so a post GitHub refuses leaves it down all the same),
+  `dev_resume_count` (per-dev-session resume budget; once it
   reaches `DEV_SESSION_MAX_RESUMES` the session is retired and respawned fresh from durable state, reset to 0 on every
   fresh spawn), `merged_at` / `closed_without_merge_at` terminal stamps, and the per-round stamps `last_question_at` /
   `last_discussion_at` the two operator-applied conversation stages set on every run they settle.

@@ -1621,7 +1621,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             below, whichever way that round answered: a checkout no later poll takes back is one
                             nothing here is going to publish from, and the park those roads would take keeps the
                             record for the recovery to release a tick later under a second notice. The record that carries this round's consumed readers, its route
-                            bookkeeping and the settlement MARK for the write that completes the publication; the
+                            bookkeeping and the settlement MARK for the write that completes the publication, and
+                            which drops the silent-park streak as it is written -- a run that handed over a usable
+                            report is a session that spoke coherently, and a reset left to the publication is one a
+                            round with no commit in it never reaches; the
                             binding taken only on a commit the CALLER proved, never on the persistent publication
                             receipt, and held to a pull request READ AGAIN: the head it is standing on has to BE
                             that commit, since whoever proved it proved it earlier in the tick and a push landing

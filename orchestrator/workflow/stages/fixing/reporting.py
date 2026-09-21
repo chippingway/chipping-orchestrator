@@ -54,6 +54,7 @@ from orchestrator.workflow.stages.fixing import (
 from orchestrator.workflow.stages.implementing import (
     dev_pr as _dev_pr,
     late_gate_models as _late_gate_models,
+    state as _dev_state,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -333,7 +334,20 @@ def _recording_stops_the_tick(
     transaction: both outlive it, so a manual relabel onto `workflow:fixing`
     would be read as a round that just settled and bounce straight back to the
     reviewer without reading the feedback it was moved there to answer.
+
+    The silent-park streak comes down here too, and here is the EARLIEST it
+    can: a run that handed over a usable report is a session that spoke
+    coherently, which is the whole of what that counter watches for, and every
+    other road holding the same evidence -- the `ACK:` fast path, the push --
+    drops it the moment it has it. Set BEFORE the recording, it rides that
+    write and every write behind it, so a tick dying anywhere past this line
+    comes back to a streak already down. Left to the publication instead, a
+    round whose whole answer was its report drops nothing at all: the push
+    that would have reset it never happens, and one later transient failure
+    rotates a session this round proved healthy.
     """
+    if run.reported:
+        ctx.state.set(_dev_state._SILENT_PARK_COUNT, 0)
     if _report_delivery.recording_stops_the_tick(
         ctx.gh, ctx.issue, ctx.state, run.dev_result,
         _report_records.HandedRun(

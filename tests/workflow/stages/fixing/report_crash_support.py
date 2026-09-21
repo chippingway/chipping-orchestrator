@@ -34,9 +34,21 @@ from orchestrator.workflow.stages.fixing import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_publication_state as _publication_state,
+    state as _dev_state,
 )
 from tests.support import fakes
 from tests.workflow.stages.fixing import fixing_test_support as _support
+
+# The streak field an earlier silent or poisoned session leaves behind, and
+# how many consecutive parks retire the session that left it. A case about a
+# coherent round clearing that streak has to seed one BELOW the threshold: at
+# it, the resume retires the session itself and the case would pass whether
+# the round cleared anything or not.
+SILENT_PARK_COUNT = _dev_state._SILENT_PARK_COUNT
+
+SILENT_PARKS_BEFORE_FRESH_SESSION = (
+    _dev_state._SILENT_PARKS_BEFORE_FRESH_SESSION
+)
 
 # The pinned field a recorded, unbound report stands on.
 _DELIVERED_REPORT = "developer_report_delivery"

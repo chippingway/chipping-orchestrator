@@ -139,6 +139,13 @@ _THE_PREFLIGHT = 1
 
 _THE_PROOF = 2
 
+# One park short of the threshold that retires a session, which is the whole
+# of what clearing the streak is worth: seeded AT it, the resume retires the
+# session itself and a case would pass whether the round cleared it or not.
+_SILENT_PARK_COUNT = crash.SILENT_PARK_COUNT
+
+_A_SILENT_STREAK = crash.SILENT_PARKS_BEFORE_FRESH_SESSION - 1
+
 # A branch carrying one commit the remote has not got, which is what a crash
 # BEFORE the push leaves: the bounce is the one road left that sends it.
 _AHEAD_OF_REMOTE = (1, 0)
@@ -275,6 +282,26 @@ class LiveReportRoundTest(unittest.TestCase, LiveReportRoundMixin):
         self.assertIsNone(pinned[live.PENDING_FIX_AT])
         self.assertEqual(pinned[live.REVIEW_ROUND], 0)
         self.assertTrue(self.handed_back(seeded))
+
+    def test_a_report_clears_the_silent_streak(self) -> None:
+        # A run that handed over a usable report is a session that spoke
+        # coherently, so the silent-park streak an earlier failure left comes
+        # down -- on the road with NO commit in it as much as on the pushed
+        # one, which drops it inside its own push. Left standing, one later
+        # transient failure rotates a session this round proved healthy.
+        #
+        # It comes down with the RECORD, not with the publication: that write
+        # is the first this round makes, so a post GitHub refuses leaves the
+        # streak down all the same.
+        for road, refused in (("published", False), ("refused", True)):
+            with self.subTest(road=road):
+                seeded = self.seed(**{_SILENT_PARK_COUNT: _A_SILENT_STREAK})
+                if refused:
+                    seeded.github.report_failures.refused.add(live.PR_NUMBER)
+
+                self.tick(seeded, message=_REPORTED)
+
+                self.assertEqual(self.pinned(seeded)[_SILENT_PARK_COUNT], 0)
 
     def test_a_refused_post_holds_everything(self) -> None:
         # The push landed and GitHub refused the comment, so the report is
