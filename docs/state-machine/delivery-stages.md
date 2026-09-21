@@ -3303,9 +3303,9 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      own `gh.get_pr` exceptions and hands `pr=None` to the helper, which is a no-op.
   2. Closed issue with no resolvable PR → no-op.
   3. Open issue with no `pr_number` (manual relabel) → park (`missing_pr_number`).
-  4. Rescan unread feedback from the three watermarks across all four surfaces, reading the two IssueComment-space
-     surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread past
-     `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past
+  4. Rescan unread feedback across all four surfaces, each past the reader or readers it answers to, reading the two
+     IssueComment-space surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread
+     past `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past
      `pr_last_comment_id` alone. That is what a manual relabel straight into `workflow:fixing` depends on: no
      handoff seeded a PR-side watermark, so reading the pull request past the issue-thread cursor would hide every PR
      comment numbered below the last reply a developer answered. Orchestrator comments are filtered by
@@ -3399,7 +3399,7 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      on the branch for a later push to carry. A candidate the gate HELD stops the bounce outright: the issue is on
      `workflow:decomposing` by then, and relabeling over it would publish the very question the gate just opened.
      This exit is the validating route's LAST chance at that commit: the
-     reviewer feedback that started the round is orchestrator-authored, so the step-3 rescan filters it out and no
+     reviewer feedback that started the round is orchestrator-authored, so the step-4 rescan filters it out and no
      later tick re-runs the dev on it.
   7. **Quiet window**: compute the newest `created_at` (or `submitted_at` for review summaries); if younger than
      `IN_REVIEW_DEBOUNCE_SECONDS`, return.
