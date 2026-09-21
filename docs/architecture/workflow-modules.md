@@ -343,7 +343,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             was handed where the caller took a snapshot, and the round, bookmarks and consumed
                             readers its handover owes where nothing behind that caller will carry them: a report
                             that is the whole handover passes no size gate, and the feedback it answers may not read
-                            as answered until it lands
+                            as answered until it lands. Two members belong to the road a fixing round takes and are
+                            spelled here because every settlement writes them: the MARK such a round's own settlement
+                            raises -- put up by a fixing record's frozen spends, retired by every settlement that
+                            froze none, so the mark and the handoff beside it are always about one transaction -- and
+                            the workflow LABEL the handoff records the issue as carrying when that write landed,
+                            which no other record reconstructs afterwards
     report_record_values.py what each recorded field may be, and the widths two of them are bounded by, published
                             because a record written before its publication exists has to reserve the room that
                             publication's subject will take: a receipt spelled the way the published report header
@@ -388,7 +393,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             beside it, since a record written before its commit is pushed waits for the publication
                             gate and that gate writes onto this same comment -- reserved at the widest that receipt
                             records, and measured in BOTH worlds, since the reservation replaces what is there and a
-                            comment can carry a receipt wider than any spelling this build writes. All of it is
+                            comment can carry a receipt wider than any spelling this build writes. The settling
+                            LABEL is reserved beside them at the longest spelling the vocabulary has, since which
+                            one a settlement lands under depends on where the issue has got to by then -- a question
+                            no record can answer for itself, and one the real write answers with something no wider.
+                            All of it is
                             replayed through the owners that perform those writes rather than allowed for by a
                             margin, so a field added to any of them moves this refusal with it. The two later
                             writes are published as one world builder beside the round trip -- that receipt, and
@@ -496,7 +505,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the pull request with no code in it and so no gate behind it
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
-                            would not hand it back. Nothing here CLEARS a settled record -- a settlement replaces
+                            would not hand it back. The handoff also names the workflow LABEL the issue was carrying
+                            as that write landed, because the reconciliation making one runs ahead of every handler
+                            on every non-terminal label: a route whose bookkeeping includes a hand-back its own
+                            stage has to make cannot otherwise tell a settlement that stage is standing behind from
+                            one taken while the issue was somewhere else. Additive like the current report's road --
+                            absent on a settlement written before the member existed, which every reader holds to
+                            the stricter answer, and damage where it is present and names no label, `null`
+                            included. Nothing here CLEARS a settled record -- a settlement replaces
                             one -- so either key is claimed by its presence alone, `null` included, which is the
                             one place this parts company with the pending record whose ordinary resting state that
                             is. What produces one is a publication that reached its report -- the initial
@@ -529,6 +545,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its own as well, over an issue read AGAIN from GitHub, for a caller completing the
                             publication it has just made: the issue it holds was fetched before its developer ran,
                             and a re-read that fails answers HOLD, since nobody could say the issue is unchanged.
+                            That fetch hands the ISSUE back beside the verdict, for the settlement that stamps its
+                            handoff with the label the issue is carrying -- one question, so one fetch.
                             `refuses_for_good` says, posting nothing, whether an owed transaction can ever settle: a
                             report of ours a human edited, or a verified location gone, changed or untrusted
     report_checkout_evidence.py the checkout half: on this host, clean by a reading that HAPPENED rather than by an
@@ -589,7 +607,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             since what the record reserved may since have been spent by the routes a deferred
                             transaction let run -- and the REQUIREMENTS last, over the issue read afresh after the
                             request, since a post is long enough for an edit to land under it. Each settlement
-                            records which road made it, for the re-read below -- and retires what the transaction
+                            records which road made it, for the re-read below, and which LABEL the issue was on as
+                            it landed -- read off that fresh issue rather than off the copy in hand, since a human
+                            who relabelled while the developer ran is invisible there, and fail-closed, since the
+                            labels are a lazy read and a settlement raising out of that line would leave the report
+                            published with the transaction still outstanding. The fixing MARK is REPLACED by the
+                            same write, never merely left: retired first and put back up only where this record's
+                            own frozen spends carry it, so a mark an earlier settlement raised elsewhere cannot
+                            outlive the handoff it was about. And it retires what the transaction
                             it ends is still recorded as owing: the debt, the fresh review budget an `in_review`
                             edit reset for this publication, and the undeliverable-report park itself where that
                             park is the one this settlement answers. Conditions like it are
@@ -798,7 +823,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             bookkeeping
     spends.py               the vocabulary that bounds a restored spend: every field a route may close, paired with
                             what that field may be set TO, since what comes back is applied to the pinned comment
-                            and then read by the owner that knows what it is
+                            and then read by the owner that knows what it is -- the rounds, the cleared bookmarks
+                            and settled heads, and the one MARK a record may put up, which may only ever be raised,
+                            since what takes one down is the route that reads it
     endings.py              what a cycle's ending leaves behind past the write that clears it, both records
                             deliberately outside the group a cleared generation drops -- three keys between them:
                             the cycle a retirement dropped, and the two-phase terminal record beside it -- the
@@ -1584,6 +1611,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             with a notice a human is being asked to read. A
                             replay settles the batch it REPLAYED joined with the fresh rescan, each item against the
                             reader of the surface it was posted on
+      reporting.py          the settlement-driven form of that road, present but on no dispatched route: the
+                            disposition helpers a reported round is read by, each reached directly rather than
+                            through a tick. Which reply this is -- a report, an ordinary answer, or one that reached
+                            for the contract and missed, an `ACK:` beside a report, which is held for a human rather
+                            than acted on by either half; whether a round that committed nothing may publish onto
+                            the head its pull request already carries, on the affirmative proof that the head read,
+                            never moved, is the one the pull request is STANDING on, and left a tree proved clean --
+                            a GitHub read nobody could take holds rather than parking, being about this tick and not
+                            about the round; the record that carries this round's consumed readers, its route
+                            bookkeeping and the settlement MARK for the write that completes the publication; the
+                            binding taken only on a commit the CALLER proved, never on the persistent publication
+                            receipt; the park a report no road left can move earns, once; and the hand-back, which
+                            retires the mark in a write of its own BEFORE the relabel -- a tick dying between them
+                            has to leave a round nothing can mistake for one that just settled
+      round_marks.py        whether the mark a settlement raised still places the round in hand, which is the one
+                            reading every road that could relabel over one shares. No mark is asked nothing. A mark
+                            is correlated against the handoff beside it and refused on any of four: an outstanding
+                            report, a handoff this build cannot read, one recorded under any label but
+                            `workflow:fixing`, and either route anchor standing -- a settlement clears both, so one
+                            there belongs to a round opened after the mark went up. The label is what catches an
+                            anchorless manual relabel back onto `workflow:fixing`, which the rest of the comment
+                            cannot tell from a round that has just closed
       parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough

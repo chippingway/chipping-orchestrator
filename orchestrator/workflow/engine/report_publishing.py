@@ -47,6 +47,7 @@ from github.Issue import Issue
 from orchestrator.github import (
     comments as _trust,
     developer_reports as _reports,
+    labels as _labels,
     pull_request_reports as _pr_reports,
 )
 from orchestrator.github.client import GitHubClient
@@ -299,10 +300,20 @@ def _refuses_the_reading(
     return False
 
 
-def _retires_the_debt(state: PinnedState) -> None:
-    """Drop what a settled report is still recorded as owing, park and all.
+def _settles_what_was_owed(
+    state: PinnedState, pending: _records.PendingReport,
+) -> None:
+    """Apply everything a finished transaction owed besides its two records.
 
-    The debt first, since every reader behind it -- the review hold, the
+    The watermarks over the input the run consumed, the round or bookmarks its
+    route closes, the drop of the record itself, and the debt that record left
+    -- all of it on the caller's composed copy, so the one write that installs
+    the settled records installs these too. Split off into a write of their
+    own, a crash between the two leaves the report published and the round
+    unspent, or the feedback it answered still reading as unread.
+
+    Then the DEBT, and the park it was announced under. The debt first, since
+    every reader behind it -- the review hold, the
     stale-approval hand-back, the resume that reads a reply as the report it
     asked for -- asks the flag rather than the record, and left standing it
     outlives the transaction that explains it. The fresh review budget an
@@ -328,8 +339,27 @@ def _retires_the_debt(state: PinnedState) -> None:
     earlier head, and the head the branch is on now is still owed one of its
     own. Retired anyway, the debt, the park asking for that report, and the
     budget its publication is owed would all come off together, and the next
-    reply would publish those commits under a report that never saw them.
+    reply would publish those commits under a report that never saw them. What
+    the transaction itself owed is applied either way: those pairs are this
+    run's own bookkeeping, and an undescribed head beside them is a debt about
+    a later commit rather than a reason to answer this one twice.
     """
+    _consumed.advance_consumed(state, pending.watermarks)
+    # The settled-round mark is REPLACED by this write, never merely left:
+    # retired first and re-raised below wherever this record's own spends carry
+    # it. It says that the transaction the handoff beside it describes was a
+    # fixing round's, and the two have to be one fact -- a mark an EARLIER
+    # settlement raised somewhere that stage was not behind would otherwise
+    # survive, and a later settlement of any route's would hand it a handoff
+    # recorded under `workflow:fixing` to be correlated against. Read that way,
+    # a manual relabel back onto `fixing` is bounced straight to the reviewer
+    # with the feedback it was moved there to answer never scanned. Both
+    # spellings cost the comment the same and no key is added where none was,
+    # so the reservation that replays the record's own pairs still bounds this.
+    if state.get(_records.SETTLED_ROUND) is not None:
+        state.set(_records.SETTLED_ROUND, None)
+    _consumed.close_bookkeeping(state, pending.spends)
+    _record_state.clear_pending_report(state)
     if state.get(_delivery.UNREPORTED_WORK):
         return
     for owing in (_delivery.OWED_REPORT, _delivery.OWED_ROUND_RESET):
@@ -384,8 +414,29 @@ def settles(
     The DEBT the record left goes with it, and the park it was announced
     under: this is the moment the pull request carries the report, so anything
     still saying one is owed is saying it about a report that is delivered.
+
+    The handoff also records the workflow label the issue is carrying as this
+    lands, and nothing reconstructs that afterwards. A route whose bookkeeping
+    includes a hand-back its own stage has to make needs it: this write can be
+    the reconciliation's, ahead of any handler, so the stage that road belongs
+    to may not be the stage that is running.
+
+    That label is read off the issue this owner reads AFRESH, never off the
+    copy in hand: that one was fetched before the developer ran, so a human who
+    has relabelled since is invisible there -- and a settlement stamped with a
+    label the issue has left claims a stage was standing behind it, which the
+    route that hands a round back on that claim then spends over feedback
+    nobody read. It is the same fetch the requirements are proved over, because
+    two fetches would be two answers to one question.
+
+    It is read FAIL-CLOSED beyond that, which is the answer that costs least
+    here: the labels are a lazy read and may fail like any request, and a
+    settlement that raised out of that line would leave the report published
+    and the transaction still outstanding. Every reader holds a missing label
+    to the stricter answer, so the cost of the absence is a hand-back left for
+    the route that can prove it rather than one taken on a guess.
     """
-    edited = _evidence.fresh_requirements_verdict(gh, issue, state, pending)
+    fresh, edited = _evidence.fresh_issue_reading(gh, issue, state, pending)
     if edited is not None:
         log.info(
             "issue=#%d is not settling developer report revision %d on PR #%d: "
@@ -394,15 +445,29 @@ def settles(
             edited.refusal,
         )
         return edited.holds
+    # Read off the issue this owner just re-read, never off the copy in hand,
+    # and fail-closed: the labels are a lazy read that can fail like any
+    # request, and a settlement raising out of this line would leave the report
+    # published and the transaction still outstanding.
+    try:
+        under = _labels.workflow_label(fresh)
+    except Exception:
+        log.exception(
+            "issue=#%d could not read the workflow label its developer report "
+            "settled under; recording the settlement without one", issue.number,
+        )
+        under = None
     settled = PinnedState(state_data=dict(state.data))
-    recorded = _settlement.record_current_report(settled, current)
-    handed = _settlement.record_handoff(settled, _records.ReportHandoff(
-        receipt=pending.receipt,
-        pr_number=pending.subject.pr_number,
-        report_revision=pending.report_revision,
-        source_sha=pending.subject.source_sha,
-    ))
-    if not recorded or not handed:
+    stored = _settlement.record_current_report(settled, current) and (
+        _settlement.record_handoff(settled, _records.ReportHandoff(
+            receipt=pending.receipt,
+            pr_number=pending.subject.pr_number,
+            report_revision=pending.report_revision,
+            source_sha=pending.subject.source_sha,
+            settled_under=under,
+        ))
+    )
+    if not stored:
         log.error(
             "issue=#%d published developer report revision %d on PR #%d and "
             "settles into a record this build will not store; holding the "
@@ -410,10 +475,7 @@ def settles(
             issue.number, pending.report_revision, pending.subject.pr_number,
         )
         return True
-    _consumed.advance_consumed(settled, pending.watermarks)
-    _consumed.close_bookkeeping(settled, pending.spends)
-    _record_state.clear_pending_report(settled)
-    _retires_the_debt(settled)
+    _settles_what_was_owed(settled, pending)
     state.data = settled.data
     gh.write_pinned_state(issue, state)
     log.info(

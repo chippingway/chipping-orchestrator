@@ -796,10 +796,21 @@ The keys that matter for the state machine fall into a few groups:
   is never the completion of a pending transaction on the other, which parks as a disagreeing handoff with the debt
   intact, and a record without the member is held to the content as it always was. `developer_report_handoff` is
   the receipt that one transaction finished; a replay under the same receipt recognizes its own completed work
-  instead of repeating it.
-  Both settled records, the watermarks the run consumed, the bookkeeping its route owed, and the drop of the pending
-  record land in ONE durable write, because every split between them is a window a crash turns into a second report
-  or a round spent twice. That write is composed whole before any of it is installed, so a settled record its own
+  instead of repeating it. Its `under` member is the workflow label the issue was carrying when the settlement
+  landed, and nothing reconstructs that afterwards: the reconciliation runs ahead of every handler on every
+  non-terminal label, so a transaction can settle somewhere its own route's stage is not looking, and a route whose
+  bookkeeping includes a hand-back that stage has to make needs to know whether the stage was ever there. It is read
+  off the issue the settlement re-reads rather than off the copy in hand — a human who relabelled while the developer
+  ran is invisible there — and fail-closed, since the labels are a lazy read: a settlement that could not take one
+  records none, and every reader holds the absence to the stricter answer. Additive like `mode` on the current
+  report: absent on a settlement written before the member existed, and damage where it is present and names no
+  label, `null` included.
+  Both settled records, the watermarks the run consumed, the bookkeeping its route owed, the debt that record left,
+  and the drop of the pending record land in ONE durable write, because every split between them is a window a crash
+  turns into a second report or a round spent twice. `fixing_round_settled` is REPLACED by that same write rather
+  than merely left — retired first, and put back up only where the record's own frozen spends carry it — so the mark
+  and the handoff beside it are always about one transaction. That write is composed whole before any of it is
+  installed, so a settled record its own
   writer refuses lands none of itself rather than dropping the pending record beside a published report.
 
   Every field is read fail-closed and every group all-or-nothing, so a record short of a member reads as no record,
@@ -1618,6 +1629,16 @@ The keys that matter for the state machine fall into a few groups:
   operator command replays when retrying a session-failure park (see
   [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing)); the anchor is cleared on a
   pushed fix and inside `_clear_pending_fix_bookmarks`.
+
+  `fixing_round_settled` is a bare `true` a report transaction's settlement puts up when the record it settles froze
+  it, and it says the one thing that write cannot do for itself: move a label. A settlement closes `pending_fix_at`,
+  the bookmarks and `review_round` while the issue is still sitting on `workflow:fixing`, and nothing else on the
+  comment says the round is over — the settled report and the code-publication receipt are persistent, so a head a
+  pull request stands on for reasons of its own proves nothing about this transaction. It may only ever be RAISED by
+  a record: what takes one down is the route that reads it. Before it is acted on it is CORRELATED against the
+  handoff beside it (`workflow/stages/fixing/round_marks.py`) and refused on an outstanding report, a handoff this
+  build cannot read, one settled under any label but `workflow:fixing`, or either route anchor standing — which says
+  a newer round opened after the mark went up. No dispatched route reads it yet.
 - **Crash-recovery anchors.** `discussion_round_branch` + `discussion_round_sha` — the branch a discussion round
   opened on and the SHA it was at, written BEFORE the spawn and surviving every exit the stage takes; a published plan
   moves the pair onto the tip it pushed (that commit is what the stage now vouches for) and only a
