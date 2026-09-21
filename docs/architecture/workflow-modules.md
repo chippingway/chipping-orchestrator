@@ -1531,7 +1531,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             answered as fresh feedback and resume a developer over both. The candidate goes out
                             through the same gate every other one passes, spending the round frozen on the
                             record, and `validating` binds and settles the delivery behind it; a held candidate
-                            ends the tick with the adjudication. A recorded transaction is left alone, since the
+                            ends the tick with the adjudication. Nothing published is where it FAILS CLOSED,
+                            because the stranded probe answers the same "" for a branch with nothing to send and
+                            for a checkout that vouches for nothing -- so the affirmative head proof a report with
+                            no code in it must pass is taken here too (`validating/fix_report_evidence.py`), and
+                            short of it the round parks under `report_undeliverable` with the record intact.
+                            Handed on instead, the binding behind it recreates a missing checkout from the remote,
+                            finds its head equal to the receipt, and publishes the report of a commit that never
+                            passed the gate against the head the pull request had all along. A recorded
+                            transaction is left alone, since the
                             reconciliation ahead of every dispatch owns that one and stands down on purpose so
                             this stage's roads keep running
       feedback.py           the rescan past the three in_review watermarks -- read through that stage's own
@@ -2512,7 +2520,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       fix_report_evidence.py what a report with no code in it has to prove before it is recorded, and what its
                             refusal owes: the branch proved to be standing exactly where its remote is (a clean
                             tree, a local head, a tip, the two equal) AND the code-publication receipt naming that
-                            same commit on the pull request the report would go onto. Nothing is inferred from an
+                            same commit on the pull request the report would go onto. Asked of a CHECKOUT rather
+                            than of a run, because two callers reach it from opposite sides -- this disposition,
+                            which holds the run and the worktree it ran in, and the `fixing` recovery, which holds
+                            a report a run that is gone recorded and has to ask the same question of the checkout
+                            that run left. One rule in one place is what keeps the recovery from proving less than
+                            the round it is finishing did. Nothing is inferred from an
                             absence, because "this run committed nothing publishable" is the same answer the
                             disposition gives a checkout nobody could read, a fetch that failed, a divergence git
                             refused and a remote that moved -- each of which may be a branch carrying a commit the
