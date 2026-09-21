@@ -762,7 +762,12 @@ The keys that matter for the state machine fall into a few groups:
   is never the completion of a pending transaction on the other, which parks as a disagreeing handoff with the debt
   intact, and a record without the member is held to the content as it always was. `developer_report_handoff` is
   the receipt that one transaction finished; a replay under the same receipt recognizes its own completed work
-  instead of repeating it.
+  instead of repeating it. It also records, in its own additive `under` member, the workflow label the issue was
+  carrying as that write landed. Nothing reconstructs that afterwards, and a route whose bookkeeping includes a
+  hand-back its own stage has to make needs it: the reconciliation runs ahead of every handler on every
+  non-terminal label, so a transaction can settle somewhere its own stage is not looking. A record without the
+  member was settled before it existed and a value naming no label is damage, both of which every reader holds to
+  the stricter answer.
   Both settled records, the watermarks the run consumed, the bookkeeping its route owed, and the drop of the pending
   record land in ONE durable write, because every split between them is a window a crash turns into a second report
   or a round spent twice. That write is composed whole before any of it is installed, so a settled record its own
@@ -1488,9 +1493,30 @@ The keys that matter for the state machine fall into a few groups:
   also read against, and the owner whose classifier the `fixing` scan asks of the two review surfaces, so no item is
   prompted that the settlement would then refuse to record), and a run that was never invoked, a shutdown-killed run,
   and a live-paused run settle nothing at all — delivery is what the field records, and none of those delivered
-  anything. A round that finished on a report outcome settles nothing either: the publication it owes is not this
-  tick's to promise, and feedback recorded as answered for a report no reviewer has is the one reading that fork
-  exists to refuse.
+  anything. A round that finished on a report outcome settles nothing on the tick either: its pairs are recorded
+  onto the report transaction beside the round it spent, and the write that completes that publication is the one
+  that applies both. The exception is a report road that ENDS in a park — one this build could not record, one no
+  checkout can prove — where the park's own durable write carries the consumed half, since no publication is coming
+  to carry it. A push that did not land is not that exception: the record keeps both groups until the no-feedback
+  bounce republishes that commit and binds the report to it.
+
+  `fixing_round_settled` is the additive mark such a settlement leaves. The write that completes a fixing report
+  transaction applies that route's bookkeeping and cannot move a label, so the round ends with the issue still on
+  `workflow:fixing` — and nothing else on the comment says so, since `developer_report_current` is replaced rather
+  than retired and `implementing_published_sha` is persistent. The fixing stage reads it before it scans anything,
+  hands the issue back to `workflow:validating`, and retires the mark in the same write; no other stage reads or
+  writes it, and an issue that has never settled a fixing report does not carry it at all.
+
+  It is consumed rather than merely read, and correlated before it is acted on. The reconciliation that raises it
+  runs ahead of every handler on every non-terminal label, and a fixing round can leave `workflow:fixing` with its
+  transaction outstanding, so the settling write can land where nothing reads the mark. What says so is the `under`
+  member of the handoff that settlement wrote beside it: a mark raised anywhere but `workflow:fixing` is one no
+  fixing tick was ever standing behind, and it is retired rather than spent. That closes the road no other state can
+  catch — an anchorless manual move back to `workflow:fixing`, where the settlement has already cleared both route
+  anchors and dropped the transaction, so every other reading looks exactly like a round that just settled. A
+  handoff this build cannot read is held the same way, and so are the two independent readings beside it: a route
+  anchor a newer round wrote (`pending_fix_at` or `pending_fix_reviewer_comment_id`, both of which a settlement
+  clears), and a report the issue still owes.
 
   Every writer of these fields stops before unread human input, and none of them reads a tip. The
   approval handoff's seed walk stops at the first unread non-orchestrator comment on either surface; the legacy

@@ -45,8 +45,21 @@ earns.
 
 A fix prompt teaches the report contract like every other developer prompt, so
 a round can end on `REPORT: READY` -- and then it owes a publication this tick
-cannot guarantee. Such a round settles nothing: feedback recorded as answered
-for a report no reviewer has is the reading the fork in `resume` refuses.
+cannot guarantee. `reporting` is that road: the consumed pairs and the route
+bookkeeping ride the RECORD of the report rather than the comment, and the write
+that completes the publication is what applies them, so feedback recorded as
+answered for a report no reviewer has is a state this stage never reaches. It
+also owns the mark that settlement raises, since the one thing such a write
+cannot do is move a label. `report_recovery` is the other end of the same
+contract, ahead of every scan: a report a crash left unbound, re-proved against
+the checkout rather than remembered off a receipt, and a round whose report
+settled somewhere this stage was not looking.
+
+While a report is owed, nothing an outstanding publication carries may be spent
+before it lands -- not the bookmarks, not the round, not the readers -- so the
+readers stop being able to say what has been delivered. The record's own frozen
+pairs are what `feedback` asks instead, which is why the handler's
+nothing-to-act-on exit and the parked dispatch both read them.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

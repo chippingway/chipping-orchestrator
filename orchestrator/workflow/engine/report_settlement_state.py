@@ -15,6 +15,11 @@ it published from one a human has edited since, and so a reviewer is handed the
 report that is actually there. The HANDOFF says that one transaction is
 finished, keyed by the receipt that transaction was recorded under, so a replay
 of the same receipt recognizes its own completed work instead of repeating it.
+It also says which workflow label the issue was carrying when that write landed,
+because the reconciliation that makes one runs ahead of every handler on every
+non-terminal label: a route whose bookkeeping includes a hand-back its own stage
+has to make cannot otherwise tell a settlement that stage is standing behind
+from one that happened while the issue was somewhere else.
 
 Neither carries the report text. What the text is for is publication, and once
 that has happened GitHub holds it -- keeping a second copy on the pinned comment
@@ -37,6 +42,7 @@ from orchestrator.workflow.engine import (
     report_records as _records,
 )
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
+from orchestrator.workflow.state import WorkflowLabel
 
 _REVISION = "revision"
 
@@ -52,6 +58,12 @@ _RECEIPT = "receipt"
 _HANDOFF_PR = "pr"
 
 _HANDOFF_SHA = "sha"
+
+# Which workflow label the issue carried when the settlement landed. Additive:
+# a record without the member was settled before it existed, while one carrying
+# any value that is no label -- `null` included, which no writer here spells --
+# is damage.
+_SETTLED_UNDER = "under"
 
 
 def carries_settled_record(state: _pinned_state.PinnedState) -> bool:
@@ -158,6 +170,11 @@ def record_handoff(
     consequence of its own: a handoff written in a shape that reader refuses is
     a completed transaction nothing can recognize, so the replay that was meant
     to find its own finished work repeats it instead.
+
+    The settling LABEL is written only where the caller could read one, because
+    the member is additive and a reader holds its absence to the stricter
+    answer: a settlement nobody can place is one no route hands a round back
+    on.
     """
     recorded = {
         _RECEIPT: handoff.receipt,
@@ -165,6 +182,8 @@ def record_handoff(
         _REVISION: handoff.report_revision,
         _HANDOFF_SHA: handoff.source_sha,
     }
+    if handoff.settled_under is not None:
+        recorded[_SETTLED_UNDER] = str(handoff.settled_under)
     if _handoff_from(recorded) != handoff:
         return False
     state.set(_records.REPORT_HANDOFF, recorded)
@@ -211,6 +230,11 @@ def _handoff_from(recorded: dict) -> _records.ReportHandoff | None:
     the two are compared: a receipt that reads back here in a shape the other
     reader would refuse could never match the transaction it claims to have
     settled, and would leave that transaction replaying forever.
+
+    The settling label is the one member an absence is allowed on, since a
+    handoff written before it existed carries none -- but a value that is no
+    label is damage, and read as an absence it would say a settlement happened
+    somewhere nobody can name rather than that the record is wrong.
     """
     receipt = _record_values.as_receipt(recorded.get(_RECEIPT))
     pr_number = _record_values.as_recorded_number(recorded.get(_HANDOFF_PR))
@@ -220,9 +244,15 @@ def _handoff_from(recorded: dict) -> _records.ReportHandoff | None:
     )
     if not receipt or not pr_number or not revision or not source_sha:
         return None
+    settled_under = _payloads.as_member(
+        WorkflowLabel, recorded.get(_SETTLED_UNDER),
+    )
+    if settled_under is None and _SETTLED_UNDER in recorded:
+        return None
     return _records.ReportHandoff(
         receipt=receipt,
         pr_number=pr_number,
         report_revision=revision,
         source_sha=source_sha,
+        settled_under=settled_under,
     )

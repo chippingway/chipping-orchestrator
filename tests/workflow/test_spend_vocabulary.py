@@ -33,6 +33,10 @@ _ROUTE_SPEND_KEYS = (
     _documenting_state._SETTLED_DOCS_SHA,
     _fixing_state._REVIEW_ROUND,
     _fixing_state._PENDING_FIX_AT,
+    # Not a round or a bookmark: the mark a fixing report transaction's own
+    # settlement raises so the tick behind it knows the round is over. It
+    # rides the same group because it has to land in the same write.
+    _fixing_state._SETTLED_ROUND,
     _validating_state._REVIEW_ROUND,
     *(key for key, _cleared in _cleared_pending_fix_bookmarks()),
 )

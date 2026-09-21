@@ -254,7 +254,8 @@ outcome is published onto the head the pull request already carries — over a t
 tree with nothing recorded — and routed as an `ACK:` is, and the reviewer waits until the report is confirmed on the
 pull request. `ACK:` and a question keep their own roads.
 
-Every other developer road is still routed by its commits, its `ACK:` line, and the question parks the
+The **PR-feedback fix round** acts on one as well (below). Every other developer road is still routed by its
+commits, its `ACK:` line, and the question parks the
 [delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read there the way
 its stage reads any other no-commit reply without `ACK:`.
 The awaiting-human resumes settle the input they delivered straight into pinned state: the report transaction a
@@ -271,15 +272,63 @@ prompt deliberately never hands the developer, on the surface that command was t
 
 That round can also end on a report outcome, since its prompt teaches the contract like every other developer prompt
 and asks by name for an item wanting report content only to be answered in the report with no commit for it. Such a
-round settles nothing on the tick: the publication it owes is not this tick's to promise, and feedback recorded as
-answered for a report no reviewer has is the one reading that fork exists to refuse.
+round is recorded, published and settled rather than parked:
+
+- The consumed pairs and the reviewer round the route spends are recorded onto the report transaction before the size
+  gate, and the write that COMPLETES the publication applies them. Until it does, the bookmarks, the readers and the
+  label all stand where the round found them.
+- A **report-only** round — a clean tree, a HEAD that did not move, nothing stranded — publishes its report against
+  the head its pull request already stands on and hands the issue back to `workflow:validating`. Read as an ordinary
+  no-commit reply it would park as a question with the report unpublished behind a human's answer.
+- A round whose **push did not land** publishes nothing, so nothing bound its report — and the readers do not move
+  for it either. The record keeps both groups, the delivery stays on the comment, and the no-feedback bounce — the
+  one tick that republishes that commit — binds it so the settlement can close them. The cost of holding the readers
+  back is that the crash window between a recorded report and its publication can re-deliver the batch once; the
+  report is not lost by it, because the round that runs binds the standing record before it spends or relabels.
+- A reply that **reached for the contract and missed** (the commonest miss being an `ACK:` line beside a report) is
+  neither a report to record nor a reply to act on, and it is held for a human ahead of every other road — including
+  the publication one, since a commit beside such a message would otherwise be pushed and relabelled with no report
+  on the pull request at all.
+- A report an earlier tick recorded and a crash left **unbound** is answered before the next tick scans anything.
+  Neither group is applied there: the publication is still ahead, and the write that completes it is what moves a
+  reader. Whether the code went out is re-proved against the checkout — a tree provably clean, a head it can name,
+  and the pull request standing on it — rather than remembered off the persistent publication receipt, which on a
+  tick that pushed nothing names an older round. Proved, the delivery is bound and posted with no developer run at
+  all, and the recovered round is finished back to `workflow:validating`; bound but unposted, nothing is relabelled
+  and the reconciliation finishes it. A worktree that is gone, and a tree this host proved dirty, leave nothing to
+  prove either way — those park once for a human, and the park is the one place a report road records what it
+  consumed, because a park is where the road ends rather than a step on the way to a publication.
+- A round whose report has **settled** is finished before anything else is scanned. The write that settled it closed
+  the route's bookkeeping, so a scan running past it reads whatever landed since under a route that no longer
+  exists — an in_review batch answered as a validating one, where an ordinary `ACK:` is refused. The issue goes back
+  to `workflow:validating` and the tick ends; the later feedback is read on the next poll by the stage the label now
+  names. What says it settled is the `fixing_round_settled` mark that settlement raised, and nothing weaker: the
+  settled report and the publication receipt beside it both outlive the transaction that made them, so a manual
+  relabel read off either would be bounced back to the reviewer with fresh feedback nobody scanned. The mark is
+  consumed, not merely read, and correlated before it is spent: a settlement can land while the issue is under
+  another label, where nothing reads it, so the handoff records which label it landed under and a mark from anywhere
+  but `workflow:fixing` is retired. A newer round's route anchor and a report still owed retire it too.
+- A round whose publication is still OWED is not one a developer has anything left to do for. Its readers are held
+  back until that publication lands, so the batch its report was written over reads as unread for as long as the
+  push or the post keeps failing — and resumed on, every poll pays another developer to write another report over
+  the identical prompt. The record's own frozen watermarks say which batch that is: a rescan with nothing above them
+  holds the round where it is, a parked one stays parked, and what moves it on is the publication landing, an
+  explicit `/orchestrator continue`, or a comment above those pairs.
+- One rule covers every road an owed report touches: **nothing an outstanding publication carries may be spent
+  before it lands** — not the bookmarks, not the round, not the readers. A bounce that publishes a stranded commit
+  while a report stands hands the size gate nothing to close. The single exception is a road that ENDS in a park: a
+  report this build cannot record, and a recovery no checkout can prove, each write what their run consumed into
+  that park's own durable write — left open, the next tick reads that feedback as fresh and clears the very park
+  just taken.
 
 Delivery is still not completion: an `ACK:` may settle a round whose comments named no actionable change, and it does
 not answer the automated `CHANGES_REQUESTED` review that asked for a concrete one — that route has no ACK fast path
 and parks for a human with its `pending_fix_*` replay anchor intact.
 
 Publication is recoverable because the records outlive the process. The additive `developer_report_delivery` /
-`developer_report_pending` / `developer_report_current` / `developer_report_handoff` group
+`developer_report_pending` / `developer_report_current` / `developer_report_handoff` group (the last of which also
+records the workflow label its settlement landed under, since the reconciliation that makes one runs ahead of every
+handler and a route's own hand-back needs to know its stage was there)
 ([`../state-machine/labels-and-state.md#pinned-state`](../state-machine/labels-and-state.md#pinned-state)) is what
 carries one report from the run that wrote it across a process that dies mid-way — the complete report text included,
 since a transaction recovered from a text nobody kept would have to ask an agent to write it again, and a second run is
@@ -289,9 +338,10 @@ transaction ahead of every handler. Both publish through the developer-report co
 (`github/developer_reports.py`, `github/pull_request_reports.py`, and `workflow/engine/comments.py`'s
 `_publish_developer_report`). The reconciliation never reads an agent's message: what it acts on is the record a stage
 wrote, and on an issue carrying none it costs one pinned read that has already happened. No reconciliation acts on a
-`developer_report_delivery`: binding one to a publication is the implementing stage's step, exchanging the delivery
-for its transaction in one write before anything is posted, and taken again on every tick that republishes the same
-commit onto the same pull request until it lands.
+`developer_report_delivery`: binding one to a publication is the publishing stage's own step — the implementing
+seam, and the fixing round's recovery ahead of its scan — exchanging the delivery for its transaction in one write
+before anything is posted, and taken again on every tick that republishes the same commit onto the same pull request
+until it lands.
 
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion

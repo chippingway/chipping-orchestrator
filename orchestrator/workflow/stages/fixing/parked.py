@@ -27,6 +27,14 @@ Everything else stays parked until a human replies. That default is the HITL
 contract, not a gap: an agent with a real question and an agent reporting
 nothing to change both surface as the same park, so auto-routing either would
 answer for the human.
+
+What counts as a reply is the one reading the readers cannot give on their own.
+While a report is OWED they are held back until its publication lands, so the
+batch that report was written over reads as unread for as long as the push or
+the post keeps failing -- and a park cleared over it resumes a developer on the
+prompt the outstanding report already answers, on every poll, with nobody having
+written anything. The record's own frozen pairs say which batch that is, and a
+rescan with nothing above them is no fresh reply here.
 """
 from __future__ import annotations
 
@@ -36,6 +44,7 @@ from orchestrator.workflow.stages.fixing import (
     bookmarks as _bookmarks,
     continue_command as _continue_command,
     drift as _drift,
+    feedback as _feedback,
     models as _models,
     state as _state,
 )
@@ -65,7 +74,11 @@ def _dispatch_continue_command(
 
 
 def _dispatch_validating_recovery(
-    ctx: _models._FixingContext, feedback: _models._FixingFeedback, park_reason,
+    ctx: _models._FixingContext,
+    feedback: _models._FixingFeedback,
+    park_reason,
+    *,
+    answered: bool,
 ) -> _models._ParkedFixingDecision | None:
     """Attempt silent recovery of a validating-route transient park.
 
@@ -74,6 +87,11 @@ def _dispatch_validating_recovery(
     back to `validating`, which also posts the one follow-up comment retiring
     the mention the park was filed with), or ``None`` to fall through to the
     stay-parked / clear-park default.
+
+    `answered` says the rescan found nothing this issue has not already been
+    handed -- a report it OWES was written over that very batch, and the
+    readers are held back until the publication lands -- so it counts as no
+    fresh comment at all here, exactly as an empty rescan does.
 
     Only fires when the park reason can resolve without a human comment AND the
     issue arrived via the validating route (CHANGES_REQUESTED dev fix). The
@@ -91,7 +109,7 @@ def _dispatch_validating_recovery(
     """
     validating_routed = ctx.state.get(_state._PENDING_FIX_AT) is None
     if (
-        feedback.all_items
+        (feedback.all_items and not answered)
         or park_reason not in _validating_state._VALIDATING_TRANSIENT_PARK_REASONS
         or not validating_routed
     ):
@@ -177,11 +195,22 @@ def _dispatch_parked_fixing(
         if decision is not None:
             return decision
 
-    recovery = _dispatch_validating_recovery(ctx, feedback, park_reason)
+    # What the readers cannot say on their own: a report this issue OWES may
+    # have been written over the very batch the rescan just found, because
+    # those readers are held back until its publication lands. That is not a
+    # fresh reply, and clearing the park over it would resume a developer on
+    # the prompt the outstanding report already answers -- every poll, for as
+    # long as the push or the post keeps failing, with the human this park
+    # mentioned never having said a word.
+    answered = _feedback._read_by_an_owed_report(ctx.state, feedback)
+
+    recovery = _dispatch_validating_recovery(
+        ctx, feedback, park_reason, answered=answered,
+    )
     if recovery is not None:
         return recovery
 
-    if not feedback.all_items:
+    if answered or not feedback.all_items:
         # All other awaiting_human shapes (question parks, dirty worktree
         # parks, silent-crash parks, in_review-route transients) stay parked
         # until a fresh human reply lands. We cannot distinguish "agent has a

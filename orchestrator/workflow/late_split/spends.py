@@ -59,6 +59,16 @@ def _settled_commit(spent: Any) -> bool:
     return spent == "" or _formats.is_hex_of(spent, _formats.COMMIT_LENGTHS)
 
 
+def _raised(spent: Any) -> bool:
+    """Whether a mark was recorded as RAISED, which is all it may be.
+
+    The mirror of `_cleared`: what clears one is the route that reads it, so a
+    record may only ever put one up. `True` exactly -- `1` is an `int` that
+    reads the same to a truth test and is not a flag this workflow writes.
+    """
+    return spent is True
+
+
 # Every pinned field a hold's route bookkeeping may close, with what each one
 # may be set TO.
 _SPENDABLE_FIELDS = MappingProxyType({
@@ -71,6 +81,7 @@ _SPENDABLE_FIELDS = MappingProxyType({
     "pending_fix_review_ids": _cleared,
     "pending_fix_review_summary_ids": _cleared,
     "pending_fix_reviewer_comment_id": _cleared,
+    "fixing_round_settled": _raised,
     "conflict_settled_outcome": _named_outcome,
     "conflict_settled_sha": _settled_commit,
     "docs_settled_sha": _settled_commit,

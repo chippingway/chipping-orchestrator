@@ -33,9 +33,10 @@ succeeds: stamping a delayed report with a later hash would claim it answered an
 edit it never saw.
 
 `HandedRun` beside them is no record at all: it is what a caller tells the
-recording about the run -- the road it came down and, where the caller took a
-snapshot, the requirements revision it was handed -- and only the delivered
-report built from it reaches the comment.
+recording about the run -- the road it came down, the requirements revision it
+was handed where the caller took a snapshot, and the bookkeeping that road owes
+if the publication completes -- and only the delivered report built from it
+reaches the comment.
 
 Every record is additive. An issue that carries none of these keys reads back as
 no delivered report, no transaction, no current report, and no handoff, which is
@@ -205,17 +206,27 @@ class ReportHandoff:
     already done, and the receipt is the whole of that question. The commit and
     the revision travel beside it so an operator reading the comment can say
     which handoff it is without correlating it against a record that is gone.
+
+    `settled_under` is the workflow label the issue was carrying when the
+    settlement landed, and it is the one thing about a completion that no other
+    record can reconstruct afterwards. The reconciliation runs ahead of every
+    handler on every non-terminal label, so a transaction can settle somewhere
+    its own route's stage is not looking -- and a route whose bookkeeping
+    includes a hand-back that stage has to make needs to know whether the stage
+    was ever there. None is a settlement written before the member existed,
+    which every reader holds to the stricter reading.
     """
 
     receipt: str
     pr_number: int
     report_revision: int
     source_sha: str
+    settled_under: WorkflowLabel | None = None
 
 
 @dataclass(frozen=True)
 class HandedRun:
-    """The road a run came down, and the requirements revision it was handed.
+    """What a caller tells the recording about the run behind a report.
 
     A caller that snapshots what it gave the run names that revision here, and
     the record is stamped with the snapshot rather than with whatever the
@@ -225,7 +236,18 @@ class HandedRun:
     back later could stamp an older report with a newer hash. Empty reads the
     pinned baseline, which is what the check ahead of every other spawn leaves
     for the run behind it.
+
+    `watermarks` and `spends` are the bookkeeping that road cannot close itself
+    once a transaction is carrying the work: the input this run consumed, and
+    the reviewer round or fix bookmarks its route closes. They ride the record
+    from here so the write that completes the publication settles them, rather
+    than a caller's own write beside it that a crash in between would lose
+    while the report went out. Both are empty for a caller that closes its own,
+    which every publication with no reviewer round and no consumed batch behind
+    it is -- the initial implementation seam among them.
     """
 
     route: WorkflowLabel
     requirements_revision: str = ""
+    watermarks: tuple = ()
+    spends: tuple = ()

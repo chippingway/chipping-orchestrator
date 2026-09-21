@@ -170,6 +170,11 @@ class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
                 "pr": opened.number,
                 "revision": 1,
                 "sha": support.PUBLISHED_SHA,
+                # The label the issue carried as the settlement landed. A
+                # route whose bookkeeping includes a hand-back its own stage
+                # makes needs it, since this write can be the
+                # reconciliation's ahead of any handler.
+                "under": "workflow:implementing",
             },
         )
         # Both outstanding records are settled, and the issue only moves on

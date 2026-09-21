@@ -51,7 +51,11 @@ one nothing could deliver.
 The route is the caller's, because a stage knows which road produced the run
 and this owner cannot: it is recorded on the transaction so that whatever
 finishes one -- here, or a poll later through the reconciliation -- closes the
-bookkeeping of the road it came from.
+bookkeeping of the road it came from. The bookkeeping itself rides the record
+beside it, for the same reason the report does: the input the run consumed and
+the reviewer round its route spends are settled by the write that COMPLETES the
+publication rather than by a caller's own write beside it, which a crash in
+between would lose while the report went out.
 
 The revision moves past every report this issue has already recorded -- the
 settled one, any transaction still outstanding, and any delivery still waiting
@@ -78,11 +82,14 @@ from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation
-from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.github.pull_request_reports import ReportLocation
+from orchestrator.github import (
+    client as _client,
+    pinned_state as _pinned_state,
+    pull_request_reports as _pr_reports,
+)
 from orchestrator.workflow.engine import (
     guards as _guards,
-    prompt_delivery as _prompt_delivery,
+    report_consumed_values as _consumed,
     report_delivery_state as _delivery_state,
     report_outcome_models as _outcome_models,
     report_outcomes as _outcomes,
@@ -90,6 +97,7 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.prompt_delivery import PINNED_USER_CONTENT_HASH
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -274,6 +282,14 @@ def recording_stops_the_tick(
     the debt alone would publish them under a report written before they
     existed; only a report written over the branch as it stands retires it,
     which is the report the reply to either notice brings.
+
+    A caller may hand over the bookkeeping its road owes, and a record that IS
+    stored carries it to the write that completes the publication. The one road
+    that cannot wait for that write is the record this build CANNOT store:
+    there is no transaction to settle then, only the park below, so the
+    consumed half is applied into that park's own write -- the batch did reach
+    an agent, and a park is where this road ENDS rather than a step on the way
+    to a publication.
     """
     handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
     withheld = _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED
@@ -285,6 +301,13 @@ def recording_stops_the_tick(
             "issue=#%d wrote a developer report this build cannot record; "
             "publishing nothing and holding for a human", issue.number,
         )
+        # No record was made, so nothing is left to carry what the run
+        # consumed -- and the park below is the end of this road. Applied
+        # here, it rides that park's own durable write; left for a caller's
+        # write afterwards, a crash in between leaves the feedback unread and
+        # the next tick clears the very park just taken and spawns a second
+        # developer over the same prompt.
+        _consumed.advance_consumed(state, handed.watermarks)
         state.set(UNREPORTED_WORK, True)
         parks_an_undeliverable_report(
             gh, issue, state,
@@ -506,13 +529,15 @@ def _delivered_report(
     )
     handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
     requirements = handed.requirements_revision or state.get(
-        _prompt_delivery.PINNED_USER_CONTENT_HASH,
+        PINNED_USER_CONTENT_HASH,
     )
     return _records.DeliveredReport(
         receipt=_RECEIPT.format(issue=issue.number, revision=revision),
         report_revision=revision,
         route=handed.route,
         requirements_revision=requirements if isinstance(requirements, str) else "",
+        watermarks=handed.watermarks,
+        spends=handed.spends,
         **carried,
     )
 
@@ -565,7 +590,7 @@ def _carried_by_outcome(
         return None
     return {
         "mode": _records.ReportMode.VERIFY,
-        "location": ReportLocation(
+        "location": _pr_reports.ReportLocation(
             pr_number=outcome.location.pull_number,
             comment_id=outcome.location.comment_id,
         ),

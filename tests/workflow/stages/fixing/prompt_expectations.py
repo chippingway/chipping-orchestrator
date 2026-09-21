@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The prompt one PR-feedback batch earns, for the cases that assert it whole.
+"""What a tick handed an agent, for the cases that assert it whole.
 
 A fixing case about a crossing, a race, or a withheld run is about the BATCH
 the prompt carried rather than about a phrase inside it: a notice of ours, a
@@ -8,6 +8,11 @@ second copy of a reply, or a comment the scan should have left behind all read
 as a substring hit, and none of them survives a comparison against the whole
 thing. So the expectation is built the way the stage builds it, from the
 comments the case put on the thread.
+
+`spawned_nobody` is the other end of the same question, and it is here rather
+than beside any one case because several ask it: a tick that already has
+everything it is waiting for has nothing left for a developer to do, and every
+extra run is a second answer to a prompt somebody has already answered.
 """
 
 from __future__ import annotations
@@ -58,3 +63,12 @@ def only_prompt(mocks, run_agent: str = "run_agent") -> str:
     if len(calls) != 1:
         raise AssertionError(f"expected one agent run, got {len(calls)}")
     return calls[0].args[1]
+
+
+def spawned_nobody(mocks, run_agent: str = "run_agent") -> None:
+    """Refuse a tick that paid a developer, where one may not be paid at all.
+
+    The counterpart of `only_prompt`: that one asserts the single run a case is
+    about, and this one asserts there was no run to assert.
+    """
+    mocks[run_agent].assert_not_called()
