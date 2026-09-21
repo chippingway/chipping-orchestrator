@@ -361,12 +361,44 @@ than a second source of truth: where the two disagree, the handler pages are aut
    Validating fix loop:
      workflow:validating --(CHANGES_REQUESTED)──► label=workflow:fixing
        (pre-spawn flip; dev runs with stage="fixing")
-         ──► pushed fix: ++review_round, label=workflow:validating
+         ──► pushed fix: report recorded before the gate, ++review_round,
+              label=workflow:validating, report bound behind the relabel
+         ──► report with no commit (a reviewer item naming report content):
+              nothing pushed, report recorded for the head the branch and the
+              publication receipt are PROVED to agree on, label=workflow:
+              validating — the same road a pushed fix takes, since the next
+              reviewer reads the report too. ++review_round is the SETTLEMENT's
+              here, not this tick's: a handover nothing confirmed has bought no
+              round, so a refused post or a crash leaves it unspent
+         ──► report with no commit whose head nothing could prove (a reading
+              that failed, or a branch carrying an unpublished commit):
+              nothing pushed, nothing recorded, review_round unchanged, park
+              report_undeliverable on workflow:fixing
+         ──► committed with no usable report (an unfinished run included):
+              nothing pushed, review_round unchanged, park
+              report_undeliverable on workflow:fixing
+         ──► crash anywhere past the report's own write: label still
+              workflow:fixing, park already cleared, the triggering reply
+              unread, and — where the round committed — the commit its report
+              describes still in the checkout. The next fixing tick finishes
+              that round rather than resuming a developer: the candidate goes
+              out through the size gate (held → workflow:decomposing) spending
+              the round frozen on the record, and the issue then moves to
+              workflow:validating, where the report hold binds and settles the
+              delivery
+         ──► that same crash over a checkout nothing can vouch for (gone,
+              unreadable, a fetch that failed, a remote that moved): nothing
+              pushed, nothing published, review_round unchanged, park
+              report_undeliverable on workflow:fixing — handed on instead, the
+              binding would recreate the checkout from the remote and publish
+              the report against the head the pull request already had
          ──► park (timeout / no-commit / dirty / push fail):
               label stays workflow:fixing, awaiting_human=True; the
               fixing handler owns the awaiting-human cycle and on a
-              human-reply pushed fix BUMPS review_round (validating
-              route) or RESETS it to 0 (in_review route) —
+              human-reply handover — a pushed fix, or the report of the head
+              already there — BUMPS review_round (validating
+              route) or RESETS it to 0 (in_review route), and an ordinary
+              non-actionable ACK: still returns to in_review —
               discriminator is `pending_fix_at`
      workflow:validating --(awaiting-human resume / drift / transient-
        recovery push)──► ++review_round, label stays workflow:validating

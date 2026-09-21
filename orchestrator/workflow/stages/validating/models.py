@@ -105,13 +105,25 @@ class _DevFixRun:
     # commit the pull request has never carried -- so every tick over such a
     # branch parks unmeasured and the accumulated code never goes out.
     published_head: str = ""
-    # The route and requirements revision a requirements-drift resume was
-    # handed, where the run is one. Named, the disposition holds the run to the
-    # report contract and publishes what it reported; the revision is the
-    # snapshot the drift check took before the spawn, because the report is
-    # about the requirements that session saw rather than whatever the issue
-    # says by the time the report reaches the pull request. Every other fix
-    # route names none and publishes code alone.
+    # What the caller froze about the run, where the run is one this
+    # disposition holds to the report contract. Named, the report is recorded
+    # and published; unnamed, the run publishes code alone and this road says
+    # nothing about a report.
+    #
+    # Every road that resumes a developer over an OPEN pull request names it:
+    # the requirements-drift resume, the awaiting-human resume behind it, and
+    # both halves of the reviewer-requested fix round -- the direct one the
+    # `changes_requested` arc runs inline, and the resume the fixing handler
+    # makes on the far side of a park.
+    #
+    # It carries the route, and then whatever that road could not leave
+    # anywhere else. The requirements revision is the snapshot the drift check
+    # took before the spawn, because the report is about the requirements that
+    # session saw rather than whatever the issue says by the time the report
+    # reaches the pull request. `spends` and `watermarks` are the round, the
+    # bookmarks and the readers a handover closes, frozen for the write that
+    # settles the report: the one handover with no code in it passes no size
+    # gate, so nothing else is left to carry them.
     handed: Any = None
 
     @property

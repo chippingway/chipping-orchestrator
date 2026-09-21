@@ -19,6 +19,7 @@ park turned into one only a human clears.
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.git.measurement.models import MeasurementFailure
@@ -56,6 +57,18 @@ PARK_CANDIDATE_MOVED = support.PARK_CANDIDATE_MOVED
 KEY_REVIEW_ROUND = "review_round"
 KEY_PENDING_FIX_AT = "pending_fix_at"
 KEY_PENDING_COMMENT = "pending_fix_reviewer_comment_id"
+
+# The world the retry ticks below read once their push has landed: the
+# checkout standing on the commit that went out, and the remote carrying it.
+# Stated rather than defaulted because these ticks are asked to prove it --
+# the report a held round recorded may not be handed on over a head nobody
+# could vouch for -- and a world that never modelled the push's effect on the
+# remote would answer that question with a refusal the retry has already
+# healed.
+_PUBLISHED_WORLD = MappingProxyType({
+    "head_shas": (MEASURED_CANDIDATE_SHA,),
+    "fetched_branch_tip": MEASURED_CANDIDATE_SHA,
+})
 
 PUBLICATION_PAID = "_publication_paid"
 WRITE_PINNED_STATE = "write_pinned_state"
@@ -219,7 +232,7 @@ class RestoredCheckoutRetryTest(unittest.TestCase, _RacedCheckoutMixin):
             support.FrozenCommit(sha=support.MOVED_AFTER_PUSH),
         ))
 
-        self._run_the_stage(github)
+        self._run_the_stage(github, **_PUBLISHED_WORLD)
 
         self._assert_finished(github)
 
@@ -229,7 +242,7 @@ class RestoredCheckoutRetryTest(unittest.TestCase, _RacedCheckoutMixin):
         # clean again is the same repair.
         github = self._raced(tree_states=_DIRTIED)
 
-        self._run_the_stage(github)
+        self._run_the_stage(github, **_PUBLISHED_WORLD)
 
         self._assert_finished(github)
 
@@ -286,7 +299,7 @@ class ApprovedRetryEndToEndTest(unittest.TestCase, _FrozenPairMixin):
         # the issue waits on a human for a failure that has already healed.
         github = self._approved_but_unpushed()
 
-        self._run_the_stage(github)
+        self._run_the_stage(github, **_PUBLISHED_WORLD)
 
         pinned = _pinned(github)
         self.assertFalse(pinned[AWAITING_HUMAN])

@@ -287,7 +287,9 @@ FIXING = ChargedRoad(
     number=FIXING_ISSUE,
     label=_support.LABEL_FIXING,
     drive=_drive_fixing,
-    agent_result=_support._agent(session_id=DEV_SESSION, last_message="fixed"),
+    agent_result=_support._agent(
+        session_id=DEV_SESSION, last_message=_support._reported("fixed"),
+    ),
 )
 
 DOCUMENTING = ChargedRoad(

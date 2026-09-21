@@ -10,9 +10,7 @@ is one the code went out without. Then the publication arrives and the record
 is bound to it: one write that drops the delivery and records the transaction,
 or no write at all and a refusal that says which of the two it was.
 
-Beside them, what the comment has to have room for before either happens, and
-what a run that moved no head IS while a report is still owed -- the one
-reading that keeps the reply a park earns from being read as a question.
+Beside them, what the comment has to have room for before either happens.
 """
 
 from __future__ import annotations
@@ -34,12 +32,9 @@ from tests.workflow.engine import (
     report_record_test_support as support,
 )
 from tests.workflow.fixtures import (
-    _FAKE_WT,
-    _TEST_SPEC,
     PROVIDER_OVERLOAD_MESSAGE,
     _agent,
 )
-from tests.workflow.git_owners import seam_patch
 
 # A notice offered to a park that is still standing, which nobody may be sent.
 _SECOND_NOTICE = "The report this issue owes still cannot be delivered."
@@ -780,56 +775,6 @@ class DeliveredReportBindingTest(unittest.TestCase):
 
                 self.assertEqual(state.data, before)
                 self.assertFalse(_record_state.carries_pending_report(state))
-
-class OwedReportRedeliveryTest(unittest.TestCase):
-    """A run that committed nothing, on an issue that is owed a report.
-
-    Every ordinary reply that moves no head is a question. An issue holding a
-    report nothing could deliver is the exception: it was waiting for a report
-    rather than for code, and the commits are already on the branch.
-    """
-
-    def test_a_report_republishes_the_branch(self) -> None:
-        state = PinnedState()
-        _delivery_state.record_delivered_report(state, delivery_support.DELIVERED)
-
-        with seam_patch("_has_new_commits", lambda *_args: True):
-            self.assertTrue(_delivery.redelivers_an_owed_report(
-                _TEST_SPEC,
-                state,
-                _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report)),
-                _FAKE_WT,
-            ))
-
-    def test_each_reading_answers_on_its_own(self) -> None:
-        # The debt, the outcome and the branch are required together: an issue
-        # owing nothing is the ordinary no-commit reply, a run that asked
-        # rather than reported is still a question, and a branch with nothing
-        # ahead of base would publish a pull request with no diff in it.
-        answered = (
-            ("no report is owed", PinnedState(), delivery_support.ready(delivery_support.DELIVERED.report)),
-            (
-                "the run asked a question",
-                PinnedState(state_data=dict(delivery_support.OWED)),
-                "which database?",
-            ),
-        )
-        with seam_patch("_has_new_commits", lambda *_args: True):
-            for described, state, message in answered:
-                with self.subTest(refusal=described):
-                    self.assertFalse(_delivery.redelivers_an_owed_report(
-                        _TEST_SPEC, state, _agent(last_message=message),
-                        _FAKE_WT,
-                    ))
-
-        with seam_patch("_has_new_commits", lambda *_args: False):
-            self.assertFalse(_delivery.redelivers_an_owed_report(
-                _TEST_SPEC,
-                PinnedState(state_data=dict(delivery_support.OWED)),
-                _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report)),
-                _FAKE_WT,
-            ))
-
 
 if __name__ == "__main__":
     unittest.main()

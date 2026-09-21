@@ -122,7 +122,10 @@ class HandleValidatingVerifyRefusalTest(
                         session_id="rev-sess",
                         last_message=REVIEW_CHANGES_REQUESTED_MESSAGE,
                     ),
-                    _agent(session_id=DEV_SESSION, last_message="fixed"),
+                    _agent(
+                        session_id=DEV_SESSION,
+                        last_message=review_support._reported("fixed"),
+                    ),
                 ],
                 dirty_files=(),
                 push_branch=True,

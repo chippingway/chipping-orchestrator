@@ -75,7 +75,7 @@ class FixingPostFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
                 scenario.issue,
                 run_agent=_agent(
                     session_id=DEV_SESSION,
-                    last_message="fixed",
+                    last_message=PUSHED_MESSAGE,
                 ),
                 head_shas=(SHA_BEFORE, SHA_AFTER),
                 push_branch=True,

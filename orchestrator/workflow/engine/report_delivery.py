@@ -42,11 +42,9 @@ nothing is published at all: the commit stays in the worktree, the branch is
 untouched, and a reply resumes the session that can write the report again.
 
 What that resumed session comes back with is a report rather than a commit, and
-`redelivers_an_owed_report` is what keeps it from being read as a question. An
-issue owing a report was never waiting for code: the commits are already on the
-branch, and a fresh report is exactly what the park asked for -- so the run that
-brings one publishes through the ordinary seam, where its report replaces the
-one nothing could deliver.
+`report_redelivery` beside this owner is what keeps it from being read as a
+question: a reading about a LATER run and the branch it ran over, where this
+owner is what one finished run's own report becomes.
 
 The route is the caller's, because a stage knows which road produced the run
 and this owner cannot: it is recorded on the transaction so that whatever
@@ -62,22 +60,21 @@ reading the earlier one's comment as its own publication, edited beyond
 recognition.
 
 The implementing stage's publication seam is what calls in, between proving a
-clean tree and the size gate, and so does the requirements-drift disposition an
-open pull request's review stages share, which names the revision its resume
-was handed; the binding that exchanges a delivery for the transaction it
-becomes, once the push has reached a pull request, is `report_binding`'s.
+clean tree and the size gate, and so do the two dispositions an open pull
+request's fix loop runs: the requirements-drift one its review stages share,
+which names the revision its resume was handed, and the reviewer-requested one
+the `fixing` label covers. The binding that exchanges a delivery for the
+transaction it becomes, once the push has reached a pull request, is
+`report_binding`'s.
 """
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.agents.models import AgentResult
-from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
@@ -89,6 +86,9 @@ from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_records as _records,
     report_settlement_state as _settlement,
+)
+from orchestrator.workflow.engine.report_consumed_values import (
+    advance_consumed as _advance_consumed,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -155,7 +155,11 @@ _NOTHING_ADDED = (
 )
 
 # The roads that record a report for work an open pull request already carries.
-_UNDER_REVIEW = frozenset((WorkflowLabel.VALIDATING, WorkflowLabel.IN_REVIEW))
+# The fix loop is one of them: it runs under its own label, and the pull
+# request the round is about was open before the round began.
+_UNDER_REVIEW = frozenset((
+    WorkflowLabel.VALIDATING, WorkflowLabel.IN_REVIEW, WorkflowLabel.FIXING,
+))
 
 _UNRECORDABLE_PARK = (
     "{mentions} this issue's developer run finished with a completion report "
@@ -274,12 +278,18 @@ def recording_stops_the_tick(
     the debt alone would publish them under a report written before they
     existed; only a report written over the branch as it stands retires it,
     which is the report the reply to either notice brings.
+
+    And both carry the input the caller said this run's prompt delivered into
+    the park's own write, so an issue left awaiting a human is never left
+    awaiting one over feedback that still reads as unanswered.
     """
     handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
-    withheld = _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED
+    withheld = (
+        _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED
+    )
     delivered = _delivered_report(gh, issue, state, agent_result, handed)
     if delivered is None:
-        return _unreported_run_holds(gh, issue, state, agent_result, withheld)
+        return _unreported_run_holds(gh, issue, state, agent_result, handed)
     if not _delivery_state.record_delivered_report(state, delivered):
         log.error(
             "issue=#%d wrote a developer report this build cannot record; "
@@ -291,6 +301,7 @@ def recording_stops_the_tick(
             _UNRECORDABLE_PARK.format(
                 mentions=config.HITL_MENTIONS, withheld=withheld,
             ),
+            consumed=handed.watermarks,
         )
         return True
     log.info(
@@ -311,7 +322,7 @@ def _unreported_run_holds(
     issue: Issue,
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
-    withheld: str,
+    handed: _records.HandedRun,
 ) -> bool:
     """Hold a completed run that handed over no report, or let the tick carry on.
 
@@ -331,9 +342,12 @@ def _unreported_run_holds(
     a report an earlier run left describes the branch before them, so a road
     reading the debt alone would publish them under it.
 
-    `withheld` is what the caller's road actually held back, since the notice
-    says so and the two roads hold back different things: a pull request that
-    was never opened, and one that stands where it stood.
+    What the notice says was withheld is the ROAD's, since the two roads hold
+    back different things: a pull request that was never opened, and one that
+    stands where it stood. `handed` carries that road, and the input the run's
+    prompt delivered, which rides the park's own write: a park durable over
+    feedback still marked unread is one the next tick resumes the developer
+    over again, with no human having said anything.
 
     A run that did NOT complete is left alone. A launch nothing invoked, a
     shutdown kill, a timeout, a provider refusal and a nonzero exit are
@@ -354,8 +368,13 @@ def _unreported_run_holds(
     parks_an_undeliverable_report(
         gh, issue, state,
         _UNREPORTED_PARK.format(
-            mentions=config.HITL_MENTIONS, withheld=withheld,
+            mentions=config.HITL_MENTIONS,
+            withheld=(
+                _NOTHING_ADDED if handed.route in _UNDER_REVIEW
+                else _NOTHING_OPENED
+            ),
         ),
+        consumed=handed.watermarks,
     )
     return True
 
@@ -365,6 +384,8 @@ def parks_an_undeliverable_report(
     issue: Issue,
     state: _pinned_state.PinnedState,
     notice: str,
+    *,
+    consumed: tuple = (),
 ) -> None:
     """Announce a report this workflow cannot deliver, once, and hold it.
 
@@ -388,70 +409,45 @@ def parks_an_undeliverable_report(
 
     A park still standing gets no second notice, but it does get the debt: one
     taken before `OWED_REPORT` existed carries the reason alone, and the park
-    that replaces that reason next would take the debt with it.
+    that replaces that reason next would take the debt with it. One already
+    carrying the debt writes nothing at all, since there is nothing left for
+    this write to say that the comment does not already.
 
     It is BOUNDED, like every park that ends an agent run: the run whose
     report failed took minutes, a human may have written in them, and the
     notice lands above that reply. Stamped at the notice, the watermark would
     cross it and the reply would be lost; walked through our own identified
     comments instead, it stays unread for the resume that answers this park.
+
+    `consumed` is what the run's prompt already delivered, and it rides THIS
+    write rather than a caller's afterwards. The park is durable the moment
+    this returns, and a process dying between it and a caller's own write
+    would leave the issue awaiting a human over input still marked unread --
+    which the next tick reads as fresh feedback and resumes the developer on
+    again, without a human having said anything and at the cost of another
+    run.
+
+    It is applied forward-only and BEFORE the notice, which is what the bounded
+    walk needs: that walk starts at the issue-action boundary and crosses our
+    own comments from there, so a boundary raised past the reply this round
+    answered lets it cross our notice too. Raised afterwards it could not, and
+    the notice would be handed to the next prompt as somebody's guidance.
     """
+    _advance_consumed(state, consumed)
     if state.get(_PARK_REASON) == UNDELIVERABLE_REPORT and state.get(_AWAITING_HUMAN):
         log.warning(
             "issue=#%d still owes a developer report this workflow cannot "
             "deliver; holding the tick without a second notice", issue.number,
         )
-        if not state.get(OWED_REPORT):
-            state.set(OWED_REPORT, True)
-            gh.write_pinned_state(issue, state)
-        return
-    _guards._park_awaiting_human(
-        gh, issue, state, notice, reason=UNDELIVERABLE_REPORT, bounded=True,
-    )
-    state.set(_PARK_REASON, UNDELIVERABLE_REPORT)
+        if state.get(OWED_REPORT):
+            return
+    else:
+        _guards._park_awaiting_human(
+            gh, issue, state, notice, reason=UNDELIVERABLE_REPORT, bounded=True,
+        )
+        state.set(_PARK_REASON, UNDELIVERABLE_REPORT)
     state.set(OWED_REPORT, True)
     gh.write_pinned_state(issue, state)
-
-
-def redelivers_an_owed_report(
-    spec: _config_models.RepoSpec,
-    state: _pinned_state.PinnedState,
-    agent_result: AgentResult,
-    worktree: Path,
-) -> bool:
-    """Whether this run answers a report this issue owes rather than a question.
-
-    The one road on which a run that committed nothing still has work to
-    publish. A stage reads a head that did not move as a session that came
-    back with a question, which is right for every ordinary run -- but an
-    issue holding a report it could not deliver was never waiting for code:
-    it was waiting for a report it could record and bind, and the commits the
-    earlier run made are still on the branch with nothing published from them
-    or nothing bound to them.
-
-    Three readings, asked in the order that spends least. The DEBT says what
-    the issue is waiting on, so a run that reports on an issue owing nothing
-    is the ordinary no-commit reply its stage already knows how to read -- and
-    asking it first is what keeps every other tick from paying for the two
-    below. The OUTCOME says the developer considers the work finished, so a
-    question, a disagreement, or a run that fell short is still a question:
-    what supersedes an undeliverable report is another report and nothing
-    else. And the BRANCH has to carry something, because what this licenses is
-    a publication: a checkout with nothing ahead of base would push an empty
-    branch and open a pull request with no diff in it.
-
-    Spelled here rather than at a caller, because both roads a reply can take
-    ask the same question -- the resume a park earns, and the drift resume an
-    edit earns -- and a rule written twice is one that comes to differ.
-    """
-    if not owes_a_report(state):
-        return False
-    if isinstance(
-        _outcomes._report_outcome_of_run(agent_result),
-        _outcome_models._ReportRefusal,
-    ):
-        return False
-    return _worktree_creation._has_new_commits(spec, worktree)
 
 
 def _delivered_report(
@@ -468,6 +464,28 @@ def _delivered_report(
     question, or reached for the contract and missed. None of those is a report
     anybody wrote, and recording one would publish a transcript under a header
     saying it is this issue's completion report.
+
+    The bookkeeping and the consumed input the caller froze travel with it
+    unread: what this owner knows about them is that the write which settles
+    the report is the one that has to apply them, because on a road with no
+    size gate behind it nothing else closes the round, and feedback a round
+    answered may not be recorded as read until the report answering it lands.
+
+    They travel with what this record SUPERSEDES as well, and that is why the
+    merge is here rather than at a caller. A record still outstanding is a
+    handover nothing confirmed, so none of what it owes has been written
+    anywhere -- and this record replaces it: the delivery is dropped by the
+    write that records this one, and the transaction by the binding behind it.
+    Minted on the caller's pairs alone, a report that supersedes an unsettled
+    one publishes and closes only its own road's bookkeeping, leaving a round
+    nobody spent, bookmarks nobody cleared, and feedback a developer already
+    answered reading as fresh. Carried, the one write that settles this report
+    closes both handovers, which is the same exactly-once the frozen pair buys
+    a replay.
+
+    The settled report is not superseded by any of this: it is what the pull
+    request already carries, and what it owed was written by the settlement
+    that put it there.
 
     The requirements revision is the one the RUN was handed, never one
     computed here: a human editing the issue while the agent worked leaves the
@@ -495,13 +513,17 @@ def _delivered_report(
     )
     if carried is None:
         return None
-    recorded = (
-        _settlement.read_current_report(state),
+    # The records this one replaces, oldest first: a transaction is bound
+    # before any delivery standing beside it, since the binding drops the
+    # delivery it came from in the write that records it.
+    superseded = tuple(outstanding for outstanding in (
         _record_state.read_pending_report(state),
         _delivery_state.read_delivered_report(state),
-    )
+    ) if outstanding is not None)
     revision = 1 + max(
-        (report.report_revision for report in recorded if report is not None),
+        (report.report_revision for report in (
+            _settlement.read_current_report(state), *superseded,
+        ) if report is not None),
         default=0,
     )
     handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
@@ -513,8 +535,34 @@ def _delivered_report(
         report_revision=revision,
         route=handed.route,
         requirements_revision=requirements if isinstance(requirements, str) else "",
+        spends=_carried_on(
+            [record.spends for record in superseded], handed.spends,
+        ),
+        watermarks=_carried_on(
+            [record.watermarks for record in superseded], handed.watermarks,
+        ),
         **carried,
     )
+
+
+def _carried_on(superseded: list, handed: tuple) -> tuple:
+    """One value per field, over every record a new one supersedes.
+
+    The pairs are ``((field, value), ...)`` and each field is written once, so
+    the merge is a mapping filled in the order it is handed: a field an
+    outstanding record names and this run names again keeps THIS run's reading
+    of it. Every one of these pairs was computed against a comment the
+    superseded record wrote nothing to, so the later value already accounts for
+    whatever the earlier one would have closed.
+
+    The watermarks need no such care -- they are applied as a forward-only
+    ratchet -- but they are merged through the same rule, because one rule over
+    one shape is what keeps the two halves from drifting apart.
+    """
+    carried: dict = {}
+    for pairs in (*superseded, handed):
+        carried.update(pairs)
+    return tuple(carried.items())
 
 
 def _carried_by_outcome(

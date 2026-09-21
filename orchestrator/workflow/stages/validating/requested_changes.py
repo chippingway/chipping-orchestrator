@@ -12,6 +12,16 @@ leave an issue nobody re-enters. A pushed fix bumps the round and relabels
 back; any park leaves the issue on `fixing`, whose handler owns the
 awaiting-human rescan from there.
 
+What that run hands back is a report as well as, perhaps, a commit, and
+`fix_reports` beside this owner holds it to both: the report is recorded ahead
+of the size gate, a report with no code in it reaches the pull request on the
+head it already carries, and a commit with no report is withheld. Either
+handover bumps the round and relabels back, because the next reviewer reads the
+report as well as the diff -- but WHEN that round is spent differs: a pushed fix
+spent it on a commit the pull request now carries, while a report with no code in
+it has bought nothing until it lands, so its round and its replay anchor ride
+the record and are closed by the write that settles the report.
+
 The reviewer-feedback comment's id is recorded because a session-failure park
 on this route has to be retryable by `/orchestrator continue`, and the fixing
 handler replays that exact comment to reconstruct the batch. It is a
@@ -47,13 +57,20 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     messages as _messages,
     prompts as _prompts,
+    report_records as _records,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     resume as _dev_resume,
 )
-from orchestrator.workflow.stages.validating import dev_fix as _dev_fix, models as _models, state as _state
+from orchestrator.workflow.stages.validating import (
+    fix_reports as _fix_reports,
+    models as _models,
+    report_settlement as _report_settlement,
+    rounds as _rounds,
+    state as _state,
+)
 from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -194,9 +211,35 @@ def _run_requested_fix(context: _models._RequestedChanges) -> _models._AwaitingD
 def _finish_requested_fix(
     context: _models._RequestedChanges, attempt: _models._AwaitingDevAttempt,
 ) -> None:
+    """Read what the fix round left, and hand the pull request back with it.
+
+    The round is spent by a report reaching the pull request exactly as it is
+    by a commit, because both are a handover the next reviewer has to read
+    afresh: a report round that spent nothing would let a developer answer the
+    same reviewer forever without `MAX_REVIEW_ROUNDS` ever counting it.
+
+    WHEN it is spent is what tells the two apart. A pushed fix spent it on a
+    commit that reached the pull request, so the write the size gate made beside
+    its own receipt is where it is durable, and this caller only re-applies the
+    same frozen pair for the one push that write could not carry. A report with
+    no code in it has bought nothing until that report is on the pull request --
+    so nothing of the handover is written here at all: the pair rides the record
+    and is closed by the write that settles it, confirmed or replayed, and a
+    post GitHub refused, a re-read that failed, or a crash leaves the round
+    unspent and the replay anchor intact for the round to be finished again.
+
+    The label moves either way, and moves BEFORE the binding. It is the only
+    road to confirmation: `validating`'s report hold is what binds a delivery
+    and settles it, and it refuses every reviewer for as long as the report is
+    owed -- so the move hands the issue to the owner that finishes the
+    transaction rather than presenting unconfirmed work to anybody. Moved after
+    the binding instead, a settled report would stand beside a label still
+    claiming the round it closed.
+    """
     if attempt.paused:
         return
-    pushed = _dev_fix._handle_dev_fix_result(
+    owed = _rounds._spends_a_requested_round(context.decision.run.round_n)
+    outcome = _fix_reports._post_requested_fix_result(
         context.gh,
         context.spec,
         context.issue,
@@ -211,23 +254,32 @@ def _finish_requested_fix(
         # finishing the fix loop. Named for the same reason the resume above
         # is.
         stage=WorkflowLabel.FIXING,
-        # The round this route counts on a landed fix, handed to the gate for
-        # the exit where this caller never reaches the line below: a hold
-        # relabels to the adjudication, and an authorized settlement publishes the
-        # accepted commit itself, so nothing behind here counts it.
-        spends=_late_gate_models._Spends(fields=(
-            (_state._REVIEW_ROUND, context.decision.run.round_n + 1),
-            ("pending_fix_reviewer_comment_id", None),
-        )),
+        # The round this route counts, handed to the gate for the exit where
+        # this caller never reaches the lines below: a hold relabels to the
+        # adjudication, and an authorized settlement publishes the accepted
+        # commit itself, so nothing behind here counts it.
+        spends=owed,
+        # The road this run came down, which is what holds it to the report
+        # contract, and the same frozen pair above -- which on the road with no
+        # code in it is the ONLY thing that carries the round, since the write
+        # that settles the report is the first write a handover nothing
+        # published has earned. The revision is left to the pinned baseline: no
+        # drift check snapshotted one for this route, and the reviewer round
+        # runs behind the one the tick's own drift check left.
+        handed=_records.HandedRun(WorkflowLabel.FIXING, spends=owed.fields),
     )
-    if not pushed:
+    if outcome not in _state._REPORTING_OUTCOMES:
         if not attempt.run.agent_result.interrupted:
             context.gh.write_pinned_state(context.issue, context.state)
         return
-    context.state.set(_state._REVIEW_ROUND, context.decision.run.round_n + 1)
-    context.state.set("pending_fix_reviewer_comment_id", None)
+    if outcome == _state._OUTCOME_PUSHED:
+        _late_gate_models._spend(context.state, owed)
     context.gh.set_workflow_label(context.issue, WorkflowLabel.VALIDATING)
     context.gh.write_pinned_state(context.issue, context.state)
+    _report_settlement._settles_the_report(
+        context.gh, context.spec, context.issue, context.state,
+        WorkflowLabel.VALIDATING,
+    )
 
 
 def _handle_validating_changes_requested(
@@ -247,12 +299,12 @@ def _handle_validating_changes_requested(
     human-feedback duty. The label is flipped BEFORE the dev spawn so a crash
     inside the spawn still leaves the issue on `fixing` with stale
     awaiting_human=False, which the next tick's fixing handler treats as
-    no-feedback and bounces back to `validating`. On a successful pushed fix we
-    bump `review_round` and relabel to `validating`; on any park the issue stays
-    on `fixing` and the fixing handler owns the awaiting-human rescan.
-    `review_round` accounting, `MAX_REVIEW_ROUNDS`, dev-session pinning, and the
-    final-docs handoff are unchanged -- only the visible label moves with the
-    active work.
+    no-feedback and bounces back to `validating`. On a successful pushed fix, and
+    on a report the round delivers with no code in it, we bump `review_round`
+    and relabel to `validating`; on any park the issue stays on `fixing` and the
+    fixing handler owns the awaiting-human rescan. `MAX_REVIEW_ROUNDS`,
+    dev-session pinning, and the final-docs handoff are unchanged -- only the
+    visible label moves with the active work.
 
     The id of the reviewer-feedback PR comment is recorded in
     `pending_fix_reviewer_comment_id` so a session-failure park on this route

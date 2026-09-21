@@ -52,7 +52,10 @@ this path:
    never rewritten: if it does not close the issue and name the dev session, the issue waits for you to add the two
    lines the park comment quotes, then reply.
 3. `workflow:validating` — a fresh reviewer checks the diff. Requested changes enter `workflow:fixing` and return
-   here after the dev agent addresses them. Every fix is measured before it is pushed too, and for what the pull
+   here after the dev agent addresses them — with a commit, or with the report alone where the reviewer asked only
+   for something the report had to say, which needs no commit and still earns a fresh review. Either way the report
+   of that round is posted on the pull request and no reviewer runs until it is there. Every fix is measured before
+   it is pushed too, and for what the pull
    request would come to rather than for what the fix changed, so a PR cannot be grown past `MAX_ADDED_LINES` one
    small fix at a time; one that would goes back to `workflow:decomposing` with nothing pushed. Adjudicated as a
    split there, the open pull request is closed over a notice naming the children it was handed to and the

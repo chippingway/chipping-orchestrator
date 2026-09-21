@@ -23,6 +23,14 @@ first comment the dev has not consumed rather than at the first one the
 orchestrator did not write. `requested_changes` owns the remaining two
 verdicts: the feedback posted on the PR and the dev fix run under the `fixing`
 label, plus the park a reviewer that emitted no VERDICT line earns.
+`fix_reports` owns what that run owes its pull request in words: the report
+recorded ahead of the size gate, the one a round delivers with no code in it,
+and the commit withheld where nothing describes it. `fix_report_evidence` beside
+it holds that last road to what it stakes -- the head proved, affirmatively, on
+the branch and on the publication receipt alike -- and owns the park where it
+cannot be, with the input the round's prompt delivered riding that park's own
+write. The `fixing` handler's own resume disposes through both, so the two
+halves of one fix loop hold a round to the same contract.
 
 Between rounds the stage is a dev-fix driver, and `dev_fix` owns what one
 finished dev run leaves behind -- the no-commit reading, the push, and the
@@ -36,11 +44,13 @@ committed-but-unpublished fix from ping-ponging between parks -- because the
 stand down on and on the no-feedback bounce that is the last tick left to
 publish such a commit.
 
-A body-edit resume also owes the pull request its developer report.
-`drift_reports` records it before the size gate under the requirements
-revision the resume was handed, `report_settlement` binds it to the
-publication the code reached and settles it, and `report_hold` holds the
-reviewer, on every tick, until the pull request carries it -- which is why
+Every run this stage's fix loop makes owes the pull request its developer
+report. `drift_reports` records a body-edit resume's before the size gate under
+the requirements revision that resume was handed and `fix_reports` records a
+reviewer-requested round's, `report_settlement` binds either to the publication
+the code reached -- or, for a report needing no commit, to the publication the
+pull request already carries -- and settles it, and `report_hold` holds the
+reviewer, on every tick, until the pull request carries it, which is why
 `handler` asks that hold last, ahead of the spawn.
 
 `models` and `state` carry the records and the wire keys the rest share.

@@ -114,7 +114,7 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
                 scenario.issue,
                 run_agent=_agent(
                     session_id=DEV_SESSION,
-                    last_message="fixed",
+                    last_message=PUSHED_FIX_MESSAGE,
                 ),
                 head_shas=(SHA_BEFORE, SHA_AFTER),
                 push_branch=False,
@@ -149,7 +149,7 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
                 scenario.issue,
                 run_agent=_agent(
                     session_id=DEV_SESSION,
-                    last_message="WIP",
+                    last_message=PUSHED_FIX_MESSAGE,
                 ),
                 head_shas=(SHA_BEFORE, SHA_AFTER),
                 dirty_files=["orchestrator/foo.py"],

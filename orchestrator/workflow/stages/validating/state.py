@@ -76,14 +76,17 @@ _OUTCOME_CLEARED = "cleared"
 
 _OUTCOME_PUSHED = "pushed"
 
-# A requirements-drift resume that committed nothing and wrote a report: the
-# report is recorded and bound to the head the pull request already carries,
-# so the caller routes it as it routes an `ACK:` -- the same head, re-reviewed
-# against the new requirements -- rather than as a question.
+# A resume that committed nothing and wrote a report: the report is recorded
+# and bound to the head the pull request already carries, so the caller routes
+# the head rather than parking on it as a question. A drift resume routes it as
+# it routes an `ACK:` -- the same head, re-reviewed against the new
+# requirements -- and a reviewer-requested round routes it as a landed fix,
+# since the report is the handover that round made.
 _OUTCOME_REPORTED = "reported"
 
-# The drift outcomes that can leave a recorded report for the caller to bind,
-# once its own bookkeeping -- and on `in_review` its relabel -- is written.
+# The fix-loop outcomes that can leave a recorded report for the caller to
+# bind, once its own bookkeeping -- and its relabel, where it makes one -- is
+# written.
 _REPORTING_OUTCOMES = frozenset((_OUTCOME_PUSHED, _OUTCOME_REPORTED))
 
 # Whether a requirements edit resumed the developer and that resume has not

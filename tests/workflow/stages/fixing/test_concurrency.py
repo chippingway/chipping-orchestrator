@@ -40,7 +40,7 @@ _FixingFixtureMixin = support._FixingFixtureMixin
 _InjectCommentAfterCall = support._InjectCommentAfterCall
 _agent = support._agent
 config = support.config
-dev_fix = support.dev_fix
+fix_reports = support.fix_reports
 datetime = support.datetime
 patch = support.patch
 timedelta = support.timedelta
@@ -183,7 +183,7 @@ class FixingContentHashAndConcurrencyTest(
             created_at=long_ago,
         )
         fix_and_inject = _InjectCommentAfterCall(
-            dev_fix._handle_dev_fix_result,
+            fix_reports._post_requested_fix_result,
             scenario.issue,
             concurrent,
         )
@@ -191,8 +191,8 @@ class FixingContentHashAndConcurrencyTest(
         with (
             patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS),
             patch.object(
-                dev_fix,
-                "_handle_dev_fix_result",
+                fix_reports,
+                "_post_requested_fix_result",
                 fix_and_inject,
             ),
         ):
@@ -250,7 +250,7 @@ class FixingContentHashAndConcurrencyTest(
             created_at=long_ago,
         )
         fail_and_inject = _InjectCommentAfterCall(
-            dev_fix._handle_dev_fix_result,
+            fix_reports._post_requested_fix_result,
             scenario.issue,
             concurrent,
         )
@@ -258,8 +258,8 @@ class FixingContentHashAndConcurrencyTest(
         with (
             patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS),
             patch.object(
-                dev_fix,
-                "_handle_dev_fix_result",
+                fix_reports,
+                "_post_requested_fix_result",
                 fail_and_inject,
             ),
         ):

@@ -40,13 +40,32 @@ the per-tick base sync stands down on every park, so nobody else will rebase it.
 `resume` is the run and everything a finished run leaves behind -- the quiet
 window it waits out, the three refusals that count no delivery at all (a launch
 nothing invoked, a shutdown kill, a live pause), the settlement every other
-outcome earns, the ACK fast path, and the `validating` relabel a pushed fix
-earns.
+outcome earns, the ACK fast path, and the `validating` relabel a pushed fix or
+a delivered report earns.
 
 A fix prompt teaches the report contract like every other developer prompt, so
 a round can end on `REPORT: READY` -- and then it owes a publication this tick
-cannot guarantee. Such a round settles nothing: feedback recorded as answered
-for a report no reviewer has is the reading the fork in `resume` refuses.
+cannot guarantee. Such a round settles nothing at the fork in `resume`: feedback
+recorded as answered for a report no reviewer has is the reading that fork
+refuses. What carries the batch on the one road where the report IS the handover
+is the report's own record, so the readers move in the write that settles it.
+Every other road answered the feedback in something already there -- a pushed
+fix in code the pull request now carries, a park in a notice a human is being
+asked to read -- and settles it in the tick, a park inside its own write rather
+than a caller's behind it, since a park left over feedback that still reads as
+unanswered is one the next tick resumes the developer over again.
+
+A round that merely REACHED for that contract and missed -- a report block with
+an `ACK:` line beside it -- is not an acknowledgement either, and the ACK fast
+path refuses it: read as one it would hand the pull request back to `in_review`
+over work whose report nothing carries.
+
+What a round owes its pull request in words rather than code is
+`validating/fix_reports`', which both this stage's resume and the
+`CHANGES_REQUESTED` run that precedes it dispose through: the report is
+recorded before the size gate, a report needing no commit is published onto the
+head the pull request already carries, and the reviewer behind the relabel is
+held until it is confirmed.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

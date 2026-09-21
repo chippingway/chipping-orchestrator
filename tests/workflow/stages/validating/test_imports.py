@@ -30,6 +30,8 @@ _OWNERS = (
     "drift_models",
     "drift_outcomes",
     "drift_reports",
+    "fix_report_evidence",
+    "fix_reports",
     "handoff",
     _HANDLER_OWNER,
     "models",

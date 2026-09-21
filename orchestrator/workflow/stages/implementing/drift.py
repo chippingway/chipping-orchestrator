@@ -44,7 +44,7 @@ from orchestrator.workflow.engine import (
     guards as _guards,
     messages as _messages,
     prompt_context as _prompt_context,
-    report_delivery as _report_delivery,
+    report_redelivery as _report_redelivery,
     retry_ledger as _retry_ledger,
     usage as _usage,
 )
@@ -169,7 +169,7 @@ def _dispose_implementing_drift(
         or drift.paused
     ):
         return
-    if drift.committed or _report_delivery.redelivers_an_owed_report(
+    if drift.committed or _report_redelivery.redelivers_an_owed_report(
         spec, state, drift.agent_result, drift.worktree,
     ):
         _candidate_recovery._publish_committed_work(

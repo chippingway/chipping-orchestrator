@@ -144,7 +144,7 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             mocks = self._run_fixing(
                 gh,
                 issue,
-                run_agent=_agent(session_id=DEV_SESSION, last_message="pushed fix"),
+                run_agent=_agent(session_id=DEV_SESSION, last_message=support.PUSHED_FIX_MESSAGE),
                 head_shas=(support.SHA_BEFORE, support.SHA_AFTER),
                 push_branch=True,
             )
@@ -176,7 +176,7 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             self._run_fixing(
                 gh,
                 issue,
-                run_agent=_agent(session_id=DEV_SESSION, last_message="pushed fix"),
+                run_agent=_agent(session_id=DEV_SESSION, last_message=support.PUSHED_FIX_MESSAGE),
                 head_shas=(support.SHA_BEFORE, support.SHA_AFTER),
                 push_branch=True,
             )
@@ -192,7 +192,7 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             mocks = self._run_fixing(
                 gh,
                 issue,
-                run_agent=_agent(session_id=DEV_SESSION, last_message="pushed fix"),
+                run_agent=_agent(session_id=DEV_SESSION, last_message=support.PUSHED_FIX_MESSAGE),
                 head_shas=(support.SHA_BEFORE, support.SHA_AFTER),
                 push_branch=True,
             )
