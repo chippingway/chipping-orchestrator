@@ -15,7 +15,7 @@ from orchestrator.workflow.stages.fixing import (
     bookmarks as _bookmarks,
     continue_command as _continue_command,
 )
-from orchestrator.workflow.stages.validating import fix_reports as _fix_reports
+from orchestrator.workflow.stages.validating import dev_fix as _dev_fix
 from tests.support import fakes
 from tests.workflow import fixtures
 from tests.workflow.stages import implementing_fixing_test_cases
@@ -63,9 +63,10 @@ TIMEOUT_PUSHED_DETAIL = fixtures.TIMEOUT_PUSHED_DETAIL
 TIMEOUT_EMPTY_DETAIL = fixtures.TIMEOUT_EMPTY_DETAIL
 _RecoveryFollowupAssertions = fixtures._RecoveryFollowupAssertions
 
-# The report-aware fix disposition is a validating owner the fixing resume
-# imports directly, so a test that has to wrap it patches that owner.
-fix_reports = _fix_reports
+# The publication tail every fix round's disposition ends in is a validating
+# owner the fixing resume imports directly, so a test that has to wrap it
+# patches that owner.
+dev_fix = _dev_fix
 
 _clear_pending_fix_bookmarks = _bookmarks._clear_pending_fix_bookmarks
 _pending_fix_id_set = _bookmarks._pending_fix_id_set

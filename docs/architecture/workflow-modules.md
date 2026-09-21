@@ -498,8 +498,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             parking as a question. The implementing publication seam is the caller, between its
                             tree reading and the size gate, and so are the two dispositions an open pull request's
                             fix loop runs ahead of that same gate -- the requirements-drift one both review stages
-                            share (`stages/validating/drift_reports.py`) and the reviewer-requested one the
-                            `workflow:fixing` label covers (`stages/validating/fix_reports.py`), which is why the
+                            share (`stages/validating/drift_reports.py`) and the reviewer-requested one
+                            (`stages/validating/fix_reports.py`, with the resume behind it in
+                            `stages/fixing/reporting.py`), which is why the
                             label is one of the roads whose park notice says the pull request stands where it
                             stood rather than that none was opened. A caller may freeze the bookkeeping its handover
                             owes onto the record as well as onto the gate, which is what covers a report reaching
@@ -1551,25 +1552,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             missing-`pr_number` park, and the commit the no-feedback bounce publishes -- measured by
                             the same size gate the shared dev-fix publication passes, so a held candidate stops the
                             bounce rather than being relabelled over -- before it hands the PR back to the reviewer.
-                            Ahead of the rescan, what a DELIVERED report with nobody waited for earns:
-                            the round that wrote it is FINISHED rather than repeated. The report is durable
-                            before the gate and the relabel comes after the push, so a crash past that write
-                            leaves a report nobody published and, on a round that answered in code, the commit
-                            it describes still in the checkout -- and the rescan would read the reply that round
-                            answered as fresh feedback and resume a developer over both. The candidate goes out
-                            through the same gate every other one passes, spending the round frozen on the
-                            record, and `validating` binds and settles the delivery behind it; a held candidate
-                            ends the tick with the adjudication. Nothing published is where it FAILS CLOSED,
-                            because the stranded probe answers the same "" for a branch with nothing to send and
-                            for a checkout that vouches for nothing -- so the affirmative head proof a report with
-                            no code in it must pass is taken here too (`validating/fix_report_evidence.py`), and
-                            short of it the round parks under `report_undeliverable` with the record intact.
-                            Handed on instead, the binding behind it recreates a missing checkout from the remote,
-                            finds its head equal to the receipt, and publishes the report of a commit that never
-                            passed the gate against the head the pull request had all along. A recorded
-                            transaction is left alone, since the
-                            reconciliation ahead of every dispatch owns that one and stands down on purpose so
-                            this stage's roads keep running
+                            Ahead of the rescan, everything this issue's report obligation owes
+                            (`report_recovery.py`), because the scan is what the damage runs through: the input a
+                            dead tick consumed rides the same record, so a scan running past it reads that feedback
+                            as unread and pays a second developer to answer it. The nothing-to-act-on exit behind
+                            the scan answers to that same record: a batch with nothing above the pairs it froze is
+                            the prompt the outstanding report ANSWERS, and the bounce takes it rather than a resume.
+                            That bounce still republishes a commit an earlier round stranded -- it is the one tick
+                            left that can -- and BINDS the report to the push it makes, since nothing else would;
+                            while a report is owed it spends nothing, clears nothing, and relabels nothing, and
+                            where no road left can move one it says so once rather than holding in silence
       feedback.py           the rescan past the three in_review watermarks -- read through that stage's own
                             per-surface owner, so the issue thread answers to the issue-only delivery cursor too and
                             the pull request never does (a bare `/orchestrator add-agent-runs` is no
@@ -1579,7 +1571,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- whose classifier the two REVIEW surfaces are scanned through, since an item the scan
                             admits and the settlement refuses reaches a developer and moves no reader, so the next
                             tick hands the identical comment to a second one (the pinned record is dropped by
-                            identity for the same reason). The issue thread settles the issue-action boundary
+                            identity for the same reason), and the reading that says whether an OWED report has
+                            already put a batch in front of a developer, since the readers cannot. The issue thread
+                            settles the issue-action boundary
                             `last_action_comment_id` beside the PR-side cursor -- a reply this round quoted has been
                             in a developer prompt, and left behind it routes back to a second developer the moment a
                             human moves the label -- while the pull request's three surfaces settle only the
@@ -1593,10 +1587,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report contract, well or badly: one that reported is a handover to a fresh reviewer
                             rather than a reason to re-arm a ready ping, and one that reached for the markers and
                             missed (a report block with an `ACK:` beside it) is a broken contract rather than an
-                            acknowledgement to act on -- the report contract the resume is held to
-                            through `validating/fix_reports.py`, the `workflow:validating` relabel a pushed fix or a
-                            delivered report earns, the binding behind that relabel, the round a PUSHED fix spends
-                            here while a report with no code in it leaves its own to the write that settles it,
+                            acknowledgement to act on -- the report contract the resume is held to through
+                            `reporting.py` beside it, the `workflow:validating` relabel a pushed fix or a published
+                            report earns, the round a fix spends where no report is owed for it while a round that
+                            reported leaves its own to the write that settles it,
                             and the round a fix the size gate sent to adjudication spends here -- no later
                             tick of this stage can, since the head the reviewer rejected is superseded whether that
                             adjudication parks its `single` for a human or an authorized settlement publishes before
@@ -1606,15 +1600,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`engine/report_outcomes.py`) owes a publication this tick cannot promise, and feedback
                             recorded as answered for a report no reviewer has is the reading that fork refuses. What
                             carries that batch instead is the report's own record, frozen onto it beside the round
-                            and the bookmarks, so the readers move in the write that settles the report -- and on
-                            every road but that one the settlement is taken in this caller's write, because a pushed
-                            fix answered the feedback in code the pull request now carries and a PARK answered it
-                            with a notice a human is being asked to read. A
+                            and the bookmarks, so the readers move in the write that settles the report -- and while
+                            one is owed the size gate is handed NOTHING to close, since a receipt write that dropped
+                            the bookmarks would leave an outstanding publication with no batch to replay. A
                             replay settles the batch it REPLAYED joined with the fresh rescan, each item against the
                             reader of the surface it was posted on
-      reporting.py          the settlement-driven form of that road, present but on no dispatched route: the
-                            disposition helpers a reported round is read by, each reached directly rather than
-                            through a tick. Which reply this is -- a report, an ordinary answer, or one that reached
+      reporting.py          the settlement-driven form of that road, which every reported fixing round takes: the
+                            disposition helpers such a round is read by. Which reply this is -- a report, an ordinary answer, or one that reached
                             for the contract and missed, an `ACK:` beside a report, which is held for a human rather
                             than acted on by either half; whether a round that committed nothing may publish onto
                             the head its pull request already carries, on the affirmative proof that the head read,
@@ -1626,6 +1618,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             receipt; the park a report no road left can move earns, once; and the hand-back, which
                             retires the mark in a write of its own BEFORE the relabel -- a tick dying between them
                             has to leave a round nothing can mistake for one that just settled
+      report_recovery.py    the report obligation answered AHEAD of every scan, since the scan is what the damage
+                            runs through: a round whose report SETTLED while nobody was looking is handed back on
+                            the mark that settlement raised, and a delivery a crash left unbound is applied off its
+                            own record and bound where it may be. Whether the code went out is RE-PROVED against
+                            the checkout rather than remembered off the persistent receipt -- a tree provably
+                            clean, a head it could name, and that head being what the pull request carries. The two
+                            refusals no later poll takes back, a worktree that is GONE and a tree this host proved
+                            DIRTY, announce once and RELEASE the record as they park, so restoring or cleaning the
+                            checkout is not on its own enough to publish the report the notice asks a human about;
+                            the debt outlives it, and a status nobody could read is neither refusal
       round_marks.py        whether the mark a settlement raised still places the round in hand, which is the one
                             reading every road that could relabel over one shares. No mark is asked nothing. A mark
                             is correlated against the handoff beside it and refused on any of four: an outstanding
@@ -1634,7 +1636,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             there belongs to a round opened after the mark went up. The label is what catches an
                             anchorless manual relabel back onto `workflow:fixing`, which the rest of the comment
                             cannot tell from a round that has just closed
-      parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in
+      parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in.
+                            What counts as a REPLY is the reading the readers cannot give while a publication is
+                            outstanding, so a rescan carrying nothing above the record's own frozen pairs clears no
+                            park. The silent recovery the validating route earns is opened to an in_review
+                            `push_failed` park that OWES a report, because the retry is that report's publication:
+                            it spends nothing of its own, binds against the commit the retry itself landed, and
+                            asks the settlement's mark for the relabel
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough
       drift.py              the `workflow:resolving_conflict` reroute a stuck validating-route park earns when its
@@ -2491,7 +2499,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       watermarks.py         the seed walk past leading orchestrator comments and a bare `/orchestrator
                             add-agent-runs` a grant left unread, and the ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through
-                            `fix_reports.py` and bound behind the round and the relabel, plus the no-VERDICT park
+                            `fix_reports.py` beside it and bound behind the round and the relabel, plus the no-VERDICT park
                             and the split that tells a provider's failure from a reviewer's
       dev_fix.py            what a finished dev fix leaves behind: the publishable reading and the proved remote
                             head it carries on as the lease, taken for a run that committed as well as for one
@@ -2558,9 +2566,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or transaction an earlier run left describes the branch before the commits a later run
                             made, so the undescribed-work flag those commits leave is read first and the reply
                             that publishes them is the one that describes them
-      fix_reports.py        that same contract for a reviewer-requested round, which both halves of the fix loop
-                            dispose through -- the `CHANGES_REQUESTED` run and the parked resume behind it: the
-                            run's report recorded ahead of the size gate, a report with no code in it recorded for
+      fix_reports.py        that same contract for the `CHANGES_REQUESTED` run this stage spawns itself -- the
+                            parked resume behind it is the fixing stage's own road (`stages/fixing/reporting.py`):
+                            the run's report recorded ahead of the size gate, a report with no code in it recorded for
                             the head `fix_report_evidence.py` PROVED the pull request to be standing on, and a
                             commit of this run's with no usable report parked rather than pushed, in this road's
                             own words rather than the engine's. The report contract is the RUN's only where that
@@ -2571,11 +2579,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             refusal owes: the branch proved to be standing exactly where its remote is (a clean
                             tree, a local head, a tip, the two equal) AND the code-publication receipt naming that
                             same commit on the pull request the report would go onto. Asked of a CHECKOUT rather
-                            than of a run, because two callers reach it from opposite sides -- this disposition,
-                            which holds the run and the worktree it ran in, and the `fixing` recovery, which holds
-                            a report a run that is gone recorded and has to ask the same question of the checkout
-                            that run left. One rule in one place is what keeps the recovery from proving less than
-                            the round it is finishing did. Nothing is inferred from an
+                            than of a run, because what it is about is a checkout rather than a session: the
+                            disposition holds the run and the worktree it ran in, and the question is the same one
+                            the `fixing` stage's own recovery asks of a checkout the run that wrote its report has
+                            left. Nothing is inferred from an
                             absence, because "this run committed nothing publishable" is the same answer the
                             disposition gives a checkout nobody could read, a fetch that failed, a divergence git
                             refused and a remote that moved -- each of which may be a branch carrying a commit the

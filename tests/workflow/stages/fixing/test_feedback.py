@@ -563,26 +563,51 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
 
     def test_an_owed_report_settles_nothing(self) -> None:
         # The batch reached a developer, and it is still not recorded as read:
-        # what came back is a report the pull request has not got, and the
-        # readers are the only thing that would say the feedback behind it was
-        # answered. Settled here, a report that never reaches a reviewer would
-        # leave its prompt claimed as consumed and nobody able to tell.
+        # what came back is a report the pull request has not got -- GitHub
+        # refused the comment -- and the readers are the only thing that would
+        # say the feedback behind it was answered. Settled here, a report that
+        # never reaches a reviewer would leave its prompt claimed as consumed
+        # and nobody able to tell.
         #
-        # The world is the one that road needs proved: a checkout standing
-        # where the remote branch is, and the code-publication receipt naming
-        # that commit on this pull request. Short of it the round parks instead
-        # of reporting, and a park carries the batch itself.
+        # The rest of the world is the one that road needs proved: a checkout
+        # standing where the remote branch is, and the code-publication receipt
+        # naming that commit on this pull request. Only the post fails, so what
+        # holds the readers is the publication rather than a refusal earlier on.
         mocks = self._deliver(
+            agent_fields=_run(REPORTED),
+            head_shas=(PR_HEAD_SHA, PR_HEAD_SHA),
+            placed={ON_THE_THREAD: [THE_REPLY]},
+            extra_state=PUBLISHED_RECEIPT,
+            posts_the_report=False,
+        )
+
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt([THE_REPLY]))
+        self.assertEqual(self._readers(), SEEDED_READERS)
+
+    def test_a_published_report_settles_its_batch(self) -> None:
+        # The far side of the same road: the report reaches the pull request,
+        # so the write that completes its publication is the one that records
+        # the batch behind it as read -- exactly the pairs the record froze.
+        self._deliver(
             agent_fields=_run(REPORTED),
             head_shas=(PR_HEAD_SHA, PR_HEAD_SHA),
             placed={ON_THE_THREAD: [THE_REPLY]},
             extra_state=PUBLISHED_RECEIPT,
         )
 
-        self.assertEqual(only_prompt(mocks), pr_feedback_prompt([THE_REPLY]))
-        self.assertEqual(self._readers(), SEEDED_READERS)
+        self.assertEqual(
+            self._readers()[LAST_ACTION_COMMENT_ID], THE_REPLY.id,
+        )
 
-    def _deliver(self, *, agent_fields, head_shas, placed, extra_state=None):
+    def _deliver(
+        self,
+        *,
+        agent_fields,
+        head_shas,
+        placed,
+        extra_state=None,
+        posts_the_report: bool = True,
+    ):
         """One fixing tick over a batch on whichever surfaces `placed` names."""
         pr = self._open_pr(**placed.get(PR_FIELDS, {}))
         pr.issue_comments.extend(placed.get("pr_issue_comments", ()))
@@ -592,6 +617,8 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
             extra_state={**SEEDED_READERS, **(extra_state or {})},
         ))
         self._github = scenario.github
+        if not posts_the_report:
+            scenario.github.report_failures.refused.add(pr.number)
 
         with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
             return self._run_fixing(

@@ -28,6 +28,7 @@ _OWNERS = (
     _HANDLER_OWNER,
     "models",
     "parked",
+    "report_recovery",
     "reporting",
     "resume",
     "round_marks",

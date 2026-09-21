@@ -255,11 +255,10 @@ tree with nothing recorded — and routed as an `ACK:` is, and the reviewer wait
 pull request. `ACK:` and a question keep their own roads.
 
 The **reviewer-requested fix round** acts on one on the same pull request, under the `workflow:fixing` label it runs
-under: the initial `CHANGES_REQUESTED` run and the parked resume behind it both read their result through
-`workflow/stages/validating/fix_reports.py`
+under: the initial `CHANGES_REQUESTED` run reads its result through `workflow/stages/validating/fix_reports.py`
 ([`_handle_validating`](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating)'s
-`changes_requested` arc and
-[`_handle_fixing`](../state-machine/delivery-stages.md#_handle_fixing-label-workflowfixing)).
+`changes_requested` arc) and the resume behind it through `workflow/stages/fixing/reporting.py`
+([`_handle_fixing`](../state-machine/delivery-stages.md#_handle_fixing-label-workflowfixing)).
 A commit has its report recorded before the size gate and bound once the push lands; one with no usable report parks
 rather than being pushed. A no-commit reply ending on a report outcome is the handover a reviewer item naming report
 content earns: published onto the head the branch and the code-publication receipt are PROVED to agree on — every
@@ -267,7 +266,11 @@ reading affirmative, since a reading that did not happen may be a branch carryin
 got — and routed as a pushed fix is, back on `workflow:validating` for a fresh review of the report and requirements
 being handed on. What that handover costs is the SETTLEMENT's to write: the round and the automated-fix bookmarks
 ride the record and are closed by the write that confirms the report, so a refused post or a crash leaves the round
-unspent and the round to be finished again. A commit an earlier round
+unspent and the round to be finished again — by the recovery ahead of the next fixing scan, which re-proves the
+checkout against the head the pull request carries rather than trusting a receipt, publishes the report over it, and
+hands the round back on the mark that settlement raises. A checkout that is gone, or one this host proves dirty,
+gets one notice instead and releases the recorded report, so restoring it is not on its own enough to send a report
+to review; the debt stays and the reply still brings one. A commit an earlier round
 left unpublished still passes the gate on its way there, since its own report was that round's to record. The ordinary
 non-actionable `ACK:` and a question keep their own roads, and on the human-feedback route the `ACK:` still returns
 the pull request to `in_review` — but only a reply that never used the report contract at all is that: one that

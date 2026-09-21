@@ -40,41 +40,34 @@ the per-tick base sync stands down on every park, so nobody else will rebase it.
 `resume` is the run and everything a finished run leaves behind -- the quiet
 window it waits out, the three refusals that count no delivery at all (a launch
 nothing invoked, a shutdown kill, a live pause), the settlement every other
-outcome earns, the ACK fast path, and the `validating` relabel a pushed fix or
-a delivered report earns.
+outcome earns, the ACK fast path, and the `validating` relabel a pushed fix
+earns.
 
 A fix prompt teaches the report contract like every other developer prompt, so
 a round can end on `REPORT: READY` -- and then it owes a publication this tick
-cannot guarantee. Such a round settles nothing at the fork in `resume`: feedback
-recorded as answered for a report no reviewer has is the reading that fork
-refuses. What carries the batch on the one road where the report IS the handover
-is the report's own record, so the readers move in the write that settles it.
-Every other road answered the feedback in something already there -- a pushed
-fix in code the pull request now carries, a park in a notice a human is being
-asked to read -- and settles it in the tick, a park inside its own write rather
-than a caller's behind it, since a park left over feedback that still reads as
-unanswered is one the next tick resumes the developer over again.
+cannot guarantee. `reporting` is that road: the consumed pairs and the route
+bookkeeping ride the RECORD of the report rather than the comment, and the write
+that completes the publication is what applies them, so feedback recorded as
+answered for a report no reviewer has is a state this stage never reaches. It
+also owns the relabel that mark buys, since the one thing such a write cannot do
+is move a label. `report_recovery` is the other end of the same contract, ahead
+of every scan: a report a crash left unbound, re-proved against the checkout
+rather than remembered off a receipt, and a round whose report settled somewhere
+this stage was not looking. `round_marks` is the reading those two share and
+neither may copy -- whether a raised mark can still place the round in hand --
+since the second imports the first and a second copy of that question drifts
+into a relabel taken past feedback nobody read.
 
 A round that merely REACHED for that contract and missed -- a report block with
-an `ACK:` line beside it -- is not an acknowledgement either, and the ACK fast
-path refuses it: read as one it would hand the pull request back to `in_review`
-over work whose report nothing carries.
+an `ACK:` line beside it -- is not an acknowledgement either, and `reporting`
+holds it for a human ahead of the ACK fast path: read as one it would hand the
+pull request back to `in_review` over work whose report nothing carries.
 
-`reporting` is the settlement-driven form of the same road, and no dispatched
-tick runs through it: the consumed pairs and the route bookkeeping ride the
-RECORD of the report rather than a caller's own write, the write that completes
-the publication applies them, and a mark rides with them for the one thing that
-write cannot do -- move a label. `round_marks` is the reading that mark is
-placed by before any relabel is taken on it, kept apart from the owner that
-takes the relabel so that every road reaching one asks the same question rather
-than a copy of it.
-
-What a round owes its pull request in words rather than code is
-`validating/fix_reports`', which both this stage's resume and the
-`CHANGES_REQUESTED` run that precedes it dispose through: the report is
-recorded before the size gate, a report needing no commit is published onto the
-head the pull request already carries, and the reviewer behind the relabel is
-held until it is confirmed.
+While a report is owed, nothing an outstanding publication carries may be spent
+before it lands -- not the bookmarks, not the round, not the readers -- so the
+readers stop being able to say what has been delivered. The record's own frozen
+pairs are what `feedback` asks instead, which is why the handler's
+nothing-to-act-on exit and the parked dispatch both read them.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

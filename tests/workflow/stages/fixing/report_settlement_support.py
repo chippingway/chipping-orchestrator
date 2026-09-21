@@ -18,6 +18,11 @@ fixture spelling a digest of its own would pass or fail on the fixture.
 What a settlement LEAVES is here too, and it is a different fixture: a handoff
 and the mark beside it outlive every transaction after them, so a case about a
 stale correlation seeds them directly rather than by running a round.
+
+The LIVE roads want a third thing again, and it is not here: the recovery ahead
+of a fixing scan re-proves the checkout rather than remembering a receipt, so a
+case about a tick that survives it needs a checkout that is really there, which
+`fixing_test_support.on_a_real_checkout` hands every stage case alike.
 """
 
 from __future__ import annotations
@@ -41,15 +46,19 @@ from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
 )
 from orchestrator.workflow.state import WorkflowLabel
-from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, make_issue
-from tests.workflow.fixtures import (
-    _TEST_SPEC,
-    LABEL_FIXING,
-    SHA_LENGTH,
-    TEST_REPO_SLUG,
-    _agent,
-)
+from tests.support import fakes
+from tests.workflow import fixtures
 from tests.workflow.git_owners import seam_patch
+
+FakeGitHubClient = fakes.FakeGitHubClient
+FakePR = fakes.FakePR
+FakePRRef = fakes.FakePRRef
+make_issue = fakes.make_issue
+_TEST_SPEC = fixtures._TEST_SPEC
+LABEL_FIXING = fixtures.LABEL_FIXING
+SHA_LENGTH = fixtures.SHA_LENGTH
+TEST_REPO_SLUG = fixtures.TEST_REPO_SLUG
+_agent = fixtures._agent
 
 ISSUE_NUMBER = 880
 

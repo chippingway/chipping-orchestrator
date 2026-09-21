@@ -14,6 +14,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.git.measurement.models import MeasurementFailure
+from orchestrator.workflow.engine import report_delivery_state as _delivery_state
 from tests.workflow.stages.fixing import (
     fixing_test_support as fixing,
     published_gate_support as support,
@@ -271,44 +272,44 @@ class PublishedFixCandidateTest(unittest.TestCase, _SizeGateFixtureMixin):
 class AdjudicatedRoundTest(unittest.TestCase, _SizeGateFixtureMixin):
     """What a fix loop owes when its candidate goes to adjudication instead."""
 
-    def test_a_held_fix_spends_its_round(self) -> None:
+    def test_a_held_fix_owes_its_round_to_the_report(self) -> None:
         # The gate holding a candidate is not a park: the commit is on the
         # branch and a `single` verdict publishes it from there, so the head
-        # the reviewer rejected is superseded either way. No later fixing tick
-        # can count it -- a settled adjudication publishes before handing the
-        # issue back, so the bounce finds nothing ahead.
-        scenario = self._seed_fix_round()
+        # the reviewer rejected is superseded either way and the round is
+        # spent. What the round owes its REPORT holds when: that report is on
+        # the pinned comment and not on the pull request, so nothing the write
+        # completing its publication has to apply may be applied ahead of it.
+        # Both roads read the same frozen pair, so neither can count twice.
+        for route, opened, spent in (
+            # The in_review route: the previous round was APPROVED, so the fix
+            # starts a fresh count.
+            ("in_review", {}, 0),
+            # `pending_fix_at` unset is the reviewer's own CHANGES_REQUESTED
+            # round: still the same review cycle, so the counter advances and
+            # `MAX_REVIEW_ROUNDS` goes on meaning what it says.
+            ("validating", {PENDING_FIX_AT: None, REVIEW_ROUND: 2}, 3),
+        ):
+            with self.subTest(route=route):
+                scenario = self._seed_fix_round(**opened)
 
-        with patch.object(config, support.MAX_ADDED_LINES, CEILING):
-            self._run_fix_round(scenario, added_lines=PAST_THE_CEILING)
+                with patch.object(config, support.MAX_ADDED_LINES, CEILING):
+                    self._run_fix_round(
+                        scenario, added_lines=PAST_THE_CEILING,
+                    )
 
-        pinned = _pinned(scenario)
-        # The in_review route: the previous round was APPROVED, so the fix
-        # starts a fresh count.
-        self.assertEqual(pinned[REVIEW_ROUND], 0)
-        self.assertIsNone(pinned.get(PENDING_FIX_AT))
+                recorded = _delivery_state.read_delivered_report(
+                    scenario.github.read_pinned_state(scenario.issue),
+                )
+                self.assertIn((REVIEW_ROUND, spent), recorded.spends)
+                self.assertNotEqual(_pinned(scenario)[REVIEW_ROUND], spent)
 
-    def test_a_validating_route_hold_bumps_instead(self) -> None:
-        # `pending_fix_at` unset is the reviewer's own CHANGES_REQUESTED
-        # round: still the same review cycle, so the counter advances and
-        # `MAX_REVIEW_ROUNDS` goes on meaning what it says.
-        scenario = self._seed_fix_round(**{
-            PENDING_FIX_AT: None, REVIEW_ROUND: 2,
-        })
-
-        with patch.object(config, support.MAX_ADDED_LINES, CEILING):
-            self._run_fix_round(scenario, added_lines=PAST_THE_CEILING)
-
-        self.assertEqual(_pinned(scenario)[REVIEW_ROUND], 3)
-
-    def test_the_round_survives_the_relabel(self) -> None:
+    def test_the_held_record_survives_the_relabel(self) -> None:
         # The hold's last act is the relabel, and there is a window after it:
         # the issue belongs to the adjudication and this caller still has a
-        # write to make. Counted afterwards, the round is lost to any crash in
-        # that window -- and nothing goes back for it, because a settled
-        # verdict publishes the accepted commit itself and the resumed route
-        # finds nothing left to push. So it rides the gate's own write, ahead
-        # of the label.
+        # write to make. So what the round owes is durable ahead of the gate,
+        # on the record its report was written to -- a crash in that window
+        # loses nothing, and the write that finally publishes the report is
+        # the one that applies it.
         scenario = self._seed_fix_round(**{
             PENDING_FIX_AT: None, REVIEW_ROUND: 2,
         })
@@ -319,7 +320,10 @@ class AdjudicatedRoundTest(unittest.TestCase, _SizeGateFixtureMixin):
         ), self.assertRaises(RuntimeError):
             self._run_fix_round(scenario, added_lines=PAST_THE_CEILING)
 
-        self.assertEqual(_pinned(scenario)[REVIEW_ROUND], 3)
+        recorded = _delivery_state.read_delivered_report(
+            github.read_pinned_state(scenario.issue),
+        )
+        self.assertIn((REVIEW_ROUND, 3), recorded.spends)
 
     def test_a_parked_reading_spends_nothing(self) -> None:
         # A reading nobody could take stops the tick with a generation on the

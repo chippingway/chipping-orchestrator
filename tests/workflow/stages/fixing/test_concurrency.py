@@ -7,6 +7,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import report_record_state as _record_state
 from tests.workflow.stages.fixing import fixing_test_support as support
 from tests.workflow.stages.fixing.prompt_expectations import (
     only_prompt,
@@ -40,7 +41,7 @@ _FixingFixtureMixin = support._FixingFixtureMixin
 _InjectCommentAfterCall = support._InjectCommentAfterCall
 _agent = support._agent
 config = support.config
-fix_reports = support.fix_reports
+dev_fix = support.dev_fix
 datetime = support.datetime
 patch = support.patch
 timedelta = support.timedelta
@@ -183,7 +184,7 @@ class FixingContentHashAndConcurrencyTest(
             created_at=long_ago,
         )
         fix_and_inject = _InjectCommentAfterCall(
-            fix_reports._post_requested_fix_result,
+            dev_fix._handle_dev_fix_result,
             scenario.issue,
             concurrent,
         )
@@ -191,8 +192,8 @@ class FixingContentHashAndConcurrencyTest(
         with (
             patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS),
             patch.object(
-                fix_reports,
-                "_post_requested_fix_result",
+                dev_fix,
+                "_handle_dev_fix_result",
                 fix_and_inject,
             ),
         ):
@@ -207,20 +208,24 @@ class FixingContentHashAndConcurrencyTest(
             )
 
         self._pinned_data = scenario.github.pinned_data(ISSUE)
-        # Label flipped to validating (push succeeded; reviewer
-        # re-evaluates the new head next tick).
-        self.assertIn((ISSUE, VALIDATING), scenario.github.label_history)
-        # Watermark advanced past the consumed triggering comment but
-        # NOT past the concurrent one -- the next in_review tick must
-        # still see the concurrent comment as fresh feedback. The
-        # issue-action reader the same round settles is bounded by the
-        # same batch, so a stage a relabel hands the issue to reads the
-        # concurrent comment as unanswered too.
-        self.assertGreaterEqual(self._pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
-        self.assertLess(self._pinned_data.get(PR_LAST_COMMENT_ID), CONCURRENT_COMMENT_ID)
+        # What the round recorded as consumed stops at the triggering
+        # comment and does NOT leap past the concurrent one: the record is
+        # what the write completing the publication applies, so a pair
+        # frozen past an unquoted comment would swallow it for good.
+        # Read off the TRANSACTION, since the binding this tick made moved
+        # the record there: the frozen pairs travel with the debt.
         self.assertEqual(
-            self._pinned_data.get(LAST_ACTION_COMMENT_ID), TRIGGER_ID,
+            _record_state.read_pending_report(
+                PinnedState(state_data=self._pinned_data),
+            ).watermarks,
+            ((LAST_ACTION_COMMENT_ID, TRIGGER_ID), (PR_LAST_COMMENT_ID, TRIGGER_ID)),
         )
+        # And the reviewer is not handed the head, because the comment that
+        # landed mid-run moved the requirements the report was written
+        # against: the settlement declines, so the readers stay where they
+        # were and the next tick reads the concurrent comment as fresh.
+        self.assertEqual(scenario.github.label_history, [])
+        self.assertLess(self._pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
 
     def test_failed_bump_keeps_concurrent_comment(
         self,
@@ -250,7 +255,7 @@ class FixingContentHashAndConcurrencyTest(
             created_at=long_ago,
         )
         fail_and_inject = _InjectCommentAfterCall(
-            fix_reports._post_requested_fix_result,
+            dev_fix._handle_dev_fix_result,
             scenario.issue,
             concurrent,
         )
@@ -258,8 +263,8 @@ class FixingContentHashAndConcurrencyTest(
         with (
             patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS),
             patch.object(
-                fix_reports,
-                "_post_requested_fix_result",
+                dev_fix,
+                "_handle_dev_fix_result",
                 fail_and_inject,
             ),
         ):

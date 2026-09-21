@@ -1640,7 +1640,9 @@ The keys that matter for the state machine fall into a few groups:
   a record: what takes one down is the route that reads it. Before it is acted on it is CORRELATED against the
   handoff beside it (`workflow/stages/fixing/round_marks.py`) and refused on an outstanding report, a handoff this
   build cannot read, one settled under any label but `workflow:fixing`, or either route anchor standing — which says
-  a newer round opened after the mark went up. No dispatched route reads it yet.
+  a newer round opened after the mark went up. Two roads read it, ahead of every fixing scan and behind every
+  settlement-driven hand-back, and both CONSUME it: a mark this stage may not act on comes down unspent, because it
+  is the mark of a round that is over either way and only the relabel is withheld.
 - **Crash-recovery anchors.** `discussion_round_branch` + `discussion_round_sha` — the branch a discussion round
   opened on and the SHA it was at, written BEFORE the spawn and surviving every exit the stage takes; a published plan
   moves the pair onto the tip it pushed (that commit is what the stage now vouches for) and only a

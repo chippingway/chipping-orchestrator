@@ -13,6 +13,11 @@ pinned comment or it is lost.
 
 Lost, an oversized retry routes to the adjudication having closed none of it,
 and the pinned comment goes on naming a fix batch that was already answered.
+
+A fix round that finished on a REPORT freezes the identical pair somewhere else
+again -- onto the record of that report -- because the handover it pays for is
+the report's rather than the push's, and the gate's write lands a publication
+earlier than the pull request has anything describing the head it counts.
 """
 from __future__ import annotations
 
@@ -24,6 +29,7 @@ from orchestrator.git.measurement.models import (
     MeasurementFailure,
 )
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import report_delivery_state as _delivery_state
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.fixing.bookmarks import (
     _cleared_pending_fix_bookmarks,
@@ -123,40 +129,44 @@ def _pinned(github) -> dict:
     return github.pinned_data(ISSUE)
 
 
-class FrozenSpendsPersistenceTest(unittest.TestCase, _FrozenPairMixin):
-    """The freeze records what its caller's hold owes, in the same write."""
+class ReportedRoundSpendsTest(unittest.TestCase, _FrozenPairMixin):
+    """Where a fix round that reported freezes what its hold owes."""
 
-    def test_a_freeze_records_what_the_hold_owes(self) -> None:
-        # Written with the pair rather than after the count, because the
-        # window this pays for opens the moment the pair is durable: a tick
-        # that dies before the count is exactly the tick that cannot say what
-        # it owed.
-        scenario = self._seeded_fix_round()
+    def test_a_reported_round_freezes_onto_its_report(self) -> None:
+        # Not onto the gate's pair, which is the one road this route may not
+        # take: a hold closes the bookkeeping in the write that carries the
+        # measurement, and the report describing the held commit is still only
+        # on the pinned comment. Closed there, the bookmarks an outstanding
+        # publication replays from are gone and a reviewer round is counted
+        # for a handover no reviewer can read. So the gate is handed nothing
+        # and the record carries the identical frozen pair, for the write that
+        # finally puts the report on the pull request.
+        #
+        # Both sides of the hold's own write, because the window is the same
+        # one the gate's pair exists for: a candidate the adjudication takes,
+        # and a reading nobody could take that parks instead.
+        for road, added in (
+            ("held for the adjudication", PAST_THE_CEILING),
+            ("parked unmeasured", UNCOUNTED),
+        ):
+            with self.subTest(road=road):
+                scenario = self._seeded_fix_round()
 
-        with patch.object(fixing.config, support.MAX_ADDED_LINES, CEILING):
-            self._run_fix_round(scenario, added_lines=PAST_THE_CEILING)
+                with patch.object(
+                    fixing.config, support.MAX_ADDED_LINES, CEILING,
+                ):
+                    self._run_fix_round(scenario, added_lines=added)
 
-        # The routed hold spent it and the write that carried the count
-        # dropped it: nothing is left for a later cycle to be handed.
-        pinned = _pinned(scenario.github)
-        self.assertNotIn(KEY_SPENDS, pinned)
-        self.assertEqual(pinned[KEY_REVIEW_ROUND], ROUND_SPENT)
-        self.assertIsNone(pinned[KEY_PENDING_FIX_AT])
-
-    def test_a_freeze_that_never_counted_keeps_it(self) -> None:
-        # The same write, seen from the crash it exists for: the pair is on
-        # the pinned comment, no number is beside it, and what the hold owes
-        # is there for the tick that takes the reading.
-        scenario = self._seeded_fix_round()
-
-        with patch.object(fixing.config, support.MAX_ADDED_LINES, CEILING):
-            self._run_fix_round(
-                scenario, added_lines=UNCOUNTED,
-            )
-
-        pinned = _pinned(scenario.github)
-        self.assertEqual(tuple(pinned[KEY_SPENDS]), FROZEN_SPENDS)
-        self.assertEqual(pinned[KEY_REVIEW_ROUND], ROUND_BEFORE)
+                pinned = _pinned(scenario.github)
+                self.assertFalse(pinned.get(KEY_SPENDS))
+                self.assertEqual(pinned[KEY_REVIEW_ROUND], ROUND_BEFORE)
+                self.assertIsNotNone(pinned[KEY_PENDING_FIX_AT])
+                recorded = _delivery_state.read_delivered_report(
+                    PinnedState(state_data=pinned),
+                )
+                self.assertEqual(recorded.spends[:len(FROZEN_SPENDS)], tuple(
+                    tuple(member) for member in FROZEN_SPENDS
+                ))
 
     def _seeded_fix_round(self):
         """A fix round whose hold owes a reviewer round and a cleared batch."""

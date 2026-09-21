@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import report_delivery_state as _delivery_state
 from tests.workflow.stages.fixing import fixing_test_support as support
 
 IssueScenario = support.IssueScenario
@@ -126,9 +128,17 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
         # Label stayed at `fixing` -- no relabel to `validating`.
         self.assertNotIn((ISSUE, VALIDATING), scenario.github.label_history)
         self.assertNotIn((ISSUE, DOCUMENTING), scenario.github.label_history)
-        # Watermark advanced past the consumed feedback so the next
-        # fixing tick does not replay it on top of the park.
-        self.assertGreaterEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+        # The round reported, so what it consumed rides that report's record
+        # rather than the readers: a report the pull request has not got may
+        # not leave the feedback behind it marked as read. The next fixing
+        # tick reads those frozen pairs and replays nothing on top of the park.
+        self.assertLess(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+        self.assertIn(
+            (PR_LAST_COMMENT_ID, TRIGGER_ID),
+            _delivery_state.read_delivered_report(
+                PinnedState(state_data=pinned_data),
+            ).watermarks,
+        )
 
     def test_dirty_tree_parks_in_fixing(self) -> None:
         # Dev committed but left the tree dirty -> park (refuses to
@@ -162,8 +172,15 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
         self.assertIsNone(pinned_data.get(PARK_REASON))
         self.assertNotIn((ISSUE, VALIDATING), scenario.github.label_history)
         self.assertNotIn((ISSUE, DOCUMENTING), scenario.github.label_history)
-        # Watermark advanced past the consumed feedback.
-        self.assertGreaterEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+        # And the batch it consumed rides the report's record, for the write
+        # that finally publishes it.
+        self.assertLess(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+        self.assertIn(
+            (PR_LAST_COMMENT_ID, TRIGGER_ID),
+            _delivery_state.read_delivered_report(
+                PinnedState(state_data=pinned_data),
+            ).watermarks,
+        )
 
     def test_no_commit_question_parks_in_fixing(self) -> None:
         # Dev returned a clarifying question with no new commit. The

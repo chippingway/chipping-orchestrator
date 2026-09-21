@@ -17,13 +17,16 @@ do and bounce a PR head that is missing the fix. Leaving it on disk is what
 lets a later clean run republish it through the stranded-fix tail.
 
 Past those three the prompt reached an agent, whatever it came back with, so
-the batch it quoted is DELIVERED and is settled right there, ahead of every
-disposition below it: the size gate's own write and a park's own write both
-land inside the disposition, so a settlement taken afterwards would be lost to
-a crash in exactly the window a hold's relabel opens. A run that finished on a
-report outcome settles nothing here at all -- that report is a publication
-this tick cannot guarantee, and feedback recorded as answered for a report no
-reviewer has is the one reading this fork exists to refuse.
+the batch it quoted is DELIVERED -- and which write records that forks on the
+run's report outcome. A run that wrote no report settles its own readers right
+there, ahead of every disposition below it, because nothing else is going to:
+the size gate's own write and a park's own write both land inside the
+disposition, so a settlement taken afterwards would be lost to a crash in
+exactly the window a hold's relabel opens. A run that DID write one settles
+nothing here at all -- both groups ride the record of that report, and the
+write that completes the publication is what applies them, so a report no
+reviewer ever receives cannot leave the feedback behind it recorded as
+answered.
 
 What the batch is, on a `/orchestrator continue`, is the replay JOINED with
 the fresh rescan. The prompt quotes the replay alone -- the bare command is a
@@ -33,37 +36,17 @@ posted on (`feedback.py`). That is what advances the issue-action boundary
 over a replayed issue-thread reply instead of leaving it for the stage a
 relabel hands the issue to.
 
-Then the disposition. The ACK fast path is in_review-route only -- the
-validating reviewer asked for a concrete change, so an ACK there is not an
-answer -- and it stands down on a stranded commit, because the ack vouches for
-the feedback and not for what the PR head actually carries, and on any reply
-that USED the report contract: one that reported is a handover to a fresh
-reviewer rather than a reason to re-arm a ready ping, and one that reached for
-the contract and missed -- a report block with an `ACK:` beside it -- is a
-broken contract rather than an acknowledgement to act on.
-
-What the disposition holds every round to is `validating/fix_reports`': the
-report of a commit is recorded ahead of the size gate, a report with no code in
-it is delivered onto the head the pull request is PROVED to be standing on, and
-a commit an earlier round stranded still passes that gate. A round that hands
-the pull request back -- pushed, or reported -- flips to `validating` and binds
-the report behind that label, where the review hold keeps the reviewer off
-until it is confirmed. What the handover COSTS is written by whoever confirmed
-it: a pushed fix spent its round on a commit the pull request now carries, so
-the gate's own receipt write carries the bookmarks and the round, while a
-report with no code in it has bought nothing until it lands and leaves both to
-the write that settles it. Docs do not run on this exit: the single docs pass
-belongs to the final-docs handoff after reviewer approval.
-
-The batch a reporting round delivered rides that report's own record, which is
-what closes the fork above: on the road where the report IS the handover -- no
-commit, nothing else new on the pull request -- the readers move in the write
-that settles the report, so feedback is recorded as answered exactly when the
-report answering it lands. The round and the bookmarks ride the record too, for
-that same road, which passes no size gate at all. Every other road answered the
-feedback in something already there -- a pushed fix in code, a park in a notice
-a human is being asked to read -- so the settlement is taken in this caller's
-own write, and the record re-applies the same pairs later as a no-op.
+Then the disposition. A reply that reached for the report contract and MISSED
+is held ahead of all of it, because neither half of such a message may be acted
+on. The ACK fast path is in_review-route only -- the validating reviewer asked
+for a concrete change, so an ACK there is not an answer -- it stands down on a
+stranded commit, because the ack vouches for the feedback and not for what the
+PR head actually carries, and it stands down on an issue that OWES a report,
+which is a debt read off the record rather than off this run. A pushed fix
+drops the bookmarks, updates `review_round` per the route, and flips straight to
+`validating`; where a report is owed, the publication comes first and holds
+every one of those until it lands. Docs do not run on this exit: the single docs
+pass belongs to the final-docs handoff after reviewer approval.
 """
 from __future__ import annotations
 
@@ -75,14 +58,15 @@ from orchestrator.workflow.engine import (
     conversation_prompts as _conversation_prompts,
     guards as _guards,
     messages as _messages,
+    report_delivery as _report_delivery,
     report_outcomes as _report_outcomes,
-    report_records as _records,
     usage as _usage,
 )
 from orchestrator.workflow.stages.fixing import (
     bookmarks as _bookmarks,
     feedback as _feedback,
     models as _models,
+    reporting as _reporting,
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -90,9 +74,7 @@ from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
 )
 from orchestrator.workflow.stages.validating import (
-    fix_reports as _fix_reports,
-    report_settlement as _report_settlement,
-    state as _validating_state,
+    dev_fix as _dev_fix,
     stranded as _stranded,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -124,35 +106,26 @@ def _spends_fix_round(state, pending_fix_at_was_set: bool):
     Only the ROUTED hold spends it. A reading nobody could take also stops the
     tick with a generation on the pinned comment, and THAT one is a park --
     the developer's work is still pending and its round is not spent.
+
+    What `review_round` becomes is the route's own answer, read ONCE here and
+    carried as a frozen pair from there. The in_review route (`pending_fix_at`
+    set) RESETS it: the reviewer round before it was APPROVED -- that stage's
+    HITL ping is gated on approval -- so the new fix starts a fresh count and
+    `MAX_REVIEW_ROUNDS` does not trip early on an issue passing back through
+    review after a human PR comment. The validating route BUMPS it: the round
+    before it was CHANGES_REQUESTED, so this is the same review cycle and the
+    counter has to advance to keep that cap honest. The bump reads the counter
+    off the pinned comment, which is why a second reading taken after the write
+    that already applied it would count the same round twice.
     """
     return _late_gate_models._Spends(fields=(
         *_bookmarks._cleared_pending_fix_bookmarks(),
-        (_state._REVIEW_ROUND, _fix_review_round(state, pending_fix_at_was_set)),
+        (
+            _state._REVIEW_ROUND,
+            0 if pending_fix_at_was_set
+            else int(state.get(_state._REVIEW_ROUND) or 0) + 1,
+        ),
     ))
-
-
-def _fix_review_round(state, pending_fix_at_was_set: bool) -> int:
-    """The value `review_round` takes on this route, spent or landed.
-
-      * in_review->fixing (`pending_fix_at` was set): reset to 0. The previous
-        reviewer round was APPROVED (the in_review HITL ping is gated on
-        approval); the new fix starts a fresh round-count so
-        MAX_REVIEW_ROUNDS does not trip prematurely on issues that pass back
-        through review after a human PR comment.
-      * validating->fixing (a CHANGES_REQUESTED dev fix that parked and was
-        finished via a human reply): bump. The previous round was
-        CHANGES_REQUESTED, not APPROVED, so we are still in the same review
-        cycle and the round counter must advance to keep MAX_REVIEW_ROUNDS
-        accounting honest.
-
-    Read ONCE per route, before the push, and carried as a frozen pair from
-    there: the bump reads the counter off the pinned comment, so a second
-    reading taken after the write that already applied it would count the same
-    round twice.
-    """
-    if pending_fix_at_was_set:
-        return 0
-    return int(state.get(_state._REVIEW_ROUND) or 0) + 1
 
 
 def _run_fixing_resume(
@@ -220,21 +193,19 @@ def _fixing_ack_fast_path(
 
     Three shapes never reach the marker. The validating CHANGES_REQUESTED route
     (`routed` false) is excluded because that reviewer asked for a concrete
-    change, so an ACK there is not an answer. A run that timed out or
-    moved HEAD is not a no-commit reply at all.
+    change, so an ACK there is not an answer. A run that timed out or moved
+    HEAD is not a no-commit reply at all.
 
-    And a reply that USED the report contract is excluded whether it used it
-    well or badly, which is the wider reading rather than "finished on a
-    report". One that reported is a handover the next reviewer has to read, so
-    it takes the fresh-review road the disposition below gives it rather than
-    re-arming a ready ping on the approval that report supersedes. One that
-    reached for the contract and MISSED -- a report block with an `ACK:` line
-    beside it, text after the outcome, a marker that may render as code -- is
-    one broken contract rather than two answers, and reading the
-    acknowledgement out of it would hand the pull request back to review over
-    work whose report nothing carries. Both fall through to the disposition,
-    which has a park for a reply it cannot act on; only a reply that never used
-    the contract at all is the ordinary acknowledgement this fast path is for.
+    An issue that OWES a report is excluded too, and the debt is read HERE off
+    the record rather than handed in by a caller reading this run: a round that
+    reported has the publication ahead of it rather than a relabel, and one
+    that did not can still be standing on a report an earlier tick could not
+    deliver -- returning the pull request to review there would present it as
+    needing nothing while the report it owes is still on the pinned comment and
+    nothing has gone out. A reply that reached for the contract and MISSED
+    never gets this far: its caller holds it for a human first, since an `ACK:`
+    written beside a report is the commonest way to miss and this path would
+    read exactly that half of it.
 
     A vague "continue" / "ok" nudge should not strand a complete, mergeable PR
     in `fixing`, so an ack returns to `in_review` (re-arming the ready-ping)
@@ -258,7 +229,7 @@ def _fixing_ack_fast_path(
     """
     if not routed or run.dev_result.timed_out:
         return False
-    if _report_outcomes._reached_for_a_report(run.dev_result):
+    if _report_delivery.owes_a_report(ctx.state):
         return False
     if run.after_sha and run.after_sha != run.before_sha:
         return False
@@ -284,6 +255,49 @@ def _fixing_ack_fast_path(
     return True
 
 
+def _records_the_report_it_owes(
+    ctx: _models._FixingContext,
+    run: _models._FixingResumeRun,
+    feedback: _models._FixingFeedback,
+    owed,
+) -> bool:
+    """Hold this round to the report contract, and record the report it wrote.
+
+    True is a tick this call ended: a run that COMMITTED and handed over no
+    report, one that did not finish at all, and a report this build cannot
+    record. All three park with the commit still in the worktree and nothing
+    published, because the reviewer at the end of any of them would be handed
+    an implementation nobody described and no session left to ask.
+
+    Which runs are held to the contract is the caller's road rather than this
+    workflow's: a run that committed owes the report of what it committed,
+    whatever the branch was already carrying, while a run that committed
+    NOTHING owes one only where it wrote one. A commit an EARLIER run stranded
+    is a different question asked of a different run, so a reply that brought
+    no report is the ordinary question its own road reads it as, and the debt
+    that earlier run left is what holds the reviewer off the head this
+    publishes.
+
+    What a recorded report carries is the pairs this round CONSUMED, frozen
+    before anything applies them -- the record has to name what was consumed
+    rather than what is left to consume, since derived after a settlement they
+    are empty and the recovery replaying this record would have nothing to put
+    the feedback beyond. A run that reported nothing has settled its own
+    readers ahead of this call, so it hands over none: there is no transaction
+    to carry them, only the park that ends the road.
+    """
+    if not run.reported and (
+        not run.after_sha or run.after_sha == run.before_sha
+    ):
+        return False
+    consumed = ()
+    if run.reported:
+        consumed = _feedback._consumed_delivery(
+            ctx.state, feedback,
+        ).consumed_pairs(ctx.state)
+    return _reporting._recording_stops_the_tick(ctx, run, consumed, owed)
+
+
 def _delivered_nothing(
     ctx: _models._FixingContext, run: _models._FixingResumeRun,
 ) -> bool:
@@ -299,9 +313,9 @@ def _delivered_nothing(
 
     The kill MUST cover the new-commit case too. Falling through would consume
     the feedback while the commit sits unpushed -- the disposition refuses to
-    publish an interrupted run -- and the next tick would see
-    nothing to do and bounce a PR head that is missing the fix. Left on disk,
-    a later clean run republishes it through the stranded-fix tail.
+    publish an interrupted run -- and the next tick would see nothing to do and
+    bounce a PR head that is missing the fix. Left on disk, a later clean run
+    republishes it through the stranded-fix tail.
     """
     if run.dev_result.interrupted:
         return True
@@ -317,14 +331,13 @@ def _resume_fixing_and_dispatch_result(
 ) -> None:
     """Resume the locked dev session over the unread feedback (or a preserved
     `/orchestrator continue` batch), then dispatch the result: the in_review-
-    route ACK fast path, the bounce back to `validating` a pushed fix or a
-    delivered report earns, or a park.
+    route ACK fast path, the `validating` relabel a pushed fix or a published
+    report earns, or a park.
 
     Runs after the quiet window has elapsed. Owns the resume, the three
-    refusals that count no delivery at all, the settlement of the batch that
-    WAS delivered -- here, or on the record of the report that answers it --
-    the route round bookkeeping, and the binding of whatever report the round
-    recorded.
+    refusals that count no delivery at all, the record of the batch that WAS
+    delivered -- direct, or onto the report transaction that will close it --
+    and the route round bookkeeping.
     """
     # Capture the route discriminator BEFORE the bookmark-clear branches below.
     # `pending_fix_at` is untouched between the tick's capture point and here
@@ -358,26 +371,46 @@ def _resume_fixing_and_dispatch_result(
     if _delivered_nothing(ctx, run):
         return
 
+    # What this route owes for the candidate, frozen BEFORE anything is
+    # written: the bookmarks the consumed batch clears and the round the fix
+    # lands on. Read once, so a second reading taken after the write that
+    # already applied it cannot count the same round twice.
+    owed = _spends_fix_round(ctx.state, pending_fix_at_was_set)
+
     # The prompt reached an agent, so the batch it quoted is delivered whatever
     # the run came back with -- a fix, a timeout, an empty message, a question,
-    # an `ACK:`. Recorded HERE rather than after the disposition, because the
-    # size gate's own durable write and a park's own both land inside that
-    # disposition and a settlement taken afterwards would be lost to a crash in
-    # the window a hold's relabel opens. Only ids this prompt carried move: a
-    # human comment that landed after `feedback` was built was never quoted, so
-    # swallowing it would drop real feedback on the pushed path (the next
-    # in_review tick would miss it) and on the park path (the next fixing
-    # tick's `awaiting_human and not new_feedback` gate would drop it). The
-    # orchestrator's own park comment needs no bump to avoid replay -- the next
-    # tick's rescan filters by both recorded id and body marker.
-    #
-    # A run that finished on a report outcome is the one exception, and the
-    # reason is the publication it owes: a report this tick cannot guarantee
-    # reaches the pull request may not leave the feedback it answers recorded
-    # as read. What carries it instead is that report's own record, frozen
-    # below, so the readers move in the write that settles it.
+    # an `ACK:`. A run that wrote NO report records that right here, because
+    # nothing else is going to: the size gate's own write and a park's own
+    # write both land inside the disposition, so a settlement taken afterwards
+    # would be lost to a crash in exactly the window a hold's relabel opens.
+    # Only ids this prompt carried move: a human comment that landed after
+    # `feedback` was built was never quoted, so swallowing it would drop real
+    # feedback on the pushed path (the next in_review tick would miss it) and
+    # on the park path (the next fixing tick's `awaiting_human and not
+    # new_feedback` gate would drop it). A run that DID write one records
+    # nothing here at all -- both groups ride that report's record, and the
+    # write completing the publication is what applies them.
     if not run.reported:
         _feedback._settle_consumed_feedback(ctx.state, delivered)
+
+    # The two replies this round may act on no half of, held ahead of every
+    # road below. A message that reached for the report contract and MISSED is
+    # one: the `ACK:` half would return the pull request to review as needing
+    # no change, and a commit beside it would be pushed and relabelled with no
+    # report on the pull request at all. A round that COMMITTED over a report
+    # an earlier tick recorded is the other: that report describes the branch
+    # before this commit, so every road that publishes afterwards would bind
+    # it to work it never saw. Both park after the settlement above, so the
+    # notice is never left standing over feedback that still reads as unread.
+    if _reporting._holds_for_a_human(ctx, run):
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        return
+
+    # The report contract itself, which this round answers before anything of
+    # it may go out: the report of a commit this run made is recorded ahead of
+    # the size gate, and a run that committed with none parks instead.
+    if _records_the_report_it_owes(ctx, run, delivered, owed):
+        return
 
     # ACK fast path (in_review route only): the dev made no commit but
     # explicitly signaled via the `ACK: <reason>` marker that the PR feedback
@@ -388,100 +421,99 @@ def _resume_fixing_and_dispatch_result(
     if _fixing_ack_fast_path(ctx, run, routed=pending_fix_at_was_set):
         return
 
-    # What this route owes for the candidate, computed BEFORE the push and
-    # handed to the gate: a hold closes it in the write that carries the
-    # measurement, ahead of the relabel it makes, and a landed push closes it
-    # in the write that carries the receipt. Either way the same frozen pairs
-    # are what the tail below re-applies, so the two cannot disagree -- and
-    # re-applying a value already written is a no-op rather than a second
-    # count, which recomputing the round from the pinned comment would be.
-    # A report with no code in it passes no gate at all, so on that road the
-    # record and this caller's own write are the only things that carry them.
-    owed = _spends_fix_round(ctx.state, pending_fix_at_was_set)
-    outcome = _fix_reports._post_requested_fix_result(
+    _disposes(ctx, run, owed)
+
+
+def _disposes(
+    ctx: _models._FixingContext, run: _models._FixingResumeRun, owed,
+) -> None:
+    """Publish what this run left, and close the round on what was published.
+
+    Three roads out. A round whose whole answer is its report publishes that
+    and nothing else. A round that pushed code closes on the report where the
+    ISSUE owes one -- its own, or one an earlier tick recorded and a crash left
+    unbound, since this push is the publication that report was waiting for --
+    and on the frozen pairs where none is owed. And a round that published
+    nothing closes nothing: a non-reporting run already settled its own readers
+    ahead of this call, and a reporting one is still carrying both groups on
+    its record for the write that completes the publication. The bounce that
+    republishes that commit is what binds it; settled here instead, the
+    feedback would read as answered for a report no reviewer has.
+
+    A round that committed over a report an EARLIER tick recorded never gets
+    here at all: its caller holds it for a human first, because the record it
+    would be published against describes the branch before that commit.
+    """
+    # Asked of the RECORD rather than of this run, and past whatever this tick
+    # has just written to it: a debt an earlier tick left is this round's to
+    # honour too, and a round that has just recorded its own report owes one
+    # from this line onwards.
+    owes = _report_delivery.owes_a_report(ctx.state)
+
+    # A round whose whole answer IS the report never reaches the publication
+    # tail: there is no commit to push, and the prompt asked for exactly that
+    # -- an item wanting report content only is answered in the report, with no
+    # commit for it.
+    #
+    # What it is bound to is the head the reading PROVED -- the checkout's own,
+    # which that reading held against a pull request it re-read -- never the
+    # copy the preflight fetched. The two can disagree in either direction: a
+    # remote that moved AWAY from the round's head refuses the reading
+    # outright, and one that moved ONTO it passes while the stale copy still
+    # names the commit it moved off. Bound to that copy, the report would be
+    # published and recorded against a commit the pull request has left, and
+    # the reviewer handed a head nothing describes.
+    #
+    # A reading this tick could not TAKE is neither road. The report is valid
+    # and the branch is where it says it is; what is missing is a pull request
+    # this poll could not fetch. Held here -- nothing published, nothing
+    # parked, the record exactly as this tick wrote it -- and the recovery
+    # ahead of the next handler publishes it on a tick that can read the
+    # remote. Sent down the no-commit road instead, it parks for a human under
+    # a reason no settlement owns, and the tick that finally publishes hands
+    # the issue to review still waiting on somebody nobody ever needed.
+    placed = _reporting._is_report_only(ctx, run) if run.reported else False
+    if placed is None:
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        return
+    if placed:
+        _reporting._finishes_a_reported_round(ctx, owed, run.after_sha or "")
+        return
+
+    # The gate is handed NOTHING to close while a report stands: the record is
+    # carrying this route's bookkeeping, and a receipt write that closed it
+    # here would drop the batch an outstanding publication replays from.
+    pushed = _dev_fix._handle_dev_fix_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, run.worktree, run.dev_result,
-        run.before_sha, after_sha=run.after_sha, spends=owed,
-        # The road this run came down, which holds it to the report contract:
-        # the report of a commit it made is recorded ahead of the gate, and a
-        # report with no commit is published onto the head the pull request
-        # already carries. The round, the bookmarks and the batch this prompt
-        # delivered ride that record, so the write that settles a report no gate
-        # ever saw is the write that closes them. The requirements revision is
-        # left to the pinned baseline the resume above has just refreshed over
-        # the comments it quoted.
-        handed=_records.HandedRun(
-            WorkflowLabel.FIXING,
-            spends=owed.fields,
-            watermarks=_feedback._consumed_pairs(ctx.state, delivered),
-        ),
+        run.before_sha, after_sha=run.after_sha,
+        spends=_late_gate_models._SPENDS_NOTHING if owes else owed,
     )
 
-    _settles_what_the_report_will_not(ctx, delivered, run, outcome)
-
-    if outcome not in _validating_state._REPORTING_OUTCOMES:
+    if not pushed:
         # A hold has already spent this route's round durably, from inside the
-        # gate's own write: what is left here is the caller's ordinary write,
-        # carrying whichever settlement this round's road called for.
+        # gate's own write; what is left here is the caller's ordinary write.
+        # It carries the consumption a NON-reporting run settled ahead of all
+        # of it, and nothing at all for a reporting one -- that round's pairs
+        # are on its record, for the write that finally publishes the report.
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
 
-    # The bookmarks this route consumed and the round its handover lands on, in
-    # the values frozen before the push -- and only for the handover a PUSH
-    # made. The gate has already written them beside its receipt, so this
-    # re-applies the same pair to cover the one push it could not: a commit
-    # nothing could name never reached that write. A report with no code in it
-    # reached no gate and has bought no handover until it is on the pull
-    # request, so nothing of it is written here at all: the pair rides the
-    # record, and the write that settles the report is what closes it.
-    #
-    # We flip DIRECTLY to `validating` either way, and before the binding, so
-    # the reviewer re-evaluates the report and requirements being handed on --
-    # a reporting round hands over the same head, and an earlier approval is no
-    # answer to it. That move is also the only road to confirmation: the review
-    # hold there is what binds a delivery and settles it, and it refuses every
-    # reviewer while the report is owed. Docs do
-    # not run on this exit -- the single docs pass is deferred to the final-docs
-    # handoff after reviewer approval, so running the docs stage against an
-    # unapproved diff here would just push a no-op and waste a tick.
-    if outcome == _validating_state._OUTCOME_PUSHED:
-        _late_gate_models._spend(ctx.state, owed)
+    if owes:
+        # The report rides the commit this push landed -- the one this run
+        # wrote, or the one an earlier tick recorded and this push has just
+        # given a publication to.
+        _reporting._finishes_a_reported_round(ctx, owed, run.after_sha or "")
+        return
+
+    # The bookmarks this route consumed and the round it lands on, in the
+    # values frozen before the push. The gate has already written them beside
+    # the receipt, so this is what covers the one push it could not: a commit
+    # nothing could name never reaches that write. Re-applying a value already
+    # written is a no-op rather than a second count. We flip DIRECTLY to
+    # `validating` so the reviewer re-evaluates the new head next tick. Docs do
+    # not run on this exit -- the single docs pass is deferred to the
+    # final-docs handoff after reviewer approval, so running the docs stage
+    # against an unapproved diff here would just push a no-op and waste a tick.
+    _late_gate_models._spend(ctx.state, owed)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
-    # Bound only once the relabel is behind it, so no tick finds a settled
-    # report beside a label still claiming the round it closed. A process dying
-    # before this line leaves the report owed, which the review hold on
-    # `validating` answers on the next tick either way.
-    _report_settlement._settles_the_report(
-        ctx.gh, ctx.spec, ctx.issue, ctx.state, WorkflowLabel.VALIDATING,
-    )
-
-
-def _settles_what_the_report_will_not(
-    ctx: _models._FixingContext,
-    delivered: _models._FixingFeedback,
-    run: _models._FixingResumeRun,
-    outcome: str,
-) -> None:
-    """Settle a reporting round's batch on every road but the report's own.
-
-    The fork ahead of the disposition withholds the settlement from a run that
-    reported, because a report this tick cannot promise may not leave the
-    feedback it answers recorded as read. Which road the round took is what
-    says whether that is still true once the disposition has answered.
-
-    A reported run whose outcome is `reported` is the ROAD WHERE THE REPORT IS
-    THE HANDOVER: nothing but the report reached the pull request, so the
-    readers wait for it and move in the write that settles it. Recorded here
-    instead, a report that never landed would leave this round's feedback
-    claimed as consumed with nothing on the pull request to show for it.
-
-    Every other road answered the feedback in something the pull request or the
-    thread already carries. A PUSHED fix answered it in code that is now on the
-    pull request, and a PARK answered it with a notice a human is being asked
-    to read -- and that park is on `workflow:fixing`, so a batch left unread
-    under it is one the next tick reads as fresh feedback and resumes the
-    developer over again. Both settle in the caller's write, and the record
-    re-applies the same pairs when it settles, which is a no-op.
-    """
-    if run.reported and outcome != _validating_state._OUTCOME_REPORTED:
-        _feedback._settle_consumed_feedback(ctx.state, delivered)

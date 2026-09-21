@@ -19,6 +19,9 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.workflow.engine import (
+    report_delivery_state as _delivery_state,
+)
 from tests.workflow.stages.fixing import (
     fixing_test_support as fixing,
     published_gate_support as support,
@@ -55,8 +58,17 @@ FIX_COMMITS = support.GROWN_CANDIDATES
 
 # The reviewer's next round of feedback, one comment per fix past the first.
 # The rescan reads forward from the watermark the round before it consumed, so
-# each id sits above the one it follows.
-NEXT_FEEDBACK_ID = fixing.FOLLOWUP_ID
+# each id sits above the one it follows -- and clear of the report every round
+# publishes, since a reviewer comment sharing an id with one of ours is read
+# as ours and never reaches the next prompt at all.
+NEXT_FEEDBACK_ID = fixing.CONCURRENT_COMMENT_ID
+
+# How far apart those ids sit. Every landed round publishes its report onto the
+# pull request, and the double numbers that comment straight above the highest
+# id on the thread -- so consecutive reviewer ids would collide with one, and a
+# reviewer comment carrying an id of ours is filtered out of the very next
+# prompt as one of ours.
+ROUND_STRIDE = 10
 
 # What the pull request comes to at each round of the longest chain here: two
 # fixes it may still carry -- the second landing exactly on the configured
@@ -117,7 +129,7 @@ class _GrownPullRequestMixin(support._SizeGateFixtureMixin):
         """
         scenario.issue.labels = [FakeLabel(FIXING)]
         scenario.issue.comments.append(FakeComment(
-            id=NEXT_FEEDBACK_ID + index,
+            id=NEXT_FEEDBACK_ID + index * ROUND_STRIDE,
             body=fixing.FIX_FEEDBACK,
             user=FakeUser(fixing.ALICE),
             created_at=fixing.datetime.now(fixing.timezone.utc)
@@ -226,23 +238,35 @@ class HeldAfterSeveralFixesTest(unittest.TestCase, _GrownPullRequestMixin):
             FIX_COMMITS[1],
         )
 
-    def test_the_hold_consumes_its_feedback(self) -> None:
-        # The dev read the comment that opened this round and committed for
-        # it, and a hold is not a park: the work is on the branch and a
-        # `single` verdict publishes it from there. Left unconsumed, the tick
-        # that picks the issue up again would feed a dev the feedback the run
-        # before it already answered.
-        self.assertEqual(
-            self._pinned(self.scenario)[PR_LAST_COMMENT_ID],
-            NEXT_FEEDBACK_ID + len(self.rounds) - 1,
-        )
+    def test_the_hold_holds_what_its_report_owes(self) -> None:
+        # The round that crossed the line wrote its report, and a report the
+        # pull request has not got may not leave the feedback it answers
+        # recorded as read or the reviewer round it lands on spent. Both ride
+        # that report's own record, frozen ahead of the gate, and the write
+        # that completes the publication is what applies them -- so the reader
+        # still names the round before this one and the counter still stands
+        # where that round left it.
+        pinned = self._pinned(self.scenario)
+        landed = len(self.rounds) - 1
 
-    def test_every_round_spends_one_reviewer_round(self) -> None:
-        # A held fix supersedes the head the reviewer rejected exactly as a
-        # landed one does -- the commit is on the branch and a `single`
-        # verdict publishes it from there -- so `MAX_REVIEW_ROUNDS` counts it.
-        # The in_review route this scenario opens on resets the count, and
-        # every round after it advances by one.
         self.assertEqual(
-            self._pinned(self.scenario)[REVIEW_ROUND], len(self.rounds) - 1,
+            pinned[PR_LAST_COMMENT_ID],
+            NEXT_FEEDBACK_ID + (landed - 1) * ROUND_STRIDE,
         )
+        self.assertEqual(pinned[REVIEW_ROUND], landed - 1)
+
+    def test_the_held_record_carries_its_round(self) -> None:
+        # What says the held round is still owed a count is the record, whose
+        # frozen pairs name the reader to advance and the counter to spend.
+        # Recomputed by whichever tick finally publishes, the round would be
+        # read off a counter that has moved since and counted twice.
+        recorded = _delivery_state.read_delivered_report(
+            self.scenario.github.read_pinned_state(self.scenario.issue),
+        )
+        landed = len(self.rounds) - 1
+
+        self.assertIn(
+            (PR_LAST_COMMENT_ID, NEXT_FEEDBACK_ID + landed * ROUND_STRIDE),
+            recorded.watermarks,
+        )
+        self.assertIn((REVIEW_ROUND, landed), recorded.spends)

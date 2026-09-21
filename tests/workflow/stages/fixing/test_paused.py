@@ -183,8 +183,12 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(gh.label_history, [])
 
         # Tick 2: `paused` removed -> the fresh fetch is clean, so the resume's
-        # pushed fix publishes and relabels to `validating`.
-        unpaused = make_issue(ISSUE, label="workflow:fixing")
+        # pushed fix publishes and relabels to `validating`. The fetch answers
+        # the issue this scenario really holds, comments and all: the report
+        # this round hands back is settled against the requirements a re-read
+        # of the issue produces, so a view missing the thread would read as an
+        # edit and hold the handover the case is about.
+        unpaused = issue
         with (
             patch.object(config, "IN_REVIEW_DEBOUNCE_SECONDS", DEBOUNCE_SECONDS),
             patch.object(gh, "get_issue", MagicMock(return_value=unpaused)),

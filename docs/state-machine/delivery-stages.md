@@ -3061,7 +3061,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        real reviewer text that merely omitted the marker stays `reviewer_no_verdict` for human adjudication.
      - **changes_requested** → post the feedback to the PR, then flip the label to `workflow:fixing` BEFORE spawning
        the dev so the active job is observably "fixing reviewer-requested changes". Resume the dev with the fix
-       prompt, and read what it hands back through `validating/fix_reports.py`, which holds the round to the
+       prompt, and read what it hands back through `validating/fix_reports.py` (the parked resume behind it is the
+       fixing stage's own road, `fixing/reporting.py`), which holds the round to the
        developer report contract as the requirements-drift disposition holds a body-edit resume to it: on a new
        commit + clean tree the report is recorded as `developer_report_delivery` BEFORE the
        [size gate on a published pull request](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr)
@@ -3354,49 +3355,41 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      own `gh.get_pr` exceptions and hands `pr=None` to the helper, which is a no-op.
   2. Closed issue with no resolvable PR → no-op.
   3. Open issue with no `pr_number` (manual relabel) → park (`missing_pr_number`).
-  4. A **delivered developer report** (`developer_report_delivery`) with `awaiting_human` unset means the round that
-     wrote it is unfinished, and this step finishes it rather than letting the rescan repeat it. That state is what a
-     crash inside the reporting round's own ordering leaves: the report is recorded durably ahead of the size gate and
-     the relabel comes after the push (step 11), so a process dying anywhere past that write leaves `workflow:fixing`,
-     the park already cleared, the triggering reply still unread — a reporting round's readers ride the report rather
-     than the tick (step 10) — and a report nothing has published. The rescan below would read that reply as fresh
-     feedback and resume the developer over it: another run charged, and a second report written over the first, with
-     the reviewer handed whichever landed.
+  4. Everything this issue's **report obligation** owes, answered ahead of the rescan (`fixing/report_recovery.py`)
+     because the rescan is what the damage runs through. A round whose report SETTLED while nobody was looking is
+     handed back first: that write closed this route's bookkeeping, so a scan running past it reads whatever landed
+     since under a route that no longer exists. Then a **delivered developer report**
+     (`developer_report_delivery`) nothing bound, which is what a crash inside the reporting round's own ordering
+     leaves: the report is recorded durably ahead of the size gate and the relabel comes after the push (step 11), so
+     a process dying anywhere past that write leaves `workflow:fixing`, the triggering reply still unread — a
+     reporting round's readers ride the report rather than the tick (step 10) — and a report nothing has published.
+     The rescan below would read that reply as fresh feedback and resume the developer over it: another run charged,
+     and a second report written over the first, with the reviewer handed whichever landed. A record this build
+     cannot READ parks rather than falling through as an absence, since the watermarks it was holding back are
+     exactly what nobody can decode.
 
-     A round that answered in CODE leaves one thing more, and it has to go out first. The report is written before the
-     gate reads the candidate, so the crash can also have left the commit that report describes sitting in the
-     checkout — and `workflow:validating` has exactly one answer to a delivery whose commit no publication carries,
-     which is to park it under `report_undeliverable` for a human. So the candidate is published here the way every
-     other one is, through the
-     [size gate on a published pull request](#the-size-gate-on-a-published-pull-request-every-push-onto-an-open-pr),
-     leased to the head the pull request is standing on and spending the round and bookmarks **frozen on the record**
-     rather than a round read afresh — the same pair the gate's receipt write would have carried, so the settlement
-     re-applies it later as a no-op. A held candidate ends the tick with the adjudication, since relabelling for a
-     reviewer would publish the question the gate has just opened, and a record nobody can read publishes nothing and
-     is handed on for `workflow:validating` to park.
+     Whether the code went out is **re-proved rather than remembered**. The
+     code-publication receipt is persistent, so on a tick that pushed nothing it names an older round's commit, and a
+     pull request standing on that commit for reasons of its own would let a report about work nobody published go
+     out on the strength of it. What is asked instead is the CHECKOUT: a tree provably clean, a head it could name,
+     and that head being what the pull request carries. Then the branch IS published and the report describes it,
+     whichever run wrote the record. The two refusals no later poll takes back — a worktree that is GONE, and a tree
+     this host PROVED dirty — announce once under `report_undeliverable` and RELEASE the recorded report as they park,
+     because this road runs ahead of the parked dispatch and a human who merely restored or cleaned the checkout would
+     otherwise publish the report the notice is asking them to decide about; the DEBT outlives that release, so the
+     review stays held and the reply still brings a report. A status nobody could read is neither refusal and holds
+     everything where it stands.
 
-     Nothing published is where this step **fails closed**, and it has to: the stranded probe answers `""` for a
-     branch with nothing to send and for a checkout that vouches for nothing alike — a tree nobody could read, a
-     worktree gone with its host, a fetch that failed, a divergence git refused, a remote that moved. Read as "no
-     commit was stranded" the report would be handed on, and the binding behind it RECREATES a missing checkout from
-     the remote, finds its head equal to the code-publication receipt, and publishes the report of a commit that never
-     passed the gate against the head the pull request had all along. So the same affirmative proof a report with no
-     code in it must pass is taken here (`validating/fix_report_evidence.py`, shared with that road so the recovery
-     can never prove less than the round it is finishing did): the branch standing exactly where its remote is, AND
-     the receipt naming that commit on this pull request. Short of it the round parks under `report_undeliverable`
-     with the record intact and nothing published — the reply resumes the session, whose fresh report supersedes this
-     one and carries its round and its readers with it, and whatever the branch turns out to be holding goes out
-     through the ordinary measurement then.
-
-     Then the hand-back. `workflow:validating`'s report hold is what finishes a delivery without a developer — it binds
-     it to the publication the receipt names, settles it through the
-     [reconciliation](#the-developer-report-transaction-every-dispatch), and parks where no retry can — and it spawns
-     no reviewer while the report is owed, so the round and the bookmarks riding the record are still closed by the
-     one write that settles it. A park is left alone, because the routes that answer one (the transient recovery that
-     retries a failed push, the reply a human owes a notice) are behind this guard. So is a recorded **transaction**,
-     which is a report owed just the same but already has a route across the boundary: the reconciliation runs ahead
-     of every stage handler and stands DOWN on a refusal it cannot clear, precisely so the roads that do clear one —
-     here the size gate's push and the resume below — keep running.
+     Then the hand-back, which is this stage's own: a binding that SETTLED closes the round the record froze and flips
+     to `workflow:validating` on the `fixing_round_settled` mark that settlement raised, and one whose post did not
+     land relabels nothing — the transaction is the
+     [reconciliation](#the-developer-report-transaction-every-dispatch)'s to finish ahead of the next handler, and the
+     bookmarks an outstanding publication replays from have to outlive this tick. A commit the crash left
+     unpublished is NOT sent from here: what republishes one is the no-feedback bounce (step 7), which binds the
+     report to the push it makes. A recorded **transaction** is left alone, being a report owed just the same that
+     already has a route across the boundary: the reconciliation runs ahead of every stage handler and stands DOWN
+     on a refusal it cannot clear, precisely so the roads that do clear one — the parked push retry and the resume
+     below — keep running.
   5. Rescan unread feedback across all four surfaces, each past the reader or readers it answers to, reading the two
      IssueComment-space surfaces through the same per-surface cursors `_handle_in_review` uses — the issue thread
      past `pr_last_comment_id` with everything at or below `last_action_comment_id` dropped, the PR conversation past
@@ -3446,13 +3439,21 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      the issue stays parked; **passthrough** — the command arrived alongside genuine guidance on a park with no
      replayable batch, so it falls through to the normal resume below and that guidance drives the dev.
 
-     Otherwise, when the rescan finds nothing new, branch on `park_reason` AND the route discriminator `pending_fix_at`:
+     Otherwise, when the rescan finds nothing new — or finds nothing ABOVE the pairs an owed report's record froze,
+     which while a publication is outstanding is the same thing: the readers are held back until it lands, so the
+     batch that report was written over reads as unread on every poll — branch on `park_reason` AND the route
+     discriminator `pending_fix_at`:
      - **Transient reason** (`push_failed` / `agent_timeout` / `reviewer_timeout` / `reviewer_failed` — the
-       `_VALIDATING_TRANSIENT_PARK_REASONS` set) **and `pending_fix_at` unset (validating route)** → call
+       `_VALIDATING_TRANSIENT_PARK_REASONS` set) **and `pending_fix_at` unset (validating route)**, or an in_review
+       `push_failed` park that still OWES a report, since that retry IS the report's publication and the default
+       below would hold the issue on a park nothing can clear → call
        `_try_recover_validating_transient_park`. On `cleared` or `pushed`, post the recovery follow-up (see the
        **Recovery follow-up** note above), clear park, clear `pending_fix_*`, flip back to `workflow:validating`
-       (the helper bumps `review_round` on `pushed`). This closes the loop for `_handle_validating`'s
-       CHANGES_REQUESTED route. On `stuck`, fall through to the worktree-drift check below. On `held` — the size gate
+       (the helper bumps `review_round` on `pushed`). While a report is OWED none of that is spent or cleared and
+       the relabel is the settlement's: the report is bound against the commit THIS retry landed, read off the
+       receipt that push has just written, and the round is handed back only on the mark the settlement raises. This
+       closes the loop for `_handle_validating`'s CHANGES_REQUESTED route. On `stuck`, fall through to the
+       worktree-drift check below. On `held` — the size gate
        took the candidate the retry was about — the tick stops outright: no follow-up, no clear, no drift reroute, and
        no relabel, because the gate has already parked the issue or moved it to `workflow:decomposing` and written its
        own state.
@@ -3495,6 +3496,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      This exit is the validating route's LAST chance at that commit: the
      reviewer feedback that started the round is orchestrator-authored, so the step-4 rescan filters it out and no
      later tick re-runs the dev on it.
+
+     A report the issue still OWES changes every one of those answers, because the record is already carrying this
+     route's bookkeeping for the write that completes its publication. The push is still made — this is the one tick
+     that republishes a stranded commit, so a delivery left unbound here would never become a transaction anything
+     could finish — and the report is BOUND to it, off the receipt that push has just written rather than the
+     standing value. Nothing is spent, cleared or relabelled until the report is really there, and where no road left
+     on the issue can move one (nothing unread, nothing stranded, the publication itself declining) the wait is
+     announced once under `report_undeliverable` rather than repeated in silence on every poll.
   8. **Quiet window**: compute the newest `created_at` (or `submitted_at` for review summaries); if younger than
      `IN_REVIEW_DEBOUNCE_SECONDS`, return.
   9. **Resume**: build a `_build_pr_comment_followup` prompt over ALL unread surfaces, resume the locked dev via
@@ -3509,7 +3518,12 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      settlement taken afterwards would be lost to a crash in the window a hold's relabel opens. The one outcome that
      settles nothing is a run that finished on a **report outcome** (`report_outcomes._finished_on_a_report`): a
      `REPORT: READY` / `REPORT: VERIFIED` reply owes a publication this tick cannot promise, and feedback recorded as
-     answered for a report no reviewer has is the reading that fork refuses. Then the disposition: a
+     answered for a report no reviewer has is the reading that fork refuses; that round freezes the identical pairs
+     onto its report's record instead, beside the round its route spends and the `fixing_round_settled` mark, and the
+     write that completes the publication applies all three. A reply that reached for the report contract and MISSED,
+     and one that committed over a report an earlier tick recorded, are held for a human ahead of every road below
+     (`fixing/reporting.py`): neither half of the first may be acted on, and the second would bind a standing report
+     to a commit it never saw. Then the disposition: a
      no-commit reply first checks for a **stranded fix** (`_stranded_fix_unpushed`): when the worktree is clean and HEAD
      is strictly ahead of the fetched remote PR branch (a fix committed by an earlier parked run whose publish was
      blocked — e.g. a dirty-park whose stray files were cleaned up afterwards), the handler publishes it through the
@@ -3527,17 +3541,22 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      that message is one broken contract rather than two answers, and taking the acknowledgement out of it would clear
      the bookmarks and hand the pull request back to `in_review` over work whose report nothing carries. Both fall
      through to the disposition, which parks for a human; only a reply that never used the contract at all is the
-     ordinary non-actionable `ACK:`, which keeps the road it always had. Otherwise apply the same report-aware
-     disposition the validating fix-loop applies (`validating/fix_reports.py`): a commit is published under the report
-     of it, a report
-     with no commit is recorded for the head the pull request is proved to be standing on, and a run that committed
-     with no usable
-     report parks under `report_undeliverable` with nothing pushed. Any other unmarked no-commit reply falls through to
+     ordinary non-actionable `ACK:`, which keeps the road it always had, and a reply on an issue that OWES a report is
+     excluded whatever it says. Otherwise apply this stage's own report-aware disposition (`fixing/reporting.py`): a
+     commit is published under the report of it, a report with no commit is bound and PUBLISHED onto the head the
+     pull request is proved to be standing on, and a run that committed with no usable report parks under
+     `report_undeliverable` with nothing pushed. While a report is owed, nothing that publication carries may be
+     spent before it lands — not the readers, not the `pending_fix_*` bookmarks, not `review_round`, and not the
+     relabel — so the size gate is handed nothing to close, the write that completes the transaction applies them,
+     and the `fixing_round_settled` mark it raises is what the relabel is then taken on. Any other unmarked
+     no-commit reply falls through to
      `_on_question` and
      parks awaiting human — a no-ACK reply may be a real dev question, and we cannot tell by inspection (a dirty tree,
      failed fetch, or a remote that moved past the local view also falls back to this park rather than pushing blind).
-  10. **Delivery settlement** (`_settle_consumed_feedback`, applied in step 9 ahead of the disposition): regardless of
-      dev outcome, each reader advances ONLY to the max id consumed on the surface that reader owns, ratcheted forward
+  10. **Delivery settlement** (`_settle_consumed_feedback`, applied in step 9 ahead of the disposition, and only for
+      a run that wrote no report — one that did freezes the identical pairs onto that report's record instead, for
+      the write that completes its publication): each reader advances ONLY to the max id consumed on the surface that
+      reader owns, ratcheted forward
       — tighter than a broad bump so a concurrent human comment that landed mid-handler survives to the next tick.
       Issue-thread items settle `last_action_comment_id` beside `pr_last_comment_id`, so moving the issue between
       `workflow:fixing`, `workflow:validating` and drift handling does not spawn a second developer merely to deliver a

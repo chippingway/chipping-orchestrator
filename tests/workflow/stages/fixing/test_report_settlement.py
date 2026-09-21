@@ -13,6 +13,10 @@ the windows a process can die in: after the report is recorded and before the
 publication lands, and after the settlement. Nothing a round consumed or spent
 may be durable before the report reaches the pull request, and all of it has to
 be durable the moment it does.
+
+The LIVE roads those helpers are reached from are `test_report_recovery.py`
+beside this, driven through whole dispatched ticks: what they are about is the
+order a tick asks its questions in, which no single helper's answer shows.
 """
 from __future__ import annotations
 
@@ -52,7 +56,6 @@ _ASKED_A_QUESTION = "agent_question"
 
 # What a caller that proved no commit at all hands a binding.
 _UNPROVED = ""
-
 
 class ReportedRoundContractTest(unittest.TestCase, support.FixingReportCase):
     """Which replies a reported fix round may act on, and which it may not."""
@@ -248,10 +251,41 @@ class AtomicSettlementTest(unittest.TestCase, support.FixingReportCase):
 
 
 class ReportOnlyRoundTest(unittest.TestCase, support.FixingReportCase):
-    """A round whose whole answer is its report needs its head proved."""
+    """A round whose whole answer is its report needs its head proved.
+
+    Beside it, the round that answered in code and handed no report over at
+    all: the same question asked of the other reply a no-commit road may not
+    be given.
+    """
 
     def setUp(self) -> None:
         support.FixingReportCase.setUp(self)
+
+    def test_a_commit_with_no_report_is_withheld(self) -> None:
+        # Work a review round earns reaches the pull request with the report
+        # of it or not at all, so a run that committed and handed one over is
+        # held whether it declined to report or never finished at all -- the
+        # engine leaves an incomplete run alone, and this road publishes.
+        for case, finished in (
+            ("declined", support.agent(support.ACK_MESSAGE)),
+            ("did not finish", support.agent("", exit_code=1)),
+        ):
+            with self.subTest(case=case):
+                self.setUp()
+
+                self.assertTrue(_reporting._recording_stops_the_tick(
+                    self.ctx(),
+                    self.resume_run(dev_result=finished, reported=False),
+                    (),
+                    support.owed_round(),
+                ))
+
+                pinned = self.pinned()
+                self.assertEqual(pinned.get(support.PARK_REASON), _UNDELIVERABLE)
+                self.assertTrue(pinned.get(_report_delivery.UNREPORTED_WORK))
+                self.assertIsNone(
+                    _delivery_state.read_delivered_report(self.state),
+                )
 
     def test_a_proved_unmoved_head_reports_alone(self) -> None:
         with support.a_checkout():

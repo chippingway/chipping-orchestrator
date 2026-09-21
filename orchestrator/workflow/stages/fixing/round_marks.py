@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Whether the mark a settlement raised may still close the round in hand.
 
-One reading, for every road that could reach a relabel with a mark standing. It
-is spelled apart from `reporting`, which takes the relabel, so that it stays ONE
-reading: a road that carried a copy of this question would come to answer it
-differently, and the answer it would get wrong is a hand-back taken past
-feedback nobody has read.
+One reading, asked by two owners that cannot read each other. `reporting` owns
+the relabel every settlement-driven hand-back goes through, and `report_recovery`
+owns the tick that finds a round settled while nobody was looking; the second
+imports the first, so a correlation living in either would have to be copied
+into the other -- and two copies of this particular question drift into a
+relabel taken past feedback nobody read.
 
 What the question IS: a settlement can apply a fixing round's bookkeeping and
 cannot move a label, so it leaves a mark for the tick that can. That mark is a
@@ -14,7 +15,7 @@ CLAIM on the next relabel rather than a fact about it, and the claim has to be
 placed before it is acted on -- the settlement may have happened under another
 label entirely, or over a round that has since been replaced.
 
-A comment carrying no mark at all is asked nothing. The no-feedback bounce
+A road carrying no mark at all is asked nothing. The no-feedback bounce
 relabels on every tick that finds nothing to do, report or no report, and a
 stage whose own road decided to hand the head back is not waiting on a
 settlement's permission to do it.
@@ -49,9 +50,9 @@ def _places_the_round_in_hand(state: PinnedState) -> bool:
     a human who moved the issue while a developer ran is visible in it -- and
     one that landed anywhere but `workflow:fixing` is a round this stage was
     not behind. Acting on it takes the issue off the label that human chose,
-    in the same tick that recorded their move; left alone, that mark would
-    instead be waiting for whichever fixing round came next, which is a round
-    it says nothing about. It is also the only thing that catches an anchorless
+    and on the live road it does so in the same tick that recorded their move;
+    left alone, that mark would instead be waiting for whichever fixing round
+    came next, which is a round it says nothing about. It is also the only thing that catches an anchorless
     manual move back to `workflow:fixing`, since the settlement cleared both
     route anchors and dropped the transaction, leaving the comment looking
     exactly like a round that closed.

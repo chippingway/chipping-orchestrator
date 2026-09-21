@@ -28,12 +28,14 @@ from tests.support.publication import LandingPush
 from tests.workflow.stages.fixing import (
     fixing_test_support as fixing,
     published_gate_support as support,
+    report_crash_support as crash,
 )
 from tests.workflow.stages.fixing.test_late_dispatch import (
     _FrozenPairMixin,
 )
 from tests.workflow.stages.fixing.test_late_dispatch_spends import (
     CONSUMED_BATCH,
+    ROUND_BEFORE,
     ROUND_SPENT,
     _DiesPastTheReceipt,
     _pinned,
@@ -69,6 +71,9 @@ _PUBLISHED_WORLD = MappingProxyType({
     "head_shas": (MEASURED_CANDIDATE_SHA,),
     "fetched_branch_tip": MEASURED_CANDIDATE_SHA,
 })
+
+# The pinned field a report a fix round recorded and nothing bound stands on.
+KEY_DELIVERED_REPORT = "developer_report_delivery"
 
 PUBLICATION_PAID = "_publication_paid"
 WRITE_PINNED_STATE = "write_pinned_state"
@@ -106,19 +111,22 @@ class ReceiptCarriedRoundTest(unittest.TestCase, _FrozenPairMixin):
 
     The relabel is already out and the caller has a pinned write left to make;
     past the receipt there is no approval and no generation, so nothing on the
-    comment could tell a later tick what the route was part-way through. So
-    the round and the batch ride the receipt's own write -- and the tick that
-    comes back reads a publication the pull request already carries, counts
-    nothing more, and replays no feedback.
+    comment could tell a later tick what the route was part-way through. For a
+    round that reported, that account is the record of its report -- written
+    before the gate read anything -- and the recovery ahead of the next handler
+    is what reads it, publishes the report over the commit it re-proves, and
+    closes the round on the same write.
     """
 
-    def test_the_receipt_carries_the_round_it_landed(self) -> None:
+    def test_the_record_carries_the_landed_round(self) -> None:
         # The window the reviewer's own chain runs through: the push lands and
         # the caller's write -- the relabel's own -- never does. Past that
         # write there is no approval and no generation, so nothing on the
-        # comment could tell a later tick what the route still owed. Carried
-        # by the receipt instead, the round and the batch are already down
-        # when the crash happens.
+        # comment could tell a later tick what the route still owed. The
+        # report's own record is what does, and it is durable ahead of the
+        # gate: the round and the batch are frozen on it when the crash
+        # happens, and the report that has still to reach the pull request is
+        # what they wait for.
         scenario = self._seed_fix_round(**CONSUMED_BATCH)
         github = scenario.github
         crashing = _CrashesOnceTheReceiptIsWritten(github.write_pinned_state)
@@ -128,9 +136,11 @@ class ReceiptCarriedRoundTest(unittest.TestCase, _FrozenPairMixin):
 
         pinned = _pinned(github)
         self.assertEqual(pinned[KEY_RECEIPT_SHA], MEASURED_CANDIDATE_SHA)
-        self.assertEqual(pinned[KEY_REVIEW_ROUND], ROUND_SPENT)
-        self.assertIsNone(pinned[KEY_PENDING_FIX_AT])
-        self.assertIsNone(pinned[KEY_PENDING_COMMENT])
+        self.assertEqual(pinned[KEY_REVIEW_ROUND], ROUND_BEFORE)
+        self.assertIsNotNone(pinned[KEY_PENDING_FIX_AT])
+        self.assertIn(
+            (KEY_REVIEW_ROUND, ROUND_SPENT), crash.frozen_spends(pinned),
+        )
 
     def test_the_tick_after_that_crash_counts_nothing(self) -> None:
         # And the chain's other half: the tick that comes back reads a
@@ -146,19 +156,27 @@ class ReceiptCarriedRoundTest(unittest.TestCase, _FrozenPairMixin):
         self.assertEqual(_pinned(github)[KEY_REVIEW_ROUND], landed)
 
     def test_the_tick_after_that_crash_reruns_no_dev(self) -> None:
-        # The bookmarks the crashed tick consumed went down with its receipt,
-        # so the route behind this one finds no batch to replay: what runs is
-        # the reviewer over the head that landed, not the developer over
-        # feedback it has already answered.
+        # The recovery ahead of the scan answers the record the crashed tick
+        # left: it re-proves the checkout against the head the pull request is
+        # standing on, publishes the report over it, and settles -- which is
+        # the write that finally drops the bookmarks. What runs is that, not
+        # the developer over feedback it has already answered.
         crashed = self._crashed_past_the_receipt()
 
-        mocks = self._run_the_stage(crashed)
+        mocks = self._recovers(crashed)
 
         self.assertEqual(_resumed_sessions(mocks), [])
         replayed = _pinned(crashed)
+        self.assertIsNone(replayed[KEY_DELIVERED_REPORT])
         self.assertIsNone(replayed[KEY_PENDING_FIX_AT])
         self.assertIsNone(replayed[KEY_PENDING_COMMENT])
         self.assertIsNone(replayed[KEY_APPROVED_SHA])
+
+    def _recovers(self, github, **run_options):
+        """One tick over a checkout and a remote that agree on what landed."""
+        github.get_pr(fixing.PR_NUMBER).head.sha = MEASURED_CANDIDATE_SHA
+        with crash.on_a_real_checkout():
+            return self._run_the_stage(github, **_PUBLISHED_WORLD, **run_options)
 
     def _crashed_past_the_receipt(self):
         """The comment a tick that died on the write past its receipt left."""
@@ -170,9 +188,11 @@ class ReceiptCarriedRoundTest(unittest.TestCase, _FrozenPairMixin):
             self._run_fix_round(scenario)
         return github
 
-    def _run_the_stage(self, github):
+    def _run_the_stage(self, github, **run_options):
         """One dispatched tick, with the real fixing handler behind it."""
-        return self._route_to_the_stage(github, github.get_issue(ISSUE))
+        return self._route_to_the_stage(
+            github, github.get_issue(ISSUE), **run_options,
+        )
 
     _seed_fix_round = support._SizeGateFixtureMixin._seed_fix_round
     _run_fix_round = support._SizeGateFixtureMixin._run_fix_round
@@ -279,14 +299,17 @@ class ApprovedRetryEndToEndTest(unittest.TestCase, _FrozenPairMixin):
     """
 
     def test_the_retry_closes_the_round_it_owed(self) -> None:
-        # The round this fix spends and the batch it consumed were frozen with
-        # the pair and would have been closed by the caller's own tail. That
-        # tail never ran: its push failed. Left uncounted, the in_review
-        # re-entry behind this correlates the same triggering comments again
-        # and reruns a developer over feedback that was already answered.
+        # The round this fix spends and the batch it consumed are frozen on
+        # the record of the report it wrote, for the write that puts that
+        # report on the pull request. The caller's own tail never ran -- its
+        # push failed -- so what closes them is the recovery behind the retry,
+        # once the commit it republishes is one it can prove. Left uncounted,
+        # the in_review re-entry behind this correlates the same triggering
+        # comments again and reruns a developer over feedback that was already
+        # answered.
         github = self._approved_but_unpushed()
 
-        self._run_the_stage(github)
+        self._recovers(github)
 
         pinned = _pinned(github)
         self.assertEqual(pinned[KEY_REVIEW_ROUND], ROUND_SPENT)
@@ -299,7 +322,7 @@ class ApprovedRetryEndToEndTest(unittest.TestCase, _FrozenPairMixin):
         # the issue waits on a human for a failure that has already healed.
         github = self._approved_but_unpushed()
 
-        self._run_the_stage(github, **_PUBLISHED_WORLD)
+        self._recovers(github)
 
         pinned = _pinned(github)
         self.assertFalse(pinned[AWAITING_HUMAN])
@@ -337,10 +360,11 @@ class ApprovedRetryEndToEndTest(unittest.TestCase, _FrozenPairMixin):
         self.assertEqual(pinned[KEY_APPROVED_SHA], MEASURED_CANDIDATE_SHA)
 
     def test_a_crash_past_the_receipt_still_closes(self) -> None:
-        # The retry has no caller behind it either, so what it owes rides the
-        # receipt's own write: a process dying between the two would come back
-        # to a published commit, a paid debt, and a round nothing says was
-        # owed.
+        # The retry has no caller behind it either, so nothing it owes may be
+        # left to one: the receipt names what reached the remote and the
+        # report's own record names the round, so a process dying between the
+        # two comes back to a published commit, a paid debt, and an account of
+        # the handover still waiting for the report it belongs to.
         github = self._approved_but_unpushed()
 
         with patch.object(
@@ -350,8 +374,12 @@ class ApprovedRetryEndToEndTest(unittest.TestCase, _FrozenPairMixin):
 
         pinned = _pinned(github)
         self.assertEqual(pinned[KEY_RECEIPT_SHA], MEASURED_CANDIDATE_SHA)
-        self.assertEqual(pinned[KEY_REVIEW_ROUND], ROUND_SPENT)
         self.assertFalse(pinned[AWAITING_HUMAN])
+        self.assertIn(
+            (KEY_REVIEW_ROUND, ROUND_SPENT), crash.frozen_spends(pinned),
+        )
+
+    _recovers = ReceiptCarriedRoundTest._recovers
 
     def _approved_but_unpushed(self):
         """The pinned comment a fix round whose push missed leaves behind."""

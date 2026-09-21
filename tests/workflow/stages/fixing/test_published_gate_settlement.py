@@ -12,8 +12,12 @@ past -- record it too.
 Both sides of the push are here because the windows are different. Before the
 settlement write the branch may already be on the remote with nothing saying
 so, and the debt is the whole of what a later tick has to go on. After it, the
-receipt and the route's own bookkeeping are already durable and only the
-caller's tail is missing.
+receipt is already durable and only the caller's tail is missing.
+
+What the ROUTE owes is on neither side of that write, because a fix round that
+reported owes it to the report rather than to the push: the counter and the
+bookmarks ride that report's own record, and the write that puts it on the pull
+request is the one that applies them.
 
 The receipt is what makes the second window easy to miss: it is never cleared,
 so a branch that has been on the remote before arrives with it already naming
@@ -24,6 +28,7 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.workflow.engine import report_delivery_state as _delivery_state
 from orchestrator.workflow.stages.implementing import late_push as _late_push
 from tests.workflow.fixtures import _authorized_exemption
 from tests.workflow.stages.fixing import (
@@ -102,17 +107,23 @@ class UnmeasuredDebtTest(unittest.TestCase, _SizeGateFixtureMixin):
         )
         self.assertEqual(pinned[support.KEY_APPROVED_LEASE], PR_HEAD_SHA)
 
-    def test_the_debt_carries_what_the_route_owed(self) -> None:
+    def test_the_report_carries_what_the_route_owed(self) -> None:
         # The recovery has no run behind it to re-derive a reviewer round or a
-        # consumed fix batch from, so the obligations ride the same write the
-        # debt does and are spent by the push that pays it.
+        # consumed fix batch from, so the obligations are frozen where the
+        # crash cannot reach them either. A round that reported freezes them
+        # onto the RECORD of that report rather than onto the debt, because
+        # the publication they belong to is the report's rather than the
+        # push's: paid with the debt they would be spent a tick before the
+        # reviewer has anything describing the head they were spent for.
         scenario = self._exempt_publication()
 
         self._crashes(scenario, settling=False)
 
-        self.assertIn(
-            [REVIEW_ROUND, SPENT_ROUND], self._pinned(scenario)[KEY_SPENDS],
+        recorded = _delivery_state.read_delivered_report(
+            scenario.github.read_pinned_state(scenario.issue),
         )
+        self.assertIn((REVIEW_ROUND, SPENT_ROUND), recorded.spends)
+        self.assertFalse(self._pinned(scenario).get(KEY_SPENDS))
 
     def test_the_settlement_closes_the_debt(self) -> None:
         # The far side of the same write: the receipt names what reached the
@@ -131,8 +142,11 @@ class UnmeasuredDebtTest(unittest.TestCase, _SizeGateFixtureMixin):
         # identity to prove and a branch to search instead.
         self.assertEqual(pinned[support.KEY_RECEIPT_PR], PR_NUMBER)
         self.assertIsNone(pinned[support.KEY_APPROVED_SHA])
-        self.assertEqual(pinned[REVIEW_ROUND], SPENT_ROUND)
-        self.assertIsNone(pinned[PENDING_FIX_AT])
+        # And nothing of the round, which this push did not buy: the report
+        # describing the head it landed is still on the pinned comment, so the
+        # counter and the bookmarks stand for the write that publishes it.
+        self.assertEqual(pinned[REVIEW_ROUND], UNSPENT_ROUND)
+        self.assertIsNotNone(pinned[PENDING_FIX_AT])
 
     def test_an_uncrashed_push_hands_the_issue_on(self) -> None:
         # What says the two crashes above are about the window rather than
@@ -205,7 +219,6 @@ class SwitchedOffDebtTest(unittest.TestCase, _SizeGateFixtureMixin):
             pinned[support.KEY_APPROVED_SHA], MEASURED_CANDIDATE_SHA,
         )
         self.assertEqual(pinned[support.KEY_APPROVED_LEASE], PR_HEAD_SHA)
-        self.assertIn([REVIEW_ROUND, SPENT_ROUND], pinned[KEY_SPENDS])
 
     def test_the_switch_still_reads_nothing(self) -> None:
         # What says the debt is not the gate creeping back in: no pull request
@@ -248,8 +261,10 @@ class UnmeasuredDebtRetryTest(
 
     def test_the_retry_closes_what_the_debt_carried(self) -> None:
         # And the recovery closes it: the receipt names what reached the
-        # remote, the debt is gone, and the round the dead tick spent is
-        # counted once rather than left for a stage that cannot re-derive it.
+        # remote and the debt is gone. The round is NOT counted with it --
+        # the report describing that commit is still owed, and what the round
+        # this push belongs to costs is frozen on that report's own record for
+        # the write that finally publishes it.
         scenario = self._crashed_before_the_settlement()
 
         self._route_to_the_stage(
@@ -261,7 +276,7 @@ class UnmeasuredDebtRetryTest(
             pinned[support.KEY_RECEIPT_SHA], MEASURED_CANDIDATE_SHA,
         )
         self.assertIsNone(pinned[support.KEY_APPROVED_SHA])
-        self.assertEqual(pinned[REVIEW_ROUND], SPENT_ROUND)
+        self.assertEqual(pinned[REVIEW_ROUND], UNSPENT_ROUND)
 
     def _crashed_before_the_settlement(self):
         """One tick that pushed and died before it recorded anything."""
