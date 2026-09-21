@@ -140,6 +140,9 @@ _A_QUESTION = "which of the two parsers did you mean?"
 # a case about a report bound to the wrong one can say which one.
 _LATER_COMMIT = "a" * len(SHA_AFTER)
 
+# The handoff member naming the workflow label a settlement landed under.
+_SETTLED_UNDER = "under"
+
 # A delivered record shaped like nothing this build writes: the key is there,
 # so the issue CLAIMS a report, and no reader can say what it is about.
 _DAMAGED_DELIVERY = MappingProxyType({"receipt": "issue-880-report-1"})
@@ -478,6 +481,29 @@ class FixingStaleSettlementTest(unittest.TestCase, _ReportRoundMixin):
 
         self.assertIn(LATER_COMMENT, only_prompt(mocks))
 
+    def test_a_relabel_mid_run_settles_under_it(self) -> None:
+        # The copy the tick holds was fetched before the developer ran, so a
+        # human who relabelled while it was out is invisible there. Stamped
+        # off it, the settlement claims `workflow:fixing` was standing behind
+        # it -- and a later manual return to that label would then spend the
+        # mark it raised and bounce back to the reviewer with fresh feedback
+        # never scanned. Read afresh, the settlement says where it happened.
+        seeded = self._seed_round()
+        moved_on = support.make_issue(
+            ISSUE, label=VALIDATING, comments=seeded.issue.comments,
+        )
+
+        with patch.object(
+            seeded.github, "get_issue", return_value=moved_on,
+        ):
+            self._round(seeded.github, seeded.issue)
+
+        self.assertEqual(self._reports_posted(seeded), 1)
+        self.assertEqual(
+            self._pinned(seeded)[_records.REPORT_HANDOFF].get(_SETTLED_UNDER),
+            VALIDATING,
+        )
+
     def test_a_historical_report_answers_nothing(self) -> None:
         # A settled report is REPLACED rather than retired, and the publication
         # receipt beside it is persistent, so a pull request standing on the
@@ -544,6 +570,30 @@ class FixingReportOutcomeTest(unittest.TestCase, _ReportRoundMixin):
 
         self.assertTrue(_report_delivery.owes_a_report(self._record(seeded)))
         self.assertNotIn((ISSUE, IN_REVIEW_LABEL), seeded.github.label_history)
+
+    def test_a_moved_head_publishes_no_report(self) -> None:
+        # A report-only round proves the pull request already carries the code
+        # its report describes by reading a head that never moved -- and the
+        # copy the preflight fetched says that of a pull request anybody may
+        # have pushed to in the minutes the developer was out. Compared
+        # against that copy an untouched checkout still matches, so the report
+        # would go onto a head it does not describe and the reviewer would be
+        # handed it. Read again, the two disagree and nothing is published.
+        seeded = self._seed_round()
+        pushed_over = crash.PushesMidRun(
+            seeded.github.get_pr(support.PR_NUMBER),
+            self._open_pr(head=support.FakePRRef(sha=_LATER_COMMIT)),
+        )
+
+        with patch.object(seeded.github, "get_pr", pushed_over):
+            mocks = self._round(
+                seeded.github, seeded.issue,
+                head_shas=(SHA_BEFORE, SHA_BEFORE),
+            )
+
+        mocks[RUN_AGENT].assert_called_once()
+        self.assertEqual(self._reports_posted(seeded), 0)
+        self.assertFalse(self._went_back_to_review(seeded))
 
     def test_a_failed_push_spawns_no_second_developer(self) -> None:
         # The readers a settlement would move are held back until the
@@ -858,8 +908,13 @@ class FixingReportRecoveryTest(unittest.TestCase, _ReportRoundMixin):
         # checkout.
         seeded = self._seed_round(crashed=True, landed=PR_HEAD_SHA)
 
-        self._tick(seeded, head=SHA_AFTER)
+        mocks = self._tick(seeded, head=SHA_AFTER)
 
+        # Nobody is paid inside that window. The record's own frozen pairs say
+        # this batch is one an owed report already answered, so the tick finds
+        # nothing to act on rather than handing the identical prompt to a
+        # second developer.
+        spawned_nobody(mocks)
         pinned_data = self._pinned(seeded)
         self.assertTrue(_delivery_state.carries_delivered_report(
             self._record(seeded),

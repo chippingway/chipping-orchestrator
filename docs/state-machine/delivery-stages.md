@@ -693,8 +693,10 @@ The hash is re-persisted on every reaction so a single edit triggers exactly one
     would be a false "exact" location for every later reread; for a verification, nothing is posted and the named
     location is re-read, requiring both a trusted author and content that still hashes to the revision verified.
     Either way one `developer_report_current`, one `developer_report_handoff` — carrying the workflow label the
-    issue was on as the write landed, which nothing reconstructs afterwards and which the acceptance measurement
-    reserves at the longest label spelling there is — the consumed watermarks, and the
+    issue was on as the write landed, read off the issue this settlement re-reads for the requirements rather than
+    off the copy fetched before the run (a human who relabelled while the developer was out is invisible there),
+    reconstructible from nothing afterwards, and reserved by the acceptance measurement at the longest label
+    spelling there is — the consumed watermarks, and the
     route's round / bookmark fields land in a single write with the drop of the pending record. That write is
     composed whole before any of it is installed, so a settled record its own writer refuses lands none of itself
     rather than dropping the pending record beside a report nothing says the pull request carries. Reaching that
@@ -3584,9 +3586,9 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      A push that did NOT land settles nothing either. The record keeps both groups, exactly as a refused post leaves
      them, because the report is still ahead of the issue rather than behind it: the no-feedback bounce republishes
      that commit, binds the delivery to it, and the settlement that completes the publication is what advances the
-     readers. Holding them back costs one re-delivery of the batch in that window — the round that runs in it binds
-     the standing record before it spends or relabels, so the report is not lost by it — and the alternative costs
-     the thing this split exists to prevent: feedback recorded as answered for a report no reviewer has.
+     readers. Holding them back costs no re-delivery: the record's own frozen watermarks are what step 6 reads, so
+     every tick inside that window finds nothing to act on and spawns nobody — and the alternative costs the thing
+     this split exists to prevent: feedback recorded as answered for a report no reviewer has.
   10. **On a pushed fix**: clear `pending_fix_*`, adjust `review_round` per the route discriminator (in_review route
       resets to 0 — the previous approval was for the prior head; validating route bumps by 1 — same review cycle),
       flip DIRECTLY back to `workflow:validating`. Docs do not run on this exit.

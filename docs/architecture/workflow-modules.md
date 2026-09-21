@@ -1520,7 +1520,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and route bookkeeping ride (`engine/report_delivery.py`), the binding and post that put
                             it on the pull request (`engine/report_binding.py`), the report-only reading -- every
                             half of it positive, since a head nobody could read and a divergence nothing could count
-                            both answer the same as a branch in sync -- the two parks a round earns ahead of every
+                            both answer the same as a branch in sync, and taken over a pull request read AGAIN,
+                            since this is the one road whose evidence is a head that did not move and the copy the
+                            preflight fetched says that of a remote anybody may have pushed to meanwhile -- the two
+                            parks a round earns ahead of every
                             other road (a reply that reached for the contract and missed, and a commit made over a
                             report an earlier tick recorded, which no road may bind over afterwards), the
                             announcement a wait nothing left can end earns, and the answer that holds the relabel

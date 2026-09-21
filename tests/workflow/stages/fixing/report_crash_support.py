@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a crash between a report's record and its publication leaves behind.
+"""What happens inside the windows a report round leaves open.
 
 A report is written to the pinned comment before the size gate and before the
 push, so every window past that write is one a tick can die in and come back to
@@ -8,6 +8,9 @@ an issue that still says what its developer reported. These are the shapes those
 windows leave -- a delivery nothing bound, with or without a receipt beside it --
 and the reading a case about such a window actually needs: not what the comment
 says once the dust settles, but what the FIRST write that mattered already said.
+
+The minutes a developer is OUT are a window of the same kind, and what arrives
+in them is here too: a human's reply, and somebody else's push.
 """
 
 from __future__ import annotations
@@ -84,9 +87,28 @@ def consumed_pairs(issue, readers, comment_id: int) -> tuple:
     return _feedback._consumed_delivery(seeded, batch).consumed_pairs(seeded)
 
 
-def _now():
-    """The tz-aware clock a settled comment's age is measured from."""
-    return _datetime.now(UTC)
+class PushesMidRun:
+    """What GitHub serves once somebody else's push has landed mid-run.
+
+    What a report-only round has to survive: its evidence is a head that never
+    moved, and the pull request it compares that head against was fetched by a
+    preflight that ran before the developer did.
+
+    So the FIRST read answers the pull request the round began on and every
+    read after it answers the one the push left. A fixture that merely moved
+    the head on the object in hand would be no test at all -- the tick holds
+    that same object, so a re-read and the stale copy would agree, which is
+    exactly the disagreement the reading exists to find.
+    """
+
+    def __init__(self, standing, moved):
+        self.standing = standing
+        self.moved = moved
+        self.served = 0
+
+    def __call__(self, *_args, **_fields):
+        self.served += 1
+        return self.standing if self.served == 1 else self.moved
 
 
 def recorded_delivery(
@@ -136,7 +158,7 @@ def later_pr_comment(pull_request, comment_id: int, body: str) -> None:
         id=comment_id,
         body=body,
         user=_FakeUser(_HUMAN),
-        created_at=_now() - _timedelta(hours=1),
+        created_at=_datetime.now(UTC) - _timedelta(hours=1),
     ))
 
 
@@ -151,5 +173,5 @@ def later_comment(issue, comment_id: int, body: str) -> None:
         id=comment_id,
         body=body,
         user=_FakeUser(_HUMAN),
-        created_at=_now() - _timedelta(hours=1),
+        created_at=_datetime.now(UTC) - _timedelta(hours=1),
     ))

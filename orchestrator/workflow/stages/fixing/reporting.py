@@ -29,6 +29,8 @@ this owner is asked first.
 """
 from __future__ import annotations
 
+import logging
+
 from orchestrator import config as _config
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
@@ -43,6 +45,8 @@ from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
 )
 from orchestrator.workflow.state import WorkflowLabel
+
+log = logging.getLogger("orchestrator.workflow")
 
 # The mark this route's settlement raises, recorded beside the bookkeeping it
 # closes so the one write that completes a publication carries both. It is the
@@ -188,12 +192,37 @@ def _is_report_only(
     through the file list beside it, since that list answers empty for a status
     nobody could read -- an unread checkout is work nobody can see the shape
     of, which is the one thing a report may never be published over.
+
+    The pull request is READ AGAIN for that comparison, and this road is the
+    only one that has to. Every other publication here names a commit some
+    push of this tick's just landed, which the size gate leases against the
+    head it was proved on -- so a remote that moved under it refuses the push
+    rather than the report. A report-only round pushes nothing at all: its
+    evidence is that the head never moved, and the copy the preflight fetched
+    says that of a pull request anybody may have pushed to in the minutes the
+    developer was out. Compared against that copy, an untouched local checkout
+    still matches, and a report describing the commit the round began on goes
+    onto a pull request that has since moved past it -- with the issue handed
+    back to the reviewer over a head nothing describes.
+
+    A read nobody could take answers False, like every other absence here: the
+    round then takes the ordinary no-commit road, which parks for a human
+    rather than publishing over a pull request this tick could not place.
     """
     if run.dev_result.timed_out or not run.after_sha:
         return False
     if run.after_sha != run.before_sha:
         return False
-    if run.after_sha != getattr(ctx.pr.head, "sha", ""):
+    try:
+        published = ctx.gh.get_pr(ctx.pr.number)
+    except Exception:
+        log.exception(
+            "issue=#%d could not re-read PR #%s to say whether it is still "
+            "standing where this round found it; publishing no report over it",
+            ctx.issue.number, getattr(ctx.pr, "number", None),
+        )
+        return False
+    if run.after_sha != getattr(getattr(published, "head", None), "sha", ""):
         return False
     return _worktree_status._worktree_status(run.worktree).is_clean
 

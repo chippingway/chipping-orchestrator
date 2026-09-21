@@ -767,7 +767,10 @@ The keys that matter for the state machine fall into a few groups:
   hand-back its own stage has to make needs it: the reconciliation runs ahead of every handler on every
   non-terminal label, so a transaction can settle somewhere its own stage is not looking. A record without the
   member was settled before it existed and a value naming no label is damage, both of which every reader holds to
-  the stricter answer.
+  the stricter answer. It is read off the issue the settlement re-reads to prove its requirements, never off the
+  copy the tick has held since before the developer ran: stamped off that one, a settlement lands under a label a
+  human has since moved off, and the route that hands a round back on that claim spends it over feedback nobody
+  read.
   Both settled records, the watermarks the run consumed, the bookkeeping its route owed, and the drop of the pending
   record land in ONE durable write, because every split between them is a window a crash turns into a second report
   or a round spent twice. That write is composed whole before any of it is installed, so a settled record its own

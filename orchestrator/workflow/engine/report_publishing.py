@@ -409,14 +409,22 @@ def settles(
     the reconciliation's, ahead of any handler, so the stage that road belongs
     to may not be the stage that is running.
 
-    That label is read FAIL-CLOSED, which is the answer that costs least here:
-    the labels are a lazy read and may fail like any request, and a settlement
-    that raised out of that line would leave the report published and the
-    transaction still outstanding. Every reader holds a missing label to the
-    stricter answer, so the cost of the absence is a hand-back left for the
-    route that can prove it rather than one taken on a guess.
+    That label is read off the issue this owner reads AFRESH, never off the
+    copy in hand: that one was fetched before the developer ran, so a human who
+    has relabelled since is invisible there -- and a settlement stamped with a
+    label the issue has left claims a stage was standing behind it, which the
+    route that hands a round back on that claim then spends over feedback
+    nobody read. It is the same fetch the requirements are proved over, because
+    two fetches would be two answers to one question.
+
+    It is read FAIL-CLOSED beyond that, which is the answer that costs least
+    here: the labels are a lazy read and may fail like any request, and a
+    settlement that raised out of that line would leave the report published
+    and the transaction still outstanding. Every reader holds a missing label
+    to the stricter answer, so the cost of the absence is a hand-back left for
+    the route that can prove it rather than one taken on a guess.
     """
-    edited = _evidence.fresh_requirements_verdict(gh, issue, state, pending)
+    fresh, edited = _evidence.fresh_issue_reading(gh, issue, state, pending)
     if edited is not None:
         log.info(
             "issue=#%d is not settling developer report revision %d on PR #%d: "
@@ -426,29 +434,33 @@ def settles(
         )
         return edited.holds
     settled = PinnedState(state_data=dict(state.data))
-    recorded = _settlement.record_current_report(settled, current)
-    # The label read fail-closed, which is the answer that costs least here:
-    # the labels are a lazy read and may fail like any request, and a
-    # settlement that raised out of this line would leave the report published
-    # and the transaction still outstanding. Readers hold a missing label to
-    # the stricter answer, so the cost of the absence is a hand-back left for
-    # the route that can prove it rather than one taken on a guess.
+    # Read off the issue this owner just re-read, never off the copy in hand:
+    # that one was fetched before the developer ran, so a human who relabelled
+    # since is invisible there. Fail-closed beyond that, which is the answer
+    # that costs least: the labels are a lazy read and may fail like any
+    # request, and a settlement that raised out of this line would leave the
+    # report published and the transaction still outstanding. Readers hold a
+    # missing label to the stricter answer, so the cost of the absence is a
+    # hand-back left for the route that can prove it rather than one taken on
+    # a guess.
     try:
-        under = _labels.workflow_label(issue)
+        under = _labels.workflow_label(fresh)
     except Exception:
         log.exception(
             "issue=#%d could not read the workflow label its developer report "
             "settled under; recording the settlement without one", issue.number,
         )
         under = None
-    handed = _settlement.record_handoff(settled, _records.ReportHandoff(
-        receipt=pending.receipt,
-        pr_number=pending.subject.pr_number,
-        report_revision=pending.report_revision,
-        source_sha=pending.subject.source_sha,
-        settled_under=under,
-    ))
-    if not recorded or not handed:
+    stored = _settlement.record_current_report(settled, current) and (
+        _settlement.record_handoff(settled, _records.ReportHandoff(
+            receipt=pending.receipt,
+            pr_number=pending.subject.pr_number,
+            report_revision=pending.report_revision,
+            source_sha=pending.subject.source_sha,
+            settled_under=under,
+        ))
+    )
+    if not stored:
         log.error(
             "issue=#%d published developer report revision %d on PR #%d and "
             "settles into a record this build will not store; holding the "

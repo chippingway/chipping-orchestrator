@@ -279,12 +279,16 @@ round is recorded, published and settled rather than parked:
   label all stand where the round found them.
 - A **report-only** round — a clean tree, a HEAD that did not move, nothing stranded — publishes its report against
   the head its pull request already stands on and hands the issue back to `workflow:validating`. Read as an ordinary
-  no-commit reply it would park as a question with the report unpublished behind a human's answer.
+  no-commit reply it would park as a question with the report unpublished behind a human's answer. It is the one
+  road that re-reads the pull request before it decides: every other publication names a commit its own push just
+  landed under a lease, while this one's whole evidence is a head that never moved — and the copy fetched before
+  the developer ran says that of a pull request somebody else may have pushed to meanwhile.
 - A round whose **push did not land** publishes nothing, so nothing bound its report — and the readers do not move
   for it either. The record keeps both groups, the delivery stays on the comment, and the no-feedback bounce — the
-  one tick that republishes that commit — binds it so the settlement can close them. The cost of holding the readers
-  back is that the crash window between a recorded report and its publication can re-deliver the batch once; the
-  report is not lost by it, because the round that runs binds the standing record before it spends or relabels.
+  one tick that republishes that commit — binds it so the settlement can close them. Holding the readers back costs
+  no re-delivery: the record's own frozen watermarks say the batch is one an owed report already answered, so the
+  ticks inside that window find nothing to act on and spawn nobody, and what moves the round on is the publication
+  landing rather than a second developer over the same prompt.
 - A reply that **reached for the contract and missed** (the commonest miss being an `ACK:` line beside a report) is
   neither a report to record nor a reply to act on, and it is held for a human ahead of every other road — including
   the publication one, since a commit beside such a message would otherwise be pushed and relabelled with no report

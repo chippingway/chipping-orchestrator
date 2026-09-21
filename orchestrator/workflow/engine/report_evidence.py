@@ -126,19 +126,28 @@ def evidence_for(
     return found if edited is None else edited
 
 
-def fresh_requirements_verdict(
+def fresh_issue_reading(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
     pending: _records.PendingReport | _records.CurrentReport,
-) -> _evidence_models.ReportEvidence | None:
-    """Refuse a report the issue has moved under since the run, or None.
+) -> tuple:
+    """The issue read AGAIN, and what its requirements say about this report.
 
-    The same reading as the composition's, over an issue read AGAIN: the one
-    in hand was fetched before the developer ran, so an edit during the run or
-    the publication after it is invisible there. A fetch that failed HOLDS,
-    since nobody could say the issue is unchanged. A settled report answers
-    the same question, over the subject it froze.
+    Both halves of one fetch, because a settlement needs both and two fetches
+    would be two answers. The requirements are the reading every caller here
+    asks for; the ISSUE itself is what the settlement stamps its handoff with,
+    since the label it records is the one the issue is carrying as that write
+    lands -- and the copy in hand was fetched before the developer ran, so a
+    human who has relabelled since is invisible there. Stamped off that copy,
+    a settlement under a label the issue has left claims a stage was standing
+    behind it, and the route that hands a round back on that claim spends it
+    over feedback nobody read.
+
+    None for the issue is a fetch that did not happen, and the verdict beside
+    it HOLDS: nobody could say the issue is unchanged, and nobody could say
+    where it is either. A settled report answers the same question, over the
+    subject it froze.
     """
     try:
         fresh = gh.get_issue(issue.number)
@@ -148,11 +157,25 @@ def fresh_requirements_verdict(
             "have moved since the run that wrote its developer report",
             issue.number,
         )
-        return _evidence_models.ReportEvidence(
+        return None, _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.HOLD,
             "the issue could not be re-read for its requirements",
         )
-    return _requirements_verdict(fresh, state, pending)
+    return fresh, _requirements_verdict(fresh, state, pending)
+
+
+def fresh_requirements_verdict(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    pending: _records.PendingReport | _records.CurrentReport,
+) -> _evidence_models.ReportEvidence | None:
+    """Refuse a report the issue has moved under since the run, or None.
+
+    The requirements half of the reading above, for the callers that need no
+    more than that.
+    """
+    return fresh_issue_reading(gh, issue, state, pending)[1]
 
 
 def _requirements_verdict(
