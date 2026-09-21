@@ -97,7 +97,7 @@ class ReviewerAnchorReconstructionTest(
         )
         state = gh.read_pinned_state(issue)
 
-        batch = _reconstruct_pending_fix_batch(gh, issue, pr, state)
+        batch = _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items
 
         self.assertEqual(
             [feedback_item.id for feedback_item in batch],
@@ -119,7 +119,7 @@ class ReviewerAnchorReconstructionTest(
         state = gh.read_pinned_state(issue)
 
         with patch.object(config, ALLOWED_AUTHORS_CONFIG, (ALLOWED_AUTHOR,)):
-            batch = _reconstruct_pending_fix_batch(gh, issue, pr, state)
+            batch = _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items
 
         self.assertEqual(
             [feedback_item.id for feedback_item in batch],
@@ -139,7 +139,9 @@ class ReviewerAnchorReconstructionTest(
         )
         state = gh.read_pinned_state(issue)
 
-        self.assertEqual(_reconstruct_pending_fix_batch(gh, issue, pr, state), [])
+        self.assertEqual(
+            _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items, [],
+        )
 
     def test_missing_anchor_comment_yields_empty(self) -> None:
         # The anchor id points at a comment that no longer exists (deleted, or
@@ -153,7 +155,9 @@ class ReviewerAnchorReconstructionTest(
         )
         state = gh.read_pinned_state(issue)
 
-        self.assertEqual(_reconstruct_pending_fix_batch(gh, issue, pr, state), [])
+        self.assertEqual(
+            _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items, [],
+        )
 
     def test_id_set_prefers_list_rejects_bool_max(self) -> None:
         from orchestrator.github.pinned_state import PinnedState

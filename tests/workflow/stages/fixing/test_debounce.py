@@ -8,6 +8,10 @@ import unittest
 
 from orchestrator.workflow.stages.fixing import feedback as _feedback, models as _models
 from tests.workflow.stages.fixing import fixing_test_support as support
+from tests.workflow.stages.fixing.prompt_expectations import (
+    only_prompt,
+    pr_feedback_prompt,
+)
 
 IssueScenario = support.IssueScenario
 
@@ -67,15 +71,13 @@ def _comment(comment_id: int, created_at) -> FakeComment:
     return FakeComment(id=comment_id, body=FEEDBACK_BODY, created_at=created_at)
 
 
-def _batch(issue_space=(), review_summaries=()) -> _models._FixingFeedback:
+def _batch(issue_thread=(), review_summaries=()) -> _models._FixingFeedback:
     """A rescan result carrying only the surfaces a case needs."""
-    issue_space = list(issue_space)
-    review_summaries = list(review_summaries)
     return _models._FixingFeedback(
-        issue_space=issue_space,
+        issue_thread=list(issue_thread),
+        pr_conversation=[],
         review_comments=[],
-        review_summaries=review_summaries,
-        all_items=issue_space + review_summaries,
+        review_summaries=list(review_summaries),
     )
 
 
@@ -291,7 +293,7 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
     def test_interrupted_no_commit_resume_is_ignored(self) -> None:
         # A shutdown-killed (interrupted) resume that produced no commit
         # must be ignored entirely: the handler bails WITHOUT persisting, so
-        # the consumed-watermark advance, bookmark clear, and awaiting_human
+        # the delivery settlement, bookmark clear, and awaiting_human
         # reset never reach GitHub. The next tick re-feeds the same comment
         # to a fresh dev session. Distinct from a no-commit no-ACK reply,
         # which parks awaiting_human via `_on_question`.
@@ -318,8 +320,9 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
             )
 
         # The resume DID run (so this exercises the post-resume guard, not a
-        # pre-resume bail) but produced no commit and was killed.
-        mocks[RUN_AGENT].assert_called_once()
+        # pre-resume bail) but produced no commit and was killed. One run,
+        # handed exactly this batch -- what the guard refuses is the RESULT.
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt((comment,)))
         mocks[PUSH_BRANCH].assert_not_called()
         # Nothing but the spawn's own charge persisted this tick: the rest of
         # the seeded state stands untouched.
@@ -329,7 +332,7 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
         # No relabel, no ACK FYI comment.
         self.assertEqual(scenario.github.label_history, [])
         self.assertEqual(scenario.github.posted_comments, [])
-        # Watermarks and bookmarks unmoved; awaiting_human not cleared/set.
+        # Readers and bookmarks unmoved; awaiting_human not cleared/set.
         self._pinned_data = scenario.github.pinned_data(ISSUE)
         self.assertEqual(
             self._pinned_data.get(PR_LAST_COMMENT_ID),
@@ -342,8 +345,8 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
     def test_interrupted_with_new_commit_is_ignored(self) -> None:
         # An interrupted resume that DID advance HEAD must also be ignored:
         # `_handle_dev_fix_result` refuses to publish an interrupted run, so
-        # if the handler did not bail here it would advance the consumed
-        # watermarks and write state while the local commit sits unpushed --
+        # if the handler did not bail here it would settle the batch as
+        # delivered and write state while the local commit sits unpushed --
         # consuming the feedback and leaving the next tick with no feedback
         # and a PR head missing the fix. The guard must therefore fire for
         # the new-commit case too; the commit stays on disk for a later clean
@@ -370,7 +373,7 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
                 head_shas=(SHA_BEFORE, SHA_AFTER),  # HEAD advanced
             )
 
-        mocks[RUN_AGENT].assert_called_once()
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt((comment,)))
         # The interrupted commit is NOT pushed and nothing is consumed.
         mocks[PUSH_BRANCH].assert_not_called()
         self.assertEqual(

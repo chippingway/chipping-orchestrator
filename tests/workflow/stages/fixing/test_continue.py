@@ -53,6 +53,7 @@ PENDING_FIX_REVIEW_SUMMARY_MAX_ID = support.PENDING_FIX_REVIEW_SUMMARY_MAX_ID
 POISONED_SESSION = support.POISONED_SESSION
 PRESERVED_BATCH_BODIES = support.PRESERVED_BATCH_BODIES
 PR_HEAD_SHA = support.PR_HEAD_SHA
+LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
 PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
 PR_LAST_REVIEW_COMMENT_ID = support.PR_LAST_REVIEW_COMMENT_ID
 PR_LAST_REVIEW_SUMMARY_ID = support.PR_LAST_REVIEW_SUMMARY_ID
@@ -248,32 +249,45 @@ class OrchestratorContinueCommandTest(
         # A generic continue carries none of the answer, so refuse: stay
         # parked, consume the command so the refusal does not re-fire, and
         # leave the preserved batch intact for a genuine human reply.
-        gh, issue, _pr = self._seed_parked_with_batch(
-            _ContinueSeed(park_reason=None),
-        )
+        #
+        # What "consume" means is the surface the command was posted on and no
+        # other. The two share GitHub's IssueComment numbering and share no
+        # reader: a command typed into the pull request is not something the
+        # issue thread delivered, so recording it there would answer a reply
+        # nobody wrote.
+        for on_the_pull_request in (False, True):
+            with self.subTest(on_the_pull_request=on_the_pull_request):
+                gh, issue, _pr = self._seed_parked_with_batch(
+                    _ContinueSeed(
+                        park_reason=None,
+                        command_on_pr_conversation=on_the_pull_request,
+                    ),
+                )
 
-        mocks = self._run_fixing(
-            gh,
-            issue,
-            run_agent=_agent(),
-        )
+                mocks = self._run_fixing(gh, issue, run_agent=_agent())
 
-        mocks[RUN_AGENT].assert_not_called()
-        self._pinned_data = gh.pinned_data(ISSUE)
-        self.assertTrue(self._pinned_data.get(AWAITING_HUMAN))
-        self.assertNotIn((ISSUE, VALIDATING), gh.label_history)
-        self.assertEqual(self._pinned_data.get(PR_LAST_COMMENT_ID), COMMAND_COMMENT_ID)
-        self.assertEqual(
-            self._pinned_data.get(PENDING_FIX_ISSUE_IDS),
-            list(BATCH_ISSUE_IDS),
-        )
-        self.assertTrue(
-            posted_comment_contains(
-                gh,
-                "/orchestrator continue",
-                "guidance",
-            ),
-        )
+                mocks[RUN_AGENT].assert_not_called()
+                self._pinned_data = gh.pinned_data(ISSUE)
+                self.assertTrue(self._pinned_data.get(AWAITING_HUMAN))
+                self.assertNotIn((ISSUE, VALIDATING), gh.label_history)
+                self.assertEqual(
+                    self._pinned_data.get(PR_LAST_COMMENT_ID), COMMAND_COMMENT_ID,
+                )
+                self.assertEqual(
+                    self._pinned_data.get(LAST_ACTION_COMMENT_ID),
+                    None if on_the_pull_request else COMMAND_COMMENT_ID,
+                )
+                self.assertEqual(
+                    self._pinned_data.get(PENDING_FIX_ISSUE_IDS),
+                    list(BATCH_ISSUE_IDS),
+                )
+                self.assertTrue(
+                    posted_comment_contains(
+                        gh,
+                        "/orchestrator continue",
+                        "guidance",
+                    ),
+                )
 
     def test_refuses_continue_when_no_preserved_batch(self) -> None:
         # Eligible reason but nothing on file to replay (bookmarks gone). A

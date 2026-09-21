@@ -20,16 +20,33 @@ replay from.
 
 That is why `feedback` and `bookmarks` are separate owners: one reads forward
 from a watermark, the other reconstructs backward from recorded ids, and only
-`continue_command` needs the second. `feedback` also owns the ratchet, because
-what a consumed batch is allowed to hide is the same decision as what an unread
-scan is allowed to see. `parked` is the dispatcher for a tick that arrived
+`continue_command` needs the second. Both keep their four surfaces apart, and
+the reconstruction has to because a replay is DELIVERED: what an accepted
+`/orchestrator continue` settles is the batch it replayed joined with the
+fresh rescan, so the issue-thread half of a preserved batch moves the
+issue-action boundary and its PR-conversation half never does. `feedback` also
+owns the settlement, because what a consumed batch is allowed to hide is the
+same decision as what an unread scan is allowed to see -- and it is a
+settlement rather than one watermark bump because a fix prompt quotes four
+surfaces and each answers to a different reader. The issue thread answers to
+the issue-action boundary `last_action_comment_id` as well as the PR-side
+cursor, since the implementing and validating resumes deliver from that surface
+too; the pull request's three surfaces answer to the in_review watermarks and
+to nothing else. `parked` is the dispatcher for a tick that arrived
 `awaiting_human`, and `drift` is the exit it takes when the validating-route
 recovery cannot clear a transient park but the worktree has fallen behind base:
 the per-tick base sync stands down on every park, so nobody else will rebase it.
 
 `resume` is the run and everything a finished run leaves behind -- the quiet
-window it waits out, the ACK fast path, the watermark advance that runs on BOTH
-outcomes, and the `validating` relabel a pushed fix earns.
+window it waits out, the three refusals that count no delivery at all (a launch
+nothing invoked, a shutdown kill, a live pause), the settlement every other
+outcome earns, the ACK fast path, and the `validating` relabel a pushed fix
+earns.
+
+A fix prompt teaches the report contract like every other developer prompt, so
+a round can end on `REPORT: READY` -- and then it owes a publication this tick
+cannot guarantee. Such a round settles nothing: feedback recorded as answered
+for a report no reviewer has is the reading the fork in `resume` refuses.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

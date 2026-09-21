@@ -85,6 +85,10 @@ def _branch(issue_number: int) -> str:
 FIXING = "workflow:fixing"
 STAGE_FIXING = "fixing"
 VALIDATING = "workflow:validating"
+# The label the in_review-route ACK fast path relabels to, spelled as GitHub
+# carries it -- `IN_REVIEW` below is the stage name a handler is keyed by, and
+# a label-history assertion made against that one can never fail.
+IN_REVIEW_LABEL = fixtures.LABEL_IN_REVIEW
 DOCUMENTING = "workflow:documenting"
 IN_REVIEW = "in_review"
 

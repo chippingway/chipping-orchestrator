@@ -3309,7 +3309,21 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      `pr_last_comment_id` alone. That is what a manual relabel straight into `workflow:fixing` depends on: no
      handoff seeded a PR-side watermark, so reading the pull request past the issue-thread cursor would hide every PR
      comment numbered below the last reply a developer answered. Orchestrator comments are filtered by
-     recorded id AND the hidden `<!--orchestrator-comment-->` body marker.
+     recorded id AND the hidden `<!--orchestrator-comment-->` body marker, and the pinned record itself is dropped by
+     IDENTITY beside them — it carries a marker of its own and nothing writes its id into the ledger, so an issue
+     whose cursors sit below it would otherwise quote this stage's own bookkeeping to a developer, which the
+     settlement then refuses as the pinned comment and records for nobody. The batch (`_FixingFeedback`) keeps each
+     surface as its own list and derives the merged issue-space and prompt orders from them, because the settlement in
+     step 9 owes a different reader for each surface.
+
+     The two REVIEW surfaces are read through the delivery owner's own classifier
+     (`prompt_delivery.classify_review_trust`) rather than through the trust gate beside it, because that classifier
+     is what the settlement applies: an item the scan admitted and the settlement refused is quoted to a developer
+     and recorded for nobody — a refused entry is neither delivered nor blocking, so the surface's watermark does not
+     move and the next tick hands the identical comment to a second developer. That classifier carries no
+     forged-marker rule, and its absence is deliberate: the orchestrator posts no review and no inline comment, so a
+     body quoting `<!--orchestrator-comment-->` there is a reviewer quoting it and nothing else. On the two
+     IssueComment surfaces, where the orchestrator does post and the id ledger evicts, the marker rule stands.
   5. If `awaiting_human`, first handle the **`/orchestrator continue` operator command** (`_handle_continue_command`).
      It is matched as an EXACT LINE (`^\s*/orchestrator continue\s*$`), so a comment carrying the command line AND real
      guidance still counts as the command; the command is handled on BOTH routes so a session-limit / session-failure
@@ -3327,15 +3341,16 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      the park, and **replay the preserved feedback batch** (`_reconstruct_pending_fix_batch`) carrying the fresh
      feedback that says something (`_carried_fresh_feedback`) — any guidance posted with or beside the command,
      verbatim — but NEVER the bare command itself: a replay renders what it is handed as PR feedback to implement, so
-     the command line would read as work to do. Dropping it strands nothing, because the resume tail advances the
-     watermarks past all of the fresh feedback rather than past what it replayed. Resume the fresh dev on that batch,
-     skipping the debounce; **refuse** — a content-free continue (every fresh comment is a bare
-     command) on a park it cannot retry (an unsafe park needing real human guidance, both `park_reason=None`; or an
-     eligible reason with **no reconstructable batch**, e.g. a validating-route park whose reviewer anchor was never
-     recorded or has since been deleted): the command comment is consumed (watermark advanced past it so the refusal
-     does not re-fire) and a note is posted, and the issue stays parked; **passthrough** — the command arrived alongside
-     genuine guidance on a park with no replayable batch, so it falls through to the normal resume below and that
-     guidance drives the dev.
+     the command line would read as work to do. Dropping it strands nothing, because what the resume settles is the
+     replayed batch JOINED with the whole fresh rescan, each item against the reader of the surface it was posted on —
+     so the command is recorded as answered on the surface it was typed into and does not re-fire next tick. Resume
+     the fresh dev on that batch, skipping the debounce; **refuse** — a content-free continue (every fresh comment is
+     a bare command) on a park it cannot retry (an unsafe park needing real human guidance, both `park_reason=None`;
+     or an eligible reason with **no reconstructable batch**, e.g. a validating-route park whose reviewer anchor was
+     never recorded or has since been deleted): the command comment is consumed on the surface it was posted on (so
+     the refusal does not re-fire, and a later route reads the answered command as answered) and a note is posted, and
+     the issue stays parked; **passthrough** — the command arrived alongside genuine guidance on a park with no
+     replayable batch, so it falls through to the normal resume below and that guidance drives the dev.
 
      Otherwise, when the rescan finds nothing new, branch on `park_reason` AND the route discriminator `pending_fix_at`:
      - **Transient reason** (`push_failed` / `agent_timeout` / `reviewer_timeout` / `reviewer_failed` — the
@@ -3390,10 +3405,17 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      `IN_REVIEW_DEBOUNCE_SECONDS`, return.
   8. **Resume**: build a `_build_pr_comment_followup` prompt over ALL unread surfaces, resume the locked dev via
      `_resume_dev_with_text` (`pause_guard=True`), refresh `user_content_hash` (so any issue-thread comment we just fed
-     to the dev doesn't re-fire validating's drift check). An `interrupted` resume is ignored entirely BEFORE the ACK
-     fast path, the stranded-fix check, and the watermark advance below: the handler returns WITHOUT writing pinned
-     state, so no watermark advances, `awaiting_human` is untouched, and the next tick re-discovers the same feedback. A
-     mid-run `paused` / `backlog` short-circuits the same way, right after the interrupted check. Otherwise, a
+     to the dev doesn't re-fire validating's drift check). Three outcomes are ignored entirely BEFORE the ACK
+     fast path, the stranded-fix check, and the settlement below, and each returns WITHOUT writing pinned state, so
+     nothing is settled, `awaiting_human` is untouched, and the next tick re-discovers the same feedback: an
+     `interrupted` resume a shutdown killed, a launch the run circuit never invoked
+     (`guards._ignore_if_never_invoked`), and a mid-run `paused` / `backlog`. Past them the prompt reached an agent, so
+     the batch it quoted is delivered and is **settled** right there (`_settle_consumed_feedback`), ahead of every
+     disposition below, because the size gate's own durable write and a park's both land inside that disposition and a
+     settlement taken afterwards would be lost to a crash in the window a hold's relabel opens. The one outcome that
+     settles nothing is a run that finished on a **report outcome** (`report_outcomes._finished_on_a_report`): a
+     `REPORT: READY` / `REPORT: VERIFIED` reply owes a publication this tick cannot promise, and feedback recorded as
+     answered for a report no reviewer has is the reading that fork refuses. Then the disposition: a
      no-commit reply first checks for a **stranded fix** (`_stranded_fix_unpushed`): when the worktree is clean and HEAD
      is strictly ahead of the fetched remote PR branch (a fix committed by an earlier parked run whose publish was
      blocked — e.g. a dirty-park whose stray files were cleaned up afterwards), the handler publishes it through the
@@ -3406,9 +3428,19 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      disposition as the validating fix-loop. Any other unmarked no-commit reply falls through to `_on_question` and
      parks awaiting human — a no-ACK reply may be a real dev question, and we cannot tell by inspection (a dirty tree,
      failed fetch, or a remote that moved past the local view also falls back to this park rather than pushing blind).
-  9. **Watermark advance**: regardless of dev outcome, `_advance_consumed_watermarks` advances each of the three
-     watermarks ONLY to the max id consumed on that surface — tighter than a broad bump so a concurrent human comment
-     that landed mid-handler survives to the next tick.
+  9. **Delivery settlement** (`_settle_consumed_feedback`, applied in step 8 ahead of the disposition): regardless of
+     dev outcome, each reader advances ONLY to the max id consumed on the surface that reader owns, ratcheted forward
+     — tighter than a broad bump so a concurrent human comment that landed mid-handler survives to the next tick.
+     Issue-thread items settle `last_action_comment_id` beside `pr_last_comment_id`, so moving the issue between
+     `workflow:fixing`, `workflow:validating` and drift handling does not spawn a second developer merely to deliver a
+     reply this round already quoted; PR-conversation items settle `pr_last_comment_id` alone, and the inline-review
+     and review-summary items settle only their own watermarks, since nothing that advances the issue-action boundary
+     has read the pull request. The pairs are derived through `workflow/engine/prompt_delivery.py`, the same producer
+     a durable report transaction's recorded watermarks come from. The `pending_fix_*` bookmarks are NOT touched here:
+     an explicit `/orchestrator continue` retry rebuilds its batch from them after these readers have moved past it,
+     and what such a retry settles is the batch it REPLAYED joined with the fresh rescan — so the bare
+     `/orchestrator continue` the prompt deliberately drops is still recorded as answered, on the surface it was
+     posted on.
   10. **On a pushed fix**: clear `pending_fix_*`, adjust `review_round` per the route discriminator (in_review route
       resets to 0 — the previous approval was for the prior head; validating route bumps by 1 — same review cycle),
       flip DIRECTLY back to `workflow:validating`. Docs do not run on this exit.

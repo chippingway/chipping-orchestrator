@@ -7,6 +7,11 @@ from __future__ import annotations
 import unittest
 
 from tests.workflow.stages.fixing import fixing_test_support as support
+from tests.workflow.stages.fixing.prompt_expectations import (
+    only_prompt,
+    pr_feedback_prompt,
+    replayed_task,
+)
 
 ADVANCED_PR_COMMENT_WATERMARK = support.ADVANCED_PR_COMMENT_WATERMARK
 ADVANCED_REVIEW_COMMENT_WATERMARK = support.ADVANCED_REVIEW_COMMENT_WATERMARK
@@ -38,6 +43,7 @@ FakePRRef = support.FakePRRef
 FakePRReview = support.FakePRReview
 FakeUser = support.FakeUser
 ISSUE = support.ISSUE
+IN_REVIEW_LABEL = support.IN_REVIEW_LABEL
 NO_PRESERVED_MESSAGE = support.NO_PRESERVED_MESSAGE
 ORCHESTRATOR = support.ORCHESTRATOR
 PARK_AGENT_SILENT = support.PARK_AGENT_SILENT
@@ -64,6 +70,7 @@ REVIEW_ROUND = support.REVIEW_ROUND
 RUN_AGENT = support.RUN_AGENT
 SHA_AFTER = support.SHA_AFTER
 SHA_BEFORE = support.SHA_BEFORE
+SHA_SAME = support.SHA_SAME
 VALIDATING = support.VALIDATING
 _ContinueSeed = support._ContinueSeed
 _PatchedWorkflowMixin = support._PatchedWorkflowMixin
@@ -243,6 +250,14 @@ class _ValidatingContinueFixtureMixin(_ContinueCommandFixtureMixin):
         return gh, issue, pr
 
 
+def _reviewer_feedback(github):
+    """The reviewer's CHANGES_REQUESTED comment, as the anchor re-fetches it."""
+    return next(
+        posted for posted in github.get_pr(PR_NUMBER).issue_comments
+        if posted.id == BATCH_PR_CONVERSATION_ID
+    )
+
+
 def _assert_validating_retry_prompt(test_case) -> None:
     test_case.assertIsNone(
         test_case._call.kwargs.get(RESUME_SESSION_ID),
@@ -323,6 +338,42 @@ class ValidatingContinueCommandTest(
                 self._mocks[RUN_AGENT].assert_called_once()
                 self._call = self._mocks[RUN_AGENT].call_args
                 _assert_validating_retry_outcome(self, gh)
+
+    def test_an_ack_does_not_answer_the_review(self) -> None:
+        # The automated reviewer asked for a concrete change, so the developer
+        # saying there is nothing to do is not an answer to it. The in_review
+        # route's `ACK:` fast path is not offered here: the round parks for a
+        # human with its replay anchor intact rather than returning the pull
+        # request to review as ready.
+        github, issue, _pr = self._seed_validating_route_anchored_park(
+            park_reason=PARK_AGENT_TIMEOUT,
+        )
+
+        mocks = self._run_fixing(
+            github,
+            issue,
+            run_agent=_agent(
+                session_id=FRESH_SESSION,
+                last_message="ACK: the branch already does this",
+            ),
+            head_shas=(SHA_SAME, SHA_SAME),
+        )
+
+        # The replay hands the developer the reviewer's own CHANGES_REQUESTED
+        # feedback, entire and alone -- the real automated request, re-fetched
+        # by the anchor the validating route recorded for it, and never the
+        # bare command that asked for the retry.
+        self.assertEqual(
+            replayed_task(only_prompt(mocks)),
+            pr_feedback_prompt([_reviewer_feedback(github)]),
+        )
+        pinned_data = github.pinned_data(ISSUE)
+        self.assertNotIn((ISSUE, IN_REVIEW_LABEL), github.label_history)
+        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
+        self.assertEqual(
+            pinned_data.get(PENDING_FIX_REVIEWER_COMMENT_ID),
+            BATCH_PR_CONVERSATION_ID,
+        )
 
     def test_command_with_guidance_is_not_swallowed(self) -> None:
         # A PR-conversation comment mixing real guidance with a

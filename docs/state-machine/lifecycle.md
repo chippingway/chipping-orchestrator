@@ -440,10 +440,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
 
    workflow:fixing (terminals mirror in_review; merged arc always external):
      pr merged externally / closed unmerged ─► done / rejected
-     Otherwise rescan the three in_review watermarks across all four
-     surfaces; if awaiting_human with no new feedback, branch on
-     park_reason + pending_fix_at. For a stuck validating-route
-     transient park (`_VALIDATING_TRANSIENT_PARK_REASONS` with
+     Otherwise rescan all four surfaces, each past the readers it
+     answers to (the issue thread past last_action_comment_id as well
+     as pr_last_comment_id). If awaiting_human with no new feedback,
+     branch on park_reason + pending_fix_at. For a stuck
+     validating-route transient park
+     (`_VALIDATING_TRANSIENT_PARK_REASONS` with
      pending_fix_at unset, _try_recover_validating_transient_park
      returns "stuck"), route to workflow:resolving_conflict when the
      clean worktree is out of sync with the PR -- behind base, OR
@@ -462,8 +464,16 @@ than a second source of truth: where the two disagree, the handler pages are aut
      workflow:decomposing and this tick relabels nothing;
      otherwise honour IN_REVIEW_DEBOUNCE_SECONDS. Past the window,
      resume the dev with a `_build_pr_comment_followup` prompt and apply
-     the validating fix-loop disposition. Watermarks advance ONLY to the
-     max id fed to the dev. On a pushed fix, adjust review_round per
+     the validating fix-loop disposition. A launch nothing invoked, a
+     shutdown kill, and a live pause settle nothing and write nothing;
+     the next tick re-feeds the same batch. Every other outcome
+     delivered that prompt and is settled ahead of the disposition,
+     ONLY to the max id fed to the dev and against the reader each
+     surface owns -- the issue thread moves last_action_comment_id
+     beside pr_last_comment_id, the PR conversation and both review
+     surfaces move their own in_review watermarks alone. A report
+     outcome settles nothing either: the publication it owes is not
+     this tick's to promise. On a pushed fix, adjust review_round per
      pending_fix_at (in_review->fixing route resets to 0; validating->
      fixing route bumps by 1) and flip directly to workflow:validating.
      Docs do not run on this exit.

@@ -266,15 +266,17 @@ def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
     # `replay_batch` is set only by an accepted `/orchestrator continue`
     # command inside `_dispatch_parked_fixing`: the PRESERVED PR-feedback batch
     # (plus any genuinely new feedback that arrived with the command) to resume
-    # the fresh dev on, instead of the per-tick rescan. It skips the debounce
-    # and re-grounds a dropped session in the resume tail.
+    # the fresh dev on, instead of the per-tick rescan. It carries its surfaces
+    # apart exactly as the rescan does, because the resume settles what it
+    # replayed. It skips the debounce and re-grounds a dropped session in the
+    # resume tail.
     #
     # `_dispatch_parked_fixing` bails (`stop=True`) unless something new has
     # arrived since the park bump: the watermarks were advanced past the
     # previously-consumed feedback, so `feedback` can only carry genuinely new
     # content, and without that guard a single poisoned tick would loop on
     # every poll, spamming the same dev-resume prompt.
-    replay_batch: list | None = None
+    replay_batch: _models._FixingFeedback | None = None
     if state.get(_state._AWAITING_HUMAN):
         parked = _parked._dispatch_parked_fixing(
             _models._FixingContext(gh, spec, issue, state, pr), feedback,
