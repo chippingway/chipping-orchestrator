@@ -381,17 +381,30 @@ than a second source of truth: where the two disagree, the handler pages are aut
               workflow:fixing, park already cleared, the triggering reply
               unread, and — where the round committed — the commit its report
               describes still in the checkout. The next fixing tick finishes
-              that round rather than resuming a developer: the candidate goes
-              out through the size gate (held → workflow:decomposing) spending
-              the round frozen on the record, and the issue then moves to
-              workflow:validating, where the report hold binds and settles the
-              delivery
-         ──► that same crash over a checkout nothing can vouch for (gone,
-              unreadable, a fetch that failed, a remote that moved): nothing
+              that round rather than resuming a developer, ahead of its own
+              scan: it re-proves the CHECKOUT (a tree provably clean, a head
+              it could name) and binds the report against the pull request it
+              reads afresh, never the persistent publication receipt, which
+              on a tick that pushed nothing names an older round's commit.
+              Settled, the round the record froze is closed and the issue
+              moves to workflow:validating on the mark that settlement raised;
+              a post that did not land relabels nothing and leaves the
+              transaction to the reconciliation
+         ──► that same crash over a checkout this host PROVED it cannot
+              publish from (gone, or carrying uncommitted changes): nothing
               pushed, nothing published, review_round unchanged, park
-              report_undeliverable on workflow:fixing — handed on instead, the
-              binding would recreate the checkout from the remote and publish
-              the report against the head the pull request already had
+              report_undeliverable on workflow:fixing, and the recorded report
+              RELEASED with it — left on the comment, merely restoring or
+              cleaning the checkout would publish it and send the issue to
+              review, which is the decision the notice is asking a human to
+              make. The debt outlives that release, so the review stays held
+         ──► that same crash over a reading nobody could TAKE (a status that
+              established nothing, a head that would not resolve, a pull
+              request this poll could not fetch): nothing pushed, nothing
+              released, nothing said — the tick ends where it stands and the
+              first poll that can read them publishes. A head the pull request
+              has MOVED off is neither: the bounce re-proves the remote and
+              republishes the commit, binding the report to that push
          ──► park (timeout / no-commit / dirty / push fail):
               label stays workflow:fixing, awaiting_human=True; the
               fixing handler owns the awaiting-human cycle and on a

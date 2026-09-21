@@ -412,12 +412,15 @@ WITHHELD_OUTCOMES = (
 # will.
 REPORTED = "REPORT: READY\nvendored the parser behind a flag\nREPORT: END"
 
-# The code-publication receipt a report with no code in it is proved against:
-# this pull request, standing on the head the checkout is on. Without it that
-# road cannot tell a pull request carrying the reported work from one the branch
-# has run ahead of, so it parks rather than publishing.
+# A code-publication receipt naming a commit this pull request left behind,
+# seeded for the road that must NOT read it. The receipt is persistent, so on
+# any tick that pushed nothing it names an older round's commit -- and a report
+# bound on its word would describe work the developer never did. What a report
+# with no code in it is proved against instead is the pull request read afresh:
+# the round publishes here because the checkout and that reading agree on the
+# head, with this receipt saying something else entirely.
 PUBLISHED_RECEIPT = MappingProxyType({
-    "implementing_published_sha": PR_HEAD_SHA,
+    "implementing_published_sha": SHA_AFTER,
     "implementing_published_pr": PR_NUMBER,
 })
 
@@ -570,9 +573,9 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         # and nobody able to tell.
         #
         # The rest of the world is the one that road needs proved: a checkout
-        # standing where the remote branch is, and the code-publication receipt
-        # naming that commit on this pull request. Only the post fails, so what
-        # holds the readers is the publication rather than a refusal earlier on.
+        # standing on the head the pull request is standing on, read afresh.
+        # Only the post fails, so what holds the readers is the publication
+        # rather than a refusal earlier on.
         mocks = self._deliver(
             agent_fields=_run(REPORTED),
             head_shas=(PR_HEAD_SHA, PR_HEAD_SHA),
@@ -588,6 +591,9 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         # The far side of the same road: the report reaches the pull request,
         # so the write that completes its publication is the one that records
         # the batch behind it as read -- exactly the pairs the record froze.
+        # It reaches it over a code-publication receipt naming another commit
+        # entirely, which is the point of seeding one: that receipt is
+        # persistent and this road does not read it.
         self._deliver(
             agent_fields=_run(REPORTED),
             head_shas=(PR_HEAD_SHA, PR_HEAD_SHA),

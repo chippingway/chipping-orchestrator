@@ -85,12 +85,13 @@ def _proves_the_published_head(
     and a remote that moved, so a report taken on that answer alone would be
     published over work no reviewer is going to see.
 
-    Asked of a CHECKOUT rather than of a run, because the two callers reach it
-    from opposite sides: the disposition holds a run and the worktree it ran
-    in, while the fixing recovery holds a report a run that is gone recorded
-    and has to ask the same question of the checkout that run left. One rule
-    in one place is what keeps the recovery from proving less than the round
-    it is finishing did.
+    Asked of a CHECKOUT rather than of a run, because what it is about is a
+    checkout rather than a session: the disposition holds the run and the
+    worktree it ran in, and everything it proves is about where that worktree
+    stands. One caller only -- the `fixing` stage answers the same question
+    for itself, over a pull request it reads AFRESH rather than over this
+    receipt, which is persistent and on a tick that pushed nothing names an
+    older round's commit.
     """
     head = _stranded._published_head_in_sync(spec, worktree, state, issue)
     if not head:

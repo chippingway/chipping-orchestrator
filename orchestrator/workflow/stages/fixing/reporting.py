@@ -450,6 +450,17 @@ def _holds_an_unpublished_report(
     object the report is POSTED onto is the fresh one too, so what the binding
     refuses and what it writes to are one reading.
 
+    That same reading is what `candidate` is held to, and it is the LAST
+    moment anything can be: whoever proved this commit proved it earlier in
+    the tick, against a pull request read earlier still, and a push landing in
+    between moves the head off it. Bound anyway, the subject would name the
+    commit the round was about while every reviewer reads the one somebody
+    else pushed -- the report posted, the debt cleared, the handoff recorded,
+    and nothing on the comment saying the two disagree. The head has to BE the
+    commit rather than merely carry it, which is the rule the reconciliation
+    holds a transaction to on every later tick; a moved head DEFERS, here as
+    there, and the road that republishes or re-proves takes it from there.
+
     A read this tick could not take holds everything where it stands. The
     report is valid and the record is intact; what is missing is an answer,
     and a later tick asks again. Bound on the default instead, a description
@@ -468,6 +479,16 @@ def _holds_an_unpublished_report(
             "is still what this implementation needs; holding the report it "
             "owes for a tick that can",
             ctx.issue.number, getattr(ctx.pr, "number", None),
+        )
+        return _report_delivery.owes_a_report(ctx.state)
+    standing = getattr(getattr(published, "head", None), "sha", "")
+    if standing != candidate:
+        log.warning(
+            "issue=#%d proved its developer report on commit %s and PR #%s is "
+            "standing on %s; holding the report rather than publishing it "
+            "against a head it does not describe",
+            ctx.issue.number, candidate, getattr(ctx.pr, "number", None),
+            standing or "a head nothing could read",
         )
         return _report_delivery.owes_a_report(ctx.state)
     _report_binding.binds_and_publishes(

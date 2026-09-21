@@ -3594,7 +3594,14 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        persistent publication receipt — and posted, in the engine's own two steps, so a post GitHub refuses leaves a
        transaction a later tick can finish rather than a delivery nothing goes back for.
 
-       The pull request is READ AGAIN for that binding, and the DESCRIPTION is what the fresh copy is for: a
+       The pull request is READ AGAIN for that binding, and two things are asked of that one reading. The head it
+       is standing on has to BE the commit — whoever proved this commit proved it earlier in the tick, against a
+       pull request read earlier still, so a push landing in between takes the pull request off it and the report
+       would be posted, settled and handed off naming a commit no reviewer is reading. A moved head DEFERS, exactly
+       as it does for the [reconciliation](#the-developer-report-transaction-every-dispatch) on every later tick,
+       and the road that republishes or re-proves takes it from there.
+
+       The DESCRIPTION is the second, and it is what the fresh copy is also for: a
        `REPORT: VERIFIED` naming that body is the one report this workflow cannot both keep and manage, since GitHub
        honours the closing reference there and nowhere else and the line naming the session is read back by every
        later reuse. So the binding is told whether the description still carries both, and it refuses and parks

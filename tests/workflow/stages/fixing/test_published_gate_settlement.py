@@ -257,7 +257,15 @@ class UnmeasuredDebtRetryTest(
 
         first = mocks[PUSH_BRANCH].call_args_list[0]
         self.assertEqual(first.kwargs[REVISION], MEASURED_CANDIDATE_SHA)
-        self.assertEqual(first.kwargs[LEASE], PR_HEAD_SHA)
+        # Leased against the head the pull request is STANDING on, which the
+        # crashed tick's own push left it on: that push landed, so the remote
+        # moved and only the record of it was lost. The republication is
+        # idempotent there and a pull request somebody else moved in between
+        # rejects it instead of being force-overwritten.
+        self.assertEqual(
+            first.kwargs[LEASE],
+            scenario.github.get_pr(PR_NUMBER).head.sha,
+        )
 
     def test_the_retry_closes_what_the_debt_carried(self) -> None:
         # And the recovery closes it: the receipt names what reached the

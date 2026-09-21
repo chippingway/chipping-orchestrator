@@ -21,9 +21,9 @@ this stage writes on a landed push is persistent, so on a tick that pushed
 nothing it names an older round's commit -- and a pull request standing on that
 commit for reasons of its own would let a report about work nobody published go
 out on the strength of it. What is asked instead is the checkout: a tree
-provably clean, a head it could name, and that head being what the pull request
-carries. Then the branch IS published and the report describes it, whichever run
-wrote the record.
+provably clean and a head it could name. Whether the pull request is STANDING
+on that head is the binding's to ask, over a pull request it reads afresh,
+because the only one this owner holds was fetched before the tick began.
 
 The two DEFINITE refusals are the exception, and they release the record as they
 park: this owner runs ahead of the parked dispatch, so a record left on the
@@ -356,24 +356,30 @@ def _refuses_for_good(ctx: _models._FixingContext) -> bool:
 
 
 def _published_checkout(ctx: _models._FixingContext) -> str | None:
-    """The commit a clean checkout and the pull request agree on, "", or None.
+    """The commit a clean checkout PROVED it is standing on, "", or None.
 
     Every reading is positive, because what an absence would license here is a
     report about code the remote does not have. What the absences are FOR is
     the difference between the two empty answers.
 
-    "" is a checkout that answered and said no: one this host does not hold, a
-    tree carrying something, and a head the pull request is not standing on.
-    Each is decisive -- the first two for good, the third for as long as the
-    branch and the remote disagree -- and each leaves the report owed for the
-    road that answers it, the terminal park or the bounce that republishes
-    such a commit.
+    "" is a checkout that answered and said no: one this host does not hold,
+    and a tree carrying something. Both are decisive for good, and both leave
+    the report owed for the terminal park that announces them.
 
     None is a reading nobody could TAKE: a status that established nothing,
     and a head that would not resolve. Neither says anything about the branch,
     so neither may be spent on -- not on a publication, and not on a notice
     telling a human this issue is stuck. The caller holds everything where it
     stands and the next poll asks again.
+
+    Whether the PULL REQUEST is standing on that commit is not asked here, and
+    deliberately: the only pull request this owner holds is the one the
+    preflight fetched, and a push that landed since is invisible in it. The
+    binding re-reads the pull request for its own reasons and holds the
+    candidate to THAT reading, so the comparison happens once, against the
+    world it is acted on in -- and a head the pull request has moved off falls
+    through to the bounce, which re-proves the remote and republishes the
+    commit rather than parking over a copy nobody refreshed.
     """
     worktree = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
     if not worktree.exists():
@@ -388,10 +394,10 @@ def _published_checkout(ctx: _models._FixingContext) -> str | None:
     if not tree.is_clean:
         return ""
     head = _verification_probes._head_sha(worktree)
-    if not head:
-        log.info(
-            "issue=#%d could not read the head of the checkout holding the "
-            "report it owes; holding it for a tick that can", ctx.issue.number,
-        )
-        return None
-    return head if head == getattr(ctx.pr.head, "sha", "") else ""
+    if head:
+        return head
+    log.info(
+        "issue=#%d could not read the head of the checkout holding the report "
+        "it owes; holding it for a tick that can", ctx.issue.number,
+    )
+    return None

@@ -136,6 +136,14 @@ def _reply(comment_id: int, body: str):
     )
 
 
+# How many pull request reads a tick has taken by the time each decision is
+# made: the preflight is the first, and the report-only proof the second, so a
+# case about the binding preferring its own reading replaces everything up to
+# one of them.
+_THE_PREFLIGHT = 1
+
+_THE_PROOF = 2
+
 # Where a report verified on the pull request's own body says it is.
 _PULL_REQUEST_URL = "https://github.com/{slug}/pull/{pr}"
 
@@ -209,33 +217,14 @@ class LiveReportRoundMixin(live._FixingFixtureMixin):
                 ), **options,
             )
 
-    def verified(self, body: str) -> str:
-        """A run asserting its report is already this pull request's body.
+    def recorded(self, seeded):
+        """The unbound report record this comment is still holding, or None.
 
-        The location carries no comment id, which is what makes it the
-        DESCRIPTION rather than a comment on it, and the digest is taken over
-        the body itself: a verification claims an exact place and an exact
-        text, and a fixture spelling either loosely would pass for both.
+        The one reading every case about a held publication takes: what the
+        write completing it would apply is on that record, so a report the
+        tick refused to bind is a record still there to read.
         """
-        described = _PULL_REQUEST_URL.format(
-            slug=live.fixtures.TEST_REPO_SLUG, pr=live.PR_NUMBER,
-        )
-        digest = _dev_reports.content_digest(body)
-        return f"done\n\nREPORT: VERIFIED {described} sha256:{digest}"
-
-    def stale_preflight(self, seeded, body: str):
-        """Serve the tick's FIRST pull request read a body since edited.
-
-        Which reading the description is taken from is the whole question: the
-        preflight fetches before the developer runs, so a human editing in
-        those minutes is invisible in that copy. Every read after the first
-        answers the pull request as it really stands, so a case is about the
-        round preferring the second.
-        """
-        published = seeded.github.get_pr(live.PR_NUMBER)
-        return live.patch.object(seeded.github, "get_pr", side_effect=chain(
-            [dataclasses.replace(published, body=body)], repeat(published),
-        ))
+        return self.pinned(seeded).get(_DELIVERED_REPORT)
 
     def reader(self, seeded) -> int:
         """Where the issue-action boundary stands, which several cases ask.
@@ -393,17 +382,53 @@ class LiveReportRoundTest(unittest.TestCase, LiveReportRoundMixin):
         )
 
 
-class LiveVerifiedDescriptionTest(unittest.TestCase, LiveReportRoundMixin):
-    """A round whose report is the pull request's own description.
+class LiveFreshPullRequestTest(unittest.TestCase, LiveReportRoundMixin):
+    """What the pull request the binding reads AFRESH is asked, and why.
 
-    The one report this workflow cannot both keep and manage. GitHub honours a
-    closing reference in the description and nowhere else, and the line naming
-    the session that wrote the branch is read back by every later reuse -- so
-    binding a report onto that body spends both on something a comment could
-    have carried. What decides it is a reading of the description as it stands
-    NOW, which is why the round takes one rather than trusting the copy its
-    preflight fetched or the default the binding would otherwise assume.
+    Two questions, and both are about a world that moves while this tick is
+    working in it. Is the DESCRIPTION still what the implementation needs --
+    the one report this workflow cannot both keep and manage is a
+    `REPORT: VERIFIED` naming that body, since GitHub honours a closing
+    reference there and nowhere else and every later reuse reads the line
+    naming the session back. And is the pull request still STANDING on the
+    commit this round proved, which whoever proved it proved earlier, against
+    a pull request read earlier still.
+
+    Both are asked of one reading, taken where the report is acted on rather
+    than where it was decided: two fetches are two moments, and the moment
+    that counts is the one the write happens in.
     """
+
+    def verified(self, body: str) -> str:
+        """A run asserting its report is already this pull request's body.
+
+        The location carries no comment id, which is what makes it the
+        DESCRIPTION rather than a comment on it, and the digest is taken over
+        the body itself: a verification claims an exact place and an exact
+        text, and a fixture spelling either loosely would pass for both.
+        """
+        described = _PULL_REQUEST_URL.format(
+            slug=live.fixtures.TEST_REPO_SLUG, pr=live.PR_NUMBER,
+        )
+        digest = _dev_reports.content_digest(body)
+        return f"done\n\nREPORT: VERIFIED {described} sha256:{digest}"
+
+    def serves_until(self, seeded, reads: int, **replaced):
+        """Answer the tick's first `reads` pull request reads with a copy.
+
+        WHICH reading a decision is taken from is the whole question on these
+        roads. The preflight fetches before the developer runs and the proof
+        before the binding, so a description a human edited or a head somebody
+        pushed in one of those windows is whole in the earlier copies and gone
+        from the pull request. Every read past `reads` answers the pull
+        request as it really stands, so a case is about the road preferring
+        that one.
+        """
+        published = seeded.github.get_pr(live.PR_NUMBER)
+        earlier = dataclasses.replace(published, **replaced)
+        return live.patch.object(seeded.github, "get_pr", side_effect=chain(
+            repeat(earlier, reads), repeat(published),
+        ))
 
     def test_a_description_that_still_says_it_settles(self) -> None:
         # The body closes the issue and names the session, so the verified
@@ -415,7 +440,7 @@ class LiveVerifiedDescriptionTest(unittest.TestCase, LiveReportRoundMixin):
         self.tick(seeded, message=self.verified(_DESCRIBED_BODY))
 
         pinned = self.pinned(seeded)
-        self.assertIsNone(pinned[_DELIVERED_REPORT])
+        self.assertIsNone(self.recorded(seeded))
         self.assertEqual(
             self.reader(seeded), live.TRIGGER_ID,
         )
@@ -436,13 +461,36 @@ class LiveVerifiedDescriptionTest(unittest.TestCase, LiveReportRoundMixin):
                 self.tick(seeded, message=self.verified(body))
 
                 pinned = self.pinned(seeded)
-                self.assertIsNotNone(pinned[_DELIVERED_REPORT])
+                self.assertIsNotNone(self.recorded(seeded))
                 self.assertTrue(pinned[live.AWAITING_HUMAN])
                 self.assertLess(
                     self.reader(seeded), live.TRIGGER_ID,
                 )
                 self.assertEqual(pinned[live.REVIEW_ROUND], 1)
                 self.assertFalse(self.handed_back(seeded))
+
+    def test_a_head_that_moved_between_reads_holds(self) -> None:
+        # A push landing between the proof and the binding takes the pull
+        # request off the commit this report is about. Bound anyway, the
+        # subject names the commit the round proved while every reviewer reads
+        # the one somebody else pushed -- the report posted, the debt cleared
+        # and the handoff recorded, with nothing on the comment saying the two
+        # disagree. So the round holds: nothing posted, the record intact, no
+        # reader moved, no round spent and the label where it was.
+        seeded = self.seed()
+        seeded.github.get_pr(live.PR_NUMBER).head.sha = live.SHA_AFTER
+
+        with self.serves_until(
+            seeded, _THE_PROOF, head=live.FakePRRef(sha=live.PR_HEAD_SHA),
+        ):
+            self.tick(seeded, message=_REPORTED)
+
+        pinned = self.pinned(seeded)
+        self.assertEqual(seeded.github.posted_pr_comments, [])
+        self.assertIsNotNone(self.recorded(seeded))
+        self.assertLess(self.reader(seeded), live.TRIGGER_ID)
+        self.assertEqual(pinned[live.REVIEW_ROUND], 1)
+        self.assertFalse(self.handed_back(seeded))
 
     def test_the_reading_that_counts_is_the_fresh_one(self) -> None:
         # The preflight fetched the pull request before the developer ran, so
@@ -453,10 +501,10 @@ class LiveVerifiedDescriptionTest(unittest.TestCase, LiveReportRoundMixin):
         undescribing = _UNDESCRIBING_BODIES["the reference closing the issue"]
         seeded = self.seed(description=undescribing)
 
-        with self.stale_preflight(seeded, _DESCRIBED_BODY):
+        with self.serves_until(seeded, _THE_PREFLIGHT, body=_DESCRIBED_BODY):
             self.tick(seeded, message=self.verified(undescribing))
 
-        self.assertIsNotNone(self.pinned(seeded)[_DELIVERED_REPORT])
+        self.assertIsNotNone(self.recorded(seeded))
         self.assertTrue(self.pinned(seeded)[live.AWAITING_HUMAN])
         self.assertFalse(self.handed_back(seeded))
 
@@ -486,7 +534,7 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
                 pinned = self.pinned(seeded)
                 spawned_nobody(mocks)
                 self.assertTrue(pinned[live.AWAITING_HUMAN])
-                self.assertIsNone(pinned[_DELIVERED_REPORT])
+                self.assertIsNone(self.recorded(seeded))
                 self.assertTrue(_report_delivery.owes_a_report(
                     PinnedState(state_data=pinned),
                 ))
@@ -513,7 +561,7 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
 
                 pinned = self.pinned(seeded)
                 spawned_nobody(mocks)
-                self.assertIsNotNone(pinned[_DELIVERED_REPORT])
+                self.assertIsNotNone(self.recorded(seeded))
                 self.assertFalse(pinned.get(live.AWAITING_HUMAN))
                 self.assertIsNone(pinned.get(live.PARK_REASON))
                 self.assertEqual(seeded.github.posted_comments, [])
@@ -537,7 +585,7 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
         self.assertEqual(len(seeded.github.posted_pr_comments), 1)
         self.assertEqual(seeded.github.posted_comments, [])
         self.assertFalse(pinned.get(live.AWAITING_HUMAN))
-        self.assertIsNone(pinned[_DELIVERED_REPORT])
+        self.assertIsNone(self.recorded(seeded))
         self.assertEqual(
             self.reader(seeded), live.TRIGGER_ID,
         )
@@ -560,7 +608,7 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
                 self.assertFalse(pinned[live.AWAITING_HUMAN])
                 self.assertIsNone(pinned.get(live.PARK_REASON))
                 self.assertEqual(seeded.github.posted_comments, [])
-                self.assertIsNotNone(pinned[_DELIVERED_REPORT])
+                self.assertIsNotNone(self.recorded(seeded))
                 self.assertFalse(self.handed_back(seeded))
 
     def test_the_tick_that_can_read_publishes_it(self) -> None:
@@ -602,7 +650,7 @@ class LiveReportParkTest(unittest.TestCase, LiveReportRoundMixin):
             seeded.github, _UNPUBLISHABLE_PHRASE,
         ))
         self.assertEqual(pinned[live.PARK_REASON], _UNDELIVERABLE)
-        self.assertIsNone(pinned[_DELIVERED_REPORT])
+        self.assertIsNone(self.recorded(seeded))
         self.assertTrue(_report_delivery.owes_a_report(
             PinnedState(state_data=pinned),
         ))

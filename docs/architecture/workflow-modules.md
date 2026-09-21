@@ -1621,8 +1621,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             asked about a round that reported is being asked about nothing. The record that carries this round's consumed readers, its route
                             bookkeeping and the settlement MARK for the write that completes the publication; the
                             binding taken only on a commit the CALLER proved, never on the persistent publication
-                            receipt, and told over a pull request READ AGAIN whether its DESCRIPTION still closes
-                            this issue and names the session -- the one report this workflow cannot both keep and
+                            receipt, and held to a pull request READ AGAIN: the head it is standing on has to BE
+                            that commit, since whoever proved it proved it earlier in the tick and a push landing
+                            in between moves the head off it -- a moved head DEFERS, as it does for the
+                            reconciliation on every later tick. That same reading says whether the DESCRIPTION
+                            still closes this issue and names the session -- the one report this workflow cannot both keep and
                             manage is a `REPORT: VERIFIED` naming that very body, and the binding refuses it only
                             if a caller says so, since the reading it assumes otherwise is that the description is
                             safe; the park a report no road left can move earns, once; and the hand-back, which
@@ -1630,7 +1633,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             has to leave a round nothing can mistake for one that just settled
       report_recovery.py    the report obligation answered AHEAD of every scan, since the scan is what the damage
                             runs through, plus the terminal park a checkout refusal earns, which the live
-                            report-only round takes through this owner rather than copying: a round whose report SETTLED while nobody was looking is handed back on
+                            report-only round takes through this owner rather than copying. What it proves is the
+                            CHECKOUT alone -- a tree provably clean and a head it could name -- because the only
+                            pull request it holds is the one the preflight fetched; where that head stands
+                            against the pull request is the binding's to ask, over a reading of its own: a round whose report SETTLED while nobody was looking is handed back on
                             the mark that settlement raised, and a delivery a crash left unbound is applied off its
                             own record and bound where it may be. Whether the code went out is RE-PROVED against
                             the checkout rather than remembered off the persistent receipt -- a tree provably
@@ -2594,9 +2600,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tree, a local head, a tip, the two equal) AND the code-publication receipt naming that
                             same commit on the pull request the report would go onto. Asked of a CHECKOUT rather
                             than of a run, because what it is about is a checkout rather than a session: the
-                            disposition holds the run and the worktree it ran in, and the question is the same one
-                            the `fixing` stage's own recovery asks of a checkout the run that wrote its report has
-                            left. Nothing is inferred from an
+                            disposition holds the run and the worktree it ran in. One caller only -- the `fixing`
+                            stage answers the same question for itself, over a pull request read AFRESH rather
+                            than over this receipt, which is persistent and names an older round's commit on any
+                            tick that pushed nothing. Nothing is inferred from an
                             absence, because "this run committed nothing publishable" is the same answer the
                             disposition gives a checkout nobody could read, a fetch that failed, a divergence git
                             refused and a remote that moved -- each of which may be a branch carrying a commit the
