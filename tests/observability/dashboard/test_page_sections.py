@@ -1,153 +1,222 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The order the panels under the figures are drawn in, and the whole wave.
+"""What the panels under the figures put on the page, and in what order.
 
-The four sections beneath the figure cards are each their own owner and pinned
-beside it; what this owner decides is the order and what each is handed. The
-cases stub every one of them on the module that holds it -- which is also the
-check that the pass names the owners rather than resolving a render off a
-facade -- and answer each read with its own key, so a panel handed the wrong
-family reads back as the wrong word. The last case is about the two halves
-together: the figure cards come first, and the page's whole order stays
-readable from one call.
+The four sections beneath the figure cards are each their own owner; what this
+owner decides is the order they are drawn in and what each is drawn from. The
+pass runs for real against the recording page, so one scenario answers all of
+that off what an operator would see: every heading the page wrote, in order and
+as many times as it wrote it; the three skill views, each reporting the one
+word its own read carries; the run listing on the clock the sidebar picked; and
+the trace narrowed by the window, events, and stages the controls resolved
+rather than by anything the load came back with.
+
+The trace is the one section drawn from a read of its own, so its scope entry
+is stood in for on its defining owner by one that answers with the bounds it
+was handed. That turns every narrowing the section passed down into a row of
+the table, which is why a wrong window, event set, or stage set reads back as a
+different table rather than the same one.
+
+The whole second wave is that same page with the figure cards above it. Plotly
+lives in the optional `dashboard` group and every card reaches for it, so that
+half is stood in for on its own owner by a line naming the window and the run
+count it was handed -- which is what makes both halves drawing one page state
+readable off the page itself, beside the order they reached it in.
 """
 
 from __future__ import annotations
 
+import re
 import unittest
-from functools import partial
+from collections.abc import Callable, Sequence
+from datetime import timedelta
+from unittest.mock import patch
 
 from orchestrator.observability.dashboard import (
     chart_sections,
-    drilldown,
+    page_models,
     page_sections,
-    page_states,
     recent_runs,
-    skill_panel,
+    scoped_reads,
+)
+from tests.observability.dashboard import (
+    section_render_test_support as fixtures,
 )
 from tests.observability.dashboard.page_render_test_support import (
+    LAST_COVERED_DATE,
     TZ_OFFSET,
-    draw_sections,
+    WINDOW_END_DATE,
+    WINDOW_START_DATE,
     loaded,
+    markup_in,
     modules,
     page,
-    section_reads,
 )
 
-_SKILL_CARD = "render_skill_adoption"
-
-_RUN_LISTING = "render_recent_runs"
-
-_ISSUE_TRACE = "render_drilldown_view"
-
-_FOOTER = "render_dashboard_footer"
-
-# The four sections under the figure cards, in page order and paired with the
-# owner each is stubbed on.
-_PAGE_PANELS = (
-    (skill_panel, _SKILL_CARD),
-    (recent_runs, _RUN_LISTING),
-    (drilldown, _ISSUE_TRACE),
-    (page_states, _FOOTER),
-)
-
-# The three cells the skill card is drawn from, each answering with its own key.
-_SKILL_READS = ("skill_adoption_rows", "skill_rows", "skill_matrix_rows")
-
-# The two halves of the second wave, in the order one call draws them.
 _CHART_HALF = "render_chart_widgets"
 
-_REMAINING_HALF = "render_remaining_widgets"
+_SCOPE_ENTRY = "scoped_read"
 
-_WAVE_PANELS = (
-    (chart_sections, _CHART_HALF),
-    (page_sections, _REMAINING_HALF),
+_SKILL_CARD = "Skill adoption"
+
+_ISSUE_TRACE = f"Issue #{fixtures.ISSUE_NUMBER} drill-down"
+
+_FOOTER = f"window {WINDOW_START_DATE} → {LAST_COVERED_DATE}"
+
+# The four sections in page order, each named by the heading it puts on screen.
+_SECTIONS = (
+    _SKILL_CARD,
+    recent_runs.RECENT_RUNS_LABEL,
+    _ISSUE_TRACE,
+    _FOOTER,
 )
 
+# The line the figure half is stood in for by. It names the window and the
+# window's run count that half was handed, so the page itself says which state
+# and which load it was drawn from.
+_FIGURE_CARDS = (
+    f"figure cards · {WINDOW_START_DATE} · {fixtures.AGENT_RUNS} runs"
+)
 
-class PageSectionOrderTest(unittest.TestCase):
-    """Which panel follows which under the figures, and what each is given."""
+_TS_COLUMN = "ts"
+
+_ISSUE_COLUMN = "issue"
+
+_EVENT_COLUMN = "event"
+
+_STAGE_COLUMN = "stage"
+
+_RESULT_COLUMN = "result"
+
+
+def _draw_figure_line(
+    handles: page_models.DashboardModules,
+    page_state: page_models.DashboardPage,
+    read_results: page_models.LoadedDashboard,
+) -> None:
+    """Stand in for the figure cards, naming the state they were drawn from."""
+    window = page_state.controls.filters.window
+    opened_on = window.start.date()
+    summary = read_results.read_results["summary"]
+    measured = summary.total_agent_runs
+    handles.st.subheader(f"figure cards · {opened_on} · {measured} runs")
+
+
+def _drawn_wave(
+    render: Callable[..., None], drawn_onto: fixtures.RecordingPage,
+) -> str:
+    """Run one pass over `drawn_onto`, standing in for the trace's read seam."""
+    with patch.object(scoped_reads, _SCOPE_ENTRY, fixtures.traced_reads):
+        render(
+            modules(drawn_onto, frames=fixtures.frames()),
+            page(filters=fixtures.traced_filters()),
+            loaded(fixtures.section_rows()),
+        )
+    return markup_in(drawn_onto)
+
+
+def _sections_drawn(drawn: str, sections: Sequence[str]) -> list[str]:
+    """Every section the page drew, in order and as often as it drew it."""
+    headings = [re.escape(section) for section in sections]
+    return re.findall("|".join(headings), drawn)
+
+
+class PageSectionRenderTest(unittest.TestCase):
+    """What one pass over the panels beneath the figure cards draws."""
 
     def setUp(self) -> None:
-        self.st = object()
-        self.frames = object()
-        self.page = page()
-        drawn, recorder = draw_sections(
-            _PAGE_PANELS,
-            partial(
-                page_sections.render_remaining_widgets,
-                modules(self.st, frames=self.frames),
-                self.page,
-                loaded(section_reads()),
-            ),
+        self.st = fixtures.RecordingPage()
+        self.drawn = _drawn_wave(
+            page_sections.render_remaining_widgets, self.st,
         )
-        self.drawn = drawn
-        self.recorder = recorder
 
-    def test_the_panels_follow_in_page_order(self) -> None:
+    def test_one_pass_draws_the_four_sections(self) -> None:
+        self._assert_the_sections_follow_in_page_order()
+        self._assert_each_skill_view_reports_its_read()
+        self._assert_the_listing_reads_the_picked_zone()
+        self._assert_the_trace_reads_the_picked_filters()
+
+    def _assert_the_sections_follow_in_page_order(self) -> None:
         # The skill card reports what the runs behind the figures were working
         # with, the listing is the rows every reading above was reduced from,
         # the trace is one of those rows opened out, and the footer restates
-        # what all of it was measured over -- so it is last.
+        # what all of it was measured over -- so it is last, and each of the
+        # four is drawn once rather than once per read it consulted.
         self.assertEqual(
-            self.drawn, [attribute for _, attribute in _PAGE_PANELS],
+            _sections_drawn(self.drawn, _SECTIONS), list(_SECTIONS),
         )
 
-    def test_the_skill_card_is_handed_its_three_cells(self) -> None:
-        drawn = getattr(self.recorder, _SKILL_CARD).call_args.kwargs
+    def _assert_each_skill_view_reports_its_read(self) -> None:
+        # The card is drawn from three reads at once, so a view handed the
+        # wrong one reports a word none of its own rows carry.
+        for reported in fixtures.SKILL_READS:
+            with self.subTest(reported=reported):
+                self.assertIn(f">{reported}<", self.drawn)
 
-        self.assertIs(drawn["st"], self.st)
+    def _assert_the_listing_reads_the_picked_zone(self) -> None:
+        # The listing is the first of the two tables on the page, and its
+        # timestamps are read in the zone the sidebar picked rather than left
+        # in UTC.
+        listed = self.st.frames[0]
+
         self.assertEqual(
-            {name: drawn[name] for name in _SKILL_READS},
-            {name: name for name in _SKILL_READS},
+            [run[_ISSUE_COLUMN] for run in listed],
+            list(fixtures.RUN_ISSUES),
+        )
+        self.assertEqual(
+            listed[0][_TS_COLUMN].utcoffset(), timedelta(hours=TZ_OFFSET),
         )
 
-    def test_the_listing_gets_the_frame_and_the_zone(self) -> None:
-        # It is the one section rendered through pandas, and its timestamps are
-        # shifted into the zone the sidebar picked rather than left in UTC.
-        drawn = getattr(self.recorder, _RUN_LISTING).call_args.kwargs
+    def _assert_the_trace_reads_the_picked_filters(self) -> None:
+        # The trace is narrowed by what the controls resolved rather than by
+        # anything the load answered, so the read behind it reports every
+        # narrowing back as a row: one per event and stage it was bound to,
+        # stamped with the window's own start and naming the issue it was
+        # scoped to. The footer closes on that same window and run count.
+        scope = fixtures.TRACE_SCOPE.format(
+            repo=fixtures.RUN_REPO,
+            issue=fixtures.ISSUE_NUMBER,
+            end=WINDOW_END_DATE,
+        )
 
-        self.assertIs(drawn["pd"], self.frames)
-        self.assertEqual(drawn["agent_exits"], "agent_exits")
-        self.assertEqual(drawn["tz_offset_choice"], TZ_OFFSET)
+        # A trace bound to something the sidebar did not resolve comes back
+        # with no row at all, which the section answers with a notice instead
+        # of the second table -- so the count is asked before the rows are.
+        self.assertEqual(len(self.st.frames), 2)
+        traced = self.st.frames[1]
 
-    def test_the_trace_and_footer_read_one_filter_set(self) -> None:
-        # Both are narrowed by what the controls resolved rather than by
-        # anything the reads came back with, so they are handed the page's own
-        # filters -- and the footer the window totals beside them.
-        traced = getattr(self.recorder, _ISSUE_TRACE).call_args.args
-        signed_off = getattr(self.recorder, _FOOTER).call_args.args
+        self.assertEqual(
+            [(row[_EVENT_COLUMN], row[_STAGE_COLUMN]) for row in traced],
+            [
+                (event, fixtures.TRACE_STAGES[0])
+                for event in fixtures.TRACE_EVENTS
+            ],
+        )
+        self.assertEqual(
+            {row[_TS_COLUMN].isoformat() for row in traced},
+            {f"{WINDOW_START_DATE}T00:00:00+00:00"},
+        )
+        self.assertEqual({row[_RESULT_COLUMN] for row in traced}, {scope})
+        self.assertIn(f"<{fixtures.AGENT_RUNS}> agent runs", self.drawn)
 
-        self.assertIs(traced[1], self.page.controls.filters)
-        self.assertIs(signed_off[1], self.page.controls.filters)
-        self.assertEqual(signed_off[2], "summary")
 
+class DashboardWidgetsRenderTest(unittest.TestCase):
+    """The whole second wave on one page, in the order the page draws it."""
 
-class RenderDashboardWidgetsTest(unittest.TestCase):
-    """The whole second wave in one call, in the order the page draws it."""
-
-    def test_the_figure_cards_come_first(self) -> None:
+    def test_the_figure_cards_open_the_page(self) -> None:
         # Splitting the order across two calls is what lets a caller draw
         # either half against a stand-in; keeping the pair in one call is what
-        # keeps the page's order readable from a single place.
-        page_state = page()
-        drawn, recorder = draw_sections(
-            _WAVE_PANELS,
-            partial(
-                page_sections.render_dashboard_widgets,
-                modules(object()),
-                page_state,
-                loaded(section_reads()),
-            ),
-        )
+        # keeps the page's order readable from a single place. The window and
+        # the run count the stood-in half names are the ones the footer closes
+        # on, so both halves are drawn from the one page state and the one
+        # load the wave was opened with.
+        st = fixtures.RecordingPage()
+        with patch.object(chart_sections, _CHART_HALF, _draw_figure_line):
+            drawn = _drawn_wave(page_sections.render_dashboard_widgets, st)
 
-        self.assertEqual(drawn, [_CHART_HALF, _REMAINING_HALF])
-        self.assertIs(
-            getattr(recorder, _CHART_HALF).call_args.args[1], page_state,
-        )
         self.assertEqual(
-            getattr(recorder, _CHART_HALF).call_args.args,
-            getattr(recorder, _REMAINING_HALF).call_args.args,
+            _sections_drawn(drawn, (_FIGURE_CARDS, *_SECTIONS)),
+            [_FIGURE_CARDS, *_SECTIONS],
         )
 
 
