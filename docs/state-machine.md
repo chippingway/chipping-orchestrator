@@ -394,7 +394,7 @@ descendant, a fix, the docs pass, a conflict resolution, and a heuristic match e
 
 A PR is open and humans drive the merge — the orchestrator never merges from here, so any `merged` state it observes
 was produced externally. Behind the terminals, an issue whose approval a requirements edit made stale — one still
-owing a developer report a drift resume recorded, or carrying the marker a hand-back whose relabel did not land
+owing a developer report one of its fix rounds recorded, or carrying the marker a hand-back whose relabel did not land
 leaves — goes straight back to `workflow:validating`, since only that stage binds the report and re-reviews. The
 handler scans four feedback surfaces over three id namespaces — the issue thread and the PR conversation share one,
 so each is read against its own cursors before the two merge — and routes to `workflow:fixing` without advancing the
@@ -410,7 +410,14 @@ The dev fix loop, entered from `in_review` on unread feedback or from `workflow:
 replay, the stranded-fix publish, the in_review-route ACK fast path, and the worktree-drift dead-lock breaker that
 hands a stuck validating-route park to `workflow:resolving_conflict`. It also settles what each round delivered, per
 surface and against the reader that owns it, which is why this stage writes `last_action_comment_id` for its
-issue-thread half as well as the in_review watermarks for the pull request's three. Full flow:
+issue-thread half as well as the in_review watermarks for the pull request's three — a round that finished on a
+report settles them from the record of that report instead, when it lands. Its resume answers the same developer
+report contract the `CHANGES_REQUESTED` round ahead of it answers: a commit publishes under the report of it, a
+report needing no commit reaches the pull request on the head the branch and its publication receipt are proved to
+agree on, and either handover spends the route's one fix round and hands the issue back to `workflow:validating`,
+where the reviewer waits for the report — the round a report alone buys being the settlement's to write, since a
+handover nothing confirmed has bought none.
+Full flow:
 [`state-machine/delivery-stages.md`][fixing].
 
 ### `_handle_resolving_conflict` (label `workflow:resolving_conflict`)

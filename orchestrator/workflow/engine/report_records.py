@@ -33,9 +33,10 @@ succeeds: stamping a delayed report with a later hash would claim it answered an
 edit it never saw.
 
 `HandedRun` beside them is no record at all: it is what a caller tells the
-recording about the run -- the road it came down and, where the caller took a
-snapshot, the requirements revision it was handed -- and only the delivered
-report built from it reaches the comment.
+recording about the run -- the road it came down, the requirements revision it
+was handed where the caller took a snapshot, and the route bookkeeping the
+handover owes where no size gate behind the caller will carry it -- and only the
+delivered report built from it reaches the comment.
 
 Every record is additive. An issue that carries none of these keys reads back as
 no delivered report, no transaction, no current report, and no handoff, which is
@@ -123,7 +124,10 @@ class DeliveredReport:
 
     `receipt` and `report_revision` are minted with the record, so a
     transaction bound later is the same transaction a retry would find its own
-    comment by. Every other member is what the transaction carries unchanged.
+    comment by. Every other member is what the transaction carries unchanged,
+    `spends` included: the round and bookmarks the handover this report
+    completes owes, frozen by the caller for the settlement to close where
+    nothing between the run and that write would have.
     """
 
     receipt: str
@@ -215,7 +219,7 @@ class ReportHandoff:
 
 @dataclass(frozen=True)
 class HandedRun:
-    """The road a run came down, and the requirements revision it was handed.
+    """The road a run came down, and what the caller froze for it.
 
     A caller that snapshots what it gave the run names that revision here, and
     the record is stamped with the snapshot rather than with whatever the
@@ -225,7 +229,28 @@ class HandedRun:
     back later could stamp an older report with a newer hash. Empty reads the
     pinned baseline, which is what the check ahead of every other spawn leaves
     for the run behind it.
+
+    `spends` is the route bookkeeping the handover this report completes owes
+    -- the reviewer round it lands on, the bookmarks it closes -- frozen by the
+    caller as `((field, value), ...)` and carried onto the transaction, so the
+    write that finally settles the report is one that closes them too. It is
+    what a road with no size gate behind it needs: a report delivered with no
+    code in it passes no gate, so the caller's own write is the only other
+    thing that could carry the round, and a crash in the window between the two
+    would leave a handover nothing was counted for. Re-applied from the frozen
+    pair rather than recomputed, so a settlement a crash hid and a later tick
+    replays counts once. Empty is every road whose bookkeeping is already
+    durable elsewhere.
+
+    `watermarks` is the input this run actually consumed, in the same shape and
+    for the same reason: a round answering feedback may not record that feedback
+    as read until the report answering it reaches the pull request, so the
+    readers travel with the report and move in the write that settles it. Empty
+    is every road that settles what it delivered for itself, because what it
+    delivered is answered whatever the report does.
     """
 
     route: WorkflowLabel
     requirements_revision: str = ""
+    spends: tuple = ()
+    watermarks: tuple = ()

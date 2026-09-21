@@ -22,7 +22,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     guards as _guards,
-    report_delivery as _report_delivery,
+    report_redelivery as _report_redelivery,
 )
 from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
@@ -188,7 +188,7 @@ def _run_left_commits(
         return False
     if head != _inherited_floor(state) and head != prepared.before_sha:
         return True
-    return _report_delivery.redelivers_an_owed_report(
+    return _report_redelivery.redelivers_an_owed_report(
         spec, state, prepared.agent_result, prepared.worktree,
     )
 

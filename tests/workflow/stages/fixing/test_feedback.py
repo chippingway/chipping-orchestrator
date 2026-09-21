@@ -34,6 +34,8 @@ FakeUser = support.FakeUser
 INLINE_FEEDBACK_ID = support.INLINE_FEEDBACK_ID
 HISTORICAL_COMMENT_ID = support.HISTORICAL_COMMENT_ID
 INITIAL_PR_COMMENT_WATERMARK = support.INITIAL_PR_COMMENT_WATERMARK
+PR_HEAD_SHA = support.PR_HEAD_SHA
+PR_NUMBER = support.PR_NUMBER
 ISSUE = support.ISSUE
 LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
 PENDING_FIX_AT = support.PENDING_FIX_AT
@@ -217,7 +219,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
                 scenario.issue,
                 run_agent=_agent(
                     session_id=DEV_SESSION,
-                    last_message="fixed",
+                    last_message=PUSHED_MESSAGE,
                 ),
                 head_shas=(SHA_BEFORE, SHA_AFTER),
                 push_branch=True,
@@ -410,6 +412,15 @@ WITHHELD_OUTCOMES = (
 # will.
 REPORTED = "REPORT: READY\nvendored the parser behind a flag\nREPORT: END"
 
+# The code-publication receipt a report with no code in it is proved against:
+# this pull request, standing on the head the checkout is on. Without it that
+# road cannot tell a pull request carrying the reported work from one the branch
+# has run ahead of, so it parks rather than publishing.
+PUBLISHED_RECEIPT = MappingProxyType({
+    "implementing_published_sha": PR_HEAD_SHA,
+    "implementing_published_pr": PR_NUMBER,
+})
+
 # A reviewer quoting the hidden marker this orchestrator stamps its own posts
 # with. It posts no review and no inline comment, so on those two surfaces
 # there is no post of ours the quote could be taken for -- and a scan that
@@ -556,23 +567,29 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
         # readers are the only thing that would say the feedback behind it was
         # answered. Settled here, a report that never reaches a reviewer would
         # leave its prompt claimed as consumed and nobody able to tell.
+        #
+        # The world is the one that road needs proved: a checkout standing
+        # where the remote branch is, and the code-publication receipt naming
+        # that commit on this pull request. Short of it the round parks instead
+        # of reporting, and a park carries the batch itself.
         mocks = self._deliver(
             agent_fields=_run(REPORTED),
-            head_shas=(SHA_SAME, SHA_SAME),
+            head_shas=(PR_HEAD_SHA, PR_HEAD_SHA),
             placed={ON_THE_THREAD: [THE_REPLY]},
+            extra_state=PUBLISHED_RECEIPT,
         )
 
         self.assertEqual(only_prompt(mocks), pr_feedback_prompt([THE_REPLY]))
         self.assertEqual(self._readers(), SEEDED_READERS)
 
-    def _deliver(self, *, agent_fields, head_shas, placed):
+    def _deliver(self, *, agent_fields, head_shas, placed, extra_state=None):
         """One fixing tick over a batch on whichever surfaces `placed` names."""
         pr = self._open_pr(**placed.get(PR_FIELDS, {}))
         pr.issue_comments.extend(placed.get("pr_issue_comments", ()))
         scenario = IssueScenario(*self._seed(
             pr=pr,
             issue_comments=placed.get(ON_THE_THREAD, ()),
-            extra_state=dict(SEEDED_READERS),
+            extra_state={**SEEDED_READERS, **(extra_state or {})},
         ))
         self._github = scenario.github
 

@@ -94,6 +94,7 @@ _ENGINE_OWNERS = (
     "report_record_state",
     "report_record_values",
     "report_records",
+    "report_redelivery",
     "report_remote_evidence",
     "report_replay_guards",
     "report_settled_reading",

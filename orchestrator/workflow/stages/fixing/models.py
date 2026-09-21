@@ -27,8 +27,10 @@ exactly the replay that quoted it.
 
 `_FixingResumeRun` carries what the disposition cannot re-derive after the run:
 the worktree it actually ran in (the resolve may have recreated it), whether an
-operator paused mid-run, and the HEAD on both sides -- the only thing that
-tells a pushed fix from a no-commit acknowledgement.
+operator paused mid-run, the HEAD on both sides -- the only thing that
+tells a pushed fix from a no-commit acknowledgement -- and whether the run
+finished on a report, which three owners branch on and none of them may parse
+for itself.
 """
 from __future__ import annotations
 
@@ -164,9 +166,16 @@ class _FixingContext:
 class _FixingResumeRun:
     """The outcome of one locked dev resume: the worktree it ran in, the agent
     result, whether an operator paused mid-run, and the HEAD before/after.
+
+    `reported` is the one reading of that result several owners here branch on
+    -- the ACK fast path, the fork that withholds the delivery settlement, and
+    the road the disposition's answer is read against -- so it is taken once,
+    where the run is built, rather than by each of them parsing the message
+    again and risking a different answer from one.
     """
     worktree: Path
     dev_result: AgentResult
     paused: bool
     before_sha: str | None
     after_sha: str | None
+    reported: bool = False

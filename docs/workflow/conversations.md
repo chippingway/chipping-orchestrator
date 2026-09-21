@@ -254,6 +254,25 @@ outcome is published onto the head the pull request already carries — over a t
 tree with nothing recorded — and routed as an `ACK:` is, and the reviewer waits until the report is confirmed on the
 pull request. `ACK:` and a question keep their own roads.
 
+The **reviewer-requested fix round** acts on one on the same pull request, under the `workflow:fixing` label it runs
+under: the initial `CHANGES_REQUESTED` run and the parked resume behind it both read their result through
+`workflow/stages/validating/fix_reports.py`
+([`_handle_validating`](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating)'s
+`changes_requested` arc and
+[`_handle_fixing`](../state-machine/delivery-stages.md#_handle_fixing-label-workflowfixing)).
+A commit has its report recorded before the size gate and bound once the push lands; one with no usable report parks
+rather than being pushed. A no-commit reply ending on a report outcome is the handover a reviewer item naming report
+content earns: published onto the head the branch and the code-publication receipt are PROVED to agree on — every
+reading affirmative, since a reading that did not happen may be a branch carrying a commit the pull request has not
+got — and routed as a pushed fix is, back on `workflow:validating` for a fresh review of the report and requirements
+being handed on. What that handover costs is the SETTLEMENT's to write: the round and the automated-fix bookmarks
+ride the record and are closed by the write that confirms the report, so a refused post or a crash leaves the round
+unspent and the round to be finished again. A commit an earlier round
+left unpublished still passes the gate on its way there, since its own report was that round's to record. The ordinary
+non-actionable `ACK:` and a question keep their own roads, and on the human-feedback route the `ACK:` still returns
+the pull request to `in_review` — but only a reply that never used the report contract at all is that: one that
+reached for the markers and missed, an `ACK:` line beside a report block included, is a broken contract and parks.
+
 Every other developer road is still routed by its commits, its `ACK:` line, and the question parks the
 [delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read there the way
 its stage reads any other no-commit reply without `ACK:`.
@@ -289,9 +308,10 @@ transaction ahead of every handler. Both publish through the developer-report co
 (`github/developer_reports.py`, `github/pull_request_reports.py`, and `workflow/engine/comments.py`'s
 `_publish_developer_report`). The reconciliation never reads an agent's message: what it acts on is the record a stage
 wrote, and on an issue carrying none it costs one pinned read that has already happened. No reconciliation acts on a
-`developer_report_delivery`: binding one to a publication is the implementing stage's step, exchanging the delivery
-for its transaction in one write before anything is posted, and taken again on every tick that republishes the same
-commit onto the same pull request until it lands.
+`developer_report_delivery`: binding one to a publication is a stage's step — the implementing publication's, and on
+an open pull request the review stages' own, which is also what binds a delivery a later push carried — exchanging
+the delivery for its transaction in one write before anything is posted, and taken again on every tick that
+republishes the same commit onto the same pull request until it lands.
 
 [question-handler]: ../state-machine/conversation-stages.md#_handle_question-label-question
 [discussion-handler]: ../state-machine/conversation-stages.md#_handle_discussion-label-discussion

@@ -107,7 +107,9 @@ class ValidatingPushedFixesStayOnValidatingTest(
             session_id="rev-sess",
             last_message="please tighten the docstring\n\nVERDICT: CHANGES_REQUESTED",
         )
-        dev_fix = _agent(session_id=DEV_SESSION, last_message="fixed")
+        dev_fix = _agent(
+            session_id=DEV_SESSION, last_message=review_support._reported("fixed"),
+        )
 
         self._run_validating(
             gh,

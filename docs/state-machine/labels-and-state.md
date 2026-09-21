@@ -631,9 +631,13 @@ The keys that matter for the state machine fall into a few groups:
   request is `report_binding.py`, and what reconciles an outstanding transaction ahead of every handler is
   [the developer-report transaction](delivery-stages.md#the-developer-report-transaction-every-dispatch). The
   initial implementation delivery produces them
-  ([`_handle_implementing`](delivery-stages.md#_handle_implementing-label-workflowimplementing)), and so does a
-  requirements-drift resume on an open pull request, recorded under the `workflow:validating` or `in_review` route
-  it ran on ([user-content drift](delivery-stages.md#user-content-drift-detection)).
+  ([`_handle_implementing`](delivery-stages.md#_handle_implementing-label-workflowimplementing)), and so does either
+  half of the fix loop on an open pull request: a requirements-drift resume, recorded under the `workflow:validating`
+  or `in_review` route it ran on ([user-content drift](delivery-stages.md#user-content-drift-detection)), and a
+  reviewer-requested round, recorded under `workflow:fixing` — the label that round actually runs under, and one of
+  the roads whose park notice therefore says the pull request stands where it stood rather than that none was opened
+  ([`_handle_validating`](delivery-stages.md#_handle_validating-label-workflowvalidating)'s `changes_requested` arc
+  and [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing) step 9).
 
   `developer_report_delivery` is what one completed run wrote, recorded **before** the size gate reads its candidate
   and before the push sends it — which is the last moment the report is certainly recoverable, since the session
@@ -642,7 +646,35 @@ The keys that matter for the state machine fall into a few groups:
   verification is owed, the route that produced it, the complete report text or the exact location and content
   revision a verification asserts, the feedback watermarks the run consumed, the bookkeeping its route closes, and
   the requirements revision the run was actually handed — for a drift resume, the hash its drift check took of the
-  content it handed the run, carried with the run rather than read back off the comment. It names no pull request,
+  content it handed the run, carried with the run rather than read back off the comment. The bookkeeping is what a
+  fix round freezes there as well as handing to the size gate, because the one handover with no code in it — a report
+  answering a reviewer item that named no repository change — passes no gate at all, and has bought nothing until the
+  report is on the pull request: the write that SETTLES the report is the only thing that closes the round and the
+  bookmarks it consumed, so a post GitHub refused, a re-read that failed, a requirements edit landing mid-run or a
+  crash leaves the round unspent and the replay anchor intact. Applied from the frozen
+  pair rather than recomputed, so a settlement a crash hid and a later tick replays counts the round once. The
+  WATERMARKS are frozen there for the same handover and by the same producer the settlement itself derives them from
+  (`workflow/engine/prompt_delivery.py`): a round whose report is the whole of what reached the pull request may not
+  record the feedback it answered as read until that report lands, so those readers move in the write that settles it
+  and in no other. Every other road answered its feedback in something already there — a pushed fix in code, a park in
+  a notice a human is being asked to read — so those settle in the tick and the record's own pairs re-apply as a
+  no-op. A PARK settles them in its own write rather than in a caller's behind it, because the park is durable the
+  moment it is taken and one left over feedback that still reads as unanswered is one the next tick resumes the
+  developer over again.
+
+  Both groups also carry what the record **supersedes**. A record minted while an unsettled one is on the comment
+  replaces it — the delivery by the write that records the new one, the transaction by the binding behind it — and
+  nothing an unsettled record owes has been written anywhere, so its round, its bookmarks and its readers would go
+  with it. They are joined onto the new record instead, the outstanding transaction first, then any unbound
+  delivery, then this run's own pair, so a field two of them name keeps the newest reading of it (each was computed
+  against a comment the superseded record wrote nothing to, and the watermarks ratchet forward regardless). The road
+  that reaches this is a requirements edit landing while a report-only fix round's session is out: the transaction
+  refuses to publish against requirements the run never saw, the drift resume that edit earns writes the report that
+  supersedes it, and without the join that report would settle leaving `review_round` unspent,
+  `pending_fix_reviewer_comment_id` still set for a `/orchestrator continue` to replay stale reviewer feedback from,
+  and the human reply the fix round already answered reading as fresh feedback.
+
+  It names no pull request,
   no branch and no commit, because none of those is settled until the code is published: the write that binds the
   record adds them as the subject below and drops the delivery in the same write. The revision is minted one past
   every report the issue has already recorded — the settled one, any transaction still outstanding, and any delivery

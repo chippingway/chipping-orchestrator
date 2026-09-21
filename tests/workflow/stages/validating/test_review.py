@@ -54,7 +54,9 @@ STDERR_PAYLOAD_SIZE = 8192
 STDERR_PREFIX_SIZE = 4096
 DEV_SESSION = "dev-sess"
 RUN_AGENT = "run_agent"
-FIXED_MESSAGE = "fixed"
+# The fix loop holds a completed run to the report contract, so a run that
+# commits here says what it did the way a developer does.
+FIXED_MESSAGE = review_support._reported("fixed")
 BEFORE_FIX_SHA = review_support.BEFORE_FIX_SHA
 AFTER_FIX_SHA = review_support.AFTER_FIX_SHA
 FIX_HEAD_SHAS = review_support.FIX_HEAD_SHAS
@@ -478,7 +480,10 @@ class HandleValidatingFixLoopEdgeCasesTest(
             edge_issue,
             run_agent=[
                 self._changes_requested_review(),
-                _agent(session_id=DEV_SESSION, last_message="partial"),
+                _agent(
+                    session_id=DEV_SESSION,
+                    last_message=review_support._reported("partial"),
+                ),
             ],
             dirty_files=["leftover.py"],
             push_branch=True,

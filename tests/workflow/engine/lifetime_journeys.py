@@ -51,13 +51,26 @@ _UNREAD_FEEDBACK = MappingProxyType({
     "pr_last_review_summary_id": 0,
 })
 
+# What a round whose report reached the pull request leaves behind: nothing.
+# Put back on every delivery pass because the loop is the point -- each round
+# here publishes its own report, and a fixture carrying one round's record into
+# the next would be walking a review hold rather than the ledger these journeys
+# are about.
+_REPORT_SETTLED = MappingProxyType({
+    "developer_report_delivery": None,
+    "developer_report_pending": None,
+    "developer_report_owed": None,
+})
+
 # What every delivery leg is entered carrying: the pull request it pushes
-# onto, the branch under it, and the developer session it resumes.
+# onto, the branch under it, the developer session it resumes, and a settled
+# report behind it.
 _DELIVERING = MappingProxyType({
     "pr_number": PR_NUMBER,
     _KEY_BRANCH: BRANCH,
     "dev_agent": _support.BACKEND_CLAUDE,
     "dev_session_id": DEV_SESSION,
+    **_REPORT_SETTLED,
 })
 
 # What a human writes on the way into each round that is woken by one. The
@@ -123,7 +136,7 @@ _PUBLISHING = MappingProxyType({
 # two charges -- the ledger counts runs rather than ticks.
 _REVIEW_AND_FIX = (
     _support._agent(session_id="rev-sess", last_message=_support.REVIEW_CHANGES_REQUESTED_MESSAGE),
-    _support._agent(session_id=DEV_SESSION, last_message="fixed"),
+    _support._agent(session_id=DEV_SESSION, last_message=_support._reported("fixed")),
 )
 
 
@@ -132,7 +145,9 @@ FIXING_LEG = Leg(
     label=_support.LABEL_FIXING,
     staged={**_DELIVERING, _KEY_REVIEW_ROUND: 1, **_UNREAD_FEEDBACK},
     world=_PUBLISHING,
-    agent_result=_support._agent(session_id=DEV_SESSION, last_message="fixed"),
+    agent_result=_support._agent(
+        session_id=DEV_SESSION, last_message=_support._reported("fixed"),
+    ),
     replies=(_ASKED_AGAIN,),
 )
 

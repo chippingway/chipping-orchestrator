@@ -43,6 +43,7 @@ _TEST_SPEC = fixtures._TEST_SPEC
 _agent = fixtures._agent
 _issue_branch = fixtures._issue_branch
 _open_pr_for = fixtures._open_pr_for
+_reported = fixtures._reported
 
 FRESH_REVIEW_ISSUE = 5
 FRESH_REVIEW_PR = 11

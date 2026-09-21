@@ -15,7 +15,7 @@ from orchestrator.workflow.stages.fixing import (
     bookmarks as _bookmarks,
     continue_command as _continue_command,
 )
-from orchestrator.workflow.stages.validating import dev_fix as _dev_fix
+from orchestrator.workflow.stages.validating import fix_reports as _fix_reports
 from tests.support import fakes
 from tests.workflow import fixtures
 from tests.workflow.stages import implementing_fixing_test_cases
@@ -63,9 +63,9 @@ TIMEOUT_PUSHED_DETAIL = fixtures.TIMEOUT_PUSHED_DETAIL
 TIMEOUT_EMPTY_DETAIL = fixtures.TIMEOUT_EMPTY_DETAIL
 _RecoveryFollowupAssertions = fixtures._RecoveryFollowupAssertions
 
-# The dev-fix disposition is a validating owner the fixing resume imports
-# directly, so a test that has to wrap it patches that owner.
-dev_fix = _dev_fix
+# The report-aware fix disposition is a validating owner the fixing resume
+# imports directly, so a test that has to wrap it patches that owner.
+fix_reports = _fix_reports
 
 _clear_pending_fix_bookmarks = _bookmarks._clear_pending_fix_bookmarks
 _pending_fix_id_set = _bookmarks._pending_fix_id_set
@@ -201,8 +201,12 @@ FRESH_SPAWN_DIVIDER = "----------------------------------------"
 DEV_SESSION_ID = "dev_session_id"
 CHECK_SUCCESS = "success"
 DEBOUNCE_CONFIG = "IN_REVIEW_DEBOUNCE_SECONDS"
-PUSHED_FIX_MESSAGE = "pushed fix"
-PUSHED_MESSAGE = "pushed"
+# What a fix round's finished run says. Every developer prompt teaches the
+# report contract and the fix loop holds a completed run to it -- a round that
+# commits and reports nothing is withheld for a human -- so a fixture whose run
+# FINISHES says so the way a developer does.
+PUSHED_FIX_MESSAGE = fixtures._reported("pushed fix")
+PUSHED_MESSAGE = fixtures._reported("pushed")
 RESUME_SESSION_ID = "resume_session_id"
 CONTINUE_WORD = "continue"
 FIX_FEEDBACK = "please address the typo"

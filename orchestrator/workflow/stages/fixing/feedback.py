@@ -249,6 +249,18 @@ def _consumed_delivery(
     )
 
 
+def _consumed_pairs(state, feedback: _models._FixingFeedback) -> tuple:
+    """The forward reader updates this batch owes, as `((field, value), ...)`.
+
+    The same pairs the settlement below applies, handed to a caller that has to
+    freeze them rather than write them: a round that finished on a report may
+    not record its feedback as answered until that report reaches the pull
+    request, so the pairs travel on the report's own record and are applied by
+    the write that settles it.
+    """
+    return _consumed_delivery(state, feedback).consumed_pairs(state)
+
+
 def _settle_consumed_feedback(
     state, feedback: _models._FixingFeedback,
 ) -> None:

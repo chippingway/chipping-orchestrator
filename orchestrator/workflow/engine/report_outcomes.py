@@ -8,7 +8,10 @@ exited nonzero before it looks at the message at all, so a partial transcript
 or a provider's error text is never read as finished work.
 `_parse_report_outcome` is the message half alone, and `_finished_on_a_report`
 is that same reading asked as a yes/no by a stage whose other replies are
-ordinary answers rather than a contract broken.
+ordinary answers rather than a contract broken. `_reached_for_a_report` is the
+wider question beside it -- did this message use the contract at all, well or
+badly -- for the caller whose other readers must not take a reply that reached
+for it and missed as one of their own.
 
 The message is read more strictly than the verdict markers beside it. A report
 block encloses free prose, so its marker lines are uppercase and whole-line as
@@ -129,6 +132,31 @@ def _finished_on_a_report(agent_result: AgentResult) -> bool:
     return not isinstance(
         _report_outcome_of_run(agent_result), _models._ReportRefusal,
     )
+
+
+def _reached_for_a_report(agent_result: AgentResult) -> bool:
+    """Whether a completed run's message used the report contract at all.
+
+    True for the two outcomes, and true for a message that reached for the
+    markers and MISSED -- an unclosed block, text after the outcome, a stray
+    marker line, a marker that may render as code, an `ACK:` beside it.
+
+    What it is for is the caller whose other readers would otherwise take such
+    a message as something it is not. A reply carrying both a report marker and
+    an acknowledgement is one broken contract, not two answers: read as the
+    acknowledgement alone it would hand a pull request back to review over work
+    whose report nothing carries, which is the reading the report contract
+    exists to prevent. Asked here, that reply reaches no fast path and is left
+    for a human like every other reply this workflow cannot act on.
+
+    A run that did not COMPLETE is False, and so is a completed reply that
+    never used the contract -- a question, a disagreement, an ordinary `ACK:`.
+    Neither reached for anything, so neither is a contract to hold anybody to.
+    """
+    outcome = _report_outcome_of_run(agent_result)
+    if not isinstance(outcome, _models._ReportRefusal):
+        return True
+    return outcome is _models._ReportRefusal.MALFORMED
 
 
 def _parse_report_outcome(last_message: str) -> _models._ReportOutcome:
