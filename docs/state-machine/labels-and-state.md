@@ -646,7 +646,9 @@ The keys that matter for the state machine fall into a few groups:
   verification is owed, the route that produced it, the complete report text or the exact location and content
   revision a verification asserts, the feedback watermarks the run consumed, the bookkeeping its route closes, and
   the requirements revision the run was actually handed — for a drift resume, the hash its drift check took of the
-  content it handed the run, carried with the run rather than read back off the comment. The bookkeeping is what a
+  content it handed the run, and for a fix round the revision its own spawn was given — carried with the run rather
+  than read back off the comment, which on a fixing tick is a baseline that same tick rewrites minutes later and
+  would fold in every reply that arrived while the developer worked. The bookkeeping is what a
   fix round freezes there as well as handing to the size gate, because the one handover with no code in it — a report
   answering a reviewer item that named no repository change — passes no gate at all, and has bought nothing until the
   report is on the pull request: the write that SETTLES the report is the only thing that closes the round and the
@@ -710,7 +712,16 @@ The keys that matter for the state machine fall into a few groups:
   at all, a completed run that handed over no usable report to write, a recovery that republishes committed
   work no recorded report describes, a round reporting with NO commit over a head nothing could prove the pull
   request to be standing on, and the fixing recovery that finds a report a crashed round recorded and cannot prove
-  the pull request carries the work it is about. A binding REFUSES rather than parks — it
+  the pull request carries the work it is about. The dormant reconciliation beside that last one
+  (`workflow/stages/fixing/report_recovery.py`, on no dispatched route) adds two of its own, and one of them is the
+  only road here that does NOT leave its record where it found it: a record nobody can read parks untouched, for
+  whoever repairs or abandons it, while a checkout this host proves it cannot publish from — gone, or carrying
+  uncommitted changes — parks with the frozen pairs that record held applied and the record itself RELEASED, since
+  left there, restoring or cleaning the checkout would publish the report and send the issue to review, which is the
+  decision the notice exists to put in front of a human. The debt outlives that release, so the review stays held
+  and the reply still brings a report. A reading nobody could TAKE is on neither list — an unreadable tree, a head
+  that would not resolve, a pull request this poll could not fetch — and buys nothing: nothing published, nothing
+  released, no notice, and the poll behind it asks again. A binding REFUSES rather than parks — it
   stages nothing and says which refusal it was — and `report_binding.py` is what answers the refusal: a comment too
   full for the transaction is retried silently on the next call, since the routes a report still owed lets run are
   what give that room back, while a record no comment would ever hold, a delivery nothing can read, and a
@@ -737,7 +748,9 @@ The keys that matter for the state machine fall into a few groups:
   condition a human REPAIRS rather than replies to (an edited report restored, a checkout cleaned) leaves nothing else
   to end the wait, and a debt outliving the settlement would hold the reviewer over a report the pull request carries.
   Additive: an issue without it owes nothing on that account, and an older park carrying the reason alone still reads
-  as a debt and is given the flag, with no second notice, the next time a road meets that park still standing.
+  as a debt and is given the flag, with no second notice, the next time a road meets that park still standing — which
+  is a notice withheld rather than a write: whatever the road staged beside the flag, a record it released among it,
+  rides that write, and skipping it would leave the caller told the tick ended over a comment that never changed.
 
   `developer_report_unreported_work` is the narrower fact beside it: a run committed work and no record of
   this issue's describes it. Every road that holds such work writes it — one whose report this build cannot record,
@@ -1640,7 +1653,24 @@ The keys that matter for the state machine fall into a few groups:
   a record: what takes one down is the route that reads it. Before it is acted on it is CORRELATED against the
   handoff beside it (`workflow/stages/fixing/round_marks.py`) and refused on an outstanding report, a handoff this
   build cannot read, one settled under any label but `workflow:fixing`, or either route anchor standing — which says
-  a newer round opened after the mark went up. No dispatched route reads it yet.
+  a newer round opened after the mark went up. Two owners read it, `reporting.py` for the hand-back every
+  settlement-driven publication takes and `report_recovery.py` for the round that settled while nobody was looking,
+  and both CONSUME it: a mark this stage may not act on comes down unspent, because it is the mark of a round that
+  is over either way and only the relabel is withheld. `fixing_round_handed_back` beside it is the receipt of the
+  transaction a hand-back already closed a round on, written by that hand-back in the write that takes the mark down and
+  durable before the label moves, for the reason the mark is. Written only where a mark was RAISED and the correlation
+  placed it: the reading that places one also places every road reaching a relabel on its own reasons, and such a road
+  closes no transaction — stamped from there, an unrelated handoff is recorded as handed back and the mark a replay of
+  it raises is then refused, over a write nothing reserved room for. It is what makes the mark a claim on ONE
+  transaction: the mark falls with that write and the handoff beside it never does — nothing clears a handoff, a
+  settlement only replaces it — so a comment whose round closed legitimately goes on carrying a readable
+  `workflow:fixing` handoff with both route anchors cleared and no report owed, and a mark written back onto it by hand
+  would otherwise be correlated into a second hand-back over whatever landed in between. The room for it is RESERVED
+  when the transaction is accepted, beside the code-publication receipt and the comment-id ledger entry and for the same
+  reason: it lands on the comment a settlement leaves, so a transaction accepted at the ceiling would settle, raise the
+  mark, and then meet a hand-back GitHub refuses — with the mark raised, the relabel never taken, and every later tick
+  failing in the same place. Reserved only where the record's own spends raise the mark, since no other route writes it.
+  Additive: an issue without it has handed no round back under this record. Neither key is on a dispatched route yet.
 - **Crash-recovery anchors.** `discussion_round_branch` + `discussion_round_sha` — the branch a discussion round
   opened on and the SHA it was at, written BEFORE the spawn and surviving every exit the stage takes; a published plan
   moves the pair onto the tip it pushed (that commit is what the stage now vouches for) and only a

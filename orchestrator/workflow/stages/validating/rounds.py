@@ -34,7 +34,11 @@ once against the budget it earned.
 from __future__ import annotations
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import report_delivery as _report_delivery
+from orchestrator.workflow.engine import (
+    report_delivery as _report_delivery,
+    report_delivery_state as _delivery_state,
+    report_record_state as _record_state,
+)
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
 )
@@ -90,12 +94,33 @@ def _spends_for_an_owed_publication(state: PinnedState) -> _late_gate_models._Sp
     count the edit earned rather than that count less the tick it took a
     human to answer the park.
 
+    Nothing either where an owed report's own RECORD carries the round. A
+    fixing round that finished on a report froze its bookmarks and its round
+    onto that record precisely so the write completing the publication is the
+    only thing that spends them -- so a publication counting a round here
+    would count the same one twice, and count it a tick before the report it
+    belongs to is anywhere.
+
+    The RECORD is asked rather than the debt, because the two part company:
+    the drift resume beside this one records a report carrying no bookkeeping
+    at all, since its own disposition bumps the round -- and where that push
+    failed, the publication a park still owes is the only road left to count
+    it. Read off the debt, that reviewer would be handed a head no round was
+    ever spent on. Both records, since the debt passes from the delivered one
+    to the transaction it becomes and the frozen pairs travel with it.
+
     The ordinary next round otherwise, which is every debt this stage's own
     roads left: a drift resume that committed without a report parked before
     anything was pushed, so the head the reply finally publishes is one no
     reviewer has read and no round has been spent on.
     """
     if state.get(_report_delivery.OWED_ROUND_RESET):
+        return _late_gate_models._SPENDS_NOTHING
+    recorded = (
+        _delivery_state.read_delivered_report(state)
+        or _record_state.read_pending_report(state)
+    )
+    if recorded is not None and recorded.spends:
         return _late_gate_models._SPENDS_NOTHING
     return _spends_next_round(state)
 

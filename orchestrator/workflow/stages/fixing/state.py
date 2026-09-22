@@ -16,7 +16,10 @@ retry loop writes reasons this stage must recognize and refuse to answer.
 engine's: a report transaction's settlement writes it from inside the engine --
 raised by the route bookkeeping a fixing record froze, retired by every
 settlement that froze none -- and this stage is the only thing that reads it or
-clears it by hand.
+clears it by hand. `fixing_round_handed_back` is the fourth and is this stage's
+own: the receipt of the transaction a hand-back already closed a round on, which
+is what makes that mark a claim on ONE transaction rather than on any settlement
+whose handoff happens to still be lying there.
 """
 from __future__ import annotations
 
@@ -44,3 +47,12 @@ _CONFLICT_ROUND = "conflict_round"
 # and REPLACED by every settlement, so the mark standing on a comment is always
 # about the handoff standing beside it rather than about some earlier one.
 _SETTLED_ROUND = _report_records.SETTLED_ROUND
+
+# The handoff a hand-back has already closed a round on. The mark above comes
+# down in that same write, but the handoff beside it is PERSISTENT -- nothing
+# clears one, a settlement only replaces it -- so a mark reintroduced by hand
+# afterwards would correlate against a transaction this stage already finished
+# and hand the round back a second time, past whatever feedback arrived in
+# between. Written by the hand-back, durable before the label moves like the
+# mark it replaces, and read only by the correlation that places a mark.
+_HANDED_BACK_RECEIPT = "fixing_round_handed_back"

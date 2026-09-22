@@ -18,6 +18,11 @@ fixture spelling a digest of its own would pass or fail on the fixture.
 What a settlement LEAVES is here too, and it is a different fixture: a handoff
 and the mark beside it outlive every transaction after them, so a case about a
 stale correlation seeds them directly rather than by running a round.
+
+The windows PAST the recording want a third thing again, and it is not here:
+the recovery re-proves the checkout rather than remembering a receipt, so a
+case about one needs a checkout answering for itself, which
+`report_crash_support.a_checkout` hands it.
 """
 
 from __future__ import annotations
@@ -36,7 +41,10 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_settlement_state as _settlement,
 )
-from orchestrator.workflow.stages.fixing import models as _models
+from orchestrator.workflow.stages.fixing import (
+    models as _models,
+    reporting as _reporting,
+)
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
 )
@@ -71,6 +79,12 @@ READY_MESSAGE = f"REPORT: READY\n{REPORT_TEXT}\nREPORT: END"
 
 ACK_MESSAGE = "ACK: nothing to change here."
 
+# Where a report verified on the pull request's own BODY says it is, and the
+# message asserting it: the one location this workflow cannot both keep and
+# manage, since binding there spends the reference GitHub honours the issue
+# closure in and the line naming the session that wrote the branch.
+DESCRIPTION_URL = f"https://github.com/{TEST_REPO_SLUG}/pull/{PR_NUMBER}"
+
 # A reply that reaches for the contract and misses: an `ACK:` line beside a
 # report, which the two readings contradict each other on.
 MISREAD_MESSAGE = f"ACK: nothing to change here.\n\n{READY_MESSAGE}"
@@ -86,6 +100,16 @@ VERIFIED_MESSAGE = (
     f"#issuecomment-{VERIFIED_COMMENT_ID} "
     f"sha256:{_dev_reports.content_digest(REPORT_TEXT)}"
 )
+
+DESCRIPTION_VERIFIED_MESSAGE = (
+    "done\n\nREPORT: VERIFIED "
+    f"{DESCRIPTION_URL} sha256:{_dev_reports.content_digest(REPORT_TEXT)}"
+)
+
+# What a pull request description has to keep saying for a report verified ON
+# it to cost the publication nothing: the reference GitHub honours there and
+# nowhere else, and the line naming the session that wrote the branch.
+DESCRIBED_BODY = f"Resolves #{ISSUE_NUMBER}\n\n{{attribution}}\n\nIt is done."
 
 # The highest id on the pull request conversation this round's prompt quoted,
 # and the boundary the comment carries until the report answering it lands.
@@ -115,6 +139,10 @@ SPENT_ROUND = 2
 # The mark a fixing report transaction's own settlement raises, spelled as the
 # comment carries it: a case seeding one by hand seeds what a settlement left.
 SETTLED_ROUND = "fixing_round_settled"
+
+# The receipt a hand-back stamps beside it, spelled the same way: what ties
+# that mark to ONE transaction rather than to whichever handoff is lying there.
+HANDED_BACK_RECEIPT = "fixing_round_handed_back"
 
 AWAITING_HUMAN = "awaiting_human"
 
@@ -214,6 +242,18 @@ class FixingReportCase:
             "reported": True,
         }
         return _models._FixingResumeRun(**(fields | overrides))
+
+    def records_the_report(self, **overrides) -> bool:
+        """Record this round's report as its own disposition would.
+
+        The record every window past it is about, written through the owner
+        rather than seeded: what a case then reads back is the shape this
+        build really produces, frozen pairs and settlement mark included.
+        """
+        return _reporting._recording_stops_the_tick(
+            self.ctx(), self.resume_run(**overrides),
+            consumed_batch(), owed_round(),
+        )
 
     def pinned(self) -> dict:
         """What the pinned comment carries now, as GitHub holds it."""

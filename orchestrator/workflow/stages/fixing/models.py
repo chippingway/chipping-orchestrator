@@ -25,12 +25,18 @@ and a batch that had flattened the reconstruction could not say which reader
 owns which half of it, leaving the issue thread's own boundary behind on
 exactly the replay that quoted it.
 
+`_ReportHold` is what an attempt to publish a recorded report hands back: that
+it is still owed, and -- for the one road that has to tell them apart -- whether
+the attempt refused on a reading it took or never got a reading at all.
+
 `_FixingResumeRun` carries what the disposition cannot re-derive after the run:
 the worktree it actually ran in (the resolve may have recreated it), whether an
 operator paused mid-run, the HEAD on both sides -- the only thing that
-tells a pushed fix from a no-commit acknowledgement -- and whether the run
+tells a pushed fix from a no-commit acknowledgement -- whether the run
 finished on a report, which three owners branch on and none of them may parse
-for itself.
+for itself, and the requirements revision that run was handed, which nothing
+behind the spawn can read back without counting a reply that landed while the
+developer was out.
 """
 from __future__ import annotations
 
@@ -93,26 +99,27 @@ class _FixingFeedback:
         prompt that quoted it twice would ask for it to be answered twice.
         """
         return _FixingFeedback(
-            issue_thread=_joined(self.issue_thread, other.issue_thread),
-            pr_conversation=_joined(
+            issue_thread=self._joined(
+                self.issue_thread, other.issue_thread,
+            ),
+            pr_conversation=self._joined(
                 self.pr_conversation, other.pr_conversation,
             ),
-            review_comments=_joined(
+            review_comments=self._joined(
                 self.review_comments, other.review_comments,
             ),
-            review_summaries=_joined(
+            review_summaries=self._joined(
                 self.review_summaries, other.review_summaries,
             ),
         )
 
-
-def _joined(read: list, also_read: list) -> list:
-    """One surface's two readings, each item once and in id order."""
-    by_id = {
-        feedback_item.id: feedback_item
-        for feedback_item in (*read, *also_read)
-    }
-    return [by_id[feedback_id] for feedback_id in sorted(by_id)]
+    def _joined(self, read: list, also_read: list) -> list:
+        """One surface's two readings, each item once and in id order."""
+        by_id = {
+            feedback_item.id: feedback_item
+            for feedback_item in (*read, *also_read)
+        }
+        return [by_id[feedback_id] for feedback_id in sorted(by_id)]
 
 
 def _no_fixing_feedback() -> _FixingFeedback:
@@ -148,6 +155,28 @@ class _StrandedPublication:
 
 
 @dataclass(frozen=True)
+class _ReportHold:
+    """What one attempt to put a recorded report on its pull request did.
+
+    `owed` is the whole of what most callers ask: the report is still not
+    there, so a relabel that would send a reviewer to a head nothing on the
+    pull request describes is withheld.
+
+    `unread` is the reason, and only one road needs it. Every other refusal
+    is a reading the attempt TOOK -- a pull request standing somewhere else,
+    a thread that has ended, a comment too full -- and the tick carries on
+    past those, because the roads behind it are what answer them. A pull
+    request this poll could not fetch is none of that. It says nothing about
+    the branch, the description or the head, so a tick that spent it on a
+    notice would tell a human this issue is stuck on the strength of a
+    request that failed.
+    """
+
+    owed: bool = False
+    unread: bool = False
+
+
+@dataclass(frozen=True)
 class _FixingContext:
     """The per-tick `fixing` invocation handles, bundled so the parked-dispatch,
     validating-recovery, continue-command, resume, and reconcile helpers thread
@@ -172,6 +201,14 @@ class _FixingResumeRun:
     the road the disposition's answer is read against -- so it is taken once,
     where the run is built, rather than by each of them parsing the message
     again and risking a different answer from one.
+
+    `requirements_revision` is the issue as it stood when this session was
+    INVOKED, taken there and carried rather than recomputed: the run lasts
+    minutes, and a reply that lands inside them is requirements nothing in this
+    prompt asked about. A report stamped with a revision read afterwards claims
+    to answer that reply, and the settlement comparing the two then finds them
+    equal and publishes -- with the comment left unread by the watermarks and
+    unmentioned by the report.
     """
     worktree: Path
     dev_result: AgentResult
@@ -179,3 +216,4 @@ class _FixingResumeRun:
     before_sha: str | None
     after_sha: str | None
     reported: bool = False
+    requirements_revision: str = ""

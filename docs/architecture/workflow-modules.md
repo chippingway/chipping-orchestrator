@@ -390,7 +390,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             WHOLE settling write -- the watermarks it advances, the bookkeeping it closes, the two
                             records it adds, and the comment-id ledger entry that publishing the report leaves
                             between the two, reserved under an id that ledger does not already hold since its
-                            writer is idempotent. The code-publication receipt is reserved in BOTH measurements
+                            writer is idempotent. A record whose own spends RAISE the fixing mark reserves the
+                            hand-back behind it too, through that stage's own writer
+                            (`stages/fixing/round_marks.py`): a settlement cannot move a label, so the round such
+                            a record closes is handed back by the tick after it, onto the comment that settlement
+                            leaves -- and unreserved, a transaction is accepted at the ceiling, settles, raises the
+                            mark, and meets a hand-back GitHub refuses, with the mark raised and no later tick able
+                            to relabel. Only where those spends raise it, since no other route writes it. The code-publication receipt is reserved in BOTH measurements
                             beside it, since a record written before its commit is pushed waits for the publication
                             gate and that gate writes onto this same comment -- reserved at the widest that receipt
                             records, and measured in BOTH worlds, since the reservation replaces what is there and a
@@ -484,7 +490,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it hands work on: both records asked as a CLAIM so a truncated one counts as a debt, and the
                             park, which writes `developer_report_owed` beside its reason so the debt of a road with
                             no record to leave outlives any later park that replaces that reason -- and onto an
-                            older park still standing with the reason alone, with no second notice. Both holding
+                            older park still standing with the reason alone, with no second notice. A park already
+                            saying everything the notice would still WRITES: what a caller staged into the same
+                            state -- the consumed pairs, and a record the road behind them released -- is what
+                            that write is for, and skipping it would tell the caller the tick ended while the
+                            comment still carried both. Both holding
                             roads write `UNREPORTED_WORK` as well, which is the narrower fact the debt cannot
                             carry: these commits are undescribed, whatever record an EARLIER run left, and only a
                             report recorded over the branch as it stands retires it. `OWED_ROUND_RESET` is the
@@ -1618,22 +1628,80 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for the contract and missed, an `ACK:` beside a report, which is held for a human rather
                             than acted on by either half; whether a round that committed nothing may publish onto
                             the head its pull request already carries, on the affirmative proof that the head read,
-                            never moved, is the one the pull request is STANDING on, and left a tree proved clean --
-                            a GitHub read nobody could take holds rather than parking, being about this tick and not
-                            about the round; the record that carries this round's consumed readers, its route
-                            bookkeeping and the settlement MARK for the write that completes the publication; the
-                            binding taken only on a commit the CALLER proved, never on the persistent publication
-                            receipt; the park a report no road left can move earns, once; and the hand-back, which
-                            retires the mark in a write of its own BEFORE the relabel -- a tick dying between them
-                            has to leave a round nothing can mistake for one that just settled
+                            never moved, is the one the pull request is STANDING on, and left a tree proved clean.
+                            Three readings there HOLD rather than answering -- a pull request reading this poll
+                            could not take, a head the checkout would not name, and a tree status that established
+                            nothing are about this tick and not about the round, so nothing is published and
+                            nothing is parked -- while a head that moved, a publication this report may not go
+                            onto and a tree PROVED to be carrying something are decisive, the last of them for the
+                            terminal park in `report_recovery.py` rather than for the roads that wait on a reply. The record that
+                            carries this round's consumed readers, its route bookkeeping, the requirements revision
+                            its own spawn was handed -- never a baseline re-read after the run, which would fold in
+                            every reply that arrived while the developer worked -- and the settlement MARK for the
+                            write that completes the publication. The binding taken only on a commit the CALLER
+                            proved, never on the persistent publication receipt, and held to the fresh reading in
+                            `report_publication.py` that both those roads share. A request that FAILED is the one
+                            refusal the answer names for itself, because a caller may spend nothing on it. Then the
+                            park a report no road left can move earns, once; and the hand-back, which retires the
+                            mark in a write of its own BEFORE the relabel -- a tick dying between them has to leave
+                            a round nothing can mistake for one that just settled -- and STAMPS the transaction it
+                            closed the round on, since the mark falls with that write and the handoff beside it
+                            never does
+      report_publication.py the one fresh reading of the pull request those two roads take, spelled apart because
+                            neither may carry a copy of it: answered twice they would come to disagree, and the
+                            disagreement is a report on a thread nobody meant. It establishes the whole IDENTITY of
+                            the publication, as `engine/report_publication_evidence.py` does for a transaction the
+                            reconciliation is finishing -- still OPEN, since a thread somebody merged or closed
+                            mid-run keeps the head it had and every other comparison passes on a publication that
+                            is over; on this issue's own branch in THIS repository, since a number is all that
+                            brought the object back and a second thread on another branch or a fork's carries this
+                            repository's ref names over somebody else's commits while standing on the very commit
+                            a caller proved; and STANDING on that commit rather than merely carrying it, since a
+                            push landing between the proof and this reading leaves it in the history while the work
+                            under review moves on. The DESCRIPTION comes back with it -- whether it still closes
+                            this issue and names the session -- because the one report this workflow cannot both
+                            keep and manage is a `REPORT: VERIFIED` naming that very body, and the binding refuses
+                            it only if a caller says so. EVERY read is inside one boundary, the fetch included and
+                            nothing only around it: a fetched pull request asks GitHub nothing, so the state, the
+                            ref, the head repository, the sha and the body are each a request of their own, and the
+                            client resolves its repository lazily too -- left outside, any one of them leaves the
+                            reading by an exception rather than by an answer
+      report_recovery.py    the other end of that contract and equally undispatched: what a tick coming back to one
+                            of those windows owes, written for the position ahead of a scan because a scan is what
+                            the damage runs through -- the input a dead tick consumed rides the same record, so a
+                            scan running past it reads that feedback as unread and pays a second developer to
+                            answer it. A round whose report SETTLED while nobody was looking is handed back on the
+                            mark that settlement raised, never on the settling itself: a delivery is claimed by one
+                            key whoever wrote it, so the record settling there can be an implementing candidate's
+                            or a drift resume's, closing THAT route's bookkeeping and raising no mark of this
+                            stage's. A record a crash left unbound is answered off its own pairs, and whether the
+                            code went out is RE-PROVED against the checkout rather than remembered off the
+                            persistent receipt -- a tree provably clean and a head it could name, with where that
+                            head stands left to the binding, which reads the pull request afresh. A record nobody
+                            can READ parks with the record untouched, since the debt is claimed by the key alone
+                            and reading it as an absence would let the scan behind it through. The two refusals no
+                            later poll takes back, a worktree that is GONE and a tree this host proved DIRTY,
+                            announce once and RELEASE the record as they park -- left there, restoring or cleaning
+                            the checkout would be enough on its own to publish the report and send the issue to
+                            review, which is the decision the notice exists to put in front of a human; the debt
+                            outlives it, and a reading nobody could take is neither refusal and buys nothing at all
       round_marks.py        whether the mark a settlement raised still places the round in hand, which is the one
-                            reading every road that could relabel over one shares. No mark is asked nothing. A mark
+                            reading the two owners that could relabel over one share. No mark is asked nothing. A mark
                             is correlated against the handoff beside it and refused on any of four: an outstanding
                             report, a handoff this build cannot read, one recorded under any label but
                             `workflow:fixing`, and either route anchor standing -- a settlement clears both, so one
                             there belongs to a round opened after the mark went up. The label is what catches an
                             anchorless manual relabel back onto `workflow:fixing`, which the rest of the comment
-                            cannot tell from a round that has just closed
+                            cannot tell from a round that has just closed, and a fifth reading catches the same
+                            move made LATER: the mark falls with the hand-back and the handoff beside it never
+                            does, so a comment whose round closed legitimately goes on satisfying all four, and
+                            what ties a mark to ONE transaction is the receipt that hand-back stamped. That stamp
+                            is this owner's too, and is taken only where a mark was RAISED: the reading above
+                            places every road reaching a relabel on its own reasons as well, and one of those
+                            closes no transaction to record. Either
+                            owner CONSUMES the mark it asks about: one it may not place is the mark of a round
+                            that is over either way, and left standing it would be waiting for whichever fixing
+                            round came next
       parked.py             the four answers an `awaiting_human` tick can reach and the order they are asked in
       continue_command.py   `/orchestrator continue` on a parked fix: the replay and what it may hand the dev --
                             guidance, never the command itself -- plus the two refusals and the guidance passthrough
@@ -2572,10 +2640,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tree, a local head, a tip, the two equal) AND the code-publication receipt naming that
                             same commit on the pull request the report would go onto. Asked of a CHECKOUT rather
                             than of a run, because two callers reach it from opposite sides -- this disposition,
-                            which holds the run and the worktree it ran in, and the `fixing` recovery, which holds
-                            a report a run that is gone recorded and has to ask the same question of the checkout
-                            that run left. One rule in one place is what keeps the recovery from proving less than
-                            the round it is finishing did. Nothing is inferred from an
+                            which holds the run and the worktree it ran in, and the `fixing` handler's recovery,
+                            which holds a report a run that is gone recorded and has to ask the same question of
+                            the checkout that run left. One rule in one place is what keeps the recovery from
+                            proving less than the round it is finishing did; the DORMANT recovery beside it
+                            (`stages/fixing/report_recovery.py`) asks neither, since its own binding re-reads the
+                            pull request and needs only a clean tree and a head that reads. Nothing is inferred from an
                             absence, because "this run committed nothing publishable" is the same answer the
                             disposition gives a checkout nobody could read, a fetch that failed, a divergence git
                             refused and a remote that moved -- each of which may be a branch carrying a commit the
@@ -2622,11 +2692,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             sends the candidate to the adjudication, and by the write that settles a report no gate
                             ever saw, the frozen form handed to all three so the count is neither lost to a crash in
                             the relabel window nor taken twice; the pair a reviewer-requested round closes, which is
-                            that round and the replay anchor its handover consumes; and the one publication
-                            that spends nothing -- one a drift park still owes, whose budget an `in_review`
-                            requirements edit already reset, and whose delayed landing would otherwise charge that
-                            edit twice, asked by the resume that answers such a park and by the silent retry that
-                            finishes its push
+                            that round and the replay anchor its handover consumes; and the publications that spend
+                            nothing -- one a drift park still owes, whose budget an `in_review` requirements edit
+                            already reset and whose delayed landing would otherwise charge that edit twice, and one
+                            whose own RECORD already carries the round, since a fixing round that finished on a
+                            report froze its bookmarks and its round there precisely so the write completing the
+                            publication is the only thing that spends them. The record is asked rather than the
+                            debt, because the two part company: a drift resume records a report carrying no
+                            bookkeeping at all, and read off the debt that reviewer would be handed a head no round
+                            was ever spent on. Both are asked by the resume that answers such a park and by the
+                            silent retry that finishes its push
       models.py             the frozen records several owners in this stage hand each other -- a record one
                             route builds and reads alone stays beside that route instead -- and the park clear
                             every awaiting road takes, which drops the unanswered-edit claim with the park it was
