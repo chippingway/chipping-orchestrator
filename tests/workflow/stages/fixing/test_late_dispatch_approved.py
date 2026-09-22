@@ -61,10 +61,9 @@ KEY_PENDING_COMMENT = "pending_fix_reviewer_comment_id"
 # The world the retry ticks below read once their push has landed: the
 # checkout standing on the commit that went out, and the remote carrying it.
 # Stated rather than defaulted because these ticks are asked to prove it --
-# the report a held round recorded may not be handed on over a head nobody
-# could vouch for -- and a world that never modelled the push's effect on the
-# remote would answer that question with a refusal the retry has already
-# healed.
+# the stage behind the retry re-reads the branch before it hands anything on
+# -- and a world that never modelled the push's effect on the remote would
+# answer that question with a refusal the retry has already healed.
 _PUBLISHED_WORLD = MappingProxyType({
     "head_shas": (MEASURED_CANDIDATE_SHA,),
     "fetched_branch_tip": MEASURED_CANDIDATE_SHA,
@@ -77,10 +76,14 @@ WRITE_PINNED_STATE = "write_pinned_state"
 CANDIDATE_UNREADABLE = MeasurementFailure.CANDIDATE_UNREADABLE
 
 # A tree clean when the push is decided and dirty on the far side of it,
-# and one still dirty when the tick after the crash reads it.
+# and one still dirty when the tick after the crash reads it. Clean TWICE
+# before the push: a reported round asks the checkout for itself before the
+# gate does, since a tree this host proves is carrying something is a refusal
+# no road here publishes over and the terminal park is that round's own.
 STRAY_FILE = "stray.py"
+_CLEAN = support._WorktreeStatus(readable=True, paths=())
 _DIRTY = support._WorktreeStatus(readable=True, paths=(STRAY_FILE,))
-_DIRTIED = (support._WorktreeStatus(readable=True, paths=()), _DIRTY)
+_DIRTIED = (_CLEAN, _CLEAN, _DIRTY)
 _STILL_DIRTY = (_DIRTY,)
 RUN_AGENT = "run_agent"
 # The two keywords a gated push names its commit and pins its ref by.
@@ -110,6 +113,11 @@ class ReceiptCarriedRoundTest(unittest.TestCase, _FrozenPairMixin):
     the round and the batch ride the receipt's own write -- and the tick that
     comes back reads a publication the pull request already carries, counts
     nothing more, and replays no feedback.
+
+    The rounds here republish a commit an earlier one stranded under a reply
+    that wrote no report, because that is the road where the route's
+    bookkeeping is the gate's to carry: a round that REPORTS freezes the same
+    pair onto that report's record, for the write that publishes it.
     """
 
     def test_the_receipt_carries_the_round_it_landed(self) -> None:
@@ -175,7 +183,7 @@ class ReceiptCarriedRoundTest(unittest.TestCase, _FrozenPairMixin):
         return self._route_to_the_stage(github, github.get_issue(ISSUE))
 
     _seed_fix_round = support._SizeGateFixtureMixin._seed_fix_round
-    _run_fix_round = support._SizeGateFixtureMixin._run_fix_round
+    _run_fix_round = support._SizeGateFixtureMixin._run_stranded_round
     _seed = support._SizeGateFixtureMixin._seed
     _open_pr = support._SizeGateFixtureMixin._open_pr
 
@@ -276,6 +284,11 @@ class ApprovedRetryEndToEndTest(unittest.TestCase, _FrozenPairMixin):
     first act is to short-circuit on that park. Nothing behind that tick goes
     back for what its route was part-way through, which is why the approval
     carries it and the retry that lands the commit closes it.
+
+    The rounds here republish a commit an earlier one stranded under a reply
+    that wrote no report, because that is the road where the route's
+    bookkeeping is the gate's to carry: a round that REPORTS freezes the same
+    pair onto that report's record, for the write that publishes it.
     """
 
     def test_the_retry_closes_the_round_it_owed(self) -> None:
@@ -369,7 +382,7 @@ class ApprovedRetryEndToEndTest(unittest.TestCase, _FrozenPairMixin):
         )
 
     _seed_fix_round = support._SizeGateFixtureMixin._seed_fix_round
-    _run_fix_round = support._SizeGateFixtureMixin._run_fix_round
+    _run_fix_round = support._SizeGateFixtureMixin._run_stranded_round
     _seed = support._SizeGateFixtureMixin._seed
     _open_pr = support._SizeGateFixtureMixin._open_pr
 

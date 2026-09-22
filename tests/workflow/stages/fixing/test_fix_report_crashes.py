@@ -3,21 +3,23 @@
 """A fix round's report, and the process that ended before it was handed on.
 
 The round writes its report durably ahead of the size gate and the relabel to
-`validating` comes after the push, so a process dying anywhere past that write
+`validating` comes last of all, so a process dying anywhere past that write
 leaves the same shape: `workflow:fixing` still on the issue, nobody being
 waited for, the reply that round answered still unread because a reporting
-round's readers ride the report, and a report nothing has published. The next
-tick FINISHES that round rather than repeating it -- the rescan behind it would
+round's readers ride the report, and a report nothing has handed on. The next
+tick FINISHES that round rather than repeating it -- the scan behind it would
 read the reply as fresh feedback and resume a developer, charging another run
 and writing a second report over the first.
 
-Finishing it is the publication the round may still owe and then the hand-back.
-A commit the crash caught before the gate goes out the way every other one
-does, spending the round frozen on the record; a candidate over the ceiling is
-held for the adjudication; and a checkout that can vouch for nothing holds the
-whole thing for a human, because "nothing was stranded" is the same answer the
-probe gives a worktree that is gone. Only past all of that does `validating`
-get the report, and only there is a delivery bound and settled.
+Finishing it is whatever the round still owes and then the hand-back. A commit
+the crash caught before the gate goes out the way every other one does,
+spending the round frozen on the record; a candidate over the ceiling is held
+for the adjudication; a delivery the crash caught unbound is re-proved against
+the checkout and bound to a pull request read afresh; and a checkout that can
+vouch for nothing holds the whole thing for a human, because "nothing was
+stranded" is the same answer the probe gives a worktree that is gone. A round
+whose report SETTLED before the process ended is finished on the mark that
+settlement raised and on nothing weaker.
 """
 
 from __future__ import annotations
@@ -50,6 +52,9 @@ REVIEWER_ANCHOR = "pending_fix_reviewer_comment_id"
 
 PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
+# The seam a case reads to say whether this tick paid for a developer at all.
+RUN_AGENT = "run_agent"
+
 CURRENT = "current"
 
 DELIVERED = "delivered"
@@ -80,16 +85,15 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
     """The tick that finds a report a round recorded and never handed on."""
 
     def test_a_crash_before_relabel_resumes_nobody(self) -> None:
-        # The window the report's own write opens, and the one only this stage
-        # can answer: the report is written durably ahead of the size gate, the
-        # resume has cleared the park, and the process ends before the relabel.
-        # What is left is `workflow:fixing`, nobody being waited for, the reply
-        # that round answered still unread, and a delivered report nothing has
-        # published -- which the rescan would read as fresh feedback and resume
-        # the developer over, charging another run and writing a second report.
-        # Recognised instead, the issue is handed to `validating` with no
-        # developer run, and the report hold there settles the delivery and the
-        # round it froze.
+        # The window past the settlement, and the one only this stage can
+        # answer: the report is published, the write that settled it applied
+        # the readers and the round the record froze, and the process ends
+        # before the label moves. What is left is `workflow:fixing`, nobody
+        # being waited for, and a round that is over -- which the scan would
+        # read as an issue with nothing to do and bounce, or, with a reply
+        # above it, resume a second developer over. Recognised instead, the
+        # mark that settlement raised hands the issue to `validating` with no
+        # developer run and no second report.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.requested_fix(world.QUESTION_REPLY, committed=False)
         world.replied(self)
@@ -101,18 +105,18 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
         self.assertEqual(
             (self.pinned()[AWAITING_HUMAN],
              self.pinned().get(PR_LAST_COMMENT_ID),
-             self.records()[DELIVERED] is None),
-            (False, 0, False),
+             _round(self),
+             len(self.published_reports())),
+            (False, answered, 1, 1),
         )
         handed = self.parked_resume(world.reported(), committed=False)
 
-        handed["run_agent"].assert_not_called()
+        handed[RUN_AGENT].assert_not_called()
         self.assertEqual(self.github.label_history[-1], (ISSUE, LABEL_VALIDATING))
-        self.reviewed()
+        # The hand-back consumed the mark, so nothing publishes a second
+        # report and no later round is handed back on this one's evidence.
         self.assertEqual(
-            (len(self.published_reports()), _round(self),
-             self.pinned().get(PR_LAST_COMMENT_ID)),
-            (1, 1, answered),
+            (len(self.published_reports()), _round(self)), (1, 1),
         )
 
 
@@ -134,7 +138,7 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
 
         handed = self.parked_resume(world.reported(), **_drift_world.STRANDED)
 
-        handed["run_agent"].assert_not_called()
+        handed[RUN_AGENT].assert_not_called()
         handed[PUSH_BRANCH].assert_called_once()
         # The commit reached the pull request, so this handover's round was
         # spent by that push rather than by the settlement behind it, and
@@ -149,15 +153,16 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
 
 
     def test_a_crash_over_a_lost_checkout_holds(self) -> None:
-        # The same window with the checkout gone under it. Nothing is stranded
-        # that anything could prove, and "nothing stranded" is the answer this
-        # probe also gives a worktree that vouches for nothing -- so read as a
-        # clean hand-back the report would go to `validating`, whose binding
-        # recreates a lost checkout from the remote, finds its head equal to
-        # the receipt, and publishes the report of a commit that never passed
-        # the gate against the head the pull request had all along. Held
-        # instead: nothing pushed, nothing published, the record intact, and a
-        # human asked.
+        # The same window with the branch unprovable under it. The checkout
+        # names a head the pull request is not standing on, so the binding
+        # refuses; and nothing is stranded that anything could prove, which is
+        # the answer that probe also gives a fetch that failed and a divergence
+        # git would not count -- so no road here republishes the commit either.
+        # Every road having declined, the wait is announced rather than held in
+        # silence: nothing pushed, nothing published, the record intact, the
+        # debt standing, and a human asked. The reply the notice earns is what
+        # resumes a developer -- no poll does it on its own, because the
+        # record's own pairs say this batch has already been answered.
         for refusal, lost in _LOST_CHECKOUTS:
             with self.subTest(checkout=refusal):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
@@ -172,12 +177,13 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
                 )
 
                 held[PUSH_BRANCH].assert_not_called()
-                self.reviewed()
+                held[RUN_AGENT].assert_not_called()
                 self.assertEqual(
                     (self.pull_request.head.sha, len(self.published_reports()),
-                     self.pinned()[PARK_REASON]),
+                     self.pinned()[PARK_REASON],
+                     self.records()[DELIVERED] is None),
                     (world.PUBLISHED_HEAD, 0,
-                     _report_delivery.UNDELIVERABLE_REPORT),
+                     _report_delivery.UNDELIVERABLE_REPORT, False),
                 )
 
 
@@ -207,27 +213,37 @@ class CrashedFixRoundTest(unittest.TestCase, world._FixReportMixin):
 
 
     def test_a_crash_before_binding_charges_nothing(self) -> None:
-        # The window the relabel opens: the label is on `validating` and the
-        # process dies before the report is bound. Nothing of the handover was
-        # durable, so the round is unspent and the anchor intact -- and the
-        # review hold on `validating` is what finishes the transaction, which
-        # is where the round is finally spent.
+        # The window between the round's publication and the report's binding:
+        # the head the report describes is what the pull request carries, and
+        # nothing has bound the report to it. Nothing of the handover was
+        # durable, so the round is unspent, the anchor intact and the reply
+        # still unread -- and the recovery ahead of the next scan re-proves the
+        # checkout, binds the report to the pull request it reads afresh,
+        # settles the pairs the record froze and hands the round back, without
+        # a developer and without a second report.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.requested_fix(world.QUESTION_REPLY, committed=False)
         world.replied(self)
+        answered = max(reply.id for reply in self.issue.comments)
 
-        with crashes.dying_before_the_settlement():
+        with crashes.dying_before_the_binding():
             self.parked_resume(world.reported(), committed=False)
 
         self.assertEqual(
-            (_round(self), self.pinned().get(REVIEWER_ANCHOR)),
-            (0, REVIEWER_COMMENT_ID),
+            (_round(self), self.pinned().get(REVIEWER_ANCHOR),
+             self.records()[DELIVERED] is None,
+             len(self.published_reports())),
+            (0, REVIEWER_COMMENT_ID, False, 0),
         )
-        self.assertIsNotNone(self.records()[DELIVERED])
-        self.reviewed()
+        recovered = self.parked_resume(world.reported(), committed=False)
+
+        recovered[RUN_AGENT].assert_not_called()
+        self.assertEqual(self.github.label_history[-1], (ISSUE, LABEL_VALIDATING))
         self.assertEqual(
-            (_round(self), len(self.published_reports())),
-            (1, 1),
+            (_round(self), len(self.published_reports()),
+             self.pinned().get(PR_LAST_COMMENT_ID),
+             self.pinned().get(REVIEWER_ANCHOR)),
+            (1, 1, answered, None),
         )
 
 

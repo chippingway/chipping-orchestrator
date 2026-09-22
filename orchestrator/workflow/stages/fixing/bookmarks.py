@@ -20,6 +20,12 @@ settles `last_action_comment_id` beside the PR-side cursor and the pull
 request settles that PR-side cursor alone, so a reconstruction that merged
 them could not say which reader each half moves.
 
+The issue-thread half is cut from the READ its caller already holds. That
+surface owes one fixing tick more than the batch -- the requirements a report
+is stamped with, and the conversation a fresh spawn quotes -- and every one of
+those answers has to come off the same read, or a comment edited or deleted
+between two of them reaches the developer in one and not the others.
+
 The validating route records no id lists at all -- its single replay anchor is
 the reviewer-feedback PR comment, which the orchestrator authored itself, so it
 is fetched separately here and the caller adds it OUTSIDE the trust filter.
@@ -112,7 +118,7 @@ def _reviewer_anchor_comment(gh, pr, state):
     return None
 
 
-def _reconstruct_issue_space(gh, issue, pr, state) -> tuple:
+def _reconstruct_issue_space(gh, issue, pr, state, comments) -> tuple:
     """The batch's two IssueComment surfaces, rebuilt APART.
 
     One recorded id set, because GitHub numbers the issue thread and the pull
@@ -128,6 +134,15 @@ def _reconstruct_issue_space(gh, issue, pr, state) -> tuple:
     Re-fetches each surface in full (`after_id=None`) and keeps only the ids
     recorded at route time, so the reconstruction survives the watermark
     advancement that follows the first dev resume.
+
+    The ISSUE thread is cut from the caller's own read of it rather than one
+    taken here, because that surface owes this tick more than the batch: the
+    requirements a report is stamped with and the conversation a fresh spawn
+    quotes come off the scan's read, and a second read is newer. A bookmarked
+    comment edited or deleted between the two would reach the developer in one
+    of those answers and not the others -- a prompt quoting a body the
+    fingerprint never saw, and a report the settlement then refuses. `None` is
+    a caller holding no read at all, which takes one here.
     """
     recorded = _pending_fix_id_set(
         state, "pending_fix_issue_ids", "pending_fix_issue_max_id",
@@ -135,7 +150,7 @@ def _reconstruct_issue_space(gh, issue, pr, state) -> tuple:
     if not recorded:
         return [], []
     return (
-        _matched(gh.comments_after(issue, None), recorded),
+        _matched(gh.comments_after(issue, None, comments=comments), recorded),
         _matched(gh.pr_conversation_comments_after(pr, None), recorded),
     )
 

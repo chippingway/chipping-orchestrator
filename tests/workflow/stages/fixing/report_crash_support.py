@@ -65,6 +65,10 @@ FAILING_READS = (LOOKUP, "state", "head", "body")
 # The debt the release leaves behind, which outlives the record it drops.
 OWED_REPORT = _report_delivery.OWED_REPORT
 
+# What a completed round that committed over a standing record leaves, and
+# which every road that publishes reads before it binds anything.
+UNREPORTED_WORK = _report_delivery.UNREPORTED_WORK
+
 # What every road that cannot move a report parks under.
 UNDELIVERABLE = _report_delivery.UNDELIVERABLE_REPORT
 

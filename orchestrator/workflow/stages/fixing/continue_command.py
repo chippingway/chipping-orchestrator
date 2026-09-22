@@ -52,7 +52,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 
 def _reconstruct_pending_fix_batch(
-    gh, issue, pr, state,
+    gh, issue, pr, state, comments=None,
 ) -> _models._FixingFeedback:
     """Rebuild the exact feedback batch that drove the `in_review` -> `fixing`
     route from the pinned `pending_fix_*` metadata.
@@ -88,9 +88,19 @@ def _reconstruct_pending_fix_batch(
     route and the `/orchestrator continue` replay. Existing parked issues that
     carry only `pending_fix_*_max_id` (no id lists) get the conservative
     single-item reconstruction from `_pending_fix_id_set`.
+
+    `comments` is the caller's own read of the issue thread, which the
+    rebuilt thread half is cut from rather than a read taken here. Everything
+    a fixing tick derives from that surface comes off ONE read -- the batch,
+    the watermarks it settles, the requirements a report is stamped with, the
+    conversation a fresh spawn quotes -- and a replay is part of the batch: a
+    bookmarked comment edited or deleted between two reads would reach the
+    developer in the prompt while the fingerprint beside it never saw it, and
+    the report that round writes is one no settlement can place. `None` is a
+    caller holding no read at all, which takes one here.
     """
     thread, conversation = _bookmarks._reconstruct_issue_space(
-        gh, issue, pr, state,
+        gh, issue, pr, state, comments,
     )
     inline, summaries = _bookmarks._reconstruct_review_surfaces(gh, pr, state)
     return _models._FixingFeedback(
@@ -224,7 +234,9 @@ def _handle_continue_command(
     """
     park_reason = ctx.state.get(_state._PARK_REASON)
     batch = (
-        _reconstruct_pending_fix_batch(ctx.gh, ctx.issue, ctx.pr, ctx.state)
+        _reconstruct_pending_fix_batch(
+            ctx.gh, ctx.issue, ctx.pr, ctx.state, feedback.read,
+        )
         if park_reason in _messages._CONTINUE_PARK_REASONS
         else _models._no_fixing_feedback()
     )

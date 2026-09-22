@@ -60,11 +60,15 @@ an `ACK:` line beside it -- is not an acknowledgement either, and the ACK fast
 path refuses it: read as one it would hand the pull request back to `in_review`
 over work whose report nothing carries.
 
-`reporting` is the settlement-driven form of the same road, and no dispatched
-tick runs through it or through `report_recovery` beside it: the consumed pairs
-and the route bookkeeping ride the RECORD of the report rather than a caller's
-own write, the write that completes the publication applies them, and a mark
-rides with them for the one thing that write cannot do -- move a label.
+`reporting` is the settlement-driven form of the same road, and the resume
+disposes every reported round through it: the consumed pairs and the route
+bookkeeping ride the RECORD of the report rather than a caller's own write, the
+write that completes the publication applies them, and a mark rides with them
+for the one thing that write cannot do -- move a label. While a report is owed,
+nothing an outstanding publication carries may be spent before it lands -- not
+the bookmarks, not the round, not the readers -- so the readers stop being able
+to say what has been delivered. The record's own frozen pairs are what the scan,
+the parked dispatch and the no-feedback exit ask instead.
 `report_recovery` is the other end of that same contract, written for the
 position ahead of any scan, because a scan is what the damage runs through: a
 report a crash left unbound, re-proved against the checkout rather than
@@ -82,12 +86,14 @@ roads take, whole and under one boundary, since a fetched pull request asks
 GitHub nothing and its state, its branch, its head repository, its head and its
 body are each a request that can fail.
 
-What a round owes its pull request in words rather than code is
-`validating/fix_reports`', which both this stage's resume and the
-`CHANGES_REQUESTED` run that precedes it dispose through: the report is
-recorded before the size gate, a report needing no commit is published onto the
-head the pull request already carries, and the reviewer behind the relabel is
-held until it is confirmed.
+What a round owes its pull request in words rather than code is one contract
+read by two owners. The `CHANGES_REQUESTED` run `validating` spawns itself
+disposes through `validating/fix_reports`; every round behind it is this
+stage's own, through `reporting` above. Both record the report before the size
+gate and publish a report needing no commit onto the head the pull request is
+proved to be standing on -- and the second holds the readers, the round and the
+relabel until that publication really lands, since nothing behind it comes back
+for a handover the reviewer was handed early.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

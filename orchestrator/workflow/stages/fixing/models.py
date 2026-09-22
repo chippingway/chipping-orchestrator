@@ -50,6 +50,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import prompt_context as _prompt_context
 
 
 @dataclass(frozen=True)
@@ -60,12 +61,33 @@ class _FixingFeedback:
     `issue_space` and `all_items` are views over them rather than members, so
     the batch a prompt quotes and the batch a settlement records cannot part
     company the way two separately-built lists can.
+
+    `read` is the issue-thread read those lists were CUT from, kept whole
+    because the round owes that surface more answers than the batch: the
+    conversation a retired session is re-grounded on, and the requirements
+    fingerprint its report is stamped with. Taken again later in the tick,
+    each of those is a newer read than the batch -- so a comment landing in
+    between reaches the agent, or is recorded as requirements somebody
+    answered, while the watermarks this batch settles stop below it and hand
+    it to a second developer on the next poll. Empty is a batch no thread read
+    produced: a replay rebuilt from pinned ids, which is merged into one that
+    did.
+
+    `retained` rides beside it because the second of those answers needs it:
+    the comment ids this orchestrator recorded at the moment it POSTED them,
+    which is the only admissible evidence that a body is its own. A
+    re-grounding conversation is a thread the orchestrator is half of, so with
+    `ALLOWED_ISSUE_AUTHORS` set and the bot's login absent from it -- the shape
+    a deployment lands on by writing down only its humans -- a spawn would
+    otherwise read the answers without the questions they answer.
     """
 
     issue_thread: list
     pr_conversation: list
     review_comments: list
     review_summaries: list
+    read: tuple = ()
+    retained: frozenset = frozenset()
 
     @property
     def issue_space(self) -> list:
@@ -80,6 +102,25 @@ class _FixingFeedback:
         """Every unread item, in the order the dev prompt quotes them."""
         return (
             self.issue_space + self.review_comments + self.review_summaries
+        )
+
+    @property
+    def thread_text(self) -> str:
+        """The conversation a fresh spawn is re-grounded on, off this read.
+
+        Rendered here rather than by the resume, so the prompt a retired
+        session earns and the batch that prompt answers come off the one
+        reading: taken again at spawn time it is minutes newer, and the
+        comment written in between reaches the agent under watermarks that
+        stop below it -- which is a second developer paid for it next poll.
+
+        Our OWN posts are kept in it by recorded id, whatever the allowlist
+        says about the account this token belongs to: an agent re-grounded on
+        the answers without the questions they answer is re-grounded on half a
+        thread.
+        """
+        return _prompt_context._thread_text(
+            self.read, retained_ids=self.retained,
         )
 
     def merged_with(self, other: _FixingFeedback) -> _FixingFeedback:
@@ -111,6 +152,11 @@ class _FixingFeedback:
             review_summaries=self._joined(
                 self.review_summaries, other.review_summaries,
             ),
+            # The rescan's, because it is the one of the two that a thread
+            # read produced: a replay is rebuilt from pinned ids and has none,
+            # and the ids retained for that read belong to it.
+            read=other.read or self.read,
+            retained=other.retained or self.retained,
         )
 
     def _joined(self, read: list, also_read: list) -> list:

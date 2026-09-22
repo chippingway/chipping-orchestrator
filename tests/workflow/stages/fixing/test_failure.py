@@ -6,7 +6,11 @@ from __future__ import annotations
 
 import unittest
 
-from tests.workflow.stages.fixing import fixing_test_support as support
+from orchestrator.github.pinned_state import PinnedState
+from tests.workflow.stages.fixing import (
+    fixing_test_support as support,
+    report_crash_support as crash,
+)
 
 IssueScenario = support.IssueScenario
 
@@ -22,6 +26,7 @@ FRESH_SESSION = support.FRESH_SESSION
 FakeComment = support.FakeComment
 FakeUser = support.FakeUser
 ISSUE = support.ISSUE
+LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
 PARK_PUSH_FAILED = support.PARK_PUSH_FAILED
 PARK_REASON = support.PARK_REASON
 PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
@@ -126,44 +131,60 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
         # Label stayed at `fixing` -- no relabel to `validating`.
         self.assertNotIn((ISSUE, VALIDATING), scenario.github.label_history)
         self.assertNotIn((ISSUE, DOCUMENTING), scenario.github.label_history)
-        # Watermark advanced past the consumed feedback so the next
-        # fixing tick does not replay it on top of the park.
-        self.assertGreaterEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
-
-    def test_dirty_tree_parks_in_fixing(self) -> None:
-        # Dev committed but left the tree dirty -> park (refuses to
-        # push an incomplete branch). Label stays at `fixing`.
-        long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-        comment = FakeComment(
-            id=TRIGGER_ID,
-            body="please rename helper",
-            user=FakeUser(ALICE),
-            created_at=long_ago,
+        # The round reported, so what it consumed rides the record rather than
+        # the readers: the report is still owed, and the write that finally
+        # publishes it is the one that may record this feedback as answered.
+        # The readers stay put so the retry has a batch to replay, and the
+        # record is what stops the next tick resuming a second developer over
+        # the identical prompt.
+        self.assertLess(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+        self.assertEqual(
+            crash.frozen_record(PinnedState(state_data=pinned_data)).watermarks,
+            (
+                (LAST_ACTION_COMMENT_ID, TRIGGER_ID),
+                (PR_LAST_COMMENT_ID, TRIGGER_ID),
+            ),
         )
-        pr = self._open_pr()
-        scenario = IssueScenario(*self._seed(pr=pr, issue_comments=[comment]))
 
-        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
-            self._run_fixing(
-                scenario.github,
-                scenario.issue,
-                run_agent=_agent(
-                    session_id=DEV_SESSION,
-                    last_message=PUSHED_FIX_MESSAGE,
-                ),
-                head_shas=(SHA_BEFORE, SHA_AFTER),
-                dirty_files=["orchestrator/foo.py"],
-            )
+    def test_a_dirty_tree_releases_the_report_it_owes(self) -> None:
+        # A tree this host PROVED is carrying something is a refusal no later
+        # poll takes back and one no road here publishes over, so a round that
+        # REPORTED ends on the terminal notice its report owns -- whether it
+        # committed or not. Both alternatives announce one condition twice: a
+        # round with nothing to push would park saying its developer asked a
+        # question, with the human answering it answering nothing; and a round
+        # that committed would take the push tail's own checkout park, keep the
+        # record, and meet the recovery on the very next tick over the
+        # identical refusal.
+        #
+        # The record is RELEASED with the notice: left standing, cleaning the
+        # tree alone would publish the report and send the issue to review,
+        # which is the decision this notice exists to put to a human. The DEBT
+        # outlives it, the commit stays in the checkout, and the batch the
+        # prompt delivered rides the park's own write -- there is no record
+        # left to carry it, and the reply the notice asks for has to resume a
+        # developer over what has really gone unanswered.
+        for case, committed in (("committed", True), ("report only", False)):
+            with self.subTest(round=case):
+                pinned_data = self._dirty_round(committed=committed)
 
-        pinned_data = scenario.github.pinned_data(ISSUE)
-        self.assertTrue(pinned_data.get(AWAITING_HUMAN))
-        # `_on_dirty_worktree` clears `park_reason` (terminal, needs
-        # human reply); the audit event still records the reason.
-        self.assertIsNone(pinned_data.get(PARK_REASON))
-        self.assertNotIn((ISSUE, VALIDATING), scenario.github.label_history)
-        self.assertNotIn((ISSUE, DOCUMENTING), scenario.github.label_history)
-        # Watermark advanced past the consumed feedback.
-        self.assertGreaterEqual(pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+                self.assertEqual(
+                    (pinned_data.get(AWAITING_HUMAN),
+                     pinned_data.get(PARK_REASON),
+                     pinned_data.get(crash.OWED_REPORT)),
+                    (True, crash.UNDELIVERABLE, True),
+                )
+                self.assertIsNone(
+                    crash.frozen_record(PinnedState(state_data=pinned_data)),
+                )
+                self.assertTrue(support.posted_comment_contains(
+                    self._scenario.github, crash.UNPUBLISHABLE_PHRASE,
+                ))
+                self.assertNotIn((ISSUE, VALIDATING), scenario_labels(self))
+                self.assertNotIn((ISSUE, DOCUMENTING), scenario_labels(self))
+                self.assertGreaterEqual(
+                    pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID,
+                )
 
     def test_no_commit_question_parks_in_fixing(self) -> None:
         # Dev returned a clarifying question with no new commit. The
@@ -202,3 +223,37 @@ class FixingFailureDispositionTest(unittest.TestCase, _FixingFixtureMixin):
             "Should I prefer ruff or black for this?",
             self._joined,
         )
+
+    def _dirty_round(self, *, committed: bool) -> dict:
+        """One fix round that reported over a checkout carrying loose work."""
+        long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        comment = FakeComment(
+            id=TRIGGER_ID,
+            body="please rename helper",
+            user=FakeUser(ALICE),
+            created_at=long_ago,
+        )
+        pr = self._open_pr()
+        scenario = IssueScenario(*self._seed(pr=pr, issue_comments=[comment]))
+        self._scenario = scenario
+
+        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
+            self._run_fixing(
+                scenario.github,
+                scenario.issue,
+                run_agent=_agent(
+                    session_id=DEV_SESSION,
+                    last_message=PUSHED_FIX_MESSAGE,
+                ),
+                head_shas=(
+                    (SHA_BEFORE, SHA_AFTER) if committed
+                    else (SHA_BEFORE, SHA_BEFORE)
+                ),
+                dirty_files=["orchestrator/foo.py"],
+            )
+        return scenario.github.pinned_data(ISSUE)
+
+
+def scenario_labels(case) -> list:
+    """The labels the tick this case just ran moved the issue through."""
+    return case._scenario.github.label_history

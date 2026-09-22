@@ -4,20 +4,19 @@
 
 Each is an ordering the round chose on purpose, so each is worth crashing in.
 The report is written durably ahead of the size gate, and the relabel comes
-after the push -- so a round that answered in CODE opens two windows rather
-than one, and what tells them apart is whether the commit the report describes
-reached the pull request. The first is between the report's write and the gate:
-the commit is in the checkout, nothing has measured or pushed it, and a tick
-that handed the report on from there would be handing on a report about work no
-pull request carries. The second is past the push and before the relabel:
-`workflow:fixing` still on the issue, the park already cleared, the triggering
-reply unread, and a report nobody has published -- which the next tick has to
-recognise rather than resume a developer over. The third is between the relabel
-and the report's binding: the label is on `validating` and nothing has been
-settled, which is where "after confirmation" has to mean that nothing of the
-handover was charged. The fourth is behind a park's own write, which is where a
-park that left its feedback unread would have the next tick resume the
-developer over it again.
+last of all -- so a round that answered in CODE opens three windows rather than
+one, and what tells them apart is how far its publication got. The first is
+between the report's write and the gate: the commit is in the checkout, nothing
+has measured or pushed it, and a tick that handed the report on from there
+would be handing on a report about work no pull request carries. The second is
+past the push and before the BINDING: the commit is on the pull request, the
+record is still a delivery, and nothing of the handover has been charged. The
+third is past the settlement and before the relabel: the report is published,
+the readers and the round the record froze are applied, and the issue is still
+sitting on `workflow:fixing` under a raised mark -- which the next tick has to
+recognise rather than resume a developer over. The fourth is behind a park's
+own write, which is where a park that left its feedback unread would have the
+next tick resume the developer over it again.
 
 A process ending is spelled as a raise the case swallows, so what a test reads
 afterwards is exactly the durable state a crash would have left.
@@ -27,11 +26,11 @@ from __future__ import annotations
 import contextlib
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import report_delivery as _report_delivery
-from orchestrator.workflow.stages.validating import (
-    dev_fix as _dev_fix,
-    report_settlement as _report_settlement,
+from orchestrator.workflow.engine import (
+    report_binding as _report_binding,
+    report_delivery as _report_delivery,
 )
+from orchestrator.workflow.stages.validating import dev_fix as _dev_fix
 
 # The reason the park a report this workflow cannot deliver is filed under.
 _UNDELIVERABLE = _report_delivery.UNDELIVERABLE_REPORT
@@ -55,14 +54,13 @@ def dying_before_the_publication():
 
 @contextlib.contextmanager
 def dying_before_the_relabel(case):
-    """A process that ends between the round's publication and the relabel.
+    """A process that ends between the report's settlement and the relabel.
 
-    The window past the push: whatever this round had to publish is on the
-    pull request, the resume has already cleared the park in memory, and the
-    reply that round answered is still unread because a reporting round's
-    readers ride the report. Raised from the relabel itself, so everything
-    the round made durable before it stands exactly as a crash would have
-    left it.
+    The window past the publication: the report is on the pull request and the
+    write that settled it applied the readers and the round the record froze,
+    leaving the mark that says so. Raised from the relabel itself, so
+    everything the round made durable before it stands exactly as a crash
+    would have left it -- a settled round under `workflow:fixing`.
     """
     with patch.object(
         case.github, "set_workflow_label", _Dies(),
@@ -71,16 +69,18 @@ def dying_before_the_relabel(case):
 
 
 @contextlib.contextmanager
-def dying_before_the_settlement():
-    """A process that ends between the relabel and the report's binding.
+def dying_before_the_binding():
+    """A process that ends between the round's push and the report's binding.
 
-    The window past that one: the relabel landed, so the label is on
-    `validating`, and nothing has bound the report yet. Raised from the
-    settlement rather than from the write before it, so everything the tick
-    made durable stands exactly as a crash would have left it.
+    The window between those two: the commit is on the pull request and its
+    receipt is written, and nothing has bound the report to it yet -- so
+    nothing of the handover is charged, and the record is still the delivery a
+    later tick re-proves the checkout for. Raised from the binding rather than
+    from the push before it, so everything the tick made durable stands
+    exactly as a crash would have left it.
     """
     with patch.object(
-        _report_settlement, "_settles_the_report", _Dies(),
+        _report_binding, "binds_and_publishes", _Dies(),
     ), contextlib.suppress(_Crashed):
         yield
 

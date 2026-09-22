@@ -7,7 +7,11 @@ from __future__ import annotations
 import unittest
 from types import MappingProxyType
 
-from tests.workflow.stages.fixing import fixing_test_support as support
+from orchestrator.github.pinned_state import PinnedState
+from tests.workflow.stages.fixing import (
+    fixing_test_support as support,
+    report_crash_support as crash,
+)
 from tests.workflow.stages.fixing.prompt_expectations import (
     only_prompt,
     pr_feedback_prompt,
@@ -55,6 +59,9 @@ SHA_BEFORE = support.SHA_BEFORE
 SHA_SAME = support.SHA_SAME
 TRIGGER_ID = support.TRIGGER_ID
 VALIDATING = support.VALIDATING
+
+# The heads a round that COMMITTED reads on either side of its run.
+COMMITTED = (SHA_BEFORE, SHA_AFTER)
 _FixingFixtureMixin = support._FixingFixtureMixin
 _agent = support._agent
 config = support.config
@@ -149,7 +156,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
                     session_id=DEV_SESSION,
                     last_message=PUSHED_MESSAGE,
                 ),
-                head_shas=(SHA_BEFORE, SHA_AFTER),
+                head_shas=COMMITTED,
             )
 
         self._mocks[RUN_AGENT].assert_called_once()
@@ -186,7 +193,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
                 scenario.github,
                 scenario.issue,
                 run_agent=_agent(session_id=DEV_SESSION, last_message=PUSHED_MESSAGE),
-                head_shas=(SHA_BEFORE, SHA_AFTER),
+                head_shas=COMMITTED,
             )
 
         mocks[RUN_AGENT].assert_called_once()
@@ -221,7 +228,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
                     session_id=DEV_SESSION,
                     last_message=PUSHED_MESSAGE,
                 ),
-                head_shas=(SHA_BEFORE, SHA_AFTER),
+                head_shas=COMMITTED,
                 push_branch=True,
             )
 
@@ -325,7 +332,7 @@ class FixingFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
                     session_id=DEV_SESSION,
                     last_message=PUSHED_MESSAGE,
                 ),
-                head_shas=(SHA_BEFORE, SHA_AFTER),
+                head_shas=COMMITTED,
             )
 
         self._mocks[PUSH_BRANCH].assert_called_once()
@@ -384,15 +391,17 @@ def _readers_after(**moved) -> dict:
 
 
 # The one reply the thread cases are a fix round over, so the prompt each
-# asserts is the prompt this batch earns.
+# asserts is the prompt this batch earns, and the batch each of them places.
 THE_REPLY = _reply(TRIGGER_ID, AUTHORIZATION)
+
+ON_ONE_REPLY = (THE_REPLY,)
 
 # What a run that put the batch in front of an agent comes back as, and the
 # heads the checkout reads around it. Every one of them delivered the prompt,
 # so every one owes the same consumption record -- "delivered" is what the
 # readers record, never "resolved".
 DELIVERED_OUTCOMES = (
-    ("pushed fix", _run(PUSHED_MESSAGE), (SHA_BEFORE, SHA_AFTER)),
+    ("pushed fix", _run(PUSHED_MESSAGE), COMMITTED),
     ("timeout park", _run(timed_out=True), (SHA_BEFORE,)),
     ("question park", _run("A or B?"), (SHA_SAME, SHA_SAME)),
     ("ack", _run("ACK: 'continue' names no defect"), (SHA_SAME, SHA_SAME)),
@@ -411,15 +420,6 @@ WITHHELD_OUTCOMES = (
 # that has to reach the pull request, and nothing on this tick can promise it
 # will.
 REPORTED = "REPORT: READY\nvendored the parser behind a flag\nREPORT: END"
-
-# The code-publication receipt a report with no code in it is proved against:
-# this pull request, standing on the head the checkout is on. Without it that
-# road cannot tell a pull request carrying the reported work from one the branch
-# has run ahead of, so it parks rather than publishing.
-PUBLISHED_RECEIPT = MappingProxyType({
-    "implementing_published_sha": PR_HEAD_SHA,
-    "implementing_published_pr": PR_NUMBER,
-})
 
 # A reviewer quoting the hidden marker this orchestrator stamps its own posts
 # with. It posts no review and no inline comment, so on those two surfaces
@@ -502,12 +502,12 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
                 mocks = self._deliver(
                     agent_fields=agent_fields,
                     head_shas=head_shas,
-                    placed={ON_THE_THREAD: [THE_REPLY]},
+                    placed={ON_THE_THREAD: ON_ONE_REPLY},
                 )
 
                 # One developer, handed exactly this batch and nothing else.
                 self.assertEqual(
-                    only_prompt(mocks), pr_feedback_prompt([THE_REPLY]),
+                    only_prompt(mocks), pr_feedback_prompt(list(ON_ONE_REPLY)),
                 )
                 settled = self._readers()
                 # The thread reader covers the reply, so a route change out of
@@ -532,7 +532,7 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
             with self.subTest(surface=case):
                 mocks = self._deliver(
                     agent_fields=_run(PUSHED_MESSAGE),
-                    head_shas=(SHA_BEFORE, SHA_AFTER),
+                    head_shas=COMMITTED,
                     placed=placed,
                 )
 
@@ -547,15 +547,15 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
             with self.subTest(outcome=case):
                 mocks = self._deliver(
                     agent_fields=agent_fields,
-                    head_shas=(SHA_BEFORE, SHA_AFTER),
-                    placed={ON_THE_THREAD: [THE_REPLY]},
+                    head_shas=COMMITTED,
+                    placed={ON_THE_THREAD: ON_ONE_REPLY},
                 )
 
                 # The batch WAS handed to a launch -- one prompt, this batch
                 # -- and none of it is recorded: what the guards refuse is the
                 # RESULT, not the delivery attempt.
                 self.assertEqual(
-                    only_prompt(mocks), pr_feedback_prompt([THE_REPLY]),
+                    only_prompt(mocks), pr_feedback_prompt(list(ON_ONE_REPLY)),
                 )
                 self.assertEqual(self._readers(), SEEDED_READERS)
                 self.assertEqual(self._github.label_history, [])
@@ -563,33 +563,59 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
 
     def test_an_owed_report_settles_nothing(self) -> None:
         # The batch reached a developer, and it is still not recorded as read:
-        # what came back is a report the pull request has not got, and the
-        # readers are the only thing that would say the feedback behind it was
-        # answered. Settled here, a report that never reaches a reviewer would
-        # leave its prompt claimed as consumed and nobody able to tell.
-        #
-        # The world is the one that road needs proved: a checkout standing
-        # where the remote branch is, and the code-publication receipt naming
-        # that commit on this pull request. Short of it the round parks instead
-        # of reporting, and a park carries the batch itself.
+        # what came back is a report the pull request has not got, because the
+        # push that was to carry it failed. The readers are the only thing
+        # that would say the feedback behind it was answered, so nothing here
+        # moves one -- settled, a report that never reaches a reviewer would
+        # leave its prompt claimed as consumed and nobody able to tell. The
+        # record carries the frozen pairs instead, which is what the write
+        # completing the publication applies and what stops the next tick
+        # paying a second developer to answer the identical prompt.
+        mocks = self._deliver(
+            agent_fields=_run(REPORTED),
+            head_shas=COMMITTED,
+            placed={ON_THE_THREAD: ON_ONE_REPLY},
+            push_branch=False,
+        )
+
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt(list(ON_ONE_REPLY)))
+        self.assertEqual(self._readers(), SEEDED_READERS)
+        self.assertEqual(
+            crash.frozen_record(
+                PinnedState(state_data=self._github.pinned_data(ISSUE)),
+            ).watermarks,
+            (
+                (LAST_ACTION_COMMENT_ID, TRIGGER_ID),
+                (PR_LAST_COMMENT_ID, TRIGGER_ID),
+            ),
+        )
+
+    def test_a_published_report_settles_its_batch(self) -> None:
+        # The other half of the same rule. The round's whole answer is its
+        # report, the pull request is still standing where the run left it,
+        # and the publication lands -- so the readers move in that very write,
+        # to exactly the pairs the record froze. The feedback is recorded as
+        # answered when, and only when, the report answering it is there.
         mocks = self._deliver(
             agent_fields=_run(REPORTED),
             head_shas=(PR_HEAD_SHA, PR_HEAD_SHA),
-            placed={ON_THE_THREAD: [THE_REPLY]},
-            extra_state=PUBLISHED_RECEIPT,
+            placed={ON_THE_THREAD: ON_ONE_REPLY},
         )
 
-        self.assertEqual(only_prompt(mocks), pr_feedback_prompt([THE_REPLY]))
-        self.assertEqual(self._readers(), SEEDED_READERS)
+        self.assertEqual(only_prompt(mocks), pr_feedback_prompt(list(ON_ONE_REPLY)))
+        self.assertEqual(self._readers(), _readers_after(**{
+            LAST_ACTION_COMMENT_ID: TRIGGER_ID,
+            PR_LAST_COMMENT_ID: TRIGGER_ID,
+        }))
 
-    def _deliver(self, *, agent_fields, head_shas, placed, extra_state=None):
+    def _deliver(self, *, agent_fields, head_shas, placed, **run_options):
         """One fixing tick over a batch on whichever surfaces `placed` names."""
         pr = self._open_pr(**placed.get(PR_FIELDS, {}))
         pr.issue_comments.extend(placed.get("pr_issue_comments", ()))
         scenario = IssueScenario(*self._seed(
             pr=pr,
             issue_comments=placed.get(ON_THE_THREAD, ()),
-            extra_state={**SEEDED_READERS, **(extra_state or {})},
+            extra_state=dict(SEEDED_READERS),
         ))
         self._github = scenario.github
 
@@ -599,6 +625,7 @@ class FixingDeliverySettlementTest(unittest.TestCase, _FixingFixtureMixin):
                 scenario.issue,
                 run_agent=_agent(**agent_fields),
                 head_shas=head_shas,
+                **run_options,
             )
 
     def _readers(self) -> dict:

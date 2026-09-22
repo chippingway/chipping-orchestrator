@@ -11,17 +11,15 @@ stand down on it, and the no-feedback bounce that is the validating route's
 last tick to publish it.
 
 `_published_head_in_sync` beside it is the same reading asked for the opposite
-answer, by the roads that publish without pushing: a report of the work the pull
-request already carries needs the branch PROVED to be standing where that pull
-request is, and "nothing was proved stranded" is not that -- every refusal below
-is also a branch that may be carrying a commit nobody published. Two callers ask
-it through `fix_report_evidence`, the round that reports without committing and
-the `fixing` handler's recovery that hands such a report on, and they ask it of
-the same checkout for the same reason. The dormant recovery beside that one
-(`stages/fixing/report_recovery.py`) deliberately asks neither: its binding
-re-reads the pull request itself, so what it needs of the checkout is only that
-the tree is clean and the head reads, and the receipt this probe leans on is
-persistent and names an older round's commit on any tick that pushed nothing.
+answer, by the road that publishes without pushing: a report of the work the
+pull request already carries needs the branch PROVED to be standing where that
+pull request is, and "nothing was proved stranded" is not that -- every refusal
+below is also a branch that may be carrying a commit nobody published. One
+caller asks it through `fix_report_evidence`, the `CHANGES_REQUESTED` round this
+stage spawns itself; the `fixing` stage answers the same question over its own
+checkout and a pull request it reads AFRESH, since the receipt this reading
+leans on is persistent and names an older round's commit on any tick that
+pushed nothing.
 
 It is one probe rather than three because the refusals are the whole contract.
 A dirty tree, a fetch that failed, a divergence nothing could read, and a
@@ -61,10 +59,10 @@ def _published_head_in_sync(
 ) -> str:
     """The head this branch and its remote provably AGREE on, or "" for none.
 
-    The affirmative half of the probe below, for the roads that publish
-    without pushing: a report of the work a pull request already carries, and
-    the recovery that hands one on. Those need the opposite of a stranded
-    commit -- proof that the checkout is
+    The affirmative half of the probe below, for the road that publishes
+    without pushing: a report of the work a pull request already carries, on
+    the `CHANGES_REQUESTED` round this stage spawns itself. That needs the
+    opposite of a stranded commit -- proof that the checkout is
     standing exactly where the remote branch is -- and "nothing was proved
     stranded" is not that proof. The probe below answers "" for a tree nobody
     could read, a fetch that failed, a divergence git refused, and a remote

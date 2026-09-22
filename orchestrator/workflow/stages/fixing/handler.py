@@ -16,28 +16,31 @@ A failed PR fetch ends the tick the same way, deliberately quietly: PyGithub
 failures here are transient, and because no watermark has moved yet the next
 tick re-fetches and picks up exactly where this one stopped.
 
-Past the preflight and ahead of the rescan stands the one state this stage may
-not resume over: a developer report delivered and nobody being waited for,
-which is what a crash anywhere past a reporting round's own write leaves
-behind. That round is finished rather than repeated -- whatever commit it
-recorded a report of and never published goes out through the same size gate it
-would have passed, and the issue is then handed to `validating`, where a
-delivery is bound and settled without a developer. It fails CLOSED: a checkout
-that can vouch for nothing reads exactly like a branch with nothing to send, so
-short of an affirmative proof that the pull request carries the work the report
-is about, the round is held for a human instead.
+A report this issue recorded and never bound is answered ahead of all of it,
+because the scan is what the damage runs through: the input that run consumed
+rides the same record, and until something applies it the scan reads the same
+feedback as unread and pays a second developer to answer it.
 
-Then the rescan, the parked dispatch, and the resume. The empty-feedback exit
-between them is the one that is easy to miss: nothing unread means a prior tick
-already consumed the batch (or an operator advanced the watermarks by hand), so
-the issue would otherwise sit in `fixing` with no work. It clears the route
-bookkeeping and bounces to `validating` for a fresh reviewer read of the
-current head -- after publishing whatever an earlier run committed and never
-pushed, because on the validating route this exit is the only tick left that
-can. That route's feedback is a reviewer comment the orchestrator authored
-itself, which the rescan filters out, so a run whose outcome was discarded (a
-`paused` label applied mid-run) is never re-run: without the publish here the
-reviewer would read a head that is missing the fix it asked for.
+Then the rescan, the parked dispatch, and the resume. The nothing-to-act-on
+exit between them is the one that is easy to miss, and it answers to two
+readings. Nothing unread means a prior tick already consumed the batch (or an
+operator advanced the watermarks by hand). And a report the issue still OWES
+may have answered every item the rescan did find: the readers a settlement
+would move are held back until that publication lands, so the batch that report
+was written for reads as unread for as long as the push or the post keeps
+failing -- and resumed on, it pays a second developer to write a second report
+over the identical prompt, on every poll. The record's own frozen pairs are
+what says so; a comment above them, or an accepted `/orchestrator continue`,
+runs as usual. Either way the issue would otherwise sit in `fixing` with no
+work. It clears the route bookkeeping and bounces to `validating` for a fresh
+reviewer read of the current head -- after publishing whatever an earlier run
+committed and never pushed, because on the validating route this exit is the
+only tick left that can. That route's feedback is a reviewer comment the
+orchestrator authored itself, which the rescan filters out, so a run whose
+outcome was discarded (a `paused` label applied mid-run) is never re-run:
+without the publish here the reviewer would read a head that is missing the fix
+it asked for. While a report is still owed that same road holds the relabel
+instead, and announces the wait nothing left can end.
 """
 from __future__ import annotations
 
@@ -52,7 +55,6 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import (
     guards as _guards,
     report_delivery as _report_delivery,
-    report_delivery_state as _delivery_state,
     terminals as _terminals,
 )
 from orchestrator.workflow.stages.fixing import (
@@ -60,44 +62,24 @@ from orchestrator.workflow.stages.fixing import (
     feedback as _feedback,
     models as _models,
     parked as _parked,
+    report_recovery as _report_recovery,
+    reporting as _reporting,
     resume as _resume,
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
+    late_publication_state as _late_publication_state,
     late_push as _late_push,
     late_reconcile as _late_reconcile,
     late_records as _late_records,
 )
-from orchestrator.workflow.stages.validating import (
-    fix_report_evidence as _fix_evidence,
-    stranded as _stranded,
-)
+from orchestrator.workflow.stages.validating import stranded as _stranded
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
 _PR_NUMBER = "pr_number"
-
-# Why a report a crashed round recorded is held here rather than handed on. Its
-# own notice rather than the disposition's: what this road cannot prove is not
-# that a run committed nothing, but that the work a report already written
-# describes is on the pull request at all.
-_UNPROVED_RECOVERY_PARK = (
-    "{mentions} a fix round on this issue recorded its completion report and "
-    "ended before the work that report describes reached PR #{pr} -- and this "
-    "orchestrator cannot prove what the branch is standing on now. Either the "
-    "checkout is gone or could not be read, or the branch and its remote do "
-    "not agree on the commit the pull request was last published at. Nothing "
-    "was published and nothing was discarded: the report is still on the "
-    "pinned comment, and the branch and the pull request are exactly as they "
-    "were. Handed on from here it would be published against a head that may "
-    "be missing the very work it is about. Reply and the orchestrator resumes "
-    "the session; the report it writes then is the one that gets published, "
-    "and any commit the branch is carrying goes out through the ordinary "
-    "measurement with it."
-)
-
 
 def _park_fixing_without_pr(gh: GitHubClient, issue: Issue, state) -> None:
     """Park a `fixing` issue that carries no pinned `pr_number`.
@@ -254,157 +236,51 @@ def _publish_stranded_fix(
     return _models._StrandedPublication()
 
 
-def _hands_a_delivered_report_back(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state,
-) -> bool:
-    """Send an issue holding a delivered report this stage may not resume over back.
+def _binds_the_stranded_report(ctx: _models._FixingContext) -> bool:
+    """Publish the report the push this bounce made is for; say if this ends.
 
-    True where this owner took the tick, and the caller must return. What it
-    answers is the one state this stage can arrive in that its own next step
-    would make worse: a developer report DELIVERED and still unbound, with no
-    human being waited for.
+    The commit that push carried to the pull request is the one the report an
+    earlier round recorded describes, and binding it here is the only road
+    left: nothing else republishes this commit, so a delivery left unbound
+    would never become a transaction anything could finish. The commit is read
+    off the receipt the gate wrote for THIS attempt, never the standing value,
+    which on a tick that pushed nothing names an older round.
 
-    That state is a window this stage's own ordering opens and cannot close.
-    The round that reports writes the delivery durably ahead of the size gate,
-    and the relabel to `validating` comes after the push -- so a process dying
-    anywhere past that write leaves `workflow:fixing`, `awaiting_human` cleared
-    by the resume, the triggering reply still unread because a reporting
-    round's readers ride the report rather than the tick, and a report nothing
-    has published. The rescan behind this guard reads that reply as fresh
-    feedback and resumes the developer again: another run charged, and a SECOND
-    report written over the first, with the reviewer handed whichever landed.
+    True is a road that is over. A report still OWED leaves the label where it
+    is and the bookmarks with it, for the reconciliation ahead of a later
+    handler to settle from the record. A settlement THIS route's own round
+    raised the mark for has already applied the pairs that record froze, so
+    nothing is written on top of it and the hand-back goes through the same
+    correlation every other settlement-driven relabel does -- which is what
+    keeps a settlement that landed under a label a human moved the issue to
+    from taking it straight off again.
 
-    So the round is finished here instead, which is the publication it may
-    still owe and then the hand-back. `validating` is the stage that finishes a
-    delivery without a developer -- its review hold binds it to the publication
-    the receipt names, settles it through the reconciliation, and parks for a
-    human where no retry can -- and it spawns no reviewer while the report is
-    owed. Nothing of the handover is written here: the round and the bookmarks
-    it owes are frozen on the record already, and the write that settles the
-    report is what closes them.
-
-    A park is left alone, which is what `awaiting_human` asks. A delivery can
-    stand beside one -- a report written and then a push that failed, or a
-    candidate the gate held -- and the routes that answer those are BEHIND this
-    guard: the transient recovery that retries the push, and the reply a human
-    owes the notice. Handed back over either, the recovery would never run.
-
-    A TRANSACTION is left alone too, though it is a report owed just the same,
-    because it already has a route across this boundary and that route is not
-    this one. The reconciliation runs ahead of every stage handler, and what it
-    does with a refusal it cannot clear is stand DOWN -- deliberately, so the
-    roads that clear one keep running, and on this stage those roads are the
-    gate's own push and the resume below. Relabeling over it here would reverse
-    that stand-down into a hand-off and the transaction would wait for a
-    publication no tick makes.
-
-    A debt with no record at all is left alone for the opposite reason. What
-    that is short of is a report nobody has written, and the only thing that
-    supplies one is the developer this stage resumes -- so it is this stage's
-    to answer rather than a state to hand on.
+    False is a settlement that closed NOTHING of this route's, and the bounce
+    carries on to spend the round it froze itself. A delivery is claimed by one
+    key whoever wrote it, and this stage is not the only writer: an
+    implementing candidate and the validating drift route each record one, and
+    either can still be owed when a reviewer's change request moves the issue
+    here. Settling such a record applies ITS route's frozen pairs and raises no
+    mark of this stage's, so the bookmarks this bounce consumed and the
+    reviewer round its push earned are still this caller's to write. Read as
+    this round's settlement instead, the absent mark is what an unclaimed
+    hand-back places on nothing at all: the relabel goes out over a
+    `pending_fix_at` nothing cleared and a `review_round` nothing counted, and
+    the next fixing round reads an in_review batch as a validating one.
     """
-    if state.get(_state._AWAITING_HUMAN):
-        return False
-    if not _delivery_state.carries_delivered_report(state):
-        return False
-    if _publishes_what_the_report_describes(gh, spec, issue, state):
+    if _reporting._holds_an_unpublished_report(
+        ctx, _late_publication_state._published_commit(ctx.state),
+    ).owed:
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return True
-    log.warning(
-        "repo=%s issue=#%s carries a delivered developer report and no human "
-        "to wait for; handing it to `%s` rather than resuming a developer over "
-        "a report nobody published",
-        gh.repo_slug, issue.number, WorkflowLabel.VALIDATING,
-    )
-    gh.set_workflow_label(issue, WorkflowLabel.VALIDATING)
-    return True
-
-
-def _publishes_what_the_report_describes(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state,
-) -> bool:
-    """Send a commit the crashed round never published out, ahead of the hand-back.
-
-    True where the gate took the issue and this tick is over; False where the
-    hand-back may go ahead. What it exists for is the EARLIER half of the same
-    window: the report is written before the gate reads the candidate, so a
-    process dying in between leaves a report about a commit sitting in the
-    checkout -- and `validating` has exactly one answer to a delivery whose
-    commit no publication carries, which is to park it for a human. Handed on
-    unpublished, the crash would cost a human reply and a second session for
-    work that was only ever one push short.
-
-    So the candidate goes out the way every other one does, through the size
-    gate and leased to the head the pull request is standing on. It is measured
-    because it is work nobody measured: the tick that would have measured it
-    died in front of the gate, and a recovery that pushed around it would be
-    the way past a ceiling every other route passes.
-
-    What the push spends is read off the RECORD rather than recomputed, because
-    the round and the bookmarks this handover lands on were frozen onto it by
-    the run that wrote the report. Handed to the gate, they go into the same
-    receipt write a first attempt would have made, and the settlement re-applies
-    the identical pair later as a no-op -- where a round read afresh off the
-    pinned counter would be a second count for one handover. A record nobody
-    can READ names no such pair and publishes nothing: that one is `validating`'s
-    to park, with the commit left where it stands for the human who repairs it.
-
-    A held candidate ends the tick: the gate has moved the issue to the
-    adjudication, and a hand-back over that would publish the very question it
-    just opened.
-
-    Nothing published is where this FAILS CLOSED, because the probe answers ""
-    for a branch with nothing to send and for a checkout that vouches for
-    nothing alike -- a tree nobody could read, a checkout gone with the host, a
-    fetch that failed, a divergence git refused, a remote that moved. Read as
-    "no commit was stranded" the report would be handed on, and the binding
-    behind it recreates a lost checkout from the remote and finds its head
-    equal to the receipt: the report of a commit that never passed the gate
-    would be published against the head the pull request had all along. So the
-    same affirmative proof a report with no code in it must pass is asked here
-    (`validating/fix_report_evidence.py`) -- the branch standing exactly where
-    its remote is, and the receipt naming that commit on this pull request --
-    and short of it the round is held for a human with the record intact. The
-    reply resumes the session, whose fresh report supersedes this one and takes
-    its round and its readers with it, and whatever the branch is carrying goes
-    out through the ordinary measurement then.
-    """
-    delivered = _delivery_state.read_delivered_report(state)
-    if delivered is None:
+    if not ctx.state.get(_state._SETTLED_ROUND):
         return False
-    owed = _late_gate_models._Spends(fields=delivered.spends)
-    stranded = _publish_stranded_fix(gh, spec, issue, state, owed)
-    if stranded.held:
-        # The gate owns the issue from here -- parked, or handed to the
-        # adjudication -- and it spent the round inside its own write, ahead of
-        # the label it moved. The write is still this caller's: a park posts
-        # its notice and leaves the flags in memory.
-        gh.write_pinned_state(issue, state)
-        return True
-    if stranded.pushed:
-        _late_gate_models._spend(state, owed)
-        gh.write_pinned_state(issue, state)
-        return False
-    if _fix_evidence._proves_the_published_head(
-        spec, issue, state, _worktree_paths._worktree_path(spec, issue.number),
-    ):
-        return False
-    log.warning(
-        "repo=%s issue=#%s cannot prove PR #%s carries the work its recorded "
-        "developer report describes; holding it for a human rather than "
-        "handing that report to `%s`",
-        gh.repo_slug, issue.number, state.get(_PR_NUMBER),
-        WorkflowLabel.VALIDATING,
-    )
-    _report_delivery.parks_an_undeliverable_report(
-        gh, issue, state, _UNPROVED_RECOVERY_PARK.format(
-            mentions=config.HITL_MENTIONS, pr=state.get(_PR_NUMBER),
-        ),
-    )
+    _report_recovery._finishes_a_settled_round(ctx)
     return True
 
 
 def _bounce_without_feedback(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state, pr,
 ) -> None:
     """Drop the route bookkeeping and hand the issue back to `validating`.
 
@@ -414,14 +290,37 @@ def _bounce_without_feedback(
     same `review_round` bookkeeping the pushed-fix exit applies. The route
     discriminator is read BEFORE the clear below drops it, which is what keeps
     the in_review route's reset apart from this route's bump.
+
+    A report the issue still OWES changes every one of those answers, because
+    the record is already carrying this route's bookkeeping for the write that
+    completes its publication. The push is still made -- this bounce is the one
+    tick that republishes a stranded commit, so a delivery left unbound here
+    would never become a transaction anything could finish -- and nothing is
+    spent, cleared or relabelled until the report is really there.
+
+    Only a report of THIS route's changes them, though, and one that settled
+    somewhere else drops this exit back onto its own pushed road: what the
+    binding hands back is whether the settlement was this round's, and where it
+    was not, the bookkeeping the record applied was some other route's.
     """
+    ctx = _models._FixingContext(gh, spec, issue, state, pr)
     pending_fix_at_was_set = state.get(_state._PENDING_FIX_AT) is not None
     # Frozen before the push and re-applied after it, so the gate's own write
     # and this tail cannot disagree: re-applying a value already written is a
     # no-op, where recomputing the round from the pinned comment would count
     # it twice.
     owed = _resume._spends_fix_round(state, pending_fix_at_was_set)
-    stranded = _publish_stranded_fix(gh, spec, issue, state, owed)
+    # A report this issue still owes is carrying the same bookkeeping on its
+    # own record, so the gate is handed NOTHING to close while one stands: a
+    # receipt write that cleared the bookmarks here would leave an outstanding
+    # publication with no batch to replay and a round already spent for a
+    # report that may still fail to post. What closes them then is the write
+    # that completes the transaction.
+    reporting = _report_delivery.owes_a_report(state)
+    stranded = _publish_stranded_fix(
+        gh, spec, issue, state,
+        _late_gate_models._SPENDS_NOTHING if reporting else owed,
+    )
     if stranded.held:
         # The gate owns the issue from here -- parked, or handed to the
         # adjudication -- and the relabel below belongs to a bounce that is
@@ -432,15 +331,34 @@ def _bounce_without_feedback(
         gh.write_pinned_state(issue, state)
         return
     if stranded.pushed:
+        # The report the push this bounce just made is the publication for
+        # goes out first, and where it settles a round of THIS route's the
+        # write that took it has already applied the pairs the record froze --
+        # so the road ends there and nothing is written on top of it. A
+        # settlement that closed some other route's bookkeeping ends nothing:
+        # this bounce still owes the round its own push earned, exactly as it
+        # would on a tick that never carried a report at all.
+        if reporting and _binds_the_stranded_report(ctx):
+            return
         _late_gate_models._spend(state, owed)
+    elif reporting:
+        # Nothing was published and a report is still owed, which is the one
+        # thing this exit may not clear or relabel past: the bookmarks below
+        # are what an outstanding publication replays from, and a reviewer
+        # sent to the head instead would read work nothing on the pull
+        # request describes. The record stands for the tick that publishes it
+        # -- and since this exit is the last road of the tick, a wait nothing
+        # left can end is announced here rather than held in silence.
+        _reporting._holds_a_stalled_report(ctx)
+        gh.write_pinned_state(issue, state)
+        return
     else:
         # Nothing was published, so no round was landed -- but the bookmarks
         # this bounce read are consumed either way, and a later
         # in_review->fixing route must write fresh values rather than mix
         # rounds with them.
         _bookmarks._clear_pending_fix_bookmarks(state)
-    gh.set_workflow_label(issue, WorkflowLabel.VALIDATING)
-    gh.write_pinned_state(issue, state)
+    _reporting._hands_the_round_back(ctx)
 
 
 def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
@@ -450,13 +368,22 @@ def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
     if pr is None:
         return
 
-    # A DELIVERED report and nobody being waited for is the one state this
-    # stage may not resume over: it is what a crash anywhere past a round's
-    # report write leaves, and the rescan below would read the reply that round
-    # already answered as fresh feedback. The publication that round may still
-    # owe is made here, and `validating` binds and settles the delivery behind
-    # it; neither is a thing this stage's resume can do.
-    if _hands_a_delivered_report_back(gh, spec, issue, state):
+    # A report an earlier tick recorded and never bound is answered BEFORE the
+    # scan below, because the scan is what the damage runs through: the input
+    # that run consumed rides the same record, and until it is applied this
+    # tick reads the same feedback as unread, pays a second developer to answer
+    # it, and replaces the first developer's report with the second's.
+    #
+    # A binding that TOOK that delivery ends the tick. Settling it writes the
+    # route bookkeeping the record froze -- the `pending_fix_*` bookmarks among
+    # them -- so the rescan below would read this issue under a route it has
+    # just left and answer an in_review batch as a validating one; and a
+    # binding whose post did not land leaves a transaction the reconciliation
+    # ahead of the next handler owns, which the no-feedback bounce below would
+    # otherwise relabel straight past.
+    if _report_recovery._answers_a_report_first(
+        _models._FixingContext(gh, spec, issue, state, pr),
+    ):
         return
 
     feedback = _feedback._rescan_fixing_feedback(gh, issue, pr, state)
@@ -483,13 +410,29 @@ def _handle_fixing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue
             return
         replay_batch = parked.replay_batch
 
-    # Watermarks already cover the triggering bookmarks (a prior tick consumed
-    # them, or an operator advanced them manually). Nothing left to address;
-    # publish whatever is stranded on the branch and bounce back to
-    # `validating` so the reviewer re-evaluates against the current head
-    # instead of leaving the issue stuck in `fixing` with no work.
-    if not feedback.all_items:
-        _bounce_without_feedback(gh, spec, issue, state)
+    # Nothing this tick may act on, which is two readings rather than one.
+    # The watermarks already cover the triggering bookmarks (a prior tick
+    # consumed them, or an operator advanced them manually); or a report the
+    # issue OWES has already answered every item the rescan found. That second
+    # one is not visible in the readers at all: they are held back until the
+    # publication lands, so the batch that report was written for reads as
+    # unread for as long as the push or the post keeps failing -- and resumed
+    # on, it pays a second developer to write a second report over the
+    # identical prompt, on every poll. The record's own frozen pairs are what
+    # says so. An explicit `/orchestrator continue` (`replay_batch` set) still
+    # replays, and a comment that landed since stands above those pairs and
+    # runs as usual.
+    #
+    # Either way the road is the same: publish whatever is stranded on the
+    # branch, bind the report that push is the publication for, and bounce
+    # back to `validating` so the reviewer re-evaluates against the current
+    # head -- except while a report is still owed, where that road holds the
+    # relabel rather than leaving the issue stuck in `fixing` with no work.
+    if not feedback.all_items or (
+        replay_batch is None
+        and _feedback._read_by_an_owed_report(state, feedback)
+    ):
+        _bounce_without_feedback(gh, spec, issue, state, pr)
         return
 
     if _feedback._fixing_debounce_open(feedback, replay_batch):

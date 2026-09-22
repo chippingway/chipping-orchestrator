@@ -88,6 +88,7 @@ CONSUMED_BATCH = MappingProxyType({
 # number beside it -- the same shape a crash between the two leaves.
 UNCOUNTED = MeasurementFailure.DIFF_UNREADABLE
 
+
 # One whole member of a recorded group, one cleared bookmark, and one whose
 # value the pinned comment could never carry. Spelled as the tuples a record
 # is compared against; the reader is handed the lists JSON decodes to.
@@ -137,7 +138,10 @@ class FrozenSpendsPersistenceTest(unittest.TestCase, _FrozenPairMixin):
             self._run_fix_round(scenario, added_lines=PAST_THE_CEILING)
 
         # The routed hold spent it and the write that carried the count
-        # dropped it: nothing is left for a later cycle to be handed.
+        # dropped it: nothing is left for a later cycle to be handed. The
+        # round is this one's to hand over because it wrote no report -- one
+        # that did freezes the same pair onto that record instead, for the
+        # write that finally publishes it.
         pinned = _pinned(scenario.github)
         self.assertNotIn(KEY_SPENDS, pinned)
         self.assertEqual(pinned[KEY_REVIEW_ROUND], ROUND_SPENT)
@@ -163,7 +167,10 @@ class FrozenSpendsPersistenceTest(unittest.TestCase, _FrozenPairMixin):
         return self._seed_fix_round(**CONSUMED_BATCH)
 
     _seed_fix_round = support._SizeGateFixtureMixin._seed_fix_round
-    _run_fix_round = support._SizeGateFixtureMixin._run_fix_round
+    # This class's rounds go down the road that still hands the gate the
+    # route's own pair: a reply with no report of its own, republishing a
+    # commit an earlier round stranded.
+    _run_fix_round = support._SizeGateFixtureMixin._run_stranded_round
     _seed = support._SizeGateFixtureMixin._seed
     _open_pr = support._SizeGateFixtureMixin._open_pr
 

@@ -23,19 +23,19 @@ and the head a pull request happens to carry -- both of which outlive every
 transaction. It is cleared by the relabel that closes the round, and placed
 against the comment through `round_marks` before that relabel is taken.
 
-`report_recovery` beside it is the other end of the same contract: the road a
-tick that died in the publication window comes back to, which re-proves the
-checkout rather than remembering a receipt and reaches the same hand-back.
+The park a failed push filed comes down in that same write, and for the same
+reason the mark does: the retry that finally lands that push is durable before
+the publication it carries is, so a relabel taken over the park hands a
+reviewer an issue that still says it is waiting on a human.
 
 Every other outcome a fix round reaches -- the `ACK:`, the question, the
 timeout, the dirty tree -- writes no report at all, and those close their own
 bookkeeping directly in `resume`. Telling the two apart is the whole of what
 this owner is asked first.
 
-No dispatched fixing road runs through this owner or through the recovery
-beside it: each helper below is reached by its caller directly, and the tick
-this stage takes today disposes a reported round through
-`validating/fix_reports.py`.
+`report_recovery` beside it is the other end of the same contract: the road a
+tick that died in the publication window comes back to, which re-proves the
+checkout rather than remembering a receipt and reaches the same hand-back.
 """
 from __future__ import annotations
 
@@ -58,7 +58,9 @@ from orchestrator.workflow.stages.fixing import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
+    state as _dev_state,
 )
+from orchestrator.workflow.stages.validating import state as _validating_state
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -69,6 +71,18 @@ log = logging.getLogger("orchestrator.workflow")
 # moved -- the settled report and the publication receipt are persistent, so a
 # head a pull request is standing on proves nothing about this transaction.
 _SETTLES_THE_ROUND = ((_state._SETTLED_ROUND, True),)
+
+# The park a landed publication is itself the answer to. One reason rather than
+# the transient set, because what membership claims here is narrower than "a
+# condition that may resolve with nobody commenting": `push_failed` is filed by
+# the very push a recorded report rides, so a settlement proving that push
+# landed has answered exactly the thing the notice asked about. The other
+# transient reasons are about a SESSION or a reviewer run -- an `agent_timeout`
+# park belongs to whichever round left it, and a later round can leave one over
+# feedback this report says nothing about. Retired from here, that round's
+# question would come down with a publication that is no answer to it, and the
+# feedback it was parked over is already recorded as delivered.
+_PARK_A_PUBLICATION_ANSWERS = _validating_state._REASON_PUSH_FAILED
 
 # What a reply that reached for the report contract and missed is held under.
 # The run is over, so nothing here clears on its own: what it asks for is a
@@ -84,6 +98,23 @@ _MISREAD_PARK = (
     "the pull request to review as needing no change, and the report claims "
     "work nobody published. Reply and the orchestrator resumes the session; "
     "the answer it gives then is the one that counts."
+)
+
+# What a round that committed and did not FINISH is held under. The engine's
+# own notice speaks for a developer that finished and declined to report, and
+# would tell this human their session wrote something it never did.
+_UNFINISHED_PARK = (
+    "{mentions} this issue's developer left committed work on the branch "
+    "answering the pull request feedback and did not finish -- a nonzero "
+    "exit, a provider refusal, or a launch nothing invoked -- so no "
+    "completion report of that work exists. Nothing was published: whatever "
+    "this run committed is still in the worktree, the branch is untouched, "
+    "and the pull request still stands on the commit it already carried. Work "
+    "a review round earns reaches the pull request with the report of it or "
+    "not at all, because a reviewer handed a commit nobody described has no "
+    "account of what was done and no session left to ask. Reply and the "
+    "orchestrator resumes the session; the report it writes then is the one "
+    "that gets published, and it publishes this commit with it."
 )
 
 # What a report nothing left on this issue can move is held under. The wait
@@ -155,6 +186,13 @@ def _holds_for_a_human(
     republishes exactly the branch the standing report was written over), and
     the head READ, since a probe that answered nothing is no evidence of a
     commit and the disposition behind this refuses to push blind anyway.
+
+    A run nobody heard the end of is asked all three like any other, which is
+    why its head is read at all: a timeout is a way to commit, and the park it
+    earns has a RECOVERY that pushes what the run left. Read as a run that
+    committed nothing, that work would reach the pull request under a report
+    written before it existed -- and the road that publishes it reads only the
+    debt, which the earlier report still satisfies.
 
     The work is then recorded as UNDESCRIBED, which is what stops every later
     road binding over it, and the reply the park earns resumes the developer:
@@ -289,10 +327,20 @@ def _recording_stops_the_tick(
     consumed: tuple,
     owed: _late_gate_models._Spends,
 ) -> bool:
-    """Record this round's report, carrying what its run consumed and spent.
+    """Record this round's report, or hold the round that owes one.
 
-    True is a tick this call ended: a report this build cannot record, which
-    parks with the commit still in the worktree and nothing published.
+    True is a tick this call ended, and there are two of those. A report this
+    build cannot record parks with the commit still in the worktree and
+    nothing published. So does a run that committed and did not FINISH: the
+    engine leaves an incomplete run alone -- a nonzero exit, a provider
+    refusal and a launch nothing invoked are failures other roads answer, and
+    on the roads it serves nothing is published either way -- while this road
+    publishes, so a commit pushed for such a run would reach the next reviewer
+    with no account of it anywhere and no session left to ask. It is parked as
+    the missing report it also is, in this road's own words rather than the
+    engine's, which would tell a human their session wrote something it never
+    did. The work is recorded as UNDESCRIBED beside the debt, because a record
+    an earlier run left describes the branch before these commits.
 
     Both groups are handed over rather than derived here. `consumed` is the
     pairs the caller FROZE before it settled them, so the record names exactly
@@ -322,8 +370,21 @@ def _recording_stops_the_tick(
     transaction: both outlive it, so a manual relabel onto `workflow:fixing`
     would be read as a round that just settled and bounce straight back to the
     reviewer without reading the feedback it was moved there to answer.
+
+    The silent-park streak comes down here too, and here is the EARLIEST it
+    can: a run that handed over a usable report is a session that spoke
+    coherently, which is the whole of what that counter watches for, and every
+    other road holding the same evidence -- the `ACK:` fast path, the push --
+    drops it the moment it has it. Set BEFORE the recording, it rides that
+    write and every write behind it, so a tick dying anywhere past this line
+    comes back to a streak already down. Left to the publication instead, a
+    round whose whole answer was its report drops nothing at all: the push
+    that would have reset it never happens, and one later transient failure
+    rotates a session this round proved healthy.
     """
-    return _report_delivery.recording_stops_the_tick(
+    if run.reported:
+        ctx.state.set(_dev_state._SILENT_PARK_COUNT, 0)
+    if _report_delivery.recording_stops_the_tick(
         ctx.gh, ctx.issue, ctx.state, run.dev_result,
         _report_records.HandedRun(
             route=WorkflowLabel.FIXING,
@@ -331,7 +392,16 @@ def _recording_stops_the_tick(
             watermarks=consumed,
             spends=owed.fields + _SETTLES_THE_ROUND,
         ),
+    ):
+        return True
+    if run.reported:
+        return False
+    ctx.state.set(_report_delivery.UNREPORTED_WORK, True)
+    _report_delivery.parks_an_undeliverable_report(
+        ctx.gh, ctx.issue, ctx.state,
+        _UNFINISHED_PARK.format(mentions=_config.HITL_MENTIONS),
     )
+    return True
 
 
 def _hands_the_round_back(ctx: _models._FixingContext) -> None:
@@ -367,11 +437,31 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
     mark is a claim about one rather than about whatever settlement is still
     lying there.
 
-    Both roads that can reach a relabel with the mark RAISED come through here
-    -- this round's own publication, and the recovery beside it that finds a
-    round settled while nobody was looking -- so the mark is PLACED here rather
-    than at either of them, and the relabel is what a mark that cannot be
-    placed withholds. A
+    The park a landed publication ANSWERS is staged here rather than by any of
+    them, because the road that files one is never the road that settles it. A
+    `push_failed` park is filed by the very push a recorded report rides, and
+    the silent retry that finally lands that push writes its receipt durably
+    BEFORE it publishes -- so a tick dying in between comes back to a comment
+    still saying a human is owed an answer, beside a record the recovery ahead
+    of the next handler binds, publishes and hands straight back. Relabelled
+    over that park, the issue reaches `workflow:validating` still
+    `awaiting_human`: a recovery poll nobody needed, and one nothing can end at
+    all once the checkout it would retry against is gone. Only THAT park comes
+    down, and the narrowness is the point: a question park, a base-sync retry
+    park and this stage's own report parks are each waiting on a person, and a
+    round ending is no reply to them -- while an `agent_timeout` park belongs to
+    whichever round left it, so a LATER round that timed out over feedback this
+    report says nothing about would have its question retired by a publication
+    that never answered it, with the feedback it was parked over already
+    recorded as delivered. The one it does retire comes down with the mark and
+    for the mark's reason: the round is over either way, and what a refused
+    relabel withholds is only the move.
+
+    Every road that can reach a relabel with the mark RAISED comes through here
+    -- this round's own publication, the recovery's binding, the no-feedback
+    bounce that republishes a stranded commit, and the tick that finds a round
+    settled elsewhere -- so the mark is PLACED here rather than at any of them,
+    and the relabel is what a mark that cannot be placed withholds. A
     settlement stamps the label it read afresh, which is the label a human who
     moved the issue while the developer ran has put it on -- and this owner can
     be reached on the very tick that recorded that move. Relabelled anyway, the
@@ -386,6 +476,9 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
     places = _round_marks._places_the_round_in_hand(ctx.state)
     if places:
         _round_marks._stamps_the_round_handed_back(ctx.state)
+    if ctx.state.get(_state._PARK_REASON) == _PARK_A_PUBLICATION_ANSWERS:
+        ctx.state.set(_state._AWAITING_HUMAN, False)
+        ctx.state.set(_state._PARK_REASON, None)
     ctx.state.set(_state._SETTLED_ROUND, None)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     if places:
@@ -408,9 +501,10 @@ def _holds_an_unpublished_report(
     push it names an older round's commit -- and a report bound to that one
     describes work the developer never did, on a pull request that may well be
     standing on it for reasons of its own. Each caller scopes the proof to its
-    own attempt instead: a push tail names the commit its run left, a report-
-    only round names the head its pull request already stands on, and the
-    recovery names a clean checkout it re-proved against that head.
+    own attempt instead: the push tail names the commit its run left, the
+    bounce reads the receipt its own push has just written, a report-only round
+    names the head its pull request already stands on, and the recovery names a
+    clean checkout it re-proved against that head.
 
     An empty candidate binds nothing. There is no commit to be about, so the
     report stays owed for a road that can name one.
@@ -492,11 +586,12 @@ def _holds_an_unpublished_report(
 def _holds_a_stalled_report(ctx: _models._FixingContext) -> None:
     """Announce a report no road left on this issue can move, once.
 
-    For the last road of a tick: nothing unread, nothing stranded to publish,
-    and a report still owed. Every road that could have moved it has already
-    declined, so the alternative is an issue finding those same three answers
-    on every poll and doing nothing with any of them -- silently, for as long
-    as the pull request stays open.
+    Reached by the no-feedback bounce, which is the last road of the tick:
+    nothing unread, nothing stranded to publish, and a report still owed.
+    Every road that could have moved it has already declined, so the
+    alternative is an issue finding those same three answers on every poll and
+    doing nothing with any of them -- silently, for as long as the pull
+    request stays open.
 
     The way in that no other road covers is a transaction the engine will not
     settle because the REQUIREMENTS it was written against have moved: a human

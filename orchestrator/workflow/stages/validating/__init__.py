@@ -29,8 +29,9 @@ and the commit withheld where nothing describes it. `fix_report_evidence` beside
 it holds that last road to what it stakes -- the head proved, affirmatively, on
 the branch and on the publication receipt alike -- and owns the park where it
 cannot be, with the input the round's prompt delivered riding that park's own
-write. The `fixing` handler's own resume disposes through both, so the two
-halves of one fix loop hold a round to the same contract.
+write. The resume behind a parked round is the `fixing` stage's own road
+(`stages/fixing/reporting.py`), which holds it to the same contract and, while
+the report is owed, holds the readers and the round with it.
 
 Between rounds the stage is a dev-fix driver, and `dev_fix` owns what one
 finished dev run leaves behind -- the no-commit reading, the push, and the

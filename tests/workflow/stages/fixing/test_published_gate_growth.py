@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.github.pinned_state import PinnedState
 from tests.workflow.stages.fixing import (
     fixing_test_support as fixing,
     published_gate_support as support,
+    report_crash_support as crash,
 )
 
 AT_THE_CEILING = support.AT_THE_CEILING
@@ -42,6 +44,7 @@ FakeUser = fixing.FakeUser
 FIXING = fixing.FIXING
 ISSUE = fixing.ISSUE
 PR_HEAD_SHA = fixing.PR_HEAD_SHA
+LAST_ACTION_COMMENT_ID = fixing.LAST_ACTION_COMMENT_ID
 PR_LAST_COMMENT_ID = fixing.PR_LAST_COMMENT_ID
 PR_NUMBER = fixing.PR_NUMBER
 PUSH_BRANCH = fixing.PUSH_BRANCH
@@ -52,11 +55,6 @@ patch = fixing.patch
 
 # The commit each successive round leaves the checkout on.
 FIX_COMMITS = support.GROWN_CANDIDATES
-
-# The reviewer's next round of feedback, one comment per fix past the first.
-# The rescan reads forward from the watermark the round before it consumed, so
-# each id sits above the one it follows.
-NEXT_FEEDBACK_ID = fixing.FOLLOWUP_ID
 
 # What the pull request comes to at each round of the longest chain here: two
 # fixes it may still carry -- the second landing exactly on the configured
@@ -81,7 +79,7 @@ class _GrownPullRequestMixin(support._SizeGateFixtureMixin):
         rounds = []
         for index, total in enumerate(totals):
             if index:
-                self._reviewer_asks_again(scenario, index)
+                self.answered = self._reviewer_asks_again(scenario)
             rounds.append(self._fix_round(scenario, index, total))
         return scenario, rounds
 
@@ -107,7 +105,7 @@ class _GrownPullRequestMixin(support._SizeGateFixtureMixin):
             pull_request.head.sha = candidate
         return mocks
 
-    def _reviewer_asks_again(self, scenario, index):
+    def _reviewer_asks_again(self, scenario):
         """The relabel and the comment that open the next fix round.
 
         The reviewer read the head the round before published and asked for
@@ -116,13 +114,19 @@ class _GrownPullRequestMixin(support._SizeGateFixtureMixin):
         label history this scenario reads is the fixing stage's own.
         """
         scenario.issue.labels = [FakeLabel(FIXING)]
-        scenario.issue.comments.append(FakeComment(
-            id=NEXT_FEEDBACK_ID + index,
+        # Minted through the client rather than hand-numbered: the rounds
+        # before this one posted the reports they published, which came out of
+        # the same ascending space, so a fixed id would repeat one a reader
+        # here hides.
+        asked = FakeComment(
+            id=scenario.github.next_reply_id(scenario.issue),
             body=fixing.FIX_FEEDBACK,
             user=FakeUser(fixing.ALICE),
             created_at=fixing.datetime.now(fixing.timezone.utc)
             - fixing.timedelta(hours=1),
-        ))
+        )
+        scenario.issue.comments.append(asked)
+        return asked
 
     def _measured_pairs(self, rounds):
         """The base and candidate every round was counted over, in order."""
@@ -226,23 +230,33 @@ class HeldAfterSeveralFixesTest(unittest.TestCase, _GrownPullRequestMixin):
             FIX_COMMITS[1],
         )
 
-    def test_the_hold_consumes_its_feedback(self) -> None:
-        # The dev read the comment that opened this round and committed for
-        # it, and a hold is not a park: the work is on the branch and a
-        # `single` verdict publishes it from there. Left unconsumed, the tick
-        # that picks the issue up again would feed a dev the feedback the run
-        # before it already answered.
-        self.assertEqual(
-            self._pinned(self.scenario)[PR_LAST_COMMENT_ID],
-            NEXT_FEEDBACK_ID + len(self.rounds) - 1,
-        )
-
-    def test_every_round_spends_one_reviewer_round(self) -> None:
+    def test_the_hold_freezes_what_its_round_owes(self) -> None:
         # A held fix supersedes the head the reviewer rejected exactly as a
         # landed one does -- the commit is on the branch and a `single`
-        # verdict publishes it from there -- so `MAX_REVIEW_ROUNDS` counts it.
-        # The in_review route this scenario opens on resets the count, and
-        # every round after it advances by one.
+        # verdict publishes it from there -- so the round IS spent and the
+        # comment that opened it IS answered. WHERE both are written is what
+        # the report this round wrote changes: they are frozen onto its
+        # record, and the write that finally publishes that report is what
+        # applies them. Written into the gate's own receipt instead, an
+        # outstanding publication would be left with no batch to replay and a
+        # round counted for a report that may still fail to post.
+        #
+        # So the readers stand where the round before this one left them --
+        # each of those published, so each settled its own -- and the record
+        # carries the rest.
+        pinned = self._pinned(self.scenario)
+        landed = len(self.rounds) - 2
+
+        self.assertEqual(pinned[REVIEW_ROUND], landed)
+        self.assertLess(pinned[PR_LAST_COMMENT_ID], self.answered.id)
         self.assertEqual(
-            self._pinned(self.scenario)[REVIEW_ROUND], len(self.rounds) - 1,
+            crash.frozen_record(PinnedState(state_data=pinned)).watermarks,
+            (
+                (LAST_ACTION_COMMENT_ID, self.answered.id),
+                (PR_LAST_COMMENT_ID, self.answered.id),
+            ),
+        )
+        self.assertIn(
+            (REVIEW_ROUND, landed + 1),
+            crash.frozen_record(PinnedState(state_data=pinned)).spends,
         )

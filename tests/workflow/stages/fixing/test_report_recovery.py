@@ -27,6 +27,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import (
+    report_binding as _report_binding,
     report_delivery as _report_delivery,
     report_record_state as _record_state,
     report_records as _records,
@@ -336,6 +337,67 @@ class UnboundDeliveryTest(unittest.TestCase, support.FixingReportCase):
                 self.assertEqual(
                     self.gh.workflow_label(self.issue), WorkflowLabel.FIXING,
                 )
+
+
+class SupersededTransactionTest(unittest.TestCase, support.FixingReportCase):
+    """A release over a delivery that replaced an outstanding transaction.
+
+    A record minted over one carries its frozen pairs forward and the binding
+    behind it is what would have dropped it, so the road that RELEASES that
+    record instead has to drop it too -- otherwise the transaction is left for
+    the reconciliation to prove, settle and publish, over report text this
+    issue has already replaced.
+    """
+
+    def setUp(self) -> None:
+        support.FixingReportCase.setUp(self)
+        self.records_the_report()
+
+    def test_a_release_drops_what_it_replaced(self) -> None:
+        # A report recorded over an outstanding transaction SUPERSEDES it: the
+        # delivery carries that transaction's frozen pairs forward, and the
+        # binding behind it is what would have dropped it. Released instead,
+        # nothing else does -- and a transaction left on the comment is one
+        # the reconciliation ahead of any later handler proves, settles and
+        # publishes, putting report text this issue has already replaced onto
+        # the pull request and clearing the debt and this very notice with it.
+        #
+        # The debt is what has to outlive both, since the report the reply
+        # brings is the only thing that answers it.
+        self._bound_then_superseded()
+
+        with _DIRTY():
+            self.assertFalse(
+                _recovery._recovers_an_unbound_delivery(self.ctx()),
+            )
+
+        released = self.pinned()
+        self.assertIsNone(crash.frozen_record(self.state))
+        self.assertIsNone(_record_state.read_pending_report(self.state))
+        self.assertFalse(_record_state.carries_pending_report(self.state))
+        self.assertTrue(released.get(crash.OWED_REPORT))
+        self.assertEqual(
+            released.get(support.PARK_REASON), crash.UNDELIVERABLE,
+        )
+
+    def _bound_then_superseded(self) -> None:
+        """One transaction outstanding, and the delivery that replaced it.
+
+        Written through the engine's own binding rather than seeded, so what
+        the release meets is the shape a refused post really leaves: the
+        delivery exchanged for a transaction, and a later round's report
+        recorded over it at the next revision.
+        """
+        _report_binding.binds_the_delivery(
+            self.gh, self.issue, self.state, _report_binding.ReportPublication(
+                pull_request=self.pull_request,
+                repo_slug=support.TEST_REPO_SLUG,
+                branch=support.BRANCH,
+                commit=support.HEAD_SHA,
+            ),
+        )
+        self.assertIsNotNone(_record_state.read_pending_report(self.state))
+        self.records_the_report()
 
 
 class ReportObligationTest(unittest.TestCase, support.FixingReportCase):

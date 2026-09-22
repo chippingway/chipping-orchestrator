@@ -261,11 +261,12 @@ tree with nothing recorded — and routed as an `ACK:` is, and the reviewer wait
 pull request. `ACK:` and a question keep their own roads.
 
 The **reviewer-requested fix round** acts on one on the same pull request, under the `workflow:fixing` label it runs
-under: the initial `CHANGES_REQUESTED` run and the parked resume behind it both read their result through
-`workflow/stages/validating/fix_reports.py`
+under. The initial `CHANGES_REQUESTED` run reads its result through `workflow/stages/validating/fix_reports.py`
 ([`_handle_validating`](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating)'s
-`changes_requested` arc and
-[`_handle_fixing`](../state-machine/delivery-stages.md#_handle_fixing-label-workflowfixing)).
+`changes_requested` arc); every round behind it is the fixing stage's own
+(`workflow/stages/fixing/reporting.py`, from
+[`_handle_fixing`](../state-machine/delivery-stages.md#_handle_fixing-label-workflowfixing)), holding the round to
+the same contract and publishing the report itself rather than handing the delivery on.
 A commit has its report recorded before the size gate and bound once the push lands; one with no usable report parks
 rather than being pushed. A no-commit reply ending on a report outcome is the handover a reviewer item naming report
 content earns: published onto the head the branch and the code-publication receipt are PROVED to agree on — every
@@ -297,7 +298,26 @@ prompt deliberately never hands the developer, on the surface that command was t
 That round can also end on a report outcome, since its prompt teaches the contract like every other developer prompt
 and asks by name for an item wanting report content only to be answered in the report with no commit for it. Such a
 round settles nothing on the tick: the publication it owes is not this tick's to promise, and feedback recorded as
-answered for a report no reviewer has is the one reading that fork exists to refuse.
+answered for a report no reviewer has is the one reading that fork exists to refuse. What carries the batch instead
+is the report's own record, beside the round and the `pending_fix_*` bookmarks, and the write that completes the
+publication applies all of them.
+
+While that publication is outstanding the readers therefore say less than they usually do, and the record's frozen
+pairs are what the stage asks instead: a rescan with nothing above them is the prompt the outstanding report answers,
+so no scan resumes a second developer over it and no park clears on it. A comment that landed ABOVE those pairs is
+genuinely unanswered and runs as usual, and so does an accepted `/orchestrator continue`. An `ACK:` is refused for
+the same reason on an issue that owes a report at all: returning the pull request to `in_review` as needing nothing
+would present it while the report it owes is still on the pinned comment and nothing has gone out.
+
+Everything a fix round derives from the issue thread comes off ONE read of it — the batch the prompt quotes, the
+replay an accepted `/orchestrator continue` rebuilds from pinned ids, the watermarks both settle, the
+requirements fingerprint its report is stamped with, and the conversation a retired session's fresh spawn is
+re-grounded on — which keeps this orchestrator's own posts by RECORDED id however the author allowlist is
+set, since a thread it is half of re-grounds nobody when only the answers survive.
+
+A second read is newer, so a comment landing between them enters
+whichever of those answers was taken late and none taken early: an agent shown a comment no watermark records, or
+requirements recorded as answered by a session that never saw them.
 
 Delivery is still not completion: an `ACK:` may settle a round whose comments named no actionable change, and it does
 not answer the automated `CHANGES_REQUESTED` review that asked for a concrete one — that route has no ACK fast path
