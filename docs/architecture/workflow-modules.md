@@ -1565,7 +1565,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             That bounce still republishes a commit an earlier round stranded -- it is the one tick
                             left that can -- and BINDS the report to the push it makes, since nothing else would;
                             while a report is owed it spends nothing, clears nothing, and relabels nothing, and
-                            where no road left can move one it says so once rather than holding in silence
+                            where no road left can move one it says so once rather than holding in silence. What it
+                            hands back on is the settlement's own mark, never the settling: a delivery is claimed by
+                            one key whoever wrote it, so the record that settles there can be an implementing
+                            candidate's or a drift resume's, closing THAT route's frozen pairs and raising no mark of
+                            this stage's -- and the bounce then writes the round its own push earned rather than
+                            relabelling over bookmarks nothing cleared
       feedback.py           the rescan past the three in_review watermarks -- read through that stage's own
                             per-surface owner, so the issue thread answers to the issue-only delivery cursor too and
                             the pull request never does (a bare `/orchestrator add-agent-runs` is no

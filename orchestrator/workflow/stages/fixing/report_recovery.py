@@ -155,13 +155,18 @@ def _finishes_a_settled_round(ctx: _models._FixingContext) -> bool:
     Asked by every road that can reach a relabel with a settlement behind it,
     because the answer is the same question each time. Ahead of everything,
     for the settlement some other write landed. Behind the binding above, for
-    the one it landed itself. And from the parked dispatch
+    the one it landed itself. From the parked dispatch
     (`parked._settles_the_recovered_report`), whose silent `push_failed` retry
     IS the publication a held report was waiting for -- that road clears the
     park, leaves the round and the bookmarks to the settlement, and comes here
-    for the relabel rather than taking one of its own. A settlement is not
-    licence to relabel -- the mark it raised is, and only where this owner can
-    still place it.
+    for the relabel rather than taking one of its own. And from the no-feedback
+    bounce (`handler._binds_the_stranded_report`), whose republished commit is
+    the publication an unbound delivery was missing; that one road has a
+    relabel of its OWN to fall back on, so what it asks here is only whether
+    the settlement it just took was this route's -- where it was not, its own
+    bookkeeping is still unwritten and this call declines rather than standing
+    in for it. A settlement is not licence to relabel -- the mark it raised is,
+    and only where this owner can still place it.
 
     False is every round this stage may not end here, and the mark is RETIRED
     on the way out wherever one is standing that can no longer be about the

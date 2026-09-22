@@ -3513,6 +3513,15 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      standing value. Nothing is spent, cleared or relabelled until the report is really there, and where no road left
      on the issue can move one (nothing unread, nothing stranded, the publication itself declining) the wait is
      announced once under `report_undeliverable` rather than repeated in silence on every poll.
+
+     A settlement that TOOK that delivery ends this exit only where it raised this route's own `fixing_round_settled`
+     mark, which is the same correlation every other settlement-driven relabel goes through. A delivery is claimed by
+     one key whoever wrote it, so the record that settles here can be an implementing candidate's or a drift resume's:
+     it applies THAT route's frozen pairs, raises no mark of this stage's, and leaves the bookmarks this bounce
+     consumed and the reviewer round its push earned unwritten. Read as this round's settlement, the absent mark would
+     place the relabel on nothing at all and the issue would reach `workflow:validating` with `pending_fix_at`
+     standing and the old `review_round` pinned, so the next fixing round reads an in_review batch as a validating
+     one. Markless, the exit falls back onto its own pushed road instead and writes that bookkeeping itself.
   8. **Quiet window**: compute the newest `created_at` (or `submitted_at` for review summaries); if younger than
      `IN_REVIEW_DEBOUNCE_SECONDS`, return.
   9. **Resume**: build a `_build_pr_comment_followup` prompt over ALL unread surfaces, resume the locked dev via

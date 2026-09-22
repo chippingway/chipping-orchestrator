@@ -234,6 +234,49 @@ def _publish_stranded_fix(
     return _models._StrandedPublication()
 
 
+def _binds_the_stranded_report(ctx: _models._FixingContext) -> bool:
+    """Publish the report the push this bounce made is for; say if this ends.
+
+    The commit that push carried to the pull request is the one the report an
+    earlier round recorded describes, and binding it here is the only road
+    left: nothing else republishes this commit, so a delivery left unbound
+    would never become a transaction anything could finish. The commit is read
+    off the receipt the gate wrote for THIS attempt, never the standing value,
+    which on a tick that pushed nothing names an older round.
+
+    True is a road that is over. A report still OWED leaves the label where it
+    is and the bookmarks with it, for the reconciliation ahead of a later
+    handler to settle from the record. A settlement THIS route's own round
+    raised the mark for has already applied the pairs that record froze, so
+    nothing is written on top of it and the hand-back goes through the same
+    correlation every other settlement-driven relabel does -- which is what
+    keeps a settlement that landed under a label a human moved the issue to
+    from taking it straight off again.
+
+    False is a settlement that closed NOTHING of this route's, and the bounce
+    carries on to spend the round it froze itself. A delivery is claimed by one
+    key whoever wrote it, and this stage is not the only writer: an
+    implementing candidate and the validating drift route each record one, and
+    either can still be owed when a reviewer's change request moves the issue
+    here. Settling such a record applies ITS route's frozen pairs and raises no
+    mark of this stage's, so the bookmarks this bounce consumed and the
+    reviewer round its push earned are still this caller's to write. Read as
+    this round's settlement instead, the absent mark is what an unclaimed
+    hand-back places on nothing at all: the relabel goes out over a
+    `pending_fix_at` nothing cleared and a `review_round` nothing counted, and
+    the next fixing round reads an in_review batch as a validating one.
+    """
+    if _reporting._holds_an_unpublished_report(
+        ctx, _late_publication_state._published_commit(ctx.state),
+    ).owed:
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        return True
+    if not ctx.state.get(_state._SETTLED_ROUND):
+        return False
+    _report_recovery._finishes_a_settled_round(ctx)
+    return True
+
+
 def _bounce_without_feedback(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state, pr,
 ) -> None:
@@ -252,6 +295,11 @@ def _bounce_without_feedback(
     tick that republishes a stranded commit, so a delivery left unbound here
     would never become a transaction anything could finish -- and nothing is
     spent, cleared or relabelled until the report is really there.
+
+    Only a report of THIS route's changes them, though, and one that settled
+    somewhere else drops this exit back onto its own pushed road: what the
+    binding hands back is whether the settlement was this round's, and where it
+    was not, the bookkeeping the record applied was some other route's.
     """
     ctx = _models._FixingContext(gh, spec, issue, state, pr)
     pending_fix_at_was_set = state.get(_state._PENDING_FIX_AT) is not None
@@ -280,26 +328,16 @@ def _bounce_without_feedback(
         # memory for its caller to persist.
         gh.write_pinned_state(issue, state)
         return
-    if stranded.pushed and reporting:
-        # The commit this bounce carried to the pull request is the one the
-        # report an earlier round recorded describes, and binding it here is
-        # the only road left: nothing else republishes this commit, so a
-        # delivery left unbound would never become a transaction anything
-        # could finish. The commit is read off the receipt the gate wrote for
-        # THIS attempt, never the standing value, which on a tick that pushed
-        # nothing names an older round.
-        #
-        # Still owed afterwards, the label stays put and the bookmarks with
-        # it, for the reconciliation ahead of a later handler to settle from
-        # the record. Settled, that write has already closed this route's
-        # bookkeeping from the record's own frozen pairs, so nothing is
-        # applied here on top of it.
-        if _reporting._holds_an_unpublished_report(
-            ctx, _late_publication_state._published_commit(state),
-        ).owed:
-            gh.write_pinned_state(issue, state)
+    if stranded.pushed:
+        # The report the push this bounce just made is the publication for
+        # goes out first, and where it settles a round of THIS route's the
+        # write that took it has already applied the pairs the record froze --
+        # so the road ends there and nothing is written on top of it. A
+        # settlement that closed some other route's bookkeeping ends nothing:
+        # this bounce still owes the round its own push earned, exactly as it
+        # would on a tick that never carried a report at all.
+        if reporting and _binds_the_stranded_report(ctx):
             return
-    elif stranded.pushed:
         _late_gate_models._spend(state, owed)
     elif reporting:
         # Nothing was published and a report is still owed, which is the one

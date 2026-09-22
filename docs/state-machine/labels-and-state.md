@@ -1650,7 +1650,12 @@ The keys that matter for the state machine fall into a few groups:
   build cannot read, one settled under any label but `workflow:fixing`, or either route anchor standing — which says
   a newer round opened after the mark went up. Two roads read it, ahead of every fixing scan and behind every
   settlement-driven hand-back, and both CONSUME it: a mark this stage may not act on comes down unspent, because it
-  is the mark of a round that is over either way and only the relabel is withheld. That hand-back's write brings
+  is the mark of a round that is over either way and only the relabel is withheld. Its ABSENCE is what the
+  no-feedback bounce reads: a delivery is claimed by one key whoever wrote it, so that exit can settle an
+  implementing candidate's or a drift resume's record, which applies THAT route's frozen pairs and raises nothing
+  here — and with no mark to hand a round back on, the bounce writes its own `pending_fix_*` clear and `review_round`
+  before relabelling rather than leaving them pinned behind a settlement that never closed them. That hand-back's
+  write brings
   down `awaiting_human` and a `park_reason` in `_VALIDATING_TRANSIENT_PARK_REASONS` with it, since a `push_failed`
   park is filed by the very push the report rides and the retry that lands it is durable a step ahead of the
   publication — so the hand-back is reached over a park still standing, and an issue relabelled on top of one

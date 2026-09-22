@@ -160,6 +160,27 @@ _A_SILENT_STREAK = crash.SILENT_PARKS_BEFORE_FRESH_SESSION - 1
 # BEFORE the push leaves: the bounce is the one road left that sends it.
 _AHEAD_OF_REMOTE = (1, 0)
 
+# The three route fields a settlement of THIS route's own round closes -- and
+# exactly the group a settlement of any OTHER route's leaves standing, which is
+# why the bounce is asked about them together rather than one at a time.
+_ROUTE_FIELDS = (
+    live.PENDING_FIX_AT, live.PENDING_FIX_ISSUE_MAX_ID, live.REVIEW_ROUND,
+)
+
+# What that group reads as once the round is closed, and what it reads as while
+# the round is still open on the in_review route this fixture seeds.
+_A_CLOSED_ROUND = MappingProxyType({
+    live.PENDING_FIX_AT: None,
+    live.PENDING_FIX_ISSUE_MAX_ID: None,
+    live.REVIEW_ROUND: 0,
+})
+
+_AN_OPEN_ROUND = MappingProxyType({
+    live.PENDING_FIX_AT: live.PENDING_FIX_AT_TS,
+    live.PENDING_FIX_ISSUE_MAX_ID: live.TRIGGER_ID,
+    live.REVIEW_ROUND: 1,
+})
+
 # The two ways a pull request is OVER, as GitHub spells each, and the reading
 # that says it was open when this tick began. The ending is put on the pull
 # request ITSELF and the earlier reads are served a copy without it, because
@@ -892,6 +913,64 @@ class LiveStaleCorrelationTest(unittest.TestCase, LiveReportRoundMixin):
         self.tick(seeded, head=live.SHA_AFTER)
 
         self.assertEqual(len(seeded.github.posted_pr_comments), 1)
+        self.assertFalse(self.handed_back(seeded))
+
+    def test_a_foreign_bounce_spends_its_own_round(self) -> None:
+        # The same foreign record reached through the PRE-PUSH window, where
+        # the bounce is the one road left that republishes the stranded commit
+        # and the binding rides the push it makes. That settlement applies the
+        # OTHER route's frozen pairs and raises no fixing mark, so the
+        # bookmarks this bounce consumed and the reviewer round its own push
+        # earned are still unwritten -- and a mark that is not up places every
+        # relabel, so read as this round's settlement the issue reaches
+        # `workflow:validating` with `pending_fix_at` standing and the old
+        # `review_round` pinned, and the next fixing round answers an
+        # in_review batch as a validating one.
+        #
+        # So the bounce falls back onto its own pushed road: the report goes
+        # out, this route's bookkeeping is written here, and the head is
+        # handed back on the reasons this exit always had.
+        seeded = self.seed(crashed=True)
+        self._records_a_foreign_delivery(seeded)
+
+        spawned_nobody(self.tick(
+            seeded, head=live.SHA_AFTER, branch_ahead_behind=_AHEAD_OF_REMOTE,
+        ))
+
+        pinned = self.pinned(seeded)
+        self.assertEqual(
+            [pr for pr, _ in seeded.github.posted_pr_comments],
+            [live.PR_NUMBER],
+        )
+        self.assertIsNone(self.recorded(seeded))
+        self.assertEqual(
+            {field: pinned[field] for field in _ROUTE_FIELDS}, _A_CLOSED_ROUND,
+        )
+        self.assertTrue(self.handed_back(seeded))
+
+    def test_a_foreign_bounce_that_cannot_post_holds(self) -> None:
+        # The other half of that window: the push lands, GitHub refuses the
+        # comment, and the delivery belongs to a route this stage never ran.
+        # Neither route's bookkeeping may be written then -- the transaction
+        # still carries the foreign one, and the bookmarks this bounce read
+        # are what an outstanding publication replays from -- and the reviewer
+        # is handed nothing at all.
+        seeded = self.seed(crashed=True)
+        self._records_a_foreign_delivery(seeded)
+        seeded.github.report_failures.refused.add(live.PR_NUMBER)
+
+        self.tick(
+            seeded, head=live.SHA_AFTER, branch_ahead_behind=_AHEAD_OF_REMOTE,
+        )
+
+        pinned = self.pinned(seeded)
+        self.assertEqual(seeded.github.posted_pr_comments, [])
+        self.assertTrue(_report_delivery.owes_a_report(
+            PinnedState(state_data=pinned),
+        ))
+        self.assertEqual(
+            {field: pinned[field] for field in _ROUTE_FIELDS}, _AN_OPEN_ROUND,
+        )
         self.assertFalse(self.handed_back(seeded))
 
     def test_a_mark_from_elsewhere_is_retired_unspent(self) -> None:

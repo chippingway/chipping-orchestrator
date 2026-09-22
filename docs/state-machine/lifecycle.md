@@ -411,7 +411,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
               released, nothing said — the tick ends where it stands and the
               first poll that can read them publishes. A head the pull request
               has MOVED off is neither: the bounce re-proves the remote and
-              republishes the commit, binding the report to that push
+              republishes the commit, binding the report to that push. It
+              hands the round back on a mark of THIS route's and on nothing
+              weaker: a delivery another route recorded settles that route's
+              bookkeeping and raises none here, so the bounce writes its own
+              pending_fix_* clear and review_round before relabelling
          ──► park (timeout / no-commit / dirty / push fail):
               label stays workflow:fixing, awaiting_human=True; the
               fixing handler owns the awaiting-human cycle and on a
