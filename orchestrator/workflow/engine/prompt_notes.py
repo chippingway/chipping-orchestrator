@@ -13,6 +13,8 @@ _NO_BODY = "(no body)"
 
 _NO_PRIOR_COMMENTS = "(no prior comments)"
 
+_DEVELOPER_REPORT_CHAR_BUDGET = 4000
+
 _FOREGROUND_ONLY_NOTE = (
     "IMPORTANT: your session terminates the moment you finish responding -- "
     "nothing keeps running between turns, and a later resume starts a fresh "
@@ -50,10 +52,15 @@ _COMMIT_STYLE_NOTE = (
 _DEVELOPER_REPORT_NOTE = (
     "Developer report: you write it, and the orchestrator publishes it. "
     "Whenever this task ends in finished work -- with a new commit or without "
-    "one -- your final message MUST end with your complete, current completion "
-    "report for this issue: what the branch changes and why, how you verified "
-    "it, and anything a reviewer should know. Write the whole report every "
-    "time rather than only what changed since the last one, because it "
+    "one -- your final message MUST end with a concise, complete, current "
+    "completion report for this issue. Keep the report body at or below "
+    f"{_DEVELOPER_REPORT_CHAR_BUDGET:,} characters. Make it self-contained, "
+    "but describe the final branch state rather than the journey: do not repeat "
+    "the issue body, preserve a history of review rounds or earlier reports, "
+    "enumerate every touched file, or list every individual test. Include only "
+    "what the branch changes and why, the verification performed and its "
+    "outcome, and unresolved risks or decisions a reviewer must weigh. Write "
+    "the complete current report rather than only the latest delta, because it "
     "supersedes every earlier report. Publishing it on the pull request is "
     "routine orchestrator work that needs no permission: do NOT post or edit "
     "the report yourself, and do NOT ask a human whether or how to publish "
@@ -91,12 +98,13 @@ _DEVELOPER_REPORT_NOTE = (
 # A fresh respawn's preamble precedes every stage's task, including ones that
 # end on a marker of their own, so it defers the outcome to the task below.
 _RESPAWN_REPORT_NOTE = (
-    "Wherever the task below asks for your completion report, write it for the "
-    "whole branch, the previous session's commits included. You write the "
-    "report and the orchestrator publishes it as routine work: there is no "
-    "permission to ask for, nothing of yours to push or post, and no empty "
-    "commit to make just to carry it. End with the exact report outcome that "
-    f"task describes -- the `{_report_models._REPORT_READY_MARKER}` ... "
+    "Wherever the task below asks for your completion report, write one concise "
+    "report about the final state of the whole branch, the previous session's "
+    "commits included. You write the report and the orchestrator publishes it as "
+    "routine work: there is no permission to ask for, nothing of yours to push "
+    "or post, and no empty commit to make just to carry it. End with the exact "
+    "report outcome that task describes -- the "
+    f"`{_report_models._REPORT_READY_MARKER}` ... "
     f"`{_report_models._REPORT_END_MARKER}` block or the "
     f"`{_report_models._REPORT_VERIFIED_MARKER} <location> <revision>` line."
 )

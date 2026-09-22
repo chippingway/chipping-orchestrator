@@ -99,11 +99,13 @@ authors no subject. Where each prompt carries it, and why the bare developer res
 Every prompt a developer can finish work on — the initial implementation, an automated-review fix, a
 requirements-drift resume, PR feedback, a human-reply resume, a late revision against a human's guidance, and the
 bare-continue retry — teaches one report contract: the developer writes the complete, current report, the
-orchestrator publishes it as routine work that needs no permission, a report that needs no repository change needs no
-commit, and finished work ends on exactly one outcome — the report between `REPORT: READY` and `REPORT: END` lines,
-or a `REPORT: VERIFIED <location> <revision>` line naming
-a report already on the pull request. A fresh respawn's preamble restates the ownership and defers the outcome to the
-task below it. `workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and the
+orchestrator publishes it as routine work that needs no permission, and the prompt asks the developer to keep the
+report at or below 4,000 characters by describing the final branch state rather than repeating the issue, prior review
+rounds, every file, or every test. The parser and publication path do not enforce that writing budget. A report that
+needs no repository change needs no commit, and finished work ends on exactly one outcome — either the report between
+`REPORT: READY` and `REPORT: END` lines or a `REPORT: VERIFIED <location> <revision>` line naming a report already on
+the pull request. A fresh respawn's preamble restates the ownership and defers the outcome to the task below it.
+`workflow/engine/report_outcomes.py` reads an outcome only out of a run that completed, and the
 initial implementation delivery is the road that acts on one: `workflow/engine/report_delivery.py` records what the
 run wrote before the size gate and the push, and `workflow/engine/report_binding.py` binds it to the repository, pull
 request, branch and commit the code reaches and publishes it there before the issue may move to
