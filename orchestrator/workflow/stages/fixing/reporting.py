@@ -23,14 +23,19 @@ and the head a pull request happens to carry -- both of which outlive every
 transaction. It is cleared by the relabel that closes the round, and placed
 against the comment through `round_marks` before that relabel is taken.
 
+`report_recovery` beside it is the other end of the same contract: the road a
+tick that died in the publication window comes back to, which re-proves the
+checkout rather than remembering a receipt and reaches the same hand-back.
+
 Every other outcome a fix round reaches -- the `ACK:`, the question, the
 timeout, the dirty tree -- writes no report at all, and those close their own
 bookkeeping directly in `resume`. Telling the two apart is the whole of what
 this owner is asked first.
 
-No dispatched fixing road runs through this owner: each helper below is reached
-by its caller directly, and the tick this stage takes today disposes a reported
-round through `validating/fix_reports.py`.
+No dispatched fixing road runs through this owner or through the recovery
+beside it: each helper below is reached by its caller directly, and the tick
+this stage takes today disposes a reported round through
+`validating/fix_reports.py`.
 """
 from __future__ import annotations
 
@@ -47,6 +52,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.fixing import (
     models as _models,
+    report_publication as _publication,
     round_marks as _round_marks,
     state as _state,
 )
@@ -229,35 +235,52 @@ def _is_report_only(
     onto a pull request that has since moved past it -- with the issue handed
     back to the reviewer over a head nothing describes.
 
-    A read nobody could take answers NONE rather than False, because it is the
-    one refusal here that is about this tick rather than about the round. Every
-    other one is decisive: a head that did not read, a pull request standing
-    somewhere else, a tree nobody could prove clean -- each is a condition a
-    later tick re-proves and declines in exactly the same way, so the no-commit
-    road that parks for a human is the right one. A GitHub call that failed is
-    none of that. The report is valid, the branch is where the report says it
-    is, and the only thing missing is an answer this poll could not get -- so
-    the caller holds everything where it stands and a tick that can read the
-    pull request publishes it. Parked instead, the report goes out from under a
-    park whose reason no settlement owns, and the issue is handed to review
-    still waiting on a human nobody ever needed.
+    A reading nobody could TAKE answers NONE rather than False, and that is
+    three readings rather than one: a pull request reading this poll could not
+    take, a HEAD the checkout would not name, and a tree status that
+    established nothing. None of them is about the round. The report is valid
+    and the branch is wherever it was; what is missing is an answer, and a
+    later poll asks for it again -- so the caller holds everything where it
+    stands, nothing published and nothing parked. Sent down the no-commit road
+    instead, a valid report earns a park saying its developer asked a
+    question, the human answering it is answering nothing, and the tick that
+    finally publishes hands the issue to review under a park no settlement
+    owns and no reviewer runs behind.
+
+    The pull request reading is the WHOLE one, taken through
+    `report_publication` rather than spelled here, so this road and the
+    binding behind it ask one question rather than two that can disagree: the
+    thread open, on this issue's own branch in this repository, and standing
+    on the head the run left. Every member of it is a lazy request, so a
+    reading that fails anywhere inside it -- the fetch, the state, the ref,
+    the head repository, the sha -- answers None rather than raising out of
+    the tick.
+
+    False is what is left, and every one of those IS about the round: a head
+    that moved, which is a code change and belongs on the publication road; a
+    pull request this report may not go onto; and a tree this host PROVED is
+    carrying something loose. The last of those is the one no later poll takes
+    back, so a caller routes it through the terminal park `report_recovery`
+    owns rather than through the question road, which no reply ends either.
     """
-    if run.dev_result.timed_out or not run.after_sha:
+    if run.dev_result.timed_out or (
+        run.after_sha and run.after_sha != run.before_sha
+    ):
         return False
-    if run.after_sha != run.before_sha:
-        return False
-    try:
-        published = ctx.gh.get_pr(ctx.pr.number)
-    except Exception:
-        log.exception(
-            "issue=#%d could not re-read PR #%s to say whether it is still "
-            "standing where this round found it; holding its report for a "
-            "tick that can", ctx.issue.number, getattr(ctx.pr, "number", None),
+    if not run.after_sha:
+        log.info(
+            "issue=#%d could not read the checkout's head to say whether its "
+            "report describes the published one; holding it for a tick that "
+            "can", ctx.issue.number,
         )
         return None
-    if run.after_sha != getattr(getattr(published, "head", None), "sha", ""):
+    standing = _publication._stands_on(ctx, run.after_sha)
+    if standing.unread:
+        return None
+    if standing.pull_request is None:
         return False
-    return _worktree_status._worktree_status(run.worktree).is_clean
+    tree = _worktree_status._worktree_status(run.worktree)
+    return tree.is_clean if tree.readable else None
 
 
 def _recording_stops_the_tick(
@@ -274,11 +297,22 @@ def _recording_stops_the_tick(
     Both groups are handed over rather than derived here. `consumed` is the
     pairs the caller FROZE before it settled them, so the record names exactly
     what was applied rather than what is left to apply -- derived after the
-    settlement it would be empty, and a later tick reading this record back
+    settlement it would be empty, and the recovery that reads this record back
     would have nothing to put the feedback beyond. `owed` is the route
     bookkeeping, which is not applied anywhere yet: the publication it belongs
     to is not this tick's to guarantee, so the write that COMPLETES the
     transaction is what closes it.
+
+    The REQUIREMENTS revision is named for the same reason, off the snapshot
+    the run took ahead of its own spawn rather than off the pinned baseline.
+    The settlement re-reads the issue and refuses a report whose requirements
+    have moved since the session that wrote it -- which is the whole guard
+    against publishing an answer to questions nobody asked. Left empty, that
+    comparison is taken against a baseline this very tick rewrote minutes
+    later, so a reply that arrived while the developer worked reads as
+    requirements the developer saw: the settlement finds no movement,
+    publishes, and hands the reviewer a head over a comment the round's own
+    frozen pairs deliberately left unread.
 
     The mark rides with it because one write applies them. A settlement can
     close `pending_fix_at`, the bookmarks and `review_round`, and it cannot
@@ -293,6 +327,7 @@ def _recording_stops_the_tick(
         ctx.gh, ctx.issue, ctx.state, run.dev_result,
         _report_records.HandedRun(
             route=WorkflowLabel.FIXING,
+            requirements_revision=run.requirements_revision,
             watermarks=consumed,
             spends=owed.fields + _SETTLES_THE_ROUND,
         ),
@@ -319,19 +354,38 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
     else they owe into the state before calling; nothing they add afterwards
     would be durable in the window this ordering protects.
 
-    The mark is PLACED before the label moves rather than at any one caller,
-    and the relabel is what a mark that cannot be placed withholds. A
+    The transaction this hand-back closes is STAMPED into that same write,
+    where a mark was raised and the reading above could place it -- both, which
+    is why the stamp is asked for through `round_marks` rather than taken here:
+    that reading places every road reaching a relabel on its own reasons too,
+    and those close no transaction at all. The mark is cleared by this write
+    and the handoff beside it is persistent, so a comment whose round closed
+    here goes on carrying a readable `workflow:fixing` handoff with both
+    anchors already closed -- and a mark written back onto it by hand would
+    otherwise be correlated into a second hand-back over whatever landed in
+    between. What the stamp says is which transaction this was, so the next
+    mark is a claim about one rather than about whatever settlement is still
+    lying there.
+
+    Both roads that can reach a relabel with the mark RAISED come through here
+    -- this round's own publication, and the recovery beside it that finds a
+    round settled while nobody was looking -- so the mark is PLACED here rather
+    than at either of them, and the relabel is what a mark that cannot be
+    placed withholds. A
     settlement stamps the label it read afresh, which is the label a human who
     moved the issue while the developer ran has put it on -- and this owner can
     be reached on the very tick that recorded that move. Relabelled anyway, the
     live road takes the issue straight off the label that human chose while a
     later tick reading the identical comment would leave it alone: the same
     settlement would mean one thing when the tick survives to relabel and
-    another when it dies first. The mark comes down either way, because it is
+    another when it dies first, since the recovery reading the identical
+    comment on a later poll would leave the label alone. The mark comes down either way, because it is
     this round's and this round is over; what a refusal withholds is only the
     move.
     """
     places = _round_marks._places_the_round_in_hand(ctx.state)
+    if places:
+        _round_marks._stamps_the_round_handed_back(ctx.state)
     ctx.state.set(_state._SETTLED_ROUND, None)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     if places:
@@ -340,23 +394,23 @@ def _hands_the_round_back(ctx: _models._FixingContext) -> None:
 
 def _holds_an_unpublished_report(
     ctx: _models._FixingContext, candidate: str = "",
-) -> bool:
-    """Put this round's report on the pull request; True where it is still owed.
+) -> _models._ReportHold:
+    """Put this round's report on the pull request; say where it is still owed.
 
     Bound to the publication first and posted second, in the engine's own two
     steps: the binding is one local write, so a post GitHub refuses leaves a
-    transaction a later tick can finish rather than a delivery nothing would go
-    back for.
+    transaction the reconciliation ahead of a later handler can finish rather
+    than a delivery nothing would go back for.
 
     `candidate` is the commit the CALLER proved, and it is the only subject
-    this binding will take. The code-publication receipt is deliberately not
-    read here: it is persistent, so on any tick that did not push it names an
-    older round's commit -- and a report bound to that one describes work the
-    developer never did, on a pull request that may well be standing on it for
-    reasons of its own. Each caller scopes the proof to its own attempt
-    instead: a push tail names the commit its run left, a bounce reads the
-    receipt its own push has just written, and a report-only round names the
-    head its pull request already stands on.
+    this binding will take. The receipt this stage writes on a landed push is
+    deliberately not read here: it is persistent, so on any tick that did not
+    push it names an older round's commit -- and a report bound to that one
+    describes work the developer never did, on a pull request that may well be
+    standing on it for reasons of its own. Each caller scopes the proof to its
+    own attempt instead: a push tail names the commit its run left, a report-
+    only round names the head its pull request already stands on, and the
+    recovery names a clean checkout it re-proved against that head.
 
     An empty candidate binds nothing. There is no commit to be about, so the
     report stays owed for a road that can name one.
@@ -369,22 +423,70 @@ def _holds_an_unpublished_report(
     saw. Held instead, the code may still go out and the review waits for a
     report written over the branch as it stands.
 
-    True holds the caller's relabel, which is what keeps a reviewer from being
-    sent to a head whose report nothing on the pull request carries.
+    Which publication that commit may be published onto is the one whole
+    reading in `report_publication`, taken afresh and shared with the
+    report-only road above so that the two cannot disagree. It holds
+    `candidate` to the thread's own head, and it is the LAST moment anything
+    can be: whoever proved this commit proved it earlier in the tick, against
+    a pull request read earlier still, and a push landing in between moves the
+    head off it. It holds the thread to being OPEN, to this issue's own
+    branch, and to this repository -- a number alone brought the object back,
+    and a second thread on another branch or a fork's carries this
+    repository's ref names over somebody else's commits while standing on the
+    very commit a caller proved. Bound to one of those, the subject would name
+    this record's branch and repository over a thread nobody meant: the report
+    posted there, the debt cleared, the handoff recorded, and nothing on the
+    comment saying so.
+
+    The DESCRIPTION comes back with it, off the same object and under the same
+    boundary, because one report this workflow cannot both keep and manage is
+    a `REPORT: VERIFIED` naming that very body: binding it there spends the
+    description GitHub honours the closing reference in, and the line saying
+    which session wrote the branch, on a report a comment could have carried.
+    The binding refuses that one and parks with the delivery intact -- but
+    only if it is TOLD, and the reading defaults to "the description is safe",
+    so a caller that stays silent settles the report and hands the reviewer a
+    pull request that no longer closes its issue. The object the report is
+    POSTED onto is that same fresh one, so what the binding refuses and what
+    it writes to are one reading.
+
+    A reading this tick could not take holds everything where it stands. The
+    report is valid and the record is intact; what is missing is an answer,
+    and a later tick asks again. Bound on the defaults instead, a description
+    nobody read would be spent exactly as an unread head would be. It is the
+    one refusal here the answer names for itself (`unread`), because the road
+    behind a caller matters only for that one: every other refusal is a
+    reading that call TOOK, and the tick carries on to whatever answers it,
+    while a request that failed may buy nothing at all -- least of all a
+    notice telling a human the issue is stuck.
+
+    `owed` holds the caller's relabel, which is what keeps a reviewer from
+    being sent to a head whose report nothing on the pull request carries.
     """
     if not candidate or ctx.state.get(_report_delivery.UNREPORTED_WORK):
-        return _report_delivery.owes_a_report(ctx.state)
+        return _models._ReportHold(
+            owed=_report_delivery.owes_a_report(ctx.state),
+        )
+    standing = _publication._stands_on(ctx, candidate)
+    if standing.pull_request is None:
+        return _models._ReportHold(
+            owed=_report_delivery.owes_a_report(ctx.state),
+            unread=standing.unread,
+        )
     _report_binding.binds_and_publishes(
         ctx.gh, ctx.issue, ctx.state, _report_binding.ReportPublication(
-            pull_request=ctx.pr,
+            pull_request=standing.pull_request,
             repo_slug=ctx.spec.slug,
             branch=_naming._resolve_branch_name(
                 ctx.state, ctx.spec, ctx.issue.number,
             ),
             commit=candidate,
+            describes_the_issue=standing.describes_the_issue,
         ),
     )
-    return _report_delivery.owes_a_report(ctx.state)
+    return _models._ReportHold(
+        owed=_report_delivery.owes_a_report(ctx.state),
+    )
 
 
 def _holds_a_stalled_report(ctx: _models._FixingContext) -> None:
@@ -427,18 +529,30 @@ def _finishes_a_reported_round(
     is not closed either -- what closes it is the write that completes the
     transaction, here or in the reconciliation ahead of a later handler.
 
+    A reading the binding could not TAKE is owed the same as those and buys
+    less: no publication, no relabel, no round spent, and no WRITE. It is the
+    one refusal the hold names for itself, and it is answered ahead of the
+    write below because the attempt behind it staged nothing -- so the comment
+    that write would leave is the one already on the issue, a request spent
+    saying nothing that can only lose a race with whoever wrote in between.
+    The same answer the recovery gives on the other side of this binding; a
+    later poll asks again and everything is where it was.
+
     The caller's own `owed` is applied either way. A round whose report rode a
     record has had these very fields written by the settlement already, so
     re-applying the frozen values is a no-op; a round that published without
     owing a report of its own has nothing else that would close them.
 
-    A publication that DID settle closes the round through the hand-back above,
-    so the mark it raised is placed before the label moves. This is the road
-    where that matters most: a developer runs for minutes, and a human who
-    moves the issue in that window is recorded by the settlement this call just
-    made.
+    A publication that DID settle closes the round through the same hand-back
+    the recovery takes, so the mark it raised is placed before the label moves.
+    This is the road where that matters most: a developer runs for minutes, and
+    a human who moves the issue in that window is recorded by the settlement
+    this call just made.
     """
-    if _holds_an_unpublished_report(ctx, candidate):
+    hold = _holds_an_unpublished_report(ctx, candidate)
+    if hold.unread:
+        return
+    if hold.owed:
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return
     _late_gate_models._spend(ctx.state, owed)

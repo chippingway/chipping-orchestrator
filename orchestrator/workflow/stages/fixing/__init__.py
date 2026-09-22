@@ -61,13 +61,26 @@ path refuses it: read as one it would hand the pull request back to `in_review`
 over work whose report nothing carries.
 
 `reporting` is the settlement-driven form of the same road, and no dispatched
-tick runs through it: the consumed pairs and the route bookkeeping ride the
-RECORD of the report rather than a caller's own write, the write that completes
-the publication applies them, and a mark rides with them for the one thing that
-write cannot do -- move a label. `round_marks` is the reading that mark is
-placed by before any relabel is taken on it, kept apart from the owner that
-takes the relabel so that every road reaching one asks the same question rather
-than a copy of it.
+tick runs through it or through `report_recovery` beside it: the consumed pairs
+and the route bookkeeping ride the RECORD of the report rather than a caller's
+own write, the write that completes the publication applies them, and a mark
+rides with them for the one thing that write cannot do -- move a label.
+`report_recovery` is the other end of that same contract, written for the
+position ahead of any scan, because a scan is what the damage runs through: a
+report a crash left unbound, re-proved against the checkout rather than
+remembered off a receipt and bound to a pull request read afresh, the terminal
+park a checkout that refuses for good earns with that record RELEASED into it,
+and the round whose report settled somewhere this stage was not looking.
+`round_marks` is the reading that mark is placed by before any relabel is taken
+on it, kept apart from the two owners that take one so that every road reaching
+a mark asks the same question rather than a copy of it -- and the stamp the
+hand-back leaves beside it, which is what ties a mark to one transaction rather
+than to whichever settlement's handoff is still lying on the comment.
+`report_publication` is the same rule about the world rather than the comment:
+the one fresh reading of the pull request both of `reporting`'s publishing
+roads take, whole and under one boundary, since a fetched pull request asks
+GitHub nothing and its state, its branch, its head repository, its head and its
+body are each a request that can fail.
 
 What a round owes its pull request in words rather than code is
 `validating/fix_reports`', which both this stage's resume and the

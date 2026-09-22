@@ -15,8 +15,13 @@ answer, by the roads that publish without pushing: a report of the work the pull
 request already carries needs the branch PROVED to be standing where that pull
 request is, and "nothing was proved stranded" is not that -- every refusal below
 is also a branch that may be carrying a commit nobody published. Two callers ask
-it, the round that reports without committing and the fixing recovery that hands
-such a report on, and they ask it of the same checkout for the same reason.
+it through `fix_report_evidence`, the round that reports without committing and
+the `fixing` handler's recovery that hands such a report on, and they ask it of
+the same checkout for the same reason. The dormant recovery beside that one
+(`stages/fixing/report_recovery.py`) deliberately asks neither: its binding
+re-reads the pull request itself, so what it needs of the checkout is only that
+the tree is clean and the head reads, and the receipt this probe leans on is
+persistent and names an older round's commit on any tick that pushed nothing.
 
 It is one probe rather than three because the refusals are the whole contract.
 A dirty tree, a fetch that failed, a divergence nothing could read, and a

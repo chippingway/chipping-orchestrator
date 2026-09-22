@@ -304,6 +304,19 @@ def settled_payload(
     idempotent and one it already holds would reserve nothing while the real
     publication went on to add an entry of its own.
 
+    The fixing HAND-BACK is the other write of that kind, and it is reserved
+    the same way and for the same reason. A settlement whose record froze the
+    fixing mark cannot move a label, so the round it closed is handed back by
+    the tick behind it -- and that write stamps the transaction it closed on,
+    onto the comment this settlement leaves. Unreserved, a transaction is
+    accepted at the ceiling, settles, raises the mark, and then the hand-back
+    is the write GitHub refuses: the mark stays raised, the relabel is never
+    taken, and every later tick fails in exactly the same place. Only where
+    these spends RAISE the mark, since no other route writes it and a road
+    charged for a write it never makes is one refused for room nothing was
+    going to take. Through that stage's own owner, so a member added there
+    moves this reservation with it.
+
     None where either settled write refuses the record this transaction would
     hand it, which is a transaction with no settlement to measure at all. The
     values here are the pending record's own, already proved by the reader
@@ -334,6 +347,10 @@ def settled_payload(
     ))
     if not recorded or not handed:
         return None
+    if any(pair[0] == _records.SETTLED_ROUND for pair in pending.spends):
+        importlib.import_module(
+            _stage_targets._FIXING_ROUND_MARKS_OWNER,
+        )._stamps_the_round_handed_back(settled)
     clear_pending_report(settled)
     return settled.data
 

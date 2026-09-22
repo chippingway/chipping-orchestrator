@@ -13,12 +13,17 @@ the windows a process can die in: after the report is recorded and before the
 publication lands, and after the settlement. Nothing a round consumed or spent
 may be durable before the report reaches the pull request, and all of it has to
 be durable the moment it does.
+
+`test_report_recovery.py` beside this one takes the other end of the same
+contract -- what a tick coming back to one of those windows does with the
+record it finds -- through the helpers that answer it, in the same way.
 """
 from __future__ import annotations
 
 import unittest
 from unittest.mock import patch
 
+from orchestrator.github import developer_reports as _dev_reports
 from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
@@ -31,8 +36,12 @@ from orchestrator.workflow.stages.fixing import (
     reporting as _reporting,
     round_marks as _round_marks,
 )
+from orchestrator.workflow.stages.implementing import dev_pr as _dev_pr
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.stages.fixing import report_settlement_support as support
+from tests.workflow.stages.fixing import (
+    report_crash_support as crash,
+    report_settlement_support as support,
+)
 from tests.workflow.stages.implementing_fixing_test_cases import (
     posted_comment_contains,
 )
@@ -53,6 +62,11 @@ _ASKED_A_QUESTION = "agent_question"
 # What a caller that proved no commit at all hands a binding.
 _UNPROVED = ""
 
+# The requirements the RUN was handed: a whole digest, as every revision this
+# workflow records is, and one no reading of this fixture's issue produces --
+# so a record carrying it carries the snapshot rather than a re-read.
+_HANDED_REQUIREMENTS = _dev_reports.content_digest("what the spawn was handed")
+
 
 class ReportedRoundContractTest(unittest.TestCase, support.FixingReportCase):
     """Which replies a reported fix round may act on, and which it may not."""
@@ -65,7 +79,11 @@ class ReportedRoundContractTest(unittest.TestCase, support.FixingReportCase):
         # between them is only what the publication owes -- a comment to post
         # or a location to re-read. What rides the record is identical on
         # either: the readers the run consumed, the route bookkeeping it
-        # closes, and the mark saying a fixing round's transaction settled.
+        # closes, the mark saying a fixing round's transaction settled, and
+        # the requirements the RUN was handed -- carried from the spawn
+        # rather than read back, since the settlement compares the two and a
+        # baseline this very tick rewrote minutes later would fold in every
+        # reply that arrived while the developer worked.
         for message, mode in (
             (support.READY_MESSAGE, _records.ReportMode.PUBLISH),
             (support.VERIFIED_MESSAGE, _records.ReportMode.VERIFY),
@@ -73,15 +91,16 @@ class ReportedRoundContractTest(unittest.TestCase, support.FixingReportCase):
             with self.subTest(mode=mode):
                 self.setUp()
 
-                self.assertFalse(_reporting._recording_stops_the_tick(
-                    self.ctx(),
-                    self.resume_run(dev_result=support.agent(message)),
-                    support.consumed_batch(),
-                    support.owed_round(),
+                self.assertFalse(self.records_the_report(
+                    dev_result=support.agent(message),
+                    requirements_revision=_HANDED_REQUIREMENTS,
                 ))
 
                 delivered = _delivery_state.read_delivered_report(self.state)
                 self.assertEqual(delivered.mode, mode)
+                self.assertEqual(
+                    delivered.requirements_revision, _HANDED_REQUIREMENTS,
+                )
                 self.assertEqual(delivered.watermarks, support.consumed_batch())
                 self.assertEqual(
                     delivered.spends,
@@ -158,10 +177,7 @@ class AtomicSettlementTest(unittest.TestCase, support.FixingReportCase):
 
     def setUp(self) -> None:
         support.FixingReportCase.setUp(self)
-        _reporting._recording_stops_the_tick(
-            self.ctx(), self.resume_run(), support.consumed_batch(),
-            support.owed_round(),
-        )
+        self.records_the_report()
 
     def test_nothing_is_durable_before_the_report(self) -> None:
         # The record is down and the publication has not happened. Spent here,
@@ -176,7 +192,9 @@ class AtomicSettlementTest(unittest.TestCase, support.FixingReportCase):
 
     def test_one_write_settles_all_it_owed(self) -> None:
         self.assertFalse(
-            _reporting._holds_an_unpublished_report(self.ctx(), support.HEAD_SHA),
+            _reporting._holds_an_unpublished_report(
+                self.ctx(), support.HEAD_SHA,
+            ).owed,
         )
 
         settled = self.pinned()
@@ -222,7 +240,7 @@ class AtomicSettlementTest(unittest.TestCase, support.FixingReportCase):
         ):
             self.assertFalse(_reporting._holds_an_unpublished_report(
                 self.ctx(), support.HEAD_SHA,
-            ))
+            ).owed)
 
         self.assertIsNone(_settlement.read_handoff(self.state).settled_under)
         self.assertIsNone(_record_state.read_pending_report(self.state))
@@ -247,6 +265,108 @@ class AtomicSettlementTest(unittest.TestCase, support.FixingReportCase):
         self.assertIsNotNone(_settlement.read_handoff(self.state))
 
 
+class BindingSubjectTest(unittest.TestCase, support.FixingReportCase):
+    """The publication a recorded report is allowed to be bound onto.
+
+    Every reading here is taken AFRESH, and the cases are written so that only
+    the fresh one can answer them: the copy the preflight fetched is left
+    exactly as it was, so a binding reading that instead would bind on every
+    one of them.
+    """
+
+    def setUp(self) -> None:
+        support.FixingReportCase.setUp(self)
+        self.records_the_report()
+
+    def test_only_the_publication_it_is_about_binds(self) -> None:
+        # The number is all that brought the object back, so everything else
+        # is asked of it: a thread somebody ended keeps the head it had and
+        # passes every other comparison on a publication that is over; a push
+        # that landed in those minutes moves the head off the commit this
+        # round proved; and a second thread on another branch, or a FORK's --
+        # which carries this repository's ref names over somebody else's
+        # commits -- can stand on that very commit. Bound to any of them, the
+        # report is posted onto a thread the record was never about under the
+        # branch and repository of the one it was, the debt cleared and the
+        # reviewer handed a head nothing on the comment disagrees with.
+        for case, standing in crash.PUBLICATIONS_IT_IS_NOT_ABOUT:
+            with self.subTest(case=case):
+                self.setUp()
+
+                with crash.a_publication(self, standing):
+                    hold = _reporting._holds_an_unpublished_report(
+                        self.ctx(), support.HEAD_SHA,
+                    )
+
+                self.assertTrue(hold.owed)
+                self.assertFalse(hold.unread)
+                self.assertIsNotNone(
+                    _delivery_state.read_delivered_report(self.state),
+                )
+                self.assertEqual(self.gh.posted_pr_comments, [])
+
+    def test_a_pull_request_nobody_could_read_says_so(self) -> None:
+        # The one refusal a caller behind this has to tell from the rest: a
+        # request that failed says nothing about the branch, the head or the
+        # description, so it may buy no notice telling a human this is stuck.
+        # It is asked of EVERY read, not only the lookup: a fetched pull
+        # request asks GitHub nothing, so the state, the head and the body are
+        # each a request of their own -- and left outside the boundary any one
+        # of them leaves this road by an exception rather than by an answer.
+        for read in crash.FAILING_READS:
+            with self.subTest(read=read):
+                self.setUp()
+
+                with crash.a_failing_read(self, read):
+                    hold = _reporting._holds_an_unpublished_report(
+                        self.ctx(), support.HEAD_SHA,
+                    )
+
+                self.assertTrue(hold.owed)
+                self.assertTrue(hold.unread)
+                self.assertIsNotNone(
+                    _delivery_state.read_delivered_report(self.state),
+                )
+                self.assertEqual(self.gh.posted_pr_comments, [])
+
+    def test_a_description_it_lives_on_is_not_spent(self) -> None:
+        # A `REPORT: VERIFIED` naming the pull request's own body is the one
+        # report this workflow cannot both keep and manage: binding it there
+        # spends the reference GitHub honours the issue closure in and the
+        # line naming the session that wrote the branch. The binding refuses
+        # it -- but only if the caller read the description and said so, and
+        # the reading it assumes otherwise is that the body is safe.
+        for case, body, parked in (
+            ("undescribed", "just some prose", _UNDELIVERABLE),
+            ("described", support.DESCRIBED_BODY.format(
+                attribution=_dev_pr._dev_pr_attribution(self.state),
+            ), None),
+        ):
+            with self.subTest(case=case):
+                self.setUp()
+                self.records_the_report(
+                    dev_result=support.agent(
+                        support.DESCRIPTION_VERIFIED_MESSAGE,
+                    ),
+                )
+                self.pull_request.body = body
+
+                _reporting._holds_an_unpublished_report(
+                    self.ctx(), support.HEAD_SHA,
+                )
+
+                self.assertEqual(self.pinned().get(support.PARK_REASON), parked)
+                # Refused, the record is left exactly where it was for the
+                # human the notice asks; taken, it is exchanged for the
+                # transaction that publication is settled through.
+                delivered = _delivery_state.read_delivered_report(self.state)
+                self.assertEqual(delivered is None, parked is None)
+                self.assertEqual(
+                    _record_state.read_pending_report(self.state) is None,
+                    parked is not None,
+                )
+
+
 class ReportOnlyRoundTest(unittest.TestCase, support.FixingReportCase):
     """A round whose whole answer is its report needs its head proved."""
 
@@ -261,38 +381,61 @@ class ReportOnlyRoundTest(unittest.TestCase, support.FixingReportCase):
 
     def test_every_absence_refuses_the_road(self) -> None:
         # No absence proves the code this report describes is the code the
-        # pull request carries: a head nobody read comes back empty, and a
-        # tree nobody could read answers with no loose paths.
-        for case, run, readable in (
+        # pull request carries, and the two answers are not the same refusal.
+        # A run that established something about the round is DECISIVE, and a
+        # reading nobody could take says only that this poll could not take
+        # it -- a head nobody read comes back empty and a tree nobody could
+        # read names no loose paths, which no report may go out over and
+        # neither of which a park would be true about.
+        for case, run, readable, answer in (
             ("timed out", self.resume_run(dev_result=support.agent(
                 support.READY_MESSAGE, timed_out=True,
-            )), True),
-            ("unread head", self.resume_run(after_sha=""), True),
-            ("head moved", self.resume_run(after_sha=support.MOVED_SHA), True),
-            ("unreadable tree", self.resume_run(), False),
+            )), True, False),
+            ("head moved", self.resume_run(
+                after_sha=support.MOVED_SHA,
+            ), True, False),
+            ("unread head", self.resume_run(after_sha=""), True, None),
+            ("unreadable tree", self.resume_run(), False, None),
         ):
             with self.subTest(case=case), support.a_checkout(readable=readable):
-                self.assertFalse(_reporting._is_report_only(self.ctx(), run))
+                self.assertIs(
+                    _reporting._is_report_only(self.ctx(), run), answer,
+                )
 
-    def test_a_pull_request_that_moved_refuses(self) -> None:
-        # The copy the preflight fetched says the head never moved of a pull
-        # request anybody may have pushed to while the developer was out.
-        self.pull_request.head.sha = support.MOVED_SHA
+    def test_a_publication_it_is_not_about_refuses(self) -> None:
+        # The same whole reading the binding takes, because the two roads
+        # share it: a thread that ended, one anybody may have pushed to while
+        # the developer was out, one open on somebody else's branch, and a
+        # fork's. Each of those would otherwise be a report published over a
+        # head no reviewer of this pull request is going to read.
+        for case, standing in crash.PUBLICATIONS_IT_IS_NOT_ABOUT:
+            with self.subTest(case=case), support.a_checkout():
+                self.setUp()
 
-        with support.a_checkout():
-            self.assertFalse(
-                _reporting._is_report_only(self.ctx(), self.resume_run()),
-            )
+                with crash.a_publication(self, standing):
+                    self.assertFalse(
+                        _reporting._is_report_only(
+                            self.ctx(), self.resume_run(),
+                        ),
+                    )
 
     def test_a_pull_request_nobody_could_read_holds(self) -> None:
         # The one refusal here about this tick rather than about the round:
         # the report is valid and the branch is where it says it is, so the
         # caller holds everything where it stands rather than parking for a
-        # human nobody ever needed.
-        with patch.object(self.gh, "get_pr", side_effect=RuntimeError):
-            self.assertIsNone(
-                _reporting._is_report_only(self.ctx(), self.resume_run()),
-            )
+        # human nobody ever needed. Every read behind the object counts, not
+        # just the lookup -- a lazy member that did not answer says exactly as
+        # little about the round as a fetch that did not.
+        for read in crash.FAILING_READS:
+            with self.subTest(read=read), support.a_checkout():
+                self.setUp()
+
+                with crash.a_failing_read(self, read):
+                    self.assertIsNone(
+                        _reporting._is_report_only(
+                            self.ctx(), self.resume_run(),
+                        ),
+                    )
 
 
 class StaleCorrelationTest(unittest.TestCase, support.FixingReportCase):
@@ -304,7 +447,27 @@ class StaleCorrelationTest(unittest.TestCase, support.FixingReportCase):
     def test_no_mark_places_every_relabel(self) -> None:
         # The no-feedback bounce relabels on every tick that finds nothing to
         # do, and a road that decided on its own reasons waits on nobody.
+        #
+        # Such a road closes no transaction, so it STAMPS none either -- and
+        # the handoff an earlier one left is still lying on the comment, since
+        # nothing clears a handoff. Stamped from here, an unrelated
+        # transaction is recorded as handed back, which then refuses the mark
+        # a replay of that very transaction raises; and the key costs a write
+        # the settling measurement reserved room for only where a record's own
+        # spends RAISE the mark, so near the ceiling this is the durable write
+        # before the relabel failing outright.
+        self.records_a_settlement(under=WorkflowLabel.FIXING)
+        self.state.set(support.SETTLED_ROUND, None)
+
         self.assertTrue(_round_marks._places_the_round_in_hand(self.state))
+
+        _reporting._hands_the_round_back(self.ctx())
+
+        handed = self.pinned()
+        self.assertIsNone(handed.get(support.HANDED_BACK_RECEIPT))
+        self.assertEqual(
+            self.gh.workflow_label(self.issue), WorkflowLabel.VALIDATING,
+        )
 
     def test_a_settled_fixing_round_places_itself(self) -> None:
         self.records_a_settlement(under=WorkflowLabel.FIXING)
@@ -379,10 +542,7 @@ class UnpublishedReportTest(unittest.TestCase, support.FixingReportCase):
 
     def setUp(self) -> None:
         support.FixingReportCase.setUp(self)
-        _reporting._recording_stops_the_tick(
-            self.ctx(), self.resume_run(), support.consumed_batch(),
-            support.owed_round(),
-        )
+        self.records_the_report()
 
     def test_nothing_the_caller_could_not_prove_binds(self) -> None:
         # A binding takes the commit the CALLER proved and no other: the
@@ -400,7 +560,7 @@ class UnpublishedReportTest(unittest.TestCase, support.FixingReportCase):
 
                 self.assertTrue(_reporting._holds_an_unpublished_report(
                     self.ctx(), candidate,
-                ))
+                ).owed)
 
                 self.assertIsNotNone(
                     _delivery_state.read_delivered_report(self.state),
@@ -441,6 +601,34 @@ class UnpublishedReportTest(unittest.TestCase, support.FixingReportCase):
         self.assertEqual(
             self.gh.workflow_label(self.issue), WorkflowLabel.VALIDATING,
         )
+
+    def test_a_read_it_could_not_take_holds(self) -> None:
+        # Every read behind this binding is a request that can fail, and none
+        # of them says anything about the branch or the head. The attempt
+        # staged nothing, so the comment a write would leave here is the one
+        # already on the issue: a request spent saying nothing, which can only
+        # lose a race with whoever wrote in between. Nothing is published, the
+        # round is not spent, and the reviewer is sent nowhere -- a later poll
+        # asks again.
+        for read in crash.FAILING_READS:
+            with self.subTest(read=read):
+                self.setUp()
+                written = self.gh.write_state_calls
+
+                with crash.a_failing_read(self, read):
+                    _reporting._finishes_a_reported_round(
+                        self.ctx(), support.owed_round(), support.HEAD_SHA,
+                    )
+
+                self.assertEqual(self.gh.write_state_calls, written)
+                self.assertEqual(self.gh.posted_pr_comments, [])
+                self.assertEqual(self.pinned().get(support.REVIEW_ROUND), 1)
+                self.assertEqual(
+                    self.gh.workflow_label(self.issue), WorkflowLabel.FIXING,
+                )
+                self.assertIsNotNone(
+                    _delivery_state.read_delivered_report(self.state),
+                )
 
     def test_an_owed_report_holds_the_relabel(self) -> None:
         # The code is out and the report it is about is not, so a reviewer

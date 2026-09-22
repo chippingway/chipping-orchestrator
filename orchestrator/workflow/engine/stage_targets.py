@@ -34,6 +34,15 @@ _LATE_REUSE_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_reuse"
 _DISCUSSION_PACKAGE = "orchestrator.workflow.stages.discussion"
 _DOCUMENTING_PACKAGE = "orchestrator.workflow.stages.documenting"
 _FIXING_PACKAGE = "orchestrator.workflow.stages.fixing"
+
+# The owner that stamps the transaction a fixing hand-back closed a round on.
+# Named here and resolved when called for the reason the receipt and the
+# stale-approval owners are: that stamp is written on the tick BEHIND a
+# settlement whose record raised the fixing mark, onto the comment that
+# settlement leaves, so the settling payload has to be measured carrying it --
+# and asking the stage directly would make the engine's own import pull the
+# handlers that import it back.
+_FIXING_ROUND_MARKS_OWNER = f"{_FIXING_PACKAGE}.round_marks"
 _IMPLEMENTING_PACKAGE = "orchestrator.workflow.stages.implementing"
 _LATE_RECONCILE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_reconcile"
 
