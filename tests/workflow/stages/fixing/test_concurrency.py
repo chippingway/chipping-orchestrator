@@ -7,7 +7,11 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import report_record_state as _record_state
+from orchestrator.workflow.engine import (
+    comments as _engine_comments,
+    content_hash as _content_hash,
+    report_record_state as _record_state,
+)
 from tests.workflow.stages.fixing import fixing_test_support as support
 from tests.workflow.stages.fixing.prompt_expectations import (
     only_prompt,
@@ -28,6 +32,7 @@ FakeComment = support.FakeComment
 FakeUser = support.FakeUser
 ISSUE = support.ISSUE
 LAST_ACTION_COMMENT_ID = support.LAST_ACTION_COMMENT_ID
+MagicMock = support.MagicMock
 PR_LAST_COMMENT_ID = support.PR_LAST_COMMENT_ID
 PUSHED_MESSAGE = support.PUSHED_MESSAGE
 RUN_AGENT = support.RUN_AGENT
@@ -226,6 +231,80 @@ class FixingContentHashAndConcurrencyTest(
         # were and the next tick reads the concurrent comment as fresh.
         self.assertEqual(scenario.github.label_history, [])
         self.assertLess(self._pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID)
+
+    def test_a_run_window_reply_is_no_requirement(self) -> None:
+        # The earlier half of the same race, and the one no watermark covers:
+        # the human posts WHILE the agent is working, minutes after the prompt
+        # that quoted the batch was built. The report this round writes is
+        # stamped with the requirements it was HANDED, so a reading taken
+        # after the run would fold that comment in -- and the settlement,
+        # comparing its own fresh read against the record, would find them
+        # equal, publish, and hand the reviewer the head. The round's frozen
+        # cursor deliberately stops below the comment, so nothing else would
+        # ever have brought it up again.
+        triggering = FakeComment(
+            id=TRIGGER_ID,
+            body="please fix the bug",
+            user=FakeUser(ALICE),
+            created_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        )
+        scenario = IssueScenario(
+            *self._seed(pr=self._open_pr(), issue_comments=[triggering]),
+        )
+        concurrent = FakeComment(
+            id=CONCURRENT_COMMENT_ID,
+            body="actually also rename helper",
+            user=FakeUser(BOB),
+            created_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        )
+
+        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
+            self._run_fixing(
+                scenario.github,
+                scenario.issue,
+                run_agent=MagicMock(side_effect=_InjectCommentAfterCall(
+                    lambda *args, **kwargs: _agent(
+                        session_id=DEV_SESSION, last_message=PUSHED_MESSAGE,
+                    ),
+                    scenario.issue,
+                    concurrent,
+                )),
+                head_shas=(SHA_BEFORE, SHA_AFTER),
+            )
+
+        self._pinned_data = scenario.github.pinned_data(ISSUE)
+        self._state = PinnedState(state_data=self._pinned_data)
+        owed = _record_state.read_pending_report(self._state)
+        orchestrator_ids = _engine_comments._orchestrator_ids(self._state)
+        self.assertIsNotNone(
+            owed,
+            "the round settled its report over a comment nothing had read",
+        )
+        # The record names the thread WITHOUT the comment that arrived mid-run,
+        # which is the reading that makes the settlement refuse. Both candidate
+        # hashes are named rather than one: the two answers differ only in
+        # which of them is stored, so a case asserting a single literal would
+        # pass for the wrong reason the moment the fixture's thread changes.
+        self.assertEqual(
+            owed.subject.requirements_revision,
+            _content_hash._compute_user_content_hash(
+                scenario.issue, orchestrator_ids, comments=[triggering],
+            ),
+        )
+        self.assertNotEqual(
+            owed.subject.requirements_revision,
+            _content_hash._compute_user_content_hash(
+                scenario.issue, orchestrator_ids,
+            ),
+        )
+        # So nothing went onto the pull request, nothing was relabelled, and
+        # the readers the report's record holds back are still where they
+        # were -- which is what leaves the comment for the round behind this.
+        self.assertEqual(scenario.github.posted_pr_comments, [])
+        self.assertEqual(scenario.github.label_history, [])
+        self.assertLess(
+            self._pinned_data.get(PR_LAST_COMMENT_ID), TRIGGER_ID,
+        )
 
     def test_failed_bump_keeps_concurrent_comment(
         self,

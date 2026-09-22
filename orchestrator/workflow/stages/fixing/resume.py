@@ -2,10 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """The dev run, and everything a finished run leaves behind.
 
-The run refreshes `user_content_hash` on BOTH outcomes, because the dev saw
-the quoted comments either way: leaving the baseline behind would let the next
-handler that checks for a body edit read the comments it just consumed as fresh
-drift and resume a second time on input already handled.
+The run snapshots the requirements it is handed and writes that ONE reading to
+`user_content_hash` on BOTH outcomes, because the dev saw the quoted comments
+either way: leaving the baseline behind would let the next handler that checks
+for a body edit read the comments it just consumed as fresh drift and resume a
+second time on input already handled. The same reading is what a report this
+round writes is stamped with, and it is taken ahead of the spawn for what it
+must NOT cover: a reply that lands while the agent is out is requirements no
+prompt asked about and no report answers, and read back afterwards it would be
+recorded as answered by both.
 
 Three refusals sit between the finished run and any disposition, and all bail
 WITHOUT writing pinned state so the whole tick is re-decidable next time: a
@@ -133,17 +138,30 @@ def _run_fixing_resume(
     ctx: _models._FixingContext, followup: str,
 ) -> _models._FixingResumeRun:
     """Ensure the worktree, resume the locked dev session over `followup`,
-    refresh the user-content drift hash, and read HEAD before/after.
+    snapshot the requirements it is handed, and read HEAD before/after.
 
-    The hash refresh includes any human issue-thread comments we just fed to
-    the dev via `followup`. Without it, the next tick that runs
-    `_handle_validating` (or any other handler that calls
-    `_detect_user_content_change`) would see those consumed comments as fresh
-    user-content drift and resume the dev a second time on input it has already
-    handled. Mirrors the hash refresh `_handle_in_review` does at the moment it
-    routes to `fixing`. Refresh on BOTH success and failure paths: the dev saw
-    the comments via the prompt either way, so the baseline must move with the
-    consumption regardless of whether the agent pushed a fix this tick.
+    That snapshot is taken BEFORE the spawn and is the whole of what this
+    function knows about requirements afterwards. It answers two questions at
+    once, and both of them are about the minutes the developer is out.
+
+    It is the drift baseline, which has to cover the human issue-thread
+    comments this `followup` just quoted: left behind, the next tick that runs
+    `_handle_validating` (or any other handler calling
+    `_detect_user_content_change`) reads those consumed comments as fresh drift
+    and resumes the dev a second time on input it has already handled. Mirrors
+    the refresh `_handle_in_review` does at the moment it routes to `fixing`,
+    and lands on BOTH success and failure paths, since the dev saw the comments
+    via the prompt either way.
+
+    And it is the revision a report this round writes is STAMPED with, which is
+    why it may not be read back afterwards. A reply that lands while the agent
+    is working is requirements nothing in this prompt asked about and nothing
+    in that report answers -- and the batch it rides is deliberately left
+    unread, so the round's own frozen pairs stop below it. Read afterwards,
+    both readings swallow it: the baseline says a comment nobody has seen is
+    already accounted for, and the settlement comparing its own fresh read
+    against the record finds them equal, publishes, and hands the reviewer a
+    head over feedback no session ever saw.
 
     HEAD is read only when the run did not time out -- the timeout branch of
     `_handle_dev_fix_result` returns before it would use `after_sha`, and
@@ -158,26 +176,25 @@ def _run_fixing_resume(
             ),
         )
     before_sha = _verification_probes._head_sha(wt)
+    requirements = _content_hash._compute_user_content_hash(
+        ctx.issue, _comments._orchestrator_ids(ctx.state),
+    )
     wt, dev_result, paused = _dev_resume._resume_dev_with_text(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, followup, pause_guard=True,
     )
     ctx.state.set("last_agent_action_at", _usage._now_iso())
-    ctx.state.set(
-        "user_content_hash",
-        _content_hash._compute_user_content_hash(
-            ctx.issue, _comments._orchestrator_ids(ctx.state),
-        ),
-    )
-    after_sha = (
-        None if dev_result.timed_out else _verification_probes._head_sha(wt)
-    )
+    ctx.state.set("user_content_hash", requirements)
     return _models._FixingResumeRun(
         worktree=wt,
         dev_result=dev_result,
         paused=paused,
         before_sha=before_sha,
-        after_sha=after_sha,
+        after_sha=(
+            None if dev_result.timed_out
+            else _verification_probes._head_sha(wt)
+        ),
         reported=_report_outcomes._finished_on_a_report(dev_result),
+        requirements_revision=requirements,
     )
 
 

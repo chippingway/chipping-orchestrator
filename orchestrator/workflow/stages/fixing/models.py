@@ -32,9 +32,11 @@ the attempt refused on a reading it took or never got a reading at all.
 `_FixingResumeRun` carries what the disposition cannot re-derive after the run:
 the worktree it actually ran in (the resolve may have recreated it), whether an
 operator paused mid-run, the HEAD on both sides -- the only thing that
-tells a pushed fix from a no-commit acknowledgement -- and whether the run
+tells a pushed fix from a no-commit acknowledgement -- whether the run
 finished on a report, which three owners branch on and none of them may parse
-for itself.
+for itself, and the requirements revision that run was handed, which nothing
+behind the spawn can read back without counting a reply that landed while the
+developer was out.
 """
 from __future__ import annotations
 
@@ -201,6 +203,14 @@ class _FixingResumeRun:
     the road the disposition's answer is read against -- so it is taken once,
     where the run is built, rather than by each of them parsing the message
     again and risking a different answer from one.
+
+    `requirements_revision` is the issue as it stood when this session was
+    INVOKED, taken there and carried rather than recomputed: the run lasts
+    minutes, and a reply that lands inside them is requirements nothing in this
+    prompt asked about. A report stamped with a revision read afterwards claims
+    to answer that reply, and the settlement comparing the two then finds them
+    equal and publishes -- with the comment left unread by the watermarks and
+    unmentioned by the report.
     """
     worktree: Path
     dev_result: AgentResult
@@ -208,3 +218,4 @@ class _FixingResumeRun:
     before_sha: str | None
     after_sha: str | None
     reported: bool = False
+    requirements_revision: str = ""

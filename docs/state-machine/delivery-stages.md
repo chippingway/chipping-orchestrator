@@ -3524,9 +3524,16 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      one. Markless, the exit falls back onto its own pushed road instead and writes that bookkeeping itself.
   8. **Quiet window**: compute the newest `created_at` (or `submitted_at` for review summaries); if younger than
      `IN_REVIEW_DEBOUNCE_SECONDS`, return.
-  9. **Resume**: build a `_build_pr_comment_followup` prompt over ALL unread surfaces, resume the locked dev via
-     `_resume_dev_with_text` (`pause_guard=True`), refresh `user_content_hash` (so any issue-thread comment we just fed
-     to the dev doesn't re-fire validating's drift check). Three outcomes are ignored entirely BEFORE the ACK
+  9. **Resume**: build a `_build_pr_comment_followup` prompt over ALL unread surfaces, snapshot `user_content_hash`
+     over the issue as it stands, then resume the locked dev via `_resume_dev_with_text` (`pause_guard=True`) and
+     write that snapshot back as the baseline (so any issue-thread comment we just fed to the dev doesn't re-fire
+     validating's drift check). The snapshot is taken AHEAD of the spawn for what it must not cover: the run lasts
+     minutes, and a reply landing inside them is requirements no prompt asked about and no report answers — and the
+     round's own frozen pairs deliberately stop below it. It is also the revision a report this round records is
+     stamped with, which is what the settlement re-proves against an issue read afresh. Read back after the run
+     instead, both readings swallow that reply: the baseline says a comment nobody has seen is accounted for, and
+     the settlement finds no movement, publishes, and hands the reviewer the head over feedback no session ever saw.
+     Three outcomes are ignored entirely BEFORE the ACK
      fast path, the stranded-fix check, and the settlement below, and each returns WITHOUT writing pinned state, so
      nothing is settled, `awaiting_human` is untouched, and the next tick re-discovers the same feedback: an
      `interrupted` resume a shutdown killed, a launch the run circuit never invoked

@@ -347,6 +347,17 @@ def _recording_stops_the_tick(
     to is not this tick's to guarantee, so the write that COMPLETES the
     transaction is what closes it.
 
+    The REQUIREMENTS revision is named for the same reason, off the snapshot
+    the run took ahead of its own spawn rather than off the pinned baseline.
+    The settlement re-reads the issue and refuses a report whose requirements
+    have moved since the session that wrote it -- which is the whole guard
+    against publishing an answer to questions nobody asked. Left empty, that
+    comparison is taken against a baseline this very tick rewrote minutes
+    later, so a reply that arrived while the developer worked reads as
+    requirements the developer saw: the settlement finds no movement,
+    publishes, and hands the reviewer a head over a comment the round's own
+    frozen pairs deliberately left unread.
+
     The mark rides with it because one write applies them. A settlement can
     close `pending_fix_at`, the bookmarks and `review_round`, and it cannot
     move a label -- so without the mark the tick that finds the round finished
@@ -373,6 +384,7 @@ def _recording_stops_the_tick(
         ctx.gh, ctx.issue, ctx.state, run.dev_result,
         _report_records.HandedRun(
             route=WorkflowLabel.FIXING,
+            requirements_revision=run.requirements_revision,
             watermarks=consumed,
             spends=owed.fields + _SETTLES_THE_ROUND,
         ),

@@ -1615,7 +1615,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             one is owed the size gate is handed NOTHING to close, since a receipt write that dropped
                             the bookmarks would leave an outstanding publication with no batch to replay. A
                             replay settles the batch it REPLAYED joined with the fresh rescan, each item against the
-                            reader of the surface it was posted on
+                            reader of the surface it was posted on. The requirements the run is HANDED are snapshotted
+                            ahead of the spawn and carried, never read back off the baseline behind it: the run lasts
+                            minutes, a reply landing inside them is requirements no prompt asked about and the frozen
+                            pairs deliberately stop below it, and the one reading serves both the drift baseline this
+                            write leaves and the revision a report is stamped with -- which the settlement re-proves
+                            against an issue read afresh, so a revision taken afterwards would record that reply as
+                            answered and publish over it
       reporting.py          the settlement-driven form of that road, which every reported fixing round takes: the
                             disposition helpers such a round is read by. Which reply this is -- a report, an ordinary
                             answer, or one that reached

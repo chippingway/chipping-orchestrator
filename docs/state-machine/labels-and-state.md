@@ -646,7 +646,9 @@ The keys that matter for the state machine fall into a few groups:
   verification is owed, the route that produced it, the complete report text or the exact location and content
   revision a verification asserts, the feedback watermarks the run consumed, the bookkeeping its route closes, and
   the requirements revision the run was actually handed — for a drift resume, the hash its drift check took of the
-  content it handed the run, carried with the run rather than read back off the comment. The bookkeeping is what a
+  content it handed the run, and for a fix round the snapshot its resume takes ahead of the spawn — carried with the
+  run rather than read back off the comment, which on a fixing tick is a baseline that same run rewrites minutes
+  later and would fold in every reply that arrived while the developer worked. The bookkeeping is what a
   fix round freezes there as well as handing to the size gate, because the one handover with no code in it — a report
   answering a reviewer item that named no repository change — passes no gate at all, and has bought nothing until the
   report is on the pull request: the write that SETTLES the report is the only thing that closes the round and the
