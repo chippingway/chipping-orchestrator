@@ -134,9 +134,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             another commit, or any revision but the current one, is stale. Nothing is counted or
                             inferred from what the reviewer wrote
     stage_targets.py        exact label-to-handler and cleanup targets, with stage imports deferred to the call;
-                            the unlabeled target reaches pickup through the same resolver, and the two
-                            code-publication receipt owners are named here for it -- the report evidence reads
-                            them, and the pending record replays the gate's own write to size one
+                            the unlabeled target reaches pickup through the same resolver. Named here too, though
+                            no label routes to any of them, are the stage owners a report record's own measurement
+                            REPLAYS to size the writes that land behind it: the two code-publication receipt
+                            owners, which the report evidence reads and whose gate write the record reserves; the
+                            stale-approval hand-back an `in_review` relabel writes; and the stamp a fixing
+                            hand-back leaves on the comment the settlement ahead of it left
+                            (`stages/fixing/round_marks.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption
     run_limit_dispatch.py   hold exhausted work, replay its owed notice, and admit grants or terminal cleanup;

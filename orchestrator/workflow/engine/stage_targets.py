@@ -4,10 +4,15 @@
 
 The engine names each defining module without binding the stage tree at
 import time. Cleanup has its own target, and the unlabeled entry goes to
-pickup through the same call-time resolution. The two code-publication receipt
-owners are named here for that reason as well, even though no label routes to
-either: the report evidence reads them, and the record that transaction is
-written as reserves the gate's own write before it accepts one.
+pickup through the same call-time resolution. The stage owners a report
+record's own measurement REPLAYS are named here for that reason as well, even
+though no label routes to any of them: the two code-publication receipt
+owners, which the report evidence reads and whose gate write that record
+reserves before it accepts one; the stale-approval hand-back an `in_review`
+relabel writes; and the stamp a fixing hand-back leaves on the comment the
+settlement ahead of it left. Each is replayed through the owner that performs
+it rather than respelled here, so a member added there moves every reservation
+taken against it.
 """
 from __future__ import annotations
 
