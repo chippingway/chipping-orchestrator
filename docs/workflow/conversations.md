@@ -184,12 +184,17 @@ Every prompt a developer can finish work on teaches one report contract, `_DEVEL
 vocabulary `workflow/engine/report_outcomes.py` reads, so what a developer is told to write and what the reader accepts
 cannot drift apart.
 
-The contract settles who owns the report. The developer writes it: the complete, current report for the issue — what
-the branch changes and why, how it was verified, and anything a reviewer should know — written whole every time,
-because it supersedes every earlier one. Publishing it on the pull request is routine orchestrator work, so the
-developer neither posts nor edits it and never asks a human whether or how to publish it. A report that needs no
-repository change is delivered with no commit at all: an empty commit, or any change made only to carry a report, is
-never asked for. Finished work ends on exactly one of two outcomes, outside any code fence and with nothing after it:
+The contract settles who owns the report. The developer writes it: a concise, complete, current report for the issue.
+The prompt asks the developer to keep its body at or below 4,000 characters; the parser and publication path do not
+enforce that writing budget. Complete means self-contained about the final branch state, not exhaustive about the
+journey: it says what the branch changes and why, what verification ran and with what outcome, and which unresolved
+risks or decisions a reviewer must weigh, without repeating the issue body, preserving prior report or review-round
+history, enumerating every touched file, or listing every individual test. It is written whole rather than as the
+latest delta because it supersedes every earlier report. Publishing it on the pull request is routine orchestrator
+work, so the developer neither posts nor edits it and never asks a human whether or how to publish it. A report that
+needs no repository change is delivered with no commit at all: an empty commit, or any change made only to carry a
+report, is never asked for. Finished work ends on exactly one of two outcomes, outside any code fence and with nothing
+after it:
 
 - **Report ready for publication** — the complete report between a `REPORT: READY` line and a `REPORT: END` line.
 - **Report already on the pull request** — a single `REPORT: VERIFIED <location> <revision>` line, for a complete,
@@ -216,13 +221,14 @@ Where the contract is carried:
   the PR-feedback prompt sends a developer whose comments say a human published or updated the report to read it
   there and, when it is complete and current, end on `REPORT: VERIFIED`; and the drift, late-revision, and
   PR-feedback prompts keep `ACK:` for a reply after which neither the branch nor the report has to change.
-- **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the report covers the
-  whole branch, the previous session's commits included, ownership and publication are restated, and the outcome is
-  the one the task below the preamble describes — that preamble also precedes tasks that close on markers of their
-  own. Its conversation block is the caller's FROZEN, classified thread read wherever the caller holds one — the
-  awaiting-human resumes and the explicit `/orchestrator continue` retries (less the commands they consume) take it
-  from `implementing/resume_batch.py` — so the preamble and the record of what the prompt delivered come off one
-  reading and one filter. A caller with no frozen read gets the read `_build_dev_spawn_prompt` takes for itself.
+- **Deferred** in `_build_fresh_respawn_preamble`, which carries `_RESPAWN_REPORT_NOTE` instead: the concise report
+  covers the final state of the whole branch, the previous session's commits included, ownership and publication are
+  restated, and the outcome is the one the task below the preamble describes — that preamble also precedes tasks that
+  close on markers of their own. Its conversation block is the caller's FROZEN, classified thread read wherever the
+  caller holds one — the awaiting-human resumes and the explicit `/orchestrator continue` retries (less the commands
+  they consume) take it from `implementing/resume_batch.py` — so the preamble and the record of what the prompt
+  delivered come off one reading and one filter. A caller with no frozen read gets the read `_build_dev_spawn_prompt`
+  takes for itself.
 - **Absent** from the documentation, review, and conflict-resolution prompts, which close on markers of their own, and
   from the conflict stage's own reply resume and bare-continue retry, which stays on the plain
   `_CONTINUE_RETRY_PROMPT`.

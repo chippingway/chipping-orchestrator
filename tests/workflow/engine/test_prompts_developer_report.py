@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """The developer report contract, as every developer prompt teaches it.
 
-The developer writes the report and the orchestrator publishes it, routinely
-and without asking anybody, and a report that needs no repository change needs
-no commit. Every prompt a developer finishes work on carries that contract
-whole -- resumes too, since a resumed transcript may predate it -- and the two
-outcomes it spells are the ones `report_outcomes` accepts. A prompt that still
-offers `ACK:` offers it only for a reply whose report needs no change either.
-A fresh respawn's preamble defers the outcome to the task below it, and the
-prompts that close on a marker of their own teach no report at all.
+The developer writes a concise final-state report and the orchestrator publishes
+it, routinely and without asking anybody, and a report that needs no repository
+change needs no commit. Every prompt a developer finishes work on carries that
+contract whole -- resumes too, since a resumed transcript may predate it -- and
+the two outcomes it spells are the ones `report_outcomes` accepts. A prompt that
+still offers `ACK:` offers it only for a reply whose report needs no change
+either. A fresh respawn's preamble defers the outcome to the task below it, and
+the prompts that close on a marker of their own teach no report at all.
 """
 from __future__ import annotations
 
@@ -87,9 +87,20 @@ class DeveloperReportContractTest(unittest.TestCase):
             with self.subTest(prompt=name):
                 self.assertIn(_prompt_notes._DEVELOPER_REPORT_NOTE, prompt)
 
-    def test_it_names_ownership_and_outcomes(self) -> None:
+    def test_it_names_the_contract_and_outcomes(self) -> None:
         for fragment in (
             "you write it, and the orchestrator publishes it",
+            "concise, complete, current completion report",
+            "at or below 4,000 characters",
+            "self-contained",
+            "final branch state rather than the journey",
+            "do not repeat the issue body",
+            "history of review rounds or earlier reports",
+            "enumerate every touched file",
+            "list every individual test",
+            "verification performed and its outcome",
+            "unresolved risks or decisions a reviewer must weigh",
+            "complete current report rather than only the latest delta",
             "routine orchestrator work that needs no permission",
             "do NOT ask a human whether or how to publish",
             "Never create an empty commit",
@@ -160,6 +171,7 @@ class RespawnAndStagePromptTest(unittest.TestCase):
         self.assertNotIn(_prompt_notes._DEVELOPER_REPORT_NOTE, preamble)
         for fragment in (
             "Wherever the task below asks for your completion report",
+            "one concise report about the final state of the whole branch",
             "the previous session's commits included",
             "the orchestrator publishes it as routine work",
             "no permission to ask for",
