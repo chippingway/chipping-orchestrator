@@ -509,8 +509,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
      the gate HELD stops the bounce instead: the issue is already on
      workflow:decomposing and this tick relabels nothing;
      otherwise honour IN_REVIEW_DEBOUNCE_SECONDS. Past the window,
-     resume the dev with a `_build_pr_comment_followup` prompt and apply
-     the validating fix-loop disposition. A launch nothing invoked, a
+     resume the dev with a `_build_pr_comment_followup` prompt and
+     dispose of what it hands back through this stage's own report road
+     (`stages/fixing/reporting.py`). A launch nothing invoked, a
      shutdown kill, and a live pause settle nothing and write nothing;
      the next tick re-feeds the same batch. Every other outcome
      delivered that prompt and is settled ahead of the disposition,

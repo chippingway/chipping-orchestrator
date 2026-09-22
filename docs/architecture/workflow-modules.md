@@ -1664,10 +1664,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the hand-back, which retires the mark in a write of its own BEFORE the relabel -- a tick dying between them has to leave
                             a round nothing can mistake for one that just settled -- and STAMPS the transaction it
                             closed the round on, since the mark falls with that write and the handoff beside it
-                            never does -- and which takes down the park a landed publication is itself the answer
-                            to, since the push a recorded report rides is durable a step ahead of the
+                            never does -- and which takes down the `push_failed` park a landed publication is itself
+                            the answer to, since the push a recorded report rides is durable a step ahead of the
                             publication and a relabel over that park hands a reviewer an issue still waiting on
-                            a human
+                            a human. That reason and no other: the rest of the transient set is about a SESSION or a
+                            reviewer run, so a park a LATER round left would have its question retired by a
+                            publication that never answered it
       report_publication.py the one fresh reading of the pull request those two roads take, spelled apart because
                             neither may carry a copy of it: answered twice they would come to disagree, and the
                             disagreement is a report on a thread nobody meant. It establishes the whole IDENTITY of
@@ -2528,7 +2530,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             SHA, which is no park and carries no mark
       surfaces.py           the two reads the shared IssueComment id space is taken as -- the issue thread against
                             the delivery cursor an issue-only resume settled as well, the PR conversation against
-                            neither -- and the raw merged read tagged by surface that the watermark walks consume
+                            neither -- and the raw merged read tagged by surface that the watermark walks consume.
+                            The thread cut takes a caller's OWN read of that surface where one is handed in, since a
+                            caller deriving more than the batch from it -- the conversation a fresh spawn quotes,
+                            the requirements its report is stamped with -- owes each of those to the same read
       watermarks.py         how far a park's own notice may carry the issue-side mark, and the legacy seed a
                             manually-relabeled issue needs -- both walks forward from where the mark is, over what
                             they can vouch for, and neither reads a tip

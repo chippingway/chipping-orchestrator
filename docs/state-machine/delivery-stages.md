@@ -3432,7 +3432,13 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      never recorded or has since been deleted): the command comment is consumed on the surface it was posted on (so
      the refusal does not re-fire, and a later route reads the answered command as answered) and a note is posted, and
      the issue stays parked; **passthrough** — the command arrived alongside genuine guidance on a park with no
-     replayable batch, so it falls through to the normal resume below and that guidance drives the dev.
+     replayable batch. That one is RESOLVED here rather than left to fall through: the park comes down and the resume
+     below is handed the fresh reading minus the bare command itself, skipping the debounce exactly as a replay does.
+     The command line is dropped because the prompt renders whatever it is given as pull request feedback to
+     implement, and the operator wrote it to the orchestrator; dropping it strands nothing, since the resume settles
+     what it was handed joined with the whole fresh rescan. Falling through instead would put the guidance behind
+     the stay-parked default below, which refuses an operator's retry as "nothing new" for as long as an owed
+     report's own pairs cover the rescan.
 
      What counts as "nothing new" is the reading the readers cannot give on their own. While a report is OWED they
      are held back until its publication lands, so the batch that report was written over still reads as unread: the
@@ -3555,16 +3561,19 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
      the comments name no actionable change — a vague "continue" / "ok" — and neither the branch nor its report has to
      change), clear `pending_fix_*`, post the ack as an
      FYI, and relabel straight to **`in_review`** without parking. A run that ended on a report outcome is excluded
-     from that fast path on BOTH routes: a report is a handover the next reviewer has to read, so it takes the
-     fresh-review road below rather than re-arming a ready ping on the approval it supersedes. So is a run that
-     REACHED for the report contract and missed — a report block with an `ACK:` line beside it, text after the
-     outcome, a marker that may render as code — which `report_outcomes._reached_for_a_report` is the reading for:
-     that message is one broken contract rather than two answers, and taking the acknowledgement out of it would clear
-     the bookmarks and hand the pull request back to `in_review` over work whose report nothing carries. Both fall
-     through to the disposition, which parks for a human; only a reply that never used the contract at all is the
-     ordinary non-actionable `ACK:`, which keeps the road it always had. Otherwise `stages/fixing/reporting.py`
-     disposes the round: a report with no commit in it is published onto the head a FRESH reading proved the pull
-     request to be standing on -- that reading's three HOLDS (a pull request this poll could not fetch, a head the
+     by that same debt reading: the contract step just recorded its report, so the issue owes one from that line
+     onwards — a report is a handover the next reviewer has to read, and it takes the publication road below rather
+     than re-arming a ready ping on the approval it supersedes. A run that REACHED for the report contract and
+     missed — a report block with an `ACK:` line beside it, text after the outcome, a marker that may render as code,
+     which `report_outcomes._reached_for_a_report` is the reading for — never reaches this path at all: it is one
+     broken contract rather than two answers, so it is held for a human AHEAD of everything here, under the misread
+     park. Taken as the acknowledgement instead it would clear the bookmarks and hand the pull request back to
+     `in_review` over work whose report nothing carries. Only a reply that never used the contract at all, on an
+     issue owing no report, is the ordinary non-actionable `ACK:` that keeps the road it always had.
+
+     Otherwise `stages/fixing/reporting.py` disposes the round: a report with no commit in it is published onto the
+     head a FRESH reading proved the pull request to be standing on -- that reading's three HOLDS (a pull request
+     this poll could not fetch, a head the
      checkout would not name, a tree status that established nothing) leave everything where it stands rather than
      parking, and a tree this host PROVED dirty ends a reported round -- committed or not -- on the terminal park
      its report owns, with the record released and the batch it delivered applied in that same write; a commit goes
@@ -3598,9 +3607,11 @@ state. The PR comment that triggers a route to `workflow:fixing` is the human si
        bookmarks the consumed batch clears, and `review_round` per the route discriminator (in_review route resets to
        0, since the previous approval was for the prior head; validating route bumps by 1, same review cycle) — and
        raises the `fixing_round_settled` mark, the one thing that write cannot do for itself being to move a label.
-       The hand-back behind it retires that mark in a write of its own, takes down any park a landed publication is
-       the answer to, and only then flips to `workflow:validating`: a tick dying between the two has to leave a round
-       nothing can mistake for one that just settled. On a round that PUSHED and owes no report, the round and the
+       The hand-back behind it retires that mark in a write of its own, takes down the `push_failed` park that
+       publication is the answer to — that one and no other, since an `agent_timeout` park belongs to whichever round
+       left it and a LATER round can leave one over feedback this report says nothing about — and only then flips to
+       `workflow:validating`: a tick dying between the two has to leave a round nothing can mistake for one that just
+       settled. On a round that PUSHED and owes no report, the round and the
        bookmarks were already closed by the size gate's own receipt write and this exit re-applies the identical
        frozen pair, which is a no-op rather than a second count. Re-applying is what makes a replayed publication or
        handoff safe. Docs do not run on this exit.
