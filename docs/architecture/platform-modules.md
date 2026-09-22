@@ -253,7 +253,12 @@ orchestrator/
                         back as `{}` -- and the comment watermarks beside it, whose thread read tells the pinned
                         comment by the ID a caller can name where it has one and by the marker in a body
                         otherwise: the marker also hides every comment merely QUOTING it, which is right for a
-                        reader after conversation and wrong for one after a receipt it posted itself. A field is
+                        reader after conversation and wrong for one after a receipt it posted itself. That cut is
+                        taken over a read the CALLER already holds wherever one is handed in, and over a read of
+                        its own otherwise, because a stage deriving several answers from one batch -- the prompt,
+                        the watermarks that batch settles, the requirements it fingerprints -- owes every one of
+                        them to the same read: a second read is newer, so a comment landing between the two enters
+                        some of those answers and not the others. A field is
                         asked about two ways and the model answers both -- what one HOLDS, and whether the
                         comment CARRIES it at all -- because every fail-closed reader in this repository turns a
                         value nothing can act on into an absence, so a caller asking whether the record CLAIMS
