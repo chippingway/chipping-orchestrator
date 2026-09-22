@@ -30,6 +30,13 @@ comments and the review summaries move only the in_review watermarks that are
 theirs: nothing that advances the issue-action boundary has read the pull
 request, so writing it over PR feedback would hide input no prompt carried.
 
+While a report is owed the readers say less than they usually do, because they
+are held back until its publication lands -- so the batch that report answers
+reads as unread for as long as the push or the post keeps failing. What still
+knows is the record, whose frozen pairs say exactly what its run consumed; a
+rescan with nothing above them is the prompt the outstanding report is about,
+and the tick holds rather than paying a second developer to answer it again.
+
 Each reader advances only to the max id actually fed to the dev on the surface
 it owns, ratcheted against what is already there, because a human comment that
 landed after the scan was never quoted in the prompt. Swallowing it would drop
@@ -37,6 +44,11 @@ real feedback on the pushed path (the next in_review tick misses it) and on the
 park path (the next fixing tick's stay-parked gate drops it), which is why the
 settlement runs on every outcome that counts the prompt as delivered rather
 than on success alone -- and on none that does not.
+
+DIRECTLY, though, only where no report is owed for it. A round that finished on
+a report outcome records these same pairs onto its report transaction instead,
+and the write that completes that publication applies them; this owner still
+derives them, so the two roads write the same fields the same way.
 
 Orchestrator comments are stripped from the two IssueComment surfaces by
 recorded id AND by the hidden body marker, because the id ledger is capped and
@@ -60,9 +72,13 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
+from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     prompt_delivery as _delivery,
+    report_consumed_values as _consumed,
+    report_delivery_state as _delivery_state,
+    report_record_state as _record_state,
     run_grant_request as _run_grant_request,
 )
 from orchestrator.workflow.stages.fixing import models as _models
@@ -165,10 +181,23 @@ def _rescan_fixing_feedback(
     else: nothing that advances the issue-action boundary has read the pull
     request, so applying that boundary here would hide every PR comment
     numbered below the last issue reply a developer answered.
+
+    The issue thread is read ONCE and the whole read is kept on the batch. The
+    round owes that surface two more answers than the cut -- the conversation
+    a retired session is re-grounded on, and the requirements fingerprint a
+    report is stamped with -- and every one of them taken from a second read
+    is taken minutes later: the comment that landed in between then reaches an
+    agent, or is recorded as requirements somebody answered, while the
+    watermarks settled here stop below it and hand it to a second developer on
+    the next poll.
     """
+    thread = list(issue.get_comments())
     return _models._FixingFeedback(
         issue_thread=_unclaimed(
-            _in_review_surfaces._unread_issue_thread(gh, issue, state), state,
+            _in_review_surfaces._unread_issue_thread(
+                gh, issue, state, comments=thread,
+            ),
+            state,
         ),
         pr_conversation=_unclaimed(
             _in_review_surfaces._unread_pr_conversation(gh, pr, state), state,
@@ -179,6 +208,11 @@ def _rescan_fixing_feedback(
         review_summaries=_reviewed(gh.pr_reviews_after(
             pr, state.get("pr_last_review_summary_id"),
         )),
+        read=tuple(thread),
+        # What the re-grounding conversation cut from that read may keep
+        # whatever the author allowlist says: the ids this orchestrator wrote
+        # down as it posted them, which is the only evidence a body is its own.
+        retained=frozenset(_comments._orchestrator_ids(state)),
     )
 
 
@@ -219,8 +253,9 @@ def _consumed_delivery(
 
     Built on the shared delivery owner rather than on a per-field maximum of
     this stage's own, so the pairs it derives are the ones any durable
-    settlement carries verbatim, and the surface provenance the rescan kept
-    survives into what is written.
+    settlement -- a report transaction's recorded watermarks among them --
+    carries verbatim, and the surface provenance the rescan kept survives into
+    what is written.
 
     `issue_watermark_field` is what tells that owner which cursor this stage's
     issue-space reading answers to. Without it a batch carrying issue-thread
@@ -233,8 +268,15 @@ def _consumed_delivery(
     item under the same rule.
 
     The requirements revision is deliberately not recorded here: the resume
-    refreshes `user_content_hash` itself over the issue as it was read, and a
-    second writer would settle a baseline this batch never measured.
+    fingerprints the very read this batch was cut from and stamps the report
+    with it, and a second writer would settle a baseline this batch never
+    measured.
+
+    A caller that has to FREEZE these pairs rather than write them reads them
+    off the same snapshot (`consumed_pairs`): a round that finished on a
+    report may not record its feedback as answered until that report reaches
+    the pull request, so the pairs travel on the report's own record and are
+    applied by the write that settles it.
     """
     return _delivery.create_prompt_delivery_snapshot(
         issue_comments=feedback.issue_thread,
@@ -249,16 +291,54 @@ def _consumed_delivery(
     )
 
 
-def _consumed_pairs(state, feedback: _models._FixingFeedback) -> tuple:
-    """The forward reader updates this batch owes, as `((field, value), ...)`.
+def _read_by_an_owed_report(state, feedback: _models._FixingFeedback) -> bool:
+    """Whether an owed report has already put this whole batch in front of a dev.
 
-    The same pairs the settlement below applies, handed to a caller that has to
-    freeze them rather than write them: a round that finished on a report may
-    not record its feedback as answered until that report reaches the pull
-    request, so the pairs travel on the report's own record and are applied by
-    the write that settles it.
+    The readers this stage would answer with are deliberately held back while
+    a publication is outstanding, so "unread" stops meaning "nobody has seen
+    it" for exactly as long as that report is owed. The record is what still
+    knows: it carries the pairs the run that wrote it consumed, frozen before
+    anything was published. A batch with nothing above them is the prompt that
+    report ANSWERS, and resuming a developer over it spawns a second one on
+    the identical text -- every poll, for as long as the push or the post
+    keeps failing.
+
+    Asked of the record rather than of the readers, and of the record's own
+    pairs rather than of a re-derivation, because those pairs are what the
+    settlement will apply when the publication finally lands: the question
+    "has this been delivered" and the question "will this be recorded as
+    delivered" have to have one answer.
+
+    False where no record carries pairs. A debt held as a park flag alone has
+    no watermarks to compare, and the roads that take it applied their
+    consumption into the park's own write, so their readers HAVE moved and
+    this batch is genuinely fresh. An empty group says the same thing: a run
+    that consumed nothing answers no prompt.
+
+    A record this issue CLAIMS and nothing can read is the opposite answer,
+    and it is the one place here that fails closed. Read as an absence it
+    would say this batch is unread while the pairs that would have proved
+    otherwise are exactly what nobody can decode -- so the scan behind it pays
+    a second developer to answer feedback the first one already answered. The
+    roads that park such a record run ahead of this, so what this covers is
+    the reader reached before one of them could.
     """
-    return _consumed_delivery(state, feedback).consumed_pairs(state)
+    recorded = (
+        _delivery_state.read_delivered_report(state)
+        or _record_state.read_pending_report(state)
+    )
+    if recorded is None:
+        return (
+            _delivery_state.carries_delivered_report(state)
+            or _record_state.carries_pending_report(state)
+        )
+    if not recorded.watermarks:
+        return False
+    answered = PinnedState(
+        comment_id=state.comment_id, state_data=dict(state.data),
+    )
+    _consumed.advance_consumed(answered, recorded.watermarks)
+    return not _consumed_delivery(answered, feedback).consumed_pairs(answered)
 
 
 def _settle_consumed_feedback(
@@ -275,10 +355,13 @@ def _settle_consumed_feedback(
     their own in_review watermarks and nothing else, so feedback no prompt
     carried is left for the scan that owns it.
 
-    Called on every outcome that counts the prompt as delivered -- the pushed
-    fix, the ACK, and the park or failure alike -- and before the disposition
-    that may publish or park, so the durable write that disposition makes
-    carries this settlement instead of leaving it to a write a crash can lose.
+    Called on every outcome that counts the prompt as delivered AND owes no
+    report for it -- the pushed fix, the ACK, and the park or failure alike --
+    and before the disposition that may publish or park, so the durable write
+    that disposition makes carries this settlement instead of leaving it to a
+    write a crash can lose. A round that finished on a report outcome does not
+    come through here: `reporting` freezes these same pairs onto the report
+    transaction, and the write that completes the publication applies them.
     Consumed ids and nothing else, because a comment the dev never saw in its
     prompt would otherwise be silently swallowed on the pushed path (the next
     in_review tick would miss it) and on the park/failure path (the next fixing

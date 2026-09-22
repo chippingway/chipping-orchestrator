@@ -711,9 +711,10 @@ The keys that matter for the state machine fall into a few groups:
   roads on the recording side park the issue under `report_undeliverable`: a report this workflow cannot write down
   at all, a completed run that handed over no usable report to write, a recovery that republishes committed
   work no recorded report describes, a round reporting with NO commit over a head nothing could prove the pull
-  request to be standing on, and the fixing recovery that finds a report a crashed round recorded and cannot prove
-  the pull request carries the work it is about. The dormant reconciliation beside that last one
-  (`workflow/stages/fixing/report_recovery.py`, on no dispatched route) adds two of its own, and one of them is the
+  request to be standing on, and — on `workflow:fixing` — a round that committed and did not FINISH, a reply that
+  reached for the report contract and missed, a round that committed over a report an earlier tick recorded, and
+  the wait a report no road left on the issue can move earns. The recovery beside them
+  (`workflow/stages/fixing/report_recovery.py`) adds two of its own, and one of them is the
   only road here that does NOT leave its record where it found it: a record nobody can read parks untouched, for
   whoever repairs or abandons it, while a checkout this host proves it cannot publish from — gone, or carrying
   uncommitted changes — parks with the frozen pairs that record held applied and the record itself RELEASED, since
@@ -1670,7 +1671,10 @@ The keys that matter for the state machine fall into a few groups:
   reason: it lands on the comment a settlement leaves, so a transaction accepted at the ceiling would settle, raise the
   mark, and then meet a hand-back GitHub refuses — with the mark raised, the relabel never taken, and every later tick
   failing in the same place. Reserved only where the record's own spends raise the mark, since no other route writes it.
-  Additive: an issue without it has handed no round back under this record. Neither key is on a dispatched route yet.
+  Additive: an issue without it has handed no round back under this record. Every road that can reach a relabel with
+  the mark raised goes through that one hand-back: the round's own publication, the recovery's binding, the
+  no-feedback bounce that republishes a stranded commit, the retry that lands a failed push, and the tick that finds
+  a round settled elsewhere.
 - **Crash-recovery anchors.** `discussion_round_branch` + `discussion_round_sha` — the branch a discussion round
   opened on and the SHA it was at, written BEFORE the spawn and surviving every exit the stage takes; a published plan
   moves the pair onto the tip it pushed (that commit is what the stage now vouches for) and only a

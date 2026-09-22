@@ -28,6 +28,17 @@ FREEZE_BASE_COMMIT = support.FREEZE_BASE_COMMIT
 LABEL_DECOMPOSING = support.LABEL_DECOMPOSING
 MEASURED_BASE_SHA = support.MEASURED_BASE_SHA
 MEASURED_CANDIDATE_SHA = support.MEASURED_CANDIDATE_SHA
+
+# A checkout clean where the round proves it and where the gate freezes it,
+# carrying work by the proof past the push. Twice clean before that push
+# because a reported round asks the checkout for itself ahead of the gate: a
+# tree this host proves is carrying something is the refusal its report's own
+# terminal park is for, and no road here publishes over one.
+_DIRTIED_AROUND_THE_PUSH = (
+    support._WorktreeStatus(readable=True, paths=()),
+    support._WorktreeStatus(readable=True, paths=()),
+    support._WorktreeStatus(readable=True, paths=("stray.py",)),
+)
 PAST_THE_CEILING = support.PAST_THE_CEILING
 UNDER_THE_CEILING = support.UNDER_THE_CEILING
 _SizeGateFixtureMixin = support._SizeGateFixtureMixin
@@ -343,11 +354,7 @@ class SettledPublicationRaceTest(unittest.TestCase, _SizeGateFixtureMixin):
         scenario = self._landed_but_unrecorded()
 
         mocks = self._run_fix_round(
-            scenario,
-            tree_states=(
-                support._WorktreeStatus(readable=True, paths=()),
-                support._WorktreeStatus(readable=True, paths=("stray.py",)),
-            ),
+            scenario, tree_states=_DIRTIED_AROUND_THE_PUSH,
         )
 
         self._assert_settled_publication(mocks)
@@ -435,18 +442,11 @@ class CheckoutRaceTest(unittest.TestCase, _SizeGateFixtureMixin):
         scenario = self._seed_fix_round()
 
         mocks = self._run_fix_round(
-            scenario, tree_states=self._dirtied_around_the_push(),
+            scenario, tree_states=_DIRTIED_AROUND_THE_PUSH,
         )
 
         self._assert_pushed_once(mocks)
         self._assert_publication_stands(scenario, support.PARK_CANDIDATE_MOVED)
-
-    def _dirtied_around_the_push(self) -> tuple:
-        """Clean where the gate freezes it, carrying work by the proof past it."""
-        return (
-            support._WorktreeStatus(readable=True, paths=()),
-            support._WorktreeStatus(readable=True, paths=("stray.py",)),
-        )
 
     def _assert_publication_stands(self, scenario, reason: str) -> None:
         """The push kept its receipt; only the handoff stopped."""

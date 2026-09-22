@@ -84,7 +84,16 @@ class _DiesAroundTheSettlement:
 
 
 class UnmeasuredDebtTest(unittest.TestCase, _SizeGateFixtureMixin):
-    """What an unmeasured push leaves behind on each side of its own write."""
+    """What an unmeasured push leaves behind on each side of its own write.
+
+    Every round here republishes a commit an earlier one stranded, under a
+    reply that wrote no report of its own: that is the road where the route's
+    bookkeeping is still the gate's to carry. A round that REPORTS freezes the
+    same pair onto that report's record instead, for the write that finally
+    publishes it.
+    """
+
+    _run_fix_round = _SizeGateFixtureMixin._run_stranded_round
 
     def test_the_debt_goes_down_before_the_push(self) -> None:
         # The window the reviewer of a crashed tick has nothing else to read:
@@ -207,6 +216,8 @@ class SwitchedOffDebtTest(unittest.TestCase, _SizeGateFixtureMixin):
         self.assertEqual(pinned[support.KEY_APPROVED_LEASE], PR_HEAD_SHA)
         self.assertIn([REVIEW_ROUND, SPENT_ROUND], pinned[KEY_SPENDS])
 
+    _run_fix_round = _SizeGateFixtureMixin._run_stranded_round
+
     def test_the_switch_still_reads_nothing(self) -> None:
         # What says the debt is not the gate creeping back in: no pull request
         # is measured, and the push goes out named against the checkout and
@@ -229,6 +240,8 @@ class UnmeasuredDebtRetryTest(
 ):
     """The tick after the one that pushed and recorded nothing else."""
 
+    _run_fix_round = _SizeGateFixtureMixin._run_stranded_round
+
     def test_the_retry_publishes_it_first(self) -> None:
         # The reconciliation ahead of every handler finds the debt and
         # republishes the same commit against the same head -- BEFORE the
@@ -244,7 +257,11 @@ class UnmeasuredDebtRetryTest(
 
         first = mocks[PUSH_BRANCH].call_args_list[0]
         self.assertEqual(first.kwargs[REVISION], MEASURED_CANDIDATE_SHA)
-        self.assertEqual(first.kwargs[LEASE], PR_HEAD_SHA)
+        # Leased against where the pull request is standing NOW, which the
+        # crashed push already moved it to: named and pinned at the same
+        # commit, the request is the atomic proof that the work is really
+        # there and rejects outright if somebody moved it in between.
+        self.assertEqual(first.kwargs[LEASE], MEASURED_CANDIDATE_SHA)
 
     def test_the_retry_closes_what_the_debt_carried(self) -> None:
         # And the recovery closes it: the receipt names what reached the

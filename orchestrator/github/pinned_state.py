@@ -297,6 +297,7 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         after_id: int | None,
         *,
         state_comment_id: int | None = None,
+        comments=None,
     ) -> list[IssueComment]:
         """Return non-state issue comments newer than the watermark.
 
@@ -308,10 +309,18 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         conversation and wrong for one looking for a receipt this orchestrator
         posted: a sentence carrying somebody else's copy of the marker would
         be invisible to the only read that could tell it had been said.
+
+        `comments` is a read the caller already holds, cut in place of the
+        thread's own. A caller deriving several answers from one batch -- the
+        prompt, the watermarks that batch settles, the requirements it
+        fingerprints -- has to take them off ONE read: a second read is newer
+        than the first, so a comment landing between them reaches some of
+        those answers and not the others.
         """
+        read = issue.get_comments() if comments is None else comments
         return [
             issue_comment
-            for issue_comment in issue.get_comments()
+            for issue_comment in read
             if not _is_state_comment(issue_comment, state_comment_id)
             and (after_id is None or issue_comment.id > after_id)
         ]

@@ -14,8 +14,9 @@ from orchestrator.git.worktrees import paths as _git_worktree_paths
 from orchestrator.workflow.stages.fixing import (
     bookmarks as _bookmarks,
     continue_command as _continue_command,
+    feedback as _feedback,
 )
-from orchestrator.workflow.stages.validating import fix_reports as _fix_reports
+from orchestrator.workflow.stages.validating import dev_fix as _dev_fix
 from tests.support import fakes
 from tests.workflow import fixtures
 from tests.workflow.stages import implementing_fixing_test_cases
@@ -46,6 +47,7 @@ EVENT_AGENT_SPAWN = fixtures.EVENT_AGENT_SPAWN
 ROLE_DEVELOPER = fixtures.ROLE_DEVELOPER
 _PatchedWorkflowMixin = fixtures._PatchedWorkflowMixin
 _agent = fixtures._agent
+SHA_LENGTH = fixtures.SHA_LENGTH
 
 # The two final messages that are NOT the dev's own words, and the phrase each
 # one's park comment is recognized by.
@@ -63,9 +65,17 @@ TIMEOUT_PUSHED_DETAIL = fixtures.TIMEOUT_PUSHED_DETAIL
 TIMEOUT_EMPTY_DETAIL = fixtures.TIMEOUT_EMPTY_DETAIL
 _RecoveryFollowupAssertions = fixtures._RecoveryFollowupAssertions
 
-# The report-aware fix disposition is a validating owner the fixing resume
-# imports directly, so a test that has to wrap it patches that owner.
-fix_reports = _fix_reports
+# The publication tail every fix round's disposition ends in is a validating
+# owner the fixing resume imports directly, so a test that has to wrap it
+# patches that owner.
+dev_fix = _dev_fix
+
+# The scan owner, and the name the handler resolves off it. A case about the
+# window between the scan and the resume wraps this: everything the round owes
+# the issue thread comes off the read taken inside it, so a comment spliced in
+# right after it returns is one no later reader may have.
+feedback = _feedback
+RESCAN = "_rescan_fixing_feedback"
 
 _clear_pending_fix_bookmarks = _bookmarks._clear_pending_fix_bookmarks
 _pending_fix_id_set = _bookmarks._pending_fix_id_set

@@ -112,6 +112,10 @@ def receipt_group(sha: str, lease=None, pull_request=None) -> dict:
 # The validating route's single replay anchor, cleared with its round.
 KEY_REVIEWER_COMMENT_ID = "pending_fix_reviewer_comment_id"
 
+# A reply that answers in words and writes no report, which is what leaves a
+# round owing no publication of its own.
+_REPLY_WITHOUT_A_REPORT = "looked again -- the earlier commit covers it"
+
 PARK_MEASUREMENT_FAILED = "late_measurement_failed"
 PARK_CANDIDATE_MOVED = "late_candidate_moved"
 PHASE_MEASURING = "measuring"
@@ -313,6 +317,32 @@ class _SizeGateFixtureMixin(support._FixingFixtureMixin, _SizeGateAssertionsMixi
             return self._run_fixing(
                 scenario.github, scenario.issue, **run_options,
             )
+
+    def _run_stranded_round(self, scenario, **run_options):
+        """One fix round republishing a commit an EARLIER round stranded.
+
+        The road that still hands the GATE this route's own bookkeeping. A
+        reply that wrote no report of its own owes no publication, so nothing
+        of the handover is riding a record and the gate's write is the only
+        thing that can carry it; a round that DID report freezes both onto
+        that record instead, and the write completing the publication is what
+        applies them.
+
+        The checkout is standing where the earlier round left it, one commit
+        ahead of the pull request, so the candidate is that stranded commit
+        and the head it replaces is what the publication carries.
+        """
+        stranded = {
+            "run_agent": support._agent(
+                session_id=support.DEV_SESSION,
+                last_message=_REPLY_WITHOUT_A_REPORT,
+            ),
+            "head_shas": (MEASURED_CANDIDATE_SHA, MEASURED_CANDIDATE_SHA),
+            "branch_ahead_behind": (1, 0),
+            "fetched_branch_tip": support.PR_HEAD_SHA,
+            **run_options,
+        }
+        return _SizeGateFixtureMixin._run_fix_round(self, scenario, **stranded)
 
     def _poll(self, scenario, **run_options):
         """One ordinary poll of this issue: whether the stage ran, and what read.

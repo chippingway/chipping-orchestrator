@@ -339,10 +339,25 @@ class _IssueCommentService:
         after_id: int | None,
         *,
         state_comment_id: int | None = None,
+        comments=None,
     ) -> list[FakeComment]:
+        """Mirrors the real cut, including the read a caller may hand in.
+
+        `comments` is what makes a scan-to-prompt race expressible here: the
+        production reader filters the caller's read in place of the thread's
+        own, so a double that always walked the live list would answer a
+        comment the caller's read never held.
+
+        With none handed in it TAKES one, through the thread's own reader
+        rather than off the list behind it, because that read is the thing a
+        case counting them is about: production asks GitHub here, and a double
+        that reached past it would hide every extra read from the only test
+        that can see one.
+        """
+        read = issue.get_comments() if comments is None else comments
         return [
             comment
-            for comment in issue.comments
+            for comment in read
             if not self._is_state_comment(comment, state_comment_id)
             and (after_id is None or comment.id > after_id)
         ]

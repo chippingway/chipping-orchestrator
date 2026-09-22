@@ -44,8 +44,8 @@ cannot both keep and manage is a `REPORT: VERIFIED` naming that very body, and
 the binding refuses that one only if it is told -- the reading it assumes
 otherwise is that the description is safe.
 
-No dispatched fixing road reaches this owner, exactly as none reaches the two
-in `reporting` that ask it.
+Both roads in `reporting` that ask it are live, and so is the binding the
+recovery beside them takes: one reading, taken afresh, shared.
 """
 from __future__ import annotations
 

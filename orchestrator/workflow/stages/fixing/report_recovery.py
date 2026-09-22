@@ -30,9 +30,11 @@ because the only one this owner holds was fetched before the tick began.
 The two DEFINITE refusals are the exception, and they release the record as they
 park: a record left on the comment is one the next tick binds the moment the
 checkout comes back -- and a human who merely restores or cleans it, without the
-reply the notice asks for, publishes the report nothing could place. The debt
-outlives the record there, which is what keeps the review held and the reply
-answerable.
+reply the notice asks for, publishes the report nothing could place. Whatever
+that record SUPERSEDED is released with it, since a transaction the delivery
+replaced is one the reconciliation would otherwise publish over text this issue
+has already replaced. The debt outlives both, which is what keeps the review
+held and the reply answerable.
 
 A tick that binds stops there, and where the publication SETTLES it finishes the
 recovered round as the live road would have: the route bookkeeping the record
@@ -68,10 +70,10 @@ this. A mark this owner cannot place is retired rather than spent, and retiring
 it is still this road's to do: it is the mark of a round that is over either
 way, and only the relabel is withheld.
 
-No dispatched fixing road runs through this owner, exactly as none runs through
-`reporting` beside it: each helper below is reached by its caller directly, and
-the tick this stage takes today neither recovers an unbound record nor reads
-the mark a settlement raised.
+Where the road is reached from is the handler, ahead of its scan, and the parked
+dispatch behind it answers to the same order: a park cleared over a batch an
+owed report already answered resumes a developer on the prompt that report is
+about.
 """
 from __future__ import annotations
 
@@ -87,6 +89,7 @@ from orchestrator.workflow.engine import (
     report_consumed_values as _consumed,
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
+    report_record_state as _record_state,
 )
 from orchestrator.workflow.stages.fixing import (
     models as _models,
@@ -350,13 +353,67 @@ def _releases_an_unpublishable_report(
     and the settlement that completes it is what moves a reader; a park is
     where this road ends instead, so the batch that reached an agent is
     written down as read rather than handed to whatever answers the reply.
+
+    And whatever this record SUPERSEDED goes with it, for the reason the
+    record itself does. A delivery recorded over an outstanding transaction
+    replaces it -- it carries that transaction's frozen pairs forward, and the
+    binding behind it is what would have dropped it. Released instead, nothing
+    drops it, and a transaction left on the comment is one the reconciliation
+    ahead of any later handler proves, settles and PUBLISHES: report text this
+    issue has already replaced goes onto the pull request, and the settlement
+    clears the debt and this notice with it, leaving the newer obligation
+    nowhere.
+
+    Which transaction that is, is held to the REVISION rather than to
+    presence, because the number is the thing that says the two are one
+    lineage: every record minted for this issue numbers itself above every
+    record it supersedes, so a transaction at or above this delivery's is one
+    this delivery never replaced. A transaction nobody can READ is left
+    standing too, and needs to be: the claim alone keeps the debt, and the
+    reconciliation parks such a record rather than publishing from it.
     """
+    superseded = _record_state.read_pending_report(ctx.state)
     _consumed.advance_consumed(ctx.state, delivered.watermarks)
+    if (
+        superseded is not None
+        and superseded.report_revision < delivered.report_revision
+    ):
+        _record_state.clear_pending_report(ctx.state)
     _delivery_state.clear_delivered_report(ctx.state)
     _report_delivery.parks_an_undeliverable_report(
         ctx.gh, ctx.issue, ctx.state,
         _UNPUBLISHABLE_PARK.format(mentions=_config.HITL_MENTIONS),
     )
+
+
+def _releases_a_round_nothing_can_publish(
+    ctx: _models._FixingContext, worktree,
+) -> bool:
+    """End a live reported round on the terminal park its checkout earns.
+
+    True where the release was taken and the caller's tick is over. The
+    refusal is the one a LIVE round can be standing in: its own run has just
+    used this worktree, so what that checkout can be is carrying something
+    rather than missing. The road behind this caller declines a dirty tree as
+    well -- so left to it, the round takes a checkout park of that road's own
+    and KEEPS the record, and the tick after it is the recovery above finding
+    the identical refusal, releasing the report and posting a SECOND notice
+    for one condition, with the pairs that round consumed unapplied in
+    between. A terminal road owes them in its own durable write, which is
+    what this one takes.
+
+    A status nobody could READ is not that refusal and buys nothing here: it
+    says nothing about the tree, a later poll may read it, and the road behind
+    this caller answers it on its own terms.
+    """
+    tree = _worktree_status._worktree_status(worktree)
+    if not tree.readable or tree.is_clean:
+        return False
+    delivered = _delivery_state.read_delivered_report(ctx.state)
+    if delivered is None:
+        return False
+    _releases_an_unpublishable_report(ctx, delivered)
+    return True
 
 
 def _published_checkout(ctx: _models._FixingContext) -> str | None:

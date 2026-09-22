@@ -46,7 +46,7 @@ def _consumed_issue_thread_id(state: PinnedState) -> int | None:
 
 
 def _unread_issue_thread(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    gh: GitHubClient, issue: Issue, state: PinnedState, comments=None,
 ) -> list:
     """Issue-thread comments neither cursor over this surface has spent.
 
@@ -56,12 +56,19 @@ def _unread_issue_thread(
     -- by a handoff walk that stopped at an unread PR comment, or by a manual
     relabel that left the key unset entirely -- would hand that answered reply
     to `fixing` a second time as fresh feedback.
+
+    `comments` is a read the caller already holds, cut in place of the
+    thread's own. A caller that derives more than the batch from this surface
+    -- the conversation a fresh spawn is re-grounded on, the requirements its
+    report is stamped with -- owes every one of those answers to the SAME
+    read, since a second one taken later in the tick carries a comment the
+    first does not.
     """
     consumed = _consumed_issue_thread_id(state)
     return [
         comment
         for comment in gh.comments_after(
-            issue, state.get(_state._PR_LAST_COMMENT_ID),
+            issue, state.get(_state._PR_LAST_COMMENT_ID), comments=comments,
         )
         if consumed is None or comment.id > consumed
     ]

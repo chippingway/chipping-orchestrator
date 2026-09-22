@@ -381,17 +381,22 @@ than a second source of truth: where the two disagree, the handler pages are aut
               workflow:fixing, park already cleared, the triggering reply
               unread, and — where the round committed — the commit its report
               describes still in the checkout. The next fixing tick finishes
-              that round rather than resuming a developer: the candidate goes
-              out through the size gate (held → workflow:decomposing) spending
-              the round frozen on the record, and the issue then moves to
-              workflow:validating, where the report hold binds and settles the
-              delivery
-         ──► that same crash over a checkout nothing can vouch for (gone,
-              unreadable, a fetch that failed, a remote that moved): nothing
+              that round rather than resuming a developer, ahead of its own
+              scan: a record left unbound is re-proved against the checkout
+              and bound to a pull request read afresh, and a round whose
+              publication already SETTLED is handed back on the mark that
+              settlement raised. Either way the issue reaches
+              workflow:validating with the report published; a commit the
+              crash caught before the gate is republished by the no-feedback
+              bounce first (held → workflow:decomposing)
+         ──► that same crash over a checkout this host proves it cannot
+              publish from (gone, or carrying uncommitted changes): nothing
               pushed, nothing published, review_round unchanged, park
-              report_undeliverable on workflow:fixing — handed on instead, the
-              binding would recreate the checkout from the remote and publish
-              the report against the head the pull request already had
+              report_undeliverable on workflow:fixing with the record
+              RELEASED — left there, cleaning or restoring the checkout would
+              publish the report and send the issue to review on its own. A
+              reading nobody could TAKE is neither: nothing is published,
+              nothing released, nothing said, and the next poll asks again
          ──► park (timeout / no-commit / dirty / push fail):
               label stays workflow:fixing, awaiting_human=True; the
               fixing handler owns the awaiting-human cycle and on a
@@ -485,13 +490,22 @@ than a second source of truth: where the two disagree, the handler pages are aut
      unpushed local rebase) -- the dead-lock breaker base sync can't
      reach while parked. Every other awaiting-human shape (real agent
      question / dirty park / silent-crash / in_review-route transient)
-     stays parked silently to preserve HITL. If no unread feedback at
-     all, publish any commit an earlier round stranded in the worktree
+     stays parked silently to preserve HITL -- except a push_failed park
+     with a report still owed, where the readers the default would wait
+     on are exactly the ones that publication is holding back, so the
+     silent retry runs and publishes the report on the push it lands.
+     What counts as new feedback is the owed record's frozen pairs
+     rather than the readers, for that same reason. If nothing is left
+     to act on, publish any commit an earlier round stranded in the worktree
      (`validating/stranded.py`'s clean-and-strictly-ahead probe, the
      one the fix disposition and the ACK fast path ask too, through the
      same size gate every push onto an open PR passes; a push that
-     lands adjusts review_round per pending_fix_at), then
-     clear pending_fix_* and bounce to workflow:validating. A candidate
+     lands adjusts review_round per pending_fix_at), bind the report
+     that push is the publication for, then
+     clear pending_fix_* and bounce to workflow:validating. While a
+     report is still owed nothing is spent, cleared or relabelled: the
+     record stands for the tick that publishes it, and a wait nothing
+     left can end is announced once under report_undeliverable. A candidate
      the gate HELD stops the bounce instead: the issue is already on
      workflow:decomposing and this tick relabels nothing;
      otherwise honour IN_REVIEW_DEBOUNCE_SECONDS. Past the window,
@@ -505,9 +519,16 @@ than a second source of truth: where the two disagree, the handler pages are aut
      beside pr_last_comment_id, the PR conversation and both review
      surfaces move their own in_review watermarks alone. A report
      outcome settles nothing either: the publication it owes is not
-     this tick's to promise. On a pushed fix, adjust review_round per
-     pending_fix_at (in_review->fixing route resets to 0; validating->
-     fixing route bumps by 1) and flip directly to workflow:validating.
+     this tick's to promise, so the readers, the round and the
+     pending_fix_* bookmarks are frozen onto that report's own record
+     and the write completing the publication applies them. That write
+     raises a mark, and the hand-back it licenses retires the mark and
+     the push_failed park that publication answers -- and that one
+     only, since a park a later round left is about a session this
+     report says nothing about -- before flipping to
+     workflow:validating. On a pushed fix owing no report, adjust
+     review_round per pending_fix_at (in_review->fixing route resets to
+     0; validating->fixing route bumps by 1) and flip directly.
      Docs do not run on this exit.
 
    workflow:resolving_conflict (operator relabel, base-sync flow on

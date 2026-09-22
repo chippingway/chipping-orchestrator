@@ -140,14 +140,18 @@ class ParkedFixReportTest(unittest.TestCase, world._FixReportMixin):
 
         self.assertEqual(self.pull_request.head.sha, world.FIXED_HEAD)
         self.assertEqual(_round(self), 1)
-        self.assertIsNotNone(self.records()[PENDING])
+        self.assertEqual(
+            (self.records()[CURRENT].subject.source_sha,
+             len(self.published_reports())),
+            (world.FIXED_HEAD, 1),
+        )
 
     def test_the_replay_counts_one_round(self) -> None:
-        # The tick that pushed could not settle the report -- the remote reading
-        # the transaction needs had not caught up -- so the reconciliation
-        # behind it finishes what the run began. Replayed, it posts no second
-        # report and counts no second round: what it applies is the pair the
-        # transaction froze, not a counter it reads again.
+        # The round settled its own report, and the reconciliation ahead of
+        # every later handler reads the same comment. Replayed over it, twice,
+        # it posts no second report and counts no second round: what a
+        # settlement applies is the pair the transaction froze, not a counter
+        # it reads again.
         _withheld_then_reported(self)
 
         self.reconcile()
@@ -192,11 +196,9 @@ class ParkedFixHandoverTest(unittest.TestCase, world._FixReportMixin):
                         _round(self) == 1,
                         self.pinned().get(REVIEWER_ANCHOR) is None,
                         len(self.published_reports()),
+                        (ISSUE, LABEL_VALIDATING) in self.github.label_history,
                     ),
-                    (settles, settles, settles, settles, int(settles)),
-                )
-                self.assertIn(
-                    (ISSUE, LABEL_VALIDATING), self.github.label_history,
+                    (settles, settles, settles, settles, int(settles), settles),
                 )
 
     def test_a_reply_reaching_for_a_report_is_no_ack(self) -> None:
@@ -219,25 +221,32 @@ class ParkedFixHandoverTest(unittest.TestCase, world._FixReportMixin):
 
     def test_a_park_consumes_what_it_was_given(self) -> None:
         # The park is durable the moment it is taken, so the input the prompt
-        # delivered rides that same write -- here the park a report whose head
-        # nothing could prove earns, over an issue whose publication receipt
-        # names nothing. Left to the caller's write after it, a process dying in
-        # between leaves the issue awaiting a human over feedback that still
-        # reads as unanswered, which the next tick reads as fresh and resumes
-        # the developer over again with nobody having replied.
-        self.seeded(
-            ISSUE, PR, LABEL_VALIDATING, implementing_published_sha=None,
-        )
+        # delivered rides that same write -- here the terminal park a report
+        # earns over a checkout this host PROVED is carrying something, which
+        # no later poll takes back and no road here publishes over. Left to a
+        # caller's write behind it, a process dying in between leaves the issue
+        # awaiting a human over feedback that still reads as unanswered, which
+        # the next tick reads as fresh and resumes the developer over again
+        # with nobody having replied.
+        #
+        # The recorded report is RELEASED into that same write, because a
+        # record left standing is one the very next tick publishes the moment
+        # the tree is clean -- which is the decision this notice is asking a
+        # human to make. The DEBT outlives it, so the review stays held.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.requested_fix(world.QUESTION_REPLY, committed=False)
         world.replied(self)
         answered = max(reply.id for reply in self.issue.comments)
 
         with crashes.dying_after_the_park(self):
-            self.parked_resume(world.reported(), committed=False)
+            self.parked_resume(
+                world.reported(), committed=False, dirty_files=("stray.py",),
+            )
 
         self.assertEqual(
-            (self.pinned()[AWAITING_HUMAN], self.pinned()[PARK_REASON]),
-            (True, _report_delivery.UNDELIVERABLE_REPORT),
+            (self.pinned()[AWAITING_HUMAN], self.pinned()[PARK_REASON],
+             self.pinned()[_report_delivery.OWED_REPORT]),
+            (True, _report_delivery.UNDELIVERABLE_REPORT, True),
         )
         self.assertEqual(self.pinned().get(PR_LAST_COMMENT_ID), answered)
         self.assertEqual(set(self.records().values()), {None})
