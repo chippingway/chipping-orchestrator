@@ -7,9 +7,13 @@ re-deciding the work, and what that session hands back is a report as well as,
 perhaps, a commit. The report is the reviewer's only account of what the
 resumed session did, and the session is gone the moment the tick moves on -- so
 it is recorded on the pinned comment ahead of the size gate and the push, as an
-initial implementation's is, and stamped with the requirements revision the
-drift check handed the resume rather than with whatever the issue says by the
-time publication succeeds.
+initial implementation's is, and stamped with the requirements revision its
+CALLER handed it rather than with whatever the issue says by the time
+publication succeeds. On `validating` that is the revision the resume's own
+prompt-delivery record fingerprints -- the read the prompt was built from,
+which is also the baseline its settlement writes, so no reader is left holding
+a report against requirements its own prompt already contained. On `in_review`
+it is still the drift check's earlier read of the thread.
 
 What this road publishes is work a report on the pull request describes, or it
 publishes nothing. A run that committed and wrote no report parks for the reply

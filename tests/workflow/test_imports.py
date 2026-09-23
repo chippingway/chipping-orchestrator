@@ -67,6 +67,7 @@ _ENGINE_OWNERS = (
     "completion_verdicts",
     "dispatch",
     "drift",
+    "drift_delivery",
     "guards",
     "messages",
     "parallel",

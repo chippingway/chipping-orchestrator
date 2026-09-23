@@ -16,14 +16,16 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.github.pinned_state import PINNED_STATE_MARKER, PinnedState
 from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
     prompt_context as _prompt_context,
     prompt_delivery,
 )
 from tests.support.fakes import (
     FakeComment,
-    FakeIssue,
+    FakeGitHubClient,
     FakePRReview,
     FakeUser,
+    make_issue,
 )
 
 _HASH_V1 = "hash-rev-1"
@@ -338,20 +340,31 @@ class PromptDeliverySnapshotTest(unittest.TestCase):
         self.assertNotIn("untrusted 2", snap.rendered_text)
         self.assertNotIn("untrusted 4", snap.rendered_text)
 
-    def test_prompt_context_delivery_integration(self) -> None:
-        issue = FakeIssue(
-            number=_TEST_ISSUE_NUM,
-            comments=[
-                FakeComment(id=_ID_FIRST, body="one", user=_TRUSTED_AUTHOR),
-                FakeComment(id=_ID_SECOND, body="two", user=_TRUSTED_AUTHOR),
-            ],
+    def test_one_read_renders_and_records(self) -> None:
+        # The reader a settling prompt takes: the text it renders and the
+        # entries it names are the same read, and the revision it carries is
+        # that read's fingerprint rather than a hash the caller chose.
+        gh = FakeGitHubClient()
+        issue = make_issue(_TEST_ISSUE_NUM, comments=[
+            FakeComment(id=_ID_FIRST, body="one", user=_TRUSTED_AUTHOR),
+            FakeComment(id=_ID_SECOND, body="two", user=_TRUSTED_AUTHOR),
+        ])
+        gh.add_issue(issue)
+        gh.seed_state(issue)
+
+        snap = _prompt_context._delivered_thread(
+            gh, issue, gh.read_pinned_state(issue),
         )
-        snap = _prompt_context._recent_comments_delivery(
-            issue, requirements_revision=_HASH_V1,
+
+        self.assertEqual(
+            [entry.id for entry in snap.delivered_inputs()],
+            [_ID_FIRST, _ID_SECOND],
         )
-        self.assertEqual(len(snap.delivered_inputs()), 2)
-        self.assertEqual(snap.requirements_revision, _HASH_V1)
-        self.assertIn("@geserdugarov: one", snap.rendered_text)
+        self.assertIn(f"@{_TRUSTED_USER}: one", snap.rendered_text)
+        self.assertEqual(
+            snap.requirements_revision,
+            _content_hash._compute_user_content_hash(issue, set()),
+        )
 
 
 class HumanRepliesTest(unittest.TestCase):

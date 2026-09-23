@@ -16,6 +16,9 @@ from tests.support.github import (
 )
 
 FakeGitHubClient = _client.FakeGitHubClient
+# The login every comment these doubles post for the orchestrator carries, for
+# a case that asserts on a prompt quoting one of them back.
+DEFAULT_BOT_LOGIN = _models.DEFAULT_BOT_LOGIN
 FakeComment = _models.FakeComment
 FakeIssue = _models.FakeIssue
 FakeLabel = _models.FakeLabel

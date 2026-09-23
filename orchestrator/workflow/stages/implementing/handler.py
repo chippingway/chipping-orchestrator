@@ -60,6 +60,8 @@ from orchestrator.workflow.stages.implementing import (
 )
 from orchestrator.workflow.stages.implementing.resume_batch import _ReplyBatch
 from orchestrator.workflow.stages.implementing.state import (
+    _EDIT_OWED_BY_THE_SPAWN,
+    _EDIT_OWNS_THE_TICK,
     _PR_NUMBER,
 )
 
@@ -273,19 +275,26 @@ def _handle_detected_implementing_drift(
     issue: Issue,
     state: PinnedState,
     batch: _ReplyBatch | None,
-) -> bool:
-    """Whether a requirements edit owns this tick, judged off the parked read.
+) -> str | None:
+    """What a requirements edit leaves this tick, judged off the parked read.
 
     On a parked tick the replies past the watermark are the frozen batch's to
     deliver, so what the park had already read is what the edit is measured
-    by (`_ReplyBatch.answered`).
+    by (`_ReplyBatch.answered`). The hash this reads is a comparison and
+    nothing more: what records a new baseline is the settlement of whatever
+    prompt answers the edit.
+
+    An edit the drift road did not finish here is not an edit that is over:
+    the pre-session road clears the park and falls through, so the answer
+    returned is what carries the settlement it owes to the spawn below --
+    `_EDIT_OWNS_THE_TICK`, `_EDIT_OWED_BY_THE_SPAWN`, or None for no edit.
     """
     new_hash = _engine_drift._detect_user_content_change(
         gh, issue, state, answered=None if batch is None else batch.answered,
     )
-    return new_hash is not None and _drift._handle_user_content_drift(
-        gh, spec, issue, state, new_hash,
-    )
+    if new_hash is None:
+        return None
+    return _drift._handle_user_content_drift(gh, spec, issue, state)
 
 
 def _handle_implementing(gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue) -> None:
@@ -304,12 +313,14 @@ def _handle_implementing(gh: GitHubClient, spec: _config_models.RepoSpec, issue:
         return
 
     # User-content drift: a human edited the issue title/body after the dev
-    # session was spawned. `_handle_user_content_drift` persists the new hash
-    # and either resumes the locked session against the updated requirements
-    # (returning True), parks recovered pre-edit work, or -- when no dev
-    # session exists yet -- clears any park and returns False so the fresh-
-    # spawn path below picks up the new body via `_build_implement_prompt`.
-    if _handle_detected_implementing_drift(gh, spec, issue, state, batch):
+    # session was spawned. `_handle_user_content_drift` either resumes the
+    # locked session against the updated requirements (owning the tick),
+    # refuses over recovered pre-edit work, or -- when no dev session exists
+    # yet -- clears any park and hands the edit on so the fresh-spawn path
+    # below picks up the new body via `_build_implement_prompt`. None of them
+    # records a baseline: the prompt that answers the edit settles one.
+    edit = _handle_detected_implementing_drift(gh, spec, issue, state, batch)
+    if edit == _EDIT_OWNS_THE_TICK:
         return
 
     prepared = _spawn._prepare_dev_run(gh, spec, issue, state, batch)
@@ -329,4 +340,6 @@ def _handle_implementing(gh: GitHubClient, spec: _config_models.RepoSpec, issue:
     ):
         return
 
+    if edit == _EDIT_OWED_BY_THE_SPAWN:
+        _drift._settle_edit_on_the_spawn(state, prepared)
     _disposition._dispose_agent_result(gh, spec, issue, state, prepared)

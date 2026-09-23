@@ -5,6 +5,12 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.workflow.engine import (
+    content_hash as _content_hash,
+    drift as _engine_drift,
+    drift_delivery as _drift_delivery,
+    prompt_context as _prompt_context,
+)
 from orchestrator.workflow.stages.conflicts import handler as _conflicts
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.stages.in_review import handler as _in_review
@@ -15,12 +21,21 @@ from tests.workflow.engine import drift_test_support as support
 class DriftMarksCommentsConsumedTest(
     unittest.TestCase, support._PatchedWorkflowMixin,
 ):
-    """Reviewer point 1: the drift paths feed the dev session the full
-    issue thread via `_recent_comments_text`, so `last_action_comment_id`
-    must advance past every visible comment. Otherwise the next
-    validating->in_review handoff's `_seed_watermark_past_self` stops at
-    the same human comment and replays it as fresh PR feedback,
-    triggering a duplicate dev resume."""
+    """What a drift road leaves on `last_action_comment_id`, road by road.
+
+    All four feed the dev session the issue thread, so none of them may
+    leave a comment the developer read unrecorded: the next
+    validating->in_review handoff's `_seed_watermark_past_self` would stop
+    at that comment and replay it as fresh PR feedback, buying a duplicate
+    dev resume.
+
+    How far each goes differs, and the difference is what each prompt
+    carried. The PR-backed roads quote the live thread and mark it read to
+    the tip. The issue-backed ones record the frozen snapshot their prompt
+    was built from, which is why the cases below ask only that the mark
+    reached the comment that was delivered: what the excerpt bound dropped,
+    and what landed after the freeze, are deliberately left unread (the
+    `DriftResumeDeliveryTest` cases below)."""
 
     def test_validating_bumps_past_human_comment(
         self,
@@ -254,3 +269,112 @@ class DriftMarksCommentsConsumedTest(
             int(state.get(support.KEY_LAST_ACTION_COMMENT_ID)),
             support._CONFLICT_WATERMARK_COMMENT_ID,
         )
+
+
+class DriftResumeDeliveryTest(unittest.TestCase):
+    """What one frozen drift prompt lets an issue record as answered.
+
+    The prompt and the record come off one read, so these ask what that read
+    leaves behind. An excerpt bound that stopped short consumes nothing below
+    the context it dropped -- the comment stays unread for the road that
+    delivers it -- while the requirements revision still covers the read as a
+    whole, so a single edit does not re-open the same resume every poll. A
+    reply written after the freeze is in neither the prompt nor the mark.
+    """
+
+    def test_the_prompt_and_the_record_are_one_read(self) -> None:
+        gh, issue, state = self._thread((support._QUOTED_COMMENT_ID, support.QUOTED_EDIT))
+
+        answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
+
+        self.assertIn(support.NEW_BODY, answered.text)
+        self.assertIn(
+            f"@{support.TRUSTED_AUTHOR}: {support.QUOTED_EDIT}", answered.text,
+        )
+        self.assertEqual(
+            [entry.id for entry in answered.delivery.delivered_inputs()],
+            [support._QUOTED_COMMENT_ID],
+        )
+        self.assertEqual(
+            dict(answered.delivery.settle(state))[
+                support.KEY_LAST_ACTION_COMMENT_ID
+            ],
+            support._QUOTED_COMMENT_ID,
+        )
+
+    def test_an_omitted_comment_is_not_consumed(self) -> None:
+        # The bound is what decides the prompt, so it decides the mark too: the
+        # comment the excerpt dropped holds the watermark below itself and is
+        # still there for the scan that delivers it. The revision covers the
+        # whole read regardless -- it is the baseline a later edit is compared
+        # against, and stopped short of the drop it would re-run this resume,
+        # on a prompt bounded exactly the same way, every poll.
+        gh, issue, state = self._thread(
+            (support._OMITTED_COMMENT_ID, support.OMITTED_CONTEXT),
+            (support._QUOTED_COMMENT_ID, support.QUOTED_EDIT),
+        )
+
+        delivery = _prompt_context._delivered_thread(
+            gh, issue, state, support._JUST_THE_TAIL,
+        )
+        settled = dict(delivery.settle(state))
+
+        self.assertNotIn(support.OMITTED_CONTEXT, delivery.rendered_text)
+        self.assertIn(support.QUOTED_EDIT, delivery.rendered_text)
+        self.assertNotIn(support.KEY_LAST_ACTION_COMMENT_ID, settled)
+        self.assertEqual(
+            state.get(support.KEY_LAST_ACTION_COMMENT_ID), support._DELIVERY_FLOOR,
+        )
+        self.assertEqual(
+            state.get(support.KEY_USER_CONTENT_HASH),
+            _content_hash._compute_user_content_hash(issue, set()),
+        )
+
+    def test_a_later_reply_is_still_an_edit(self) -> None:
+        # The minutes an agent is out for. Nothing re-reads the thread to
+        # settle it, so the reply is unquoted, uncrossed, and still drift on
+        # the poll that follows.
+        gh, issue, state = self._thread((support._QUOTED_COMMENT_ID, support.QUOTED_EDIT))
+        answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
+        issue.comments.append(
+            support.FakeComment(
+                id=support._LATER_COMMENT_ID,
+                body=support.LANDED_MID_RUN,
+                user=support.FakeUser(support.TRUSTED_AUTHOR),
+            ),
+        )
+
+        answered.delivery.settle(state)
+
+        self.assertNotIn(support.LANDED_MID_RUN, answered.text)
+        self.assertEqual(
+            state.get(support.KEY_LAST_ACTION_COMMENT_ID),
+            support._QUOTED_COMMENT_ID,
+        )
+        self.assertIsNotNone(
+            _engine_drift._detect_user_content_change(gh, issue, state),
+        )
+
+    def _thread(self, *replies: tuple[int, str]):
+        """A `workflow:implementing` issue whose park had read up to the floor."""
+        gh = support.FakeGitHubClient()
+        issue = support.make_issue(
+            support._DELIVERY_ISSUE_NUMBER,
+            label=support.LABEL_IMPLEMENTING,
+            body=support.NEW_BODY,
+            comments=[
+                support.FakeComment(
+                    id=identified,
+                    body=said,
+                    user=support.FakeUser(support.TRUSTED_AUTHOR),
+                )
+                for identified, said in replies
+            ],
+        )
+        gh.add_issue(issue)
+        gh.seed_state(
+            issue,
+            user_content_hash=support.STALE_HASH,
+            last_action_comment_id=support._DELIVERY_FLOOR,
+        )
+        return gh, issue, gh.read_pinned_state(issue)

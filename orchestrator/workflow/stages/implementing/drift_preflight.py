@@ -10,6 +10,25 @@ the tick refuses: those commits never saw the edited requirements, and pushing
 them would publish work against a spec the human just changed. Whether to
 discard them is the operator's call, so it parks as `stale_recovered_work`.
 
+That refusal records nothing about the edit and everything about itself.
+Nothing ran, so there is no prompt to settle and no baseline to move -- but the
+park writes its own reason down (`_STALE_RECOVERED_WORK`), which is what lets
+the next tick tell its own sentence from a fresh one. Said again it would be
+the same words once a poll; unrecognized it would stand in front of the reply
+it asked for, since the edit it refused is still an edit every tick. So the
+refusal announces once, and after that the tick belongs to whoever answers it:
+the road falls through to the park's own resume, which is where a human's reply
+is delivered and recorded. A park standing for some OTHER reason hears it --
+the refusal supersedes that park, because what the issue is waiting on now is
+a decision about those commits.
+
+Clearing a park records nothing either. Nobody has been handed anything at the
+moment the flags come off, so the edit is passed on
+(`_EDIT_OWED_BY_THE_SPAWN`) and settled by the spawn below against the
+conversation that spawn quotes, which is the same rule the resume road keeps,
+asked one step later. A spawn the retry budget refuses invokes no agent and
+settles nothing, so the edit is still there for the continuation a human buys.
+
 The other is an `agent_timeout` park nobody has replied to. That park is
 retryable without a human, so a tick with no new comment tries the quiet
 recovery first -- publishing a commit that landed after the timeout -- and only
@@ -38,7 +57,6 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
-    drift as _engine_drift,
     guards as _guards,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -53,9 +71,11 @@ from orchestrator.workflow.stages.implementing import (
 
 def _handle_pre_session_drift(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
-) -> bool:
+) -> str:
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if _worktree_creation._has_new_commits(spec, worktree):
+        if state.get(_state._PARK_REASON) == _state._STALE_RECOVERED_WORK:
+            return _state._EDIT_OWED_BY_THE_SPAWN
         _guards._park_awaiting_human(
             gh, issue, state,
             f"{config.HITL_MENTIONS} issue body changed but the "
@@ -64,21 +84,21 @@ def _handle_pre_session_drift(
             "that never saw the edited requirements; decide whether "
             "to discard the recovered work (reset the branch) and "
             "let a fresh agent run, or accept it as-is.",
-            reason="stale_recovered_work",
+            reason=_state._STALE_RECOVERED_WORK,
             bounded=True,
         )
+        state.set(_state._PARK_REASON, _state._STALE_RECOVERED_WORK)
         gh.write_pinned_state(issue, state)
-        return True
+        return _state._EDIT_OWNS_THE_TICK
     if state.get(_state._AWAITING_HUMAN):
         _comments._post_issue_comment(
             gh, issue, state,
             ":pencil2: issue content changed; clearing the park and "
             "spawning a fresh dev run against the updated requirements.",
         )
-        _engine_drift._mark_drift_comments_consumed(gh, issue, state)
         state.set(_state._AWAITING_HUMAN, False)
         state.set(_state._PARK_REASON, None)
-    return False
+    return _state._EDIT_OWED_BY_THE_SPAWN
 
 
 def _recover_quiet_implementer_timeout(

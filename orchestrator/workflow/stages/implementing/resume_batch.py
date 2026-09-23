@@ -143,8 +143,9 @@ class _ReplyBatch:
         The drift check measures a parked issue's requirements by this rather
         than by the live thread, because the replies past the floor are this
         batch's to deliver -- counted as an edit, they would take the drift
-        road, which quotes the whole live thread and marks it read to the tip
-        before the run. No floor is a park that has read nothing.
+        road, whose own excerpt quotes what this batch reserves and refuses,
+        and whose settlement records a delivery this batch never made. No
+        floor is a park that has read nothing.
         """
         if not isinstance(self.floor, int):
             return ()

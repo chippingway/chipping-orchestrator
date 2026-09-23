@@ -3,12 +3,21 @@
 """What a mid-implementation edit to the requirements is answered with.
 
 Re-decomposing is off the table once code exists -- too disruptive -- so the
-locked dev session decides what the new body means instead. The new hash is
-persisted first, unconditionally, because a tick that resumed the dev and then
-failed to record the hash would resume it again on the next poll for the same
-edit. Then the session is what routes it: with one recorded, the human is told,
-the conversation so far is marked consumed, and the session is resumed with the
-updated requirements quoted; without one, the pre-session path answers instead.
+locked dev session decides what the new body means instead. The session is what
+routes it: with one recorded, the human is told and the session is resumed with
+the updated requirements and the conversation so far quoted; without one, the
+pre-session path answers instead.
+
+What records the new baseline is the settlement of a prompt somebody read, and
+nothing else on this road. A resume that reached an agent records the revision
+its own prompt fingerprints; a spawn the pre-session road hands the edit to
+records the revision ITS prompt carried; and a tick that delivered nothing --
+a refusal park, a launch the run circuit turned away, a shutdown kill, a live
+pause -- records nothing at all, so the edit is still there for whoever
+answers it next. Written ahead of the run instead, the baseline would mark an
+edit answered by a prompt no agent ever read: the continuation a human buys
+would spawn against requirements nothing on the issue still calls new, and the
+words on the thread would reach that spawn recorded as already delivered.
 
 The disposition is wider than a normal run's because an edit has a fourth
 possible answer. A fresh commit publishes, a commit-less timeout parks, a
@@ -25,6 +34,14 @@ the branch already carries rather than parking as a question. A human's reply
 to a park reaches the park's own resume rather than this road -- the drift
 check measures a parked issue by what the park had already read -- so this
 road meets that debt only where an edit came with the reply.
+
+What the edit is recorded as answered by is the RUN, on either road. The
+resume freezes its prompt and its delivery record together and settles that
+record once the run is back, for every outcome that reached an agent -- a
+push, an ACK, a timeout, a question -- and for none that did not. The
+pre-session road settles nothing itself: clearing a park delivers nothing, so
+the edit is settled by the fresh spawn below it, against the conversation that
+spawn actually quoted.
 """
 from __future__ import annotations
 
@@ -40,10 +57,10 @@ from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     comments as _comments,
-    drift as _engine_drift,
+    drift_delivery as _drift_delivery,
     guards as _guards,
     messages as _messages,
-    prompt_context as _prompt_context,
+    prompt_delivery as _delivery,
     report_redelivery as _report_redelivery,
     retry_ledger as _retry_ledger,
     usage as _usage,
@@ -62,6 +79,7 @@ from orchestrator.workflow.stages.implementing.state import (
     _BRANCH,
     _CODEX_SESSION_ID,
     _DEV_AGENT,
+    _EDIT_OWNS_THE_TICK,
     _SILENT_PARK_COUNT,
 )
 
@@ -71,22 +89,25 @@ def _handle_user_content_drift(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: _pinned_state.PinnedState,
-    new_hash: str,
-) -> bool:
+) -> str:
     """React to a human editing the issue title/body after the dev spawned.
 
-    Persists the new content hash, then:
-      * With a recorded dev session -> notify the human, mark the current
-        conversation consumed, resume the locked session with the updated
-        requirements, and dispose the result (publish a fresh commit, park a
+    Which road answers it decides what happens, and none of them records a
+    baseline the run behind it has not earned:
+      * With a recorded dev session -> notify the human, resume the locked
+        session with the updated requirements quoted from one frozen read, and
+        dispose the result (publish a fresh commit, park a
         commit-less timeout, ACK an explicit "existing work satisfies" reply,
-        or park the question). Always returns True -- the caller must return.
+        or park the question), settling that read where the run reached an
+        agent. Always owns the tick -- the caller must return.
       * Without a dev session but with recovered unpushed commits from a prior
-        tick -> park `stale_recovered_work` (those commits never saw the edited
-        body) and return True.
+        tick -> refuse the tick outright (those commits never saw the edited
+        body), owning it for as long as the operator leaves them there.
       * Without a dev session and without recovered commits -> clear any park
-        and return False so the caller falls through to the fresh-spawn path,
-        which builds the implement prompt from the current `issue.body`.
+        and hand the edit to the fresh-spawn path: that spawn builds the
+        implement prompt from the current `issue.body` and settles both the
+        conversation it quoted and the revision it answers, so a spawn the
+        budget refuses leaves the edit exactly as it found it.
       * With a dev session but an UNSPENT continuation on the issue -> the
         pre-session road as well, whatever the transcript could have said. An
         issue parked on a spent budget sits there for as long as it takes a
@@ -100,11 +121,10 @@ def _handle_user_content_drift(
     rules out routing back to `decomposing`; the locked session decides what to
     do with the new body instead.
     """
-    state.set("user_content_hash", new_hash)
     session = state.get(_DEV_AGENT) or state.get(_CODEX_SESSION_ID)
     if session and not _retry_ledger._grant_is_unspent(state):
         _resume_dev_on_implementing_drift(gh, spec, issue, state)
-        return True
+        return _EDIT_OWNS_THE_TICK
     return _drift_preflight._handle_pre_session_drift(gh, spec, issue, state)
 
 
@@ -115,6 +135,30 @@ class _ImplementingDriftRun:
     before_sha: str | None
     paused: bool
     committed: bool
+    # The record of what this resume's prompt actually quoted, which is what
+    # the disposition settles. It travels with the run rather than being
+    # re-read after it: the thread moves while an agent is out, and a mark
+    # taken off what it ends on crosses replies nobody delivered.
+    delivery: _delivery.PromptDeliverySnapshot
+
+    @classmethod
+    def finished(
+        cls,
+        before_sha: str | None,
+        resumed: tuple[Path, _agent_models.AgentResult, bool],
+        delivery: _delivery.PromptDeliverySnapshot,
+    ) -> _ImplementingDriftRun:
+        """One finished resume, told from the head it started on."""
+        worktree, agent_result, paused = resumed
+        after_sha = _verification_probes._head_sha(worktree)
+        return cls(
+            worktree=worktree,
+            agent_result=agent_result,
+            before_sha=before_sha,
+            paused=paused,
+            committed=bool(after_sha) and after_sha != before_sha,
+            delivery=delivery,
+        )
 
 
 def _run_implementing_drift_resume(
@@ -122,27 +166,17 @@ def _run_implementing_drift_resume(
 ) -> _ImplementingDriftRun:
     worktree = _worktree._ensure_resume_worktree(spec, issue, state)
     before_sha = _verification_probes._head_sha(worktree)
-    followup = _engine_drift._build_user_content_change_prompt(
-        issue, _prompt_context._recent_comments_text(issue),
-    )
+    answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
     resumed = _resume._resume_dev_with_text(
-        gh, spec, issue, state, followup, pause_guard=True,
+        gh, spec, issue, state, answered.text, pause_guard=True,
+        # The re-grounding conversation a rotated, retired or poisoned
+        # session's respawn is given, handed over rather than read again:
+        # taken there it would be a second reading, minutes newer than the
+        # record this tick settles, and the comment written in between would
+        # reach the agent and be handed to it again on the next poll.
+        thread_text=answered.delivery.rendered_text,
     )
-    return _implementing_drift_run(before_sha, resumed)
-
-
-def _implementing_drift_run(
-    before_sha: str | None, resumed: tuple[Path, _agent_models.AgentResult, bool],
-) -> _ImplementingDriftRun:
-    worktree, agent_result, paused = resumed
-    after_sha = _verification_probes._head_sha(worktree)
-    return _ImplementingDriftRun(
-        worktree=worktree,
-        agent_result=agent_result,
-        before_sha=before_sha,
-        paused=paused,
-        committed=bool(after_sha) and after_sha != before_sha,
-    )
+    return _ImplementingDriftRun.finished(before_sha, resumed, answered.delivery)
 
 
 def _post_implementing_drift_ack(
@@ -165,10 +199,15 @@ def _dispose_implementing_drift(
     drift: _ImplementingDriftRun,
 ) -> None:
     if (
-        _guards._ignore_if_interrupted(issue, drift.agent_result)
+        _guards._ignore_if_never_invoked(issue, drift.agent_result)
+        or _guards._ignore_if_interrupted(issue, drift.agent_result)
         or drift.paused
     ):
         return
+    # Every run that consumes nothing has returned by now, so what is left
+    # read the prompt -- a timeout and a question included, since what the
+    # park that follows says is wrong is the answer rather than the input.
+    drift.delivery.settle(state)
     if drift.committed or _report_redelivery.redelivers_an_owed_report(
         spec, state, drift.agent_result, drift.worktree,
     ):
@@ -203,7 +242,6 @@ def _resume_dev_on_implementing_drift(
         ":pencil2: issue body changed; resuming dev session with "
         "the updated requirements.",
     )
-    _engine_drift._mark_drift_comments_consumed(gh, issue, state)
     drift = _run_implementing_drift_resume(gh, spec, issue, state)
     state.set("last_agent_action_at", _usage._now_iso())
     state.set(
@@ -211,3 +249,19 @@ def _resume_dev_on_implementing_drift(
         _naming._resolve_branch_name(state, spec, issue.number),
     )
     _dispose_implementing_drift(gh, spec, issue, state, drift)
+
+
+def _settle_edit_on_the_spawn(
+    state: _pinned_state.PinnedState, prepared: _models._PreparedDevRun,
+) -> None:
+    """Settle a pre-session edit against the spawn that answered it.
+
+    The park clearing that let this tick spawn delivered nothing to anybody,
+    so what the edit is recorded as answered by is the fresh prompt below it:
+    the conversation that prompt quoted, and only for a run that read it. The
+    caller has already returned on a shutdown kill and on a live pause, which
+    leaves the launch nothing invoked -- and the recovered publication no
+    agent ran for, which carries no record at all.
+    """
+    if prepared.delivery is not None and prepared.agent_result.invoked:
+        prepared.delivery.settle(state)

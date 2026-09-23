@@ -210,8 +210,9 @@ read, and the frozen reply batch delivers the reply. On `workflow:validating` th
 road's CONTINUATION rather than an ordinary fix: a park left standing over an edit its own resume never answered, or
 over a report the issue owes, makes the next reply read the way the resume's own answer reads — held to the developer
 report contract before the size gate, with a report and no commit published onto the unchanged head. Either way the
-report is stamped with the requirements revision that session was actually handed — the drift check's own hash for
-the resume it launched, and the revision the frozen batch delivered for the reply continuing it — and no reviewer
+report is stamped with the requirements revision that session was actually handed — on `workflow:validating` the
+fingerprint of the read its own prompt was built from, whether that prompt is the drift resume's frozen excerpt or
+the frozen batch of the reply continuing it — and no reviewer
 runs until the pull request carries it. `in_review` runs the same contract on its own drift resume, recording the
 report under its own route ahead of the size gate and publishing a report with no commit onto the head the pull
 request carries; the issue then goes back to `workflow:validating`, which is where that reviewer waits.

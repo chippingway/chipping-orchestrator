@@ -43,7 +43,8 @@ The drift-sensitive handlers — `_handle_decomposing`, `_handle_ready`, `_handl
 — run `_detect_user_content_change` somewhere in their flow. The hash covers the issue title, body, and every
 human-authored *issue-thread* comment body (PR-conversation comments are not in the hash). The hash and eight
 filters below live in `workflow/engine/content_hash.py`; baseline handling and drift routes live in
-`workflow/engine/drift.py`. Operator-command filters read the syntax from the owners of those commands.
+`workflow/engine/drift.py`, and the frozen prompt an issue-backed resume is answered with in
+`workflow/engine/drift_delivery.py`. Operator-command filters read the syntax from the owners of those commands.
 
 `_handle_in_review` is the exception in ordering: it runs the four-surface fresh-feedback ID scan FIRST and routes any
 unread human comment past those watermarks to `workflow:fixing`, so the drift check that follows reacts only to
@@ -55,6 +56,37 @@ reply batch before asking, and measures the requirements by what the park had al
 below `last_action_comment_id` — so a reply to the park is the batch's to deliver rather than a drift that resumes the
 developer on the whole thread. Only a title/body edit, or an edit to a comment the park had already read, takes the
 drift road there, and settling the batch records `user_content_hash` through the reply it delivered.
+
+The drift road those two take is frozen the same way the batch is, and bounded differently.
+`drift_delivery._drift_resume_prompt` reads the
+thread ONCE, renders the resume prompt from that read, and carries the `prompt_delivery` record of it through the run —
+`_ImplementingDriftRun.delivery` and `_ValidatingDriftRun.delivery` — so what the developer was quoted and what the
+issue may mark answered are one fact. What differs is the excerpt: a drift resume quotes the WHOLE thread, so it is
+capped at 4000 characters like every other whole-thread prompt, while the reply batch quotes only the replies past
+the park's watermark and is deliberately uncapped (`resume_batch._UNBOUNDED_EXCERPT`). A cap there would record an
+omission the followup never made — it quotes every reply it was handed — and the watermark would then stop below a
+comment the developer read. Three rules follow from the frozen record, and they are the general rules for
+issue-backed feedback rather than anything specific to a body edit:
+
+- **The excerpt bound decides the mark.** Where there is one: a comment the drift resume's 4000-character excerpt
+  dropped reaches no prompt, so the issue-thread watermark stops below it and it stays deliverable by the scan that
+  owns it. The uncapped reply batch drops nothing and so holds nothing back. The requirements revision
+  the settlement records still covers the whole read, because that field is the comparison point a later edit is
+  measured against and stopping it short of the drop would re-open the same resume, on an identically bounded prompt,
+  every poll.
+- **A comment that arrives after the freeze is unread.** Nothing between the freeze and the settlement re-reads the
+  thread, so a reply written while the agent is out is neither quoted nor crossed — and the revision recorded leaves
+  it an edit for the next tick. The bounded walk an announced park takes afterwards stops below it for the same
+  reason.
+- **Only a run that read the prompt settles it.** The record is settled after the run and only for an outcome that
+  counts the input as delivered: a shutdown kill, a live pause, and a launch the run circuit refused consume nothing,
+  while a push, an `ACK:`, a timeout, and a question park all do. Delivery is not resolution — the park's reason says
+  what is wrong with the answer, not with the input. Each of the three refusals returns before pinned state is
+  written (`_ignore_if_never_invoked`, `_ignore_if_interrupted`, and the live-pause flag), so a withheld run leaves
+  the watermark, the park flags and the drift baseline exactly as it found them.
+- **That settlement is what records the new baseline.** `user_content_hash` moves with the prompt that answered the
+  edit and with nothing else on these two roads: no road stages it ahead of the run, a deferral or a refusal park
+  records none of it, and an edit no prompt has carried is still an edit on the next tick.
 
 `_handle_fixing`, `_handle_question`, and `_handle_discussion` deliberately skip the drift check. `_handle_fixing`
 refreshes `user_content_hash` itself once it has consumed the PR-side feedback; `_handle_question` and
@@ -88,8 +120,10 @@ Non-human content is filtered eight ways:
 - untrusted authors via `github.comments.is_trusted_author` when `ALLOWED_ISSUE_AUTHORS` is set (opt-in; empty
   allowlist trusts everyone), so an outsider's comment cannot shift the hash and re-trigger drift on a public repo.
   The same trust helpers filter agent-prompt text in `workflow/engine/prompt_context.py`: `_recent_comments_text`
-  (implement /
-  review / documentation / decompose / question / drift-resume) and `_thread_text` beneath it, which the `discussion`
+  (documentation / decompose / question, and the two PR-backed drift resumes — the prompts whose stage settles
+  nothing by what they quote), `_delivered_thread` beside it (the implementing fresh spawn, the validating reviewer
+  round, and the two issue-backed drift resumes, which render the same filtered text and keep the record of which
+  comments it was made of). Beneath `_recent_comments_text` sits `_thread_text`, which the `discussion`
   stage calls directly over its own thread snapshot — with one documented retention, the orchestrator's own comments
   by recorded `orchestrator_comment_ids`, since that stage's full-context prompt rebuilds a conversation the
   orchestrator is half of (see
@@ -148,11 +182,15 @@ the action depends on lifecycle position:
   orchestrator no longer tracks them, so the operator must close any that no longer apply.
 - **`workflow:implementing` / `workflow:validating` / `in_review` / `workflow:resolving_conflict`** (a dev session
   exists and possibly a PR) — post a `:pencil2: issue body changed; resuming dev session` notice (on the issue for
-  implementing/validating, on the PR for in_review/resolving_conflict), advance `last_action_comment_id` past every
-  visible comment, resume the locked dev session with `_build_user_content_change_prompt`, and route the result
-  through `_post_user_content_change_result`. On `workflow:implementing` an **unspent `retry_cap_continued`** outranks
-  the recorded session and sends the edit down the no-session road instead (hash persisted, park cleared, fall through
-  to the gated fresh spawn, which builds its prompt from the body the human just wrote): an issue parked on a spent
+  implementing/validating, on the PR for in_review/resolving_conflict), resume the locked dev session with
+  `_build_user_content_change_prompt`, and route the result through `_post_user_content_change_result`. The two
+  issue-backed roads take the frozen `_drift_resume_prompt` record described above and settle it after the run; the
+  two PR-backed ones still advance `last_action_comment_id` past every visible comment before the resume
+  (`_mark_drift_comments_consumed`), since their prompts quote the live thread through `_recent_comments_text`.
+  On `workflow:implementing` an **unspent `retry_cap_continued`** outranks
+  the recorded session and sends the edit down the no-session road instead (park cleared, nothing recorded, fall
+  through to the gated fresh spawn, which builds its prompt from the body the human just wrote and settles
+  that): an issue parked on a spent
   budget sits there for as long as it takes somebody to answer, so the requirements move under it, and what the
   continuation bought is one fresh spawn — the only run the budget counts. Resumed, the agent would run on the
   human's attempt while the grant stayed on the issue, ready to buy a second run nothing charged.
@@ -170,8 +208,10 @@ Result routing in `_post_user_content_change_result`:
 - on `workflow:validating` and `in_review`, where the caller names what its resume was `handed`, a commit this run
   made is held to the developer report contract (`validating/drift_reports.py`): the report is recorded as
   `developer_report_delivery` BEFORE the size gate reads the candidate, under that stage's route and the
-  requirements revision the drift check hashed and handed the resume — never the baseline as it stands when
-  publication succeeds. Once the push lands the caller writes its own bookkeeping — on `in_review` the relabel too —
+  requirements revision that caller handed it — on `workflow:validating` the fingerprint of the read its own
+  prompt was built from, which is also the baseline its settlement writes, and on `in_review` the drift check's
+  earlier read — never the baseline as it stands when publication succeeds. Once the push lands the caller writes
+  its own bookkeeping — on `in_review` the relabel too —
   and only then binds the report to the publication the code-publication receipt names, settling through the
   [reconciliation](#the-developer-report-transaction-every-dispatch) on the same tick
   (`validating/report_settlement.py`). The pull request, its description, and the issue are all read again by number
@@ -230,10 +270,60 @@ Per-stage specifics:
 - For **`workflow:implementing`** drift, the resume runs only when `dev_session_id` is recorded. With recovered
   unpushed commits but no session the handler parks (the commits were authored against the pre-drift body). With no
   session, no recovered commits, and `awaiting_human=True`, park flags are cleared so the fresh-spawn branch fires
-  this tick against the updated body.
+  this tick against the updated body. Clearing that park records NOTHING — not the watermark and not the baseline:
+  the pre-session road hands the edit on (`state._EDIT_OWED_BY_THE_SPAWN`) and the fresh spawn settles both, against
+  the conversation its own `_build_implement_prompt` quoted and only once that run counts as delivered. So a spawn
+  the retry budget refuses, an interrupted one, and a live pause each leave the edit exactly as they found it, and
+  the `/orchestrator continue` that buys the refused spawn answers the same edit rather than one nothing still calls
+  new. The `stale_recovered_work` refusal records nothing about the edit either, since nothing ran — but it does
+  record ITSELF, as a durable `park_reason`, which is the only thing that tells the next tick its own sentence from
+  one still owed. Announced once, it then stands down: the road recognizes its park and falls through, so the reply
+  it asked for reaches the awaiting-human resume that delivers and settles it, and the quiet `agent_timeout`
+  recovery cannot publish those commits behind the operator's back (the reason is no longer `agent_timeout`). A park
+  standing for any OTHER reason hears the refusal, which supersedes it: what the issue waits on now is a decision
+  about the commits.
 - For **`workflow:validating`** drift, the handler defers to the awaiting-human branch when `park_reason` is
   reviewer-side (`reviewer_timeout` / `reviewer_failed`): a "retry" reply after a reviewer failure must re-spawn the
-  reviewer, not the dev. The new baseline is still persisted so the next tick doesn't loop. Both review stages name
+  reviewer, not the dev. A deferral delivers the edit to nobody, so it records nothing about it — no watermark and
+  no baseline. What it does record is `validating_reviewer_owes_a_round`, because the park is gone before that
+  round runs: the silent recovery clears the flags and ends its tick, a report still owed holds the reviewer behind
+  a clear already written, and without the note the edit would take a later tick down the developer's road ahead of
+  the retry the park was taken for. The road that clears such a park into a round writes the same note, with the
+  value saying a REPLY bought the round rather than a recovery releasing one — and a deferral never writes over a
+  claim already standing, or the round would be left with nothing to record. The round that runs drops the note and
+  records what bought it — the retry reply or the operator's grant — off the one read its OWN prompt was
+  rendered from (`reviewer.py`), whether or not the park outlived the tick that cleared it, while a launch the run
+  circuit turned away records neither, so an edit no prompt
+  has carried is still an edit on the tick after this one. The cap's `/orchestrator add-review-rounds` is the one
+  control road recording anything of its own, and only where the comment IS the command and nothing else
+  (`awaiting._is_bare_command`, the test `/orchestrator continue` and `/orchestrator add-agent-runs` are held to):
+  THAT COMMENT's words as read when it answers the command on the thread, since a grant nobody can act on must not
+  come back forever, while every other comment in the batch goes into the record as an omission — the requirements
+  those words arrived beside stay the round's to record, and guidance somebody wrote below the command is nobody's
+  to cross. A command written INSIDE a comment of guidance records nothing at all: crossing it would cross a head
+  no prompt here carried and the bounded round a grant buys may never quote, so the whole comment stays unread and
+  that round delivers and records it. A command the mark is held below outlives the cap it answered — the batch a
+  LATER cap freezes reaches back below it and carries the same words again — so the grant records the comment it
+  was written for (`review_cap_granted_comment_id`), beside the round reset and in the same write, and reads a
+  command that record already names as no command at all (`awaiting._cap_command_to_answer`). Beside rather than
+  ahead of the reset because the two have to be durable together:
+  the reset is staged for the reviewer's own write, so a launch the run circuit refuses keeps the notice, discards
+  both, and leaves the very command an agent-run grant hands back to be honored for real. The invalid-argument
+  refusal is the other shape — its write follows its post, so the post standing above the command is what keeps it
+  from saying the same thing on every poll. A command written later carries an id of its own and is new either
+  way. A
+  reviewer-side park's retry records nothing at all — the reply is the round's to read, under
+  the round's own excerpt bound, and one that bound cut short must stay unread for the scan that owns the issue
+  thread rather than be marked delivered out of the unbounded batch a park froze for a developer prompt.
+  One thing outranks the deferral in both shapes: a report this stage still owes its pull request. No reviewer runs
+  behind that debt, and the record it is owed was written against requirements a reply has already moved — which
+  the reconciliation stands down on until a resume answers the edit — so the edit takes the developer's road, those
+  words are delivered and recorded there, and the note stands for the round behind it.
+  Where the resume does run, `_finish_validating_drift` settles its frozen
+  record before the result handler posts, pushes, or spends a round, and the requirements revision that record
+  fingerprints is what the run's report is stamped with: the drift check's own hash was taken a moment earlier, and
+  a reply landing in between is in the prompt and in the settled baseline, so a report stamped with the older value
+  would be held against requirements its own prompt contained. Both review stages name
   what their resume was `handed`, so the report contract above runs for each: a resume ending PARKED records
   `requirements_drift_open` beside that park, which is what makes the reply clearing it the rest of this resume
   rather than an ordinary fix, and any outcome that answers the edit drops the claim again. The report a `"pushed"`
@@ -241,7 +331,9 @@ Per-stage specifics:
   pinned write here, the relabel on `in_review` — so no tick ever finds a settled report beside bookkeeping a crash
   could still lose, or a settled report beside a label still claiming the approval the edit made stale.
 
-The hash is re-persisted on every reaction so a single edit triggers exactly one re-route, not a loop.
+On the two issue-backed stages the hash is re-persisted by the settlement of the prompt that answered the edit and
+by nothing else, so a single edit triggers exactly one re-route once something has read it, and a tick that
+delivered nothing leaves it for the next one. The PR-backed roads still re-persist it on every reaction.
 
 ## `_handle_decomposing` (label `workflow:decomposing`)
 - **Trigger**: each tick while the label is `workflow:decomposing`.
@@ -3316,8 +3408,10 @@ Each stage takes that batch ONCE per parked tick and hands it on: `workflow:impl
 `workflow:validating`'s handler builds `_AwaitingValidation` before its drift check. A command or reply landing after
 that read is in no part of the tick. The drift check on a parked tick measures the requirements by what the park had
 already read — the frozen comments at or below its watermark (`_ReplyBatch.answered`) — so replies to the park are the
-batch's to deliver rather than an edit that takes the drift road, which would quote the whole live thread (pasted
-markers and control commands included) and mark it read to the tip before the run. Only a change the replies do not
+batch's to deliver rather than an edit that takes the drift road, which would quote those replies inside a
+whole-thread excerpt (control commands included) as the body edit they are not, and settle THAT read once its run is
+back — the reply crossed under a prompt cut at 4000 characters where the batch it belongs to is deliberately
+uncapped so nothing the followup quotes can be recorded as an omission. Only a change the replies do not
 explain — the title, the body, a comment the park had already read — is drift. The batch's delivery record names the
 requirements revision it answers — the fingerprint of the frozen read through the last reply it delivers — and the
 settlement records it as `user_content_hash`, so a delivered reply never comes back as an edit, on this stage or the one

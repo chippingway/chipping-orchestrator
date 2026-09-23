@@ -81,6 +81,24 @@ _IMPLEMENTING_WATERMARK_COMMENT_ID = 7000
 _CONFLICT_WATERMARK_ISSUE_NUMBER = 930
 _CONFLICT_WATERMARK_PR_NUMBER = 9300
 _CONFLICT_WATERMARK_COMMENT_ID = 8000
+
+# The thread one drift resume is frozen over: an older comment the excerpt
+# bound drops, the edit it does carry, and a reply written while the agent is
+# out. The floor is what the issue had already recorded as read.
+_DELIVERY_ISSUE_NUMBER = 940
+_DELIVERY_FLOOR = 100
+_OMITTED_COMMENT_ID = 9000
+_QUOTED_COMMENT_ID = 9001
+_LATER_COMMENT_ID = 9002
+OMITTED_CONTEXT = "the first requirement"
+QUOTED_EDIT = "and please also rename the helper"
+LANDED_MID_RUN = "actually, hold on"
+
+# An excerpt bound that admits the last quoted line and nothing above it: the
+# rendering is one line per comment, joined by a blank line, and the snapshot
+# keeps the tail. Spelled from the line itself so a reworded body cannot turn
+# the case into one where everything fits.
+_JUST_THE_TAIL = len(f"@{TRUSTED_AUTHOR}: {QUOTED_EDIT}")
 _EVICTED_BOT_COMMENT_ID = 12345
 _HUMAN_COMMENT_ID = 12346
 _BOT_FILTER_HUMAN_COMMENT_ID = 900

@@ -18,7 +18,8 @@ The outcome tokens are the same shape one level up -- a helper returns
 owner switches on it -- so the strings are declared once rather than spelled
 twice.
 
-`_OPEN_DRIFT` is the one key here that outlives its own tick on purpose. A
+`_OPEN_DRIFT`, `_REVIEWER_OWES_A_ROUND`, and `_CAP_GRANTED_ON` are the keys
+here that outlive their own tick on purpose. A
 requirements edit resumes the developer, and that resume can end without
 answering it: a question, a timeout, a tree nobody could publish. The reply
 that clears such a park is a continuation of the drift road rather than an
@@ -28,6 +29,27 @@ road a park came off. Both review stages write it through the shared drift
 disposition and `in_review` reads it for the budget a hand-back owes; it lives
 exactly as long as the park it was written with, since the park clearing is
 what answers it. Additive: an issue without it has no edit outstanding.
+
+`_REVIEWER_OWES_A_ROUND` is the other, and it exists for the gap between a
+reviewer-side park clearing and the round that clearing was for. The drift
+check stands down for such a park because the reply -- or the silent recovery
+-- belongs to the reviewer; the clear then goes out on a tick that runs no
+round at all -- the recovery unparks and ends its tick, a report still owed
+holds the reviewer behind it -- and the round it released runs on a later one.
+The thread it releases has moved the requirements by then, so a tick reading
+the park alone finds a plain edit and takes the developer's road ahead of the
+reviewer the reply bought. Both roads write this down instead, and the round
+that finally runs drops it -- and settles the reply where the value says one
+bought it. Additive: an issue without it owes no round.
+
+`_CAP_GRANTED_ON` is the third, and it is the one record that says a cap grant
+took. The notice announcing it is posted before the reviewer runs while the
+round reset it announces is staged for the reviewer's own write, so a launch
+the run circuit refuses keeps the sentence and discards the reset -- and the
+same command has to be honored again once an agent-run grant hands the park
+back. Written beside the reset, it goes down or does not with it, which is
+what tells a grant still owed from one already made and stops a command the
+mark was held below resetting every cap the issue later reaches.
 
 `_VERIFY_STATUS_TO_REASON` and `_VALIDATING_TRANSIENT_PARK_REASONS` are the
 two groupings that decide behavior on their own: the first turns a verify
@@ -39,8 +61,9 @@ from __future__ import annotations
 
 import re
 from types import MappingProxyType
+from typing import Any
 
-_ReviewRoundsCommand = tuple[int, str | None]
+_ReviewRoundsCommand = tuple[Any, int, str | None]
 
 _ADD_REVIEW_ROUNDS_RE = re.compile(
     r"^\s*/orchestrator\s+add-review-rounds\s+(\d+)\s*$",
@@ -93,6 +116,24 @@ _REPORTING_OUTCOMES = frozenset((_OUTCOME_PUSHED, _OUTCOME_REPORTED))
 # answered it yet. Written beside the park the resume ended on and read by the
 # reply that clears it, which is then the drift resume's continuation.
 _OPEN_DRIFT = "requirements_drift_open"
+
+# Whether a reviewer round a deferral stood down for is still owed. Written by
+# the drift check when it defers and by the road that clears a reviewer-side
+# park into a round, carried by whichever write goes out first, and dropped by
+# the reviewer round that runs.
+_REVIEWER_OWES_A_ROUND = "validating_reviewer_owes_a_round"
+
+# What that note holds where a REPLY bought the round rather than a silent
+# recovery releasing one: the round owes those words a settlement wherever it
+# finally runs, which is not necessarily the tick the park came off. `True` is
+# the other shape -- an edit nobody delivered, which the round that discharges
+# the note records nothing about.
+_ROUND_BOUGHT_BY_A_REPLY = "bought_by_a_reply"
+
+# The comment a review-cap grant was WRITTEN for. Staged beside the round
+# reset it buys and carried by the same write, so it is durable exactly where
+# that reset is. Additive: an issue without it has granted nothing.
+_CAP_GRANTED_ON = "review_cap_granted_comment_id"
 
 _OUTCOME_STUCK = "stuck"
 

@@ -144,7 +144,9 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     # rather than re-review stale work. Returns True when it fully handled the
     # tick; a reviewer-side (`reviewer_timeout` / `reviewer_failed`) or
     # `review_cap` park defers to the awaiting-human branch below (that branch
-    # owns the human's "retry" / `/orchestrator add-review-rounds` comment).
+    # owns the human's "retry" / `/orchestrator add-review-rounds` comment),
+    # recording the round it stood down for so the edit stays behind that
+    # round even once the park is cleared.
     parked = (
         _models._AwaitingValidation.build(gh, spec, issue, state)
         if state.get("awaiting_human") else None
@@ -159,4 +161,8 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     if reviewer_run is None:
         return
 
+    # The requirements the reply that bought this round arrived beside are
+    # the round's to record, not the road's that granted it: a launch the
+    # circuit turned away read none of them, and leaves the edit outstanding.
+    _reviewer._settles_what_bought_the_round(state, parked, reviewer_run)
     _reviewer._dispatch_reviewer_result(gh, spec, issue, state, reviewer_run)

@@ -32,6 +32,13 @@ disposition downstream distinguishes a commit produced by THIS run from
 carried-over work by comparing against it. The branch is persisted on every
 prepared run for the same reason: whatever the next tick resolves has to be the
 branch this one worked on.
+
+A spawn's prompt and the record of what it quoted come off ONE read of the
+thread and travel together on the prepared run, for the road that has an edit
+to settle against them: a requirements edit that fell through to a fresh spawn
+is answered by this prompt and by nothing earlier, so a watermark taken before
+it -- or re-read after the agent is back -- would mark answered words no
+developer was handed.
 """
 from __future__ import annotations
 
@@ -90,12 +97,13 @@ def _spawn_implementer(
     issue: Issue,
     state: PinnedState,
     worktree: Path,
-) -> tuple[AgentResult, bool] | None:
+) -> _models._SpawnedRun | None:
     if not _charge_fresh_spawn(gh, issue, state):
         gh.write_pinned_state(issue, state)
         return None
     session = _models._DevSession(*_session_read._read_dev_session(state))
     state.set(_state._DEV_AGENT, session.spec)
+    delivered = _prompt_context._delivered_thread(gh, issue, state)
     agent_result = _usage._run_agent_tracked(
         gh,
         _run_charge_state.AgentRunBudget(issue=issue, state=state),
@@ -105,7 +113,7 @@ def _spawn_implementer(
         prompt=_prompts._build_implement_prompt(
             spec,
             issue,
-            _prompt_context._recent_comments_text(issue),
+            delivered.rendered_text,
             config.default_repo_specs(),
         ),
         cwd=worktree,
@@ -118,7 +126,7 @@ def _spawn_implementer(
     if agent_result.session_id:
         state.set(_state._DEV_SESSION_ID, agent_result.session_id)
         state.set(_state._DEV_RESUME_COUNT, 0)
-    return agent_result, _guards._paused_during_agent_run(gh, issue)
+    return agent_result, _guards._paused_during_agent_run(gh, issue), delivered
 
 
 def _charge_fresh_spawn(
@@ -255,8 +263,7 @@ def _prepare_active_dev_run(
     spawned = _spawn_implementer(gh, spec, issue, state, worktree)
     if spawned is None:
         return None
-    agent_result, paused = spawned
-    return _models._PreparedDevRun(agent_result, before_sha, paused, worktree)
+    return _models._PreparedDevRun.from_spawn(spawned, before_sha, worktree)
 
 
 def _prepare_dev_run(
