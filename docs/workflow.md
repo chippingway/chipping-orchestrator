@@ -109,12 +109,12 @@ the pull request. A fresh respawn's preamble restates the ownership and defers t
 initial implementation delivery is the road that acts on one: `workflow/engine/report_delivery.py` records what the
 run wrote before the size gate and the push, and `workflow/engine/report_binding.py` binds it to the repository, pull
 request, branch and commit the code reaches and publishes it there before the issue may move to
-`workflow:validating`. Either half of the fix loop on an open pull request acts on one as well -- a
-requirements-drift resume, and a reviewer-requested round on either side of the park it may end on: the report is
-recorded before the size gate, stamped with the requirements revision the run was handed, bound once the code is
-out (or at once, for a report alone, which spends the round a pushed fix spends because the next reviewer reads it),
-and the reviewer waits until the pull request carries it. The additive
-`developer_report_*` pinned records (`workflow/engine/report_record*`,
+`workflow:validating`. Every road of the fix loop on an open pull request acts on one as well -- a
+requirements-drift resume, a reviewer-requested round on either side of the park it may end on, and the
+human-feedback round `in_review` routes to `workflow:fixing`: the report is recorded before the size gate, stamped
+with the requirements revision the run was handed, bound once the code is out (or at once, for a report alone, which
+spends the round a pushed fix spends because the next reviewer reads it), and the reviewer waits until the pull
+request carries it. The additive `developer_report_*` pinned records (`workflow/engine/report_record*`,
 `report_delivery_state.py` and `report_settlement_state.py`) carry that report and the publication transaction it is
 bound into across a process that dies mid-way; `workflow/engine/report_transaction.py` reconciles an outstanding
 transaction ahead of every stage handler — proving the world it was recorded against, publishing or re-reading the
