@@ -957,7 +957,15 @@ The keys that matter for the state machine fall into a few groups:
   and what reads it back is the recovery that took it: that route retries on every tick and stays silent while its
   own reason stands, so the reason is what tells a notice already on the thread from one to post afresh — and a park
   worded by the size gate behind it, which says its own piece on every reading it cannot take, is held for a human
-  rather than re-entered. The developer-report reconciliation re-sets `report_record_damaged` for a reason of its
+  rather than re-entered. A pre-session requirements edit over recovered commits re-sets `stale_recovered_work`
+  (`stages/implementing/drift_preflight.py`) for a reason of the same shape and one of its own: the edit it refused
+  is an edit on every tick after it, so without the reason the refusal would meet its own issue afresh once a poll
+  — the same sentence said again, standing in front of the reply it asked for. Recognizing it, the tick says
+  nothing and stands down to the awaiting-human resume, which is where that reply is delivered and recorded; it
+  supersedes a park standing for anything else, since what the issue waits on now is a decision about those
+  commits; and while it stands the quiet `agent_timeout` recovery cannot publish them behind the operator's back,
+  since the reason on the park is this one rather than `agent_timeout`. The developer-report reconciliation
+  re-sets `report_record_damaged` for a reason of its
   own: the park is the dispatcher's rather than a stage's, so the reason is the only thing that tells a tick whose
   park it is standing over — this owner announces once, holds silently on its own, and retires *only* its own,
   since every other reason belongs to a stage still waiting for what it asked for. Where one of those is already

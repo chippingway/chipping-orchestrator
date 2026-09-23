@@ -2656,9 +2656,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       awaiting.py           the three park-reason claims on the context's one frozen reply batch, and the dev
                             attempt they fall through to, handed that same batch; the explicit `/orchestrator
                             continue` retry is re-grounded off its conversation less the commands it consumes.
-                            The cap's grant is the one control road recording anything of its own -- its WORDS
-                            as read, since the orchestrator answered them on the thread, and nothing else,
-                            because what no agent has read is the requirements they arrived beside. A
+                            The cap's grant is the one control road recording anything of its own, and only
+                            where the comment IS the command: those WORDS as read, since the orchestrator
+                            answered them on the thread, and nothing else, because what no agent has read is
+                            the requirements they arrived beside. A command written inside a comment of
+                            guidance records none of it -- the round the grant buys is what delivers those
+                            words, under its own bound -- so the grant writes down the COMMENT it answered
+                            instead, beside the round reset and in the same write: durable exactly where that
+                            reset is, which is what a launch the run circuit refuses discards, and what keeps
+                            one comment from resetting every cap the issue later reaches. A
                             reviewer-side park's retry records nothing at all: that reply belongs to the round it
                             buys, which reads it under the round's own bound (`reviewer.py`). Both roads DO write
                             down the round those words bought, since the clear can go out on a tick that runs no
@@ -2799,8 +2805,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that such an answer already stands on the thread, and the note a reply's round is
                             owed by
       state.py              the pinned-state keys, park reasons, and outcome tokens they share, including the
-                            claim that a requirements edit this stage's resume ended without answering is still
-                            outstanding, and the note left for a reviewer round still owed -- the park it was
-                            written beside is gone before that round runs -- whose value says whether a reply
-                            bought the round, and so whether the round has anything to record
+                            three that outlive their own tick: the claim that a requirements edit this stage's
+                            resume ended without answering is still outstanding, the note left for a reviewer
+                            round still owed -- the park it was written beside is gone before that round runs
+                            -- whose value says whether a reply bought the round, and so whether the round has
+                            anything to record, and the comment a review-cap grant was written for, which is
+                            how a grant already honored is told from one a refused round left still owed
 ```
